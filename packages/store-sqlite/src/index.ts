@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { chmodSync, closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { GatewaySession, Subject, Subscription } from "@codex-gateway/core";
@@ -33,10 +33,14 @@ export class SqliteGatewayStore implements GatewaySessionStore {
     this.path = options.path;
     if (options.path !== ":memory:") {
       mkdirSync(path.dirname(options.path), { recursive: true });
+      const fd = openSync(options.path, "a", 0o600);
+      closeSync(fd);
+      chmodSync(options.path, 0o600);
     }
     this.db = new DatabaseSync(options.path);
     this.configure();
     this.migrate();
+    this.tightenFilePermissions();
   }
 
   upsertSubject(subject: Subject): void {
@@ -255,6 +259,18 @@ export class SqliteGatewayStore implements GatewaySessionStore {
     } catch (err) {
       this.db.exec("ROLLBACK");
       throw err;
+    }
+  }
+
+  private tightenFilePermissions(): void {
+    if (this.path === ":memory:") {
+      return;
+    }
+
+    for (const file of [this.path, `${this.path}-wal`, `${this.path}-shm`]) {
+      if (existsSync(file)) {
+        chmodSync(file, 0o600);
+      }
     }
   }
 }

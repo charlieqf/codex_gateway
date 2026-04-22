@@ -127,6 +127,14 @@ ss -ltnp 'sport = :18787'
 
 2026-04-22 已按上述模式完成一次真实端到端 smoke。该测试只使用 `127.0.0.1:18787`，未修改 Nginx、systemd、firewall 或公网端口。
 
+2026-04-22 已按同一模式完成 SQLite-backed smoke，使用隔离测试数据库：
+
+```text
+/home/qian/codex-gateway-state/gateway-phase1-smoke.db
+```
+
+正式或长期测试数据库应保留在 `700` 权限目录下；SQLite store 会预创建主 db 文件为 `600`，并收紧 WAL/SHM 文件权限。
+
 ## 清理测试部署
 
 只停止本项目 gateway，不删除 volume：
