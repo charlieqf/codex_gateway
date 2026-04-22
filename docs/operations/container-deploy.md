@@ -61,11 +61,17 @@ NODE_ENV=production
 GATEWAY_AUTH_MODE=credential
 GATEWAY_SQLITE_PATH=/var/lib/codex-gateway/gateway.db
 CODEX_HOME=/var/lib/codex-gateway/codex-home
+CODEX_WORKDIR=/app
+CODEX_SKIP_GIT_REPO_CHECK=1
 ```
 
 Do not set `GATEWAY_DEV_ACCESS_TOKEN` in production. The gateway startup path
 fails fast if production has a dev token, missing SQLite path, missing
 `CODEX_HOME`, or non-credential auth mode.
+
+The default container image does not include a `.git` directory under `/app`.
+Keep `CODEX_SKIP_GIT_REPO_CHECK=1` for this packaged runtime unless
+`CODEX_WORKDIR` is changed to a mounted trusted git checkout.
 
 ## Build
 

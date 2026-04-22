@@ -51,6 +51,9 @@ Last updated: 2026-04-22
 - Read-only maintenance-window baseline found existing Nginx on `80`, PostgreSQL on `127.0.0.1:5432`, a local service on `127.0.0.1:8081`, MedEvidence services, and no Docker CLI.
 - During the approved maintenance window after commit `6e96329`, Docker Engine `29.4.1` and Docker Compose plugin `v5.1.3` were installed. The gateway image built after updating lockfile metadata, loopback health succeeded, and the container was stopped afterward.
 - `node:sqlite` works on local Windows and Azure Ubuntu Node 24, but prints an experimental warning.
+- After adding CA certificates to the runtime image, `codex login --device-auth` works inside the gateway container and persists auth under the `gateway_state` volume.
+- The packaged runtime workdir `/app` is not a git checkout. Keep `CODEX_SKIP_GIT_REPO_CHECK=1` for the default container path, or change `CODEX_WORKDIR` to a mounted trusted git checkout before setting it back to `0`.
+- When running `docker compose exec -T` inside a remote heredoc/base64 script, redirect stdin from `/dev/null`; otherwise compose can consume the remaining script input.
 
 ## Known Pitfalls
 
@@ -60,12 +63,13 @@ Last updated: 2026-04-22
 - Do not install Docker on the current shared VM without an explicit maintenance window; Docker can alter iptables/network behavior.
 - Keep public edge services out of the default compose file. On the shared VM, `80/443` must require a separate maintenance task.
 - Docker is now installed on the shared VM, but the `qian` user was not added to the `docker` group. Continue using `sudo docker ...` for controlled operations unless access policy is explicitly changed.
+- Do not leave temporary device-login logs in `/tmp`; remove them after authorization because they can contain one-time device codes.
 
 ## Current Recommended Next Step
 
-Validate the container path without changing host services:
+Container loopback validation is complete. The next safe work is to choose the next MVP hardening item without changing host edge services:
 
-1. Run local `docker compose config` using a temporary `config/gateway.container.env`.
-2. Build the gateway image locally if Docker is available.
-3. On the Azure VM, perform only read-only Docker inspection unless a maintenance window is approved.
-4. Do not start a long-running container on the shared VM until current Docker usage and resource headroom are reviewed.
+1. Keep the shared VM gateway container stopped between tests.
+2. Do not enable a long-running compose/systemd deployment until Docker resource headroom and operational ownership are reviewed.
+3. Keep public TLS/Nginx integration as a separate maintenance task.
+4. Consider the next application-level hardening work: persistent multi-process rate limiting, subject/subscription management, or scheduled event retention.

@@ -28,6 +28,7 @@ ENV GATEWAY_PORT=8787
 ENV GATEWAY_SQLITE_PATH=/var/lib/codex-gateway/gateway.db
 ENV CODEX_HOME=/var/lib/codex-gateway/codex-home
 ENV CODEX_WORKDIR=/app
+ENV CODEX_SKIP_GIT_REPO_CHECK=1
 
 WORKDIR /app
 

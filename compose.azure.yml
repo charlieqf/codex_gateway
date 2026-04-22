@@ -13,6 +13,7 @@ services:
       GATEWAY_SQLITE_PATH: /var/lib/codex-gateway/gateway.db
       CODEX_HOME: /var/lib/codex-gateway/codex-home
       CODEX_WORKDIR: /app
+      CODEX_SKIP_GIT_REPO_CHECK: "1"
     volumes:
       - gateway_state:/var/lib/codex-gateway
       - gateway_logs:/var/log/codex-gateway
