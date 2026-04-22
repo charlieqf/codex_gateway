@@ -9,7 +9,11 @@ import type {
   GatewayStore,
   ListAccessCredentialsInput,
   ListRequestEventsInput,
+  PruneRequestEventsInput,
+  PruneRequestEventsResult,
   RequestEventRecord,
+  RequestUsageReportInput,
+  RequestUsageReportRow,
   RateLimitPolicy,
   Subject,
   Subscription
@@ -329,6 +333,79 @@ export class SqliteGatewayStore implements GatewayStore {
     return rows.map(rowToRequestEvent);
   }
 
+  reportRequestUsage(input: RequestUsageReportInput): RequestUsageReportRow[] {
+    const clauses = ["started_at >= ?"];
+    const params = [input.since.toISOString()];
+    if (input.until) {
+      clauses.push("started_at < ?");
+      params.push(input.until.toISOString());
+    }
+    if (input.credentialId) {
+      clauses.push("credential_id = ?");
+      params.push(input.credentialId);
+    }
+    if (input.subjectId) {
+      clauses.push("subject_id = ?");
+      params.push(input.subjectId);
+    }
+
+    const rows = this.db
+      .prepare(
+        `SELECT
+           substr(started_at, 1, 10) AS date,
+           credential_id,
+           subject_id,
+           scope,
+           subscription_id,
+           provider,
+           COUNT(*) AS requests,
+           SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok,
+           SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS errors,
+           SUM(CASE WHEN rate_limited = 1 THEN 1 ELSE 0 END) AS rate_limited,
+           AVG(duration_ms) AS avg_duration_ms,
+           AVG(first_byte_ms) AS avg_first_byte_ms
+         FROM request_events
+         WHERE ${clauses.join(" AND ")}
+         GROUP BY
+           substr(started_at, 1, 10),
+           credential_id,
+           subject_id,
+           scope,
+           subscription_id,
+           provider
+         ORDER BY date DESC, requests DESC, credential_id, subject_id`
+      )
+      .all(...params);
+
+    return rows.map(rowToRequestUsageReport);
+  }
+
+  pruneRequestEvents(input: PruneRequestEventsInput): PruneRequestEventsResult {
+    if (input.dryRun) {
+      const row = this.db
+        .prepare("SELECT COUNT(*) AS count FROM request_events WHERE started_at < ?")
+        .get(input.before.toISOString()) as { count: number };
+      return {
+        before: input.before,
+        dryRun: true,
+        matched: row.count,
+        deleted: 0
+      };
+    }
+
+    const result = this.db
+      .prepare("DELETE FROM request_events WHERE started_at < ?")
+      .run(input.before.toISOString());
+    const deleted = Number(result.changes);
+
+    return {
+      before: input.before,
+      dryRun: false,
+      matched: deleted,
+      deleted
+    };
+  }
+
   close(): void {
     this.db.close();
   }
@@ -414,6 +491,17 @@ export class SqliteGatewayStore implements GatewayStore {
         error_code TEXT,
         rate_limited INTEGER NOT NULL DEFAULT 0
       );
+    `);
+
+    this.applyMigration(2, `
+      CREATE INDEX IF NOT EXISTS idx_request_events_started_at
+        ON request_events(started_at);
+
+      CREATE INDEX IF NOT EXISTS idx_request_events_credential_started
+        ON request_events(credential_id, started_at);
+
+      CREATE INDEX IF NOT EXISTS idx_request_events_subject_started
+        ON request_events(subject_id, started_at);
     `);
   }
 
@@ -556,5 +644,37 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     status: value.status,
     errorCode: value.error_code,
     rateLimited: value.rate_limited === 1
+  };
+}
+
+function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
+  const value = row as {
+    date: string;
+    credential_id: string | null;
+    subject_id: string | null;
+    scope: RequestUsageReportRow["scope"];
+    subscription_id: string | null;
+    provider: RequestUsageReportRow["provider"];
+    requests: number;
+    ok: number;
+    errors: number;
+    rate_limited: number;
+    avg_duration_ms: number | null;
+    avg_first_byte_ms: number | null;
+  };
+
+  return {
+    date: value.date,
+    credentialId: value.credential_id,
+    subjectId: value.subject_id,
+    scope: value.scope,
+    subscriptionId: value.subscription_id,
+    provider: value.provider,
+    requests: value.requests,
+    ok: value.ok,
+    errors: value.errors,
+    rateLimited: value.rate_limited,
+    avgDurationMs: value.avg_duration_ms,
+    avgFirstByteMs: value.avg_first_byte_ms
   };
 }

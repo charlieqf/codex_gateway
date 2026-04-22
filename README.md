@@ -2,7 +2,7 @@
 
 访问网关原型项目，用于把订阅持有者的 AI/Codex 能力通过受控服务端代理给多设备或少数受信用户使用。
 
-当前阶段是 Phase 1 开发态网关。Provider 可行性、真实 Codex SDK 调用、SSE 网关路径和 SQLite-backed session persistence 已验证；正式 access credential 管理和生产部署尚未完成。
+当前阶段是 Phase 1 开发态网关。Provider 可行性、真实 Codex SDK 调用、SSE 网关路径、SQLite-backed session persistence、access credential 管理、限流和基础 usage observation 已验证；生产部署尚未完成。
 
 ## MVP 收敛
 
@@ -138,8 +138,12 @@ Credential operations:
 ```powershell
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --active-only
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --limit 50
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --days 7
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH prune-events --before-days 30 --dry-run
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --grace-hours 24
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```
 
 `rotate` issues a new token for the same subject so session history is shared. The old token stays active until the grace window expires; use `--grace-hours 0` to revoke it immediately. Gateway credential auth enforces each credential's `rpm`, `rpd`, and `concurrent` policy in the current gateway process and returns `rate_limited` with `retry_after_seconds` when exceeded.
+
+`events` lists request-level observation records. `report-usage` dynamically aggregates `request_events` into daily rows, and `prune-events` manually deletes old request events by cutoff. Run `prune-events` with `--dry-run` first and remove it only after reviewing the `matched` count. There is no scheduled retention job yet.

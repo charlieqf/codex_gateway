@@ -122,9 +122,13 @@ Credential CLI smoke:
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --label vm-smoke --scope code
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --active-only
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --limit 50
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --days 7
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" prune-events --before-days 30 --dry-run
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" rotate <credential-prefix> --grace-hours 24
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" revoke <credential-prefix>
 ```
+
+Only run `prune-events` without `--dry-run` after reviewing the cutoff and matched count, preferably against an explicitly named smoke DB first.
 
 Provider status probe:
 

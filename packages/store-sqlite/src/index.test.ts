@@ -113,6 +113,121 @@ describe("SqliteGatewayStore", () => {
     ]);
     store.close();
   });
+
+  it("reports usage and prunes old request events", () => {
+    const store = createSeededStore(":memory:");
+    store.insertRequestEvent({
+      requestId: "req_old",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: null,
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2025-12-31T23:59:59Z"),
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false
+    });
+    store.insertRequestEvent({
+      requestId: "req_ok",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "sess_1",
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 20,
+      firstByteMs: 10,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false
+    });
+    store.insertRequestEvent({
+      requestId: "req_limited",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "sess_1",
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:01:00Z"),
+      durationMs: 40,
+      firstByteMs: 20,
+      status: "error",
+      errorCode: "rate_limited",
+      rateLimited: true
+    });
+    store.insertRequestEvent({
+      requestId: "req_other_credential",
+      credentialId: "cred_2",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: null,
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-02T00:00:00Z"),
+      durationMs: 100,
+      firstByteMs: 50,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false
+    });
+
+    expect(
+      store.reportRequestUsage({
+        since: new Date("2026-01-01T00:00:00Z"),
+        until: new Date("2026-01-03T00:00:00Z"),
+        credentialId: "cred_1"
+      })
+    ).toEqual([
+      {
+        date: "2026-01-01",
+        credentialId: "cred_1",
+        subjectId: "subj_1",
+        scope: "code",
+        subscriptionId: "sub_openai_codex",
+        provider: "openai-codex",
+        requests: 2,
+        ok: 1,
+        errors: 1,
+        rateLimited: 1,
+        avgDurationMs: 30,
+        avgFirstByteMs: 15
+      }
+    ]);
+
+    const dryRun = store.pruneRequestEvents({
+      before: new Date("2026-01-01T00:00:00Z"),
+      dryRun: true
+    });
+    expect(dryRun).toEqual({
+      before: new Date("2026-01-01T00:00:00Z"),
+      dryRun: true,
+      matched: 1,
+      deleted: 0
+    });
+    expect(store.listRequestEvents({ limit: 10 }).map((event) => event.requestId)).toContain(
+      "req_old"
+    );
+
+    const pruned = store.pruneRequestEvents({
+      before: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(pruned).toEqual({
+      before: new Date("2026-01-01T00:00:00Z"),
+      dryRun: false,
+      matched: 1,
+      deleted: 1
+    });
+    expect(store.listRequestEvents({ limit: 10 }).map((event) => event.requestId)).not.toContain(
+      "req_old"
+    );
+    store.close();
+  });
 });
 
 function createSeededStore(dbPath: string): SqliteGatewayStore {

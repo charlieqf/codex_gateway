@@ -1,7 +1,9 @@
 import type {
   AccessCredentialRecord,
   GatewaySession,
+  ProviderKind,
   RequestEventRecord,
+  Scope,
   Subject,
   Subscription
 } from "./types.js";
@@ -51,9 +53,45 @@ export interface ListRequestEventsInput {
   limit?: number;
 }
 
+export interface RequestUsageReportInput {
+  since: Date;
+  until?: Date;
+  credentialId?: string;
+  subjectId?: string;
+}
+
+export interface RequestUsageReportRow {
+  date: string;
+  credentialId: string | null;
+  subjectId: string | null;
+  scope: Scope | null;
+  subscriptionId: string | null;
+  provider: ProviderKind | null;
+  requests: number;
+  ok: number;
+  errors: number;
+  rateLimited: number;
+  avgDurationMs: number | null;
+  avgFirstByteMs: number | null;
+}
+
+export interface PruneRequestEventsInput {
+  before: Date;
+  dryRun?: boolean;
+}
+
+export interface PruneRequestEventsResult {
+  before: Date;
+  dryRun: boolean;
+  matched: number;
+  deleted: number;
+}
+
 export interface ObservationStore {
   insertRequestEvent(record: RequestEventRecord): RequestEventRecord;
   listRequestEvents(input?: ListRequestEventsInput): RequestEventRecord[];
+  reportRequestUsage(input: RequestUsageReportInput): RequestUsageReportRow[];
+  pruneRequestEvents(input: PruneRequestEventsInput): PruneRequestEventsResult;
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

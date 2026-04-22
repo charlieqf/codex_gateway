@@ -422,6 +422,8 @@ function isObservationStore(store: GatewayStore): store is GatewayStore & Observ
   const candidate = store as Partial<ObservationStore>;
   return (
     typeof candidate.insertRequestEvent === "function" &&
-    typeof candidate.listRequestEvents === "function"
+    typeof candidate.listRequestEvents === "function" &&
+    typeof candidate.reportRequestUsage === "function" &&
+    typeof candidate.pruneRequestEvents === "function"
   );
 }

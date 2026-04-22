@@ -103,6 +103,70 @@ program
   });
 
 program
+  .command("report-usage")
+  .description("Aggregate request events into daily usage rows.")
+  .option("--credential-id <id>", "filter by credential id")
+  .option("--subject-id <id>", "filter by subject id")
+  .option("--days <days>", "days to report when --since is omitted", parsePositiveInteger, 7)
+  .option("--since <iso>", "inclusive ISO start time", parseDate)
+  .option("--until <iso>", "exclusive ISO end time", parseDate)
+  .action((options) => {
+    withStore((store) => {
+      const until = options.until ?? new Date();
+      const since = options.since ?? addDays(until, -options.days);
+      if (since.getTime() >= until.getTime()) {
+        throw new Error("--since must be earlier than --until.");
+      }
+      const rows = store.reportRequestUsage({
+        credentialId: options.credentialId,
+        subjectId: options.subjectId,
+        since,
+        until
+      });
+      printJson({
+        since: since.toISOString(),
+        until: until.toISOString(),
+        rows: rows.map((row) => ({
+          date: row.date,
+          credential_id: row.credentialId,
+          subject_id: row.subjectId,
+          scope: row.scope,
+          subscription_id: row.subscriptionId,
+          provider: row.provider,
+          requests: row.requests,
+          ok: row.ok,
+          errors: row.errors,
+          rate_limited: row.rateLimited,
+          avg_duration_ms: row.avgDurationMs,
+          avg_first_byte_ms: row.avgFirstByteMs
+        }))
+      });
+    });
+  });
+
+program
+  .command("prune-events")
+  .description("Delete request events older than a cutoff.")
+  .option("--before-days <days>", "delete events older than this many days", parsePositiveInteger)
+  .option("--before <iso>", "delete events before this ISO time", parseDate)
+  .option("--dry-run", "show the number of matching events without deleting them")
+  .action((options) => {
+    withStore((store) => {
+      if (options.beforeDays === undefined && options.before === undefined) {
+        throw new Error("Use --before-days or --before to set the retention cutoff.");
+      }
+      const before = options.before ?? addDays(new Date(), -options.beforeDays);
+      const result = store.pruneRequestEvents({ before, dryRun: options.dryRun });
+      printJson({
+        before: result.before.toISOString(),
+        dry_run: result.dryRun,
+        matched: result.matched,
+        deleted: result.deleted
+      });
+    });
+  });
+
+program
   .command("revoke")
   .argument("<credential-prefix>")
   .description("Revoke an access credential.")
@@ -254,6 +318,14 @@ function parseNullablePositiveInteger(value: string): number | null {
     return null;
   }
   return parsePositiveInteger(value);
+}
+
+function parseDate(value: string): Date {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new InvalidArgumentError("value must be a valid ISO date or datetime");
+  }
+  return parsed;
 }
 
 function addDays(date: Date, days: number): Date {
