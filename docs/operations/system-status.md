@@ -49,12 +49,12 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `5f57221`.
+- Commit `c696be0`.
 - Node `v24.12.0`, npm `11.6.2`.
 - `npm ci`, `npm run build`, and `npm test` passed.
-- Admin CLI issued a temporary SQLite-backed credential.
-- Loopback gateway smoke on `127.0.0.1:18787` with `GATEWAY_AUTH_MODE=credential` returned `codex-gateway-credential-ok` over SSE and persisted the provider session reference.
-- Revoking the credential through the admin CLI caused the same bearer token to return `revoked_credential`.
+- Admin CLI issued temporary SQLite-backed credentials and rotated one credential with `--grace-hours 0`.
+- Loopback gateway smoke on `127.0.0.1:18787` with `GATEWAY_AUTH_MODE=credential` returned `rate_limited` for a low-rpm credential.
+- The old rotated bearer token returned `revoked_credential`; the new rotated bearer token returned `codex-gateway-rotate-rate-ok` over SSE and persisted the provider session reference.
 - Post-test cleanup confirmed no listener on `18787` and no long-running gateway/Codex process.
 
 Current test coverage:
@@ -77,6 +77,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Gateway-to-Codex SSE smoke works.
 - Optimized gateway auth/context/SSE path was revalidated on the Azure VM after commit `62b9801`.
 - SQLite credential auth path was revalidated on the Azure VM after commit `5f57221`.
+- Credential rotate and in-process rate-limit paths were revalidated on the Azure VM after commit `c696be0`.
 
 Sensitive provider files:
 
