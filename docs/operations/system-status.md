@@ -53,12 +53,12 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `6f4d9d6`.
+- Commit `3a35b24`.
 - Node `v24.12.0`, npm `11.6.2`.
 - `npm ci`, `npm run build`, and `npm test` passed.
-- Auth-mode smoke confirmed a SQLite credential store defaults to credential auth even when `GATEWAY_DEV_ACCESS_TOKEN` is present.
-- Health returned `auth_mode: credential`; the dev bearer token was rejected with `invalid_credential`.
-- `NODE_ENV=production` rejected dev auth mode at startup.
+- Observation smoke issued a temporary low-rpm SQLite credential and made one successful protected request plus one rate-limited request.
+- Admin CLI `events` returned two request events for that credential: one `ok` event and one `error` event with `error_code: rate_limited` and `rate_limited: true`.
+- Event duration fields were present, and the temporary smoke DB/files were removed after validation.
 - Post-test cleanup confirmed no listener on `18787` and no long-running gateway/Codex process.
 
 Current test coverage:
@@ -84,6 +84,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - SQLite credential auth path was revalidated on the Azure VM after commit `5f57221`.
 - Credential rotate and in-process rate-limit paths were revalidated on the Azure VM after commit `c696be0`.
 - Auth-mode hardening was revalidated on the Azure VM after commit `6f4d9d6`.
+- Request event writing and admin CLI `events` were revalidated on the Azure VM after commit `3a35b24`.
 
 Sensitive provider files:
 

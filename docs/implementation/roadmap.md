@@ -39,6 +39,7 @@
 - 2026-04-22 commit `62b9801` 已在 Azure VM 上完成优化后验证：`npm ci`、`npm run build`、`npm test` 通过；loopback gateway smoke 返回 `codex-gateway-optimized-ok`，SQLite session 写回 provider thread id，测试后确认 `127.0.0.1:18787` 和 gateway/Codex 进程无残留。
 - 2026-04-22 commit `5f57221` 已在 Azure VM 上完成 credential auth 验证：admin CLI 签发临时 SQLite credential，gateway 以 `GATEWAY_AUTH_MODE=credential` 完成 loopback SSE smoke 并返回 `codex-gateway-credential-ok`；随后 CLI revoke 后同一 bearer token 返回 `revoked_credential`，测试后确认无残留监听端口或长跑进程。
 - 2026-04-22 commit `c696be0` 已在 Azure VM 上完成 rotate/rate-limit 验证：低 rpm credential 第二次请求返回 `rate_limited` 与 `retry_after_seconds`；CLI `rotate --grace-hours 0` 后旧 token 返回 `revoked_credential`，新 token 完成 loopback SSE smoke 并返回 `codex-gateway-rotate-rate-ok`。测试后删除临时 smoke DB，并确认无残留监听端口或长跑进程。
+- 2026-04-22 commit `3a35b24` 已在 Azure VM 上完成 request event 验证：`npm ci`、`npm run build`、`npm test` 通过；loopback gateway 用低 rpm credential 产生一次成功请求和一次 `rate_limited` 请求，admin CLI `events` 查到 2 条事件，分别为 `ok` 和 `error/rate_limited`。测试后删除临时 smoke DB，并确认无残留监听端口或长跑进程。
 
 尚未完成：
 
