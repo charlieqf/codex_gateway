@@ -55,12 +55,13 @@ Last updated: 2026-04-22
 - Running Codex probes can create session/cache files under `CODEX_HOME`; keep `.gateway-state/` and VM state directories out of Git.
 - Do not run `docker compose down` on shared infrastructure unless the project name is explicit and verified.
 - Do not install Docker on the current shared VM without an explicit maintenance window; Docker can alter iptables/network behavior.
+- Keep public edge services out of the default compose file. On the shared VM, `80/443` must require a separate maintenance task.
 
 ## Current Recommended Next Step
 
-Implement formal access credential management:
+Validate the container path without changing host services:
 
-1. SQLite repository for `access_credentials`.
-2. Opaque credential generation with prefix + hash.
-3. Gateway auth middleware backed by SQLite.
-4. Admin CLI `issue`, `list`, `revoke`.
+1. Run local `docker compose config` using a temporary `config/gateway.container.env`.
+2. Build the gateway image locally if Docker is available.
+3. On the Azure VM, perform only read-only Docker inspection unless a maintenance window is approved.
+4. Do not start a long-running container on the shared VM until current Docker usage and resource headroom are reviewed.

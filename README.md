@@ -62,7 +62,8 @@ npm run dev:gateway
 容器化部署入口：
 
 ```powershell
-docker compose -f compose.azure.yml build
+Copy-Item config\gateway.container.example.env config\gateway.container.env
+docker compose -p codex_gateway_test -f compose.azure.yml build gateway
 docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
 ```
 

@@ -5,10 +5,12 @@ coverage
 .env
 .env.*
 !.env.example
+config/*.env
+!config/*.example.env
 .gateway-state
 .codex
+.claude
 *.db
 *.db-shm
 *.db-wal
 *.log
-

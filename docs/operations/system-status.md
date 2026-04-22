@@ -30,6 +30,8 @@ Completed:
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations.
 - Admin CLI usage aggregation and dry-run-capable manual request event pruning.
+- Production runtime startup validation for credential auth, SQLite state, `CODEX_HOME`, and dev-token rejection.
+- Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
@@ -37,7 +39,7 @@ Not completed:
 - Persistent/distributed rate limiting for multiple gateway processes.
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
-- Long-running systemd/container deployment.
+- Activated long-running systemd/container deployment on the shared VM.
 - Public TLS routing through Nginx/Caddy.
 
 ## Verified Runtime
@@ -69,7 +71,7 @@ Current test coverage:
 - SQLite access credential persistence and revocation.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
 - SQLite request event persistence, usage aggregation, manual pruning, and admin CLI event listing.
-- Gateway dev auth hook, credential auth hook, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
+- Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
 

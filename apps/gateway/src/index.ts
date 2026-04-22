@@ -143,6 +143,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       state: "ready",
       service: "codex-gateway",
       auth_mode: authMode,
+      provider: provider.kind,
+      store: {
+        session: storeKind(sessions),
+        observation: observationStore ? "enabled" : "disabled"
+      },
       phase: "phase-1-dev-gateway"
     })
   );
@@ -282,6 +287,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 }
 
 async function main() {
+  validateRuntimeEnvironment(process.env);
   const host = process.env.GATEWAY_HOST ?? "127.0.0.1";
   const port = Number.parseInt(process.env.GATEWAY_PORT ?? "8787", 10);
   const app = buildGateway();
@@ -407,6 +413,25 @@ function validateAuthModeForEnvironment(authMode: GatewayAuthMode, nodeEnv: stri
   }
 }
 
+export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
+  if (env.NODE_ENV !== "production") {
+    return;
+  }
+
+  if (env.GATEWAY_AUTH_MODE !== "credential") {
+    throw new Error("Production runtime requires GATEWAY_AUTH_MODE=credential.");
+  }
+  if (!env.GATEWAY_SQLITE_PATH) {
+    throw new Error("Production runtime requires GATEWAY_SQLITE_PATH.");
+  }
+  if (!env.CODEX_HOME) {
+    throw new Error("Production runtime requires CODEX_HOME.");
+  }
+  if (env.GATEWAY_DEV_ACCESS_TOKEN) {
+    throw new Error("Production runtime must not set GATEWAY_DEV_ACCESS_TOKEN.");
+  }
+}
+
 function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & CredentialAuthStore {
   const candidate = store as Partial<CredentialAuthStore>;
   return (
@@ -426,4 +451,15 @@ function isObservationStore(store: GatewayStore): store is GatewayStore & Observ
     typeof candidate.reportRequestUsage === "function" &&
     typeof candidate.pruneRequestEvents === "function"
   );
+}
+
+function storeKind(store: GatewayStore): "sqlite" | "memory" | "custom" {
+  const candidate = store as { kind?: unknown };
+  if (candidate.kind === "sqlite") {
+    return "sqlite";
+  }
+  if (store instanceof InMemorySessionStore) {
+    return "memory";
+  }
+  return "custom";
 }

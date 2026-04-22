@@ -1,108 +1,42 @@
-# Safe VM Testing
+# Safe Shared-VM Testing
 
-用于已有重要服务的 Azure Ubuntu VM。目标是在不影响现有应用的前提下验证 Codex Gateway。
+Use this guide whenever the Azure Ubuntu VM may already be running important
+services. The goal is to validate Codex Gateway without changing host-level
+services or public traffic.
 
-## 硬性规则
+## Hard Rules
 
-- 不绑定 `0.0.0.0:80` 或 `0.0.0.0:443`。
-- 不修改 NSG、防火墙、Nginx、Caddy、Apache 或已有 reverse proxy。
-- 不重启 Docker daemon、Nginx、Caddy、数据库或业务服务。
-- 不运行 `docker compose down`，除非带明确 project name 且只针对本项目。
-- 不写入 `/var/www`、`/etc/nginx`、`/etc/caddy`、现有 app 目录。
-- 不把 VM 密码、ChatGPT token、Codex `auth.json` 写入仓库或脚本。
+- Bind gateway tests only to `127.0.0.1:18787`.
+- Do not bind `0.0.0.0:80` or `0.0.0.0:443`.
+- Do not modify Nginx, Caddy, Apache, firewall, Azure NSG, Docker daemon, or
+  systemd units.
+- Do not run `docker compose down` unless the compose project name is explicit
+  and verified for this project only.
+- Do not write into existing application directories.
+- Do not commit or print VM passwords, ChatGPT tokens, Codex `auth.json`,
+  browser cookies, or bearer tokens.
 
-## 只读探测清单
+## Safe Inspection
 
-首次接入 VM 只运行只读命令：
+Start with read-only commands:
 
 ```bash
 hostname
 whoami
-uname -a
 pwd
 df -h
 free -h
 ss -ltnp
-docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}'
-docker compose ls
-systemctl --type=service --state=running --no-pager
+docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}' || true
+docker compose ls || true
 ```
 
-如任一命令不可用，只记录结果，不安装、不修复。
+If a command is missing or permission-denied, record it and continue with the
+next read-only check. Do not install packages or restart services.
 
-## 非侵入部署模式
+## Native Node Smoke
 
-如果 Docker 已安装，使用独立目录、独立 compose project、独立 volume：
-
-```bash
-mkdir -p /opt/codex-gateway-test
-cd /opt/codex-gateway-test
-docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
-```
-
-默认端口：
-
-```text
-VM 127.0.0.1:18787 -> gateway container 8787
-```
-
-本机访问：
-
-```bash
-ssh -L 18787:127.0.0.1:18787 user@vm-host
-curl http://127.0.0.1:18787/gateway/health
-```
-
-## Docker 未安装时
-
-已有重要服务的 VM 上不要为了测试直接安装 Docker。Docker 安装可能改变 iptables/network 行为；必须先确认维护窗口和回滚方案。
-
-短期可使用原生 Node smoke test，只监听本机地址：
-
-```bash
-mkdir -p "$HOME/codex-gateway-test"
-cd "$HOME/codex-gateway-test"
-git clone https://github.com/charlieqf/codex_gateway .
-bash ops/scripts/install-user-node.sh
-bash ops/scripts/native-smoke.sh
-```
-
-另一个 SSH session 用 tunnel 验证：
-
-```bash
-ssh -L 18787:127.0.0.1:18787 user@vm-host
-curl http://127.0.0.1:18787/gateway/health
-```
-
-停止测试只需 `Ctrl+C`，不会注册 systemd service，不会写入现有业务目录。
-
-## Phase 0 Codex Probe
-
-在共享 VM 上只用用户目录做 provider 验证：
-
-```bash
-cd "$HOME/codex-gateway-test"
-export NODE_HOME="$HOME/.local/codex-gateway-node"
-export PATH="$NODE_HOME/bin:$PATH"
-export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
-mkdir -p "$CODEX_HOME"
-chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
-
-npm run probe:codex -- --codex-home "$CODEX_HOME"
-```
-
-如果需要登录 ChatGPT/Codex 订阅，使用同一个隔离 `CODEX_HOME`：
-
-```bash
-./node_modules/.bin/codex login --device-auth
-npm run probe:codex -- --codex-home "$CODEX_HOME" --run
-```
-
-这一步不需要监听端口，不需要改 Nginx，不需要 `sudo`。
-
-## Phase 1 Gateway Smoke
-
-开发态 gateway 可以在 VM 上临时监听本机端口：
+Use this path when Docker is missing or should not be touched:
 
 ```bash
 cd "$HOME/codex-gateway-test"
@@ -110,57 +44,52 @@ export NODE_HOME="$HOME/.local/codex-gateway-node"
 export PATH="$NODE_HOME/bin:$PATH"
 export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
 export CODEX_WORKDIR="$HOME/codex-gateway-test"
-export GATEWAY_SQLITE_PATH="$HOME/codex-gateway-state/gateway.db"
-export GATEWAY_DEV_ACCESS_TOKEN="$(openssl rand -hex 24)"
+export GATEWAY_SQLITE_PATH="$HOME/codex-gateway-state/gateway-smoke.db"
+export GATEWAY_AUTH_MODE=credential
 export GATEWAY_HOST=127.0.0.1
 export GATEWAY_PORT=18787
 
+npm ci
 npm run build
-node apps/gateway/dist/index.js
 ```
 
-只允许通过 SSH tunnel 或 VM 本机 curl 测试 `127.0.0.1:18787`。测试结束后停止进程，并确认：
+Use the admin CLI to issue a temporary credential into the explicit smoke DB,
+then start the gateway only for the duration of the test. Remove the smoke DB
+afterward.
+
+## Container Smoke
+
+Only use this path if Docker already exists and inspection shows it can be used
+without disturbing other services:
 
 ```bash
-ss -ltnp 'sport = :18787'
+cp config/gateway.container.example.env config/gateway.container.env
+docker compose -p codex_gateway_test -f compose.azure.yml build gateway
+docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
+curl -fsS http://127.0.0.1:18787/gateway/health
 ```
 
-2026-04-22 已按上述模式完成一次真实端到端 smoke。该测试只使用 `127.0.0.1:18787`，未修改 Nginx、systemd、firewall 或公网端口。
+The default compose file starts only the gateway service, publishes only
+`127.0.0.1:18787`, and applies local CPU, memory, pid, and capability limits.
 
-2026-04-22 已按同一模式完成 SQLite-backed smoke，使用隔离测试数据库：
-
-```text
-/home/qian/codex-gateway-state/gateway-phase1-smoke.db
-```
-
-正式或长期测试数据库应保留在 `700` 权限目录下；SQLite store 会预创建主 db 文件为 `600`，并收紧 WAL/SHM 文件权限。
-
-## 清理测试部署
-
-只停止本项目 gateway，不删除 volume：
+Stop only this project's gateway container:
 
 ```bash
 docker compose -p codex_gateway_test -f compose.azure.yml stop gateway
 ```
 
-确认要删除本项目测试容器和网络：
+Do not remove volumes unless the state has been reviewed and is known to be
+temporary.
+
+## Cleanup Checks
+
+After any smoke test:
 
 ```bash
-docker compose -p codex_gateway_test -f compose.azure.yml rm -f gateway
+ss -ltnp | grep ':18787' || true
+ps -eo pid=,args= | grep -E '[a]pps/gateway|[c]odex exec|[c]odex app-server' || true
+find "$HOME/codex-gateway-state" -maxdepth 1 -type d -name '*smoke*' -print
 ```
 
-删除 volume 只有在确认不需要保留 SQLite 和 Codex 登录态后才执行：
-
-```bash
-docker volume ls | grep codex_gateway_test
-docker volume rm codex_gateway_test_gateway_state codex_gateway_test_gateway_logs
-```
-
-## 上 80/443 前置条件
-
-必须先确认：
-
-1. 当前 80/443 没有承载重要业务，或已有反代可以安全新增 path/host route。
-2. 有 DNS 子域名可以单独指向 Gateway。
-3. 已备份现有反代配置。
-4. Gateway 已在 SSH tunnel 模式下通过基本验收。
+The expected final state is no listener on `18787`, no gateway/Codex smoke
+process, and no leftover temporary smoke directories or DBs.

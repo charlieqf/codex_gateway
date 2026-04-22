@@ -34,6 +34,7 @@
 - Gateway 已实现单进程 per-credential rate limiting：requests per minute、requests per day、concurrency，并返回 `rate_limited` 与 `retry_after_seconds`。
 - Gateway 已将 request events 写入 SQLite `request_events`，并通过 admin CLI `events`、`report-usage`、`prune-events --dry-run` 提供明细检查、动态聚合和手动 retention 清理入口。
 - Gateway 设置 `GATEWAY_SQLITE_PATH` 后会使用 SQLite Session Store，并在启动时 seed 开发 subject/subscription。
+- 容器部署骨架已收紧为 loopback-only gateway compose：默认不包含 80/443 edge service，gateway container 使用非 root 用户、credential production env、SQLite/CODEX_HOME 持久卷、CPU/memory/pid/resource limits。
 - 2026-04-22 已在 Azure VM 上用 `127.0.0.1:18787` 完成真实端到端 smoke：`/gateway/status` 返回 Codex provider healthy，`/sessions` 创建成功，`/messages` 经 SSE 返回 `codex-gateway-through-gateway-ok`，并回写 provider thread id `019db3ae-4612-7493-b93a-95999f66de60`。测试后确认无残留监听端口或长跑 Codex 进程。
 - 2026-04-22 已在 Azure VM 上启用 `GATEWAY_SQLITE_PATH` 完成 SQLite-backed gateway smoke：SSE 返回 `codex-gateway-sqlite-ok`，并回写 provider thread id `019db3b4-830f-79e3-b94d-b36689c04e47`。测试后确认无残留监听端口或长跑 Codex 进程。
 - 2026-04-22 commit `62b9801` 已在 Azure VM 上完成优化后验证：`npm ci`、`npm run build`、`npm test` 通过；loopback gateway smoke 返回 `codex-gateway-optimized-ok`，SQLite session 写回 provider thread id，测试后确认 `127.0.0.1:18787` 和 gateway/Codex 进程无残留。
@@ -47,7 +48,8 @@
 - 多进程共享限流、定时 retention automation 和 materialized usage reports。
 - SubjectStore / SubscriptionStore 仍只有 bootstrap upsert，尚未拆成完整 CRUD。
 - Admin CLI 仍缺少更完整的 subject/subscription 配置管理和操作审计。
-- 生产化错误码覆盖和观察事件。
+- 长跑容器部署尚未在共享 Azure VM 上启用；当前只允许只读 Docker 状态检查和 loopback 测试。
+- Public TLS / 80/443 反代接入仍需单独维护窗口。
 
 ## Phase 2: 凭据生命周期
 

@@ -18,7 +18,7 @@ import {
   type Subscription
 } from "@codex-gateway/core";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
-import { buildGateway } from "./index.js";
+import { buildGateway, validateRuntimeEnvironment } from "./index.js";
 
 class FakeProvider implements ProviderAdapter {
   readonly kind = "fake";
@@ -74,6 +74,10 @@ describe("gateway phase 1 routes", () => {
     });
     expect(health.statusCode).toBe(200);
     expect(health.json().auth_mode).toBe("dev");
+    expect(health.json().store).toEqual({
+      session: "memory",
+      observation: "disabled"
+    });
 
     const sessions = await app.inject({
       method: "GET",
@@ -150,6 +154,35 @@ describe("gateway phase 1 routes", () => {
         process.env.NODE_ENV = previousNodeEnv;
       }
     }
+  });
+
+  it("validates production runtime environment before listening", () => {
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        GATEWAY_DEV_ACCESS_TOKEN: "leftover-dev-token"
+      })
+    ).toThrow("Production runtime must not set GATEWAY_DEV_ACCESS_TOKEN");
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home"
+      })
+    ).toThrow("Production runtime requires GATEWAY_AUTH_MODE=credential");
   });
 
   it("requires bearer auth for status", async () => {

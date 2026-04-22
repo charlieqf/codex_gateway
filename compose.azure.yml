@@ -5,36 +5,28 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - ./config/gateway.container.example.env
+      - ./config/gateway.container.env
     environment:
       GATEWAY_HOST: 0.0.0.0
       GATEWAY_PORT: 8787
+      GATEWAY_AUTH_MODE: credential
+      GATEWAY_SQLITE_PATH: /var/lib/codex-gateway/gateway.db
       CODEX_HOME: /var/lib/codex-gateway/codex-home
+      CODEX_WORKDIR: /app
     volumes:
       - gateway_state:/var/lib/codex-gateway
       - gateway_logs:/var/log/codex-gateway
     ports:
       - "127.0.0.1:18787:8787"
-
-  caddy:
-    profiles:
-      - edge
-    image: caddy:2
-    restart: unless-stopped
-    depends_on:
-      - gateway
-    env_file:
-      - ./config/gateway.container.example.env
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+    cpus: "1.0"
+    mem_limit: 1g
+    pids_limit: 256
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   gateway_state:
   gateway_logs:
-  caddy_data:
-  caddy_config:

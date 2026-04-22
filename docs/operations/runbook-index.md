@@ -1,25 +1,34 @@
 # Runbook Index
 
-MVP 运维流程将按以下顺序补齐：
-
-当前状态和访问方式：
+Current status and access notes:
 
 1. [System Status](./system-status.md)
 2. [Environment Access](./environment-access.md)
 3. [Operational Experience](./operational-experience.md)
 
-MVP 运维流程待补齐：
+Deployment and safety:
 
-1. Azure Ubuntu VM 首次部署。
-2. ChatGPT/Codex provider 重新授权。
-3. Access credential 签发。
-4. Access credential 应急吊销。
-5. Access credential 例行轮换。
-6. SQLite 备份与恢复。
-7. Gateway 升级与回滚。
-8. 性能测量和首包延迟记录。
+1. [Azure Ubuntu VM Deployment Notes](./azure-ubuntu-vm.md)
+2. [Container Deployment Runbook](./container-deploy.md)
+3. [Safe Shared-VM Testing](./safe-vm-testing.md)
 
-当前详细部署草案见：[azure-ubuntu-vm.md](./azure-ubuntu-vm.md)
-共享 VM 非侵入操作规则见：[safe-vm-testing.md](./safe-vm-testing.md)
+Operational workflows now covered:
 
-本机 Codex 已创建 `codex-gateway-ops` skill，用于后续自动加载运维流程和本机私有访问细节。该 skill 不提交到仓库。
+- Access credential issue, list, rotate, and revoke.
+- Request event inspection.
+- Dynamic usage reports.
+- Dry-run-capable request event pruning.
+- Shared VM loopback smoke validation.
+- Container deployment skeleton.
+- Default compose isolation for loopback-only gateway deployment.
+
+Operational workflows still pending:
+
+- Full subject/subscription administration.
+- Scheduled retention automation.
+- Materialized usage reports.
+- Long-running production deployment activation.
+- Public TLS routing through a maintenance window.
+
+The local `codex-gateway-ops` skill stores workstation-specific VM access notes
+outside this repository. Do not commit operator-local secrets.

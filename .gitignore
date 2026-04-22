@@ -5,6 +5,8 @@ coverage/
 .env
 .env.*
 !.env.example
+config/*.env
+!config/*.example.env
 *.log
 *.db
 *.db-shm
