@@ -34,6 +34,7 @@
 - 当前系统状态：[docs/operations/system-status.md](./docs/operations/system-status.md)
 - 环境访问方式：[docs/operations/environment-access.md](./docs/operations/environment-access.md)
 - 操作经验：[docs/operations/operational-experience.md](./docs/operations/operational-experience.md)
+- 服务消费者技术说明：[docs/consumer-technical-guide.md](./docs/consumer-technical-guide.md)
 
 ## 仓库结构
 
