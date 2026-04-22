@@ -10,6 +10,7 @@
 
 ## Phase 1: Gateway 骨架
 
+- Codex provider adapter 接真实 SDK。
 - Fastify HTTP service。
 - `/gateway/health`、`/gateway/status`。
 - SQLite store 初始化。
@@ -17,6 +18,12 @@
 - provider adapter wiring。
 
 退出：一把手工 seed 的 access credential 可以创建会话并收到 provider 响应。
+
+当前进展：
+
+- `provider-codex` 已能基于 `CODEX_HOME` start/resume Codex thread。
+- adapter tests 已覆盖 agent message delta、resume、tool call 映射和错误归一化。
+- 下一步是把 Gateway Session Store 与 `completed.providerSessionRef` 回写接起来。
 
 ## Phase 2: 凭据生命周期
 
@@ -52,4 +59,3 @@
 - 基础性能测量脚本。
 
 退出：未参与开发的人按文档 4 小时内搭通。
-
