@@ -49,6 +49,7 @@ Last updated: 2026-04-22
 - Admin CLI `report-usage` and `prune-events --dry-run` were validated on the VM after commit `43a5e08`; use explicitly named temporary DBs for prune validation and confirm there are no `usage-smoke.*` directories left afterward.
 - Container deployment hardening was validated on the VM after commit `33f5b9b` by native `npm ci/build/test` plus read-only Docker inspection; Docker was absent, so no container was started and no Docker installation was attempted.
 - Read-only maintenance-window baseline found existing Nginx on `80`, PostgreSQL on `127.0.0.1:5432`, a local service on `127.0.0.1:8081`, MedEvidence services, and no Docker CLI.
+- During the approved maintenance window after commit `6e96329`, Docker Engine `29.4.1` and Docker Compose plugin `v5.1.3` were installed. The gateway image built after updating lockfile metadata, loopback health succeeded, and the container was stopped afterward.
 - `node:sqlite` works on local Windows and Azure Ubuntu Node 24, but prints an experimental warning.
 
 ## Known Pitfalls
@@ -58,6 +59,7 @@ Last updated: 2026-04-22
 - Do not run `docker compose down` on shared infrastructure unless the project name is explicit and verified.
 - Do not install Docker on the current shared VM without an explicit maintenance window; Docker can alter iptables/network behavior.
 - Keep public edge services out of the default compose file. On the shared VM, `80/443` must require a separate maintenance task.
+- Docker is now installed on the shared VM, but the `qian` user was not added to the `docker` group. Continue using `sudo docker ...` for controlled operations unless access policy is explicitly changed.
 
 ## Current Recommended Next Step
 

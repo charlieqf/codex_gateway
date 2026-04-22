@@ -217,3 +217,26 @@ requires it and the operator confirms no useful test state must be retained.
 - Health returns `auth_mode: credential`.
 - Stopping the gateway removes the `18787` listener.
 - No public routing is changed.
+
+## Execution Log
+
+2026-04-22 maintenance window:
+
+- Docker Engine `29.4.1` and Docker Compose plugin `v5.1.3` were installed.
+- `qian` was not added to the `docker` group.
+- Docker apt source was added under `/etc/apt/sources.list.d/docker.list`.
+- Gateway image build initially failed because Docker image npm required newer
+  lockfile peer metadata. Commit `6e96329` updated `package-lock.json`; the
+  image then built successfully.
+- `codex_gateway_test` was started only for loopback smoke.
+- Health returned `auth_mode: credential`, `store.session: sqlite`, and
+  `store.observation: enabled`.
+- Running smoke published only `127.0.0.1:18787->8787`.
+- Nginx, MedEvidence, PostgreSQL, and SSH remained active before, during, and
+  after smoke.
+- Gateway was stopped after smoke. Final state had no running containers and no
+  `18787` listener.
+- Test container and named volumes remain for later controlled reuse:
+  `codex_gateway_test-gateway-1`,
+  `codex_gateway_test_gateway_state`,
+  `codex_gateway_test_gateway_logs`.

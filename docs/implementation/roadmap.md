@@ -43,6 +43,7 @@
 - 2026-04-22 commit `3a35b24` 已在 Azure VM 上完成 request event 验证：`npm ci`、`npm run build`、`npm test` 通过；loopback gateway 用低 rpm credential 产生一次成功请求和一次 `rate_limited` 请求，admin CLI `events` 查到 2 条事件，分别为 `ok` 和 `error/rate_limited`。测试后删除临时 smoke DB，并确认无残留监听端口或长跑进程。
 - 2026-04-22 commit `43a5e08` 已在 Azure VM 上完成 usage report / retention 验证：`npm ci`、`npm run build`、`npm test` 通过；临时 SQLite DB 中 `report-usage` 汇总出 2 次请求、1 次成功、1 次错误、1 次 rate limited，`prune-events --dry-run` 命中 1 条且不删除，实际 prune 删除 1 条旧事件。测试后删除 `usage-smoke.*` 临时目录，并确认无 `18787` 监听或 gateway/Codex 长跑进程。
 - 2026-04-22 commit `33f5b9b` 已在 Azure VM 上完成容器部署骨架验证：`npm ci`、`npm run build`、`npm test` 通过；只读 Docker 检查确认该共享 VM 当前无 Docker CLI，因此未安装 Docker、未启动容器、未改 systemd/Nginx/firewall/80/443。最终确认无 `18787` 监听或 `node/codex/tsx` 残留进程。
+- 2026-04-22 commit `6e96329` 已在维护窗口内完成 Docker 安装和容器 smoke：安装 Docker Engine `29.4.1` 与 Compose plugin `v5.1.3`；修复 Docker build 所需 lockfile 元数据后 gateway image 构建成功；`codex_gateway_test` 只发布 `127.0.0.1:18787->8787`，health 返回 credential/sqlite/observation enabled。测试后已 stop gateway container，确认无 `18787` 监听，Nginx/MedEvidence/PostgreSQL/SSH 均保持 active。
 
 尚未完成：
 

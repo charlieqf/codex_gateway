@@ -33,6 +33,7 @@ Completed:
 - Production runtime startup validation for credential auth, SQLite state, `CODEX_HOME`, and dev-token rejection.
 - Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
 - Docker maintenance-window runbook for shared VM installation and rollback.
+- Docker Engine and Docker Compose plugin installed on the Azure VM during an approved maintenance window.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
@@ -56,12 +57,13 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `33f5b9b`.
+- Commit `6e96329`.
 - Node `v24.12.0`, npm `11.6.2`.
-- `npm ci`, `npm run build`, and `npm test` passed.
-- Container deployment skeleton was validated by native build/test only; the shared VM has no Docker CLI available, so no container was started.
-- Read-only checks confirmed no listener on `18787` and no `node`, `codex`, or `tsx` smoke process.
-- Local Windows validation also passed production health smoke with temporary SQLite/CODEX_HOME and health reporting `auth_mode: credential`, `session: sqlite`, and `observation: enabled`.
+- Docker `29.4.1` and Docker Compose plugin `v5.1.3` were installed from Docker's official Ubuntu apt repository during the approved maintenance window.
+- Docker build initially exposed a lockfile incompatibility with the newer npm in the Node container image; commit `6e96329` updated `package-lock.json`, after which the gateway image built successfully.
+- `codex_gateway_test` gateway container smoke returned health with `auth_mode: credential`, `store.session: sqlite`, and `store.observation: enabled`.
+- During smoke, the gateway published only `127.0.0.1:18787->8787`; Nginx, MedEvidence, PostgreSQL, and SSH remained active.
+- The gateway container was stopped after smoke. Final checks showed no running containers, no `18787` listener, and critical services still active. The test compose container and named volumes are retained but stopped.
 
 Current test coverage:
 
@@ -89,6 +91,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Request event writing and admin CLI `events` were revalidated on the Azure VM after commit `3a35b24`.
 - Admin CLI `report-usage` and dry-run-capable `prune-events` were revalidated on the Azure VM after commit `43a5e08`.
 - Container deployment hardening and production runtime validation were revalidated on the Azure VM after commit `33f5b9b`; Docker was not available and was not installed.
+- Docker maintenance-window installation and loopback container smoke were completed on the Azure VM after commit `6e96329`.
 
 Sensitive provider files:
 
