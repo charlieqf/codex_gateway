@@ -2,14 +2,14 @@
 
 访问网关原型项目，用于把订阅持有者的 AI/Codex 能力通过受控服务端代理给多设备或少数受信用户使用。
 
-当前阶段是设计落地与 Phase 0 可行性验证，不是可生产使用版本。
+当前阶段是 Phase 1 开发态网关。Provider 可行性、真实 Codex SDK 调用、SSE 网关路径和 SQLite-backed session persistence 已验证；正式 access credential 管理和生产部署尚未完成。
 
 ## MVP 收敛
 
 - 技术栈：TypeScript + Node.js + npm workspaces。
 - 部署目标：Azure Ubuntu VM 单实例，Docker Compose 容器优先。
 - 第一个 provider：OpenAI Codex / ChatGPT subscription path。
-- 第一阶段目标：验证服务端托管 Codex 登录态、会话继续、流式输出、错误归一化与重新授权状态。
+- 第一阶段目标：用开发态 bearer token 跑通 gateway -> Codex adapter -> SSE，并用 SQLite 持久化 session。
 - 网关核心保持 provider-neutral，OpenAI Codex 只作为第一个 adapter。
 
 ## 文档入口
@@ -22,6 +22,9 @@
 - Phase 0 验证计划：[docs/implementation/phase-0-openai-codex-validation.md](./docs/implementation/phase-0-openai-codex-validation.md)
 - Azure Ubuntu VM 部署草案：[docs/operations/azure-ubuntu-vm.md](./docs/operations/azure-ubuntu-vm.md)
 - 重要 VM 非侵入测试规则：[docs/operations/safe-vm-testing.md](./docs/operations/safe-vm-testing.md)
+- 当前系统状态：[docs/operations/system-status.md](./docs/operations/system-status.md)
+- 环境访问方式：[docs/operations/environment-access.md](./docs/operations/environment-access.md)
+- 操作经验：[docs/operations/operational-experience.md](./docs/operations/operational-experience.md)
 
 ## 仓库结构
 
