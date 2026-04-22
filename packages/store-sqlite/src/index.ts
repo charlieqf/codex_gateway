@@ -162,6 +162,21 @@ export class SqliteGatewayStore implements GatewayStore {
     return this.getAccessCredentialByPrefix(prefix);
   }
 
+  setAccessCredentialExpiresAtByPrefix(
+    prefix: string,
+    expiresAt: Date
+  ): AccessCredentialRecord | null {
+    this.db
+      .prepare(
+        `UPDATE access_credentials
+         SET expires_at = ?
+         WHERE prefix = ?`
+      )
+      .run(expiresAt.toISOString(), prefix);
+
+    return this.getAccessCredentialByPrefix(prefix);
+  }
+
   create(input: CreateGatewaySessionInput): GatewaySession {
     const now = input.now ?? new Date();
     const session: GatewaySession = {

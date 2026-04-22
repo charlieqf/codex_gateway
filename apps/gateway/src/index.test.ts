@@ -306,6 +306,56 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("rate-limits sqlite-backed access credentials", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Rate limited token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 1,
+        requestsPerDay: null,
+        concurrentRequests: 1
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const first = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    expect(second.statusCode).toBe(429);
+    expect(second.json().error).toMatchObject({
+      code: "rate_limited",
+      retry_after_seconds: expect.any(Number)
+    });
+
+    await app.close();
+  });
+
   it("can persist sessions through the sqlite store", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-app-"));
     const dbPath = path.join(dir, "gateway.db");

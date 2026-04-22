@@ -86,6 +86,61 @@ program
     });
   });
 
+program
+  .command("rotate")
+  .argument("<credential-prefix>")
+  .description("Issue a replacement credential for the same subject.")
+  .option("--label <label>", "new credential label; defaults to the old label")
+  .option("--expires-days <days>", "days until new credential expiration", parsePositiveInteger, 365)
+  .option("--grace-hours <hours>", "hours before old credential expires; 0 revokes now", parseNonNegativeInteger, 24)
+  .option("--rpm <n>", "requests per minute; defaults to old credential policy", parsePositiveInteger)
+  .option("--rpd <n>", "requests per day; defaults to old credential policy", parseNullablePositiveInteger)
+  .option("--concurrent <n>", "concurrent requests; defaults to old credential policy", parseNullablePositiveInteger)
+  .action((prefix, options) => {
+    withStore((store) => {
+      const oldCredential = store.getAccessCredentialByPrefix(prefix);
+      if (!oldCredential) {
+        throw new Error(`Credential prefix not found: ${prefix}`);
+      }
+      const now = new Date();
+      if (oldCredential.revokedAt) {
+        throw new Error(`Credential prefix is revoked and cannot be rotated: ${prefix}`);
+      }
+      if (oldCredential.expiresAt.getTime() <= now.getTime()) {
+        throw new Error(`Credential prefix is expired and cannot be rotated: ${prefix}`);
+      }
+
+      const issued = issueAccessCredential({
+        subjectId: oldCredential.subjectId,
+        label: options.label ?? oldCredential.label,
+        scope: oldCredential.scope,
+        expiresAt: addDays(now, options.expiresDays),
+        rate: rateFromOptions({
+          rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
+          rpd: optionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
+          concurrent: optionOrExisting(options.concurrent, oldCredential.rate.concurrentRequests)
+        }),
+        rotatesId: oldCredential.id
+      });
+      store.insertAccessCredential(issued.record);
+
+      const graceHours = options.graceHours as number;
+      const oldAfterRotate =
+        graceHours === 0
+          ? store.revokeAccessCredentialByPrefix(oldCredential.prefix) ?? oldCredential
+          : store.setAccessCredentialExpiresAtByPrefix(
+              oldCredential.prefix,
+              earlierDate(oldCredential.expiresAt, addHours(now, graceHours))
+            ) ?? oldCredential;
+
+      printJson({
+        token: issued.token,
+        credential: publicCredential(issued.record),
+        rotated_from: publicCredential(oldAfterRotate)
+      });
+    });
+  });
+
 await program.parseAsync();
 
 function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
@@ -153,6 +208,14 @@ function parsePositiveInteger(value: string): number {
   return parsed;
 }
 
+function parseNonNegativeInteger(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new InvalidArgumentError("value must be a non-negative integer");
+  }
+  return parsed;
+}
+
 function parseNullablePositiveInteger(value: string): number | null {
   if (value.toLowerCase() === "null" || value.toLowerCase() === "none") {
     return null;
@@ -162,6 +225,18 @@ function parseNullablePositiveInteger(value: string): number | null {
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function addHours(date: Date, hours: number): Date {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
+function earlierDate(first: Date, second: Date): Date {
+  return first.getTime() <= second.getTime() ? first : second;
+}
+
+function optionOrExisting<T>(option: T | undefined, existing: T): T {
+  return option === undefined ? existing : option;
 }
 
 function printJson(value: unknown): void {

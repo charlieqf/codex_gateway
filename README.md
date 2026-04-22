@@ -135,5 +135,8 @@ Credential operations:
 
 ```powershell
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --grace-hours 24
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```
+
+`rotate` issues a new token for the same subject so session history is shared. The old token stays active until the grace window expires; use `--grace-hours 0` to revoke it immediately. Gateway credential auth enforces each credential's `rpm`, `rpd`, and `concurrent` policy in the current gateway process and returns `rate_limited` with `retry_after_seconds` when exceeded.

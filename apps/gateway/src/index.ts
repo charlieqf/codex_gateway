@@ -13,6 +13,11 @@ import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
+import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
+import {
+  InMemoryCredentialRateLimiter,
+  type CredentialRateLimiter
+} from "./services/rate-limiter.js";
 import { InMemorySessionStore } from "./services/session-store.js";
 
 export type GatewayAuthMode = "dev" | "credential";
@@ -25,6 +30,7 @@ export interface GatewayOptions {
   sessionStore?: GatewayStore;
   subject?: Subject;
   subscription?: Subscription;
+  rateLimiter?: CredentialRateLimiter;
   logger?: boolean;
 }
 
@@ -52,6 +58,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     accessToken,
     credentialStore
   });
+  const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
   sessions.upsertSubject(subject);
   sessions.upsertSubscription(subscription);
   const devContext = {
@@ -63,7 +70,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       id: null,
       prefix: "dev",
       label: "Development token",
-      expiresAt: null
+      expiresAt: null,
+      rate: null
     }
   };
 
@@ -91,6 +99,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
   }
 
+  app.addHook("preHandler", async (request, reply) =>
+    rateLimitHook(request, reply, rateLimiter)
+  );
+
+  app.addHook("onResponse", async (request) => {
+    releaseRateLimit(request);
+  });
+
   app.get(
     "/gateway/health",
     {
@@ -116,7 +132,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       credential: {
         prefix: credential.prefix,
         scope,
-        expires_at: credential.expiresAt?.toISOString() ?? null
+        expires_at: credential.expiresAt?.toISOString() ?? null,
+        rate: credential.rate
       },
       subscription: {
         id: subscription.id,
@@ -214,6 +231,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         }
       } finally {
+        releaseRateLimit(request);
         clearInterval(heartbeat);
         reply.raw.off("close", close);
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
@@ -351,6 +369,7 @@ function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & Cre
     typeof candidate.getSubject === "function" &&
     typeof candidate.getAccessCredentialByPrefix === "function" &&
     typeof candidate.listAccessCredentials === "function" &&
-    typeof candidate.revokeAccessCredentialByPrefix === "function"
+    typeof candidate.revokeAccessCredentialByPrefix === "function" &&
+    typeof candidate.setAccessCredentialExpiresAtByPrefix === "function"
   );
 }

@@ -98,7 +98,11 @@ export function verifyAccessCredentialToken(
 }
 
 function randomTokenPart(bytes: number): string {
-  return randomBytes(bytes).toString("base64url");
+  let value = randomBytes(bytes).toString("base64url");
+  while (!/^[A-Za-z0-9]/.test(value)) {
+    value = randomBytes(bytes).toString("base64url");
+  }
+  return value;
 }
 
 function safeEqual(received: string, expected: string): boolean {

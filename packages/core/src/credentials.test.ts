@@ -18,6 +18,7 @@ describe("access credentials", () => {
     });
 
     expect(issued.token).toMatch(/^cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(issued.record.prefix).toMatch(/^[A-Za-z0-9]/);
     expect(issued.record.hash).toBe(hashAccessCredential(issued.token));
     expect(issued.record.hash).not.toContain(issued.token);
     expect(extractAccessCredentialPrefix(issued.token)).toBe(issued.record.prefix);

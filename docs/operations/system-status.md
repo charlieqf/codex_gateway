@@ -21,16 +21,16 @@ Completed:
 - Request context injection for dev subject/subscription/provider/scope.
 - SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
-- Formal access credential issue/list/revoke MVP.
+- Formal access credential issue/list/revoke/rotate MVP.
 - Opaque access credential generation with stored SHA-256 hash and prefix lookup.
 - SQLite-backed credential auth hook for gateway requests.
-- Admin CLI `issue`, `list`, and `revoke`.
+- Admin CLI `issue`, `list`, `revoke`, and `rotate`.
+- Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
 
-- Credential rotate command.
-- Per-credential rate limiting.
+- Persistent/distributed rate limiting for multiple gateway processes.
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Observation writer and usage reports.
 - Long-running systemd/container deployment.
@@ -63,7 +63,8 @@ Current test coverage:
 - SQLite store migration/session persistence.
 - Access credential generation, hash verification, expiration, and revocation.
 - SQLite access credential persistence and revocation.
-- Gateway dev auth hook, credential auth hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
+- In-memory gateway rate limiter for rpm/day/concurrency policies.
+- Gateway dev auth hook, credential auth hook, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
 
@@ -100,7 +101,7 @@ SQLite schema currently includes:
 - `sessions`
 - `request_events`
 
-Session persistence and access credential authentication are wired into the gateway. Rate limiting and observation event writing are still pending.
+Session persistence, access credential authentication, and single-process credential rate limiting are wired into the gateway. Observation event writing and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

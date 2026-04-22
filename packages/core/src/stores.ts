@@ -33,6 +33,10 @@ export interface AccessCredentialStore {
   getAccessCredentialByPrefix(prefix: string): AccessCredentialRecord | null;
   listAccessCredentials(input?: ListAccessCredentialsInput): AccessCredentialRecord[];
   revokeAccessCredentialByPrefix(prefix: string, now?: Date): AccessCredentialRecord | null;
+  setAccessCredentialExpiresAtByPrefix(
+    prefix: string,
+    expiresAt: Date
+  ): AccessCredentialRecord | null;
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

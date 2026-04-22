@@ -68,6 +68,12 @@ describe("SqliteGatewayStore", () => {
     );
     expect(revoked?.revokedAt?.toISOString()).toBe("2026-01-02T00:00:00.000Z");
     expect(store.listAccessCredentials({ includeRevoked: false })).toHaveLength(0);
+
+    const expiring = store.setAccessCredentialExpiresAtByPrefix(
+      issued.record.prefix,
+      new Date("2026-01-03T00:00:00Z")
+    );
+    expect(expiring?.expiresAt.toISOString()).toBe("2026-01-03T00:00:00.000Z");
     store.close();
   });
 });

@@ -1,5 +1,11 @@
 import type { FastifyRequest } from "fastify";
-import type { ProviderAdapter, Scope, Subject, Subscription } from "@codex-gateway/core";
+import type {
+  ProviderAdapter,
+  RateLimitPolicy,
+  Scope,
+  Subject,
+  Subscription
+} from "@codex-gateway/core";
 
 export interface GatewayRequestContext {
   subject: Subject;
@@ -11,6 +17,7 @@ export interface GatewayRequestContext {
     prefix: string;
     label: string | null;
     expiresAt: Date | null;
+    rate: RateLimitPolicy | null;
   };
 }
 
@@ -25,6 +32,7 @@ declare module "fastify" {
 
   interface FastifyRequest {
     gatewayContext?: GatewayRequestContext;
+    gatewayRateLimitRelease?: () => void;
   }
 }
 

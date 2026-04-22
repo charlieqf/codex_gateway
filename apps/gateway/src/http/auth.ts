@@ -154,7 +154,8 @@ function authenticateCredentialBearer(
       id: credential.id,
       prefix: credential.prefix,
       label: credential.label,
-      expiresAt: credential.expiresAt
+      expiresAt: credential.expiresAt,
+      rate: credential.rate
     }
   };
 }
