@@ -40,9 +40,18 @@ Local and Azure VM checks have passed:
 
 ```bash
 npm install
+npm ci
 npm run build
 npm test
 ```
+
+Most recent Azure VM validation:
+
+- Commit `62b9801`.
+- Node `v24.12.0`, npm `11.6.2`.
+- `npm ci`, `npm run build`, and `npm test` passed.
+- Loopback gateway smoke on `127.0.0.1:18787` returned `codex-gateway-optimized-ok` over SSE and persisted the provider session reference.
+- Post-test cleanup confirmed no listener on `18787` and no long-running gateway/Codex process.
 
 Current test coverage:
 
@@ -59,6 +68,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - SDK streamed turn works.
 - Resume by provider thread id works.
 - Gateway-to-Codex SSE smoke works.
+- Optimized gateway auth/context/SSE path was revalidated on the Azure VM after commit `62b9801`.
 
 Sensitive provider files:
 

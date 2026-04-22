@@ -21,6 +21,8 @@ Last updated: 2026-04-22
   - simple one-line read-only commands,
   - stdin pipe to `bash -s`,
   - base64-encoded script transfer for quote-heavy commands.
+- In PowerShell, remote Bash variables such as `$HOME`, `$PATH`, and custom env vars can be expanded locally if the SSH command is double-quoted. For multi-step VM scripts, normalize line endings and transfer a base64-encoded script.
+- If the VM test checkout has harmless local lockfile drift from prior Linux `npm install` optional dependency metadata, do not use `git reset --hard`. Use `git merge --ff-only` when possible and `npm ci` to avoid further lockfile writes.
 
 ## Codex Auth Lessons
 
@@ -39,6 +41,7 @@ Last updated: 2026-04-22
   - real Codex adapter.
 - SSE smoke returned expected model output through the gateway.
 - SQLite-backed smoke persisted session provider thread ids.
+- The optimized auth/context/SSE gateway path was validated on the VM after commit `62b9801`; the smoke returned `codex-gateway-optimized-ok` and cleanup checks passed.
 - `node:sqlite` works on local Windows and Azure Ubuntu Node 24, but prints an experimental warning.
 
 ## Known Pitfalls
@@ -56,4 +59,3 @@ Implement formal access credential management:
 2. Opaque credential generation with prefix + hash.
 3. Gateway auth middleware backed by SQLite.
 4. Admin CLI `issue`, `list`, `revoke`.
-
