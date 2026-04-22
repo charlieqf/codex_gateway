@@ -42,6 +42,7 @@ Last updated: 2026-04-22
 - SSE smoke returned expected model output through the gateway.
 - SQLite-backed smoke persisted session provider thread ids.
 - The optimized auth/context/SSE gateway path was validated on the VM after commit `62b9801`; the smoke returned `codex-gateway-optimized-ok` and cleanup checks passed.
+- The SQLite credential auth path was validated on the VM after commit `5f57221`; issue/list/revoke worked through the admin CLI, the gateway accepted the issued token, and rejected it after revoke.
 - `node:sqlite` works on local Windows and Azure Ubuntu Node 24, but prints an experimental warning.
 
 ## Known Pitfalls
