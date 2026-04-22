@@ -32,6 +32,7 @@ Completed:
 - Admin CLI usage aggregation and dry-run-capable manual request event pruning.
 - Production runtime startup validation for credential auth, SQLite state, `CODEX_HOME`, and dev-token rejection.
 - Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
+- Docker maintenance-window runbook for shared VM installation and rollback.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:

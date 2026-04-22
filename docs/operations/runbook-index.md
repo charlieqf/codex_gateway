@@ -11,6 +11,7 @@ Deployment and safety:
 1. [Azure Ubuntu VM Deployment Notes](./azure-ubuntu-vm.md)
 2. [Container Deployment Runbook](./container-deploy.md)
 3. [Safe Shared-VM Testing](./safe-vm-testing.md)
+4. [Docker Maintenance Window Runbook](./docker-maintenance-window.md)
 
 Operational workflows now covered:
 
@@ -21,6 +22,7 @@ Operational workflows now covered:
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.
 - Default compose isolation for loopback-only gateway deployment.
+- Docker maintenance-window checklist for shared VM installation.
 
 Operational workflows still pending:
 

@@ -48,6 +48,7 @@ Last updated: 2026-04-22
 - Request event writing and admin CLI event inspection were validated on the VM after commit `3a35b24`; one successful credential request and one rate-limited request produced two queryable events, and the smoke DB was removed after validation.
 - Admin CLI `report-usage` and `prune-events --dry-run` were validated on the VM after commit `43a5e08`; use explicitly named temporary DBs for prune validation and confirm there are no `usage-smoke.*` directories left afterward.
 - Container deployment hardening was validated on the VM after commit `33f5b9b` by native `npm ci/build/test` plus read-only Docker inspection; Docker was absent, so no container was started and no Docker installation was attempted.
+- Read-only maintenance-window baseline found existing Nginx on `80`, PostgreSQL on `127.0.0.1:5432`, a local service on `127.0.0.1:8081`, MedEvidence services, and no Docker CLI.
 - `node:sqlite` works on local Windows and Azure Ubuntu Node 24, but prints an experimental warning.
 
 ## Known Pitfalls
