@@ -124,6 +124,8 @@ node apps/gateway/dist/index.js
 ss -ltnp 'sport = :18787'
 ```
 
+2026-04-22 已按上述模式完成一次真实端到端 smoke。该测试只使用 `127.0.0.1:18787`，未修改 Nginx、systemd、firewall 或公网端口。
+
 ## 清理测试部署
 
 只停止本项目 gateway，不删除 volume：

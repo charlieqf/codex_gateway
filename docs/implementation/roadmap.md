@@ -25,6 +25,7 @@
 - adapter tests 已覆盖 agent message delta、resume、tool call 映射和错误归一化。
 - 开发态 Gateway 已接入临时 bearer token、内存 Session Store、`/sessions` 和 SSE `/sessions/:id/messages`。
 - Gateway 会在收到 `completed.providerSessionRef` 后回写内存 Session Store。
+- 2026-04-22 已在 Azure VM 上用 `127.0.0.1:18787` 完成真实端到端 smoke：`/gateway/status` 返回 Codex provider healthy，`/sessions` 创建成功，`/messages` 经 SSE 返回 `codex-gateway-through-gateway-ok`，并回写 provider thread id `019db3ae-4612-7493-b93a-95999f66de60`。测试后确认无残留监听端口或长跑 Codex 进程。
 
 尚未完成：
 
