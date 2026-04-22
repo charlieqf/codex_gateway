@@ -21,15 +21,17 @@ Completed:
 - Request context injection for dev subject/subscription/provider/scope.
 - SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
+- Formal access credential issue/list/revoke MVP.
+- Opaque access credential generation with stored SHA-256 hash and prefix lookup.
+- SQLite-backed credential auth hook for gateway requests.
+- Admin CLI `issue`, `list`, and `revoke`.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
 
-- Formal access credential issue/list/revoke/rotate.
-- Credential hash lookup replacing `GATEWAY_DEV_ACCESS_TOKEN`.
+- Credential rotate command.
 - Per-credential rate limiting.
 - Scope enforcement beyond conservative Codex adapter defaults.
-- Admin CLI implementation.
 - Observation writer and usage reports.
 - Long-running systemd/container deployment.
 - Public TLS routing through Nginx/Caddy.
@@ -57,7 +59,9 @@ Current test coverage:
 
 - Provider Codex adapter event mapping and error normalization.
 - SQLite store migration/session persistence.
-- Gateway auth hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
+- Access credential generation, hash verification, expiration, and revocation.
+- SQLite access credential persistence and revocation.
+- Gateway dev auth hook, credential auth hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
 
@@ -93,7 +97,7 @@ SQLite schema currently includes:
 - `sessions`
 - `request_events`
 
-Only session persistence is wired into the gateway so far.
+Session persistence and access credential authentication are wired into the gateway. Rate limiting and observation event writing are still pending.
 
 ## Ops Skill
 

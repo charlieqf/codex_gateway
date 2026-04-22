@@ -3,9 +3,12 @@ import { chmodSync, closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
+  AccessCredentialRecord,
   CreateGatewaySessionInput,
   GatewaySession,
   GatewayStore,
+  ListAccessCredentialsInput,
+  RateLimitPolicy,
   Subject,
   Subscription
 } from "@codex-gateway/core";
@@ -70,6 +73,93 @@ export class SqliteGatewayStore implements GatewayStore {
         subscription.cooldownUntil?.toISOString() ?? null,
         new Date().toISOString()
       );
+  }
+
+  getSubject(id: string): Subject | null {
+    const row = this.db
+      .prepare("SELECT id, label, state, created_at FROM subjects WHERE id = ?")
+      .get(id);
+
+    return row ? rowToSubject(row) : null;
+  }
+
+  insertAccessCredential(record: AccessCredentialRecord): AccessCredentialRecord {
+    this.db
+      .prepare(
+        `INSERT INTO access_credentials (
+          id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+          rate_json, created_at, rotates_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.prefix,
+        record.hash,
+        record.subjectId,
+        record.label,
+        record.scope,
+        record.expiresAt.toISOString(),
+        record.revokedAt?.toISOString() ?? null,
+        JSON.stringify(record.rate),
+        record.createdAt.toISOString(),
+        record.rotatesId
+      );
+
+    return record;
+  }
+
+  getAccessCredentialByPrefix(prefix: string): AccessCredentialRecord | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+                rate_json, created_at, rotates_id
+         FROM access_credentials
+         WHERE prefix = ?`
+      )
+      .get(prefix);
+
+    return row ? rowToAccessCredential(row) : null;
+  }
+
+  listAccessCredentials(input: ListAccessCredentialsInput = {}): AccessCredentialRecord[] {
+    const includeRevoked = input.includeRevoked ?? true;
+    const rows = input.subjectId
+      ? this.db
+          .prepare(
+            `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+                    rate_json, created_at, rotates_id
+             FROM access_credentials
+             WHERE subject_id = ?
+               AND (? = 1 OR revoked_at IS NULL)
+             ORDER BY created_at DESC`
+          )
+          .all(input.subjectId, includeRevoked ? 1 : 0)
+      : this.db
+          .prepare(
+            `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+                    rate_json, created_at, rotates_id
+             FROM access_credentials
+             WHERE (? = 1 OR revoked_at IS NULL)
+             ORDER BY created_at DESC`
+          )
+          .all(includeRevoked ? 1 : 0);
+
+    return rows.map(rowToAccessCredential);
+  }
+
+  revokeAccessCredentialByPrefix(
+    prefix: string,
+    now: Date = new Date()
+  ): AccessCredentialRecord | null {
+    this.db
+      .prepare(
+        `UPDATE access_credentials
+         SET revoked_at = COALESCE(revoked_at, ?)
+         WHERE prefix = ?`
+      )
+      .run(now.toISOString(), prefix);
+
+    return this.getAccessCredentialByPrefix(prefix);
   }
 
   create(input: CreateGatewaySessionInput): GatewaySession {
@@ -290,5 +380,51 @@ function rowToSession(row: unknown): GatewaySession {
     state: value.state,
     createdAt: new Date(value.created_at),
     updatedAt: new Date(value.updated_at)
+  };
+}
+
+function rowToSubject(row: unknown): Subject {
+  const value = row as {
+    id: string;
+    label: string;
+    state: Subject["state"];
+    created_at: string;
+  };
+
+  return {
+    id: value.id,
+    label: value.label,
+    state: value.state,
+    createdAt: new Date(value.created_at)
+  };
+}
+
+function rowToAccessCredential(row: unknown): AccessCredentialRecord {
+  const value = row as {
+    id: string;
+    prefix: string;
+    hash: string;
+    subject_id: string;
+    label: string;
+    scope: AccessCredentialRecord["scope"];
+    expires_at: string;
+    revoked_at: string | null;
+    rate_json: string;
+    created_at: string;
+    rotates_id: string | null;
+  };
+
+  return {
+    id: value.id,
+    prefix: value.prefix,
+    hash: value.hash,
+    subjectId: value.subject_id,
+    label: value.label,
+    scope: value.scope,
+    expiresAt: new Date(value.expires_at),
+    revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
+    rate: JSON.parse(value.rate_json) as RateLimitPolicy,
+    createdAt: new Date(value.created_at),
+    rotatesId: value.rotates_id
   };
 }

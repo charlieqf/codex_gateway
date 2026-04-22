@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   GatewayError,
+  issueAccessCredential,
   type CancelInput,
   type CreateSessionInput,
   type CreateSessionResult,
@@ -216,6 +217,93 @@ describe("gateway phase 1 routes", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("authenticates requests with sqlite-backed access credentials", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Integration token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const rejected = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: "Bearer wrong" }
+    });
+    expect(rejected.statusCode).toBe(401);
+    expect(rejected.json().error.code).toBe("invalid_credential");
+
+    const accepted = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toMatchObject({
+      credential: {
+        prefix: issued.record.prefix,
+        scope: "code",
+        expires_at: "2030-02-01T00:00:00.000Z"
+      },
+      subject: {
+        id: "subj_dev"
+      }
+    });
+
+    await app.close();
+  });
+
+  it("rejects revoked sqlite-backed access credentials", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Revoked token",
+      scope: "code",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.revokeAccessCredentialByPrefix(issued.record.prefix, new Date("2026-01-02T00:00:00Z"));
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("revoked_credential");
+
+    await app.close();
   });
 
   it("can persist sessions through the sqlite store", async () => {

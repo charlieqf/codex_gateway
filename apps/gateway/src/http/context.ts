@@ -7,7 +7,10 @@ export interface GatewayRequestContext {
   provider: ProviderAdapter;
   scope: Scope;
   credential: {
+    id: string | null;
     prefix: string;
+    label: string | null;
+    expiresAt: Date | null;
   };
 }
 

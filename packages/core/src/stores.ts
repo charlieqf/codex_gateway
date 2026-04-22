@@ -1,4 +1,4 @@
-import type { GatewaySession, Subject, Subscription } from "./types.js";
+import type { AccessCredentialRecord, GatewaySession, Subject, Subscription } from "./types.js";
 
 export interface CreateGatewaySessionInput {
   subjectId: string;
@@ -19,4 +19,21 @@ export interface BootstrapStore {
   upsertSubscription(subscription: Subscription): void;
 }
 
+export interface SubjectStore {
+  getSubject(id: string): Subject | null;
+}
+
+export interface ListAccessCredentialsInput {
+  subjectId?: string;
+  includeRevoked?: boolean;
+}
+
+export interface AccessCredentialStore {
+  insertAccessCredential(record: AccessCredentialRecord): AccessCredentialRecord;
+  getAccessCredentialByPrefix(prefix: string): AccessCredentialRecord | null;
+  listAccessCredentials(input?: ListAccessCredentialsInput): AccessCredentialRecord[];
+  revokeAccessCredentialByPrefix(prefix: string, now?: Date): AccessCredentialRecord | null;
+}
+
 export type GatewayStore = GatewaySessionStore & BootstrapStore;
+export type CredentialAuthStore = AccessCredentialStore & SubjectStore;

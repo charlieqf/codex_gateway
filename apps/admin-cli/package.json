@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@codex-gateway/core": "0.1.0",
+    "@codex-gateway/store-sqlite": "0.1.0",
     "commander": "^14.0.3"
   }
 }

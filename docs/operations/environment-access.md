@@ -29,6 +29,22 @@ $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db
 npm run dev:gateway
 ```
 
+Issue a local SQLite-backed access credential:
+
+```powershell
+$env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --label local-dev --scope code
+```
+
+Run the gateway in credential auth mode:
+
+```powershell
+Remove-Item Env:\GATEWAY_DEV_ACCESS_TOKEN -ErrorAction SilentlyContinue
+$env:GATEWAY_AUTH_MODE = "credential"
+$env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
+npm run dev:gateway
+```
+
 ## Azure VM Access Pattern
 
 Use SSH key authentication. Do not use or store VM passwords in scripts or docs.
@@ -93,6 +109,14 @@ npm run build
 npm test
 ```
 
+Credential CLI smoke:
+
+```bash
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --label vm-smoke --scope code
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --active-only
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" revoke <credential-prefix>
+```
+
 Provider status probe:
 
 ```bash
@@ -119,4 +143,3 @@ After any gateway smoke test:
 ss -ltnp 'sport = :18787' || true
 pgrep -af 'node apps/gateway/dist/index.js|codex exec|codex app-server' || true
 ```
-

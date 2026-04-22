@@ -110,3 +110,30 @@ Authorization: Bearer local-dev-token
 这只是 Phase 1 开发路径。Phase 2 会替换为正式 access credential 签发、hash 落盘、吊销、过期和限流。
 
 如果不设置 `GATEWAY_SQLITE_PATH`，gateway 使用内存 session store；设置后会自动创建 SQLite schema 并持久化 sessions。
+
+## Access Credential MVP
+
+SQLite-backed access credentials are now available for the MVP path:
+
+```powershell
+$env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --label local-dev --scope code
+```
+
+The `issue` command prints the bearer token once. The database stores only a prefix and SHA-256 hash.
+
+Run the gateway with database credential authentication:
+
+```powershell
+Remove-Item Env:\GATEWAY_DEV_ACCESS_TOKEN -ErrorAction SilentlyContinue
+$env:GATEWAY_AUTH_MODE = "credential"
+$env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
+npm run dev:gateway
+```
+
+Credential operations:
+
+```powershell
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
+```

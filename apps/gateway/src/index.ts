@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply } from "fastify";
 import {
+  type CredentialAuthStore,
   GatewayError,
   type GatewaySession,
   type GatewayStore,
@@ -10,12 +11,16 @@ import {
 } from "@codex-gateway/core";
 import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
-import { devAuthHook } from "./http/auth.js";
-import { getGatewayContext, type GatewayRequest } from "./http/context.js";
+import { credentialAuthHook, devAuthHook } from "./http/auth.js";
+import { getGatewayContext } from "./http/context.js";
 import { InMemorySessionStore } from "./services/session-store.js";
+
+export type GatewayAuthMode = "dev" | "credential";
 
 export interface GatewayOptions {
   accessToken?: string;
+  authMode?: GatewayAuthMode;
+  credentialStore?: CredentialAuthStore;
   provider?: ProviderAdapter;
   sessionStore?: GatewayStore;
   subject?: Subject;
@@ -40,6 +45,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       skipGitRepoCheck: process.env.CODEX_SKIP_GIT_REPO_CHECK === "1"
     });
   const sessions = options.sessionStore ?? createDefaultSessionStore();
+  const credentialStore =
+    options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
+  const authMode = resolveAuthMode({
+    configured: options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE),
+    accessToken,
+    credentialStore
+  });
   sessions.upsertSubject(subject);
   sessions.upsertSubscription(subscription);
   const devContext = {
@@ -48,7 +60,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     provider,
     scope: "code" as const,
     credential: {
-      prefix: "dev"
+      id: null,
+      prefix: "dev",
+      label: "Development token",
+      expiresAt: null
     }
   };
 
@@ -56,12 +71,25 @@ export function buildGateway(options: GatewayOptions = {}) {
     sessions.close?.();
   });
 
-  app.addHook("onRequest", async (request, reply) =>
-    devAuthHook(request, reply, {
-      accessToken,
-      context: devContext
-    })
-  );
+  if (authMode === "credential") {
+    if (!credentialStore) {
+      throw new Error("Credential auth mode requires a credential store.");
+    }
+    app.addHook("onRequest", async (request, reply) =>
+      credentialAuthHook(request, reply, {
+        store: credentialStore,
+        provider,
+        subscription
+      })
+    );
+  } else {
+    app.addHook("onRequest", async (request, reply) =>
+      devAuthHook(request, reply, {
+        accessToken,
+        context: devContext
+      })
+    );
+  }
 
   app.get(
     "/gateway/health",
@@ -88,7 +116,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       credential: {
         prefix: credential.prefix,
         scope,
-        expires_at: null
+        expires_at: credential.expiresAt?.toISOString() ?? null
       },
       subscription: {
         id: subscription.id,
@@ -291,4 +319,38 @@ function createDefaultSessionStore(): GatewayStore {
   }
 
   return new InMemorySessionStore();
+}
+
+function parseAuthMode(value: string | undefined): GatewayAuthMode | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value === "dev" || value === "credential") {
+    return value;
+  }
+  throw new Error("GATEWAY_AUTH_MODE must be dev or credential.");
+}
+
+function resolveAuthMode(input: {
+  configured?: GatewayAuthMode;
+  accessToken?: string;
+  credentialStore?: CredentialAuthStore;
+}): GatewayAuthMode {
+  if (input.configured) {
+    return input.configured;
+  }
+  if (input.accessToken) {
+    return "dev";
+  }
+  return input.credentialStore ? "credential" : "dev";
+}
+
+function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & CredentialAuthStore {
+  const candidate = store as Partial<CredentialAuthStore>;
+  return (
+    typeof candidate.getSubject === "function" &&
+    typeof candidate.getAccessCredentialByPrefix === "function" &&
+    typeof candidate.listAccessCredentials === "function" &&
+    typeof candidate.revokeAccessCredentialByPrefix === "function"
+  );
 }

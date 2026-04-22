@@ -30,6 +30,7 @@
 - SSE 路径已加入 response close abort、heartbeat 和 write failure cleanup。
 - Store contracts 已从 `store-sqlite` 上移到 `@codex-gateway/core`，SQLite 和内存实现只依赖 core contract。
 - SQLite store 已有幂等 schema migration，覆盖 `subjects`、`subscriptions`、`access_credentials`、`sessions`、`request_events` 基础表。
+- Access credential MVP 已实现：opaque token issue、SHA-256 hash 落库、prefix lookup、list、revoke、gateway SQLite credential auth、admin CLI `issue/list/revoke`。
 - Gateway 设置 `GATEWAY_SQLITE_PATH` 后会使用 SQLite Session Store，并在启动时 seed 开发 subject/subscription。
 - 2026-04-22 已在 Azure VM 上用 `127.0.0.1:18787` 完成真实端到端 smoke：`/gateway/status` 返回 Codex provider healthy，`/sessions` 创建成功，`/messages` 经 SSE 返回 `codex-gateway-through-gateway-ok`，并回写 provider thread id `019db3ae-4612-7493-b93a-95999f66de60`。测试后确认无残留监听端口或长跑 Codex 进程。
 - 2026-04-22 已在 Azure VM 上启用 `GATEWAY_SQLITE_PATH` 完成 SQLite-backed gateway smoke：SSE 返回 `codex-gateway-sqlite-ok`，并回写 provider thread id `019db3b4-830f-79e3-b94d-b36689c04e47`。测试后确认无残留监听端口或长跑 Codex 进程。
@@ -37,8 +38,7 @@
 
 尚未完成：
 
-- 正式 access credential 生成、hash、吊销、过期、限流。
-- SQLite access credential repository。
+- Access credential rotate 和正式限流。
 - SubjectStore / SubscriptionStore 仍只有 bootstrap upsert，尚未拆成完整 CRUD。
 - Admin CLI。
 - 生产化错误码覆盖和观察事件。

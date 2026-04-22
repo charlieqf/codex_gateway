@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Subject, Subscription } from "@codex-gateway/core";
+import { issueAccessCredential, type Subject, type Subscription } from "@codex-gateway/core";
 import { createSqliteStore, type SqliteGatewayStore } from "./index.js";
 
 const cleanupDirs: string[] = [];
@@ -41,6 +41,35 @@ describe("SqliteGatewayStore", () => {
     expect(store.setProviderSessionRef("missing", "thread_1")).toBeNull();
     store.close();
   });
+
+  it("persists and revokes access credentials", () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Gateway token",
+      scope: "code",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    store.insertAccessCredential(issued.record);
+    expect(store.getAccessCredentialByPrefix(issued.record.prefix)).toMatchObject({
+      id: issued.record.id,
+      prefix: issued.record.prefix,
+      hash: issued.record.hash,
+      subjectId: "subj_1",
+      scope: "code"
+    });
+    expect(store.listAccessCredentials({ includeRevoked: false })).toHaveLength(1);
+
+    const revoked = store.revokeAccessCredentialByPrefix(
+      issued.record.prefix,
+      new Date("2026-01-02T00:00:00Z")
+    );
+    expect(revoked?.revokedAt?.toISOString()).toBe("2026-01-02T00:00:00.000Z");
+    expect(store.listAccessCredentials({ includeRevoked: false })).toHaveLength(0);
+    store.close();
+  });
 });
 
 function createSeededStore(dbPath: string): SqliteGatewayStore {
@@ -70,4 +99,3 @@ function subscription(): Subscription {
     cooldownUntil: null
   };
 }
-
