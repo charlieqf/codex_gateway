@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { Command, InvalidArgumentError } from "commander";
 import {
   issueAccessCredential,
@@ -112,6 +114,39 @@ program
           })
           .map(publicSubject)
       });
+    });
+  });
+
+program
+  .command("trial-check")
+  .description("Run read-only checks before a very small controlled internal trial.")
+  .option("--max-active-users <n>", "maximum active users expected for the trial", parsePositiveInteger, 2)
+  .action((options: TrialCheckOptions) => {
+    const dbPath = requireDbPath();
+    if (!existsSync(dbPath)) {
+      const result = trialCheckResult({
+        generatedAt: new Date(),
+        summary: emptyTrialSummary(options.maxActiveUsers),
+        checks: [
+          {
+            name: "sqlite_db",
+            status: "error",
+            message: "SQLite database file does not exist.",
+            detail: { db_path: dbPath }
+          }
+        ]
+      });
+      printJson(result);
+      process.exitCode = 1;
+      return;
+    }
+
+    withStore((store) => {
+      const result = buildTrialCheck(store, dbPath, options.maxActiveUsers);
+      printJson(result);
+      if (!result.ready_for_controlled_trial) {
+        process.exitCode = 1;
+      }
     });
   });
 
@@ -500,6 +535,40 @@ interface UpdateKeyOptions {
 
 type NullableIntegerOption = number | null | "";
 
+interface TrialCheckOptions {
+  maxActiveUsers: number;
+}
+
+type TrialCheckStatus = "ok" | "warning" | "error";
+
+interface TrialCheck {
+  name: string;
+  status: TrialCheckStatus;
+  message: string;
+  detail?: Record<string, unknown>;
+}
+
+interface TrialSummary {
+  max_active_users: number;
+  total_users: number;
+  active_users: number;
+  disabled_users: number;
+  archived_users: number;
+  total_api_keys: number;
+  active_api_keys: number;
+  revoked_api_keys: number;
+  expired_api_keys: number;
+  uncapped_active_api_keys: number;
+  ignored_internal_users: number;
+  latest_audit_event_at: string | null;
+}
+
+interface TrialCheckResultInput {
+  generatedAt: Date;
+  summary: TrialSummary;
+  checks: TrialCheck[];
+}
+
 function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
   const store = createSqliteStore({ path: requireDbPath() });
   try {
@@ -535,6 +604,237 @@ function requireDbPath(): string {
     throw new Error("SQLite database path is required. Use --db or GATEWAY_SQLITE_PATH.");
   }
   return dbPath;
+}
+
+function buildTrialCheck(
+  store: ReturnType<typeof createSqliteStore>,
+  dbPath: string,
+  maxActiveUsers: number
+) {
+  const generatedAt = new Date();
+  const subjects = store.listSubjects({ includeArchived: true });
+  const trialSubjects = subjects.filter((subject) => subject.id !== defaultSubjectId);
+  const credentials = store.listAccessCredentials({ includeRevoked: true });
+  const activeUsers = trialSubjects.filter((subject) => subject.state === "active");
+  const disabledUsers = trialSubjects.filter((subject) => subject.state === "disabled");
+  const archivedUsers = trialSubjects.filter((subject) => subject.state === "archived");
+  const activeCredentials = credentials.filter(
+    (credential) =>
+      credential.revokedAt === null && credential.expiresAt.getTime() > generatedAt.getTime()
+  );
+  const revokedCredentials = credentials.filter((credential) => credential.revokedAt !== null);
+  const expiredCredentials = credentials.filter(
+    (credential) =>
+      credential.revokedAt === null && credential.expiresAt.getTime() <= generatedAt.getTime()
+  );
+  const uncappedCredentials = activeCredentials.filter(
+    (credential) =>
+      credential.rate.requestsPerDay === null || credential.rate.concurrentRequests === null
+  );
+  const latestAuditEvent = store.listAdminAuditEvents({ limit: 1 })[0] ?? null;
+
+  const summary: TrialSummary = {
+    max_active_users: maxActiveUsers,
+    total_users: trialSubjects.length,
+    active_users: activeUsers.length,
+    disabled_users: disabledUsers.length,
+    archived_users: archivedUsers.length,
+    total_api_keys: credentials.length,
+    active_api_keys: activeCredentials.length,
+    revoked_api_keys: revokedCredentials.length,
+    expired_api_keys: expiredCredentials.length,
+    uncapped_active_api_keys: uncappedCredentials.length,
+    ignored_internal_users: subjects.length - trialSubjects.length,
+    latest_audit_event_at: latestAuditEvent?.createdAt.toISOString() ?? null
+  };
+
+  const checks: TrialCheck[] = [
+    {
+      name: "sqlite_db",
+      status: "ok",
+      message: "SQLite database exists and opened successfully.",
+      detail: { db_path: dbPath }
+    },
+    authModeTrialCheck(),
+    nodeEnvTrialCheck(),
+    codexHomeTrialCheck(),
+    activeUserCountTrialCheck(activeUsers.length, maxActiveUsers),
+    activeApiKeyTrialCheck(activeCredentials.length),
+    apiKeyLimitsTrialCheck(uncappedCredentials),
+    auditTrailTrialCheck(latestAuditEvent)
+  ];
+
+  return trialCheckResult({ generatedAt, summary, checks });
+}
+
+function trialCheckResult(input: TrialCheckResultInput) {
+  return {
+    ready_for_controlled_trial: !input.checks.some((check) => check.status === "error"),
+    generated_at: input.generatedAt.toISOString(),
+    summary: input.summary,
+    checks: input.checks
+  };
+}
+
+function emptyTrialSummary(maxActiveUsers: number): TrialSummary {
+  return {
+    max_active_users: maxActiveUsers,
+    total_users: 0,
+    active_users: 0,
+    disabled_users: 0,
+    archived_users: 0,
+    total_api_keys: 0,
+    active_api_keys: 0,
+    revoked_api_keys: 0,
+    expired_api_keys: 0,
+    uncapped_active_api_keys: 0,
+    ignored_internal_users: 0,
+    latest_audit_event_at: null
+  };
+}
+
+function authModeTrialCheck(): TrialCheck {
+  const authMode = process.env.GATEWAY_AUTH_MODE;
+  if (authMode === "dev") {
+    return {
+      name: "auth_mode",
+      status: "error",
+      message: "GATEWAY_AUTH_MODE=dev is not appropriate for an internal trial."
+    };
+  }
+  if (authMode === "credential") {
+    return {
+      name: "auth_mode",
+      status: "ok",
+      message: "GATEWAY_AUTH_MODE is explicitly set to credential."
+    };
+  }
+  return {
+    name: "auth_mode",
+    status: "warning",
+    message:
+      "GATEWAY_AUTH_MODE is not set; gateway startup defaults to credential auth when SQLite is configured, but explicit credential mode is clearer for trial runs."
+  };
+}
+
+function nodeEnvTrialCheck(): TrialCheck {
+  if (process.env.NODE_ENV === "production") {
+    return {
+      name: "node_env",
+      status: "ok",
+      message: "NODE_ENV is set to production."
+    };
+  }
+  return {
+    name: "node_env",
+    status: "warning",
+    message: "NODE_ENV is not production; acceptable for local smoke, but set production for a trial service."
+  };
+}
+
+function codexHomeTrialCheck(): TrialCheck {
+  const codexHome = process.env.CODEX_HOME;
+  if (!codexHome) {
+    return {
+      name: "codex_home",
+      status: "warning",
+      message: "CODEX_HOME is not set in this shell; gateway runtime must set it for Codex provider auth."
+    };
+  }
+  const authPath = path.join(codexHome, "auth.json");
+  if (!existsSync(codexHome)) {
+    return {
+      name: "codex_home",
+      status: "error",
+      message: "CODEX_HOME directory does not exist.",
+      detail: { codex_home: codexHome }
+    };
+  }
+  if (!existsSync(authPath)) {
+    return {
+      name: "codex_home",
+      status: "warning",
+      message: "CODEX_HOME exists, but auth.json was not found. Complete Codex device login before trial traffic.",
+      detail: { codex_home: codexHome }
+    };
+  }
+  return {
+    name: "codex_home",
+    status: "ok",
+    message: "CODEX_HOME and auth.json are present.",
+    detail: { codex_home: codexHome }
+  };
+}
+
+function activeUserCountTrialCheck(activeUsers: number, maxActiveUsers: number): TrialCheck {
+  if (activeUsers > maxActiveUsers) {
+    return {
+      name: "active_user_count",
+      status: "error",
+      message: "Active user count exceeds the configured controlled-trial limit.",
+      detail: { active_users: activeUsers, max_active_users: maxActiveUsers }
+    };
+  }
+  return {
+    name: "active_user_count",
+    status: "ok",
+    message: "Active user count is within the controlled-trial limit.",
+    detail: { active_users: activeUsers, max_active_users: maxActiveUsers }
+  };
+}
+
+function activeApiKeyTrialCheck(activeCredentials: number): TrialCheck {
+  if (activeCredentials === 0) {
+    return {
+      name: "active_api_keys",
+      status: "error",
+      message: "No active API keys are available for the trial."
+    };
+  }
+  return {
+    name: "active_api_keys",
+    status: "ok",
+    message: "At least one active API key is available.",
+    detail: { active_api_keys: activeCredentials }
+  };
+}
+
+function apiKeyLimitsTrialCheck(uncappedCredentials: AccessCredentialRecord[]): TrialCheck {
+  if (uncappedCredentials.length > 0) {
+    return {
+      name: "api_key_limits",
+      status: "warning",
+      message: "Some active API keys do not have both daily and concurrency caps.",
+      detail: {
+        prefixes: uncappedCredentials.map((credential) => credential.prefix)
+      }
+    };
+  }
+  return {
+    name: "api_key_limits",
+    status: "ok",
+    message: "Active API keys have daily and concurrency caps."
+  };
+}
+
+function auditTrailTrialCheck(latestAuditEvent: AdminAuditEventRecord | null): TrialCheck {
+  if (!latestAuditEvent) {
+    return {
+      name: "audit_trail",
+      status: "warning",
+      message: "No admin audit events exist yet."
+    };
+  }
+  return {
+    name: "audit_trail",
+    status: "ok",
+    message: "Admin audit events are present.",
+    detail: {
+      latest_action: latestAuditEvent.action,
+      latest_status: latestAuditEvent.status,
+      latest_created_at: latestAuditEvent.createdAt.toISOString()
+    }
+  };
 }
 
 function mergeAudit(base: AuditInput, extra: Partial<AuditInput> | undefined): AuditInput {

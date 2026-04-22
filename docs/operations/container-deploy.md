@@ -10,6 +10,8 @@ with existing services.
 - `compose.azure.yml`: starts the gateway on VM loopback only.
 - `compose.edge.example.yml`: optional future public TLS example; do not use on
   the shared VM without a maintenance window.
+- `ops/nginx/codex-gateway-public-trial.example.conf`: Nginx example for a
+  dedicated public trial hostname that proxies to the loopback gateway.
 - `config/gateway.container.example.env`: template for production container
   environment.
 - `ops/systemd/codex-gateway-compose.service`: optional future systemd wrapper.
@@ -208,8 +210,18 @@ Encrypt it and restrict access.
 
 ## Public TLS
 
-The public edge example is intentionally separated from `compose.azure.yml`.
-Do not use it on the shared VM until `80/443` ownership is explicitly confirmed.
+The public edge examples are intentionally separated from `compose.azure.yml`.
+Do not use them on the shared VM until `80/443` ownership and the maintenance
+window are explicitly confirmed.
+
+On the current shared VM, existing Nginx owns public `80` and proxies an
+existing service to `127.0.0.1:8081`. For a 1-2 user internal public trial,
+prefer the Nginx example in
+`ops/nginx/codex-gateway-public-trial.example.conf`: it leaves the gateway
+container loopback-only and has Nginx proxy the dedicated hostname to
+`127.0.0.1:18787`.
+
+The Caddy edge example is for a future VM where this project owns `80/443`:
 
 ```bash
 docker compose \

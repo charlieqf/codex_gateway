@@ -440,6 +440,7 @@ function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & Cre
     typeof candidate.setSubjectState === "function" &&
     typeof candidate.getAccessCredentialByPrefix === "function" &&
     typeof candidate.listAccessCredentials === "function" &&
+    typeof candidate.updateAccessCredentialByPrefix === "function" &&
     typeof candidate.revokeAccessCredentialByPrefix === "function" &&
     typeof candidate.setAccessCredentialExpiresAtByPrefix === "function"
   );

@@ -126,6 +126,7 @@ node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" up
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --user vm-smoke --days 7
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" audit --user vm-smoke --limit 50
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" trial-check --max-active-users 2
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" disable-user vm-smoke
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" enable-user vm-smoke
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" prune-events --before-days 30 --dry-run

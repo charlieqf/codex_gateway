@@ -70,7 +70,7 @@ describe("codex-gateway-admin user API key operations", () => {
       "--scope",
       "medical",
       "--expires-at",
-      "2026-06-01T00:00:00Z",
+      "2099-06-01T00:00:00Z",
       "--rpm",
       "5",
       "--rpd",
@@ -98,7 +98,7 @@ describe("codex-gateway-admin user API key operations", () => {
       user_id: "alice",
       label: "Alice tablet",
       scope: "medical",
-      expires_at: "2026-06-01T00:00:00.000Z",
+      expires_at: "2099-06-01T00:00:00.000Z",
       rate: {
         requestsPerMinute: 5,
         requestsPerDay: null,
@@ -282,6 +282,31 @@ describe("codex-gateway-admin user API key operations", () => {
         }
       }
     });
+
+    const trialCheck = runCli(dbPath, ["trial-check", "--max-active-users", "2"]) as {
+      ready_for_controlled_trial: boolean;
+      summary: {
+        active_users: number;
+        active_api_keys: number;
+        uncapped_active_api_keys: number;
+      };
+      checks: Array<{ name: string; status: string }>;
+    };
+    expect(trialCheck.ready_for_controlled_trial).toBe(true);
+    expect(trialCheck.summary).toMatchObject({
+      active_users: 1,
+      active_api_keys: 1,
+      uncapped_active_api_keys: 1
+    });
+    expect(trialCheck.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "sqlite_db", status: "ok" }),
+        expect.objectContaining({ name: "active_user_count", status: "ok" }),
+        expect.objectContaining({ name: "active_api_keys", status: "ok" }),
+        expect.objectContaining({ name: "api_key_limits", status: "warning" }),
+        expect.objectContaining({ name: "audit_trail", status: "ok" })
+      ])
+    );
   });
 });
 

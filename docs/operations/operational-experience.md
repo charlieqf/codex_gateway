@@ -73,6 +73,7 @@ Last updated: 2026-04-22
 - Keep public edge services out of the default compose file. On the shared VM, `80/443` must require a separate maintenance task.
 - Docker is now installed on the shared VM, but the `qian` user was not added to the `docker` group. Continue using `sudo docker ...` for controlled operations unless access policy is explicitly changed.
 - Do not leave temporary device-login logs in `/tmp`; remove them after authorization because they can contain one-time device codes.
+- Public internal users need a real public HTTPS entrypoint. On the current shared VM, keep the gateway container loopback-only and add only a dedicated Nginx hostname that proxies to `127.0.0.1:18787` during an approved maintenance window. Do not let Docker/Caddy bind public `80/443` on this host while existing Nginx owns the edge.
 
 ## Current Recommended Next Step
 

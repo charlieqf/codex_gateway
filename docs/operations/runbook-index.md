@@ -10,8 +10,9 @@ Deployment and safety:
 
 1. [Azure Ubuntu VM Deployment Notes](./azure-ubuntu-vm.md)
 2. [Container Deployment Runbook](./container-deploy.md)
-3. [Safe Shared-VM Testing](./safe-vm-testing.md)
-4. [Docker Maintenance Window Runbook](./docker-maintenance-window.md)
+3. [Public Internal Controlled Trial Runbook](./internal-trial-runbook.md)
+4. [Safe Shared-VM Testing](./safe-vm-testing.md)
+5. [Docker Maintenance Window Runbook](./docker-maintenance-window.md)
 
 Operational workflows now covered:
 
@@ -20,10 +21,12 @@ Operational workflows now covered:
 - Request event inspection by API key or user.
 - Dynamic usage reports by API key or user.
 - Admin operation audit for issue/update/revoke/rotate/disable/enable/prune actions.
+- Read-only `trial-check` for 1-2 user controlled internal trials.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.
 - Default compose isolation for loopback-only gateway deployment.
+- Public internal trial plan through existing Nginx and a dedicated hostname.
 - Docker maintenance-window checklist for shared VM installation.
 
 Operational workflows still pending:
@@ -33,7 +36,7 @@ Operational workflows still pending:
 - Scheduled retention automation.
 - Materialized usage reports.
 - Long-running production deployment activation.
-- Public TLS routing through a maintenance window.
+- Public TLS routing execution through a maintenance window.
 
 The local `codex-gateway-ops` skill stores workstation-specific VM access notes
 outside this repository. Do not commit operator-local secrets.

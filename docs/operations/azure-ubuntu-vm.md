@@ -5,6 +5,8 @@ test VM also hosts important services, so deployment work must stay isolated
 until a maintenance window is explicitly approved.
 
 For the container runbook, see [container-deploy.md](./container-deploy.md).
+For the 1-2 user public internal trial plan, see
+[internal-trial-runbook.md](./internal-trial-runbook.md).
 For non-invasive shared-VM rules, see [safe-vm-testing.md](./safe-vm-testing.md).
 
 ## Current Deployment Position
@@ -17,7 +19,9 @@ For non-invasive shared-VM rules, see [safe-vm-testing.md](./safe-vm-testing.md)
 - SQLite path: `/var/lib/codex-gateway/gateway.db`.
 - Codex auth home: `/var/lib/codex-gateway/codex-home`.
 - Production auth: `GATEWAY_AUTH_MODE=credential`.
-- Public `80/443`: not managed by this project by default.
+- Public `80/443`: not managed by this project by default. A controlled
+  internal public trial should add only a dedicated Nginx hostname that proxies
+  to `127.0.0.1:18787`, and only during an approved maintenance window.
 
 ## Shared VM Boundary
 
@@ -65,7 +69,9 @@ operator laptop
 ```
 
 Only after the loopback deployment is stable should a separate reverse-proxy
-maintenance plan be considered.
+maintenance plan be considered. For internal users who must access from the
+public internet, keep Docker loopback-only and use existing host Nginx as the
+single public edge.
 
 ## VM Validation Status
 
@@ -73,3 +79,8 @@ The VM has already validated the native Node path, SQLite credential auth,
 rate limiting, request event writing, usage reports, and manual event pruning.
 Those validations did not modify host reverse proxy, firewall, Docker, or
 public ports.
+
+The most recent public-trial preflight found existing Nginx on public `80`, no
+host listener on `443`, an existing local upstream on `127.0.0.1:8081`,
+PostgreSQL on `127.0.0.1:5432`, Docker active, and no running Codex Gateway
+container.

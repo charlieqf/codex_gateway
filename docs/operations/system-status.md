@@ -26,7 +26,7 @@ Completed:
 - SQLite-backed credential auth hook for gateway requests.
 - Auth mode selection prefers credential auth when a credential store is available; dev auth is rejected under `NODE_ENV=production`.
 - `/gateway/health` exposes `auth_mode`.
-- Admin CLI `issue`, `list`, `list-users`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `events`, `report-usage`, `audit`, and `prune-events`.
+- Admin CLI `issue`, `list`, `list-users`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations.
 - Admin CLI usage aggregation and dry-run-capable manual request event pruning.
@@ -34,6 +34,7 @@ Completed:
 - Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
 - Docker maintenance-window runbook for shared VM installation and rollback.
 - Docker Engine and Docker Compose plugin installed on the Azure VM during an approved maintenance window.
+- Public internal trial runbook and Nginx dedicated-hostname example for a future maintenance window.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
@@ -42,7 +43,7 @@ Not completed:
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Activated long-running systemd/container deployment on the shared VM.
-- Public TLS routing through Nginx/Caddy.
+- Executed public TLS routing through Nginx/Caddy.
 
 ## Verified Runtime
 
@@ -77,7 +78,7 @@ Current test coverage:
 - Access credential generation, hash verification, expiration, and revocation.
 - SQLite user and API key persistence, API key update/revocation, user disable/enable, and admin audit event persistence.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
-- SQLite request event persistence, usage aggregation, manual pruning, and admin CLI event listing.
+- SQLite request event persistence, usage aggregation, manual pruning, admin CLI event listing, and read-only controlled-trial checks.
 - Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
@@ -99,6 +100,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Docker maintenance-window installation and loopback container smoke were completed on the Azure VM after commit `6e96329`.
 - Containerized Codex device-code login, SDK probe, and gateway-to-Codex SSE smoke were revalidated on the Azure VM with the runtime image's CA bundle and `CODEX_SKIP_GIT_REPO_CHECK=1` default.
 - User-friendly API key operations were validated locally and on the Azure VM: `issue --user`, `list-users`, `list --user`, `update-key`, `events --user`, `report-usage --user`, `disable-user`, and `enable-user`.
+- Public internal trial preflight inventory found existing Nginx on public `80`, no host listener on `443`, the existing app upstream on `127.0.0.1:8081`, PostgreSQL on `127.0.0.1:5432`, Docker active with no running containers, and the Codex Gateway compose file publishing only `127.0.0.1:18787`.
 
 Sensitive provider files:
 
@@ -124,7 +126,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, and dry-run-capable manual event pruning are wired into the gateway. Scheduled retention jobs, materialized reports, admin operator identity capture, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, and dry-run-capable manual event pruning are wired into the gateway. Scheduled retention jobs, materialized reports, admin operator identity capture, executed public TLS routing, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 
