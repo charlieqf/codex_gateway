@@ -31,7 +31,10 @@ ENV CODEX_WORKDIR=/app
 
 WORKDIR /app
 
-RUN useradd --system --create-home --home-dir /var/lib/codex-gateway --shell /usr/sbin/nologin codexgw \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --system --create-home --home-dir /var/lib/codex-gateway --shell /usr/sbin/nologin codexgw \
   && mkdir -p /var/lib/codex-gateway/codex-home /var/log/codex-gateway \
   && chown -R codexgw:codexgw /var/lib/codex-gateway /var/log/codex-gateway \
   && npm install -g @openai/codex@${CODEX_CLI_VERSION}
