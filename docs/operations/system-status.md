@@ -24,6 +24,8 @@ Completed:
 - Formal access credential issue/list/revoke/rotate MVP.
 - Opaque access credential generation with stored SHA-256 hash and prefix lookup.
 - SQLite-backed credential auth hook for gateway requests.
+- Auth mode selection prefers credential auth when a credential store is available; dev auth is rejected under `NODE_ENV=production`.
+- `/gateway/health` exposes `auth_mode`.
 - Admin CLI `issue`, `list`, `revoke`, and `rotate`.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.

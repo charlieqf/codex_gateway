@@ -131,6 +131,8 @@ $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db
 npm run dev:gateway
 ```
 
+When a SQLite credential store is available, the gateway defaults to credential auth even if `GATEWAY_DEV_ACCESS_TOKEN` is also set. Dev auth must be explicit in mixed setups and is rejected when `NODE_ENV=production`. `/gateway/health` includes `auth_mode` so operators can confirm the active mode.
+
 Credential operations:
 
 ```powershell

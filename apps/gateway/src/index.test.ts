@@ -73,6 +73,7 @@ describe("gateway phase 1 routes", () => {
       url: "/gateway/health"
     });
     expect(health.statusCode).toBe(200);
+    expect(health.json().auth_mode).toBe("dev");
 
     const sessions = await app.inject({
       method: "GET",
@@ -82,6 +83,73 @@ describe("gateway phase 1 routes", () => {
     expect(sessions.json().error.code).toBe("missing_credential");
 
     await app.close();
+  });
+
+  it("prefers credential auth when a credential store and dev token are both present", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Preferred credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      accessToken: "dev-secret",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const health = await app.inject({
+      method: "GET",
+      url: "/gateway/health"
+    });
+    expect(health.json().auth_mode).toBe("credential");
+
+    const devTokenResponse = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: "Bearer dev-secret" }
+    });
+    expect(devTokenResponse.statusCode).toBe(401);
+    expect(devTokenResponse.json().error.code).toBe("invalid_credential");
+
+    const credentialResponse = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+    expect(credentialResponse.statusCode).toBe(200);
+
+    await app.close();
+  });
+
+  it("rejects dev auth mode when NODE_ENV is production", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      expect(() =>
+        buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(),
+          logger: false
+        })
+      ).toThrow("Dev auth mode is not allowed");
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    }
   });
 
   it("requires bearer auth for status", async () => {
@@ -176,6 +244,7 @@ describe("gateway phase 1 routes", () => {
 
     try {
       const first = buildGateway({
+        authMode: "dev",
         accessToken: "secret",
         provider: new FakeProvider(),
         sessionStore: createSqliteStore({ path: dbPath }),
@@ -191,6 +260,7 @@ describe("gateway phase 1 routes", () => {
       await first.close();
 
       const second = buildGateway({
+        authMode: "dev",
         accessToken: "secret",
         provider: new FakeProvider(),
         sessionStore: createSqliteStore({ path: dbPath }),
@@ -363,6 +433,7 @@ describe("gateway phase 1 routes", () => {
 
     try {
       const first = buildGateway({
+        authMode: "dev",
         accessToken: "secret",
         provider: new FakeProvider(),
         sessionStore: createSqliteStore({ path: dbPath }),
@@ -385,6 +456,7 @@ describe("gateway phase 1 routes", () => {
       await first.close();
 
       const second = buildGateway({
+        authMode: "dev",
         accessToken: "secret",
         provider: new FakeProvider(),
         sessionStore: createSqliteStore({ path: dbPath }),

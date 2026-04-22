@@ -45,6 +45,13 @@ $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db
 npm run dev:gateway
 ```
 
+Auth mode safety:
+
+- When `GATEWAY_SQLITE_PATH` points to a credential-capable store, gateway startup defaults to credential auth even if `GATEWAY_DEV_ACCESS_TOKEN` is present.
+- `GATEWAY_AUTH_MODE=dev` keeps the development bearer-token path explicit for local tests.
+- `NODE_ENV=production` rejects dev auth mode at startup.
+- `GET /gateway/health` returns `auth_mode`.
+
 ## Azure VM Access Pattern
 
 Use SSH key authentication. Do not use or store VM passwords in scripts or docs.

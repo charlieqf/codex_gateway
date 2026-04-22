@@ -53,11 +53,13 @@ export function buildGateway(options: GatewayOptions = {}) {
   const sessions = options.sessionStore ?? createDefaultSessionStore();
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
+  const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
-    configured: options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE),
+    configured: configuredAuthMode,
     accessToken,
     credentialStore
   });
+  validateAuthModeForEnvironment(authMode, process.env.NODE_ENV);
   const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
   sessions.upsertSubject(subject);
   sessions.upsertSubscription(subscription);
@@ -78,6 +80,15 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.addHook("onClose", async () => {
     sessions.close?.();
   });
+
+  if (authMode === "dev") {
+    app.log.warn({ auth_mode: authMode }, "Gateway running in dev auth mode.");
+  } else if (accessToken && credentialStore && !configuredAuthMode) {
+    app.log.warn(
+      { auth_mode: authMode },
+      "Gateway credential auth mode selected; GATEWAY_DEV_ACCESS_TOKEN is ignored."
+    );
+  }
 
   if (authMode === "credential") {
     if (!credentialStore) {
@@ -115,6 +126,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     async () => ({
       state: "ready",
       service: "codex-gateway",
+      auth_mode: authMode,
       phase: "phase-1-dev-gateway"
     })
   );
@@ -357,10 +369,16 @@ function resolveAuthMode(input: {
   if (input.configured) {
     return input.configured;
   }
-  if (input.accessToken) {
-    return "dev";
+  if (input.credentialStore) {
+    return "credential";
   }
-  return input.credentialStore ? "credential" : "dev";
+  return "dev";
+}
+
+function validateAuthModeForEnvironment(authMode: GatewayAuthMode, nodeEnv: string | undefined) {
+  if (nodeEnv === "production" && authMode === "dev") {
+    throw new Error("Dev auth mode is not allowed when NODE_ENV=production.");
+  }
 }
 
 function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & CredentialAuthStore {
