@@ -1,0 +1,26 @@
+{
+  "name": "codex-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "dev:gateway": "npm --workspace @codex-gateway/gateway run dev",
+    "dev:admin": "npm --workspace @codex-gateway/admin-cli run dev"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

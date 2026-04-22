@@ -1,0 +1,55 @@
+# 实施路线
+
+## Phase 0: Provider 可行性验证
+
+- 验证 OpenAI Codex ChatGPT subscription 登录态能否服务端托管。
+- 验证 Codex SDK/App Server 可由 Node 服务端控制。
+- 产出 adapter contract test 草稿。
+
+退出：确定 `provider-codex` 是 MVP provider，或切换到 OpenAI API key provider。
+
+## Phase 1: Gateway 骨架
+
+- Fastify HTTP service。
+- `/gateway/health`、`/gateway/status`。
+- SQLite store 初始化。
+- 单 subscription scheduler。
+- provider adapter wiring。
+
+退出：一把手工 seed 的 access credential 可以创建会话并收到 provider 响应。
+
+## Phase 2: 凭据生命周期
+
+- `issue`、`list`、`revoke`、`rotate`。
+- opaque key 生成、hash 落盘、prefix 管理。
+- 结构化错误。
+
+退出：S1、S2、S6、S11 基础验收通过。
+
+## Phase 3: Scope 与限流
+
+- `medical` / `code` 能力矩阵。
+- endpoint/action 层 scope enforcement。
+- 每凭据 rpm/day/concurrency 限流。
+
+退出：S4、S5 验收通过。
+
+## Phase 4: 会话延续与观察
+
+- 同 subject 跨设备会话列表。
+- 不同 subject 隔离。
+- usage/event metadata。
+- 每凭据 last_used_at、本周请求数、错误率。
+
+退出：S3、S12、S13 MVP 验收通过。
+
+## Phase 5: Azure VM 运维固化
+
+- systemd service。
+- TLS reverse proxy。
+- backup/restore。
+- reauth/revoke/rotate runbooks。
+- 基础性能测量脚本。
+
+退出：未参与开发的人按文档 4 小时内搭通。
+

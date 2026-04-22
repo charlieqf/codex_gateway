@@ -1,0 +1,8 @@
+{$GATEWAY_DOMAIN} {
+  encode zstd gzip
+
+  reverse_proxy gateway:8787 {
+    flush_interval -1
+  }
+}
+

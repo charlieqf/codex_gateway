@@ -1,0 +1,16 @@
+[Unit]
+Description=Codex Gateway Docker Compose
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/codex-gateway
+ExecStart=/usr/bin/docker compose -p codex_gateway -f /opt/codex-gateway/compose.azure.yml up -d --remove-orphans gateway
+ExecStop=/usr/bin/docker compose -p codex_gateway -f /opt/codex-gateway/compose.azure.yml stop gateway
+RemainAfterExit=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

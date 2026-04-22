@@ -1,0 +1,40 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./config/gateway.container.example.env
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8787
+      CODEX_HOME: /var/lib/codex-gateway/codex-home
+    volumes:
+      - gateway_state:/var/lib/codex-gateway
+      - gateway_logs:/var/log/codex-gateway
+    ports:
+      - "127.0.0.1:18787:8787"
+
+  caddy:
+    profiles:
+      - edge
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    env_file:
+      - ./config/gateway.container.example.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  gateway_state:
+  gateway_logs:
+  caddy_data:
+  caddy_config:

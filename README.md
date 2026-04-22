@@ -1,0 +1,66 @@
+# Codex Gateway
+
+访问网关原型项目，用于把订阅持有者的 AI/Codex 能力通过受控服务端代理给多设备或少数受信用户使用。
+
+当前阶段是设计落地与 Phase 0 可行性验证，不是可生产使用版本。
+
+## MVP 收敛
+
+- 技术栈：TypeScript + Node.js + npm workspaces。
+- 部署目标：Azure Ubuntu VM 单实例，Docker Compose 容器优先。
+- 第一个 provider：OpenAI Codex / ChatGPT subscription path。
+- 第一阶段目标：验证服务端托管 Codex 登录态、会话继续、流式输出、错误归一化与重新授权状态。
+- 网关核心保持 provider-neutral，OpenAI Codex 只作为第一个 adapter。
+
+## 文档入口
+
+- 需求文档：[access-gateway-requirements.md](./access-gateway-requirements.md)
+- 初步技术设计：[access-gateway-technical-design.md](./access-gateway-technical-design.md)
+- MVP 蓝图：[docs/architecture/mvp-blueprint.md](./docs/architecture/mvp-blueprint.md)
+- Provider adapter 合同：[docs/architecture/provider-adapter-contract.md](./docs/architecture/provider-adapter-contract.md)
+- OpenAI Codex adapter 方案：[docs/architecture/openai-codex-adapter.md](./docs/architecture/openai-codex-adapter.md)
+- Phase 0 验证计划：[docs/implementation/phase-0-openai-codex-validation.md](./docs/implementation/phase-0-openai-codex-validation.md)
+- Azure Ubuntu VM 部署草案：[docs/operations/azure-ubuntu-vm.md](./docs/operations/azure-ubuntu-vm.md)
+- 重要 VM 非侵入测试规则：[docs/operations/safe-vm-testing.md](./docs/operations/safe-vm-testing.md)
+
+## 仓库结构
+
+```text
+apps/
+  gateway/       # HTTP gateway service
+  admin-cli/     # operator CLI
+packages/
+  core/          # provider-neutral types, errors, contracts
+  provider-codex/# OpenAI Codex adapter proof path
+  store-sqlite/  # MVP single-node persistence package
+docs/
+  architecture/
+  implementation/
+  operations/
+  decisions/
+ops/
+  runbooks/
+  scripts/
+tests/
+  contract/
+  e2e/
+```
+
+## 本地开发
+
+本机已验证 Node.js/npm/Codex CLI 可用。初始化依赖后可使用：
+
+```powershell
+npm install
+npm run typecheck
+npm run dev:gateway
+```
+
+容器化部署入口：
+
+```powershell
+docker compose -f compose.azure.yml build
+docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
+```
+
+Phase 0 期间不要把任何 ChatGPT/Codex 登录态提交进仓库。服务端登录态应放在 `CODEX_HOME` 指向的受控目录，并由部署用户独占访问。

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@codex-gateway/core": ["packages/core/src/index.ts"],
+      "@codex-gateway/provider-codex": ["packages/provider-codex/src/index.ts"],
+      "@codex-gateway/store-sqlite": ["packages/store-sqlite/src/index.ts"]
+    },
+    "rootDir": ".",
+    "outDir": "dist"
+  }
+}

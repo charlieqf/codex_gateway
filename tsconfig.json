@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/provider-codex" },
+    { "path": "./packages/store-sqlite" },
+    { "path": "./apps/gateway" },
+    { "path": "./apps/admin-cli" }
+  ]
+}
+
