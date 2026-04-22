@@ -90,6 +90,29 @@ describe("SqliteGatewayStore", () => {
     });
     expect(store.listAccessCredentials({ includeRevoked: false })).toHaveLength(1);
 
+    const updated = store.updateAccessCredentialByPrefix(issued.record.prefix, {
+      label: "Updated token",
+      scope: "medical",
+      expiresAt: new Date("2026-03-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 5,
+        requestsPerDay: 20,
+        concurrentRequests: 2
+      }
+    });
+    expect(updated).toMatchObject({
+      id: issued.record.id,
+      label: "Updated token",
+      scope: "medical",
+      rate: {
+        requestsPerMinute: 5,
+        requestsPerDay: 20,
+        concurrentRequests: 2
+      }
+    });
+    expect(updated?.expiresAt.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+    expect(store.updateAccessCredentialByPrefix("missing", { label: "Nope" })).toBeNull();
+
     const revoked = store.revokeAccessCredentialByPrefix(
       issued.record.prefix,
       new Date("2026-01-02T00:00:00Z")

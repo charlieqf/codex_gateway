@@ -46,6 +46,7 @@ export type RequestEventStatus = "ok" | "error";
 
 export type AdminAuditAction =
   | "issue"
+  | "update-key"
   | "revoke"
   | "rotate"
   | "disable-user"

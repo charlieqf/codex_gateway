@@ -116,6 +116,68 @@ program
   });
 
 program
+  .command("update-key")
+  .argument("<credential-prefix>")
+  .description("Update an API key's label, scope, expiration, or rate limits.")
+  .option("--label <label>", "new API key label")
+  .option("--scope <scope>", "new scope: code or medical", parseScope)
+  .option("--expires-days <days>", "set expiration to this many days from now", parsePositiveInteger)
+  .option("--expires-at <iso>", "set expiration to this ISO time", parseDate)
+  .option("--rpm <n>", "requests per minute", parsePositiveInteger)
+  .option("--rpd <n>", "requests per day; use none for unlimited", parseNullablePositiveInteger)
+  .option("--concurrent <n>", "concurrent requests; use none for unlimited", parseNullablePositiveInteger)
+  .action((prefix, options: UpdateKeyOptions) => {
+    withAuditedStore(
+      {
+        action: "update-key",
+        targetCredentialPrefix: prefix,
+        params: requestedUpdateKeyParams(options)
+      },
+      (store) => {
+        assertHasUpdateKeyChanges(options);
+        if (options.expiresDays !== undefined && options.expiresAt !== undefined) {
+          throw new Error("Use --expires-days or --expires-at, not both.");
+        }
+
+        const oldCredential = store.getAccessCredentialByPrefix(prefix);
+        if (!oldCredential) {
+          throw new Error(`Credential prefix not found: ${prefix}`);
+        }
+        if (oldCredential.revokedAt) {
+          throw new Error(`Credential prefix is revoked and cannot be updated: ${prefix}`);
+        }
+
+        const expiresAt = updateKeyExpiresAt(options);
+        const rate = updateKeyRate(oldCredential.rate, options);
+        const updated = store.updateAccessCredentialByPrefix(prefix, {
+          label: options.label,
+          scope: options.scope,
+          expiresAt,
+          rate
+        });
+        if (!updated) {
+          throw new Error(`Credential prefix not found: ${prefix}`);
+        }
+
+        return {
+          output: {
+            credential: publicCredential(updated)
+          },
+          audit: {
+            targetUserId: updated.subjectId,
+            targetCredentialId: updated.id,
+            targetCredentialPrefix: updated.prefix,
+            params: {
+              before: auditCredentialSnapshot(oldCredential),
+              after: auditCredentialSnapshot(updated)
+            }
+          }
+        };
+      }
+    );
+  });
+
+program
   .command("disable-user")
   .argument("<user>")
   .description("Disable a user so all of their API keys are rejected.")
@@ -345,8 +407,11 @@ program
           expiresAt: addDays(now, options.expiresDays),
           rate: rateFromOptions({
             rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
-            rpd: optionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
-            concurrent: optionOrExisting(options.concurrent, oldCredential.rate.concurrentRequests)
+            rpd: nullableOptionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
+            concurrent: nullableOptionOrExisting(
+              options.concurrent,
+              oldCredential.rate.concurrentRequests
+            )
           }),
           rotatesId: oldCredential.id
         });
@@ -422,6 +487,18 @@ interface AuditedActionResult {
   output: unknown;
   audit?: Partial<AuditInput>;
 }
+
+interface UpdateKeyOptions {
+  label?: string;
+  scope?: Scope;
+  expiresDays?: number;
+  expiresAt?: Date;
+  rpm?: number;
+  rpd?: NullableIntegerOption;
+  concurrent?: NullableIntegerOption;
+}
+
+type NullableIntegerOption = number | null | "";
 
 function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
   const store = createSqliteStore({ path: requireDbPath() });
@@ -553,13 +630,78 @@ function resolveUserId(options: { user?: string; subjectId?: string }): string |
 
 function rateFromOptions(options: {
   rpm: number;
-  rpd?: number | null;
-  concurrent?: number | null;
+  rpd?: NullableIntegerOption;
+  concurrent?: NullableIntegerOption;
 }): RateLimitPolicy {
   return {
     requestsPerMinute: options.rpm,
-    requestsPerDay: options.rpd ?? null,
-    concurrentRequests: options.concurrent ?? null
+    requestsPerDay: normalizeNullableIntegerOption(options.rpd) ?? null,
+    concurrentRequests: normalizeNullableIntegerOption(options.concurrent) ?? null
+  };
+}
+
+function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unknown> {
+  return {
+    label: options.label,
+    scope: options.scope,
+    expires_days: options.expiresDays,
+    expires_at: options.expiresAt?.toISOString(),
+    rpm: options.rpm,
+    rpd: normalizeNullableIntegerOption(options.rpd),
+    concurrent: normalizeNullableIntegerOption(options.concurrent)
+  };
+}
+
+function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
+  if (
+    options.label === undefined &&
+    options.scope === undefined &&
+    options.expiresDays === undefined &&
+    options.expiresAt === undefined &&
+    options.rpm === undefined &&
+    options.rpd === undefined &&
+    options.concurrent === undefined
+  ) {
+    throw new Error(
+      "Set at least one of --label, --scope, --expires-days, --expires-at, --rpm, --rpd, or --concurrent."
+    );
+  }
+}
+
+function updateKeyExpiresAt(options: UpdateKeyOptions): Date | undefined {
+  if (options.expiresAt) {
+    return options.expiresAt;
+  }
+  if (options.expiresDays !== undefined) {
+    return addDays(new Date(), options.expiresDays);
+  }
+  return undefined;
+}
+
+function updateKeyRate(
+  existing: RateLimitPolicy,
+  options: UpdateKeyOptions
+): RateLimitPolicy | undefined {
+  if (options.rpm === undefined && options.rpd === undefined && options.concurrent === undefined) {
+    return undefined;
+  }
+  return rateFromOptions({
+    rpm: options.rpm ?? existing.requestsPerMinute,
+    rpd: nullableOptionOrExisting(options.rpd, existing.requestsPerDay),
+    concurrent: nullableOptionOrExisting(options.concurrent, existing.concurrentRequests)
+  });
+}
+
+function auditCredentialSnapshot(record: AccessCredentialRecord) {
+  return {
+    id: record.id,
+    prefix: record.prefix,
+    user_id: record.subjectId,
+    label: record.label,
+    scope: record.scope,
+    expires_at: record.expiresAt.toISOString(),
+    revoked_at: record.revokedAt?.toISOString() ?? null,
+    rate: record.rate
   };
 }
 
@@ -619,6 +761,7 @@ function parseSubjectState(value: string): SubjectState {
 function parseAdminAuditAction(value: string): AdminAuditAction {
   if (
     value === "issue" ||
+    value === "update-key" ||
     value === "revoke" ||
     value === "rotate" ||
     value === "disable-user" ||
@@ -628,7 +771,7 @@ function parseAdminAuditAction(value: string): AdminAuditAction {
     return value;
   }
   throw new InvalidArgumentError(
-    "action must be issue, revoke, rotate, disable-user, enable-user, or prune-events"
+    "action must be issue, update-key, revoke, rotate, disable-user, enable-user, or prune-events"
   );
 }
 
@@ -662,6 +805,18 @@ function parseNullablePositiveInteger(value: string): number | null {
   return parsePositiveInteger(value);
 }
 
+function normalizeNullableIntegerOption(
+  value: NullableIntegerOption | undefined
+): number | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null || value === "") {
+    return null;
+  }
+  return value;
+}
+
 function parseDate(value: string): Date {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -682,8 +837,12 @@ function earlierDate(first: Date, second: Date): Date {
   return first.getTime() <= second.getTime() ? first : second;
 }
 
-function optionOrExisting<T>(option: T | undefined, existing: T): T {
-  return option === undefined ? existing : option;
+function nullableOptionOrExisting(
+  option: NullableIntegerOption | undefined,
+  existing: number | null
+): number | null {
+  const normalized = normalizeNullableIntegerOption(option);
+  return normalized === undefined ? existing : normalized;
 }
 
 function printJson(value: unknown): void {

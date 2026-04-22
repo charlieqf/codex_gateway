@@ -152,6 +152,7 @@ API key and user operations:
 ```powershell
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list-users
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --user alice --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH update-key <credential-prefix> --scope medical --rpm 10 --rpd 200 --concurrent 1
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --user alice --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --user alice --days 7
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH audit --user alice --limit 50
@@ -162,16 +163,18 @@ npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```
 
-`disable-user` makes all API keys for that user fail authentication without
-deleting usage history. `rotate` issues a new token for the same user so session
-history is shared. The old token stays active until the grace window expires;
-use `--grace-hours 0` to revoke it immediately. Gateway API key auth enforces
-each key's `rpm`, `rpd`, and `concurrent` policy in the current gateway process
-and returns `rate_limited` with `retry_after_seconds` when exceeded.
+`update-key` changes an existing API key's label, scope, expiration, or
+`rpm`/`rpd`/`concurrent` limits without issuing a new token. `disable-user`
+makes all API keys for that user fail authentication without deleting usage
+history. `rotate` issues a new token for the same user so session history is
+shared. The old token stays active until the grace window expires; use
+`--grace-hours 0` to revoke it immediately. Gateway API key auth enforces each
+key's `rpm`, `rpd`, and `concurrent` policy in the current gateway process and
+returns `rate_limited` with `retry_after_seconds` when exceeded.
 
 `events` lists request-level observation records. `report-usage` dynamically
 aggregates `request_events` into daily rows. `audit` lists administrator actions
-such as issuing, revoking, rotating, disabling users, enabling users, and
-pruning request events. `prune-events` manually deletes old request events by
+such as issuing, updating, revoking, rotating, disabling users, enabling users,
+and pruning request events. `prune-events` manually deletes old request events by
 cutoff. Run `prune-events` with `--dry-run` first and remove it only after
 reviewing the `matched` count. There is no scheduled retention job yet.

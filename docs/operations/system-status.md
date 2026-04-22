@@ -21,12 +21,12 @@ Completed:
 - Request context injection for dev subject/subscription/provider/scope.
 - SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
-- User-friendly API key issue/list/revoke/rotate MVP.
+- User-friendly API key issue/list/update/revoke/rotate MVP.
 - Opaque access credential generation with stored SHA-256 hash and prefix lookup.
 - SQLite-backed credential auth hook for gateway requests.
 - Auth mode selection prefers credential auth when a credential store is available; dev auth is rejected under `NODE_ENV=production`.
 - `/gateway/health` exposes `auth_mode`.
-- Admin CLI `issue`, `list`, `list-users`, `disable-user`, `enable-user`, `revoke`, `rotate`, `events`, `report-usage`, `audit`, and `prune-events`.
+- Admin CLI `issue`, `list`, `list-users`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `events`, `report-usage`, `audit`, and `prune-events`.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations.
 - Admin CLI usage aggregation and dry-run-capable manual request event pruning.
@@ -75,7 +75,7 @@ Current test coverage:
 - Provider Codex adapter event mapping and error normalization.
 - SQLite store migration/session persistence.
 - Access credential generation, hash verification, expiration, and revocation.
-- SQLite user and API key persistence, user disable/enable, API key revocation, and admin audit event persistence.
+- SQLite user and API key persistence, API key update/revocation, user disable/enable, and admin audit event persistence.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
 - SQLite request event persistence, usage aggregation, manual pruning, and admin CLI event listing.
 - Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
@@ -98,7 +98,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Container deployment hardening and production runtime validation were revalidated on the Azure VM after commit `33f5b9b`; Docker was not available and was not installed.
 - Docker maintenance-window installation and loopback container smoke were completed on the Azure VM after commit `6e96329`.
 - Containerized Codex device-code login, SDK probe, and gateway-to-Codex SSE smoke were revalidated on the Azure VM with the runtime image's CA bundle and `CODEX_SKIP_GIT_REPO_CHECK=1` default.
-- User-friendly API key operations were validated locally and on the Azure VM: `issue --user`, `list-users`, `list --user`, `events --user`, `report-usage --user`, `disable-user`, and `enable-user`.
+- User-friendly API key operations were validated locally and on the Azure VM: `issue --user`, `list-users`, `list --user`, `update-key`, `events --user`, `report-usage --user`, `disable-user`, and `enable-user`.
 
 Sensitive provider files:
 
@@ -124,7 +124,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, and dry-run-capable manual event pruning are wired into the gateway. Scheduled retention jobs, materialized reports, admin operator identity capture, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, and dry-run-capable manual event pruning are wired into the gateway. Scheduled retention jobs, materialized reports, admin operator identity capture, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

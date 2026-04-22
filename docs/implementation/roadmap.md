@@ -30,7 +30,7 @@
 - SSE 路径已加入 response close abort、heartbeat 和 write failure cleanup。
 - Store contracts 已从 `store-sqlite` 上移到 `@codex-gateway/core`，SQLite 和内存实现只依赖 core contract。
 - SQLite store 已有幂等 schema migration，覆盖 `subjects`、`subscriptions`、`access_credentials`、`sessions`、`request_events` 基础表。
-- API key MVP 已实现：opaque token issue、SHA-256 hash 落库、prefix lookup、list、revoke、rotate、gateway SQLite credential auth、admin CLI `issue/list/list-users/disable-user/enable-user/revoke/rotate/events/report-usage/audit/prune-events`。
+- API key MVP 已实现：opaque token issue、SHA-256 hash 落库、prefix lookup、list、update、revoke、rotate、gateway SQLite credential auth、admin CLI `issue/list/list-users/update-key/disable-user/enable-user/revoke/rotate/events/report-usage/audit/prune-events`。
 - Gateway 已实现单进程 per-credential rate limiting：requests per minute、requests per day、concurrency，并返回 `rate_limited` 与 `retry_after_seconds`。
 - Gateway 已将 request events 写入 SQLite `request_events`，并通过 admin CLI `events`、`report-usage`、`prune-events --dry-run` 提供明细检查、动态聚合和手动 retention 清理入口。
 - Gateway 设置 `GATEWAY_SQLITE_PATH` 后会使用 SQLite Session Store，并在启动时 seed 开发 subject/subscription。
@@ -48,14 +48,14 @@
 尚未完成：
 
 - 多进程共享限流、定时 retention automation 和 materialized usage reports。
-- 用户/API key 操作已覆盖 `--user` 签发、按用户列出、禁用/启用用户、单 key 限流、usage events、usage report、revoke 和 rotate。
+- 用户/API key 操作已覆盖 `--user` 签发、按用户列出、修改单个 key 的权限/限额/过期时间、禁用/启用用户、单 key 限流、usage events、usage report、revoke 和 rotate。
 - 上游账号配置内部仍主要依赖 bootstrap `subscriptions`；更完整的上游账号管理和管理员身份记录仍待实现。
 - 长跑容器部署尚未在共享 Azure VM 上启用；当前只允许只读 Docker 状态检查和 loopback 测试。
 - Public TLS / 80/443 反代接入仍需单独维护窗口。
 
 ## Phase 2: 凭据生命周期
 
-- `issue`、`list`、`revoke`、`rotate`。
+- `issue`、`list`、`update-key`、`revoke`、`rotate`。
 - opaque key 生成、hash 落盘、prefix 管理。
 - 结构化错误。
 

@@ -15,11 +15,11 @@ Deployment and safety:
 
 Operational workflows now covered:
 
-- User-friendly API key issue, list, rotate, and revoke.
+- User-friendly API key issue, list, update, rotate, and revoke.
 - User listing plus user disable/enable.
 - Request event inspection by API key or user.
 - Dynamic usage reports by API key or user.
-- Admin operation audit for issue/revoke/rotate/disable/enable/prune actions.
+- Admin operation audit for issue/update/revoke/rotate/disable/enable/prune actions.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.

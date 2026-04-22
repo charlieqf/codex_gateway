@@ -20,7 +20,8 @@ import type {
   RateLimitPolicy,
   Subject,
   SubjectState,
-  Subscription
+  Subscription,
+  UpdateAccessCredentialInput
 } from "@codex-gateway/core";
 
 export interface SqliteStoreOptions {
@@ -191,6 +192,30 @@ export class SqliteGatewayStore implements GatewayStore {
           .all(includeRevoked ? 1 : 0);
 
     return rows.map(rowToAccessCredential);
+  }
+
+  updateAccessCredentialByPrefix(
+    prefix: string,
+    input: UpdateAccessCredentialInput
+  ): AccessCredentialRecord | null {
+    this.db
+      .prepare(
+        `UPDATE access_credentials
+         SET label = COALESCE(?, label),
+             scope = COALESCE(?, scope),
+             expires_at = COALESCE(?, expires_at),
+             rate_json = COALESCE(?, rate_json)
+         WHERE prefix = ?`
+      )
+      .run(
+        input.label ?? null,
+        input.scope ?? null,
+        input.expiresAt?.toISOString() ?? null,
+        input.rate ? JSON.stringify(input.rate) : null,
+        prefix
+      );
+
+    return this.getAccessCredentialByPrefix(prefix);
   }
 
   revokeAccessCredentialByPrefix(

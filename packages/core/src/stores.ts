@@ -5,6 +5,7 @@ import type {
   AdminAuditStatus,
   GatewaySession,
   ProviderKind,
+  RateLimitPolicy,
   RequestEventRecord,
   Scope,
   Subject,
@@ -47,10 +48,21 @@ export interface ListAccessCredentialsInput {
   includeRevoked?: boolean;
 }
 
+export interface UpdateAccessCredentialInput {
+  label?: string;
+  scope?: Scope;
+  expiresAt?: Date;
+  rate?: RateLimitPolicy;
+}
+
 export interface AccessCredentialStore {
   insertAccessCredential(record: AccessCredentialRecord): AccessCredentialRecord;
   getAccessCredentialByPrefix(prefix: string): AccessCredentialRecord | null;
   listAccessCredentials(input?: ListAccessCredentialsInput): AccessCredentialRecord[];
+  updateAccessCredentialByPrefix(
+    prefix: string,
+    input: UpdateAccessCredentialInput
+  ): AccessCredentialRecord | null;
   revokeAccessCredentialByPrefix(prefix: string, now?: Date): AccessCredentialRecord | null;
   setAccessCredentialExpiresAtByPrefix(
     prefix: string,

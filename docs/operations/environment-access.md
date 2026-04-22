@@ -122,6 +122,7 @@ User/API key CLI smoke:
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --user vm-smoke --label vm-smoke --scope code
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list-users
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --user vm-smoke --active-only
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" update-key <credential-prefix> --scope medical --rpm 10 --rpd 200 --concurrent 1
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --user vm-smoke --days 7
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" audit --user vm-smoke --limit 50

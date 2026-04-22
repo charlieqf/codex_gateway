@@ -40,10 +40,13 @@ describe("codex-gateway-admin user API key operations", () => {
         prefix: string;
         user_id: string;
         subject_id: string;
+        label: string;
+        scope: string;
+        expires_at: string;
         rate: {
           requestsPerMinute: number;
-          requestsPerDay: number;
-          concurrentRequests: number;
+          requestsPerDay: number | null;
+          concurrentRequests: number | null;
         };
       };
     };
@@ -56,6 +59,50 @@ describe("codex-gateway-admin user API key operations", () => {
         requestsPerMinute: 2,
         requestsPerDay: 10,
         concurrentRequests: 1
+      }
+    });
+
+    const updatedKey = runCli(dbPath, [
+      "update-key",
+      issued.credential.prefix,
+      "--label",
+      "Alice tablet",
+      "--scope",
+      "medical",
+      "--expires-at",
+      "2026-06-01T00:00:00Z",
+      "--rpm",
+      "5",
+      "--rpd",
+      "none",
+      "--concurrent",
+      "2"
+    ]) as {
+      credential: {
+        id: string;
+        prefix: string;
+        user_id: string;
+        label: string;
+        scope: string;
+        expires_at: string;
+        rate: {
+          requestsPerMinute: number;
+          requestsPerDay: number | null;
+          concurrentRequests: number | null;
+        };
+      };
+    };
+    expect(updatedKey.credential).toMatchObject({
+      id: issued.credential.id,
+      prefix: issued.credential.prefix,
+      user_id: "alice",
+      label: "Alice tablet",
+      scope: "medical",
+      expires_at: "2026-06-01T00:00:00.000Z",
+      rate: {
+        requestsPerMinute: 5,
+        requestsPerDay: null,
+        concurrentRequests: 2
       }
     });
 
@@ -153,6 +200,13 @@ describe("codex-gateway-admin user API key operations", () => {
           error_message: null
         }),
         expect.objectContaining({
+          action: "update-key",
+          target_user_id: "alice",
+          target_credential_prefix: issued.credential.prefix,
+          status: "ok",
+          error_message: null
+        }),
+        expect.objectContaining({
           action: "disable-user",
           target_user_id: "alice",
           status: "ok",
@@ -184,6 +238,48 @@ describe("codex-gateway-admin user API key operations", () => {
       params: {
         label: "Alice laptop",
         scope: "code"
+      }
+    });
+
+    const updateAudit = runCli(dbPath, ["audit", "--action", "update-key", "--status", "ok"]) as {
+      events: Array<{
+        action: string;
+        status: string;
+        params: {
+          before: {
+            label: string;
+            scope: string;
+            rate: { requestsPerMinute: number; requestsPerDay: number | null };
+          };
+          after: {
+            label: string;
+            scope: string;
+            rate: { requestsPerMinute: number; requestsPerDay: number | null };
+          };
+        };
+      }>;
+    };
+    expect(updateAudit.events).toHaveLength(1);
+    expect(updateAudit.events[0]).toMatchObject({
+      action: "update-key",
+      status: "ok",
+      params: {
+        before: {
+          label: "Alice laptop",
+          scope: "code",
+          rate: {
+            requestsPerMinute: 2,
+            requestsPerDay: 10
+          }
+        },
+        after: {
+          label: "Alice tablet",
+          scope: "medical",
+          rate: {
+            requestsPerMinute: 5,
+            requestsPerDay: null
+          }
+        }
       }
     });
   });
