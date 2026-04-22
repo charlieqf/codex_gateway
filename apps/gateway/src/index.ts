@@ -8,12 +8,13 @@ import {
   type Subscription
 } from "@codex-gateway/core";
 import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
+import { createSqliteStore, type GatewaySessionStore } from "@codex-gateway/store-sqlite";
 import { InMemorySessionStore } from "./services/session-store.js";
 
 export interface GatewayOptions {
   accessToken?: string;
   provider?: ProviderAdapter;
-  sessionStore?: InMemorySessionStore;
+  sessionStore?: GatewaySessionStore;
   subject?: Subject;
   subscription?: Subscription;
   logger?: boolean;
@@ -35,7 +36,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       workingDirectory: process.env.CODEX_WORKDIR ?? process.cwd(),
       skipGitRepoCheck: process.env.CODEX_SKIP_GIT_REPO_CHECK === "1"
     });
-  const sessions = options.sessionStore ?? new InMemorySessionStore();
+  const sessions = options.sessionStore ?? createDefaultSessionStore();
+  sessions.upsertSubject(subject);
+  sessions.upsertSubscription(subscription);
+
+  app.addHook("onClose", async () => {
+    sessions.close?.();
+  });
 
   app.get("/gateway/health", async () => ({
     state: "ready",
@@ -239,4 +246,13 @@ function serializeSession(session: GatewaySession) {
     created_at: session.createdAt.toISOString(),
     updated_at: session.updatedAt.toISOString()
   };
+}
+
+function createDefaultSessionStore(): GatewaySessionStore {
+  const sqlitePath = process.env.GATEWAY_SQLITE_PATH;
+  if (sqlitePath) {
+    return createSqliteStore({ path: sqlitePath });
+  }
+
+  return new InMemorySessionStore();
 }

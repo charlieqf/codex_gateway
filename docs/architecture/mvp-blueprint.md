@@ -61,6 +61,14 @@ compose.azure.yml
 
 ## MVP 验证路径
 
+## 当前实现状态
+
+- Gateway 开发态接口已可通过临时 bearer token 创建 session 并经 SSE 调用 Codex adapter。
+- `provider-codex` 已接真实 Codex SDK，并通过 Azure VM ChatGPT subscription 登录态验证。
+- `packages/store-sqlite` 已落幂等 schema migration 和 SQLite Session Store。
+- `GATEWAY_SQLITE_PATH` 存在时，Gateway 使用 SQLite 持久化 sessions；否则使用内存 store。
+- 正式 access credential 管理尚未实现，当前 `GATEWAY_DEV_ACCESS_TOKEN` 仅用于 Phase 1 开发 smoke。
+
 Phase 0 不先写完整网关，而是验证第一家 provider 是否满足 adapter 合同。验证通过后进入 Phase 1。
 
 通过标准：

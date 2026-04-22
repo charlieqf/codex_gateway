@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { GatewaySession } from "@codex-gateway/core";
+import type { GatewaySessionStore } from "@codex-gateway/store-sqlite";
 
-export class InMemorySessionStore {
+export class InMemorySessionStore implements GatewaySessionStore {
   private readonly sessions = new Map<string, GatewaySession>();
+
+  upsertSubject(): void {
+    return;
+  }
+
+  upsertSubscription(): void {
+    return;
+  }
 
   create(input: { subjectId: string; subscriptionId: string; now?: Date }): GatewaySession {
     const now = input.now ?? new Date();
@@ -44,4 +53,3 @@ export class InMemorySessionStore {
     return updated;
   }
 }
-

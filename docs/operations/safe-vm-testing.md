@@ -110,6 +110,7 @@ export NODE_HOME="$HOME/.local/codex-gateway-node"
 export PATH="$NODE_HOME/bin:$PATH"
 export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
 export CODEX_WORKDIR="$HOME/codex-gateway-test"
+export GATEWAY_SQLITE_PATH="$HOME/codex-gateway-state/gateway.db"
 export GATEWAY_DEV_ACCESS_TOKEN="$(openssl rand -hex 24)"
 export GATEWAY_HOST=127.0.0.1
 export GATEWAY_PORT=18787

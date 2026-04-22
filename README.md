@@ -87,6 +87,7 @@ npm run probe:codex -- --codex-home .gateway-state\codex-home --run
 $env:GATEWAY_DEV_ACCESS_TOKEN = "local-dev-token"
 $env:CODEX_HOME = "C:\work\code\codex-gateway\.gateway-state\codex-home"
 $env:CODEX_WORKDIR = "C:\work\code\codex-gateway"
+$env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
 npm run dev:gateway
 ```
 
@@ -104,3 +105,5 @@ Authorization: Bearer local-dev-token
 ```
 
 这只是 Phase 1 开发路径。Phase 2 会替换为正式 access credential 签发、hash 落盘、吊销、过期和限流。
+
+如果不设置 `GATEWAY_SQLITE_PATH`，gateway 使用内存 session store；设置后会自动创建 SQLite schema 并持久化 sessions。

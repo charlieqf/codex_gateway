@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   GatewayError,
@@ -13,6 +16,7 @@ import {
   type StreamEvent,
   type Subscription
 } from "@codex-gateway/core";
+import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { buildGateway } from "./index.js";
 
 class FakeProvider implements ProviderAdapter {
@@ -111,5 +115,60 @@ describe("gateway phase 1 routes", () => {
     expect(listed.json().sessions[0].provider_session_ref).toBe("provider_thread_1");
 
     await app.close();
+  });
+
+  it("can persist sessions through the sqlite store", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-app-"));
+    const dbPath = path.join(dir, "gateway.db");
+    const headers = { authorization: "Bearer secret" };
+
+    try {
+      const first = buildGateway({
+        accessToken: "secret",
+        provider: new FakeProvider(),
+        sessionStore: createSqliteStore({ path: dbPath }),
+        logger: false
+      });
+
+      const created = await first.inject({
+        method: "POST",
+        url: "/sessions",
+        headers
+      });
+      const sessionId = created.json().session.id as string;
+
+      await first.inject({
+        method: "POST",
+        url: `/sessions/${sessionId}/messages`,
+        headers,
+        payload: { message: "persist" }
+      });
+      await first.close();
+
+      const second = buildGateway({
+        accessToken: "secret",
+        provider: new FakeProvider(),
+        sessionStore: createSqliteStore({ path: dbPath }),
+        logger: false
+      });
+
+      const listed = await second.inject({
+        method: "GET",
+        url: "/sessions",
+        headers
+      });
+
+      expect(listed.statusCode).toBe(200);
+      expect(listed.json().sessions).toMatchObject([
+        {
+          id: sessionId,
+          provider_session_ref: "provider_thread_1"
+        }
+      ]);
+
+      await second.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
