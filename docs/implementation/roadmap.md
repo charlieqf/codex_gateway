@@ -48,8 +48,8 @@
 尚未完成：
 
 - 多进程共享限流、定时 retention automation 和 materialized usage reports。
-- SubjectStore / SubscriptionStore 仍只有 bootstrap upsert，尚未拆成完整 CRUD。
-- Admin CLI 仍缺少更完整的 subject/subscription 配置管理和操作审计。
+- 用户/API key 操作已覆盖 `--user` 签发、按用户列出、禁用/启用用户、单 key 限流、usage events、usage report、revoke 和 rotate。
+- 上游账号配置内部仍主要依赖 bootstrap `subscriptions`；更完整的上游账号管理和管理员操作审计仍待实现。
 - 长跑容器部署尚未在共享 Azure VM 上启用；当前只允许只读 Docker 状态检查和 loopback 测试。
 - Public TLS / 80/443 反代接入仍需单独维护窗口。
 

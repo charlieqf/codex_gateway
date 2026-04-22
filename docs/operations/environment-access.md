@@ -29,14 +29,14 @@ $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db
 npm run dev:gateway
 ```
 
-Issue a local SQLite-backed access credential:
+Issue a local SQLite-backed API key for a user:
 
 ```powershell
 $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --label local-dev --scope code
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user local-user --label local-dev --scope code
 ```
 
-Run the gateway in credential auth mode:
+Run the gateway in API key auth mode:
 
 ```powershell
 Remove-Item Env:\GATEWAY_DEV_ACCESS_TOKEN -ErrorAction SilentlyContinue
@@ -47,7 +47,7 @@ npm run dev:gateway
 
 Auth mode safety:
 
-- When `GATEWAY_SQLITE_PATH` points to a credential-capable store, gateway startup defaults to credential auth even if `GATEWAY_DEV_ACCESS_TOKEN` is present.
+- When `GATEWAY_SQLITE_PATH` points to an API-key-capable store, gateway startup defaults to API key auth even if `GATEWAY_DEV_ACCESS_TOKEN` is present.
 - `GATEWAY_AUTH_MODE=dev` keeps the development bearer-token path explicit for local tests.
 - `NODE_ENV=production` rejects dev auth mode at startup.
 - `GET /gateway/health` returns `auth_mode`.
@@ -116,13 +116,16 @@ npm run build
 npm test
 ```
 
-Credential CLI smoke:
+User/API key CLI smoke:
 
 ```bash
-node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --label vm-smoke --scope code
-node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --active-only
-node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --limit 50
-node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --days 7
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --user vm-smoke --label vm-smoke --scope code
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list-users
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --user vm-smoke --active-only
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --user vm-smoke --limit 50
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --user vm-smoke --days 7
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" disable-user vm-smoke
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" enable-user vm-smoke
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" prune-events --before-days 30 --dry-run
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" rotate <credential-prefix> --grace-hours 24
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" revoke <credential-prefix>

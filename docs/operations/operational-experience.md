@@ -24,6 +24,13 @@ Last updated: 2026-04-22
 - In PowerShell, remote Bash variables such as `$HOME`, `$PATH`, and custom env vars can be expanded locally if the SSH command is double-quoted. For multi-step VM scripts, normalize line endings and transfer a base64-encoded script.
 - If the VM test checkout has harmless local lockfile drift from prior Linux `npm install` optional dependency metadata, do not use `git reset --hard`. Use `git merge --ff-only` when possible and `npm ci` to avoid further lockfile writes.
 
+## Operator Vocabulary
+
+- Use "user" in operator docs and CLI examples for the person, client, or device group receiving access. The internal table is `subjects`.
+- Use "API key" for the bearer token issued to a user. The internal table is `access_credentials`, and only the prefix plus hash is stored.
+- Use "upstream Codex account" for the server-side ChatGPT/Codex login state under `CODEX_HOME`. The internal provider record is a subscription.
+- 中文文档里优先写“用户 / API key / 上游 Codex 账号 / 用量”，只在排查数据库或代码时补充 `subject`、`access_credential`、`subscription`。
+
 ## Codex Auth Lessons
 
 - VM desktop environment is not required.

@@ -15,9 +15,10 @@ Deployment and safety:
 
 Operational workflows now covered:
 
-- Access credential issue, list, rotate, and revoke.
-- Request event inspection.
-- Dynamic usage reports.
+- User-friendly API key issue, list, rotate, and revoke.
+- User listing plus user disable/enable.
+- Request event inspection by API key or user.
+- Dynamic usage reports by API key or user.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.
@@ -26,7 +27,8 @@ Operational workflows now covered:
 
 Operational workflows still pending:
 
-- Full subject/subscription administration.
+- Fuller upstream Codex account administration.
+- Admin operation audit.
 - Scheduled retention automation.
 - Materialized usage reports.
 - Long-running production deployment activation.

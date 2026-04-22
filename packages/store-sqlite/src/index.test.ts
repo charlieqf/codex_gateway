@@ -42,6 +42,34 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("lists users and updates user state", () => {
+    const store = createSeededStore(":memory:");
+    store.upsertSubject({
+      id: "alice",
+      label: "Alice",
+      state: "active",
+      createdAt: new Date("2026-01-02T00:00:00Z")
+    });
+
+    expect(store.listSubjects({ state: "active" }).map((subject) => subject.id)).toEqual([
+      "alice",
+      "subj_1"
+    ]);
+
+    const disabled = store.setSubjectState("alice", "disabled");
+    expect(disabled).toMatchObject({
+      id: "alice",
+      label: "Alice",
+      state: "disabled"
+    });
+    expect(store.listSubjects({ state: "active" }).map((subject) => subject.id)).toEqual([
+      "subj_1"
+    ]);
+    expect(store.setSubjectState("missing", "disabled")).toBeNull();
+
+    store.close();
+  });
+
   it("persists and revokes access credentials", () => {
     const store = createSeededStore(":memory:");
     const issued = issueAccessCredential({

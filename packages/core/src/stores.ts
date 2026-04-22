@@ -5,6 +5,7 @@ import type {
   RequestEventRecord,
   Scope,
   Subject,
+  SubjectState,
   Subscription
 } from "./types.js";
 
@@ -29,6 +30,13 @@ export interface BootstrapStore {
 
 export interface SubjectStore {
   getSubject(id: string): Subject | null;
+  listSubjects(input?: ListSubjectsInput): Subject[];
+  setSubjectState(id: string, state: SubjectState): Subject | null;
+}
+
+export interface ListSubjectsInput {
+  includeArchived?: boolean;
+  state?: SubjectState;
 }
 
 export interface ListAccessCredentialsInput {

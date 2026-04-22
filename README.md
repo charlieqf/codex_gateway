@@ -1,5 +1,14 @@
 # Codex Gateway
 
+## 操作用词
+
+日常使用先按下面几个概念理解，内部表名只作为排查时的对应关系：
+
+- 用户：你要授权的人、客户或设备组。内部表名是 `subjects`。
+- API key：发给用户的 bearer token。内部表名是 `access_credentials`；数据库只保存 prefix 和 hash。
+- 上游 Codex 账号：服务端 `CODEX_HOME` 里的 ChatGPT/Codex 登录态。内部 provider 记录叫 subscription。
+- 用量：按 API key 或用户统计的请求事件和日报。
+
 访问网关原型项目，用于把订阅持有者的 AI/Codex 能力通过受控服务端代理给多设备或少数受信用户使用。
 
 当前阶段是 Phase 1 开发态网关。Provider 可行性、真实 Codex SDK 调用、SSE 网关路径、SQLite-backed session persistence、access credential 管理、限流和基础 usage observation 已验证；生产部署尚未完成。
@@ -112,18 +121,19 @@ Authorization: Bearer local-dev-token
 
 如果不设置 `GATEWAY_SQLITE_PATH`，gateway 使用内存 session store；设置后会自动创建 SQLite schema 并持久化 sessions。
 
-## Access Credential MVP
+## API Key MVP
 
-SQLite-backed access credentials are now available for the MVP path:
+SQLite-backed API keys are now available for the MVP path:
 
 ```powershell
 $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --label local-dev --scope code
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user alice --label "Alice laptop" --scope code --rpm 30 --rpd 500 --concurrent 1
 ```
 
-The `issue` command prints the bearer token once. The database stores only a prefix and SHA-256 hash.
+The `issue` command prints the API key once. The database stores only a prefix
+and SHA-256 hash.
 
-Run the gateway with database credential authentication:
+Run the gateway in API key auth mode:
 
 ```powershell
 Remove-Item Env:\GATEWAY_DEV_ACCESS_TOKEN -ErrorAction SilentlyContinue
@@ -132,19 +142,30 @@ $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db
 npm run dev:gateway
 ```
 
-When a SQLite credential store is available, the gateway defaults to credential auth even if `GATEWAY_DEV_ACCESS_TOKEN` is also set. Dev auth must be explicit in mixed setups and is rejected when `NODE_ENV=production`. `/gateway/health` includes `auth_mode` so operators can confirm the active mode.
+When a SQLite API key store is available, the gateway defaults to API key auth
+even if `GATEWAY_DEV_ACCESS_TOKEN` is also set. Dev auth must be explicit in
+mixed setups and is rejected when `NODE_ENV=production`. `/gateway/health`
+includes `auth_mode` so operators can confirm the active mode.
 
-Credential operations:
+API key and user operations:
 
 ```powershell
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --active-only
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --limit 50
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --days 7
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list-users
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --user alice --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --user alice --limit 50
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --user alice --days 7
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH disable-user alice
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH enable-user alice
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH prune-events --before-days 30 --dry-run
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --grace-hours 24
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```
 
-`rotate` issues a new token for the same subject so session history is shared. The old token stays active until the grace window expires; use `--grace-hours 0` to revoke it immediately. Gateway credential auth enforces each credential's `rpm`, `rpd`, and `concurrent` policy in the current gateway process and returns `rate_limited` with `retry_after_seconds` when exceeded.
+`disable-user` makes all API keys for that user fail authentication without
+deleting usage history. `rotate` issues a new token for the same user so session
+history is shared. The old token stays active until the grace window expires;
+use `--grace-hours 0` to revoke it immediately. Gateway API key auth enforces
+each key's `rpm`, `rpd`, and `concurrent` policy in the current gateway process
+and returns `rate_limited` with `retry_after_seconds` when exceeded.
 
 `events` lists request-level observation records. `report-usage` dynamically aggregates `request_events` into daily rows, and `prune-events` manually deletes old request events by cutoff. Run `prune-events` with `--dry-run` first and remove it only after reviewing the `matched` count. There is no scheduled retention job yet.

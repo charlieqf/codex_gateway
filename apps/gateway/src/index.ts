@@ -436,6 +436,8 @@ function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & Cre
   const candidate = store as Partial<CredentialAuthStore>;
   return (
     typeof candidate.getSubject === "function" &&
+    typeof candidate.listSubjects === "function" &&
+    typeof candidate.setSubjectState === "function" &&
     typeof candidate.getAccessCredentialByPrefix === "function" &&
     typeof candidate.listAccessCredentials === "function" &&
     typeof candidate.revokeAccessCredentialByPrefix === "function" &&

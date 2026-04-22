@@ -9,6 +9,7 @@ import type {
   GatewayStore,
   ListAccessCredentialsInput,
   ListRequestEventsInput,
+  ListSubjectsInput,
   PruneRequestEventsInput,
   PruneRequestEventsResult,
   RequestEventRecord,
@@ -16,6 +17,7 @@ import type {
   RequestUsageReportRow,
   RateLimitPolicy,
   Subject,
+  SubjectState,
   Subscription
 } from "@codex-gateway/core";
 
@@ -87,6 +89,42 @@ export class SqliteGatewayStore implements GatewayStore {
       .get(id);
 
     return row ? rowToSubject(row) : null;
+  }
+
+  listSubjects(input: ListSubjectsInput = {}): Subject[] {
+    const includeArchived = input.includeArchived ?? true;
+    const rows = input.state
+      ? this.db
+          .prepare(
+            `SELECT id, label, state, created_at
+             FROM subjects
+             WHERE state = ?
+               AND (? = 1 OR state != 'archived')
+             ORDER BY id`
+          )
+          .all(input.state, includeArchived ? 1 : 0)
+      : this.db
+          .prepare(
+            `SELECT id, label, state, created_at
+             FROM subjects
+             WHERE (? = 1 OR state != 'archived')
+             ORDER BY id`
+          )
+          .all(includeArchived ? 1 : 0);
+
+    return rows.map(rowToSubject);
+  }
+
+  setSubjectState(id: string, state: SubjectState): Subject | null {
+    this.db
+      .prepare(
+        `UPDATE subjects
+         SET state = ?
+         WHERE id = ?`
+      )
+      .run(state, id);
+
+    return this.getSubject(id);
   }
 
   insertAccessCredential(record: AccessCredentialRecord): AccessCredentialRecord {

@@ -104,15 +104,15 @@ Expected health response includes:
 The health endpoint intentionally exposes only non-sensitive runtime state. It
 does not reveal token values, SQLite paths, or `CODEX_HOME`.
 
-## Bootstrap Credentials
+## Bootstrap API Key
 
-Issue the first credential inside the running container:
+Issue the first API key inside the running container:
 
 ```bash
 docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  issue --label bootstrap --scope code
+  issue --user bootstrap --label bootstrap --scope code
 ```
 
 The token is printed once. Store it in the operator secret store, not in Git or
@@ -137,7 +137,7 @@ Inspect recent events:
 docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  events --limit 50
+  events --user bootstrap --limit 50
 ```
 
 Generate a dynamic daily report:
@@ -146,7 +146,7 @@ Generate a dynamic daily report:
 docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  report-usage --days 7
+  report-usage --user bootstrap --days 7
 ```
 
 Preview retention cleanup first:

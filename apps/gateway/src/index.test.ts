@@ -409,6 +409,42 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("rejects API keys that belong to a disabled user", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "alice",
+      label: "Alice token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "alice",
+      label: "Alice",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.setSubjectState("alice", "disabled");
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
   it("rate-limits sqlite-backed access credentials", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

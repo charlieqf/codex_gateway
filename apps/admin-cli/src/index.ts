@@ -5,7 +5,8 @@ import {
   type AccessCredentialRecord,
   type RateLimitPolicy,
   type Scope,
-  type Subject
+  type Subject,
+  type SubjectState
 } from "@codex-gateway/core";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 
@@ -22,9 +23,11 @@ program
 
 program
   .command("issue")
-  .description("Issue an access credential.")
+  .description("Issue an API key.")
   .requiredOption("--label <label>", "credential label")
   .requiredOption("--scope <scope>", "credential scope: code or medical", parseScope)
+  .option("--user <id>", "user id; preferred alias for --subject-id")
+  .option("--user-label <label>", "user label; preferred alias for --subject-label")
   .option("--subject-id <id>", "subject id", defaultSubjectId)
   .option("--subject-label <label>", "subject label", defaultSubjectLabel)
   .option("--expires-days <days>", "days until expiration", parsePositiveInteger, 365)
@@ -33,7 +36,7 @@ program
   .option("--concurrent <n>", "concurrent requests", parseNullablePositiveInteger, 1)
   .action((options) => {
     withStore((store) => {
-      const subject = subjectFromOptions(options);
+      const subject = issueSubject(store, options);
       store.upsertSubject(subject);
 
       const issued = issueAccessCredential({
@@ -54,13 +57,15 @@ program
 
 program
   .command("list")
-  .description("List access credentials.")
+  .description("List API keys.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--subject-id <id>", "filter by subject id")
   .option("--active-only", "hide revoked credentials")
   .action((options) => {
     withStore((store) => {
+      const subjectId = resolveUserId(options);
       const credentials = store.listAccessCredentials({
-        subjectId: options.subjectId,
+        subjectId,
         includeRevoked: options.activeOnly ? false : true
       });
       printJson({
@@ -70,16 +75,70 @@ program
   });
 
 program
+  .command("list-users")
+  .description("List users.")
+  .option("--state <state>", "filter by state: active, disabled, or archived", parseSubjectState)
+  .option("--hide-archived", "hide archived users")
+  .action((options) => {
+    withStore((store) => {
+      printJson({
+        users: store
+          .listSubjects({
+            state: options.state,
+            includeArchived: options.hideArchived ? false : true
+          })
+          .map(publicSubject)
+      });
+    });
+  });
+
+program
+  .command("disable-user")
+  .argument("<user>")
+  .description("Disable a user so all of their API keys are rejected.")
+  .action((user) => {
+    withStore((store) => {
+      const subject = store.setSubjectState(user, "disabled");
+      if (!subject) {
+        throw new Error(`User not found: ${user}`);
+      }
+
+      printJson({
+        user: publicSubject(subject)
+      });
+    });
+  });
+
+program
+  .command("enable-user")
+  .argument("<user>")
+  .description("Re-enable a disabled user.")
+  .action((user) => {
+    withStore((store) => {
+      const subject = store.setSubjectState(user, "active");
+      if (!subject) {
+        throw new Error(`User not found: ${user}`);
+      }
+
+      printJson({
+        user: publicSubject(subject)
+      });
+    });
+  });
+
+program
   .command("events")
   .description("List recorded request events.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--credential-id <id>", "filter by credential id")
   .option("--subject-id <id>", "filter by subject id")
   .option("--limit <n>", "maximum events to return", parsePositiveInteger, 50)
   .action((options) => {
     withStore((store) => {
+      const subjectId = resolveUserId(options);
       const events = store.listRequestEvents({
         credentialId: options.credentialId,
-        subjectId: options.subjectId,
+        subjectId,
         limit: options.limit
       });
       printJson({
@@ -105,6 +164,7 @@ program
 program
   .command("report-usage")
   .description("Aggregate request events into daily usage rows.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--credential-id <id>", "filter by credential id")
   .option("--subject-id <id>", "filter by subject id")
   .option("--days <days>", "days to report when --since is omitted", parsePositiveInteger, 7)
@@ -112,6 +172,7 @@ program
   .option("--until <iso>", "exclusive ISO end time", parseDate)
   .action((options) => {
     withStore((store) => {
+      const subjectId = resolveUserId(options);
       const until = options.until ?? new Date();
       const since = options.since ?? addDays(until, -options.days);
       if (since.getTime() >= until.getTime()) {
@@ -119,7 +180,7 @@ program
       }
       const rows = store.reportRequestUsage({
         credentialId: options.credentialId,
-        subjectId: options.subjectId,
+        subjectId,
         since,
         until
       });
@@ -254,13 +315,58 @@ function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T
   }
 }
 
-function subjectFromOptions(options: { subjectId: string; subjectLabel: string }): Subject {
+function subjectFromOptions(options: {
+  user?: string;
+  userLabel?: string;
+  subjectId: string;
+  subjectLabel: string;
+}): Subject {
+  const user = resolveUserId(options) ?? defaultSubjectId;
+  const label =
+    "userLabel" in options && typeof options.userLabel === "string"
+      ? options.userLabel
+      : options.user
+        ? user
+        : options.subjectLabel;
+
   return {
-    id: options.subjectId,
-    label: options.subjectLabel,
+    id: user,
+    label,
     state: "active",
     createdAt: new Date()
   };
+}
+
+function issueSubject(
+  store: ReturnType<typeof createSqliteStore>,
+  options: {
+    user?: string;
+    userLabel?: string;
+    subjectId: string;
+    subjectLabel: string;
+  }
+): Subject {
+  const requested = subjectFromOptions(options);
+  const existing = store.getSubject(requested.id);
+  if (!existing) {
+    return requested;
+  }
+  if (existing.state !== "active") {
+    throw new Error(`User is ${existing.state}; enable the user before issuing a new API key.`);
+  }
+
+  return {
+    ...existing,
+    label: requested.label
+  };
+}
+
+function resolveUserId(options: { user?: string; subjectId?: string }): string | undefined {
+  if (options.user && options.subjectId && options.subjectId !== defaultSubjectId) {
+    throw new Error("Use --user or --subject-id, not both.");
+  }
+
+  return options.user ?? options.subjectId;
 }
 
 function rateFromOptions(options: {
@@ -279,6 +385,7 @@ function publicCredential(record: AccessCredentialRecord) {
   return {
     id: record.id,
     prefix: record.prefix,
+    user_id: record.subjectId,
     subject_id: record.subjectId,
     label: record.label,
     scope: record.scope,
@@ -290,11 +397,27 @@ function publicCredential(record: AccessCredentialRecord) {
   };
 }
 
+function publicSubject(subject: Subject) {
+  return {
+    id: subject.id,
+    label: subject.label,
+    state: subject.state,
+    created_at: subject.createdAt.toISOString()
+  };
+}
+
 function parseScope(value: string): Scope {
   if (value === "code" || value === "medical") {
     return value;
   }
   throw new InvalidArgumentError("scope must be code or medical");
+}
+
+function parseSubjectState(value: string): SubjectState {
+  if (value === "active" || value === "disabled" || value === "archived") {
+    return value;
+  }
+  throw new InvalidArgumentError("state must be active, disabled, or archived");
 }
 
 function parsePositiveInteger(value: string): number {
