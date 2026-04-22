@@ -89,6 +89,53 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("exposes MedCode public metadata instead of provider implementation names", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const health = await app.inject({
+      method: "GET",
+      url: "/gateway/health"
+    });
+    expect(health.json()).toMatchObject({
+      service: "medcode",
+      provider: "medcode",
+      phase: "controlled-trial"
+    });
+
+    const status = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    expect(status.json().subscription).toMatchObject({
+      id: "medcode",
+      provider: "medcode",
+      detail: "MedCode service is available."
+    });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    expect(created.json().session.subscription_id).toBe("medcode");
+
+    const publicPayloads = [
+      JSON.stringify(health.json()),
+      JSON.stringify(status.json()),
+      JSON.stringify(created.json())
+    ].join("\n");
+    expect(publicPayloads).not.toContain("openai-codex");
+    expect(publicPayloads).not.toContain("codex-gateway");
+
+    await app.close();
+  });
+
   it("prefers credential auth when a credential store and dev token are both present", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

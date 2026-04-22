@@ -141,8 +141,37 @@ describe("CodexProviderAdapter", () => {
     const adapter = createAdapter(new FakeClient(new FakeThread(null, [])));
 
     expect(adapter.normalize(new Error("Not logged in")).code).toBe("provider_reauth_required");
+    expect(adapter.normalize(new Error("Not logged in")).message).toBe(
+      "MedCode service requires administrator reauthorization."
+    );
     expect(adapter.normalize(new Error("HTTP 429 rate limit")).code).toBe("rate_limited");
+    expect(adapter.normalize(new Error("HTTP 429 rate limit")).message).toBe(
+      "MedCode service rate limit reached."
+    );
     expect(adapter.normalize(new Error("connection reset")).code).toBe("service_unavailable");
+    expect(adapter.normalize(new Error("connection reset")).message).toBe(
+      "MedCode service is temporarily unavailable."
+    );
+  });
+
+  it("sanitizes provider stream error messages before returning them", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "error",
+        message: "Codex is not logged in to ChatGPT"
+      } as ThreadEvent
+    ]);
+    const adapter = createAdapter(new FakeClient(thread));
+
+    const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
+
+    expect(events[0]).toEqual({
+      type: "error",
+      code: "provider_reauth_required",
+      message: "MedCode service requires administrator reauthorization."
+    });
+    expect(JSON.stringify(events)).not.toContain("Codex");
+    expect(JSON.stringify(events)).not.toContain("ChatGPT");
   });
 });
 
@@ -210,4 +239,3 @@ async function collect<T>(input: AsyncIterable<T>): Promise<T[]> {
   }
   return result;
 }
-

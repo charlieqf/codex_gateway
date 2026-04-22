@@ -137,19 +137,21 @@ export class CodexProviderAdapter implements ProviderAdapter {
         }
 
         if (event.type === "turn.failed") {
+          const normalized = this.normalize(new Error(event.error.message));
           yield {
             type: "error",
-            code: this.normalize(new Error(event.error.message)).code,
-            message: event.error.message
+            code: normalized.code,
+            message: normalized.message
           };
           continue;
         }
 
         if (event.type === "error") {
+          const normalized = this.normalize(new Error(event.message));
           yield {
             type: "error",
-            code: this.normalize(new Error(event.message)).code,
-            message: event.message
+            code: normalized.code,
+            message: normalized.message
           };
           continue;
         }
@@ -201,7 +203,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     ) {
       return new GatewayError({
         code: "provider_reauth_required",
-        message: "Codex provider requires ChatGPT reauthorization.",
+        message: "MedCode service requires administrator reauthorization.",
         httpStatus: 503
       });
     }
@@ -209,7 +211,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     if (lower.includes("rate limit") || lower.includes("rate_limited") || lower.includes("429")) {
       return new GatewayError({
         code: "rate_limited",
-        message: "Codex provider rate limit reached.",
+        message: "MedCode service rate limit reached.",
         httpStatus: 429,
         retryAfterSeconds: 60
       });
@@ -217,7 +219,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     return new GatewayError({
       code: "service_unavailable",
-      message: "Codex provider is temporarily unavailable.",
+      message: "MedCode service is temporarily unavailable.",
       httpStatus: 503
     });
   }

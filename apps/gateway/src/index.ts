@@ -34,6 +34,7 @@ export interface GatewayOptions {
   accessToken?: string;
   authMode?: GatewayAuthMode;
   credentialStore?: CredentialAuthStore;
+  publicMetadata?: GatewayPublicMetadata;
   provider?: ProviderAdapter;
   sessionStore?: GatewayStore;
   subject?: Subject;
@@ -41,6 +42,22 @@ export interface GatewayOptions {
   rateLimiter?: CredentialRateLimiter;
   observationStore?: ObservationStore;
   logger?: boolean;
+}
+
+export interface GatewayPublicMetadata {
+  serviceName?: string;
+  providerName?: string;
+  providerDisplayName?: string;
+  subscriptionId?: string;
+  phase?: string;
+}
+
+interface ResolvedGatewayPublicMetadata {
+  serviceName: string;
+  providerName: string;
+  providerDisplayName: string;
+  subscriptionId: string;
+  phase: string;
 }
 
 interface MessageBody {
@@ -62,6 +79,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const sessions = options.sessionStore ?? createDefaultSessionStore();
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
+  const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env);
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
     configured: configuredAuthMode,
@@ -141,14 +159,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     },
     async () => ({
       state: "ready",
-      service: "codex-gateway",
+      service: publicMetadata.serviceName,
       auth_mode: authMode,
-      provider: provider.kind,
+      provider: publicMetadata.providerName,
       store: {
         session: storeKind(sessions),
         observation: observationStore ? "enabled" : "disabled"
       },
-      phase: "phase-1-dev-gateway"
+      phase: publicMetadata.phase
     })
   );
 
@@ -169,10 +187,10 @@ export function buildGateway(options: GatewayOptions = {}) {
         rate: credential.rate
       },
       subscription: {
-        id: subscription.id,
-        provider: subscription.provider,
+        id: publicMetadata.subscriptionId,
+        provider: publicMetadata.providerName,
         state: health.state,
-        detail: health.detail
+        detail: publicProviderDetail(health.state, publicMetadata.providerDisplayName)
       }
     };
   });
@@ -180,7 +198,9 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.get("/sessions", async (request) => {
     const { subject } = getGatewayContext(request);
     return {
-      sessions: sessions.list(subject.id).map(serializeSession)
+      sessions: sessions
+        .list(subject.id)
+        .map((session) => serializeSession(session, publicMetadata))
     };
   });
 
@@ -194,7 +214,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
     reply.code(201);
     return {
-      session: serializeSession(session)
+      session: serializeSession(session, publicMetadata)
     };
   });
 
@@ -361,17 +381,54 @@ function defaultSubscription(): Subscription {
   };
 }
 
-function serializeSession(session: GatewaySession) {
+function serializeSession(
+  session: GatewaySession,
+  publicMetadata: ResolvedGatewayPublicMetadata
+) {
   return {
     id: session.id,
     subject_id: session.subjectId,
-    subscription_id: session.subscriptionId,
+    subscription_id: publicMetadata.subscriptionId,
     provider_session_ref: session.providerSessionRef,
     title: session.title,
     state: session.state,
     created_at: session.createdAt.toISOString(),
     updated_at: session.updatedAt.toISOString()
   };
+}
+
+function resolvePublicMetadata(
+  input: GatewayPublicMetadata | undefined,
+  env: NodeJS.ProcessEnv
+): ResolvedGatewayPublicMetadata {
+  const providerDisplayName =
+    input?.providerDisplayName ?? env.GATEWAY_PUBLIC_PROVIDER_DISPLAY_NAME ?? "MedCode";
+  const providerName = input?.providerName ?? env.GATEWAY_PUBLIC_PROVIDER_NAME ?? "medcode";
+
+  return {
+    serviceName: input?.serviceName ?? env.GATEWAY_PUBLIC_SERVICE_NAME ?? "medcode",
+    providerName,
+    providerDisplayName,
+    subscriptionId:
+      input?.subscriptionId ?? env.GATEWAY_PUBLIC_SUBSCRIPTION_ID ?? providerName,
+    phase: input?.phase ?? env.GATEWAY_PUBLIC_PHASE ?? "controlled-trial"
+  };
+}
+
+function publicProviderDetail(
+  state: "healthy" | "degraded" | "reauth_required" | "unhealthy",
+  providerDisplayName: string
+): string {
+  if (state === "healthy") {
+    return `${providerDisplayName} service is available.`;
+  }
+  if (state === "degraded") {
+    return `${providerDisplayName} service is degraded.`;
+  }
+  if (state === "reauth_required") {
+    return `${providerDisplayName} service requires administrator attention.`;
+  }
+  return `${providerDisplayName} service is unavailable.`;
 }
 
 function createDefaultSessionStore(): GatewayStore {
