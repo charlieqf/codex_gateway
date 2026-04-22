@@ -22,6 +22,8 @@ mkdir -p "$INSTALL_DIR"
 curl -fsSL "$URL" -o "$TMP_DIR/$TARBALL"
 tar -xJf "$TMP_DIR/$TARBALL" -C "$INSTALL_DIR" --strip-components=1
 
+export PATH="$INSTALL_DIR/bin:$PATH"
+
 "$INSTALL_DIR/bin/node" --version
 "$INSTALL_DIR/bin/npm" --version
 
@@ -33,4 +35,3 @@ User-local Node installed at:
 For this shell:
   export PATH="$INSTALL_DIR/bin:\$PATH"
 EOF
-
