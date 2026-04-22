@@ -60,6 +60,29 @@ class FakeProvider implements ProviderAdapter {
 }
 
 describe("gateway phase 1 routes", () => {
+  it("keeps health public while protecting other routes", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+
+    const health = await app.inject({
+      method: "GET",
+      url: "/gateway/health"
+    });
+    expect(health.statusCode).toBe(200);
+
+    const sessions = await app.inject({
+      method: "GET",
+      url: "/sessions"
+    });
+    expect(sessions.statusCode).toBe(401);
+    expect(sessions.json().error.code).toBe("missing_credential");
+
+    await app.close();
+  });
+
   it("requires bearer auth for status", async () => {
     const app = buildGateway({
       accessToken: "secret",
@@ -115,6 +138,84 @@ describe("gateway phase 1 routes", () => {
     expect(listed.json().sessions[0].provider_session_ref).toBe("provider_thread_1");
 
     await app.close();
+  });
+
+  it("returns invalid_request for an empty message", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    const sessionId = created.json().session.id as string;
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "" }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("invalid_request");
+
+    await app.close();
+  });
+
+  it("hides sessions that belong to a different subject", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-subject-"));
+    const dbPath = path.join(dir, "gateway.db");
+    const headers = { authorization: "Bearer secret" };
+
+    try {
+      const first = buildGateway({
+        accessToken: "secret",
+        provider: new FakeProvider(),
+        sessionStore: createSqliteStore({ path: dbPath }),
+        logger: false
+      });
+
+      const created = await first.inject({
+        method: "POST",
+        url: "/sessions",
+        headers
+      });
+      const sessionId = created.json().session.id as string;
+      await first.close();
+
+      const second = buildGateway({
+        accessToken: "secret",
+        provider: new FakeProvider(),
+        sessionStore: createSqliteStore({ path: dbPath }),
+        subject: {
+          id: "subj_other",
+          label: "Other",
+          state: "active",
+          createdAt: new Date("2026-01-01T00:00:00Z")
+        },
+        logger: false
+      });
+
+      const hidden = await second.inject({
+        method: "POST",
+        url: `/sessions/${sessionId}/messages`,
+        headers,
+        payload: { message: "hello" }
+      });
+
+      expect(hidden.statusCode).toBe(404);
+      expect(hidden.json().error.code).toBe("session_not_found");
+
+      await second.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("can persist sessions through the sqlite store", async () => {

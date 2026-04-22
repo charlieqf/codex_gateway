@@ -1,0 +1,33 @@
+import type { FastifyRequest } from "fastify";
+import type { ProviderAdapter, Scope, Subject, Subscription } from "@codex-gateway/core";
+
+export interface GatewayRequestContext {
+  subject: Subject;
+  subscription: Subscription;
+  provider: ProviderAdapter;
+  scope: Scope;
+  credential: {
+    prefix: string;
+  };
+}
+
+export type GatewayRequest = FastifyRequest & {
+  gatewayContext: GatewayRequestContext;
+};
+
+declare module "fastify" {
+  interface FastifyContextConfig {
+    public?: boolean;
+  }
+
+  interface FastifyRequest {
+    gatewayContext?: GatewayRequestContext;
+  }
+}
+
+export function getGatewayContext(request: FastifyRequest): GatewayRequestContext {
+  if (!request.gatewayContext) {
+    throw new Error("Gateway request context is missing.");
+  }
+  return request.gatewayContext;
+}

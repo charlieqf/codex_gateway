@@ -104,10 +104,10 @@ export interface MessageInput {
   subject: Subject;
   scope: Scope;
   message: string;
+  signal?: AbortSignal;
 }
 
 export interface CancelInput {
   subscription: Subscription;
   session: GatewaySession;
 }
-

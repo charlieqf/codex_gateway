@@ -1,20 +1,23 @@
 import { pathToFileURL } from "node:url";
-import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, { type FastifyReply } from "fastify";
 import {
   GatewayError,
   type GatewaySession,
+  type GatewayStore,
   type ProviderAdapter,
   type Subject,
   type Subscription
 } from "@codex-gateway/core";
 import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
-import { createSqliteStore, type GatewaySessionStore } from "@codex-gateway/store-sqlite";
+import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import { devAuthHook } from "./http/auth.js";
+import { getGatewayContext, type GatewayRequest } from "./http/context.js";
 import { InMemorySessionStore } from "./services/session-store.js";
 
 export interface GatewayOptions {
   accessToken?: string;
   provider?: ProviderAdapter;
-  sessionStore?: GatewaySessionStore;
+  sessionStore?: GatewayStore;
   subject?: Subject;
   subscription?: Subscription;
   logger?: boolean;
@@ -39,21 +42,41 @@ export function buildGateway(options: GatewayOptions = {}) {
   const sessions = options.sessionStore ?? createDefaultSessionStore();
   sessions.upsertSubject(subject);
   sessions.upsertSubscription(subscription);
+  const devContext = {
+    subject,
+    subscription,
+    provider,
+    scope: "code" as const,
+    credential: {
+      prefix: "dev"
+    }
+  };
 
   app.addHook("onClose", async () => {
     sessions.close?.();
   });
 
-  app.get("/gateway/health", async () => ({
-    state: "ready",
-    service: "codex-gateway",
-    phase: "phase-1-dev-gateway"
-  }));
+  app.addHook("onRequest", async (request, reply) =>
+    devAuthHook(request, reply, {
+      accessToken,
+      context: devContext
+    })
+  );
 
-  app.get("/gateway/status", async (request, reply) => {
-    const auth = authenticate(request, accessToken);
-    if (auth) return sendError(reply, auth);
+  app.get(
+    "/gateway/health",
+    {
+      config: { public: true }
+    },
+    async () => ({
+      state: "ready",
+      service: "codex-gateway",
+      phase: "phase-1-dev-gateway"
+    })
+  );
 
+  app.get("/gateway/status", async (request) => {
+    const { subject, subscription, provider, scope, credential } = getGatewayContext(request);
     const health = await provider.health(subscription);
 
     return {
@@ -63,8 +86,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         label: subject.label
       },
       credential: {
-        prefix: "dev",
-        scope: "code",
+        prefix: credential.prefix,
+        scope,
         expires_at: null
       },
       subscription: {
@@ -76,19 +99,15 @@ export function buildGateway(options: GatewayOptions = {}) {
     };
   });
 
-  app.get("/sessions", async (request, reply) => {
-    const auth = authenticate(request, accessToken);
-    if (auth) return sendError(reply, auth);
-
+  app.get("/sessions", async (request) => {
+    const { subject } = getGatewayContext(request);
     return {
       sessions: sessions.list(subject.id).map(serializeSession)
     };
   });
 
   app.post("/sessions", async (request, reply) => {
-    const auth = authenticate(request, accessToken);
-    if (auth) return sendError(reply, auth);
-
+    const { subject, subscription } = getGatewayContext(request);
     const session = sessions.create({
       subjectId: subject.id,
       subscriptionId: subscription.id
@@ -103,8 +122,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.post<{ Params: { id: string }; Body: MessageBody }>(
     "/sessions/:id/messages",
     async (request, reply) => {
-      const auth = authenticate(request, accessToken);
-      if (auth) return sendError(reply, auth);
+      const { subject, subscription, provider, scope } = getGatewayContext(request);
 
       const session = sessions.get(request.params.id);
       if (!session || session.subjectId !== subject.id) {
@@ -112,7 +130,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           reply,
           new GatewayError({
             code: "session_not_found",
-            message: "会话不存在，或不属于当前 subject。",
+            message: "Session does not exist or does not belong to the current subject.",
             httpStatus: 404
           })
         );
@@ -123,7 +141,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         return sendError(
           reply,
           new GatewayError({
-            code: "service_unavailable",
+            code: "invalid_request",
             message: "message must be a non-empty string.",
             httpStatus: 400
           })
@@ -135,21 +153,45 @@ export function buildGateway(options: GatewayOptions = {}) {
       reply.raw.setHeader("connection", "keep-alive");
       reply.hijack();
 
-      for await (const event of provider.message({
-        subscription,
-        subject,
-        scope: "code",
-        session,
-        message
-      })) {
-        if (event.type === "completed" && event.providerSessionRef) {
-          sessions.setProviderSessionRef(session.id, event.providerSessionRef);
-        }
-        reply.raw.write(`event: ${event.type}\n`);
-        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
-      }
+      const abort = new AbortController();
+      let closed = false;
+      const close = () => {
+        closed = true;
+        abort.abort();
+      };
+      reply.raw.on("close", close);
+      const heartbeat = setInterval(() => {
+        writeSseComment(reply, "ping");
+      }, 25_000);
+      heartbeat.unref?.();
 
-      reply.raw.end();
+      try {
+        for await (const event of provider.message({
+          subscription,
+          subject,
+          scope,
+          session,
+          message,
+          signal: abort.signal
+        })) {
+          if (closed) {
+            break;
+          }
+          if (event.type === "completed" && event.providerSessionRef) {
+            sessions.setProviderSessionRef(session.id, event.providerSessionRef);
+          }
+          if (!writeSseEvent(reply, event.type, event)) {
+            abort.abort();
+            break;
+          }
+        }
+      } finally {
+        clearInterval(heartbeat);
+        reply.raw.off("close", close);
+        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+          reply.raw.end();
+        }
+      }
     }
   );
 
@@ -170,39 +212,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 
-function authenticate(
-  request: FastifyRequest,
-  accessToken: string | undefined
-): GatewayError | null {
-  if (!accessToken) {
-    return new GatewayError({
-      code: "service_unavailable",
-      message: "Gateway dev access token is not configured.",
-      httpStatus: 503
-    });
-  }
-
-  const authorization = request.headers.authorization;
-  if (!authorization) {
-    return new GatewayError({
-      code: "missing_credential",
-      message: "缺少访问凭据。",
-      httpStatus: 401
-    });
-  }
-
-  const [scheme, token] = authorization.split(/\s+/, 2);
-  if (scheme?.toLowerCase() !== "bearer" || token !== accessToken) {
-    return new GatewayError({
-      code: "invalid_credential",
-      message: "访问凭据无效。",
-      httpStatus: 401
-    });
-  }
-
-  return null;
-}
-
 function sendError(reply: FastifyReply, error: GatewayError) {
   reply.code(error.httpStatus);
   return {
@@ -212,6 +221,33 @@ function sendError(reply: FastifyReply, error: GatewayError) {
       retry_after_seconds: error.retryAfterSeconds
     }
   };
+}
+
+function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boolean {
+  if (reply.raw.destroyed || reply.raw.writableEnded) {
+    return false;
+  }
+
+  try {
+    reply.raw.write(`event: ${event}\n`);
+    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeSseComment(reply: FastifyReply, comment: string): boolean {
+  if (reply.raw.destroyed || reply.raw.writableEnded) {
+    return false;
+  }
+
+  try {
+    reply.raw.write(`:${comment}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function defaultSubject(): Subject {
@@ -248,7 +284,7 @@ function serializeSession(session: GatewaySession) {
   };
 }
 
-function createDefaultSessionStore(): GatewaySessionStore {
+function createDefaultSessionStore(): GatewayStore {
   const sqlitePath = process.env.GATEWAY_SQLITE_PATH;
   if (sqlitePath) {
     return createSqliteStore({ path: sqlitePath });

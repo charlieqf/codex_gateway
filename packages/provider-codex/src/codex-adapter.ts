@@ -126,7 +126,9 @@ export class CodexProviderAdapter implements ProviderAdapter {
     let providerSessionRef = input.session.providerSessionRef ?? thread.id;
 
     try {
-      const { events } = await thread.runStreamed(input.message);
+      const { events } = await thread.runStreamed(input.message, {
+        signal: input.signal
+      });
 
       for await (const event of events) {
         if (event.type === "thread.started") {

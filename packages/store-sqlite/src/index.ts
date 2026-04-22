@@ -2,29 +2,19 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { GatewaySession, Subject, Subscription } from "@codex-gateway/core";
+import type {
+  CreateGatewaySessionInput,
+  GatewaySession,
+  GatewayStore,
+  Subject,
+  Subscription
+} from "@codex-gateway/core";
 
 export interface SqliteStoreOptions {
   path: string;
 }
 
-export interface CreateSessionInput {
-  subjectId: string;
-  subscriptionId: string;
-  now?: Date;
-}
-
-export interface GatewaySessionStore {
-  upsertSubject(subject: Subject): void;
-  upsertSubscription(subscription: Subscription): void;
-  create(input: CreateSessionInput): GatewaySession;
-  list(subjectId: string): GatewaySession[];
-  get(id: string): GatewaySession | null;
-  setProviderSessionRef(id: string, providerSessionRef: string): GatewaySession | null;
-  close?(): void;
-}
-
-export class SqliteGatewayStore implements GatewaySessionStore {
+export class SqliteGatewayStore implements GatewayStore {
   readonly kind = "sqlite";
   readonly path: string;
   private readonly db: DatabaseSync;
@@ -82,7 +72,7 @@ export class SqliteGatewayStore implements GatewaySessionStore {
       );
   }
 
-  create(input: CreateSessionInput): GatewaySession {
+  create(input: CreateGatewaySessionInput): GatewaySession {
     const now = input.now ?? new Date();
     const session: GatewaySession = {
       id: `sess_${randomUUID()}`,

@@ -25,6 +25,10 @@
 - adapter tests 已覆盖 agent message delta、resume、tool call 映射和错误归一化。
 - 开发态 Gateway 已接入临时 bearer token、内存 Session Store、`/sessions` 和 SSE `/sessions/:id/messages`。
 - Gateway 会在收到 `completed.providerSessionRef` 后回写内存 Session Store。
+- Gateway auth 已改为默认保护的 Fastify hook，`/gateway/health` 是显式 public route。
+- Gateway request context 已承载 dev credential、subject、subscription、provider 和 scope，为 Phase 2 credential lookup 替换做好入口。
+- SSE 路径已加入 response close abort、heartbeat 和 write failure cleanup。
+- Store contracts 已从 `store-sqlite` 上移到 `@codex-gateway/core`，SQLite 和内存实现只依赖 core contract。
 - SQLite store 已有幂等 schema migration，覆盖 `subjects`、`subscriptions`、`access_credentials`、`sessions`、`request_events` 基础表。
 - Gateway 设置 `GATEWAY_SQLITE_PATH` 后会使用 SQLite Session Store，并在启动时 seed 开发 subject/subscription。
 - 2026-04-22 已在 Azure VM 上用 `127.0.0.1:18787` 完成真实端到端 smoke：`/gateway/status` 返回 Codex provider healthy，`/sessions` 创建成功，`/messages` 经 SSE 返回 `codex-gateway-through-gateway-ok`，并回写 provider thread id `019db3ae-4612-7493-b93a-95999f66de60`。测试后确认无残留监听端口或长跑 Codex 进程。
@@ -34,6 +38,7 @@
 
 - 正式 access credential 生成、hash、吊销、过期、限流。
 - SQLite access credential repository。
+- SubjectStore / SubscriptionStore 仍只有 bootstrap upsert，尚未拆成完整 CRUD。
 - Admin CLI。
 - 生产化错误码覆盖和观察事件。
 

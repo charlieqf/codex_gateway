@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import type { GatewaySession } from "@codex-gateway/core";
-import type { GatewaySessionStore } from "@codex-gateway/store-sqlite";
+import type { GatewaySession, GatewayStore } from "@codex-gateway/core";
 
-export class InMemorySessionStore implements GatewaySessionStore {
+export class InMemorySessionStore implements GatewayStore {
   private readonly sessions = new Map<string, GatewaySession>();
 
   upsertSubject(): void {

@@ -17,6 +17,9 @@ Completed:
   - `GET /sessions`
   - `POST /sessions/:id/messages` as SSE
 - Temporary development bearer token via `GATEWAY_DEV_ACCESS_TOKEN`.
+- Default-protected Fastify auth hook with explicit public health route.
+- Request context injection for dev subject/subscription/provider/scope.
+- SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
@@ -45,7 +48,7 @@ Current test coverage:
 
 - Provider Codex adapter event mapping and error normalization.
 - SQLite store migration/session persistence.
-- Gateway auth/session/SSE routes and SQLite-backed session persistence.
+- Gateway auth hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
 

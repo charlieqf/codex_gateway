@@ -3,6 +3,7 @@ export const gatewayErrorCodes = [
   "invalid_credential",
   "revoked_credential",
   "expired_credential",
+  "invalid_request",
   "rate_limited",
   "forbidden_scope",
   "session_not_found",
@@ -39,8 +40,7 @@ export function toGatewayError(err: unknown): GatewayError {
 
   return new GatewayError({
     code: "service_unavailable",
-    message: "服务暂不可用。",
+    message: "Service temporarily unavailable.",
     httpStatus: 503
   });
 }
-
