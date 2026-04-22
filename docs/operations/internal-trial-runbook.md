@@ -24,6 +24,26 @@ Public routing must therefore be added as a dedicated Nginx hostname that
 proxies to `127.0.0.1:18787`. Do not modify the existing default site behavior
 or the existing `127.0.0.1:8081` upstream.
 
+## Current Trial Endpoint
+
+The current controlled public internal trial endpoint is:
+
+```text
+https://gw.instmarket.com.au
+```
+
+Current state after the approved maintenance window:
+
+- `gw.instmarket.com.au` resolves to `4.242.58.89`.
+- Existing host Nginx owns public `80` and `443`.
+- Gateway Docker Compose publishes only `127.0.0.1:18787->8787`.
+- Nginx proxies `gw.instmarket.com.au` HTTPS traffic to
+  `http://127.0.0.1:18787`.
+- Let's Encrypt certificate expires on 2026-07-21.
+- Public health check succeeds:
+  `https://gw.instmarket.com.au/gateway/health`.
+- No real trial-user API key has been issued yet.
+
 ## Scope
 
 Use this runbook only when:

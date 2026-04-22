@@ -74,12 +74,13 @@ Last updated: 2026-04-22
 - Docker is now installed on the shared VM, but the `qian` user was not added to the `docker` group. Continue using `sudo docker ...` for controlled operations unless access policy is explicitly changed.
 - Do not leave temporary device-login logs in `/tmp`; remove them after authorization because they can contain one-time device codes.
 - Public internal users need a real public HTTPS entrypoint. On the current shared VM, keep the gateway container loopback-only and add only a dedicated Nginx hostname that proxies to `127.0.0.1:18787` during an approved maintenance window. Do not let Docker/Caddy bind public `80/443` on this host while existing Nginx owns the edge.
+- The approved public internal trial window for `gw.instmarket.com.au` kept Docker loopback-only, added a dedicated Nginx hostname, issued a Let's Encrypt certificate with certbot, and validated public credential auth. A temporary smoke key was revoked and the smoke users were disabled afterward.
 
 ## Current Recommended Next Step
 
 Container loopback validation is complete. The next safe work is to choose the next MVP hardening item without changing host edge services:
 
-1. Keep the shared VM gateway container stopped between tests.
-2. Do not enable a long-running compose/systemd deployment until Docker resource headroom and operational ownership are reviewed.
-3. Keep public TLS/Nginx integration as a separate maintenance task.
-4. Consider the next application-level hardening work: persistent multi-process rate limiting, subject/subscription management, or scheduled event retention.
+1. Issue real API keys only for the 1-2 approved internal trial users.
+2. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
+3. Keep the gateway container loopback-only and keep Nginx as the only public edge.
+4. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.

@@ -34,7 +34,9 @@ Completed:
 - Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
 - Docker maintenance-window runbook for shared VM installation and rollback.
 - Docker Engine and Docker Compose plugin installed on the Azure VM during an approved maintenance window.
-- Public internal trial runbook and Nginx dedicated-hostname example for a future maintenance window.
+- Public internal trial runbook and Nginx dedicated-hostname example.
+- Long-running loopback gateway container started on the shared Azure VM for the controlled internal trial.
+- Public HTTPS routing for `gw.instmarket.com.au` through existing host Nginx to `127.0.0.1:18787`.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
@@ -42,8 +44,8 @@ Not completed:
 - Persistent/distributed rate limiting for multiple gateway processes.
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
-- Activated long-running systemd/container deployment on the shared VM.
-- Executed public TLS routing through Nginx/Caddy.
+- Systemd ownership/monitoring for the long-running container.
+- Real 1-2 user API key issuance for the public internal trial.
 
 ## Verified Runtime
 
@@ -57,6 +59,20 @@ npm test
 ```
 
 Most recent Azure VM validation:
+
+- Commit `83ff834`.
+- DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
+- Docker Compose gateway is running as `codex_gateway_test-gateway-1` and publishes only `127.0.0.1:18787->8787`.
+- Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
+- Nginx has a dedicated `gw.instmarket.com.au` server that proxies HTTPS traffic to `http://127.0.0.1:18787`.
+- Let's Encrypt certificate for `gw.instmarket.com.au` was issued with certbot and expires on 2026-07-21; certbot installed its automatic renewal task.
+- Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
+- HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
+- A temporary public smoke API key successfully reached `https://gw.instmarket.com.au/gateway/status`, then was revoked; the revoked token returned `401`; smoke users were disabled afterward.
+- `trial-check --max-active-users 2` currently reports not ready only because no real active trial API key has been issued yet.
+- Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
+
+Earlier Azure VM validation:
 
 - Commit `6e96329`.
 - Node `v24.12.0`, npm `11.6.2`.
@@ -101,6 +117,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Containerized Codex device-code login, SDK probe, and gateway-to-Codex SSE smoke were revalidated on the Azure VM with the runtime image's CA bundle and `CODEX_SKIP_GIT_REPO_CHECK=1` default.
 - User-friendly API key operations were validated locally and on the Azure VM: `issue --user`, `list-users`, `list --user`, `update-key`, `events --user`, `report-usage --user`, `disable-user`, and `enable-user`.
 - Public internal trial preflight inventory found existing Nginx on public `80`, no host listener on `443`, the existing app upstream on `127.0.0.1:8081`, PostgreSQL on `127.0.0.1:5432`, Docker active with no running containers, and the Codex Gateway compose file publishing only `127.0.0.1:18787`.
+- Public HTTPS internal-trial gateway routing was enabled after explicit authorization. Docker remains loopback-only; Nginx is the single public edge.
 
 Sensitive provider files:
 
@@ -126,7 +143,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, and dry-run-capable manual event pruning are wired into the gateway. Scheduled retention jobs, materialized reports, admin operator identity capture, executed public TLS routing, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, and dry-run-capable manual event pruning are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, real trial-user key issuance, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 
