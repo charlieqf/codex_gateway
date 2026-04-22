@@ -23,7 +23,15 @@
 
 - `provider-codex` 已能基于 `CODEX_HOME` start/resume Codex thread。
 - adapter tests 已覆盖 agent message delta、resume、tool call 映射和错误归一化。
-- 下一步是把 Gateway Session Store 与 `completed.providerSessionRef` 回写接起来。
+- 开发态 Gateway 已接入临时 bearer token、内存 Session Store、`/sessions` 和 SSE `/sessions/:id/messages`。
+- Gateway 会在收到 `completed.providerSessionRef` 后回写内存 Session Store。
+
+尚未完成：
+
+- 正式 access credential 生成、hash、吊销、过期、限流。
+- SQLite 持久化 Session Store。
+- Admin CLI。
+- 生产化错误码覆盖和观察事件。
 
 ## Phase 2: 凭据生命周期
 

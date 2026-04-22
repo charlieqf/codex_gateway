@@ -1,0 +1,115 @@
+import { describe, expect, it } from "vitest";
+import {
+  GatewayError,
+  type CancelInput,
+  type CreateSessionInput,
+  type CreateSessionResult,
+  type ListSessionInput,
+  type MessageInput,
+  type ProviderAdapter,
+  type ProviderHealth,
+  type ProviderSession,
+  type RefreshResult,
+  type StreamEvent,
+  type Subscription
+} from "@codex-gateway/core";
+import { buildGateway } from "./index.js";
+
+class FakeProvider implements ProviderAdapter {
+  readonly kind = "fake";
+
+  async health(_subscription: Subscription): Promise<ProviderHealth> {
+    return {
+      state: "healthy",
+      checkedAt: new Date("2026-01-01T00:00:00Z")
+    };
+  }
+
+  async refresh(_subscription: Subscription): Promise<RefreshResult> {
+    return { state: "not_needed" };
+  }
+
+  async create(_input: CreateSessionInput): Promise<CreateSessionResult> {
+    return { providerSessionRef: null };
+  }
+
+  async list(_input: ListSessionInput): Promise<ProviderSession[]> {
+    return [];
+  }
+
+  async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    yield { type: "message_delta", text: `echo:${input.message}` };
+    yield { type: "completed", providerSessionRef: "provider_thread_1" };
+  }
+
+  async cancel(_input: CancelInput): Promise<void> {
+    return;
+  }
+
+  normalize(err: unknown): GatewayError {
+    return new GatewayError({
+      code: "service_unavailable",
+      message: String(err),
+      httpStatus: 503
+    });
+  }
+}
+
+describe("gateway phase 1 routes", () => {
+  it("requires bearer auth for status", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/gateway/status"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("missing_credential");
+    await app.close();
+  });
+
+  it("creates a session, streams a message, and stores provider session ref", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    expect(created.statusCode).toBe(201);
+    const sessionId = created.json().session.id as string;
+
+    const streamed = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "hello" }
+    });
+
+    expect(streamed.statusCode).toBe(200);
+    expect(streamed.headers["content-type"]).toContain("text/event-stream");
+    expect(streamed.payload).toContain("event: message_delta");
+    expect(streamed.payload).toContain('data: {"type":"message_delta","text":"echo:hello"}');
+    expect(streamed.payload).toContain("event: completed");
+
+    const listed = await app.inject({
+      method: "GET",
+      url: "/sessions",
+      headers
+    });
+    expect(listed.statusCode).toBe(200);
+    expect(listed.json().sessions[0].provider_session_ref).toBe("provider_thread_1");
+
+    await app.close();
+  });
+});

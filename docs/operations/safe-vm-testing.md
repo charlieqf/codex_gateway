@@ -100,6 +100,30 @@ npm run probe:codex -- --codex-home "$CODEX_HOME" --run
 
 这一步不需要监听端口，不需要改 Nginx，不需要 `sudo`。
 
+## Phase 1 Gateway Smoke
+
+开发态 gateway 可以在 VM 上临时监听本机端口：
+
+```bash
+cd "$HOME/codex-gateway-test"
+export NODE_HOME="$HOME/.local/codex-gateway-node"
+export PATH="$NODE_HOME/bin:$PATH"
+export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
+export CODEX_WORKDIR="$HOME/codex-gateway-test"
+export GATEWAY_DEV_ACCESS_TOKEN="$(openssl rand -hex 24)"
+export GATEWAY_HOST=127.0.0.1
+export GATEWAY_PORT=18787
+
+npm run build
+node apps/gateway/dist/index.js
+```
+
+只允许通过 SSH tunnel 或 VM 本机 curl 测试 `127.0.0.1:18787`。测试结束后停止进程，并确认：
+
+```bash
+ss -ltnp 'sport = :18787'
+```
+
 ## 清理测试部署
 
 只停止本项目 gateway，不删除 volume：

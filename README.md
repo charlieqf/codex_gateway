@@ -78,3 +78,29 @@ npm run probe:codex -- --codex-home .gateway-state\codex-home
 ```powershell
 npm run probe:codex -- --codex-home .gateway-state\codex-home --run
 ```
+
+## Phase 1 Dev Gateway
+
+当前 gateway 已有开发态最小路径：临时 bearer token、内存 session store、真实 Codex adapter、SSE message stream。
+
+```powershell
+$env:GATEWAY_DEV_ACCESS_TOKEN = "local-dev-token"
+$env:CODEX_HOME = "C:\work\code\codex-gateway\.gateway-state\codex-home"
+$env:CODEX_WORKDIR = "C:\work\code\codex-gateway"
+npm run dev:gateway
+```
+
+可用接口：
+
+- `GET /gateway/status`
+- `POST /sessions`
+- `GET /sessions`
+- `POST /sessions/{id}/messages` with `Accept: text/event-stream`
+
+所有访问面请求都需要：
+
+```http
+Authorization: Bearer local-dev-token
+```
+
+这只是 Phase 1 开发路径。Phase 2 会替换为正式 access credential 签发、hash 落盘、吊销、过期和限流。
