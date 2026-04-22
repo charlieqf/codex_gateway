@@ -53,13 +53,13 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `3a35b24`.
+- Commit `43a5e08`.
 - Node `v24.12.0`, npm `11.6.2`.
 - `npm ci`, `npm run build`, and `npm test` passed.
-- Observation smoke issued a temporary low-rpm SQLite credential and made one successful protected request plus one rate-limited request.
-- Admin CLI `events` returned two request events for that credential: one `ok` event and one `error` event with `error_code: rate_limited` and `rate_limited: true`.
-- Event duration fields were present, and the temporary smoke DB/files were removed after validation.
-- Post-test cleanup confirmed no listener on `18787` and no long-running gateway/Codex process.
+- Admin CLI usage/prune smoke used a temporary SQLite DB under the isolated VM state directory.
+- `report-usage` returned one daily row with two requests: one `ok`, one `error`, one `rate_limited`, `avg_duration_ms: 30`, and `avg_first_byte_ms: 15`.
+- `prune-events --dry-run` matched one old event and deleted zero rows; running without `--dry-run` then deleted exactly one old event.
+- Post-test cleanup confirmed no `usage-smoke.*` directory, no listener on `18787`, and no long-running gateway/Codex process.
 
 Current test coverage:
 
@@ -85,6 +85,7 @@ OpenAI Codex / ChatGPT subscription path is viable for MVP continuation:
 - Credential rotate and in-process rate-limit paths were revalidated on the Azure VM after commit `c696be0`.
 - Auth-mode hardening was revalidated on the Azure VM after commit `6f4d9d6`.
 - Request event writing and admin CLI `events` were revalidated on the Azure VM after commit `3a35b24`.
+- Admin CLI `report-usage` and dry-run-capable `prune-events` were revalidated on the Azure VM after commit `43a5e08`.
 
 Sensitive provider files:
 
