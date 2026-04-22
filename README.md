@@ -137,6 +137,7 @@ Credential operations:
 
 ```powershell
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --grace-hours 24
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```

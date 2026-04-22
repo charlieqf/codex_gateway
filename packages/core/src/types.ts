@@ -42,6 +42,24 @@ export interface RateLimitPolicy {
   concurrentRequests: number | null;
 }
 
+export type RequestEventStatus = "ok" | "error";
+
+export interface RequestEventRecord {
+  requestId: string;
+  credentialId: string | null;
+  subjectId: string | null;
+  scope: Scope | null;
+  sessionId: string | null;
+  subscriptionId: string | null;
+  provider: ProviderKind | null;
+  startedAt: Date;
+  durationMs: number | null;
+  firstByteMs: number | null;
+  status: RequestEventStatus;
+  errorCode: string | null;
+  rateLimited: boolean;
+}
+
 export interface Subscription {
   id: string;
   provider: ProviderKind;

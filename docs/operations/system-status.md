@@ -28,13 +28,15 @@ Completed:
 - `/gateway/health` exposes `auth_mode`.
 - Admin CLI `issue`, `list`, `revoke`, and `rotate`.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
+- SQLite request event writer for gateway observations.
+- Admin CLI `events` for request event inspection.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
 
 Not completed:
 
 - Persistent/distributed rate limiting for multiple gateway processes.
 - Scope enforcement beyond conservative Codex adapter defaults.
-- Observation writer and usage reports.
+- Aggregated usage reports and retention policy.
 - Long-running systemd/container deployment.
 - Public TLS routing through Nginx/Caddy.
 
@@ -66,6 +68,7 @@ Current test coverage:
 - Access credential generation, hash verification, expiration, and revocation.
 - SQLite access credential persistence and revocation.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
+- SQLite request event persistence and admin CLI event listing.
 - Gateway dev auth hook, credential auth hook, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
 
 ## Provider Status
@@ -105,7 +108,7 @@ SQLite schema currently includes:
 - `sessions`
 - `request_events`
 
-Session persistence, access credential authentication, and single-process credential rate limiting are wired into the gateway. Observation event writing and multi-process shared rate limiting are still pending.
+Session persistence, access credential authentication, single-process credential rate limiting, and request event writing are wired into the gateway. Aggregated reports, retention, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

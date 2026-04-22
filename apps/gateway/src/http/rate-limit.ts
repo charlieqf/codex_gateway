@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { GatewayError } from "@codex-gateway/core";
 import type { CredentialRateLimiter } from "../services/rate-limiter.js";
+import { markGatewayError, markRateLimited } from "./observation.js";
 
 export async function rateLimitHook(
   request: FastifyRequest,
@@ -21,6 +22,8 @@ export async function rateLimitHook(
     policy: credential.rate
   });
   if (result instanceof GatewayError) {
+    markGatewayError(request, result);
+    markRateLimited(request);
     reply.code(result.httpStatus).send({
       error: {
         code: result.code,

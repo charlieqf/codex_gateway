@@ -1,4 +1,10 @@
-import type { AccessCredentialRecord, GatewaySession, Subject, Subscription } from "./types.js";
+import type {
+  AccessCredentialRecord,
+  GatewaySession,
+  RequestEventRecord,
+  Subject,
+  Subscription
+} from "./types.js";
 
 export interface CreateGatewaySessionInput {
   subjectId: string;
@@ -37,6 +43,17 @@ export interface AccessCredentialStore {
     prefix: string,
     expiresAt: Date
   ): AccessCredentialRecord | null;
+}
+
+export interface ListRequestEventsInput {
+  credentialId?: string;
+  subjectId?: string;
+  limit?: number;
+}
+
+export interface ObservationStore {
+  insertRequestEvent(record: RequestEventRecord): RequestEventRecord;
+  listRequestEvents(input?: ListRequestEventsInput): RequestEventRecord[];
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

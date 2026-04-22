@@ -121,6 +121,7 @@ Credential CLI smoke:
 ```bash
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --label vm-smoke --scope code
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --active-only
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" rotate <credential-prefix> --grace-hours 24
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" revoke <credential-prefix>
 ```

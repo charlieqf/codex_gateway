@@ -1,6 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import type {
   ProviderAdapter,
+  GatewayErrorCode,
   RateLimitPolicy,
   Scope,
   Subject,
@@ -33,6 +34,17 @@ declare module "fastify" {
   interface FastifyRequest {
     gatewayContext?: GatewayRequestContext;
     gatewayRateLimitRelease?: () => void;
+    gatewayObservationStartedAt?: Date;
+    gatewayObservationFirstByteAt?: Date;
+    gatewayObservationRecorded?: boolean;
+    gatewayErrorCode?: GatewayErrorCode | string;
+    gatewayRateLimited?: boolean;
+    gatewaySessionId?: string | null;
+    gatewayObservedCredential?: {
+      id: string | null;
+      subjectId: string | null;
+      scope: Scope | null;
+    };
   }
 }
 

@@ -9,6 +9,7 @@ import {
   type Subscription
 } from "@codex-gateway/core";
 import type { GatewayRequestContext } from "./context.js";
+import { markGatewayError } from "./observation.js";
 
 export interface DevAuthOptions {
   accessToken: string | undefined;
@@ -26,7 +27,7 @@ export async function devAuthHook(
 
   const error = authenticateDevBearer(request, options.accessToken);
   if (error) {
-    sendGatewayError(reply, error);
+    sendGatewayError(request, reply, error);
     return;
   }
 
@@ -51,7 +52,7 @@ export async function credentialAuthHook(
 
   const result = authenticateCredentialBearer(request, options);
   if (result instanceof GatewayError) {
-    sendGatewayError(reply, result);
+    sendGatewayError(request, reply, result);
     return;
   }
 
@@ -133,11 +134,23 @@ function authenticateCredentialBearer(
 
   const tokenError = verifyAccessCredentialToken(token, credential, options.now?.() ?? new Date());
   if (tokenError) {
+    if (tokenError.code !== "invalid_credential") {
+      request.gatewayObservedCredential = {
+        id: credential.id,
+        subjectId: credential.subjectId,
+        scope: credential.scope
+      };
+    }
     return tokenError;
   }
 
   const subject = options.store.getSubject(credential.subjectId);
   if (!subject || subject.state !== "active") {
+    request.gatewayObservedCredential = {
+      id: credential.id,
+      subjectId: credential.subjectId,
+      scope: credential.scope
+    };
     return new GatewayError({
       code: "invalid_credential",
       message: "Invalid access credential.",
@@ -160,7 +173,12 @@ function authenticateCredentialBearer(
   };
 }
 
-function sendGatewayError(reply: FastifyReply, error: GatewayError): void {
+function sendGatewayError(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  error: GatewayError
+): void {
+  markGatewayError(request, error);
   reply.code(error.httpStatus).send({
     error: {
       code: error.code,

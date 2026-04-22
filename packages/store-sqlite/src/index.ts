@@ -8,6 +8,8 @@ import type {
   GatewaySession,
   GatewayStore,
   ListAccessCredentialsInput,
+  ListRequestEventsInput,
+  RequestEventRecord,
   RateLimitPolicy,
   Subject,
   Subscription
@@ -248,6 +250,85 @@ export class SqliteGatewayStore implements GatewayStore {
     return this.get(id);
   }
 
+  insertRequestEvent(record: RequestEventRecord): RequestEventRecord {
+    this.db
+      .prepare(
+        `INSERT INTO request_events (
+          request_id, credential_id, subject_id, scope, session_id, subscription_id, provider,
+          started_at, duration_ms, first_byte_ms, status, error_code, rate_limited
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(request_id) DO UPDATE SET
+          credential_id = excluded.credential_id,
+          subject_id = excluded.subject_id,
+          scope = excluded.scope,
+          session_id = excluded.session_id,
+          subscription_id = excluded.subscription_id,
+          provider = excluded.provider,
+          duration_ms = excluded.duration_ms,
+          first_byte_ms = excluded.first_byte_ms,
+          status = excluded.status,
+          error_code = excluded.error_code,
+          rate_limited = excluded.rate_limited`
+      )
+      .run(
+        record.requestId,
+        record.credentialId,
+        record.subjectId,
+        record.scope,
+        record.sessionId,
+        record.subscriptionId,
+        record.provider,
+        record.startedAt.toISOString(),
+        record.durationMs,
+        record.firstByteMs,
+        record.status,
+        record.errorCode,
+        record.rateLimited ? 1 : 0
+      );
+
+    return record;
+  }
+
+  listRequestEvents(input: ListRequestEventsInput = {}): RequestEventRecord[] {
+    const limit = input.limit ?? 100;
+    const rows = input.credentialId
+      ? this.db
+          .prepare(
+            `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+                    provider, started_at, duration_ms, first_byte_ms, status, error_code,
+                    rate_limited
+             FROM request_events
+             WHERE credential_id = ?
+             ORDER BY started_at DESC
+             LIMIT ?`
+          )
+          .all(input.credentialId, limit)
+      : input.subjectId
+        ? this.db
+            .prepare(
+              `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+                      provider, started_at, duration_ms, first_byte_ms, status, error_code,
+                      rate_limited
+               FROM request_events
+               WHERE subject_id = ?
+               ORDER BY started_at DESC
+               LIMIT ?`
+            )
+            .all(input.subjectId, limit)
+        : this.db
+            .prepare(
+              `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+                      provider, started_at, duration_ms, first_byte_ms, status, error_code,
+                      rate_limited
+               FROM request_events
+               ORDER BY started_at DESC
+               LIMIT ?`
+            )
+            .all(limit);
+
+    return rows.map(rowToRequestEvent);
+  }
+
   close(): void {
     this.db.close();
   }
@@ -441,5 +522,39 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     rate: JSON.parse(value.rate_json) as RateLimitPolicy,
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
+  };
+}
+
+function rowToRequestEvent(row: unknown): RequestEventRecord {
+  const value = row as {
+    request_id: string;
+    credential_id: string | null;
+    subject_id: string | null;
+    scope: RequestEventRecord["scope"];
+    session_id: string | null;
+    subscription_id: string | null;
+    provider: RequestEventRecord["provider"];
+    started_at: string;
+    duration_ms: number | null;
+    first_byte_ms: number | null;
+    status: RequestEventRecord["status"];
+    error_code: string | null;
+    rate_limited: number;
+  };
+
+  return {
+    requestId: value.request_id,
+    credentialId: value.credential_id,
+    subjectId: value.subject_id,
+    scope: value.scope,
+    sessionId: value.session_id,
+    subscriptionId: value.subscription_id,
+    provider: value.provider,
+    startedAt: new Date(value.started_at),
+    durationMs: value.duration_ms,
+    firstByteMs: value.first_byte_ms,
+    status: value.status,
+    errorCode: value.error_code,
+    rateLimited: value.rate_limited === 1
   };
 }

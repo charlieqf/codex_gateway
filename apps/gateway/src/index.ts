@@ -1,10 +1,11 @@
 import { pathToFileURL } from "node:url";
-import Fastify, { type FastifyReply } from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
   type CredentialAuthStore,
   GatewayError,
   type GatewaySession,
   type GatewayStore,
+  type ObservationStore,
   type ProviderAdapter,
   type Subject,
   type Subscription
@@ -13,6 +14,13 @@ import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
+import {
+  markFirstByte,
+  markGatewayError,
+  markSession,
+  recordObservation,
+  startObservation
+} from "./http/observation.js";
 import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
 import {
   InMemoryCredentialRateLimiter,
@@ -31,6 +39,7 @@ export interface GatewayOptions {
   subject?: Subject;
   subscription?: Subscription;
   rateLimiter?: CredentialRateLimiter;
+  observationStore?: ObservationStore;
   logger?: boolean;
 }
 
@@ -61,6 +70,8 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   validateAuthModeForEnvironment(authMode, process.env.NODE_ENV);
   const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
+  const observationStore =
+    options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
   sessions.upsertSubject(subject);
   sessions.upsertSubscription(subscription);
   const devContext = {
@@ -79,6 +90,10 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   app.addHook("onClose", async () => {
     sessions.close?.();
+  });
+
+  app.addHook("onRequest", async (request) => {
+    startObservation(request);
   });
 
   if (authMode === "dev") {
@@ -114,8 +129,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     rateLimitHook(request, reply, rateLimiter)
   );
 
-  app.addHook("onResponse", async (request) => {
+  app.addHook("onResponse", async (request, reply) => {
     releaseRateLimit(request);
+    recordObservation(request, observationStore, reply.statusCode);
   });
 
   app.get(
@@ -169,6 +185,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       subjectId: subject.id,
       subscriptionId: subscription.id
     });
+    markSession(request, session.id);
 
     reply.code(201);
     return {
@@ -180,10 +197,12 @@ export function buildGateway(options: GatewayOptions = {}) {
     "/sessions/:id/messages",
     async (request, reply) => {
       const { subject, subscription, provider, scope } = getGatewayContext(request);
+      markSession(request, request.params.id);
 
       const session = sessions.get(request.params.id);
       if (!session || session.subjectId !== subject.id) {
         return sendError(
+          request,
           reply,
           new GatewayError({
             code: "session_not_found",
@@ -196,6 +215,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       const message = request.body?.message;
       if (typeof message !== "string" || message.length === 0) {
         return sendError(
+          request,
           reply,
           new GatewayError({
             code: "invalid_request",
@@ -237,6 +257,10 @@ export function buildGateway(options: GatewayOptions = {}) {
           if (event.type === "completed" && event.providerSessionRef) {
             sessions.setProviderSessionRef(session.id, event.providerSessionRef);
           }
+          if (event.type === "error") {
+            request.gatewayErrorCode = event.code;
+          }
+          markFirstByte(request);
           if (!writeSseEvent(reply, event.type, event)) {
             abort.abort();
             break;
@@ -244,6 +268,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         }
       } finally {
         releaseRateLimit(request);
+        recordObservation(request, observationStore, reply.raw.statusCode);
         clearInterval(heartbeat);
         reply.raw.off("close", close);
         if (!reply.raw.destroyed && !reply.raw.writableEnded) {
@@ -270,7 +295,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 
-function sendError(reply: FastifyReply, error: GatewayError) {
+function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  markGatewayError(request, error);
   reply.code(error.httpStatus);
   return {
     error: {
@@ -389,5 +415,13 @@ function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & Cre
     typeof candidate.listAccessCredentials === "function" &&
     typeof candidate.revokeAccessCredentialByPrefix === "function" &&
     typeof candidate.setAccessCredentialExpiresAtByPrefix === "function"
+  );
+}
+
+function isObservationStore(store: GatewayStore): store is GatewayStore & ObservationStore {
+  const candidate = store as Partial<ObservationStore>;
+  return (
+    typeof candidate.insertRequestEvent === "function" &&
+    typeof candidate.listRequestEvents === "function"
   );
 }

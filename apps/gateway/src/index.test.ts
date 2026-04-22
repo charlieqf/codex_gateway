@@ -426,6 +426,74 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("records request events for credential traffic and rate limits", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Observed token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 1,
+        requestsPerDay: null,
+        concurrentRequests: 1
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+
+    const events = store.listRequestEvents({ credentialId: issued.record.id });
+    expect(events).toHaveLength(2);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          credentialId: issued.record.id,
+          subjectId: "subj_dev",
+          scope: "code",
+          status: "ok",
+          errorCode: null,
+          rateLimited: false
+        }),
+        expect.objectContaining({
+          credentialId: issued.record.id,
+          subjectId: "subj_dev",
+          scope: "code",
+          status: "error",
+          errorCode: "rate_limited",
+          rateLimited: true
+        })
+      ])
+    );
+    expect(events.every((event) => event.durationMs !== null)).toBe(true);
+    expect(events.every((event) => event.firstByteMs !== null)).toBe(true);
+
+    await app.close();
+  });
+
   it("can persist sessions through the sqlite store", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-app-"));
     const dbPath = path.join(dir, "gateway.db");

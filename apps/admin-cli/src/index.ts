@@ -70,6 +70,39 @@ program
   });
 
 program
+  .command("events")
+  .description("List recorded request events.")
+  .option("--credential-id <id>", "filter by credential id")
+  .option("--subject-id <id>", "filter by subject id")
+  .option("--limit <n>", "maximum events to return", parsePositiveInteger, 50)
+  .action((options) => {
+    withStore((store) => {
+      const events = store.listRequestEvents({
+        credentialId: options.credentialId,
+        subjectId: options.subjectId,
+        limit: options.limit
+      });
+      printJson({
+        events: events.map((event) => ({
+          request_id: event.requestId,
+          credential_id: event.credentialId,
+          subject_id: event.subjectId,
+          scope: event.scope,
+          session_id: event.sessionId,
+          subscription_id: event.subscriptionId,
+          provider: event.provider,
+          started_at: event.startedAt.toISOString(),
+          duration_ms: event.durationMs,
+          first_byte_ms: event.firstByteMs,
+          status: event.status,
+          error_code: event.errorCode,
+          rate_limited: event.rateLimited
+        }))
+      });
+    });
+  });
+
+program
   .command("revoke")
   .argument("<credential-prefix>")
   .description("Revoke an access credential.")

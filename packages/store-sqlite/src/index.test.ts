@@ -76,6 +76,43 @@ describe("SqliteGatewayStore", () => {
     expect(expiring?.expiresAt.toISOString()).toBe("2026-01-03T00:00:00.000Z");
     store.close();
   });
+
+  it("persists request events", () => {
+    const store = createSeededStore(":memory:");
+    store.insertRequestEvent({
+      requestId: "req_1",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "sess_1",
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 25,
+      firstByteMs: 10,
+      status: "error",
+      errorCode: "rate_limited",
+      rateLimited: true
+    });
+
+    expect(store.listRequestEvents()).toMatchObject([
+      {
+        requestId: "req_1",
+        credentialId: "cred_1",
+        subjectId: "subj_1",
+        scope: "code",
+        sessionId: "sess_1",
+        subscriptionId: "sub_openai_codex",
+        provider: "openai-codex",
+        durationMs: 25,
+        firstByteMs: 10,
+        status: "error",
+        errorCode: "rate_limited",
+        rateLimited: true
+      }
+    ]);
+    store.close();
+  });
 });
 
 function createSeededStore(dbPath: string): SqliteGatewayStore {
