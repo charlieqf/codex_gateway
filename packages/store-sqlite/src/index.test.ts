@@ -142,6 +142,62 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("persists and filters admin audit events", () => {
+    const store = createSeededStore(":memory:");
+    store.insertAdminAuditEvent({
+      id: "audit_1",
+      action: "issue",
+      targetUserId: "alice",
+      targetCredentialId: "cred_1",
+      targetCredentialPrefix: "prefix_1",
+      status: "ok",
+      params: {
+        scope: "code",
+        rpm: 30
+      },
+      errorMessage: null,
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAdminAuditEvent({
+      id: "audit_2",
+      action: "disable-user",
+      targetUserId: "bob",
+      targetCredentialId: null,
+      targetCredentialPrefix: null,
+      status: "error",
+      params: null,
+      errorMessage: "User not found: bob",
+      createdAt: new Date("2026-01-02T00:00:00Z")
+    });
+
+    expect(store.listAdminAuditEvents({ userId: "alice" })).toEqual([
+      {
+        id: "audit_1",
+        action: "issue",
+        targetUserId: "alice",
+        targetCredentialId: "cred_1",
+        targetCredentialPrefix: "prefix_1",
+        status: "ok",
+        params: {
+          scope: "code",
+          rpm: 30
+        },
+        errorMessage: null,
+        createdAt: new Date("2026-01-01T00:00:00Z")
+      }
+    ]);
+    expect(store.listAdminAuditEvents({ status: "error" })).toMatchObject([
+      {
+        id: "audit_2",
+        action: "disable-user",
+        targetUserId: "bob",
+        status: "error",
+        errorMessage: "User not found: bob"
+      }
+    ]);
+    store.close();
+  });
+
   it("reports usage and prunes old request events", () => {
     const store = createSeededStore(":memory:");
     store.insertRequestEvent({

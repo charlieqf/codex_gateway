@@ -19,6 +19,7 @@ Operational workflows now covered:
 - User listing plus user disable/enable.
 - Request event inspection by API key or user.
 - Dynamic usage reports by API key or user.
+- Admin operation audit for issue/revoke/rotate/disable/enable/prune actions.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.
@@ -28,7 +29,7 @@ Operational workflows now covered:
 Operational workflows still pending:
 
 - Fuller upstream Codex account administration.
-- Admin operation audit.
+- Admin operator identity capture.
 - Scheduled retention automation.
 - Materialized usage reports.
 - Long-running production deployment activation.

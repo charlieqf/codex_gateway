@@ -1,5 +1,8 @@
 import type {
   AccessCredentialRecord,
+  AdminAuditAction,
+  AdminAuditEventRecord,
+  AdminAuditStatus,
   GatewaySession,
   ProviderKind,
   RequestEventRecord,
@@ -93,6 +96,18 @@ export interface PruneRequestEventsResult {
   dryRun: boolean;
   matched: number;
   deleted: number;
+}
+
+export interface ListAdminAuditEventsInput {
+  userId?: string;
+  action?: AdminAuditAction;
+  status?: AdminAuditStatus;
+  limit?: number;
+}
+
+export interface AdminAuditStore {
+  insertAdminAuditEvent(record: AdminAuditEventRecord): AdminAuditEventRecord;
+  listAdminAuditEvents(input?: ListAdminAuditEventsInput): AdminAuditEventRecord[];
 }
 
 export interface ObservationStore {

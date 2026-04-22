@@ -1,8 +1,12 @@
 #!/usr/bin/env node
+import { randomUUID } from "node:crypto";
 import { Command, InvalidArgumentError } from "commander";
 import {
   issueAccessCredential,
   type AccessCredentialRecord,
+  type AdminAuditAction,
+  type AdminAuditEventRecord,
+  type AdminAuditStatus,
   type RateLimitPolicy,
   type Scope,
   type Subject,
@@ -35,24 +39,43 @@ program
   .option("--rpd <n>", "requests per day; omit for unlimited", parseNullablePositiveInteger)
   .option("--concurrent <n>", "concurrent requests", parseNullablePositiveInteger, 1)
   .action((options) => {
-    withStore((store) => {
-      const subject = issueSubject(store, options);
-      store.upsertSubject(subject);
+    withAuditedStore(
+      {
+        action: "issue",
+        targetUserId: issueTargetUserId(options),
+        params: {
+          label: options.label,
+          scope: options.scope,
+          expires_days: options.expiresDays,
+          rate: rateFromOptions(options)
+        }
+      },
+      (store) => {
+        const subject = issueSubject(store, options);
+        store.upsertSubject(subject);
 
-      const issued = issueAccessCredential({
-        subjectId: subject.id,
-        label: options.label,
-        scope: options.scope,
-        expiresAt: addDays(new Date(), options.expiresDays),
-        rate: rateFromOptions(options)
-      });
-      store.insertAccessCredential(issued.record);
+        const issued = issueAccessCredential({
+          subjectId: subject.id,
+          label: options.label,
+          scope: options.scope,
+          expiresAt: addDays(new Date(), options.expiresDays),
+          rate: rateFromOptions(options)
+        });
+        store.insertAccessCredential(issued.record);
 
-      printJson({
-        token: issued.token,
-        credential: publicCredential(issued.record)
-      });
-    });
+        return {
+          output: {
+            token: issued.token,
+            credential: publicCredential(issued.record)
+          },
+          audit: {
+            targetUserId: subject.id,
+            targetCredentialId: issued.record.id,
+            targetCredentialPrefix: issued.record.prefix
+          }
+        };
+      }
+    );
   });
 
 program
@@ -97,15 +120,17 @@ program
   .argument("<user>")
   .description("Disable a user so all of their API keys are rejected.")
   .action((user) => {
-    withStore((store) => {
+    withAuditedStore({ action: "disable-user", targetUserId: user }, (store) => {
       const subject = store.setSubjectState(user, "disabled");
       if (!subject) {
         throw new Error(`User not found: ${user}`);
       }
 
-      printJson({
-        user: publicSubject(subject)
-      });
+      return {
+        output: {
+          user: publicSubject(subject)
+        }
+      };
     });
   });
 
@@ -114,15 +139,17 @@ program
   .argument("<user>")
   .description("Re-enable a disabled user.")
   .action((user) => {
-    withStore((store) => {
+    withAuditedStore({ action: "enable-user", targetUserId: user }, (store) => {
       const subject = store.setSubjectState(user, "active");
       if (!subject) {
         throw new Error(`User not found: ${user}`);
       }
 
-      printJson({
-        user: publicSubject(subject)
-      });
+      return {
+        output: {
+          user: publicSubject(subject)
+        }
+      };
     });
   });
 
@@ -212,19 +239,39 @@ program
   .option("--before <iso>", "delete events before this ISO time", parseDate)
   .option("--dry-run", "show the number of matching events without deleting them")
   .action((options) => {
-    withStore((store) => {
-      if (options.beforeDays === undefined && options.before === undefined) {
-        throw new Error("Use --before-days or --before to set the retention cutoff.");
+    withAuditedStore(
+      {
+        action: "prune-events",
+        params: {
+          before_days: options.beforeDays,
+          before: options.before?.toISOString(),
+          dry_run: Boolean(options.dryRun)
+        }
+      },
+      (store) => {
+        if (options.beforeDays === undefined && options.before === undefined) {
+          throw new Error("Use --before-days or --before to set the retention cutoff.");
+        }
+        const before = options.before ?? addDays(new Date(), -options.beforeDays);
+        const result = store.pruneRequestEvents({ before, dryRun: options.dryRun });
+        return {
+          output: {
+            before: result.before.toISOString(),
+            dry_run: result.dryRun,
+            matched: result.matched,
+            deleted: result.deleted
+          },
+          audit: {
+            params: {
+              before: result.before.toISOString(),
+              dry_run: result.dryRun,
+              matched: result.matched,
+              deleted: result.deleted
+            }
+          }
+        };
       }
-      const before = options.before ?? addDays(new Date(), -options.beforeDays);
-      const result = store.pruneRequestEvents({ before, dryRun: options.dryRun });
-      printJson({
-        before: result.before.toISOString(),
-        dry_run: result.dryRun,
-        matched: result.matched,
-        deleted: result.deleted
-      });
-    });
+    );
   });
 
 program
@@ -232,16 +279,26 @@ program
   .argument("<credential-prefix>")
   .description("Revoke an access credential.")
   .action((prefix) => {
-    withStore((store) => {
-      const revoked = store.revokeAccessCredentialByPrefix(prefix);
-      if (!revoked) {
-        throw new Error(`Credential prefix not found: ${prefix}`);
-      }
+    withAuditedStore(
+      { action: "revoke", targetCredentialPrefix: prefix },
+      (store) => {
+        const revoked = store.revokeAccessCredentialByPrefix(prefix);
+        if (!revoked) {
+          throw new Error(`Credential prefix not found: ${prefix}`);
+        }
 
-      printJson({
-        credential: publicCredential(revoked)
-      });
-    });
+        return {
+          output: {
+            credential: publicCredential(revoked)
+          },
+          audit: {
+            targetUserId: revoked.subjectId,
+            targetCredentialId: revoked.id,
+            targetCredentialPrefix: revoked.prefix
+          }
+        };
+      }
+    );
   });
 
 program
@@ -255,64 +312,185 @@ program
   .option("--rpd <n>", "requests per day; defaults to old credential policy", parseNullablePositiveInteger)
   .option("--concurrent <n>", "concurrent requests; defaults to old credential policy", parseNullablePositiveInteger)
   .action((prefix, options) => {
+    withAuditedStore(
+      {
+        action: "rotate",
+        targetCredentialPrefix: prefix,
+        params: {
+          label: options.label,
+          expires_days: options.expiresDays,
+          grace_hours: options.graceHours,
+          rpm: options.rpm,
+          rpd: options.rpd,
+          concurrent: options.concurrent
+        }
+      },
+      (store) => {
+        const oldCredential = store.getAccessCredentialByPrefix(prefix);
+        if (!oldCredential) {
+          throw new Error(`Credential prefix not found: ${prefix}`);
+        }
+        const now = new Date();
+        if (oldCredential.revokedAt) {
+          throw new Error(`Credential prefix is revoked and cannot be rotated: ${prefix}`);
+        }
+        if (oldCredential.expiresAt.getTime() <= now.getTime()) {
+          throw new Error(`Credential prefix is expired and cannot be rotated: ${prefix}`);
+        }
+
+        const issued = issueAccessCredential({
+          subjectId: oldCredential.subjectId,
+          label: options.label ?? oldCredential.label,
+          scope: oldCredential.scope,
+          expiresAt: addDays(now, options.expiresDays),
+          rate: rateFromOptions({
+            rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
+            rpd: optionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
+            concurrent: optionOrExisting(options.concurrent, oldCredential.rate.concurrentRequests)
+          }),
+          rotatesId: oldCredential.id
+        });
+        store.insertAccessCredential(issued.record);
+
+        const graceHours = options.graceHours as number;
+        const oldAfterRotate =
+          graceHours === 0
+            ? store.revokeAccessCredentialByPrefix(oldCredential.prefix) ?? oldCredential
+            : store.setAccessCredentialExpiresAtByPrefix(
+                oldCredential.prefix,
+                earlierDate(oldCredential.expiresAt, addHours(now, graceHours))
+              ) ?? oldCredential;
+
+        return {
+          output: {
+            token: issued.token,
+            credential: publicCredential(issued.record),
+            rotated_from: publicCredential(oldAfterRotate)
+          },
+          audit: {
+            targetUserId: oldCredential.subjectId,
+            targetCredentialId: oldCredential.id,
+            targetCredentialPrefix: oldCredential.prefix,
+            params: {
+              new_credential_id: issued.record.id,
+              new_credential_prefix: issued.record.prefix,
+              label: issued.record.label,
+              expires_at: issued.record.expiresAt.toISOString(),
+              old_expires_at: oldAfterRotate.expiresAt.toISOString(),
+              old_revoked_at: oldAfterRotate.revokedAt?.toISOString() ?? null,
+              grace_hours: graceHours,
+              rate: issued.record.rate
+            }
+          }
+        };
+      }
+    );
+  });
+
+program
+  .command("audit")
+  .description("List admin audit events.")
+  .option("--user <id>", "filter by user id")
+  .option("--action <action>", "filter by action", parseAdminAuditAction)
+  .option("--status <status>", "filter by status: ok or error", parseAdminAuditStatus)
+  .option("--limit <n>", "maximum events to return", parsePositiveInteger, 50)
+  .action((options) => {
     withStore((store) => {
-      const oldCredential = store.getAccessCredentialByPrefix(prefix);
-      if (!oldCredential) {
-        throw new Error(`Credential prefix not found: ${prefix}`);
-      }
-      const now = new Date();
-      if (oldCredential.revokedAt) {
-        throw new Error(`Credential prefix is revoked and cannot be rotated: ${prefix}`);
-      }
-      if (oldCredential.expiresAt.getTime() <= now.getTime()) {
-        throw new Error(`Credential prefix is expired and cannot be rotated: ${prefix}`);
-      }
-
-      const issued = issueAccessCredential({
-        subjectId: oldCredential.subjectId,
-        label: options.label ?? oldCredential.label,
-        scope: oldCredential.scope,
-        expiresAt: addDays(now, options.expiresDays),
-        rate: rateFromOptions({
-          rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
-          rpd: optionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
-          concurrent: optionOrExisting(options.concurrent, oldCredential.rate.concurrentRequests)
-        }),
-        rotatesId: oldCredential.id
+      const events = store.listAdminAuditEvents({
+        userId: options.user,
+        action: options.action,
+        status: options.status,
+        limit: options.limit
       });
-      store.insertAccessCredential(issued.record);
-
-      const graceHours = options.graceHours as number;
-      const oldAfterRotate =
-        graceHours === 0
-          ? store.revokeAccessCredentialByPrefix(oldCredential.prefix) ?? oldCredential
-          : store.setAccessCredentialExpiresAtByPrefix(
-              oldCredential.prefix,
-              earlierDate(oldCredential.expiresAt, addHours(now, graceHours))
-            ) ?? oldCredential;
-
       printJson({
-        token: issued.token,
-        credential: publicCredential(issued.record),
-        rotated_from: publicCredential(oldAfterRotate)
+        events: events.map(publicAdminAuditEvent)
       });
     });
   });
 
 await program.parseAsync();
 
-function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
-  const dbPath = program.opts<{ db?: string }>().db;
-  if (!dbPath) {
-    throw new Error("SQLite database path is required. Use --db or GATEWAY_SQLITE_PATH.");
-  }
+interface AuditInput {
+  action: AdminAuditAction;
+  targetUserId?: string | null;
+  targetCredentialId?: string | null;
+  targetCredentialPrefix?: string | null;
+  params?: Record<string, unknown> | null;
+}
 
-  const store = createSqliteStore({ path: dbPath });
+interface AuditedActionResult {
+  output: unknown;
+  audit?: Partial<AuditInput>;
+}
+
+function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
+  const store = createSqliteStore({ path: requireDbPath() });
   try {
     return fn(store);
   } finally {
     store.close();
   }
+}
+
+function withAuditedStore(
+  baseAudit: AuditInput,
+  fn: (store: ReturnType<typeof createSqliteStore>) => AuditedActionResult
+): void {
+  const store = createSqliteStore({ path: requireDbPath() });
+  try {
+    const result = fn(store);
+    const finalAudit = mergeAudit(baseAudit, result.audit);
+    store.insertAdminAuditEvent(adminAuditRecord(finalAudit, "ok", null));
+    printJson(result.output);
+  } catch (err) {
+    store.insertAdminAuditEvent(
+      adminAuditRecord(baseAudit, "error", sanitizeAuditErrorMessage(err))
+    );
+    throw err;
+  } finally {
+    store.close();
+  }
+}
+
+function requireDbPath(): string {
+  const dbPath = program.opts<{ db?: string }>().db;
+  if (!dbPath) {
+    throw new Error("SQLite database path is required. Use --db or GATEWAY_SQLITE_PATH.");
+  }
+  return dbPath;
+}
+
+function mergeAudit(base: AuditInput, extra: Partial<AuditInput> | undefined): AuditInput {
+  return {
+    ...base,
+    ...extra,
+    params: extra?.params ?? base.params ?? null
+  };
+}
+
+function adminAuditRecord(
+  input: AuditInput,
+  status: AdminAuditStatus,
+  errorMessage: string | null
+): AdminAuditEventRecord {
+  return {
+    id: `audit_${randomUUID()}`,
+    action: input.action,
+    targetUserId: input.targetUserId ?? null,
+    targetCredentialId: input.targetCredentialId ?? null,
+    targetCredentialPrefix: input.targetCredentialPrefix ?? null,
+    status,
+    params: input.params ?? null,
+    errorMessage,
+    createdAt: new Date()
+  };
+}
+
+function sanitizeAuditErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message
+    .replace(/cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "cgw.<redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
 }
 
 function subjectFromOptions(options: {
@@ -335,6 +513,10 @@ function subjectFromOptions(options: {
     state: "active",
     createdAt: new Date()
   };
+}
+
+function issueTargetUserId(options: { user?: string; subjectId?: string }): string {
+  return resolveUserId(options) ?? defaultSubjectId;
 }
 
 function issueSubject(
@@ -406,6 +588,20 @@ function publicSubject(subject: Subject) {
   };
 }
 
+function publicAdminAuditEvent(record: AdminAuditEventRecord) {
+  return {
+    id: record.id,
+    action: record.action,
+    target_user_id: record.targetUserId,
+    target_credential_id: record.targetCredentialId,
+    target_credential_prefix: record.targetCredentialPrefix,
+    status: record.status,
+    params: record.params,
+    error_message: record.errorMessage,
+    created_at: record.createdAt.toISOString()
+  };
+}
+
 function parseScope(value: string): Scope {
   if (value === "code" || value === "medical") {
     return value;
@@ -418,6 +614,29 @@ function parseSubjectState(value: string): SubjectState {
     return value;
   }
   throw new InvalidArgumentError("state must be active, disabled, or archived");
+}
+
+function parseAdminAuditAction(value: string): AdminAuditAction {
+  if (
+    value === "issue" ||
+    value === "revoke" ||
+    value === "rotate" ||
+    value === "disable-user" ||
+    value === "enable-user" ||
+    value === "prune-events"
+  ) {
+    return value;
+  }
+  throw new InvalidArgumentError(
+    "action must be issue, revoke, rotate, disable-user, enable-user, or prune-events"
+  );
+}
+
+function parseAdminAuditStatus(value: string): AdminAuditStatus {
+  if (value === "ok" || value === "error") {
+    return value;
+  }
+  throw new InvalidArgumentError("status must be ok or error");
 }
 
 function parsePositiveInteger(value: string): number {

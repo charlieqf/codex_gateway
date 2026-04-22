@@ -124,6 +124,7 @@ node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" li
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --user vm-smoke --active-only
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --user vm-smoke --days 7
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" audit --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" disable-user vm-smoke
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" enable-user vm-smoke
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" prune-events --before-days 30 --dry-run
@@ -131,7 +132,11 @@ node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" ro
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" revoke <credential-prefix>
 ```
 
-Only run `prune-events` without `--dry-run` after reviewing the cutoff and matched count, preferably against an explicitly named smoke DB first.
+Only run `prune-events` without `--dry-run` after reviewing the cutoff and
+matched count, preferably against an explicitly named smoke DB first. The admin
+CLI records write-side operations in `admin_audit_events`; use `audit` to inspect
+who was changed, which API key prefix was touched, and whether the operation
+succeeded.
 
 Provider status probe:
 

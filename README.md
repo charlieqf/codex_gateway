@@ -154,6 +154,7 @@ npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list-users
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --user alice --active-only
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --user alice --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --user alice --days 7
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH audit --user alice --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH disable-user alice
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH enable-user alice
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH prune-events --before-days 30 --dry-run
@@ -168,4 +169,9 @@ use `--grace-hours 0` to revoke it immediately. Gateway API key auth enforces
 each key's `rpm`, `rpd`, and `concurrent` policy in the current gateway process
 and returns `rate_limited` with `retry_after_seconds` when exceeded.
 
-`events` lists request-level observation records. `report-usage` dynamically aggregates `request_events` into daily rows, and `prune-events` manually deletes old request events by cutoff. Run `prune-events` with `--dry-run` first and remove it only after reviewing the `matched` count. There is no scheduled retention job yet.
+`events` lists request-level observation records. `report-usage` dynamically
+aggregates `request_events` into daily rows. `audit` lists administrator actions
+such as issuing, revoking, rotating, disabling users, enabling users, and
+pruning request events. `prune-events` manually deletes old request events by
+cutoff. Run `prune-events` with `--dry-run` first and remove it only after
+reviewing the `matched` count. There is no scheduled retention job yet.

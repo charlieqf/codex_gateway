@@ -132,6 +132,60 @@ describe("codex-gateway-admin user API key operations", () => {
       user: { id: string; state: string };
     };
     expect(enabled.user).toMatchObject({ id: "alice", state: "active" });
+
+    const audit = runCli(dbPath, ["audit", "--user", "alice", "--limit", "10"]) as {
+      events: Array<{
+        action: string;
+        target_user_id: string;
+        target_credential_prefix: string | null;
+        status: string;
+        error_message: string | null;
+        params: Record<string, unknown> | null;
+      }>;
+    };
+    expect(audit.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "issue",
+          target_user_id: "alice",
+          target_credential_prefix: issued.credential.prefix,
+          status: "ok",
+          error_message: null
+        }),
+        expect.objectContaining({
+          action: "disable-user",
+          target_user_id: "alice",
+          status: "ok",
+          error_message: null
+        }),
+        expect.objectContaining({
+          action: "issue",
+          target_user_id: "alice",
+          status: "error",
+          error_message: "User is disabled; enable the user before issuing a new API key."
+        }),
+        expect.objectContaining({
+          action: "enable-user",
+          target_user_id: "alice",
+          status: "ok",
+          error_message: null
+        })
+      ])
+    );
+    expect(JSON.stringify(audit.events)).not.toContain(issued.token);
+
+    const issueAudit = runCli(dbPath, ["audit", "--action", "issue", "--status", "ok"]) as {
+      events: Array<{ action: string; status: string; params: Record<string, unknown> }>;
+    };
+    expect(issueAudit.events).toHaveLength(1);
+    expect(issueAudit.events[0]).toMatchObject({
+      action: "issue",
+      status: "ok",
+      params: {
+        label: "Alice laptop",
+        scope: "code"
+      }
+    });
   });
 });
 

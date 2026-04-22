@@ -30,6 +30,7 @@ Last updated: 2026-04-22
 - Use "API key" for the bearer token issued to a user. The internal table is `access_credentials`, and only the prefix plus hash is stored.
 - Use "upstream Codex account" for the server-side ChatGPT/Codex login state under `CODEX_HOME`. The internal provider record is a subscription.
 - 中文文档里优先写“用户 / API key / 上游 Codex 账号 / 用量”，只在排查数据库或代码时补充 `subject`、`access_credential`、`subscription`。
+- Admin write actions are stored as audit events. Audit rows must not contain raw API keys; store only user ids, credential ids, credential prefixes, parameter summaries, status, and sanitized errors.
 
 ## Codex Auth Lessons
 

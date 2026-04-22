@@ -4,10 +4,12 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type {
   AccessCredentialRecord,
+  AdminAuditEventRecord,
   CreateGatewaySessionInput,
   GatewaySession,
   GatewayStore,
   ListAccessCredentialsInput,
+  ListAdminAuditEventsInput,
   ListRequestEventsInput,
   ListSubjectsInput,
   PruneRequestEventsInput,
@@ -219,6 +221,60 @@ export class SqliteGatewayStore implements GatewayStore {
       .run(expiresAt.toISOString(), prefix);
 
     return this.getAccessCredentialByPrefix(prefix);
+  }
+
+  insertAdminAuditEvent(record: AdminAuditEventRecord): AdminAuditEventRecord {
+    this.db
+      .prepare(
+        `INSERT INTO admin_audit_events (
+          id, action, target_user_id, target_credential_id, target_credential_prefix,
+          status, params_json, error_message, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.action,
+        record.targetUserId,
+        record.targetCredentialId,
+        record.targetCredentialPrefix,
+        record.status,
+        record.params ? JSON.stringify(record.params) : null,
+        record.errorMessage,
+        record.createdAt.toISOString()
+      );
+
+    return record;
+  }
+
+  listAdminAuditEvents(input: ListAdminAuditEventsInput = {}): AdminAuditEventRecord[] {
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+    if (input.userId) {
+      clauses.push("target_user_id = ?");
+      params.push(input.userId);
+    }
+    if (input.action) {
+      clauses.push("action = ?");
+      params.push(input.action);
+    }
+    if (input.status) {
+      clauses.push("status = ?");
+      params.push(input.status);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const rows = this.db
+      .prepare(
+        `SELECT id, action, target_user_id, target_credential_id, target_credential_prefix,
+                status, params_json, error_message, created_at
+         FROM admin_audit_events
+         ${where}
+         ORDER BY created_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(...params, input.limit ?? 100);
+
+    return rows.map(rowToAdminAuditEvent);
   }
 
   create(input: CreateGatewaySessionInput): GatewaySession {
@@ -541,6 +597,29 @@ export class SqliteGatewayStore implements GatewayStore {
       CREATE INDEX IF NOT EXISTS idx_request_events_subject_started
         ON request_events(subject_id, started_at);
     `);
+
+    this.applyMigration(3, `
+      CREATE TABLE IF NOT EXISTS admin_audit_events (
+        id TEXT PRIMARY KEY,
+        action TEXT NOT NULL,
+        target_user_id TEXT,
+        target_credential_id TEXT,
+        target_credential_prefix TEXT,
+        status TEXT NOT NULL,
+        params_json TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_created_at
+        ON admin_audit_events(created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_user_created
+        ON admin_audit_events(target_user_id, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_action_created
+        ON admin_audit_events(action, created_at);
+    `);
   }
 
   private applyMigration(version: number, sql: string): void {
@@ -682,6 +761,32 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     status: value.status,
     errorCode: value.error_code,
     rateLimited: value.rate_limited === 1
+  };
+}
+
+function rowToAdminAuditEvent(row: unknown): AdminAuditEventRecord {
+  const value = row as {
+    id: string;
+    action: AdminAuditEventRecord["action"];
+    target_user_id: string | null;
+    target_credential_id: string | null;
+    target_credential_prefix: string | null;
+    status: AdminAuditEventRecord["status"];
+    params_json: string | null;
+    error_message: string | null;
+    created_at: string;
+  };
+
+  return {
+    id: value.id,
+    action: value.action,
+    targetUserId: value.target_user_id,
+    targetCredentialId: value.target_credential_id,
+    targetCredentialPrefix: value.target_credential_prefix,
+    status: value.status,
+    params: value.params_json ? (JSON.parse(value.params_json) as Record<string, unknown>) : null,
+    errorMessage: value.error_message,
+    createdAt: new Date(value.created_at)
   };
 }
 

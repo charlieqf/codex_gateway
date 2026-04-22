@@ -44,6 +44,28 @@ export interface RateLimitPolicy {
 
 export type RequestEventStatus = "ok" | "error";
 
+export type AdminAuditAction =
+  | "issue"
+  | "revoke"
+  | "rotate"
+  | "disable-user"
+  | "enable-user"
+  | "prune-events";
+
+export type AdminAuditStatus = "ok" | "error";
+
+export interface AdminAuditEventRecord {
+  id: string;
+  action: AdminAuditAction;
+  targetUserId: string | null;
+  targetCredentialId: string | null;
+  targetCredentialPrefix: string | null;
+  status: AdminAuditStatus;
+  params: Record<string, unknown> | null;
+  errorMessage: string | null;
+  createdAt: Date;
+}
+
 export interface RequestEventRecord {
   requestId: string;
   credentialId: string | null;
