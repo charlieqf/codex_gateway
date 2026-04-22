@@ -79,8 +79,8 @@ Known VM constraints from current testing:
 - Existing important app lives under `/opt/medevidence-v2`.
 - Nginx is active and owns port `80`.
 - Local services have been observed on `127.0.0.1:8081` and `127.0.0.1:5432`.
-- Docker was not installed/active during testing.
-- Do not install Docker or change network/firewall rules without an explicit maintenance window.
+- Docker Engine and the Docker Compose plugin are installed and active, but the `qian` user is not in the `docker` group.
+- Continue using `sudo docker ...` for controlled gateway tests; do not change Docker daemon settings, network/firewall rules, or host service routing without an explicit maintenance window.
 
 ## VM Project Paths
 
