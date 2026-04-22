@@ -6,6 +6,11 @@ export GATEWAY_HOST="${GATEWAY_HOST:-127.0.0.1}"
 export GATEWAY_PORT="${GATEWAY_PORT:-18787}"
 LOG_FILE="${LOG_FILE:-/tmp/codex-gateway-native-smoke.log}"
 
+if [ -n "${CODEX_HOME:-}" ]; then
+  mkdir -p "$CODEX_HOME"
+  chmod 700 "$CODEX_HOME"
+fi
+
 node --version
 npm --version
 

@@ -86,6 +86,7 @@ export NODE_HOME="$HOME/.local/codex-gateway-node"
 export PATH="$NODE_HOME/bin:$PATH"
 export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
 mkdir -p "$CODEX_HOME"
+chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 
 npm run probe:codex -- --codex-home "$CODEX_HOME"
 ```

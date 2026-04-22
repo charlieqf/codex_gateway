@@ -71,12 +71,33 @@ Linux / Azure VM：
 
 ```bash
 mkdir -p "$HOME/codex-gateway-state/codex-home"
+chmod 700 "$HOME/codex-gateway-state" "$HOME/codex-gateway-state/codex-home"
 export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
 ./node_modules/.bin/codex login --device-auth
 npm run probe:codex -- --codex-home "$CODEX_HOME" --run
 ```
 
 如果 `./node_modules/.bin/codex` 不存在，先执行 `npm install`。
+
+### 2026-04-22 Azure VM 验证记录
+
+目标 VM 使用非侵入方式验证：
+
+- 用户目录：`/home/qian/codex-gateway-test`
+- 隔离登录态目录：`/home/qian/codex-gateway-state/codex-home`
+- 未使用 `sudo`，未修改 Nginx/systemd/firewall，未监听公网端口
+
+结果：
+
+- `codex login --device-auth` 成功。
+- `codex login status` 返回 ChatGPT 登录态。
+- `npm run probe:codex -- --codex-home "$CODEX_HOME" --run` 成功。
+- SDK streamed turn 返回 thread id `019db3a3-7f37-7721-a8e3-126de16d514a`，最终响应为 `codex-gateway-probe-ok`。
+- `--resume-thread-id 019db3a3-7f37-7721-a8e3-126de16d514a` 成功继续同一 thread。
+- 验证后没有残留 gateway 监听端口或 Codex 长跑进程。
+- `auth.json` 文件权限为 `600`；`codex-gateway-state` 和 `codex-home` 目录已收紧为 `700`。
+
+初步结论：ChatGPT/Codex subscription path 可以作为 MVP Phase 1 的第一 provider adapter 继续实现。仍需补充错误归一化、重新授权状态、rate limit 读取和长期刷新验证。
 
 ### P0-1 登录态托管
 
