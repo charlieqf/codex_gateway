@@ -20,6 +20,64 @@ Azure Ubuntu VM 建议目录见：[docs/operations/azure-ubuntu-vm.md](../operat
 
 ## 验证项
 
+## Probe 命令
+
+仓库已提供 Phase 0 probe：
+
+```bash
+npm run probe:codex -- --codex-home .gateway-state/codex-home
+```
+
+默认只做无副作用检查：
+
+- `codex --version`
+- `codex login status`
+- `codex app-server --help`
+- `CODEX_HOME` 下是否出现 `auth.json`、`config.toml`、`sessions`
+
+真正调用 Codex SDK 时显式加 `--run`：
+
+```bash
+npm run probe:codex -- \
+  --codex-home .gateway-state/codex-home \
+  --workdir . \
+  --run \
+  --timeout-ms 120000
+```
+
+继续同一 thread：
+
+```bash
+npm run probe:codex -- \
+  --codex-home .gateway-state/codex-home \
+  --resume-thread-id <thread-id> \
+  --run
+```
+
+probe 输出 JSON，并会脱敏 email、API key、Bearer token 和 JWT 形态内容。
+
+## 隔离登录
+
+本机：
+
+```powershell
+New-Item -ItemType Directory -Force .gateway-state\codex-home | Out-Null
+$env:CODEX_HOME = (Resolve-Path .gateway-state\codex-home).Path
+codex login --device-auth
+npm run probe:codex -- --codex-home .gateway-state\codex-home --run
+```
+
+Linux / Azure VM：
+
+```bash
+mkdir -p "$HOME/codex-gateway-state/codex-home"
+export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
+./node_modules/.bin/codex login --device-auth
+npm run probe:codex -- --codex-home "$CODEX_HOME" --run
+```
+
+如果 `./node_modules/.bin/codex` 不存在，先执行 `npm install`。
+
 ### P0-1 登录态托管
 
 1. 用受控 `CODEX_HOME` 执行 Codex ChatGPT 登录。
@@ -77,4 +135,3 @@ No-Go 后的默认调整：
 1. MVP provider 改为 OpenAI API key path。
 2. 保留 `provider-codex` 目录，用于后续 code scope 或本地 agent 场景。
 3. 文档中的“订阅示例”改成 API subscription/usage-based provider，不改变 access credential、subject、session、scope 设计。
-

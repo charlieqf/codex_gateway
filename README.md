@@ -64,3 +64,17 @@ docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
 ```
 
 Phase 0 期间不要把任何 ChatGPT/Codex 登录态提交进仓库。服务端登录态应放在 `CODEX_HOME` 指向的受控目录，并由部署用户独占访问。
+
+## Phase 0 Probe
+
+检查隔离 Codex 环境和登录状态：
+
+```powershell
+npm run probe:codex -- --codex-home .gateway-state\codex-home
+```
+
+登录后执行 SDK streamed turn：
+
+```powershell
+npm run probe:codex -- --codex-home .gateway-state\codex-home --run
+```

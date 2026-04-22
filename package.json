@@ -12,7 +12,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "dev:gateway": "npm --workspace @codex-gateway/gateway run dev",
-    "dev:admin": "npm --workspace @codex-gateway/admin-cli run dev"
+    "dev:admin": "npm --workspace @codex-gateway/admin-cli run dev",
+    "probe:codex": "npm --workspace @codex-gateway/provider-codex run probe --"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

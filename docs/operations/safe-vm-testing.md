@@ -76,6 +76,29 @@ curl http://127.0.0.1:18787/gateway/health
 
 停止测试只需 `Ctrl+C`，不会注册 systemd service，不会写入现有业务目录。
 
+## Phase 0 Codex Probe
+
+在共享 VM 上只用用户目录做 provider 验证：
+
+```bash
+cd "$HOME/codex-gateway-test"
+export NODE_HOME="$HOME/.local/codex-gateway-node"
+export PATH="$NODE_HOME/bin:$PATH"
+export CODEX_HOME="$HOME/codex-gateway-state/codex-home"
+mkdir -p "$CODEX_HOME"
+
+npm run probe:codex -- --codex-home "$CODEX_HOME"
+```
+
+如果需要登录 ChatGPT/Codex 订阅，使用同一个隔离 `CODEX_HOME`：
+
+```bash
+./node_modules/.bin/codex login --device-auth
+npm run probe:codex -- --codex-home "$CODEX_HOME" --run
+```
+
+这一步不需要监听端口，不需要改 Nginx，不需要 `sudo`。
+
 ## 清理测试部署
 
 只停止本项目 gateway，不删除 volume：
