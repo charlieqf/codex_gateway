@@ -521,21 +521,7 @@ describe("gateway phase 1 routes", () => {
       headers: { authorization: "Bearer secret" },
       payload: {
         model: "medcode",
-        messages: [{ role: "user", content: "List files." }],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "bash",
-              description: "Run a shell command.",
-              parameters: {
-                type: "object",
-                properties: { command: { type: "string" } },
-                required: ["command"]
-              }
-            }
-          }
-        ]
+        messages: [{ role: "user", content: "List files." }]
       }
     });
 
@@ -572,6 +558,201 @@ describe("gateway phase 1 routes", () => {
         }
       }
     });
+
+    await app.close();
+  });
+
+  it("returns strict client-defined tool calls for non-streaming chat completions", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "medevidence",
+              arguments: {
+                question: "What evidence supports aspirin after MI?"
+              }
+            }
+          ]
+        })
+      },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 20,
+          completionTokens: 3,
+          totalTokens: 23
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Answer with evidence." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              description: "Answer a medical evidence question.",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0]).toMatchObject({
+      message: {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              arguments: '{"question":"What evidence supports aspirin after MI?"}'
+            }
+          }
+        ]
+      },
+      finish_reason: "tool_calls"
+    });
+    expect(response.json().choices[0].message.tool_calls[0].id).toMatch(/^call_/);
+    expect(provider.messages[0].message).toContain("strict client-defined tools mode");
+    expect(provider.messages[0].message).toContain("medevidence");
+
+    await app.close();
+  });
+
+  it("rejects undeclared tools in strict client-defined tool mode", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "shell",
+              arguments: {
+                command: "ls"
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use a medical evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error).toMatchObject({
+      code: "tool_call_validation_failed",
+      type: "server_error"
+    });
+    expect(provider.messages).toHaveLength(2);
+    expect(provider.messages[1].message).toContain("previous output was invalid");
+
+    await app.close();
+  });
+
+  it("rejects strict tool arguments that do not match the client schema", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "medevidence",
+              arguments: {
+                question: 123
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use a medical evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error.code).toBe("tool_call_validation_failed");
+    expect(response.json().error.message).toContain("must be string");
 
     await app.close();
   });
@@ -650,6 +831,98 @@ describe("gateway phase 1 routes", () => {
     });
     expect(response.payload).not.toContain("server sandbox failed");
     expect(response.payload).toContain("data: [DONE]");
+
+    await app.close();
+  });
+
+  it("streams strict client-defined tool calls", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              id: "call_medevidence_1",
+              name: "medevidence",
+              arguments: {
+                question: "What is the evidence?"
+              }
+            }
+          ]
+        })
+      },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 7,
+          completionTokens: 2,
+          totalTokens: 9
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Use the evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const frames = parseOpenAISseData(response.payload);
+    expect(frames[1]).toMatchObject({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_medevidence_1",
+                type: "function",
+                function: {
+                  name: "medevidence",
+                  arguments: '{"question":"What is the evidence?"}'
+                }
+              }
+            ]
+          },
+          finish_reason: null
+        }
+      ]
+    });
+    expect(frames[2]).toMatchObject({
+      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      usage: {
+        prompt_tokens: 7,
+        completion_tokens: 2,
+        total_tokens: 9
+      }
+    });
 
     await app.close();
   });

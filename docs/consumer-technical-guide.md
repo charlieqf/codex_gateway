@@ -67,7 +67,7 @@ model: medcode
 
 - `/v1/responses`
 - `/v1/audio`、`/v1/images`、embedding、fine-tuning 等其他 OpenAI API
-- 完整 native OpenAI tool execution。兼容层可以接收 `tools`、assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }`，也会把 MedCode 后端暴露的原生命令观察事件包装成 OpenAI `tool_calls`。当前客户端 `tools` schema 只作为上下文传入，不保证模型按客户端自定义 schema 选择工具，也不提供 MCP 工具桥接。
+- native SDK 级动态工具注册、MCP 工具桥接、同一 upstream turn 内 pause/resume。Phase 2 strict client-defined tools 已在 gateway 层实现：兼容层可以接收 `tools`、要求模型按客户端声明的 `function.name` 和 `parameters` JSON Schema 产出 `tool_calls`、校验后再返回给客户端。当前仍不是完整 MCP/native tool runtime。
 - Responses API 风格的 reasoning tokens、response item event stream 和 MCP 协议能力。
 
 `finish_reason` 当前只承诺返回：
@@ -442,6 +442,7 @@ model_not_found
 rate_limited
 forbidden_scope
 session_not_found
+tool_call_validation_failed
 subscription_unavailable
 provider_reauth_required
 service_unavailable

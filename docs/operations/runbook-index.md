@@ -13,6 +13,7 @@ Deployment and safety:
 3. [Public Internal Controlled Trial Runbook](./internal-trial-runbook.md)
 4. [Safe Shared-VM Testing](./safe-vm-testing.md)
 5. [Docker Maintenance Window Runbook](./docker-maintenance-window.md)
+6. [MedCode Windows Tool-Call Smoke](./medcode-windows-toolcall-smoke.md)
 
 Operational workflows now covered:
 
@@ -28,6 +29,7 @@ Operational workflows now covered:
 - Default compose isolation for loopback-only gateway deployment.
 - Public internal trial plan through existing Nginx and a dedicated hostname.
 - Docker maintenance-window checklist for shared VM installation.
+- MedCode Windows `shell` tool-call smoke checklist.
 
 Operational workflows still pending:
 

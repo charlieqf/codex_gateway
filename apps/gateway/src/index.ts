@@ -8,6 +8,7 @@ import {
   type GatewayStore,
   type ObservationStore,
   type ProviderAdapter,
+  type Scope,
   type Subject,
   type Subscription
 } from "@codex-gateway/core";
@@ -28,16 +29,22 @@ import {
 import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
 import {
   chatMessagesToPrompt,
+  chatMessagesToStrictToolPrompt,
+  chatMessagesToStrictToolRepairPrompt,
   createChatCompletionResponse,
   createFinalChatCompletionChunk,
   createInitialChatCompletionChunk,
+  hasStrictClientTools,
   openAIErrorPayload,
   openAIUsageFromTokenUsage,
   parseChatCompletionRequest,
+  parseStrictToolDecision,
   streamEventToChatCompletionChunk,
+  type ChatCompletionRequest,
   type ChatCompletionShape,
   type OpenAIChatToolCall,
-  type OpenAIChatUsage
+  type OpenAIChatUsage,
+  type StrictToolDecision
 } from "./openai-compat.js";
 import {
   InMemoryCredentialRateLimiter,
@@ -246,7 +253,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     const session = createStatelessSession(subject.id, subscription.id);
     markSession(request, session.id);
     const shape = createChatCompletionShape(openAIModelId);
-    const prompt = chatMessagesToPrompt(parsed);
+    const strictClientTools = hasStrictClientTools(parsed);
+    const prompt = strictClientTools
+      ? chatMessagesToStrictToolPrompt(parsed)
+      : chatMessagesToPrompt(parsed);
 
     if (parsed.stream) {
       reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
@@ -274,47 +284,90 @@ export function buildGateway(options: GatewayOptions = {}) {
         writeOpenAISseData(reply, createInitialChatCompletionChunk(shape));
         markFirstByte(request);
 
-        for await (const event of provider.message({
-          subscription,
-          subject,
-          scope,
-          session,
-          message: prompt,
-          signal: abort.signal
-        })) {
-          if (closed) {
-            break;
-          }
-          if (event.type === "completed") {
-            usage = openAIUsageFromTokenUsage(event.usage);
-            continue;
-          }
-          if (event.type === "error") {
-            const error = streamErrorToGatewayError(event);
-            request.gatewayErrorCode = error.code;
-            writeOpenAISseData(reply, openAIErrorPayload(error));
-            failed = true;
-            break;
-          }
-
-          if (event.type === "tool_call") {
-            hasToolCalls = true;
-          }
-          if (event.type === "message_delta" && hasToolCalls) {
-            continue;
-          }
-
-          const chunk = streamEventToChatCompletionChunk({
-            shape,
-            event,
-            toolCallIndex
+        if (strictClientTools) {
+          const strictResult = await runStrictClientTools({
+            provider,
+            subscription,
+            subject,
+            scope,
+            session,
+            request: parsed,
+            prompt,
+            signal: abort.signal
           });
-          if (event.type === "tool_call") {
-            toolCallIndex += 1;
+          if (strictResult instanceof GatewayError) {
+            request.gatewayErrorCode = strictResult.code;
+            writeOpenAISseData(reply, openAIErrorPayload(strictResult));
+            failed = true;
+          } else if (strictResult.toolCalls.length > 0) {
+            hasToolCalls = true;
+            usage = strictResult.usage;
+            for (const toolCall of strictResult.toolCalls) {
+              const chunk = streamEventToChatCompletionChunk({
+                shape,
+                event: openAIToolCallToStreamEvent(toolCall),
+                toolCallIndex
+              });
+              toolCallIndex += 1;
+              if (chunk && !writeOpenAISseData(reply, chunk)) {
+                abort.abort();
+                break;
+              }
+            }
+          } else {
+            usage = strictResult.usage;
+            const chunk = streamEventToChatCompletionChunk({
+              shape,
+              event: { type: "message_delta", text: strictResult.content },
+              toolCallIndex
+            });
+            if (chunk && !writeOpenAISseData(reply, chunk)) {
+              abort.abort();
+            }
           }
-          if (chunk && !writeOpenAISseData(reply, chunk)) {
-            abort.abort();
-            break;
+        } else {
+          for await (const event of provider.message({
+            subscription,
+            subject,
+            scope,
+            session,
+            message: prompt,
+            signal: abort.signal
+          })) {
+            if (closed) {
+              break;
+            }
+            if (event.type === "completed") {
+              usage = openAIUsageFromTokenUsage(event.usage);
+              continue;
+            }
+            if (event.type === "error") {
+              const error = streamErrorToGatewayError(event);
+              request.gatewayErrorCode = error.code;
+              writeOpenAISseData(reply, openAIErrorPayload(error));
+              failed = true;
+              break;
+            }
+
+            if (event.type === "tool_call") {
+              hasToolCalls = true;
+            }
+            if (event.type === "message_delta" && hasToolCalls) {
+              continue;
+            }
+
+            const chunk = streamEventToChatCompletionChunk({
+              shape,
+              event,
+              toolCallIndex
+            });
+            if (event.type === "tool_call") {
+              toolCallIndex += 1;
+            }
+            if (chunk && !writeOpenAISseData(reply, chunk)) {
+              abort.abort();
+              break;
+            }
           }
         }
 
@@ -339,30 +392,49 @@ export function buildGateway(options: GatewayOptions = {}) {
     const toolCalls: OpenAIChatToolCall[] = [];
     let usage: OpenAIChatUsage | null = null;
 
-    for await (const event of provider.message({
-      subscription,
-      subject,
-      scope,
-      session,
-      message: prompt
-    })) {
-      if (event.type === "message_delta") {
-        markFirstByte(request);
-        content += event.text;
-      } else if (event.type === "tool_call") {
-        markFirstByte(request);
-        toolCalls.push({
-          id: event.callId,
-          type: "function",
-          function: {
-            name: event.name,
-            arguments: JSON.stringify(event.arguments ?? {})
-          }
-        });
-      } else if (event.type === "error") {
-        return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
-      } else if (event.type === "completed") {
-        usage = openAIUsageFromTokenUsage(event.usage);
+    if (strictClientTools) {
+      const strictResult = await runStrictClientTools({
+        provider,
+        subscription,
+        subject,
+        scope,
+        session,
+        request: parsed,
+        prompt
+      });
+      if (strictResult instanceof GatewayError) {
+        return sendOpenAIError(request, reply, strictResult);
+      }
+      markFirstByte(request);
+      content = strictResult.content;
+      toolCalls.push(...strictResult.toolCalls);
+      usage = strictResult.usage;
+    } else {
+      for await (const event of provider.message({
+        subscription,
+        subject,
+        scope,
+        session,
+        message: prompt
+      })) {
+        if (event.type === "message_delta") {
+          markFirstByte(request);
+          content += event.text;
+        } else if (event.type === "tool_call") {
+          markFirstByte(request);
+          toolCalls.push({
+            id: event.callId,
+            type: "function",
+            function: {
+              name: event.name,
+              arguments: JSON.stringify(event.arguments ?? {})
+            }
+          });
+        } else if (event.type === "error") {
+          return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
+        } else if (event.type === "completed") {
+          usage = openAIUsageFromTokenUsage(event.usage);
+        }
       }
     }
 
@@ -484,6 +556,149 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   return app;
+}
+
+interface StrictClientToolsInput {
+  provider: ProviderAdapter;
+  subscription: Subscription;
+  subject: Subject;
+  scope: Scope;
+  session: GatewaySession;
+  request: ChatCompletionRequest;
+  prompt: string;
+  signal?: AbortSignal;
+}
+
+interface StrictClientToolsResult {
+  content: string;
+  toolCalls: OpenAIChatToolCall[];
+  usage: OpenAIChatUsage | null;
+}
+
+async function runStrictClientTools(
+  input: StrictClientToolsInput
+): Promise<StrictClientToolsResult | GatewayError> {
+  const first = await collectProviderText({
+    provider: input.provider,
+    subscription: input.subscription,
+    subject: input.subject,
+    scope: input.scope,
+    session: input.session,
+    prompt: input.prompt,
+    signal: input.signal
+  });
+  if (first instanceof GatewayError) {
+    return first;
+  }
+
+  const parsed = parseStrictToolDecision({
+    text: first.content,
+    tools: input.request.tools ?? [],
+    createToolCallId
+  });
+  if (!(parsed instanceof GatewayError)) {
+    return strictDecisionToResult(parsed, first.usage);
+  }
+
+  const repairPrompt = chatMessagesToStrictToolRepairPrompt({
+    originalPrompt: input.prompt,
+    invalidOutput: first.content,
+    validationError: parsed.message
+  });
+  const repaired = await collectProviderText({
+    provider: input.provider,
+    subscription: input.subscription,
+    subject: input.subject,
+    scope: input.scope,
+    session: input.session,
+    prompt: repairPrompt,
+    signal: input.signal
+  });
+  if (repaired instanceof GatewayError) {
+    return repaired;
+  }
+
+  const repairedParsed = parseStrictToolDecision({
+    text: repaired.content,
+    tools: input.request.tools ?? [],
+    createToolCallId
+  });
+  if (repairedParsed instanceof GatewayError) {
+    return repairedParsed;
+  }
+
+  return strictDecisionToResult(repairedParsed, repaired.usage);
+}
+
+async function collectProviderText(input: {
+  provider: ProviderAdapter;
+  subscription: Subscription;
+  subject: Subject;
+  scope: Scope;
+  session: GatewaySession;
+  prompt: string;
+  signal?: AbortSignal;
+}): Promise<{ content: string; usage: OpenAIChatUsage | null } | GatewayError> {
+  let content = "";
+  let usage: OpenAIChatUsage | null = null;
+
+  for await (const event of input.provider.message({
+    subscription: input.subscription,
+    subject: input.subject,
+    scope: input.scope,
+    session: input.session,
+    message: input.prompt,
+    signal: input.signal
+  })) {
+    if (event.type === "message_delta") {
+      content += event.text;
+    } else if (event.type === "completed") {
+      usage = openAIUsageFromTokenUsage(event.usage);
+    } else if (event.type === "error") {
+      return streamErrorToGatewayError(event);
+    }
+  }
+
+  return { content, usage };
+}
+
+function strictDecisionToResult(
+  decision: StrictToolDecision,
+  usage: OpenAIChatUsage | null
+): StrictClientToolsResult {
+  if (decision.type === "message") {
+    return {
+      content: decision.content,
+      toolCalls: [],
+      usage
+    };
+  }
+
+  return {
+    content: "",
+    toolCalls: decision.toolCalls,
+    usage
+  };
+}
+
+function createToolCallId(): string {
+  return `call_${randomUUID().replaceAll("-", "")}`;
+}
+
+function openAIToolCallToStreamEvent(toolCall: OpenAIChatToolCall) {
+  let parsedArguments: unknown = {};
+  try {
+    parsedArguments = JSON.parse(toolCall.function.arguments) as unknown;
+  } catch {
+    parsedArguments = {};
+  }
+
+  return {
+    type: "tool_call" as const,
+    callId: toolCall.id,
+    name: toolCall.function.name,
+    arguments: parsedArguments
+  };
 }
 
 async function main() {

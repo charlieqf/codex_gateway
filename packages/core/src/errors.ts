@@ -8,6 +8,7 @@ export const gatewayErrorCodes = [
   "rate_limited",
   "forbidden_scope",
   "session_not_found",
+  "tool_call_validation_failed",
   "subscription_unavailable",
   "provider_reauth_required",
   "service_unavailable"

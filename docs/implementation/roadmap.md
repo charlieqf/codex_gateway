@@ -50,6 +50,7 @@
 - 多进程共享限流、定时 retention automation 和 materialized usage reports。
 - 用户/API key 操作已覆盖 `--user` 签发、按用户列出、修改单个 key 的权限/限额/过期时间、禁用/启用用户、单 key 限流、usage events、usage report、revoke 和 rotate。
 - 上游账号配置内部仍主要依赖 bootstrap `subscriptions`；更完整的上游账号管理和管理员身份记录仍待实现。
+- MedCode strict client-defined tools runtime 已开始实现；当前 `shell({ command })` 仍只是 Phase 1 tool-result 闭环和 Windows smoke 路径，不是最终多工具方案。
 - 长跑容器部署尚未在共享 Azure VM 上启用；当前只允许只读 Docker 状态检查和 loopback 测试。
 - Public TLS / 80/443 反代接入仍需单独维护窗口。
 
@@ -87,3 +88,21 @@
 - 基础性能测量脚本。
 
 退出：未参与开发的人按文档 4 小时内搭通。
+
+## MedCode Phase 2: Strict Client-Defined Tools
+
+详见 [MedCode Phase 2: Strict Client-Defined Tools](./medcode-phase-2-strict-client-tools.md)。
+
+目标：
+
+- 当客户端传入 `tools[]` 时，模型只允许发客户端声明过的 `function.name`。
+- `function.arguments` 必须是 JSON string，parse 后必须满足对应 `parameters` JSON Schema。
+- 不允许在 strict 模式下把未声明的原生 `shell` 暴露给客户端。
+- 支持任意 OpenCode/MedEvidence tool，例如 `medevidence({ question })`、search、read/edit、MCP-backed tools 等。
+
+退出：
+
+- `medevidence(question: string)` 这类自定义工具可被模型按客户端 schema 调用。
+- 未声明工具名会被 gateway 拦截或修复，不能转发给客户端。
+- tool result history 能继续驱动模型生成最终答案。
+- streaming / non-streaming 均保持 OpenAI-compatible `tool_calls` shape。

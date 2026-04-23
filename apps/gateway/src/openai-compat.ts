@@ -1,4 +1,10 @@
+import { Ajv } from "ajv";
 import { GatewayError, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
+
+const toolSchemaValidator = new Ajv({
+  allErrors: true,
+  strict: false
+});
 
 export interface OpenAIChatToolCall {
   id: string;
@@ -6,6 +12,15 @@ export interface OpenAIChatToolCall {
   function: {
     name: string;
     arguments: string;
+  };
+}
+
+export interface OpenAIChatToolDefinition {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
   };
 }
 
@@ -30,8 +45,12 @@ export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
   stream: boolean;
-  tools?: unknown;
+  tools?: OpenAIChatToolDefinition[];
 }
+
+export type StrictToolDecision =
+  | { type: "message"; content: string }
+  | { type: "tool_calls"; toolCalls: OpenAIChatToolCall[] };
 
 export interface ChatCompletionShape {
   id: string;
@@ -105,11 +124,20 @@ export function parseChatCompletionRequest(
 
   const model = typeof body.model === "string" && body.model.length > 0 ? body.model : defaultModel;
 
+  let tools: OpenAIChatToolDefinition[] | undefined;
+  if (body.tools !== undefined) {
+    const parsedTools = parseToolDefinitions(body.tools);
+    if (parsedTools instanceof GatewayError) {
+      return parsedTools;
+    }
+    tools = parsedTools;
+  }
+
   return {
     model,
     messages,
     stream,
-    tools: body.tools
+    tools
   };
 }
 
@@ -147,6 +175,138 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
   }
 
   return lines.join("\n");
+}
+
+export function hasStrictClientTools(request: ChatCompletionRequest): boolean {
+  return request.tools !== undefined && request.tools.length > 0;
+}
+
+export function chatMessagesToStrictToolPrompt(request: ChatCompletionRequest): string {
+  const lines = [
+    "Continue the following conversation as the assistant.",
+    "You are operating in strict client-defined tools mode.",
+    "Do not call or assume any native server-side tools.",
+    "If a tool is needed, choose only from the client-declared tools below.",
+    "Return only one JSON object and no markdown.",
+    "",
+    "Allowed output shapes:",
+    '{"type":"message","content":"final answer text"}',
+    '{"type":"tool_calls","tool_calls":[{"id":"call_optional","name":"tool_name","arguments":{}}]}',
+    "",
+    "Rules:",
+    "- Tool names must exactly match one of the client-declared function.name values.",
+    "- Tool arguments must satisfy that tool's JSON Schema.",
+    "- If no tool is needed, return type=message.",
+    "",
+    "<client_tools>",
+    stableJson(request.tools ?? []),
+    "</client_tools>",
+    "",
+    "<conversation>"
+  ];
+
+  appendMessages(lines, request);
+  lines.push("</conversation>");
+
+  return lines.join("\n");
+}
+
+export function chatMessagesToStrictToolRepairPrompt(input: {
+  originalPrompt: string;
+  invalidOutput: string;
+  validationError: string;
+}): string {
+  return [
+    input.originalPrompt,
+    "",
+    "Your previous output was invalid for strict client-defined tools mode.",
+    "Return only a corrected JSON object using the allowed output shapes.",
+    "",
+    "<validation_error>",
+    input.validationError,
+    "</validation_error>",
+    "",
+    "<invalid_output>",
+    input.invalidOutput,
+    "</invalid_output>"
+  ].join("\n");
+}
+
+export function parseStrictToolDecision(input: {
+  text: string;
+  tools: OpenAIChatToolDefinition[];
+  createToolCallId: () => string;
+}): StrictToolDecision | GatewayError {
+  const parsed = parseJsonObject(input.text);
+  if (parsed instanceof GatewayError) {
+    return parsed;
+  }
+
+  if (parsed.type === "message") {
+    if (typeof parsed.content !== "string") {
+      return toolCallValidationFailed("Strict message output must include string content.");
+    }
+    return {
+      type: "message",
+      content: parsed.content
+    };
+  }
+
+  if (parsed.type !== "tool_calls" || !Array.isArray(parsed.tool_calls)) {
+    return toolCallValidationFailed("Strict output must be type=message or type=tool_calls.");
+  }
+
+  const registry = new Map(input.tools.map((tool) => [tool.function.name, tool]));
+  const toolCalls: OpenAIChatToolCall[] = [];
+  for (const [index, item] of parsed.tool_calls.entries()) {
+    if (!isRecord(item)) {
+      return toolCallValidationFailed(`tool_calls[${index}] must be an object.`);
+    }
+
+    const name = strictToolCallName(item);
+    if (typeof name !== "string" || name.length === 0) {
+      return toolCallValidationFailed(`tool_calls[${index}].name must be a non-empty string.`);
+    }
+
+    const tool = registry.get(name);
+    if (!tool) {
+      return toolCallValidationFailed(`Tool '${name}' was not declared by the client.`);
+    }
+
+    const rawArguments = strictToolCallArguments(item);
+    const argumentValue =
+      typeof rawArguments === "string" ? parseJsonObject(rawArguments) : rawArguments;
+    if (argumentValue instanceof GatewayError) {
+      return argumentValue;
+    }
+    if (!isJsonSerializable(argumentValue)) {
+      return toolCallValidationFailed(`Tool '${name}' arguments must be JSON serializable.`);
+    }
+
+    const validationError = validateAgainstToolSchema(tool, argumentValue);
+    if (validationError) {
+      return toolCallValidationFailed(`Tool '${name}' arguments invalid: ${validationError}`);
+    }
+
+    const id = typeof item.id === "string" && item.id.length > 0 ? item.id : input.createToolCallId();
+    toolCalls.push({
+      id,
+      type: "function",
+      function: {
+        name,
+        arguments: JSON.stringify(argumentValue)
+      }
+    });
+  }
+
+  if (toolCalls.length === 0) {
+    return toolCallValidationFailed("type=tool_calls requires at least one tool call.");
+  }
+
+  return {
+    type: "tool_calls",
+    toolCalls
+  };
 }
 
 export function createChatCompletionResponse(input: {
@@ -327,6 +487,83 @@ function parseToolCalls(value: unknown, path: string): OpenAIChatToolCall[] | Ga
   return toolCalls;
 }
 
+function parseToolDefinitions(value: unknown): OpenAIChatToolDefinition[] | GatewayError {
+  if (!Array.isArray(value)) {
+    return invalidRequest("tools must be an array when provided.");
+  }
+
+  const tools: OpenAIChatToolDefinition[] = [];
+  const names = new Set<string>();
+  for (const [index, item] of value.entries()) {
+    const itemPath = `tools[${index}]`;
+    if (!isRecord(item)) {
+      return invalidRequest(`${itemPath} must be an object.`);
+    }
+    if (item.type !== "function") {
+      return invalidRequest(`${itemPath}.type must be function.`);
+    }
+    if (!isRecord(item.function)) {
+      return invalidRequest(`${itemPath}.function must be an object.`);
+    }
+    if (typeof item.function.name !== "string" || item.function.name.length === 0) {
+      return invalidRequest(`${itemPath}.function.name must be a non-empty string.`);
+    }
+    if (names.has(item.function.name)) {
+      return invalidRequest(`Duplicate tool function.name '${item.function.name}'.`);
+    }
+    names.add(item.function.name);
+
+    if (
+      item.function.description !== undefined &&
+      typeof item.function.description !== "string"
+    ) {
+      return invalidRequest(`${itemPath}.function.description must be a string when provided.`);
+    }
+
+    let parameters: Record<string, unknown> | undefined;
+    if (item.function.parameters !== undefined) {
+      if (!isRecord(item.function.parameters)) {
+        return invalidRequest(`${itemPath}.function.parameters must be an object when provided.`);
+      }
+      const schemaError = compileSchema(item.function.parameters);
+      if (schemaError) {
+        return invalidRequest(`${itemPath}.function.parameters is not valid JSON Schema: ${schemaError}`);
+      }
+      parameters = item.function.parameters;
+    }
+
+    tools.push({
+      type: "function",
+      function: {
+        name: item.function.name,
+        ...(item.function.description !== undefined
+          ? { description: item.function.description }
+          : {}),
+        ...(parameters !== undefined ? { parameters } : {})
+      }
+    });
+  }
+
+  return tools;
+}
+
+function appendMessages(lines: string[], request: ChatCompletionRequest): void {
+  for (const message of request.messages) {
+    const name = typeof message.name === "string" && message.name.length > 0 ? ` ${message.name}` : "";
+    const toolCallId =
+      message.role === "tool" && typeof message.tool_call_id === "string"
+        ? ` tool_call_id=${message.tool_call_id}`
+        : "";
+    lines.push(`[${message.role}${name}${toolCallId}]`);
+    lines.push(contentToText(message.content));
+
+    if (message.tool_calls !== undefined) {
+      lines.push("[assistant tool_calls]");
+      lines.push(stableJson(message.tool_calls));
+    }
+  }
+}
+
 function contentToText(content: unknown): string {
   if (content === null || content === undefined) {
     return "";
@@ -338,6 +575,85 @@ function contentToText(content: unknown): string {
     return content.map(contentPartToText).filter(Boolean).join("\n");
   }
   return stableJson(content);
+}
+
+function parseJsonObject(value: string): Record<string, unknown> | GatewayError {
+  const trimmed = stripJsonFence(value.trim());
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!isRecord(parsed)) {
+      return toolCallValidationFailed("Expected a JSON object.");
+    }
+    return parsed;
+  } catch {
+    return toolCallValidationFailed("Expected valid JSON object output.");
+  }
+}
+
+function stripJsonFence(value: string): string {
+  const match = value.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return match ? match[1].trim() : value;
+}
+
+function strictToolCallName(item: Record<string, unknown>): unknown {
+  if (typeof item.name === "string") {
+    return item.name;
+  }
+  if (isRecord(item.function) && typeof item.function.name === "string") {
+    return item.function.name;
+  }
+  return undefined;
+}
+
+function strictToolCallArguments(item: Record<string, unknown>): unknown {
+  if ("arguments" in item) {
+    return item.arguments;
+  }
+  if (isRecord(item.function) && "arguments" in item.function) {
+    return item.function.arguments;
+  }
+  return {};
+}
+
+function validateAgainstToolSchema(
+  tool: OpenAIChatToolDefinition,
+  value: unknown
+): string | null {
+  const schema = tool.function.parameters ?? {
+    type: "object",
+    additionalProperties: true
+  };
+  const validate = toolSchemaValidator.compile(schema);
+  if (validate(value)) {
+    return null;
+  }
+  return toolSchemaValidator.errorsText(validate.errors, { separator: "; " });
+}
+
+function compileSchema(schema: Record<string, unknown>): string | null {
+  try {
+    toolSchemaValidator.compile(schema);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+function isJsonSerializable(value: unknown): boolean {
+  try {
+    JSON.stringify(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function toolCallValidationFailed(message: string): GatewayError {
+  return new GatewayError({
+    code: "tool_call_validation_failed",
+    message,
+    httpStatus: 502
+  });
 }
 
 function contentPartToText(part: unknown): string {
