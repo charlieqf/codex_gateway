@@ -45,7 +45,8 @@ Completed:
 - OpenAI Chat Completions response shape for non-streaming and streaming SSE, including `chat.completion.chunk` frames and `data: [DONE]`.
 - Chat Completions compatibility for assistant `tool_calls`, `{ role: "tool", tool_call_id, content }` history, `finish_reason: "tool_calls"`, and OpenAI-shaped `usage` when upstream token usage is available.
 - Chat Completions model allowlist validation for the public `medcode` model id.
-- Two real controlled-trial API keys issued and managed by the SQLite credential store.
+- Chat Completions tool-call turns suppress upstream text content after a `tool_call` has been emitted, so container sandbox failure text is not forwarded as assistant content for the client-side tool path.
+- Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
 
@@ -70,7 +71,7 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `83ff834`.
+- Commit `eeb8cf4`.
 - DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
 - Docker Compose gateway is running as `codex_gateway_test-gateway-1` and publishes only `127.0.0.1:18787->8787`.
 - Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
@@ -78,8 +79,8 @@ Most recent Azure VM validation:
 - Let's Encrypt certificate for `gw.instmarket.com.au` was issued with certbot and expires on 2026-07-21; certbot installed its automatic renewal task.
 - Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
 - HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
-- A temporary public smoke API key successfully reached `https://gw.instmarket.com.au/gateway/status`, then was revoked; the revoked token returned `401`; smoke users were disabled afterward.
-- `trial-check --max-active-users 2` currently reports not ready only because no real active trial API key has been issued yet.
+- Public OpenAI-compatible smoke against `https://gw.instmarket.com.au/v1` passed health, unauthenticated `/v1/models` rejection, wrong-model `404 model_not_found`, model listing, non-stream chat with usage, tool-result history, streaming SSE, and `X-Request-Id` response headers; the temporary smoke key was revoked afterward.
+- `trial-check --max-active-users 2` currently reports ready for controlled trial with 2 active users and 2 active API keys.
 - Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
 
 Earlier Azure VM validation:
