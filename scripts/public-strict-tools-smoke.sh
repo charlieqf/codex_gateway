@@ -106,6 +106,7 @@ cat > "$tmp_dir/strict-tools-request.json" <<'JSON'
       "content": "For this integration smoke, you must call the medevidence tool before answering. Use question exactly: strict-tools-smoke-question"
     }
   ],
+  "tool_choice": "required",
   "tools": [
     {
       "type": "function",
@@ -159,6 +160,147 @@ strict_request_id="$(require_request_id "strict_tools" "$tmp_dir/strict-tools.he
 strict_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/strict-tools.json")"
 strict_tool_name="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.choices[0].message.tool_calls[0].function.name);' "$tmp_dir/strict-tools.json")"
 echo "strict_tools=ok tool=$strict_tool_name usage=$strict_usage ${strict_request_id}"
+
+cat > "$tmp_dir/strict-tools-named-request.json" <<'JSON'
+{
+  "model": "medcode",
+  "messages": [
+    {
+      "role": "user",
+      "content": "For this integration smoke, call the search_evidence tool. Use query exactly: strict-tools-named-query"
+    }
+  ],
+  "tool_choice": {
+    "type": "function",
+    "function": {
+      "name": "search_evidence"
+    }
+  },
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "medevidence",
+        "description": "Answer a medical evidence question.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string" }
+          },
+          "required": ["question"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_evidence",
+        "description": "Search for medical evidence.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" }
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
+JSON
+
+curl -fsS --max-time "$MODEL_TIMEOUT_SECONDS" \
+  -D "$tmp_dir/strict-tools-named.headers" \
+  -o "$tmp_dir/strict-tools-named.json" \
+  -H "Authorization: Bearer $token" \
+  -H "Content-Type: application/json" \
+  --data-binary @"$tmp_dir/strict-tools-named-request.json" \
+  "$BASE_URL/v1/chat/completions"
+
+assert_json "$tmp_dir/strict-tools-named.json" '
+const choice = x.choices?.[0];
+if (choice?.finish_reason !== "tool_calls") {
+  console.error("finish_reason", choice?.finish_reason);
+  process.exit(1);
+}
+const call = choice?.message?.tool_calls?.[0];
+if (call?.function?.name !== "search_evidence") {
+  console.error(JSON.stringify(call));
+  process.exit(1);
+}
+const args = JSON.parse(call.function.arguments);
+if (typeof args.query !== "string" || args.query.length === 0) {
+  console.error(call.function.arguments);
+  process.exit(1);
+}
+if ("command" in args || "question" in args) {
+  console.error("unexpected argument shape");
+  process.exit(1);
+}
+'
+named_request_id="$(require_request_id "strict_tools_named" "$tmp_dir/strict-tools-named.headers")"
+named_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/strict-tools-named.json")"
+named_tool_name="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.choices[0].message.tool_calls[0].function.name);' "$tmp_dir/strict-tools-named.json")"
+echo "strict_tools_named=ok tool=$named_tool_name usage=$named_usage ${named_request_id}"
+
+cat > "$tmp_dir/strict-tools-none-request.json" <<'JSON'
+{
+  "model": "medcode",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Reply exactly: strict-tools-none-ok. Do not call tools."
+    }
+  ],
+  "tool_choice": "none",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "medevidence",
+        "description": "Answer a medical evidence question.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string" }
+          },
+          "required": ["question"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
+JSON
+
+curl -fsS --max-time "$MODEL_TIMEOUT_SECONDS" \
+  -D "$tmp_dir/strict-tools-none.headers" \
+  -o "$tmp_dir/strict-tools-none.json" \
+  -H "Authorization: Bearer $token" \
+  -H "Content-Type: application/json" \
+  --data-binary @"$tmp_dir/strict-tools-none-request.json" \
+  "$BASE_URL/v1/chat/completions"
+
+assert_json "$tmp_dir/strict-tools-none.json" '
+const choice = x.choices?.[0];
+if (choice?.finish_reason !== "stop") {
+  console.error("finish_reason", choice?.finish_reason);
+  process.exit(1);
+}
+if (choice?.message?.tool_calls !== undefined) {
+  console.error("unexpected tool_calls");
+  process.exit(1);
+}
+if (!String(choice?.message?.content ?? "").includes("strict-tools-none-ok")) {
+  console.error(choice?.message?.content);
+  process.exit(1);
+}
+'
+none_request_id="$(require_request_id "strict_tools_none" "$tmp_dir/strict-tools-none.headers")"
+none_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/strict-tools-none.json")"
+echo "strict_tools_none=ok usage=$none_usage ${none_request_id}"
 
 node - "$tmp_dir/strict-tools.json" "$tmp_dir/strict-tools-followup-request.json" <<'NODE'
 const fs = require("fs");

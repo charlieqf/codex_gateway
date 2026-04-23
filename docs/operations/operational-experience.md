@@ -75,6 +75,12 @@ Last updated: 2026-04-23
 - Do not leave temporary device-login logs in `/tmp`; remove them after authorization because they can contain one-time device codes.
 - Public internal users need a real public HTTPS entrypoint. On the current shared VM, keep the gateway container loopback-only and add only a dedicated Nginx hostname that proxies to `127.0.0.1:18787` during an approved maintenance window. Do not let Docker/Caddy bind public `80/443` on this host while existing Nginx owns the edge.
 - The approved public internal trial window for `gw.instmarket.com.au` kept Docker loopback-only, added a dedicated Nginx hostname, issued a Let's Encrypt certificate with certbot, and validated public credential auth. A temporary smoke key was revoked and the smoke users were disabled afterward.
+- The Codex Gateway Nginx vhost must never become the default `80/443`
+  server on the shared US VM. It should answer only the dedicated gateway
+  hostname. IP-based or unknown-Host requests must continue to land on the
+  MedEvidence default vhost that proxies to `127.0.0.1:8081`; otherwise CN
+  gateway calls to `http://4.242.58.89` can be redirected into Codex Gateway and
+  fail with `missing_credential`.
 
 ## Current Recommended Next Step
 

@@ -63,6 +63,12 @@ Strict mode requirements:
   `tools[]`.
 - `function.arguments` must be a JSON string.
 - Parsed arguments must satisfy that tool's `parameters` JSON Schema.
+- `tool_choice` must be honored when provided:
+  - `"auto"` allows either a final message or tool calls.
+  - `"none"` disables client-defined tool calling for that request.
+  - `"required"` requires at least one schema-valid client-declared tool call.
+  - `{ "type": "function", "function": { "name": "..." } }` requires that
+    exact client-declared tool name.
 - A tool not declared by the client must not be emitted.
 - If validation fails, the gateway must not forward the invalid tool call as if
   it were valid. It may retry/repair internally or return a structured error.
@@ -79,16 +85,25 @@ Current implementation:
 
 1. Parses and validates OpenAI function tool definitions.
 2. Builds a per-request tool registry keyed by `function.name`.
-3. Prompts the upstream model to return a strict JSON envelope:
+3. Parses and validates `tool_choice`, including named tool choices against the
+   current request's `tools[]`.
+4. Prompts the upstream model to return a strict JSON envelope:
    - `{ "type": "message", "content": "..." }`
    - `{ "type": "tool_calls", "tool_calls": [...] }`
-4. Validates model-selected tool names against the client registry.
-5. Validates model-produced arguments against the matching JSON Schema using
+5. Validates model-selected tool names against the client registry and the
+   requested `tool_choice`.
+6. Validates model-produced arguments against the matching JSON Schema using
    Ajv.
-6. Performs one repair attempt if the first strict output is invalid.
-7. Returns validated calls in OpenAI Chat Completions `tool_calls` shape.
-8. Ignores native provider tool-call observations in strict mode so undeclared
+7. Performs one repair attempt if the first strict output is invalid.
+8. Records sanitized validation telemetry through gateway logs and request
+   observations. Logs include request id, error code, validation summary, and
+   repair state; they do not include tool arguments, full model output, prompts,
+   API keys, or Authorization headers.
+9. Returns validated calls in OpenAI Chat Completions `tool_calls` shape.
+10. Ignores native provider tool-call observations in strict mode so undeclared
    native tools do not leak to the client.
+11. When `tool_choice` is `"none"`, bypasses strict client-tools mode and does
+    not return upstream native tool calls to the OpenAI-compatible client.
 
 ## Non-Goals
 
@@ -159,3 +174,6 @@ Phase 2 is complete when these pass:
    `tool_calls` shape and `finish_reason: "tool_calls"`.
 7. The Phase 1 `shell` smoke still passes when the client explicitly declares a
    compatible `shell` tool.
+8. `tool_choice` supports `"none"`, `"required"`, and named function choices.
+9. Strict validation failures are visible in request observations with
+   `errorCode = "tool_call_validation_failed"` and sanitized gateway logs.

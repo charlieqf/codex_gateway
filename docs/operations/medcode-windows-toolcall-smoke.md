@@ -11,7 +11,8 @@ calling. The target path is:
 MedCode assistant tool_call(shell) -> OpenCode local Shell executor -> role: "tool" result -> MedCode final answer
 ```
 
-This smoke is scoped to the stable MedCode native tool subset:
+The first section of this smoke is scoped to the stable MedCode native tool
+subset:
 
 ```json
 {
@@ -25,6 +26,10 @@ This smoke is scoped to the stable MedCode native tool subset:
 
 Do not use this smoke to validate future native tools, MCP bridge behavior,
 sub-agents, or concurrent background tasks.
+
+The second section validates Phase 2 strict client-defined tools, where OpenCode
+sends its own OpenAI-style `tools[]` schema and MedCode must emit matching
+`tool_calls`.
 
 ## Test Build Requirements
 
@@ -280,6 +285,117 @@ Expected result:
 - Final answer confirms success from the actual command output.
 - Final `git status --short` does not show the temporary file.
 
+## Phase 2 Client-Defined Tools
+
+Run these after the native `shell` loop works. These cases validate that MedCode
+does not depend on a hard-coded native tool registry when OpenCode provides
+request-specific tools.
+
+### WTC-090: Client-Defined Medical Tool
+
+Request body shape:
+
+```json
+{
+  "model": "medcode",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Use the medevidence tool before answering. Use question exactly: phase-2-smoke-question"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "medevidence",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string" }
+          },
+          "required": ["question"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
+```
+
+Expected result:
+
+- Assistant response has `finish_reason = "tool_calls"`.
+- `tool_calls[0].function.name` is exactly `medevidence`.
+- `function.arguments` parses as JSON and contains a string `question`.
+- No undeclared `shell`, `bash`, or `command` argument appears.
+
+### WTC-091: Named `tool_choice`
+
+Send two client tools and force one by name:
+
+```json
+{
+  "tool_choice": {
+    "type": "function",
+    "function": { "name": "search_evidence" }
+  }
+}
+```
+
+Expected result:
+
+- The returned tool call name is exactly `search_evidence`.
+- The arguments match the `search_evidence` schema.
+- A call to the other declared tool is treated as a failure.
+
+### WTC-092: `tool_choice: "required"`
+
+Send a request with one or more tools and:
+
+```json
+{
+  "tool_choice": "required"
+}
+```
+
+Expected result:
+
+- The assistant returns at least one schema-valid client-declared tool call.
+- A final text-only assistant message is rejected by the gateway instead of
+  being forwarded as a successful response.
+
+### WTC-093: `tool_choice: "none"`
+
+Send tools but disable tool use:
+
+```json
+{
+  "tool_choice": "none"
+}
+```
+
+Expected result:
+
+- The assistant returns a normal final message.
+- The response does not include `tool_calls`, even if the upstream model tried
+  to emit a native tool call.
+- The provider prompt includes the local environment statement and does not
+  enter strict client-defined tools mode.
+
+### WTC-094: Schema Rejection
+
+Use a tool schema with `additionalProperties: false`, then force or simulate an
+invalid argument object with an extra field.
+
+Expected result:
+
+- Gateway returns an OpenAI-shaped error with
+  `code = "tool_call_validation_failed"`.
+- The invalid tool call is not forwarded to OpenCode's executor.
+- The request id can be found in gateway request observations with the same
+  error code.
+
 ## Result Log Template
 
 Use this template for each run:
@@ -306,6 +422,11 @@ Case results:
 - WTC-060:
 - WTC-070:
 - WTC-080 optional:
+- WTC-090:
+- WTC-091:
+- WTC-092:
+- WTC-093:
+- WTC-094:
 
 Failed commands:
 - command:

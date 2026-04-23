@@ -757,6 +757,399 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("honors tool_choice none by avoiding strict mode and suppressing tool calls", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "tool_call",
+        callId: "call_ignored",
+        name: "shell",
+        arguments: { command: "pwd" }
+      },
+      { type: "message_delta", text: "answered without tools" },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Answer directly." }],
+        tool_choice: "none",
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0]).toMatchObject({
+      message: {
+        role: "assistant",
+        content: "answered without tools"
+      },
+      finish_reason: "stop"
+    });
+    expect(response.json().choices[0].message.tool_calls).toBeUndefined();
+    expect(provider.messages[0].message).toContain("tool_choice=none");
+    expect(provider.messages[0].message).not.toContain("strict client-defined tools mode");
+
+    await app.close();
+  });
+
+  it("requires a strict tool call when tool_choice is required", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "message",
+          content: "I can answer directly."
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use the evidence tool." }],
+        tool_choice: "required",
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error).toMatchObject({
+      code: "tool_call_validation_failed",
+      type: "server_error"
+    });
+    expect(response.json().error.message).toContain("tool_choice=required");
+    expect(provider.messages).toHaveLength(2);
+    expect(provider.messages[0].message).toContain("tool_choice=required");
+
+    await app.close();
+  });
+
+  it("honors a named function tool_choice", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "search",
+              arguments: {
+                query: "aspirin myocardial infarction"
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Search the literature." }],
+        tool_choice: {
+          type: "function",
+          function: { name: "search" }
+        },
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "search",
+              parameters: {
+                type: "object",
+                properties: { query: { type: "string" } },
+                required: ["query"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0].message.tool_calls[0].function).toMatchObject({
+      name: "search",
+      arguments: '{"query":"aspirin myocardial infarction"}'
+    });
+    expect(provider.messages[0].message).toContain("function.name=search");
+
+    await app.close();
+  });
+
+  it("rejects a named tool_choice that is not declared in tools", async () => {
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Search the literature." }],
+        tool_choice: {
+          type: "function",
+          function: { name: "search" }
+        },
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatchObject({
+      code: "invalid_request",
+      type: "invalid_request_error"
+    });
+    expect(response.json().error.message).toContain("was not declared");
+    expect(provider.messages).toHaveLength(0);
+
+    await app.close();
+  });
+
+  it("validates complex strict tool schemas", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              id: "call_search_1",
+              name: "search",
+              arguments: {
+                query: "statins primary prevention",
+                filters: {
+                  kind: "guideline",
+                  years: [2021, 2024]
+                },
+                tags: ["cardiology", "prevention"]
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Find a guideline." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "search",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: { type: "string" },
+                  filters: {
+                    type: "object",
+                    properties: {
+                      kind: { type: "string", enum: ["trial", "guideline"] },
+                      years: {
+                        type: "array",
+                        items: { type: "integer" },
+                        minItems: 1
+                      }
+                    },
+                    required: ["kind"],
+                    additionalProperties: false
+                  },
+                  tags: {
+                    type: "array",
+                    items: { type: "string" }
+                  }
+                },
+                required: ["query", "filters"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const call = response.json().choices[0].message.tool_calls[0];
+    expect(call).toMatchObject({
+      id: "call_search_1",
+      type: "function",
+      function: { name: "search" }
+    });
+    expect(JSON.parse(call.function.arguments)).toEqual({
+      query: "statins primary prevention",
+      filters: {
+        kind: "guideline",
+        years: [2021, 2024]
+      },
+      tags: ["cardiology", "prevention"]
+    });
+
+    await app.close();
+  });
+
+  it("rejects additional properties in strict tool schemas", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "search",
+              arguments: {
+                query: "statins",
+                filters: {
+                  kind: "guideline",
+                  unexpected: true
+                }
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Find a guideline." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "search",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: { type: "string" },
+                  filters: {
+                    type: "object",
+                    properties: {
+                      kind: { type: "string", enum: ["trial", "guideline"] }
+                    },
+                    required: ["kind"],
+                    additionalProperties: false
+                  }
+                },
+                required: ["query", "filters"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error.code).toBe("tool_call_validation_failed");
+    expect(response.json().error.message).toContain("additional properties");
+
+    await app.close();
+  });
+
   it("streams OpenAI tool call chunks with tool_calls finish reason", async () => {
     const provider = new FakeProvider([
       {
@@ -1361,6 +1754,87 @@ describe("gateway phase 1 routes", () => {
     );
     expect(events.every((event) => event.durationMs !== null)).toBe(true);
     expect(events.every((event) => event.firstByteMs !== null)).toBe(true);
+
+    await app.close();
+  });
+
+  it("records strict tool validation failures in request observations", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Strict validation observed token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "shell",
+              arguments: { command: "ls" }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use a medical evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(502);
+    const events = store.listRequestEvents({ credentialId: issued.record.id });
+    expect(events).toEqual([
+      expect.objectContaining({
+        requestId,
+        credentialId: issued.record.id,
+        subjectId: "subj_dev",
+        scope: "code",
+        status: "error",
+        errorCode: "tool_call_validation_failed",
+        rateLimited: false
+      })
+    ]);
 
     await app.close();
   });

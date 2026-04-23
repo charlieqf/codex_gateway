@@ -293,7 +293,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             session,
             request: parsed,
             prompt,
-            signal: abort.signal
+            signal: abort.signal,
+            requestId: request.id,
+            log: request.log
           });
           if (strictResult instanceof GatewayError) {
             request.gatewayErrorCode = strictResult.code;
@@ -350,6 +352,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
 
             if (event.type === "tool_call") {
+              if (parsed.toolChoice === "none") {
+                continue;
+              }
               hasToolCalls = true;
             }
             if (event.type === "message_delta" && hasToolCalls) {
@@ -400,7 +405,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         scope,
         session,
         request: parsed,
-        prompt
+        prompt,
+        requestId: request.id,
+        log: request.log
       });
       if (strictResult instanceof GatewayError) {
         return sendOpenAIError(request, reply, strictResult);
@@ -421,6 +428,9 @@ export function buildGateway(options: GatewayOptions = {}) {
           markFirstByte(request);
           content += event.text;
         } else if (event.type === "tool_call") {
+          if (parsed.toolChoice === "none") {
+            continue;
+          }
           markFirstByte(request);
           toolCalls.push({
             id: event.callId,
@@ -567,12 +577,19 @@ interface StrictClientToolsInput {
   request: ChatCompletionRequest;
   prompt: string;
   signal?: AbortSignal;
+  requestId?: string;
+  log?: StrictClientToolsLogger;
 }
 
 interface StrictClientToolsResult {
   content: string;
   toolCalls: OpenAIChatToolCall[];
   usage: OpenAIChatUsage | null;
+}
+
+interface StrictClientToolsLogger {
+  info: (obj: Record<string, unknown>, msg: string) => void;
+  warn: (obj: Record<string, unknown>, msg: string) => void;
 }
 
 async function runStrictClientTools(
@@ -594,11 +611,22 @@ async function runStrictClientTools(
   const parsed = parseStrictToolDecision({
     text: first.content,
     tools: input.request.tools ?? [],
+    toolChoice: input.request.toolChoice,
     createToolCallId
   });
   if (!(parsed instanceof GatewayError)) {
     return strictDecisionToResult(parsed, first.usage);
   }
+
+  input.log?.warn(
+    {
+      request_id: input.requestId,
+      code: parsed.code,
+      validation_error: parsed.message,
+      strict_tools_repair: true
+    },
+    "Strict client-defined tool output failed validation; attempting repair."
+  );
 
   const repairPrompt = chatMessagesToStrictToolRepairPrompt({
     originalPrompt: input.prompt,
@@ -621,11 +649,29 @@ async function runStrictClientTools(
   const repairedParsed = parseStrictToolDecision({
     text: repaired.content,
     tools: input.request.tools ?? [],
+    toolChoice: input.request.toolChoice,
     createToolCallId
   });
   if (repairedParsed instanceof GatewayError) {
+    input.log?.warn(
+      {
+        request_id: input.requestId,
+        code: repairedParsed.code,
+        validation_error: repairedParsed.message,
+        strict_tools_repair: false
+      },
+      "Strict client-defined tool output repair failed validation."
+    );
     return repairedParsed;
   }
+
+  input.log?.info(
+    {
+      request_id: input.requestId,
+      strict_tools_repaired: true
+    },
+    "Strict client-defined tool output repaired successfully."
+  );
 
   return strictDecisionToResult(repairedParsed, repaired.usage);
 }

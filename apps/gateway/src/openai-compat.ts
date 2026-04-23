@@ -46,7 +46,19 @@ export interface ChatCompletionRequest {
   messages: ChatCompletionMessage[];
   stream: boolean;
   tools?: OpenAIChatToolDefinition[];
+  toolChoice: ChatCompletionToolChoice;
 }
+
+export type ChatCompletionToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | {
+      type: "function";
+      function: {
+        name: string;
+      };
+    };
 
 export type StrictToolDecision =
   | { type: "message"; content: string }
@@ -133,11 +145,17 @@ export function parseChatCompletionRequest(
     tools = parsedTools;
   }
 
+  const toolChoice = parseToolChoice(body.tool_choice, tools ?? []);
+  if (toolChoice instanceof GatewayError) {
+    return toolChoice;
+  }
+
   return {
     model,
     messages,
     stream,
-    tools
+    tools,
+    toolChoice
   };
 }
 
@@ -166,19 +184,26 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
 
   lines.push("</conversation>");
 
-  if (request.tools !== undefined) {
+  if (request.tools !== undefined && request.toolChoice !== "none") {
     lines.push("");
     lines.push(
       "The client supplied OpenAI-style tool definitions. Treat them as application context. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
     );
     lines.push(stableJson(request.tools));
+  } else if (request.toolChoice === "none") {
+    lines.push("");
+    lines.push("The client set tool_choice=none. Do not call tools; answer directly.");
   }
 
   return lines.join("\n");
 }
 
 export function hasStrictClientTools(request: ChatCompletionRequest): boolean {
-  return request.tools !== undefined && request.tools.length > 0;
+  return (
+    request.tools !== undefined &&
+    request.tools.length > 0 &&
+    request.toolChoice !== "none"
+  );
 }
 
 export function chatMessagesToStrictToolPrompt(request: ChatCompletionRequest): string {
@@ -197,6 +222,7 @@ export function chatMessagesToStrictToolPrompt(request: ChatCompletionRequest): 
     "- Tool names must exactly match one of the client-declared function.name values.",
     "- Tool arguments must satisfy that tool's JSON Schema.",
     "- If no tool is needed, return type=message.",
+    strictToolChoiceInstruction(request.toolChoice),
     "",
     "<client_tools>",
     stableJson(request.tools ?? []),
@@ -235,6 +261,7 @@ export function chatMessagesToStrictToolRepairPrompt(input: {
 export function parseStrictToolDecision(input: {
   text: string;
   tools: OpenAIChatToolDefinition[];
+  toolChoice: ChatCompletionToolChoice;
   createToolCallId: () => string;
 }): StrictToolDecision | GatewayError {
   const parsed = parseJsonObject(input.text);
@@ -243,6 +270,15 @@ export function parseStrictToolDecision(input: {
   }
 
   if (parsed.type === "message") {
+    if (input.toolChoice === "required") {
+      return toolCallValidationFailed("tool_choice=required requires a tool_calls output.");
+    }
+    const forcedToolName = forcedToolChoiceName(input.toolChoice);
+    if (forcedToolName) {
+      return toolCallValidationFailed(
+        `tool_choice requires tool '${forcedToolName}' to be called.`
+      );
+    }
     if (typeof parsed.content !== "string") {
       return toolCallValidationFailed("Strict message output must include string content.");
     }
@@ -257,6 +293,7 @@ export function parseStrictToolDecision(input: {
   }
 
   const registry = new Map(input.tools.map((tool) => [tool.function.name, tool]));
+  const forcedToolName = forcedToolChoiceName(input.toolChoice);
   const toolCalls: OpenAIChatToolCall[] = [];
   for (const [index, item] of parsed.tool_calls.entries()) {
     if (!isRecord(item)) {
@@ -271,6 +308,11 @@ export function parseStrictToolDecision(input: {
     const tool = registry.get(name);
     if (!tool) {
       return toolCallValidationFailed(`Tool '${name}' was not declared by the client.`);
+    }
+    if (forcedToolName && name !== forcedToolName) {
+      return toolCallValidationFailed(
+        `tool_choice requires tool '${forcedToolName}', but tool_calls[${index}] used '${name}'.`
+      );
     }
 
     const rawArguments = strictToolCallArguments(item);
@@ -487,6 +529,54 @@ function parseToolCalls(value: unknown, path: string): OpenAIChatToolCall[] | Ga
   return toolCalls;
 }
 
+function parseToolChoice(
+  value: unknown,
+  tools: OpenAIChatToolDefinition[]
+): ChatCompletionToolChoice | GatewayError {
+  if (value === undefined) {
+    return "auto";
+  }
+
+  if (typeof value === "string") {
+    if (value === "auto" || value === "none") {
+      return value;
+    }
+    if (value === "required") {
+      if (tools.length === 0) {
+        return invalidRequest("tool_choice=required requires at least one tool.");
+      }
+      return value;
+    }
+    return invalidRequest("tool_choice must be auto, none, required, or a function choice.");
+  }
+
+  if (!isRecord(value)) {
+    return invalidRequest("tool_choice must be a string or an object when provided.");
+  }
+  if (value.type !== "function") {
+    return invalidRequest("tool_choice.type must be function.");
+  }
+  if (!isRecord(value.function)) {
+    return invalidRequest("tool_choice.function must be an object.");
+  }
+  const toolChoiceFunction = value.function;
+  if (typeof toolChoiceFunction.name !== "string" || toolChoiceFunction.name.length === 0) {
+    return invalidRequest("tool_choice.function.name must be a non-empty string.");
+  }
+  if (!tools.some((tool) => tool.function.name === toolChoiceFunction.name)) {
+    return invalidRequest(
+      `tool_choice.function.name '${toolChoiceFunction.name}' was not declared in tools.`
+    );
+  }
+
+  return {
+    type: "function",
+    function: {
+      name: toolChoiceFunction.name
+    }
+  };
+}
+
 function parseToolDefinitions(value: unknown): OpenAIChatToolDefinition[] | GatewayError {
   if (!Array.isArray(value)) {
     return invalidRequest("tools must be an array when provided.");
@@ -628,6 +718,24 @@ function validateAgainstToolSchema(
     return null;
   }
   return toolSchemaValidator.errorsText(validate.errors, { separator: "; " });
+}
+
+function forcedToolChoiceName(toolChoice: ChatCompletionToolChoice): string | null {
+  return typeof toolChoice === "object" ? toolChoice.function.name : null;
+}
+
+function strictToolChoiceInstruction(toolChoice: ChatCompletionToolChoice): string {
+  if (toolChoice === "required") {
+    return "- tool_choice=required: return type=tool_calls with at least one client-declared tool call.";
+  }
+  if (toolChoice === "none") {
+    return "- tool_choice=none: return type=message and do not call tools.";
+  }
+  const forcedToolName = forcedToolChoiceName(toolChoice);
+  if (forcedToolName) {
+    return `- tool_choice requires function.name=${forcedToolName}: return type=tool_calls and call only that tool.`;
+  }
+  return "- tool_choice=auto: call a tool only when it is needed; otherwise return type=message.";
 }
 
 function compileSchema(schema: Record<string, unknown>): string | null {
