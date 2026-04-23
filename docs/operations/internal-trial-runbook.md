@@ -1,6 +1,6 @@
 # Public Internal Controlled Trial Runbook
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 This runbook is for a very small internal trial with 1-2 trusted users who must
 reach the gateway from the public internet. It is not a public beta plan.
@@ -262,6 +262,32 @@ Look for:
 - API keys without daily and concurrency caps.
 - Repeated `rate_limited` or provider errors.
 - Admin actions that were not expected.
+
+## Public OpenAI-Compatible Smoke
+
+After rebuilding the gateway, run the public smoke script from the VM checkout:
+
+```bash
+cd "$HOME/codex-gateway-test"
+./scripts/public-openai-smoke.sh
+```
+
+The script issues a temporary API key inside the running gateway container,
+tests public HTTPS `/gateway/health`, `/v1/models`, non-streaming chat,
+streaming chat, tool-result history, and `X-Request-Id` response headers, then
+revokes the temporary key and disables the temporary user. It prints only the
+temporary key prefix, not the full API key.
+
+Useful overrides:
+
+```bash
+BASE_URL=https://gw.instmarket.com.au ./scripts/public-openai-smoke.sh
+COMPOSE_COMMAND="docker compose" ./scripts/public-openai-smoke.sh
+```
+
+If a consumer reports a problem, ask for the response `X-Request-Id`, their API
+key prefix, endpoint, status code, timestamp and timezone, and a redacted
+request/response shape. Do not ask them to send a full API key.
 
 ## Backup
 

@@ -477,6 +477,7 @@ service_unavailable
 - 出错时间和时区。
 - 请求的 endpoint。
 - HTTP 状态码。
+- 响应 header 里的 `X-Request-Id`。
 - 错误响应里的 `error.code`。
 - 你调用 `/gateway/status` 看到的 `credential.prefix`。
 - 相关 `session.id`。

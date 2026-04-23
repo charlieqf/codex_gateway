@@ -133,8 +133,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     sessions.close?.();
   });
 
-  app.addHook("onRequest", async (request) => {
+  app.addHook("onRequest", async (request, reply) => {
     startObservation(request);
+    reply.header("x-request-id", request.id);
+    reply.raw.setHeader("x-request-id", request.id);
   });
 
   if (authMode === "dev") {

@@ -84,6 +84,7 @@ describe("gateway phase 1 routes", () => {
       url: "/gateway/health"
     });
     expect(health.statusCode).toBe(200);
+    expectRequestIdHeader(health);
     expect(health.json().auth_mode).toBe("dev");
     expect(health.json().store).toEqual({
       session: "memory",
@@ -95,6 +96,7 @@ describe("gateway phase 1 routes", () => {
       url: "/sessions"
     });
     expect(sessions.statusCode).toBe(401);
+    expectRequestIdHeader(sessions);
     expect(sessions.json().error.code).toBe("missing_credential");
 
     await app.close();
@@ -394,6 +396,7 @@ describe("gateway phase 1 routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toContain("text/event-stream");
+    expectRequestIdHeader(response);
     expect(response.payload).toContain('"object":"chat.completion.chunk"');
     expect(response.payload).toContain('"delta":{"role":"assistant"}');
     expect(response.payload).toContain('"delta":{"content":"hello"}');
@@ -962,11 +965,12 @@ describe("gateway phase 1 routes", () => {
     });
     const headers = { authorization: `Bearer ${issued.token}` };
 
-    await app.inject({
+    const first = await app.inject({
       method: "GET",
       url: "/gateway/status",
       headers
     });
+    const firstRequestId = expectRequestIdHeader(first);
     await app.inject({
       method: "GET",
       url: "/gateway/status",
@@ -975,6 +979,7 @@ describe("gateway phase 1 routes", () => {
 
     const events = store.listRequestEvents({ credentialId: issued.record.id });
     expect(events).toHaveLength(2);
+    expect(events.map((event) => event.requestId)).toContain(firstRequestId);
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1067,4 +1072,12 @@ function parseOpenAISseData(payload: string): unknown[] {
     .map((frame) => frame.slice("data: ".length))
     .filter((data) => data !== "[DONE]")
     .map((data) => JSON.parse(data) as unknown);
+}
+
+function expectRequestIdHeader(response: { headers: Record<string, unknown> }): string {
+  const value = response.headers["x-request-id"];
+  const requestId = Array.isArray(value) ? value[0] : value;
+  expect(typeof requestId).toBe("string");
+  expect(requestId).toMatch(/^req-/);
+  return requestId as string;
 }
