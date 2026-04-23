@@ -47,12 +47,12 @@ Completed:
 - Chat Completions model allowlist validation for the public `medcode` model id.
 - Chat Completions tool-call turns suppress upstream text content after a `tool_call` has been emitted, so container sandbox failure text is not forwarded as assistant content for the client-side tool path.
 - Phase 2 strict client-defined tools runtime has local gateway support: when `/v1/chat/completions` receives non-empty `tools[]`, the gateway asks for a strict JSON envelope, validates tool names against the client registry, validates arguments with JSON Schema, performs one repair attempt, and only then returns OpenAI-shaped `tool_calls`.
+- Phase 2 strict client-defined tools runtime has been deployed to the public controlled-trial gateway and validated with a temporary `medevidence(question: string)` tool call plus `role: "tool"` follow-up.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
 
 - Native SDK-level dynamic tool registration, MCP bridge support, or pause/resume of the same upstream turn while waiting for external tool results.
-- Online validation of Phase 2 strict client-defined tools against the public trial gateway.
 - `/v1/responses`.
 - OpenAI-compatible SSE framing for the native `/sessions/:id/messages` endpoint.
 - Persistent/distributed rate limiting for multiple gateway processes.
@@ -82,6 +82,7 @@ Most recent Azure VM validation:
 - Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
 - HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
 - Public OpenAI-compatible smoke against `https://gw.instmarket.com.au/v1` passed health, unauthenticated `/v1/models` rejection, wrong-model `404 model_not_found`, model listing, non-stream chat with usage, tool-result history, streaming SSE, and `X-Request-Id` response headers; the temporary smoke key was revoked afterward.
+- Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema, then a follow-up request with `role: "tool"` returned the final `strict-tools-result-ok` message. Temporary smoke key prefix `36o26jBPTXzryw` was revoked and the temporary smoke user was disabled.
 - `trial-check --max-active-users 2` currently reports ready for controlled trial with 2 active users and 2 active API keys.
 - Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
 
@@ -157,7 +158,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, dry-run-capable manual request event pruning, and local strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, online strict-tools validation, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 
