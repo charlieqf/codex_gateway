@@ -48,6 +48,7 @@ Completed:
 - Chat Completions tool-call turns suppress upstream text content after a `tool_call` has been emitted, so container sandbox failure text is not forwarded as assistant content for the client-side tool path.
 - Phase 2 strict client-defined tools runtime has local gateway support: when `/v1/chat/completions` receives non-empty `tools[]`, the gateway asks for a strict JSON envelope, validates tool names against the client registry, validates arguments with JSON Schema, performs one repair attempt, and only then returns OpenAI-shaped `tool_calls`.
 - Phase 2 strict client-defined tools runtime has been deployed to the public controlled-trial gateway and validated with a temporary `medevidence(question: string)` tool call plus `role: "tool"` follow-up.
+- Phase 2 strict client-defined tools now honors OpenAI-style `tool_choice` for `"none"`, `"required"`, and named function choices, suppresses upstream native tool calls when `tool_choice` is `"none"`, validates complex nested JSON Schemas, and records strict validation failures through request observations and sanitized gateway logs.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
@@ -73,7 +74,7 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `eeb8cf4`.
+- Commit `cd23f96`.
 - DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
 - Docker Compose gateway is running as `codex_gateway_test-gateway-1` and publishes only `127.0.0.1:18787->8787`.
 - Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
@@ -82,7 +83,8 @@ Most recent Azure VM validation:
 - Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
 - HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
 - Public OpenAI-compatible smoke against `https://gw.instmarket.com.au/v1` passed health, unauthenticated `/v1/models` rejection, wrong-model `404 model_not_found`, model listing, non-stream chat with usage, tool-result history, streaming SSE, and `X-Request-Id` response headers; the temporary smoke key was revoked afterward.
-- Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema, then a follow-up request with `role: "tool"` returned the final `strict-tools-result-ok` message. Temporary smoke key prefix `36o26jBPTXzryw` was revoked and the temporary smoke user was disabled.
+- Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema with `tool_choice: "required"`, produced a named `search_evidence` call with function `tool_choice`, returned a normal message with `tool_choice: "none"`, then used a `role: "tool"` follow-up to return `strict-tools-result-ok`. Temporary smoke key prefix `e4iMfjEIpmjzyA` was revoked and the temporary smoke user was disabled. Request ids were `req-b`, `req-c`, `req-d`, and `req-e`.
+- After the shared VM vhost correction, IP-based HTTP access to `http://4.242.58.89/` again reaches MedEvidence instead of the Codex Gateway vhost, while `https://gw.instmarket.com.au/gateway/health` continues to reach Codex Gateway.
 - `trial-check --max-active-users 2` currently reports ready for controlled trial with 2 active users and 2 active API keys.
 - Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
 
