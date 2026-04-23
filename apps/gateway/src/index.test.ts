@@ -320,6 +320,38 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("rejects unknown OpenAI chat completion models", async () => {
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "gpt-4",
+        messages: [{ role: "user", content: "hello" }]
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        message: "Model 'gpt-4' does not exist.",
+        type: "invalid_request_error",
+        code: "model_not_found",
+        param: null
+      }
+    });
+    expect(provider.messages).toHaveLength(0);
+
+    await app.close();
+  });
+
   it("creates non-streaming OpenAI chat completions from messages", async () => {
     const provider = new FakeProvider([
       { type: "message_delta", text: "hello" },
@@ -367,6 +399,58 @@ describe("gateway phase 1 routes", () => {
     expect(provider.messages[0].message).toContain("Answer briefly.");
     expect(provider.messages[0].message).toContain("[user]");
     expect(provider.messages[0].message).toContain("Say hello.");
+
+    await app.close();
+  });
+
+  it("omits assistant text content when a tool call is returned", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "tool_call",
+        callId: "call_1",
+        name: "shell",
+        arguments: { command: "ls" }
+      },
+      {
+        type: "message_delta",
+        text: "I tried to run ls but the server sandbox failed."
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "List files." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0]).toMatchObject({
+      message: {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "call_1",
+            type: "function",
+            function: {
+              name: "shell",
+              arguments: '{"command":"ls"}'
+            }
+          }
+        ]
+      },
+      finish_reason: "tool_calls"
+    });
 
     await app.close();
   });
@@ -500,6 +584,7 @@ describe("gateway phase 1 routes", () => {
         name: "bash",
         arguments: { command: "ls" }
       },
+      { type: "message_delta", text: "server sandbox failed" },
       {
         type: "completed",
         providerSessionRef: "provider_thread_1",
@@ -563,6 +648,7 @@ describe("gateway phase 1 routes", () => {
         total_tokens: 6
       }
     });
+    expect(response.payload).not.toContain("server sandbox failed");
     expect(response.payload).toContain("data: [DONE]");
 
     await app.close();

@@ -33,6 +33,9 @@ baseURL: https://gw.instmarket.com.au/v1
 model: medcode
 ```
 
+`model` 必须是 `medcode`。传入其他 model id 会返回 `404` 和
+`error.code: "model_not_found"`。
+
 当前已支持：
 
 - `GET /v1/models`
@@ -43,7 +46,7 @@ model: medcode
 - `stream: true` 的 `chat.completion.chunk` SSE 响应，并以 `data: [DONE]` 结束
 - 当 MedCode 后端产生工具调用观察事件时，响应会包装成 OpenAI `tool_calls` 形状，`finish_reason` 为 `tool_calls`
 - 下一次请求可以按 OpenAI 约定携带 assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }` 工具结果历史
-- 当上游返回 token 用量时，`usage` 会按 OpenAI 字段名返回 `prompt_tokens`、`completion_tokens`、`total_tokens`
+- 当前 Codex 上游正常完成时，`usage` 会按 OpenAI 字段名返回 `prompt_tokens`、`completion_tokens`、`total_tokens`，并可能包含 `prompt_tokens_details.cached_tokens`
 
 `/v1/models` 返回的模型 ID 是 `medcode`。模型对象额外包含几个非 OpenAI 标准字段，便于 OpenCode / ai-sdk 这类客户端配置 UI 限额：
 
@@ -64,8 +67,15 @@ model: medcode
 
 - `/v1/responses`
 - `/v1/audio`、`/v1/images`、embedding、fine-tuning 等其他 OpenAI API
-- 完整 native OpenAI tool execution。兼容层可以接收 `tools`、assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }`，也会把 MedCode 后端暴露的工具观察事件包装成 OpenAI `tool_calls`；但目前不保证根据请求里的 `tools` 参数稳定地产生客户端自定义工具调用，也不提供 MCP 工具桥接。
+- 完整 native OpenAI tool execution。兼容层可以接收 `tools`、assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }`，也会把 MedCode 后端暴露的原生命令观察事件包装成 OpenAI `tool_calls`。当前客户端 `tools` schema 只作为上下文传入，不保证模型按客户端自定义 schema 选择工具，也不提供 MCP 工具桥接。
 - Responses API 风格的 reasoning tokens、response item event stream 和 MCP 协议能力。
+
+`finish_reason` 当前只承诺返回：
+
+- `stop`
+- `tool_calls`
+
+未来如果接入更多上游 finish 状态，可能扩展 `length` 或其他 OpenAI 兼容取值。
 
 Node.js OpenAI SDK 示例：
 
@@ -428,6 +438,7 @@ invalid_credential
 revoked_credential
 expired_credential
 invalid_request
+model_not_found
 rate_limited
 forbidden_scope
 session_not_found

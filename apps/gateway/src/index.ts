@@ -227,15 +227,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   app.get<{ Params: { id: string } }>("/v1/models/:id", async (request, reply) => {
     if (request.params.id !== openAIModelId) {
-      return sendOpenAIError(
-        request,
-        reply,
-        new GatewayError({
-          code: "invalid_request",
-          message: `Model '${request.params.id}' does not exist.`,
-          httpStatus: 404
-        })
-      );
+      return sendOpenAIError(request, reply, modelNotFoundError(request.params.id));
     }
 
     return openAIModelObject(openAIModelId, openAIModelLimits);
@@ -247,10 +239,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
+    if (parsed.model !== openAIModelId) {
+      return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
+    }
 
     const session = createStatelessSession(subject.id, subscription.id);
     markSession(request, session.id);
-    const shape = createChatCompletionShape(parsed.model);
+    const shape = createChatCompletionShape(openAIModelId);
     const prompt = chatMessagesToPrompt(parsed);
 
     if (parsed.stream) {
@@ -304,6 +299,9 @@ export function buildGateway(options: GatewayOptions = {}) {
 
           if (event.type === "tool_call") {
             hasToolCalls = true;
+          }
+          if (event.type === "message_delta" && hasToolCalls) {
+            continue;
           }
 
           const chunk = streamEventToChatCompletionChunk({
@@ -595,6 +593,14 @@ function streamErrorToGatewayError(event: { code: string; message: string }): Ga
     code: "service_unavailable",
     message: event.message,
     httpStatus: 503
+  });
+}
+
+function modelNotFoundError(model: string): GatewayError {
+  return new GatewayError({
+    code: "model_not_found",
+    message: `Model '${model}' does not exist.`,
+    httpStatus: 404
   });
 }
 

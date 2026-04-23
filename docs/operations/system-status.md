@@ -44,6 +44,7 @@ Completed:
   - `POST /v1/chat/completions`
 - OpenAI Chat Completions response shape for non-streaming and streaming SSE, including `chat.completion.chunk` frames and `data: [DONE]`.
 - Chat Completions compatibility for assistant `tool_calls`, `{ role: "tool", tool_call_id, content }` history, `finish_reason: "tool_calls"`, and OpenAI-shaped `usage` when upstream token usage is available.
+- Chat Completions model allowlist validation for the public `medcode` model id.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store.
 
 Not completed:

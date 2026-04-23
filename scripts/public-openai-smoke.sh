@@ -121,6 +121,24 @@ assert_json "$tmp_dir/unauth.json" 'if (x.error?.type !== "authentication_error"
 require_request_id "unauth_v1_models" "$tmp_dir/unauth.headers" >/dev/null
 echo "unauth_v1_models=ok"
 
+bad_model_status="$(
+  curl -sS --max-time "$HTTP_TIMEOUT_SECONDS" \
+    -D "$tmp_dir/bad-model.headers" \
+    -o "$tmp_dir/bad-model.json" \
+    -w "%{http_code}" \
+    -H "Authorization: Bearer $token" \
+    -H "Content-Type: application/json" \
+    --data '{"model":"gpt-4","messages":[{"role":"user","content":"hello"}]}' \
+    "$BASE_URL/v1/chat/completions"
+)"
+if [ "$bad_model_status" != "404" ]; then
+  echo "error=unexpected_bad_model_status status=$bad_model_status" >&2
+  exit 1
+fi
+assert_json "$tmp_dir/bad-model.json" 'if (x.error?.code !== "model_not_found" || x.error?.type !== "invalid_request_error") process.exit(1);'
+require_request_id "bad_model" "$tmp_dir/bad-model.headers" >/dev/null
+echo "bad_model=ok"
+
 curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" \
   -D "$tmp_dir/models.headers" \
   -o "$tmp_dir/models.json" \

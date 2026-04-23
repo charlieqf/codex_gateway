@@ -166,7 +166,7 @@ export function createChatCompletionResponse(input: {
         index: 0,
         message: {
           role: "assistant",
-          content: input.toolCalls.length > 0 && input.content.length === 0 ? null : input.content,
+          content: input.toolCalls.length > 0 ? null : input.content,
           tool_calls: input.toolCalls.length > 0 ? input.toolCalls : undefined
         },
         logprobs: null,
@@ -369,7 +369,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function openAIErrorType(error: GatewayError): string {
-  if (error.httpStatus === 400) {
+  if (error.httpStatus === 400 || error.httpStatus === 404) {
     return "invalid_request_error";
   }
   if (error.httpStatus === 401) {
