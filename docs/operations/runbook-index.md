@@ -14,6 +14,7 @@ Deployment and safety:
 4. [Safe Shared-VM Testing](./safe-vm-testing.md)
 5. [Docker Maintenance Window Runbook](./docker-maintenance-window.md)
 6. [MedCode Windows Tool-Call Smoke](./medcode-windows-toolcall-smoke.md)
+7. [MedCode Partner Trial Test Plan](./medcode-partner-trial-test-plan.md)
 
 Operational workflows now covered:
 
@@ -30,6 +31,7 @@ Operational workflows now covered:
 - Public internal trial plan through existing Nginx and a dedicated hostname.
 - Docker maintenance-window checklist for shared VM installation.
 - MedCode Windows `shell` tool-call smoke checklist.
+- Partner trial checklist for MedEvidence, OpenCode CLI, and OpenCode Desktop.
 
 Operational workflows still pending:
 
