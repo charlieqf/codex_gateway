@@ -160,6 +160,84 @@ strict_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readF
 strict_tool_name="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.choices[0].message.tool_calls[0].function.name);' "$tmp_dir/strict-tools.json")"
 echo "strict_tools=ok tool=$strict_tool_name usage=$strict_usage ${strict_request_id}"
 
+node - "$tmp_dir/strict-tools.json" "$tmp_dir/strict-tools-followup-request.json" <<'NODE'
+const fs = require("fs");
+const firstPath = process.argv[2];
+const outputPath = process.argv[3];
+const first = JSON.parse(fs.readFileSync(firstPath, "utf8"));
+const toolCalls = first.choices[0].message.tool_calls;
+const body = {
+  model: "medcode",
+  messages: [
+    {
+      role: "user",
+      content:
+        "For this integration smoke, you must call the medevidence tool before answering. Use question exactly: strict-tools-smoke-question",
+    },
+    {
+      role: "assistant",
+      content: null,
+      tool_calls: toolCalls,
+    },
+    {
+      role: "tool",
+      tool_call_id: toolCalls[0].id,
+      content: "medevidence observation: strict-tools-result-observation",
+    },
+    {
+      role: "user",
+      content:
+        "Based only on the tool result, return a final message exactly: strict-tools-result-ok. Do not call tools.",
+    },
+  ],
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "medevidence",
+        description: "Answer a medical evidence question.",
+        parameters: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+          },
+          required: ["question"],
+          additionalProperties: false,
+        },
+      },
+    },
+  ],
+};
+fs.writeFileSync(outputPath, JSON.stringify(body));
+NODE
+
+curl -fsS --max-time "$MODEL_TIMEOUT_SECONDS" \
+  -D "$tmp_dir/strict-tools-followup.headers" \
+  -o "$tmp_dir/strict-tools-followup.json" \
+  -H "Authorization: Bearer $token" \
+  -H "Content-Type: application/json" \
+  --data-binary @"$tmp_dir/strict-tools-followup-request.json" \
+  "$BASE_URL/v1/chat/completions"
+
+assert_json "$tmp_dir/strict-tools-followup.json" '
+const choice = x.choices?.[0];
+if (choice?.finish_reason !== "stop") {
+  console.error("finish_reason", choice?.finish_reason);
+  process.exit(1);
+}
+if (choice?.message?.content?.trim() !== "strict-tools-result-ok") {
+  console.error(choice?.message?.content);
+  process.exit(1);
+}
+if (choice?.message?.tool_calls !== undefined) {
+  console.error("unexpected followup tool_calls");
+  process.exit(1);
+}
+'
+followup_request_id="$(require_request_id "strict_tools_followup" "$tmp_dir/strict-tools-followup.headers")"
+followup_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/strict-tools-followup.json")"
+echo "strict_tools_followup=ok usage=$followup_usage ${followup_request_id}"
+
 cleanup
 trap - EXIT
 echo "cleanup=ok"
