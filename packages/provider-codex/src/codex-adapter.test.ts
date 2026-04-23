@@ -96,6 +96,27 @@ describe("CodexProviderAdapter", () => {
     expect(events).toEqual([{ type: "completed", providerSessionRef: "thread_existing" }]);
   });
 
+  it("passes explicit model and reasoning effort to Codex threads", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+      }
+    ]);
+    const client = new FakeClient(thread);
+    const adapter = createAdapter(client, {
+      model: "gpt-5.4",
+      modelReasoningEffort: "medium"
+    });
+
+    await collect(adapter.message(messageInput({ providerSessionRef: null })));
+
+    expect(client.startedOptions[0]).toMatchObject({
+      model: "gpt-5.4",
+      modelReasoningEffort: "medium"
+    });
+  });
+
   it("maps tool calls once", async () => {
     const thread = new FakeThread(null, [
       { type: "thread.started", thread_id: "thread_1" },
@@ -175,10 +196,14 @@ describe("CodexProviderAdapter", () => {
   });
 });
 
-function createAdapter(client: CodexClientLike) {
+function createAdapter(
+  client: CodexClientLike,
+  options: Partial<ConstructorParameters<typeof CodexProviderAdapter>[0]> = {}
+) {
   return new CodexProviderAdapter({
     codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
-    makeClient: () => client
+    makeClient: () => client,
+    ...options
   });
 }
 

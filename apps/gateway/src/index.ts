@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
@@ -10,7 +11,10 @@ import {
   type Subject,
   type Subscription
 } from "@codex-gateway/core";
-import { CodexProviderAdapter } from "@codex-gateway/provider-codex";
+import {
+  CodexProviderAdapter,
+  type CodexProviderOptions
+} from "@codex-gateway/provider-codex";
 import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
@@ -22,6 +26,17 @@ import {
   startObservation
 } from "./http/observation.js";
 import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
+import {
+  chatMessagesToPrompt,
+  createChatCompletionResponse,
+  createFinalChatCompletionChunk,
+  createInitialChatCompletionChunk,
+  openAIErrorPayload,
+  parseChatCompletionRequest,
+  streamEventToChatCompletionChunk,
+  type ChatCompletionShape,
+  type OpenAIChatToolCall
+} from "./openai-compat.js";
 import {
   InMemoryCredentialRateLimiter,
   type CredentialRateLimiter
@@ -73,6 +88,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.provider ??
     new CodexProviderAdapter({
       codexHome: process.env.CODEX_HOME ?? ".gateway-state/codex-home",
+      model: process.env.MEDCODE_UPSTREAM_MODEL,
+      modelReasoningEffort: parseModelReasoningEffort(
+        process.env.MEDCODE_UPSTREAM_REASONING_EFFORT
+      ),
       workingDirectory: process.env.CODEX_WORKDIR ?? process.cwd(),
       skipGitRepoCheck: process.env.CODEX_SKIP_GIT_REPO_CHECK === "1"
     });
@@ -80,6 +99,8 @@ export function buildGateway(options: GatewayOptions = {}) {
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
   const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env);
+  const openAIModelId = process.env.MEDCODE_PUBLIC_MODEL_ID ?? "medcode";
+  const openAIModelLimits = resolveOpenAIModelLimits(process.env);
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
     configured: configuredAuthMode,
@@ -193,6 +214,161 @@ export function buildGateway(options: GatewayOptions = {}) {
         detail: publicProviderDetail(health.state, publicMetadata.providerDisplayName)
       }
     };
+  });
+
+  app.get("/v1/models", async () => ({
+    object: "list",
+    data: [openAIModelObject(openAIModelId, openAIModelLimits)]
+  }));
+
+  app.get<{ Params: { id: string } }>("/v1/models/:id", async (request, reply) => {
+    if (request.params.id !== openAIModelId) {
+      return sendOpenAIError(
+        request,
+        reply,
+        new GatewayError({
+          code: "invalid_request",
+          message: `Model '${request.params.id}' does not exist.`,
+          httpStatus: 404
+        })
+      );
+    }
+
+    return openAIModelObject(openAIModelId, openAIModelLimits);
+  });
+
+  app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
+    const { subject, subscription, provider, scope } = getGatewayContext(request);
+    const parsed = parseChatCompletionRequest(request.body, openAIModelId);
+    if (parsed instanceof GatewayError) {
+      return sendOpenAIError(request, reply, parsed);
+    }
+
+    const session = createStatelessSession(subject.id, subscription.id);
+    markSession(request, session.id);
+    const shape = createChatCompletionShape(parsed.model);
+    const prompt = chatMessagesToPrompt(parsed);
+
+    if (parsed.stream) {
+      reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
+      reply.raw.setHeader("cache-control", "no-cache");
+      reply.raw.setHeader("connection", "keep-alive");
+      reply.hijack();
+
+      const abort = new AbortController();
+      let closed = false;
+      let failed = false;
+      let hasText = false;
+      let hasToolCalls = false;
+      let toolCallIndex = 0;
+      const close = () => {
+        closed = true;
+        abort.abort();
+      };
+      reply.raw.on("close", close);
+      const heartbeat = setInterval(() => {
+        writeSseComment(reply, "ping");
+      }, 25_000);
+      heartbeat.unref?.();
+
+      try {
+        writeOpenAISseData(reply, createInitialChatCompletionChunk(shape));
+        markFirstByte(request);
+
+        for await (const event of provider.message({
+          subscription,
+          subject,
+          scope,
+          session,
+          message: prompt,
+          signal: abort.signal
+        })) {
+          if (closed) {
+            break;
+          }
+          if (event.type === "completed") {
+            continue;
+          }
+          if (event.type === "error") {
+            const error = streamErrorToGatewayError(event);
+            request.gatewayErrorCode = error.code;
+            writeOpenAISseData(reply, openAIErrorPayload(error));
+            failed = true;
+            break;
+          }
+
+          if (event.type === "message_delta" && event.text.length > 0) {
+            hasText = true;
+          }
+          if (event.type === "tool_call") {
+            hasToolCalls = true;
+          }
+
+          const chunk = streamEventToChatCompletionChunk({
+            shape,
+            event,
+            toolCallIndex
+          });
+          if (event.type === "tool_call") {
+            toolCallIndex += 1;
+          }
+          if (chunk && !writeOpenAISseData(reply, chunk)) {
+            abort.abort();
+            break;
+          }
+        }
+
+        if (!closed && !failed) {
+          const finishReason = hasToolCalls && !hasText ? "tool_calls" : "stop";
+          writeOpenAISseData(reply, createFinalChatCompletionChunk(shape, finishReason));
+          writeOpenAISseDone(reply);
+        }
+      } finally {
+        releaseRateLimit(request);
+        recordObservation(request, observationStore, reply.raw.statusCode);
+        clearInterval(heartbeat);
+        reply.raw.off("close", close);
+        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+          reply.raw.end();
+        }
+      }
+      return;
+    }
+
+    let content = "";
+    const toolCalls: OpenAIChatToolCall[] = [];
+
+    for await (const event of provider.message({
+      subscription,
+      subject,
+      scope,
+      session,
+      message: prompt
+    })) {
+      if (event.type === "message_delta") {
+        markFirstByte(request);
+        content += event.text;
+      } else if (event.type === "tool_call") {
+        markFirstByte(request);
+        toolCalls.push({
+          id: event.callId,
+          type: "function",
+          function: {
+            name: event.name,
+            arguments: JSON.stringify(event.arguments ?? {})
+          }
+        });
+      } else if (event.type === "error") {
+        return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
+      }
+    }
+
+    return createChatCompletionResponse({
+      shape,
+      content,
+      toolCalls,
+      finishReason: toolCalls.length > 0 && content.length === 0 ? "tool_calls" : "stop"
+    });
   });
 
   app.get("/sessions", async (request) => {
@@ -333,6 +509,89 @@ function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayE
   };
 }
 
+function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  markGatewayError(request, error);
+  reply.code(error.httpStatus);
+  return openAIErrorPayload(error);
+}
+
+interface OpenAIModelLimits {
+  contextWindow: number;
+  maxContextWindow: number;
+  maxOutputTokens: number;
+}
+
+function openAIModelObject(model: string, limits: OpenAIModelLimits) {
+  return {
+    id: model,
+    object: "model",
+    created: 0,
+    owned_by: "medcode",
+    context_window: limits.contextWindow,
+    max_context_window: limits.maxContextWindow,
+    max_output_tokens: limits.maxOutputTokens
+  };
+}
+
+function createChatCompletionShape(model: string): ChatCompletionShape {
+  return {
+    id: `chatcmpl_${randomUUID().replaceAll("-", "")}`,
+    created: Math.floor(Date.now() / 1000),
+    model
+  };
+}
+
+function createStatelessSession(subjectId: string, subscriptionId: string): GatewaySession {
+  const now = new Date();
+  return {
+    id: `sess_stateless_${randomUUID().replaceAll("-", "")}`,
+    subjectId,
+    subscriptionId,
+    providerSessionRef: null,
+    title: null,
+    state: "active",
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function streamErrorToGatewayError(event: { code: string; message: string }): GatewayError {
+  if (event.code === "rate_limited") {
+    return new GatewayError({
+      code: "rate_limited",
+      message: event.message,
+      httpStatus: 429,
+      retryAfterSeconds: 60
+    });
+  }
+  if (event.code === "provider_reauth_required") {
+    return new GatewayError({
+      code: "provider_reauth_required",
+      message: event.message,
+      httpStatus: 503
+    });
+  }
+  if (event.code === "subscription_unavailable") {
+    return new GatewayError({
+      code: "subscription_unavailable",
+      message: event.message,
+      httpStatus: 503
+    });
+  }
+  if (event.code === "invalid_request") {
+    return new GatewayError({
+      code: "invalid_request",
+      message: event.message,
+      httpStatus: 400
+    });
+  }
+  return new GatewayError({
+    code: "service_unavailable",
+    message: event.message,
+    httpStatus: 503
+  });
+}
+
 function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boolean {
   if (reply.raw.destroyed || reply.raw.writableEnded) {
     return false;
@@ -341,6 +600,32 @@ function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boole
   try {
     reply.raw.write(`event: ${event}\n`);
     reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeOpenAISseData(reply: FastifyReply, data: unknown): boolean {
+  if (reply.raw.destroyed || reply.raw.writableEnded) {
+    return false;
+  }
+
+  try {
+    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeOpenAISseDone(reply: FastifyReply): boolean {
+  if (reply.raw.destroyed || reply.raw.writableEnded) {
+    return false;
+  }
+
+  try {
+    reply.raw.write("data: [DONE]\n\n");
     return true;
   } catch {
     return false;
@@ -415,6 +700,41 @@ function resolvePublicMetadata(
   };
 }
 
+function resolveOpenAIModelLimits(env: NodeJS.ProcessEnv): OpenAIModelLimits {
+  return {
+    contextWindow: parsePositiveIntegerEnv(
+      env.MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW,
+      272_000,
+      "MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW"
+    ),
+    maxContextWindow: parsePositiveIntegerEnv(
+      env.MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW,
+      1_000_000,
+      "MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW"
+    ),
+    maxOutputTokens: parsePositiveIntegerEnv(
+      env.MEDCODE_PUBLIC_MODEL_MAX_OUTPUT_TOKENS,
+      128_000,
+      "MEDCODE_PUBLIC_MODEL_MAX_OUTPUT_TOKENS"
+    )
+  };
+}
+
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+  name: string
+): number {
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
 function publicProviderDetail(
   state: "healthy" | "degraded" | "reauth_required" | "unhealthy",
   providerDisplayName: string
@@ -448,6 +768,26 @@ function parseAuthMode(value: string | undefined): GatewayAuthMode | undefined {
     return value;
   }
   throw new Error("GATEWAY_AUTH_MODE must be dev or credential.");
+}
+
+function parseModelReasoningEffort(
+  value: string | undefined
+): CodexProviderOptions["modelReasoningEffort"] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (
+    value === "minimal" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+  ) {
+    return value;
+  }
+  throw new Error(
+    "MEDCODE_UPSTREAM_REASONING_EFFORT must be minimal, low, medium, high, or xhigh."
+  );
 }
 
 function resolveAuthMode(input: {

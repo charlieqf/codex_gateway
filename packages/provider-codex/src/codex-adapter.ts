@@ -1,5 +1,11 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { Codex, type ThreadEvent, type ThreadOptions, type TurnOptions } from "@openai/codex-sdk";
+import {
+  Codex,
+  type ModelReasoningEffort,
+  type ThreadEvent,
+  type ThreadOptions,
+  type TurnOptions
+} from "@openai/codex-sdk";
 import {
   GatewayError,
   type CancelInput,
@@ -19,6 +25,7 @@ export interface CodexProviderOptions {
   codexHome: string;
   codexPath?: string;
   model?: string;
+  modelReasoningEffort?: ModelReasoningEffort;
   workingDirectory?: string;
   skipGitRepoCheck?: boolean;
   networkAccessEnabled?: boolean;
@@ -246,6 +253,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
   private threadOptions(scope: "medical" | "code"): ThreadOptions {
     return {
       model: this.options.model,
+      modelReasoningEffort: this.options.modelReasoningEffort,
       workingDirectory: this.options.workingDirectory ?? process.cwd(),
       skipGitRepoCheck: this.options.skipGitRepoCheck,
       sandboxMode: this.options.sandboxMode ?? "read-only",

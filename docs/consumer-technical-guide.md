@@ -4,7 +4,7 @@
 
 本文面向接入 MedCode 的后端开发人员。典型接入方会开发类似 coding CLI、OpenCode、IDE 插件后端、自动化 coding agent 后端的应用。
 
-当前服务处于 1-2 位可信内部用户受控试用阶段。接口已经可以从公网 HTTPS 访问，但仍是 MVP 接口，不是 OpenAI API 兼容接口。
+当前服务处于 1-2 位可信内部用户受控试用阶段。接口已经可以从公网 HTTPS 访问，并提供 OpenAI Chat Completions 兼容 beta，便于已有 OpenAI SDK 客户端接入。原生 MedCode session API 仍然保留，适合需要服务端保存长对话上下文的 coding agent。
 
 ## 接入信息
 
@@ -24,7 +24,84 @@ Authorization: Bearer <API_KEY>
 
 不要把 API key 放进浏览器前端、移动端 App、公开仓库、日志、issue、聊天记录或用户可导出的配置文件。建议只放在你自己的后端服务密钥管理里，由后端代用户调用本服务。
 
-## 当前接口模型
+## OpenAI Chat Completions 兼容 beta
+
+如果你的应用已经使用 OpenAI SDK，优先使用这个入口：
+
+```text
+baseURL: https://gw.instmarket.com.au/v1
+model: medcode
+```
+
+当前已支持：
+
+- `GET /v1/models`
+- `GET /v1/models/medcode`
+- `POST /v1/chat/completions`
+- `messages[]` 输入，支持 `system`、`developer`、`user`、`assistant`、`tool` role
+- `stream: false` 的 `chat.completion` JSON 响应
+- `stream: true` 的 `chat.completion.chunk` SSE 响应，并以 `data: [DONE]` 结束
+
+`/v1/models` 返回的模型 ID 是 `medcode`。模型对象额外包含几个非 OpenAI 标准字段，便于 OpenCode / ai-sdk 这类客户端配置 UI 限额：
+
+```json
+{
+  "id": "medcode",
+  "object": "model",
+  "owned_by": "medcode",
+  "context_window": 272000,
+  "max_context_window": 1000000,
+  "max_output_tokens": 128000
+}
+```
+
+建议客户端当前用 `context_window: 272000` 做默认上下文进度条和压缩触发阈值。`max_context_window` 表示上游模型能力上限，不代表当前受控试用建议把上下文堆到这个大小。
+
+当前未支持：
+
+- `/v1/responses`
+- `/v1/audio`、`/v1/images`、embedding、fine-tuning 等其他 OpenAI API
+- 真正的 OpenAI tool-calling 闭环。兼容层可以接收 `{ role: "tool", tool_call_id, content }` 作为下一次请求的历史上下文，也会把 MedCode 后端暴露的工具观察事件包装成 OpenAI `tool_calls` 形状；但目前不会稳定地根据请求里的 `tools` 参数暂停、等待工具结果、再继续同一轮生成。
+- 精确 token `usage` 统计。当前兼容响应里的 `usage` 为 `null`。
+
+Node.js OpenAI SDK 示例：
+
+```js
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.MEDCODE_API_KEY,
+  baseURL: "https://gw.instmarket.com.au/v1"
+});
+
+const completion = await client.chat.completions.create({
+  model: "medcode",
+  messages: [
+    { role: "developer", content: "You are a coding assistant." },
+    { role: "user", content: "Explain this TypeScript error in one paragraph." }
+  ]
+});
+
+console.log(completion.choices[0].message.content);
+```
+
+流式示例：
+
+```js
+const stream = await client.chat.completions.create({
+  model: "medcode",
+  stream: true,
+  messages: [{ role: "user", content: "Give me one concise coding tip." }]
+});
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
+}
+```
+
+兼容层是“无状态调用”：每次请求会把 `messages[]` 编译成一段对话文本发送给 MedCode。多轮对话时，你的应用需要像标准 Chat Completions 一样把必要的历史消息放进 `messages[]`。如果你希望 MedCode 在服务端保留 thread 上下文，请使用下面的原生 session API。
+
+## 原生 session API
 
 当前底层接口按“会话”工作。这里的会话是接入方后端保存的技术标识，不是最终用户必须理解的产品概念。
 
@@ -35,7 +112,7 @@ Authorization: Bearer <API_KEY>
 
 如果你在做类似 coding CLI 或 OpenCode 的应用，建议把一个 workspace、一个 terminal thread、一个 IDE chat tab 或一个 agent run 映射到一个 MedCode session。最终用户只需要看到自己的对话、任务或工作区，不需要看到 session id。
 
-当前没有 `/v1/chat/completions`、`/v1/responses` 或 `/v1/models` 兼容接口。不要把本服务当作标准 OpenAI SDK base URL 直接替换。
+当前同时提供 `/v1/chat/completions` 兼容入口和下面的原生 session API。OpenAI SDK 客户端建议优先试 `/v1/chat/completions`；需要服务端 session id、会话列表或更明确排障信息时，再使用原生 session API。
 
 长期更好的接入体验是同时提供一个高层接口或 SDK：接入方只传 `message` 和可选的本地 thread id，由 SDK 自动创建和复用 MedCode session。当前受控试用先暴露底层 session API，是为了让后端开发者可以明确控制上下文、排查问题和做用量归因。
 
@@ -352,8 +429,8 @@ service_unavailable
 
 ## 当前限制
 
-- 当前接口不是 OpenAI API 兼容接口。
-- 当前没有公开模型列表接口。
+- 当前只提供 OpenAI Chat Completions 兼容 beta，不是完整 OpenAI API 兼容实现。
+- 当前公开模型列表只包含 `medcode`。
 - 当前没有消息恢复流接口；断线后可以继续使用同一个 session 发送下一条消息，但不能从断点恢复同一次 SSE 输出。
 - 当前限流是单进程内存限流，不是分布式限流。
 - 当前 MedCode 后端模型服务可能需要管理员维护授权状态。需要管理员处理时，接入方会看到 `provider_reauth_required` 或 `service_unavailable`。

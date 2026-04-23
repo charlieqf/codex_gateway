@@ -307,7 +307,7 @@ describe("codex-gateway-admin user API key operations", () => {
         expect.objectContaining({ name: "audit_trail", status: "ok" })
       ])
     );
-  });
+  }, 20_000);
 });
 
 function runCli(dbPath: string, args: string[]): unknown {

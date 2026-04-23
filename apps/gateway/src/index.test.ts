@@ -22,6 +22,9 @@ import { buildGateway, validateRuntimeEnvironment } from "./index.js";
 
 class FakeProvider implements ProviderAdapter {
   readonly kind = "fake";
+  readonly messages: MessageInput[] = [];
+
+  constructor(private readonly events?: StreamEvent[]) {}
 
   async health(_subscription: Subscription): Promise<ProviderHealth> {
     return {
@@ -43,6 +46,14 @@ class FakeProvider implements ProviderAdapter {
   }
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    this.messages.push(input);
+    if (this.events) {
+      for (const event of this.events) {
+        yield event;
+      }
+      return;
+    }
+
     yield { type: "message_delta", text: `echo:${input.message}` };
     yield { type: "completed", providerSessionRef: "provider_thread_1" };
   }
@@ -232,6 +243,32 @@ describe("gateway phase 1 routes", () => {
     ).toThrow("Production runtime requires GATEWAY_AUTH_MODE=credential");
   });
 
+  it("validates configured upstream reasoning effort", async () => {
+    const previousReasoningEffort = process.env.MEDCODE_UPSTREAM_REASONING_EFFORT;
+    process.env.MEDCODE_UPSTREAM_REASONING_EFFORT = "medium";
+    const app = buildGateway({
+      accessToken: "secret",
+      logger: false
+    });
+    await app.close();
+
+    process.env.MEDCODE_UPSTREAM_REASONING_EFFORT = "fast";
+    try {
+      expect(() =>
+        buildGateway({
+          accessToken: "secret",
+          logger: false
+        })
+      ).toThrow("MEDCODE_UPSTREAM_REASONING_EFFORT must be minimal, low, medium, high, or xhigh.");
+    } finally {
+      if (previousReasoningEffort === undefined) {
+        delete process.env.MEDCODE_UPSTREAM_REASONING_EFFORT;
+      } else {
+        process.env.MEDCODE_UPSTREAM_REASONING_EFFORT = previousReasoningEffort;
+      }
+    }
+  });
+
   it("requires bearer auth for status", async () => {
     const app = buildGateway({
       accessToken: "secret",
@@ -246,6 +283,150 @@ describe("gateway phase 1 routes", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json().error.code).toBe("missing_credential");
+    await app.close();
+  });
+
+  it("exposes an OpenAI-compatible model list", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/models",
+      headers: { authorization: "Bearer secret" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      object: "list",
+      data: [
+        {
+          id: "medcode",
+          object: "model",
+          created: 0,
+          owned_by: "medcode",
+          context_window: 272000,
+          max_context_window: 1000000,
+          max_output_tokens: 128000
+        }
+      ]
+    });
+
+    await app.close();
+  });
+
+  it("creates non-streaming OpenAI chat completions from messages", async () => {
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "hello" },
+      { type: "message_delta", text: " world" },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [
+          { role: "developer", content: "Answer briefly." },
+          { role: "user", content: "Say hello." }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      object: "chat.completion",
+      model: "medcode",
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: "hello world"
+          },
+          finish_reason: "stop"
+        }
+      ],
+      usage: null
+    });
+    expect(response.json().id).toMatch(/^chatcmpl_/);
+    expect(provider.messages[0].session.id).toMatch(/^sess_stateless_/);
+    expect(provider.messages[0].message).toContain("[developer]");
+    expect(provider.messages[0].message).toContain("Answer briefly.");
+    expect(provider.messages[0].message).toContain("[user]");
+    expect(provider.messages[0].message).toContain("Say hello.");
+
+    await app.close();
+  });
+
+  it("streams OpenAI chat completion chunks", async () => {
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "hello" },
+      { type: "message_delta", text: " world" },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say hello." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/event-stream");
+    expect(response.payload).toContain('"object":"chat.completion.chunk"');
+    expect(response.payload).toContain('"delta":{"role":"assistant"}');
+    expect(response.payload).toContain('"delta":{"content":"hello"}');
+    expect(response.payload).toContain('"finish_reason":"stop"');
+    expect(response.payload).toContain("data: [DONE]");
+
+    await app.close();
+  });
+
+  it("uses OpenAI-style error envelopes for /v1 requests", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: { model: "medcode", messages: [] }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        message: "messages must be a non-empty array.",
+        type: "invalid_request_error",
+        code: "invalid_request",
+        param: null
+      }
+    });
+
     await app.close();
   });
 

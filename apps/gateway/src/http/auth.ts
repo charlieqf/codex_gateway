@@ -10,6 +10,7 @@ import {
 } from "@codex-gateway/core";
 import type { GatewayRequestContext } from "./context.js";
 import { markGatewayError } from "./observation.js";
+import { openAIErrorPayload } from "../openai-compat.js";
 
 export interface DevAuthOptions {
   accessToken: string | undefined;
@@ -179,13 +180,7 @@ function sendGatewayError(
   error: GatewayError
 ): void {
   markGatewayError(request, error);
-  reply.code(error.httpStatus).send({
-    error: {
-      code: error.code,
-      message: error.message,
-      retry_after_seconds: error.retryAfterSeconds
-    }
-  });
+  reply.code(error.httpStatus).send(errorPayload(request, error));
 }
 
 function safeEqual(received: string, expected: string): boolean {
@@ -195,4 +190,18 @@ function safeEqual(received: string, expected: string): boolean {
     return false;
   }
   return timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+function errorPayload(request: FastifyRequest, error: GatewayError) {
+  if (request.url.startsWith("/v1/")) {
+    return openAIErrorPayload(error);
+  }
+
+  return {
+    error: {
+      code: error.code,
+      message: error.message,
+      retry_after_seconds: error.retryAfterSeconds
+    }
+  };
 }
