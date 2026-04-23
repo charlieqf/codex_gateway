@@ -18,7 +18,8 @@ import {
   type ProviderSession,
   type RefreshResult,
   type StreamEvent,
-  type Subscription
+  type Subscription,
+  type TokenUsage
 } from "@codex-gateway/core";
 
 export interface CodexProviderOptions {
@@ -131,6 +132,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     const agentTextByItemId = new Map<string, string>();
     const emittedToolCalls = new Set<string>();
     let providerSessionRef = input.session.providerSessionRef ?? thread.id;
+    let usage: TokenUsage | undefined;
 
     try {
       const { events } = await thread.runStreamed(input.message, {
@@ -163,6 +165,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
           continue;
         }
 
+        if (event.type === "turn.completed") {
+          usage = mapCodexUsage(event.usage);
+          continue;
+        }
+
         if (
           event.type === "item.started" ||
           event.type === "item.updated" ||
@@ -177,7 +184,8 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
       yield {
         type: "completed",
-        providerSessionRef: providerSessionRef ?? thread.id ?? undefined
+        providerSessionRef: providerSessionRef ?? thread.id ?? undefined,
+        ...(usage ? { usage } : {})
       };
     } catch (err) {
       const normalized = this.normalize(err);
@@ -326,4 +334,36 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     return null;
   }
+}
+
+function mapCodexUsage(
+  usage:
+    | {
+        input_tokens?: number;
+        cached_input_tokens?: number;
+        output_tokens?: number;
+      }
+    | undefined
+): TokenUsage | undefined {
+  if (!usage) {
+    return undefined;
+  }
+
+  const promptTokens = safeTokenCount(usage.input_tokens);
+  const completionTokens = safeTokenCount(usage.output_tokens);
+  const cachedPromptTokens = safeTokenCount(usage.cached_input_tokens);
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+    ...(cachedPromptTokens > 0 ? { cachedPromptTokens } : {})
+  };
+}
+
+function safeTokenCount(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.trunc(value);
 }

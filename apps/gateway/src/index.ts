@@ -32,10 +32,12 @@ import {
   createFinalChatCompletionChunk,
   createInitialChatCompletionChunk,
   openAIErrorPayload,
+  openAIUsageFromTokenUsage,
   parseChatCompletionRequest,
   streamEventToChatCompletionChunk,
   type ChatCompletionShape,
-  type OpenAIChatToolCall
+  type OpenAIChatToolCall,
+  type OpenAIChatUsage
 } from "./openai-compat.js";
 import {
   InMemoryCredentialRateLimiter,
@@ -258,9 +260,9 @@ export function buildGateway(options: GatewayOptions = {}) {
       const abort = new AbortController();
       let closed = false;
       let failed = false;
-      let hasText = false;
       let hasToolCalls = false;
       let toolCallIndex = 0;
+      let usage: OpenAIChatUsage | null = null;
       const close = () => {
         closed = true;
         abort.abort();
@@ -287,6 +289,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             break;
           }
           if (event.type === "completed") {
+            usage = openAIUsageFromTokenUsage(event.usage);
             continue;
           }
           if (event.type === "error") {
@@ -297,9 +300,6 @@ export function buildGateway(options: GatewayOptions = {}) {
             break;
           }
 
-          if (event.type === "message_delta" && event.text.length > 0) {
-            hasText = true;
-          }
           if (event.type === "tool_call") {
             hasToolCalls = true;
           }
@@ -319,8 +319,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         }
 
         if (!closed && !failed) {
-          const finishReason = hasToolCalls && !hasText ? "tool_calls" : "stop";
-          writeOpenAISseData(reply, createFinalChatCompletionChunk(shape, finishReason));
+          const finishReason = hasToolCalls ? "tool_calls" : "stop";
+          writeOpenAISseData(reply, createFinalChatCompletionChunk(shape, finishReason, usage));
           writeOpenAISseDone(reply);
         }
       } finally {
@@ -337,6 +337,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
     let content = "";
     const toolCalls: OpenAIChatToolCall[] = [];
+    let usage: OpenAIChatUsage | null = null;
 
     for await (const event of provider.message({
       subscription,
@@ -360,6 +361,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         });
       } else if (event.type === "error") {
         return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
+      } else if (event.type === "completed") {
+        usage = openAIUsageFromTokenUsage(event.usage);
       }
     }
 
@@ -367,7 +370,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       shape,
       content,
       toolCalls,
-      finishReason: toolCalls.length > 0 && content.length === 0 ? "tool_calls" : "stop"
+      finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
+      usage
     });
   });
 

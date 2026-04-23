@@ -104,10 +104,17 @@ export interface GatewaySession {
   updatedAt: Date;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedPromptTokens?: number;
+}
+
 export type StreamEvent =
   | { type: "message_delta"; text: string }
   | { type: "tool_call"; name: string; callId: string; arguments?: unknown }
-  | { type: "completed"; providerSessionRef?: string }
+  | { type: "completed"; providerSessionRef?: string; usage?: TokenUsage }
   | { type: "error"; code: string; message: string };
 
 export interface ProviderHealth {

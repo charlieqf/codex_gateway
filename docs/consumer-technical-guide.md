@@ -1,6 +1,6 @@
 # MedCode 服务消费者技术说明
 
-版本日期：2026-04-22
+版本日期：2026-04-23
 
 本文面向接入 MedCode 的后端开发人员。典型接入方会开发类似 coding CLI、OpenCode、IDE 插件后端、自动化 coding agent 后端的应用。
 
@@ -41,6 +41,9 @@ model: medcode
 - `messages[]` 输入，支持 `system`、`developer`、`user`、`assistant`、`tool` role
 - `stream: false` 的 `chat.completion` JSON 响应
 - `stream: true` 的 `chat.completion.chunk` SSE 响应，并以 `data: [DONE]` 结束
+- 当 MedCode 后端产生工具调用观察事件时，响应会包装成 OpenAI `tool_calls` 形状，`finish_reason` 为 `tool_calls`
+- 下一次请求可以按 OpenAI 约定携带 assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }` 工具结果历史
+- 当上游返回 token 用量时，`usage` 会按 OpenAI 字段名返回 `prompt_tokens`、`completion_tokens`、`total_tokens`
 
 `/v1/models` 返回的模型 ID 是 `medcode`。模型对象额外包含几个非 OpenAI 标准字段，便于 OpenCode / ai-sdk 这类客户端配置 UI 限额：
 
@@ -61,8 +64,8 @@ model: medcode
 
 - `/v1/responses`
 - `/v1/audio`、`/v1/images`、embedding、fine-tuning 等其他 OpenAI API
-- 真正的 OpenAI tool-calling 闭环。兼容层可以接收 `{ role: "tool", tool_call_id, content }` 作为下一次请求的历史上下文，也会把 MedCode 后端暴露的工具观察事件包装成 OpenAI `tool_calls` 形状；但目前不会稳定地根据请求里的 `tools` 参数暂停、等待工具结果、再继续同一轮生成。
-- 精确 token `usage` 统计。当前兼容响应里的 `usage` 为 `null`。
+- 完整 native OpenAI tool execution。兼容层可以接收 `tools`、assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }`，也会把 MedCode 后端暴露的工具观察事件包装成 OpenAI `tool_calls`；但目前不保证根据请求里的 `tools` 参数稳定地产生客户端自定义工具调用，也不提供 MCP 工具桥接。
+- Responses API 风格的 reasoning tokens、response item event stream 和 MCP 协议能力。
 
 Node.js OpenAI SDK 示例：
 
@@ -97,6 +100,37 @@ const stream = await client.chat.completions.create({
 for await (const chunk of stream) {
   process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
 }
+```
+
+工具结果回传遵循 OpenAI Chat Completions 的历史消息约定。客户端收到 assistant `tool_calls` 后，自行执行工具；下一次请求把 assistant 的 `tool_calls` 和工具结果一起放回 `messages[]`：
+
+```js
+const followUp = await client.chat.completions.create({
+  model: "medcode",
+  messages: [
+    { role: "user", content: "List the files." },
+    {
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        {
+          id: "call_abc",
+          type: "function",
+          function: {
+            name: "bash",
+            arguments: "{\"command\":\"ls\"}"
+          }
+        }
+      ]
+    },
+    {
+      role: "tool",
+      tool_call_id: "call_abc",
+      content: "package.json\nsrc"
+    },
+    { role: "user", content: "Summarize the result." }
+  ]
+});
 ```
 
 兼容层是“无状态调用”：每次请求会把 `messages[]` 编译成一段对话文本发送给 MedCode。多轮对话时，你的应用需要像标准 Chat Completions 一样把必要的历史消息放进 `messages[]`。如果你希望 MedCode 在服务端保留 thread 上下文，请使用下面的原生 session API。

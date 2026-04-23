@@ -73,7 +73,15 @@ describe("CodexProviderAdapter", () => {
     expect(events).toEqual([
       { type: "message_delta", text: "hello" },
       { type: "message_delta", text: " world" },
-      { type: "completed", providerSessionRef: "thread_1" }
+      {
+        type: "completed",
+        providerSessionRef: "thread_1",
+        usage: {
+          promptTokens: 1,
+          completionTokens: 2,
+          totalTokens: 3
+        }
+      }
     ]);
   });
 
@@ -93,7 +101,17 @@ describe("CodexProviderAdapter", () => {
 
     expect(client.startedOptions).toEqual([]);
     expect(client.resumed.map((entry) => entry.id)).toEqual(["thread_existing"]);
-    expect(events).toEqual([{ type: "completed", providerSessionRef: "thread_existing" }]);
+    expect(events).toEqual([
+      {
+        type: "completed",
+        providerSessionRef: "thread_existing",
+        usage: {
+          promptTokens: 1,
+          completionTokens: 1,
+          totalTokens: 2
+        }
+      }
+    ]);
   });
 
   it("passes explicit model and reasoning effort to Codex threads", async () => {

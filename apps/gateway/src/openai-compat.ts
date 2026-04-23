@@ -1,11 +1,29 @@
-import { GatewayError, type StreamEvent } from "@codex-gateway/core";
+import { GatewayError, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
+
+export interface OpenAIChatToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface OpenAIChatUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  prompt_tokens_details?: {
+    cached_tokens: number;
+  };
+}
 
 export interface ChatCompletionMessage {
   role: string;
   content?: unknown;
   name?: unknown;
   tool_call_id?: unknown;
-  tool_calls?: unknown;
+  tool_calls?: OpenAIChatToolCall[];
 }
 
 export interface ChatCompletionRequest {
@@ -51,12 +69,32 @@ export function parseChatCompletionRequest(
       );
     }
 
+    let toolCalls: OpenAIChatToolCall[] | undefined;
+    if (message.tool_calls !== undefined) {
+      const parsedToolCalls = parseToolCalls(message.tool_calls, `messages[${index}].tool_calls`);
+      if (parsedToolCalls instanceof GatewayError) {
+        return parsedToolCalls;
+      }
+      toolCalls = parsedToolCalls;
+    }
+
+    if (message.tool_call_id !== undefined && typeof message.tool_call_id !== "string") {
+      return invalidRequest(`messages[${index}].tool_call_id must be a string when provided.`);
+    }
+
+    if (
+      message.role === "tool" &&
+      (typeof message.tool_call_id !== "string" || message.tool_call_id.length === 0)
+    ) {
+      return invalidRequest(`messages[${index}].tool_call_id must be a non-empty string.`);
+    }
+
     messages.push({
       role: message.role,
       content: message.content,
       name: message.name,
       tool_call_id: message.tool_call_id,
-      tool_calls: message.tool_calls
+      tool_calls: toolCalls
     });
   }
 
@@ -103,7 +141,7 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
   if (request.tools !== undefined) {
     lines.push("");
     lines.push(
-      "The client supplied OpenAI-style tool definitions. Treat them as application context."
+      "The client supplied OpenAI-style tool definitions. Treat them as application context. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
     );
     lines.push(stableJson(request.tools));
   }
@@ -116,6 +154,7 @@ export function createChatCompletionResponse(input: {
   content: string;
   toolCalls: OpenAIChatToolCall[];
   finishReason: "stop" | "tool_calls";
+  usage: OpenAIChatUsage | null;
 }) {
   return {
     id: input.shape.id,
@@ -134,16 +173,7 @@ export function createChatCompletionResponse(input: {
         finish_reason: input.finishReason
       }
     ],
-    usage: null
-  };
-}
-
-export interface OpenAIChatToolCall {
-  id: string;
-  type: "function";
-  function: {
-    name: string;
-    arguments: string;
+    usage: input.usage
   };
 }
 
@@ -185,7 +215,8 @@ export function createInitialChatCompletionChunk(shape: ChatCompletionShape) {
 
 export function createFinalChatCompletionChunk(
   shape: ChatCompletionShape,
-  finishReason: "stop" | "tool_calls"
+  finishReason: "stop" | "tool_calls",
+  usage: OpenAIChatUsage | null
 ) {
   return {
     id: shape.id,
@@ -199,7 +230,23 @@ export function createFinalChatCompletionChunk(
         logprobs: null,
         finish_reason: finishReason
       }
-    ]
+    ],
+    usage
+  };
+}
+
+export function openAIUsageFromTokenUsage(usage: TokenUsage | undefined): OpenAIChatUsage | null {
+  if (!usage) {
+    return null;
+  }
+
+  return {
+    prompt_tokens: usage.promptTokens,
+    completion_tokens: usage.completionTokens,
+    total_tokens: usage.totalTokens,
+    ...(usage.cachedPromptTokens !== undefined
+      ? { prompt_tokens_details: { cached_tokens: usage.cachedPromptTokens } }
+      : {})
   };
 }
 
@@ -238,6 +285,46 @@ function invalidRequest(message: string): GatewayError {
     message,
     httpStatus: 400
   });
+}
+
+function parseToolCalls(value: unknown, path: string): OpenAIChatToolCall[] | GatewayError {
+  if (!Array.isArray(value)) {
+    return invalidRequest(`${path} must be an array.`);
+  }
+
+  const toolCalls: OpenAIChatToolCall[] = [];
+  for (const [index, item] of value.entries()) {
+    const itemPath = `${path}[${index}]`;
+    if (!isRecord(item)) {
+      return invalidRequest(`${itemPath} must be an object.`);
+    }
+    if (typeof item.id !== "string" || item.id.length === 0) {
+      return invalidRequest(`${itemPath}.id must be a non-empty string.`);
+    }
+    if (item.type !== "function") {
+      return invalidRequest(`${itemPath}.type must be function.`);
+    }
+    if (!isRecord(item.function)) {
+      return invalidRequest(`${itemPath}.function must be an object.`);
+    }
+    if (typeof item.function.name !== "string" || item.function.name.length === 0) {
+      return invalidRequest(`${itemPath}.function.name must be a non-empty string.`);
+    }
+    if (typeof item.function.arguments !== "string") {
+      return invalidRequest(`${itemPath}.function.arguments must be a string.`);
+    }
+
+    toolCalls.push({
+      id: item.id,
+      type: "function",
+      function: {
+        name: item.function.name,
+        arguments: item.function.arguments
+      }
+    });
+  }
+
+  return toolCalls;
 }
 
 function contentToText(content: unknown): string {

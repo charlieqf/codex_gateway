@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Safety Rules That Worked
 
@@ -78,9 +78,10 @@ Last updated: 2026-04-22
 
 ## Current Recommended Next Step
 
-Container loopback validation is complete. The next safe work is to choose the next MVP hardening item without changing host edge services:
+Container loopback validation and public HTTPS routing are complete. The next safe work is to harden OpenAI-compatible trial behavior without changing host edge services:
 
-1. Issue real API keys only for the 1-2 approved internal trial users.
-2. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
-3. Keep the gateway container loopback-only and keep Nginx as the only public edge.
-4. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.
+1. Keep `/v1/chat/completions` as the primary compatibility target.
+2. Verify OpenAI-shaped `tool_calls`, tool-result history messages, streaming chunks, and usage fields after every gateway rebuild.
+3. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
+4. Keep the gateway container loopback-only and keep Nginx as the only public edge.
+5. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.

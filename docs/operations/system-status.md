@@ -1,10 +1,10 @@
 # System Status
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Current Phase
 
-The project is in Phase 1 development. It is not production deployed.
+The project is in a controlled public HTTPS internal trial for 1-2 trusted users. It is not a broad production service.
 
 Completed:
 
@@ -38,14 +38,23 @@ Completed:
 - Long-running loopback gateway container started on the shared Azure VM for the controlled internal trial.
 - Public HTTPS routing for `gw.instmarket.com.au` through existing host Nginx to `127.0.0.1:18787`.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
+- OpenAI-compatible beta routes:
+  - `GET /v1/models`
+  - `GET /v1/models/:id`
+  - `POST /v1/chat/completions`
+- OpenAI Chat Completions response shape for non-streaming and streaming SSE, including `chat.completion.chunk` frames and `data: [DONE]`.
+- Chat Completions compatibility for assistant `tool_calls`, `{ role: "tool", tool_call_id, content }` history, `finish_reason: "tool_calls"`, and OpenAI-shaped `usage` when upstream token usage is available.
+- Two real controlled-trial API keys issued and managed by the SQLite credential store.
 
 Not completed:
 
+- Full native client-defined OpenAI tool execution, MCP bridge support, or pause/resume of the same upstream turn while waiting for external tool results.
+- `/v1/responses`.
+- OpenAI-compatible SSE framing for the native `/sessions/:id/messages` endpoint.
 - Persistent/distributed rate limiting for multiple gateway processes.
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Systemd ownership/monitoring for the long-running container.
-- Real 1-2 user API key issuance for the public internal trial.
 
 ## Verified Runtime
 
@@ -90,12 +99,13 @@ Earlier Azure VM validation:
 Current test coverage:
 
 - Provider Codex adapter event mapping and error normalization.
+- Provider token usage mapping from upstream completed turns.
 - SQLite store migration/session persistence.
 - Access credential generation, hash verification, expiration, and revocation.
 - SQLite user and API key persistence, API key update/revocation, user disable/enable, and admin audit event persistence.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
 - SQLite request event persistence, usage aggregation, manual pruning, admin CLI event listing, and read-only controlled-trial checks.
-- Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, and SQLite-backed session persistence.
+- Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, OpenAI Chat Completions routes, OpenAI-shaped tool-call/usage wrapping, and SQLite-backed session persistence.
 
 ## Provider Status
 
@@ -143,7 +153,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, and dry-run-capable manual event pruning are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, real trial-user key issuance, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, and dry-run-capable manual event pruning are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, full native tool execution, `/v1/responses`, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

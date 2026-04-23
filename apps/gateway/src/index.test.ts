@@ -403,6 +403,216 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("returns OpenAI tool calls and usage for non-streaming chat completions", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "tool_call",
+        callId: "call_1",
+        name: "bash",
+        arguments: { command: "ls" }
+      },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 10,
+          completionTokens: 2,
+          totalTokens: 12,
+          cachedPromptTokens: 4
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "List files." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "bash",
+              description: "Run a shell command.",
+              parameters: {
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"]
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      object: "chat.completion",
+      model: "medcode",
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: {
+                  name: "bash",
+                  arguments: '{"command":"ls"}'
+                }
+              }
+            ]
+          },
+          finish_reason: "tool_calls"
+        }
+      ],
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 2,
+        total_tokens: 12,
+        prompt_tokens_details: {
+          cached_tokens: 4
+        }
+      }
+    });
+
+    await app.close();
+  });
+
+  it("streams OpenAI tool call chunks with tool_calls finish reason", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "tool_call",
+        callId: "call_1",
+        name: "bash",
+        arguments: { command: "ls" }
+      },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 5,
+          completionTokens: 1,
+          totalTokens: 6
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "List files." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const frames = parseOpenAISseData(response.payload);
+    expect(frames[0]).toMatchObject({
+      object: "chat.completion.chunk",
+      choices: [{ delta: { role: "assistant" }, finish_reason: null }]
+    });
+    expect(frames[1]).toMatchObject({
+      object: "chat.completion.chunk",
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: {
+                  name: "bash",
+                  arguments: '{"command":"ls"}'
+                }
+              }
+            ]
+          },
+          finish_reason: null
+        }
+      ]
+    });
+    expect(frames[2]).toMatchObject({
+      object: "chat.completion.chunk",
+      choices: [{ delta: {}, finish_reason: "tool_calls" }],
+      usage: {
+        prompt_tokens: 5,
+        completion_tokens: 1,
+        total_tokens: 6
+      }
+    });
+    expect(response.payload).toContain("data: [DONE]");
+
+    await app.close();
+  });
+
+  it("accepts OpenAI tool result messages as chat history context", async () => {
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "The directory contains file1.txt." },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [
+          { role: "user", content: "List files." },
+          {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: {
+                  name: "bash",
+                  arguments: '{"command":"ls"}'
+                }
+              }
+            ]
+          },
+          { role: "tool", tool_call_id: "call_1", content: "file1.txt" },
+          { role: "user", content: "Summarize the result." }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(provider.messages[0].message).toContain("[assistant tool_calls]");
+    expect(provider.messages[0].message).toContain('"id":"call_1"');
+    expect(provider.messages[0].message).toContain("[tool tool_call_id=call_1]");
+    expect(provider.messages[0].message).toContain("file1.txt");
+
+    await app.close();
+  });
+
   it("uses OpenAI-style error envelopes for /v1 requests", async () => {
     const app = buildGateway({
       accessToken: "secret",
@@ -848,3 +1058,13 @@ describe("gateway phase 1 routes", () => {
     }
   });
 });
+
+function parseOpenAISseData(payload: string): unknown[] {
+  return payload
+    .split("\n\n")
+    .map((frame) => frame.trim())
+    .filter((frame) => frame.startsWith("data: "))
+    .map((frame) => frame.slice("data: ".length))
+    .filter((data) => data !== "[DONE]")
+    .map((data) => JSON.parse(data) as unknown);
+}
