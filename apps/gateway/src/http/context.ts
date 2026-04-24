@@ -29,6 +29,7 @@ export type GatewayRequest = FastifyRequest & {
 declare module "fastify" {
   interface FastifyContextConfig {
     public?: boolean;
+    skipRateLimit?: boolean;
   }
 
   interface FastifyRequest {

@@ -5,6 +5,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.github_pat
 config/*.env
 !config/*.example.env
 *.log

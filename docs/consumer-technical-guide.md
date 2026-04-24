@@ -168,6 +168,39 @@ const followUp = await client.chat.completions.create({
 curl -sS https://gw.instmarket.com.au/gateway/health
 ```
 
+只校验 API key：
+
+```bash
+curl -sS https://gw.instmarket.com.au/gateway/credentials/current \
+  -H "Authorization: Bearer $MEDCODE_API_KEY"
+```
+
+这个接口只校验当前 API key 并返回公开元信息，不调用 MedCode 上游服务，也不消耗普通请求限额。客户端登录页或设置页建议优先使用它判断用户填写的 API key 是否有效。
+
+成功响应示例：
+
+```json
+{
+  "valid": true,
+  "subject": {
+    "id": "trial-user-1",
+    "label": "Trial User 1"
+  },
+  "credential": {
+    "prefix": "cgw_xxxxxxxx",
+    "scope": "code",
+    "expires_at": "2026-05-06T10:00:00.000Z",
+    "rate": {
+      "requestsPerMinute": 10,
+      "requestsPerDay": 200,
+      "concurrentRequests": 1
+    }
+  }
+}
+```
+
+缺少、错误、吊销、过期或所属用户被停用时，这个接口返回 `401`，错误码见本文的错误处理表。
+
 验证 API key 和 MedCode 服务状态：
 
 ```bash

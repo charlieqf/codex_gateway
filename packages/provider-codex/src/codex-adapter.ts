@@ -152,7 +152,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
             code: normalized.code,
             message: normalized.message
           };
-          continue;
+          return;
         }
 
         if (event.type === "error") {
@@ -162,7 +162,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
             code: normalized.code,
             message: normalized.message
           };
-          continue;
+          return;
         }
 
         if (event.type === "turn.completed") {
@@ -178,6 +178,9 @@ export class CodexProviderAdapter implements ProviderAdapter {
           const streamEvent = this.mapThreadItem(event.item, agentTextByItemId, emittedToolCalls);
           if (streamEvent) {
             yield streamEvent;
+            if (streamEvent.type === "error") {
+              return;
+            }
           }
         }
       }
@@ -325,10 +328,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     if (item.type === "error") {
+      const normalized = this.normalize(new Error(item.message));
       return {
         type: "error",
-        code: "service_unavailable",
-        message: item.message
+        code: normalized.code,
+        message: normalized.message
       };
     }
 

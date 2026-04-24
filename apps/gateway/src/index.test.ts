@@ -196,6 +196,139 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("does not reactivate disabled subjects during credential bootstrap", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Disabled default subject credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Default Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.setSubjectState("subj_dev", "disabled");
+
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("invalid_credential");
+    expect(store.getSubject("subj_dev")).toMatchObject({
+      label: "Default Subject",
+      state: "disabled"
+    });
+
+    await app.close();
+  });
+
+  it("validates the current API key without consuming request limits", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Client validation credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 1,
+        requestsPerDay: null,
+        concurrentRequests: 1
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const validation = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers
+    });
+    expect(validation.statusCode).toBe(200);
+    expect(validation.json()).toEqual({
+      valid: true,
+      subject: {
+        id: "subj_dev",
+        label: "Credential Subject"
+      },
+      credential: {
+        prefix: issued.record.prefix,
+        scope: "code",
+        expires_at: "2030-02-01T00:00:00.000Z",
+        rate: {
+          requestsPerMinute: 1,
+          requestsPerDay: null,
+          concurrentRequests: 1
+        }
+      }
+    });
+
+    const firstLimitedRoute = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    expect(firstLimitedRoute.statusCode).toBe(200);
+
+    const secondLimitedRoute = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    expect(secondLimitedRoute.statusCode).toBe(429);
+    expect(secondLimitedRoute.json().error.code).toBe("rate_limited");
+
+    await app.close();
+  });
+
+  it("rejects invalid API keys on the current credential validation route", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers: { authorization: "Bearer wrong" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
   it("rejects dev auth mode when NODE_ENV is production", () => {
     const previousNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";

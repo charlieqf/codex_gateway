@@ -204,11 +204,67 @@ describe("CodexProviderAdapter", () => {
 
     const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
 
+    expect(events).toHaveLength(1);
     expect(events[0]).toEqual({
       type: "error",
       code: "provider_reauth_required",
       message: "MedCode service requires administrator reauthorization."
     });
+    expect(JSON.stringify(events)).not.toContain("Codex");
+    expect(JSON.stringify(events)).not.toContain("ChatGPT");
+  });
+
+  it("stops provider streams after turn failures", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.failed",
+        error: { message: "HTTP 429 rate limit" }
+      } as ThreadEvent,
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+      }
+    ]);
+    const adapter = createAdapter(new FakeClient(thread));
+
+    const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        code: "rate_limited",
+        message: "MedCode service rate limit reached."
+      }
+    ]);
+  });
+
+  it("sanitizes item-level provider errors and stops the stream", async () => {
+    const thread = new FakeThread(null, [
+      { type: "thread.started", thread_id: "thread_1" },
+      {
+        type: "item.completed",
+        item: {
+          id: "err_1",
+          type: "error",
+          message: "Codex is not logged in to ChatGPT"
+        }
+      } as ThreadEvent,
+      {
+        type: "turn.completed",
+        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+      }
+    ]);
+    const adapter = createAdapter(new FakeClient(thread));
+
+    const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        code: "provider_reauth_required",
+        message: "MedCode service requires administrator reauthorization."
+      }
+    ]);
     expect(JSON.stringify(events)).not.toContain("Codex");
     expect(JSON.stringify(events)).not.toContain("ChatGPT");
   });

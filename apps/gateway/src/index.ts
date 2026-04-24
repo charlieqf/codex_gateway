@@ -120,7 +120,9 @@ export function buildGateway(options: GatewayOptions = {}) {
   const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
   const observationStore =
     options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
-  sessions.upsertSubject(subject);
+  if (authMode === "dev") {
+    sessions.upsertSubject(subject);
+  }
   sessions.upsertSubscription(subscription);
   const devContext = {
     subject,
@@ -226,6 +228,30 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
     };
   });
+
+  app.get(
+    "/gateway/credentials/current",
+    {
+      config: { skipRateLimit: true }
+    },
+    async (request) => {
+      const { subject, scope, credential } = getGatewayContext(request);
+
+      return {
+        valid: true,
+        subject: {
+          id: subject.id,
+          label: subject.label
+        },
+        credential: {
+          prefix: credential.prefix,
+          scope,
+          expires_at: credential.expiresAt?.toISOString() ?? null,
+          rate: credential.rate
+        }
+      };
+    }
+  );
 
   app.get("/v1/models", async () => ({
     object: "list",

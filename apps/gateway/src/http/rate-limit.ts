@@ -9,7 +9,7 @@ export async function rateLimitHook(
   reply: FastifyReply,
   limiter: CredentialRateLimiter
 ) {
-  if (request.routeOptions.config?.public) {
+  if (request.routeOptions.config?.public || request.routeOptions.config?.skipRateLimit) {
     return;
   }
 

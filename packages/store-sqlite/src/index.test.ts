@@ -70,6 +70,26 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("does not overwrite subject state during bootstrap upserts", () => {
+    const store = createSeededStore(":memory:");
+
+    store.setSubjectState("subj_1", "disabled");
+    store.upsertSubject({
+      id: "subj_1",
+      label: "Renamed Subject",
+      state: "active",
+      createdAt: new Date("2026-01-02T00:00:00Z")
+    });
+
+    expect(store.getSubject("subj_1")).toMatchObject({
+      id: "subj_1",
+      label: "Renamed Subject",
+      state: "disabled"
+    });
+
+    store.close();
+  });
+
   it("persists and revokes access credentials", () => {
     const store = createSeededStore(":memory:");
     const issued = issueAccessCredential({

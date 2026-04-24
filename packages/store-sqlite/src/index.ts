@@ -53,8 +53,7 @@ export class SqliteGatewayStore implements GatewayStore {
         `INSERT INTO subjects (id, label, state, created_at)
          VALUES (?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
-           label = excluded.label,
-           state = excluded.state`
+           label = excluded.label`
       )
       .run(subject.id, subject.label, subject.state, subject.createdAt.toISOString());
   }
@@ -69,9 +68,6 @@ export class SqliteGatewayStore implements GatewayStore {
           provider = excluded.provider,
           label = excluded.label,
           credential_ref = excluded.credential_ref,
-          state = excluded.state,
-          last_used_at = excluded.last_used_at,
-          cooldown_until = excluded.cooldown_until,
           updated_at = excluded.updated_at`
       )
       .run(

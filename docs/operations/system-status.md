@@ -13,6 +13,7 @@ Completed:
 - Real `provider-codex` adapter backed by `@openai/codex-sdk`.
 - Development gateway routes:
   - `GET /gateway/status`
+  - `GET /gateway/credentials/current`
   - `POST /sessions`
   - `GET /sessions`
   - `POST /sessions/:id/messages` as SSE
