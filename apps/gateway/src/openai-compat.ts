@@ -1,10 +1,21 @@
 import { Ajv } from "ajv";
+import { Ajv2019 } from "ajv/dist/2019.js";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import { GatewayError, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
 
-const toolSchemaValidator = new Ajv({
+const draft7ToolSchemaValidator = new Ajv({
   allErrors: true,
   strict: false
 });
+const draft2019ToolSchemaValidator = new Ajv2019({
+  allErrors: true,
+  strict: false
+});
+const draft2020ToolSchemaValidator = new Ajv2020({
+  allErrors: true,
+  strict: false
+});
+type ToolSchemaValidator = typeof draft7ToolSchemaValidator;
 
 export interface OpenAIChatToolCall {
   id: string;
@@ -713,11 +724,12 @@ function validateAgainstToolSchema(
     type: "object",
     additionalProperties: true
   };
-  const validate = toolSchemaValidator.compile(schema);
+  const { validator, schema: normalizedSchema } = selectToolSchemaValidator(schema);
+  const validate = validator.compile(normalizedSchema);
   if (validate(value)) {
     return null;
   }
-  return toolSchemaValidator.errorsText(validate.errors, { separator: "; " });
+  return validator.errorsText(validate.errors, { separator: "; " });
 }
 
 function forcedToolChoiceName(toolChoice: ChatCompletionToolChoice): string | null {
@@ -740,11 +752,62 @@ function strictToolChoiceInstruction(toolChoice: ChatCompletionToolChoice): stri
 
 function compileSchema(schema: Record<string, unknown>): string | null {
   try {
-    toolSchemaValidator.compile(schema);
+    const { validator, schema: normalizedSchema } = selectToolSchemaValidator(schema);
+    validator.compile(normalizedSchema);
     return null;
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
   }
+}
+
+function selectToolSchemaValidator(schema: Record<string, unknown>): {
+  validator: ToolSchemaValidator;
+  schema: Record<string, unknown>;
+} {
+  const uri = typeof schema.$schema === "string" ? trimSchemaHash(schema.$schema) : null;
+  if (
+    uri === "http://json-schema.org/draft-07/schema" ||
+    uri === "https://json-schema.org/draft-07/schema"
+  ) {
+    return {
+      validator: draft7ToolSchemaValidator,
+      schema: normalizeSchemaUri(schema, "http://json-schema.org/draft-07/schema#")
+    };
+  }
+  if (
+    uri === "http://json-schema.org/draft/2019-09/schema" ||
+    uri === "https://json-schema.org/draft/2019-09/schema"
+  ) {
+    return {
+      validator: draft2019ToolSchemaValidator,
+      schema: normalizeSchemaUri(schema, "https://json-schema.org/draft/2019-09/schema")
+    };
+  }
+  if (
+    uri === "http://json-schema.org/draft/2020-12/schema" ||
+    uri === "https://json-schema.org/draft/2020-12/schema"
+  ) {
+    return {
+      validator: draft2020ToolSchemaValidator,
+      schema: normalizeSchemaUri(schema, "https://json-schema.org/draft/2020-12/schema")
+    };
+  }
+
+  return {
+    validator: draft7ToolSchemaValidator,
+    schema
+  };
+}
+
+function trimSchemaHash(uri: string): string {
+  return uri.endsWith("#") ? uri.slice(0, -1) : uri;
+}
+
+function normalizeSchemaUri(
+  schema: Record<string, unknown>,
+  normalizedUri: string
+): Record<string, unknown> {
+  return schema.$schema === normalizedUri ? schema : { ...schema, $schema: normalizedUri };
 }
 
 function isJsonSerializable(value: unknown): boolean {

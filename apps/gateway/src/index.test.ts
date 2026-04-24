@@ -776,6 +776,138 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("accepts draft 2020-12 schemas for strict client-defined tools", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "bash",
+              arguments: {
+                command: "ls"
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "List files in current dir via a tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "bash",
+              description: "Run a shell command.",
+              parameters: {
+                $schema: "https://json-schema.org/draft/2020-12/schema",
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0]).toMatchObject({
+      message: {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            type: "function",
+            function: {
+              name: "bash",
+              arguments: '{"command":"ls"}'
+            }
+          }
+        ]
+      },
+      finish_reason: "tool_calls"
+    });
+    expect(provider.messages).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it("keeps draft-07 schemas accepted for strict client-defined tools", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "search",
+              arguments: {
+                query: "heart failure"
+              }
+            }
+          ]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Search evidence." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "search",
+              parameters: {
+                $schema: "http://json-schema.org/draft-07/schema#",
+                type: "object",
+                properties: { query: { type: "string" } },
+                required: ["query"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0].finish_reason).toBe("tool_calls");
+    expect(
+      JSON.parse(response.json().choices[0].message.tool_calls[0].function.arguments)
+    ).toEqual({
+      query: "heart failure"
+    });
+
+    await app.close();
+  });
+
   it("rejects undeclared tools in strict client-defined tool mode", async () => {
     const provider = new FakeProvider([
       {
