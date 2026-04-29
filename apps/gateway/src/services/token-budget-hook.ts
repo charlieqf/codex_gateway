@@ -1,6 +1,8 @@
 import type { FastifyRequest } from "fastify";
 import {
   GatewayError,
+  mergeEntitlementTokenPolicy,
+  type PlanEntitlementStore,
   type TokenBudgetLimiter,
   type TokenLimitPolicy,
   type TokenUsage
@@ -34,24 +36,80 @@ export async function cleanupExpiredTokenReservations(
 export async function beginTokenBudget(
   request: FastifyRequest,
   limiter: TokenBudgetLimiter | undefined,
-  estimatedPromptTokens: number
+  estimatedPromptTokens: number,
+  options: {
+    entitlementStore?: PlanEntitlementStore;
+    requireEntitlement?: boolean;
+  } = {}
 ): Promise<GatewayError | null> {
-  if (!limiter) {
-    return null;
-  }
-
   const { subject, upstreamAccount, scope, credential } = getGatewayContext(request);
   if (!credential.id) {
     return null;
   }
 
-  const tokenPolicy = credential.rate?.token ?? null;
+  let entitlementId: string | null = null;
+  let tokenPolicy = credential.rate?.token ?? null;
+  try {
+    const access = options.entitlementStore?.entitlementAccessForSubject(subject.id);
+    if (access?.status === "active") {
+      if (!access.entitlement.scopeAllowlist.includes(scope)) {
+        return new GatewayError({
+          code: "forbidden_scope",
+          message: "Credential scope is not allowed by the active plan.",
+          httpStatus: 403
+        });
+      }
+      entitlementId = access.entitlement.id;
+      tokenPolicy = mergeEntitlementTokenPolicy(
+        access.entitlement.policySnapshot,
+        credential.rate?.token ?? null
+      );
+    } else if (access?.status === "expired") {
+      return new GatewayError({
+        code: "plan_expired",
+        message: "Plan entitlement has expired.",
+        httpStatus: 402
+      });
+    } else if (access?.status === "inactive") {
+      return new GatewayError({
+        code: "plan_inactive",
+        message: "Plan entitlement is inactive.",
+        httpStatus: 402
+      });
+    } else if (access?.status === "legacy" && options.requireEntitlement) {
+      return new GatewayError({
+        code: "plan_inactive",
+        message: "Plan entitlement is required.",
+        httpStatus: 402
+      });
+    }
+  } catch (err) {
+    request.log.error(
+      {
+        request_id: request.id,
+        credential_id: credential.id,
+        error: err instanceof Error ? err.message : String(err)
+      },
+      "Plan entitlement check failed."
+    );
+    return new GatewayError({
+      code: "service_unavailable",
+      message: "Plan entitlement service is unavailable.",
+      httpStatus: 503
+    });
+  }
+
+  if (!limiter) {
+    return null;
+  }
+
   if (!tokenPolicy) {
     try {
       const softWrite = await limiter.beginSoftWrite({
         requestId: request.id,
         credentialId: credential.id,
         subjectId: subject.id,
+        entitlementId,
         scope,
         upstreamAccountId: upstreamAccount.id,
         provider: upstreamAccount.provider
@@ -75,6 +133,7 @@ export async function beginTokenBudget(
       requestId: request.id,
       credentialId: credential.id,
       subjectId: subject.id,
+      entitlementId,
       scope,
       upstreamAccountId: upstreamAccount.id,
       provider: upstreamAccount.provider,
@@ -170,6 +229,7 @@ export function publicTokenUsage(
   usage: Awaited<ReturnType<TokenBudgetLimiter["getCurrentUsage"]>>
 ) {
   return {
+    source: usage.source,
     minute: publicWindowUsage(usage.minute),
     day: publicWindowUsage(usage.day),
     month: publicWindowUsage(usage.month)

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
   GatewayError,
+  validateTokenPolicy,
   type AcquireInput,
   type AcquireSuccess,
   type CleanupResult,
@@ -39,6 +40,7 @@ export interface TokenReservationListRow {
   kind: "reservation" | "soft_write";
   credentialId: string;
   subjectId: string;
+  entitlementId: string | null;
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
@@ -70,6 +72,7 @@ interface ReservationRow {
   kind: "reservation" | "soft_write";
   credential_id: string;
   subject_id: string;
+  entitlement_id: string | null;
   scope: Scope;
   upstream_account_id: string | null;
   provider: ProviderKind | null;
@@ -107,6 +110,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
     const windows = windowBoundaries(now);
+    const entitlementId = input.entitlementId ?? null;
     const estimatedPromptTokens = nonNegativeInteger(input.estimatedPromptTokens);
     const estimatedTotalTokens = estimatedPromptTokens + policy.reserveTokensPerRequest;
     const reservedTokens = Math.max(estimatedTotalTokens, policy.reserveTokensPerRequest);
@@ -137,6 +141,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
       const minuteRejected = this.windowRejection({
         subjectId: input.subjectId,
+        entitlementId,
         kind: "minute",
         windowStart: windows.minute,
         limit: policy.tokensPerMinute,
@@ -149,6 +154,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
       const dayRejected = this.windowRejection({
         subjectId: input.subjectId,
+        entitlementId,
         kind: "day",
         windowStart: windows.day,
         limit: policy.tokensPerDay,
@@ -161,6 +167,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
       const monthRejected = this.windowRejection({
         subjectId: input.subjectId,
+        entitlementId,
         kind: "month",
         windowStart: windows.month,
         limit: policy.tokensPerMonth,
@@ -177,6 +184,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         kind: "reservation",
         credentialId: input.credentialId,
         subjectId: input.subjectId,
+        entitlementId,
         scope: input.scope,
         upstreamAccountId: input.upstreamAccountId,
         provider: input.provider,
@@ -199,6 +207,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async beginSoftWrite(input: SoftWriteBeginInput): Promise<{ reservationId: string }> {
     const now = input.now ?? new Date();
     const windows = windowBoundaries(now);
+    const entitlementId = input.entitlementId ?? null;
     const reservationId = `tr_${randomUUID().replaceAll("-", "")}`;
     const finalReservationId = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
       const existing = this.reservationByRequestId(input.requestId);
@@ -211,6 +220,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         kind: "soft_write",
         credentialId: input.credentialId,
         subjectId: input.subjectId,
+        entitlementId,
         scope: input.scope,
         upstreamAccountId: input.upstreamAccountId,
         provider: input.provider,
@@ -278,16 +288,26 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const windows = windowBoundaries(now);
 
     return {
+      source: input.entitlementId ? "entitlement" : "subject",
       minute: this.readUsageWindow(
         input.subjectId,
+        input.entitlementId ?? null,
         "minute",
         windows.minute,
         policy.tokensPerMinute,
         now
       ),
-      day: this.readUsageWindow(input.subjectId, "day", windows.day, policy.tokensPerDay, now),
+      day: this.readUsageWindow(
+        input.subjectId,
+        input.entitlementId ?? null,
+        "day",
+        windows.day,
+        policy.tokensPerDay,
+        now
+      ),
       month: this.readUsageWindow(
         input.subjectId,
+        input.entitlementId ?? null,
         "month",
         windows.month,
         policy.tokensPerMonth,
@@ -323,6 +343,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       kind: row.kind,
       credentialId: row.credential_id,
       subjectId: row.subject_id,
+      entitlementId: row.entitlement_id,
       scope: row.scope,
       upstreamAccountId: row.upstream_account_id,
       provider: row.provider,
@@ -390,9 +411,30 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           row.id
         );
 
-      this.addUsageToWindow(row.subject_id, "minute", row.minute_window_start, final, now);
-      this.addUsageToWindow(row.subject_id, "day", row.day_window_start, final, now);
-      this.addUsageToWindow(row.subject_id, "month", row.month_window_start, final, now);
+      this.addUsageToWindow(
+        row.subject_id,
+        row.entitlement_id,
+        "minute",
+        row.minute_window_start,
+        final,
+        now
+      );
+      this.addUsageToWindow(
+        row.subject_id,
+        row.entitlement_id,
+        "day",
+        row.day_window_start,
+        final,
+        now
+      );
+      this.addUsageToWindow(
+        row.subject_id,
+        row.entitlement_id,
+        "month",
+        row.month_window_start,
+        final,
+        now
+      );
 
       return {
         reservationId: row.id,
@@ -419,6 +461,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     kind: "reservation" | "soft_write";
     credentialId: string;
     subjectId: string;
+    entitlementId: string | null;
     scope: Scope;
     upstreamAccountId: string | null;
     provider: ProviderKind | null;
@@ -436,12 +479,12 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     this.db
       .prepare(
         `INSERT INTO token_reservations (
-          id, request_id, kind, credential_id, subject_id, scope, upstream_account_id, provider,
+          id, request_id, kind, credential_id, subject_id, entitlement_id, scope, upstream_account_id, provider,
           created_at, expires_at, estimated_prompt_tokens, estimated_total_tokens,
           reserved_tokens, charge_policy_snapshot, max_prompt_tokens_per_request,
           max_total_tokens_per_request, minute_window_start, day_window_start, month_window_start,
           policy_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.id,
@@ -449,6 +492,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         input.kind,
         input.credentialId,
         input.subjectId,
+        input.entitlementId,
         input.scope,
         input.upstreamAccountId,
         input.provider,
@@ -491,6 +535,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   private windowRejection(input: {
     subjectId: string;
+    entitlementId: string | null;
     kind: "minute" | "day" | "month";
     windowStart: Date;
     limit: number | null;
@@ -500,8 +545,19 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     if (input.limit === null) {
       return null;
     }
-    const used = this.windowUsed(input.subjectId, input.kind, input.windowStart);
-    const reserved = this.activeReserved(input.subjectId, input.kind, input.windowStart, input.now);
+    const used = this.windowUsed(
+      input.subjectId,
+      input.entitlementId,
+      input.kind,
+      input.windowStart
+    );
+    const reserved = this.activeReserved(
+      input.subjectId,
+      input.entitlementId,
+      input.kind,
+      input.windowStart,
+      input.now
+    );
     if (used + reserved + input.reservedTokens <= input.limit) {
       return null;
     }
@@ -515,13 +571,14 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   private readUsageWindow(
     subjectId: string,
+    entitlementId: string | null,
     kind: "minute" | "day" | "month",
     windowStart: Date,
     limit: number | null,
     now: Date
   ) {
-    const used = this.windowUsed(subjectId, kind, windowStart);
-    const reserved = this.activeReserved(subjectId, kind, windowStart, now);
+    const used = this.windowUsed(subjectId, entitlementId, kind, windowStart);
+    const reserved = this.activeReserved(subjectId, entitlementId, kind, windowStart, now);
     return {
       limit,
       used,
@@ -533,50 +590,111 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   private windowUsed(
     subjectId: string,
+    entitlementId: string | null,
     kind: "minute" | "day" | "month",
     windowStart: Date | string
   ): number {
-    const row = this.db
-      .prepare(
-        `SELECT COALESCE(total_tokens, 0) AS used
-         FROM token_windows
-         WHERE subject_id = ?
-           AND window_kind = ?
-           AND window_start = ?`
-      )
-      .get(subjectId, kind, iso(windowStart)) as { used: number } | undefined;
+    const row = entitlementId
+      ? (this.db
+          .prepare(
+            `SELECT COALESCE(total_tokens, 0) AS used
+             FROM entitlement_token_windows
+             WHERE entitlement_id = ?
+               AND window_kind = ?
+               AND window_start = ?`
+          )
+          .get(entitlementId, kind, iso(windowStart)) as { used: number } | undefined)
+      : (this.db
+          .prepare(
+            `SELECT COALESCE(total_tokens, 0) AS used
+             FROM token_windows
+             WHERE subject_id = ?
+               AND window_kind = ?
+               AND window_start = ?`
+          )
+          .get(subjectId, kind, iso(windowStart)) as { used: number } | undefined);
     return row?.used ?? 0;
   }
 
   private activeReserved(
     subjectId: string,
+    entitlementId: string | null,
     kind: "minute" | "day" | "month",
     windowStart: Date | string,
     now: Date
   ): number {
     const column = `${kind}_window_start`;
-    const row = this.db
-      .prepare(
-        `SELECT COALESCE(SUM(reserved_tokens), 0) AS reserved
-         FROM token_reservations
-         WHERE subject_id = ?
-           AND kind = 'reservation'
-           AND finalized_at IS NULL
-           AND expires_at IS NOT NULL
-           AND expires_at > ?
-           AND ${column} = ?`
-      )
-      .get(subjectId, now.toISOString(), iso(windowStart)) as { reserved: number } | undefined;
+    const row = entitlementId
+      ? (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(reserved_tokens), 0) AS reserved
+             FROM token_reservations
+             WHERE entitlement_id = ?
+               AND kind = 'reservation'
+               AND finalized_at IS NULL
+               AND expires_at IS NOT NULL
+               AND expires_at > ?
+               AND ${column} = ?`
+          )
+          .get(entitlementId, now.toISOString(), iso(windowStart)) as
+          | { reserved: number }
+          | undefined)
+      : (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(reserved_tokens), 0) AS reserved
+             FROM token_reservations
+             WHERE subject_id = ?
+               AND entitlement_id IS NULL
+               AND kind = 'reservation'
+               AND finalized_at IS NULL
+               AND expires_at IS NOT NULL
+               AND expires_at > ?
+               AND ${column} = ?`
+          )
+          .get(subjectId, now.toISOString(), iso(windowStart)) as
+          | { reserved: number }
+          | undefined);
     return row?.reserved ?? 0;
   }
 
   private addUsageToWindow(
     subjectId: string,
+    entitlementId: string | null,
     kind: "minute" | "day" | "month",
     windowStart: string,
     usage: FinalUsage,
     now: Date
   ): void {
+    if (entitlementId) {
+      this.db
+        .prepare(
+          `INSERT INTO entitlement_token_windows (
+            entitlement_id, window_kind, window_start, prompt_tokens, completion_tokens,
+            total_tokens, cached_prompt_tokens, estimated_tokens, requests, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+          ON CONFLICT(entitlement_id, window_kind, window_start) DO UPDATE SET
+            prompt_tokens = prompt_tokens + excluded.prompt_tokens,
+            completion_tokens = completion_tokens + excluded.completion_tokens,
+            total_tokens = total_tokens + excluded.total_tokens,
+            cached_prompt_tokens = cached_prompt_tokens + excluded.cached_prompt_tokens,
+            estimated_tokens = estimated_tokens + excluded.estimated_tokens,
+            requests = requests + 1,
+            updated_at = excluded.updated_at`
+        )
+        .run(
+          entitlementId,
+          kind,
+          windowStart,
+          usage.promptTokens,
+          usage.completionTokens,
+          usage.totalTokens,
+          usage.cachedPromptTokens,
+          usage.estimatedTokens,
+          now.toISOString()
+        );
+      return;
+    }
+
     this.db
       .prepare(
         `INSERT INTO token_windows (
@@ -707,43 +825,6 @@ function finalizedRowResult(row: ReservationRow): FinalizeResult {
   };
 }
 
-function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy {
-  const missingUsageCharge = policy.missingUsageCharge;
-  if (
-    missingUsageCharge !== "none" &&
-    missingUsageCharge !== "estimate" &&
-    missingUsageCharge !== "reserve"
-  ) {
-    throw new Error("token.missingUsageCharge must be none, estimate, or reserve.");
-  }
-
-  return {
-    tokensPerMinute: nullableNonNegativeInteger(policy.tokensPerMinute, "tokensPerMinute"),
-    tokensPerDay: nullableNonNegativeInteger(policy.tokensPerDay, "tokensPerDay"),
-    tokensPerMonth: nullableNonNegativeInteger(policy.tokensPerMonth, "tokensPerMonth"),
-    maxPromptTokensPerRequest: nullableNonNegativeInteger(
-      policy.maxPromptTokensPerRequest,
-      "maxPromptTokensPerRequest"
-    ),
-    maxTotalTokensPerRequest: nullableNonNegativeInteger(
-      policy.maxTotalTokensPerRequest,
-      "maxTotalTokensPerRequest"
-    ),
-    reserveTokensPerRequest: nonNegativeInteger(policy.reserveTokensPerRequest),
-    missingUsageCharge
-  };
-}
-
-function nullableNonNegativeInteger(value: number | null, field: string): number | null {
-  if (value === null) {
-    return null;
-  }
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`token.${field} must be a non-negative integer or null.`);
-  }
-  return value;
-}
-
 function nonNegativeInteger(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -791,6 +872,7 @@ function reservationColumns(): string {
     "kind",
     "credential_id",
     "subject_id",
+    "entitlement_id",
     "scope",
     "upstream_account_id",
     "provider",

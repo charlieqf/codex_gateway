@@ -8,6 +8,8 @@ export const gatewayErrorCodes = [
   "model_not_found",
   "rate_limited",
   "forbidden_scope",
+  "plan_inactive",
+  "plan_expired",
   "session_not_found",
   "tool_call_validation_failed",
   // Public compatibility error code; do not rename during upstream account cleanup.

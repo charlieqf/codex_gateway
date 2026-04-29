@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
@@ -481,6 +481,304 @@ describe("codex-gateway-admin user API key operations", () => {
     });
   });
 
+  it("creates plans, grants entitlements, and reads entitlement token windows", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: 100,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: 200,
+        maxTotalTokensPerRequest: 500,
+        reserveTokensPerRequest: 50,
+        missingUsageCharge: "reserve"
+      }),
+      "utf8"
+    );
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice entitlement key",
+      "--scope",
+      "code"
+    ]) as { credential: { prefix: string } };
+    const created = runCli(dbPath, [
+      "plan",
+      "create",
+      "--id",
+      "plan_pro_v1",
+      "--display-name",
+      "Pro",
+      "--policy-file",
+      policyPath
+    ]) as {
+      plan: {
+        id: string;
+        display_name: string;
+        policy: {
+          tokensPerDay: number;
+          reserveTokensPerRequest: number;
+          missingUsageCharge: string;
+        };
+      };
+    };
+    const granted = runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_pro_v1",
+      "--period",
+      "unlimited"
+    ]) as {
+      entitlement: {
+        id: string;
+        user_id: string;
+        plan_id: string;
+        period_kind: string;
+        state: string;
+        policy_snapshot: {
+          tokensPerDay: number;
+        };
+      };
+    };
+
+    expect(created.plan).toMatchObject({
+      id: "plan_pro_v1",
+      display_name: "Pro",
+      policy: {
+        tokensPerDay: 1000,
+        reserveTokensPerRequest: 50,
+        missingUsageCharge: "reserve"
+      }
+    });
+    expect(granted.entitlement).toMatchObject({
+      user_id: "alice",
+      plan_id: "plan_pro_v1",
+      period_kind: "unlimited",
+      state: "active",
+      policy_snapshot: {
+        tokensPerDay: 1000
+      }
+    });
+
+    const current = runCli(dbPath, ["entitlement", "show", "--user", "alice"]) as {
+      user_id: string;
+      access: {
+        status: string;
+        plan: { id: string };
+        entitlement: { id: string };
+      };
+    };
+    expect(current).toMatchObject({
+      user_id: "alice",
+      access: {
+        status: "active",
+        plan: { id: "plan_pro_v1" },
+        entitlement: { id: granted.entitlement.id }
+      }
+    });
+
+    const windows = runCli(dbPath, ["token-windows", "--user", "alice"]) as {
+      credential_prefix: string | null;
+      entitlement_id: string | null;
+      token: {
+        tokensPerDay: number;
+        maxTotalTokensPerRequest: number;
+      };
+      token_usage: {
+        source: string;
+        day: { limit: number; used: number; reserved: number; remaining: number };
+      };
+    };
+    expect(windows).toMatchObject({
+      credential_prefix: issued.credential.prefix,
+      entitlement_id: granted.entitlement.id,
+      token: {
+        tokensPerDay: 1000,
+        maxTotalTokensPerRequest: 500
+      },
+      token_usage: {
+        source: "entitlement",
+        day: {
+          limit: 1000,
+          used: 0,
+          reserved: 0,
+          remaining: 1000
+        }
+      }
+    });
+  }, 20_000);
+
+  it("rejects API key scopes outside the active entitlement allowlist", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-scope-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: null,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      }),
+      "utf8"
+    );
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice code key",
+      "--scope",
+      "code"
+    ]) as { credential: { prefix: string } };
+    runCli(dbPath, [
+      "plan",
+      "create",
+      "--id",
+      "plan_code_v1",
+      "--policy-file",
+      policyPath,
+      "--scope",
+      "code"
+    ]);
+    runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_code_v1",
+      "--period",
+      "unlimited"
+    ]);
+
+    expect(() =>
+      runCli(dbPath, [
+        "issue",
+        "--user",
+        "alice",
+        "--label",
+        "Alice medical key",
+        "--scope",
+        "medical"
+      ])
+    ).toThrow();
+    expect(() => runCli(dbPath, ["update-key", issued.credential.prefix, "--scope", "medical"])).toThrow();
+  }, 20_000);
+
+  it("reports rejected entitlement states as trial-check errors", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-expired-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: null,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      }),
+      "utf8"
+    );
+
+    runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice expired-plan key",
+      "--scope",
+      "code"
+    ]);
+    runCli(dbPath, ["plan", "create", "--id", "plan_old_v1", "--policy-file", policyPath]);
+    runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_old_v1",
+      "--period",
+      "one_off",
+      "--start",
+      "2000-01-01T00:00:00Z",
+      "--end",
+      "2000-01-02T00:00:00Z"
+    ]);
+
+    const trialCheck = JSON.parse(
+      runCliRawAllowFailure(dbPath, ["trial-check", "--max-active-users", "2"])
+    ) as {
+      ready_for_controlled_trial: boolean;
+      checks: Array<{
+        name: string;
+        status: string;
+        detail?: { rejected_users?: Array<{ user_id: string; status: string }> };
+      }>;
+    };
+    const entitlementCheck = trialCheck.checks.find(
+      (check) => check.name === "active_credential_entitlements"
+    );
+
+    expect(trialCheck.ready_for_controlled_trial).toBe(false);
+    expect(entitlementCheck).toMatchObject({
+      status: "error",
+      detail: {
+        rejected_users: [{ user_id: "alice", status: "expired" }]
+      }
+    });
+  }, 20_000);
+
+  it("validates plan policy files before creating plans", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-invalid-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "bad-plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: 100,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: 200,
+        maxTotalTokensPerRequest: 500,
+        reserveTokensPerRequest: 50,
+        missingUsageCharge: "bad"
+      }),
+      "utf8"
+    );
+
+    expect(() =>
+      runCli(dbPath, [
+        "plan",
+        "create",
+        "--id",
+        "plan_bad_v1",
+        "--policy-file",
+        policyPath
+      ])
+    ).toThrow();
+  });
+
   it("keeps stdout as clean JSON when migrating a legacy request-event database", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-legacy-"));
     cleanupDirs.push(dir);
@@ -521,6 +819,18 @@ function runCliRaw(dbPath: string, args: string[]): string {
       stdio: ["ignore", "pipe", "pipe"]
     }
   );
+}
+
+function runCliRawAllowFailure(dbPath: string, args: string[]): string {
+  try {
+    return runCliRaw(dbPath, args);
+  } catch (err) {
+    const output = (err as { stdout?: string }).stdout;
+    if (!output) {
+      throw err;
+    }
+    return output;
+  }
 }
 
 function createLegacyUpstreamAccountDb(dbPath: string): void {

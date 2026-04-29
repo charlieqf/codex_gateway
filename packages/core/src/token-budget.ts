@@ -25,6 +25,7 @@ export interface AcquireInput {
   requestId: string;
   credentialId: string;
   subjectId: string;
+  entitlementId?: string | null;
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
@@ -56,6 +57,7 @@ export interface SoftWriteBeginInput {
   requestId: string;
   credentialId: string;
   subjectId: string;
+  entitlementId?: string | null;
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
@@ -84,11 +86,13 @@ export interface CleanupResult {
 
 export interface GetUsageInput {
   subjectId: string;
+  entitlementId?: string | null;
   policy: TokenLimitPolicy;
   now?: Date;
 }
 
 export interface TokenUsageSnapshot {
+  source: "entitlement" | "subject";
   minute: WindowSnapshot;
   day: WindowSnapshot;
   month: WindowSnapshot;
@@ -109,4 +113,48 @@ export interface TokenBudgetLimiter {
   finalizeSoftWrite(input: SoftWriteFinalizeInput): Promise<FinalizeResult>;
   cleanupExpired(now?: Date): Promise<CleanupResult>;
   getCurrentUsage(input: GetUsageInput): Promise<TokenUsageSnapshot>;
+}
+
+export function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy {
+  const missingUsageCharge = policy.missingUsageCharge;
+  if (
+    missingUsageCharge !== "none" &&
+    missingUsageCharge !== "estimate" &&
+    missingUsageCharge !== "reserve"
+  ) {
+    throw new Error("token.missingUsageCharge must be none, estimate, or reserve.");
+  }
+
+  return {
+    tokensPerMinute: nullableNonNegativeInteger(policy.tokensPerMinute, "tokensPerMinute"),
+    tokensPerDay: nullableNonNegativeInteger(policy.tokensPerDay, "tokensPerDay"),
+    tokensPerMonth: nullableNonNegativeInteger(policy.tokensPerMonth, "tokensPerMonth"),
+    maxPromptTokensPerRequest: nullableNonNegativeInteger(
+      policy.maxPromptTokensPerRequest,
+      "maxPromptTokensPerRequest"
+    ),
+    maxTotalTokensPerRequest: nullableNonNegativeInteger(
+      policy.maxTotalTokensPerRequest,
+      "maxTotalTokensPerRequest"
+    ),
+    reserveTokensPerRequest: nonNegativeInteger(policy.reserveTokensPerRequest),
+    missingUsageCharge
+  };
+}
+
+function nullableNonNegativeInteger(value: number | null, field: string): number | null {
+  if (value === null) {
+    return null;
+  }
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`token.${field} must be a non-negative integer or null.`);
+  }
+  return value;
+}
+
+function nonNegativeInteger(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
 }

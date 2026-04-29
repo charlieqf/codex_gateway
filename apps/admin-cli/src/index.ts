@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { Command, InvalidArgumentError } from "commander";
 import {
   issueAccessCredential,
+  mergeEntitlementTokenPolicy,
+  validatePlanPolicy,
   type AccessCredentialRecord,
   type AdminAuditAction,
   type AdminAuditEventRecord,
   type AdminAuditStatus,
+  type Entitlement,
+  type EntitlementState,
+  type PeriodKind,
+  type Plan,
+  type PlanState,
   type RateLimitPolicy,
   type Scope,
   type Subject,
@@ -51,6 +58,7 @@ program
   .option("--max-total-tokens <n>", "max total reserved tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
   .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
   .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
+  .option("--no-entitlement-check", "allow issuing a key without an active entitlement during compatibility rollout")
   .action((options) => {
     withAuditedStore(
       {
@@ -63,12 +71,19 @@ program
           user_name: normalizeOptionalText(options.name),
           user_phone: normalizeOptionalText(options.phone),
           expires_days: options.expiresDays,
+          no_entitlement_check: Boolean(options.noEntitlementCheck),
           rate: rateFromOptions(options)
         }
       },
       (store) => {
         const subject = issueSubject(store, options);
         store.upsertSubject(subject);
+        assertCanIssueCredentialForEntitlement(
+          store,
+          subject.id,
+          options.scope,
+          Boolean(options.noEntitlementCheck)
+        );
 
         const issued = issueAccessCredential({
           subjectId: subject.id,
@@ -256,6 +271,327 @@ program
     });
   });
 
+const planCommand = program.command("plan").description("Manage plan templates.");
+
+planCommand
+  .command("create")
+  .description("Create an immutable plan template.")
+  .requiredOption("--id <id>", "plan id, e.g. plan_pro_v1")
+  .requiredOption("--policy-file <path>", "JSON token policy file")
+  .option("--display-name <name>", "public display name")
+  .option("--scope <list>", "comma-separated scopes", parseScopeList, ["code"])
+  .option("--priority-class <n>", "reserved for future scheduling", parseNonNegativeInteger, 5)
+  .option("--team-pool-id <id>", "reserved team pool id")
+  .action((options) => {
+    withAuditedStore(
+      {
+        action: "plan-create",
+        params: {
+          plan_id: options.id,
+          display_name: options.displayName,
+          scope_allowlist: options.scope,
+          priority_class: options.priorityClass,
+          team_pool_id: options.teamPoolId ?? null
+        }
+      },
+      (store) => {
+        const plan = store.createPlan({
+          id: options.id,
+          displayName: options.displayName ?? options.id,
+          policy: readTokenPolicyFile(options.policyFile),
+          scopeAllowlist: options.scope,
+          priorityClass: options.priorityClass,
+          teamPoolId: options.teamPoolId ?? null
+        });
+        return {
+          output: { plan: publicPlan(plan, true) },
+          audit: {
+            params: { plan_id: plan.id }
+          }
+        };
+      }
+    );
+  });
+
+planCommand
+  .command("list")
+  .description("List plans.")
+  .option("--state <state>", "active or deprecated", parsePlanState)
+  .action((options) => {
+    withStore((store) => {
+      printJson({
+        plans: store.listPlans({ state: options.state }).map((plan) => publicPlan(plan, false))
+      });
+    });
+  });
+
+planCommand
+  .command("show")
+  .argument("<plan-id>")
+  .description("Show a plan.")
+  .action((planId) => {
+    withStore((store) => {
+      const plan = store.getPlan(planId);
+      if (!plan) {
+        throw new Error(`Plan not found: ${planId}`);
+      }
+      printJson({ plan: publicPlan(plan, true) });
+    });
+  });
+
+planCommand
+  .command("deprecate")
+  .argument("<plan-id>")
+  .description("Deprecate a plan so it cannot grant new entitlements.")
+  .action((planId) => {
+    withAuditedStore(
+      { action: "plan-deprecate", params: { plan_id: planId } },
+      (store) => {
+        const plan = store.deprecatePlan(planId);
+        if (!plan) {
+          throw new Error(`Plan not found: ${planId}`);
+        }
+        return {
+          output: { plan: publicPlan(plan, true) },
+          audit: { params: { plan_id: plan.id } }
+        };
+      }
+    );
+  });
+
+const entitlementCommand = program
+  .command("entitlement")
+  .description("Manage user plan entitlements.");
+
+entitlementCommand
+  .command("grant")
+  .description("Grant a plan entitlement to a user.")
+  .requiredOption("--user <id>", "user id")
+  .requiredOption("--plan <id>", "plan id")
+  .requiredOption("--period <kind>", "monthly, one_off, or unlimited", parsePeriodKind)
+  .option("--start <iso>", "period start", parseDate)
+  .option("--duration <duration>", "one_off duration such as 1h, 30m, or 7d", parseDurationMs)
+  .option("--end <iso>", "period end for one_off", parseDate)
+  .option("--replace", "cancel conflicting current/scheduled entitlement before grant")
+  .option("--notes <text>", "operator notes")
+  .action((options) => {
+    withAuditedStore(
+      {
+        action: "entitlement-grant",
+        targetUserId: options.user,
+        params: entitlementGrantAuditParams(options)
+      },
+      (store) => {
+        const periodEnd = entitlementEndFromOptions(options.start, options.end, options.duration);
+        const entitlement = store.grantEntitlement({
+          subjectId: options.user,
+          planId: options.plan,
+          periodKind: options.period,
+          periodStart: options.start,
+          periodEnd,
+          replace: Boolean(options.replace),
+          notes: normalizeOptionalText(options.notes)
+        });
+        return {
+          output: { entitlement: publicEntitlement(entitlement) },
+          audit: {
+            targetUserId: entitlement.subjectId,
+            params: { entitlement_id: entitlement.id, plan_id: entitlement.planId }
+          }
+        };
+      }
+    );
+  });
+
+entitlementCommand
+  .command("renew")
+  .description("Create a scheduled renewal after the current monthly entitlement.")
+  .requiredOption("--user <id>", "user id")
+  .option("--plan <id>", "replacement plan id")
+  .option("--replace", "replace an existing scheduled renewal")
+  .action((options) => {
+    withAuditedStore(
+      {
+        action: "entitlement-renew",
+        targetUserId: options.user,
+        params: { plan_id: options.plan, replace: Boolean(options.replace) }
+      },
+      (store) => {
+        const entitlement = store.renewEntitlement({
+          subjectId: options.user,
+          planId: options.plan,
+          replace: Boolean(options.replace)
+        });
+        return {
+          output: { entitlement: publicEntitlement(entitlement) },
+          audit: {
+            targetUserId: entitlement.subjectId,
+            params: { entitlement_id: entitlement.id, plan_id: entitlement.planId }
+          }
+        };
+      }
+    );
+  });
+
+entitlementCommand
+  .command("pause")
+  .argument("<entitlement-id>")
+  .description("Pause an active entitlement.")
+  .action((id) => {
+    withAuditedStore({ action: "entitlement-pause", params: { entitlement_id: id } }, (store) => {
+      const entitlement = store.pauseEntitlement({ id });
+      return {
+        output: { entitlement: publicEntitlement(entitlement) },
+        audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
+      };
+    });
+  });
+
+entitlementCommand
+  .command("resume")
+  .argument("<entitlement-id>")
+  .description("Resume a paused entitlement.")
+  .action((id) => {
+    withAuditedStore({ action: "entitlement-resume", params: { entitlement_id: id } }, (store) => {
+      const entitlement = store.resumeEntitlement({ id });
+      return {
+        output: { entitlement: publicEntitlement(entitlement) },
+        audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
+      };
+    });
+  });
+
+entitlementCommand
+  .command("cancel")
+  .argument("<entitlement-id>")
+  .description("Cancel an entitlement.")
+  .option("--reason <text>", "cancellation reason")
+  .action((id, options) => {
+    withAuditedStore(
+      { action: "entitlement-cancel", params: { entitlement_id: id, reason: options.reason } },
+      (store) => {
+        const entitlement = store.cancelEntitlement({
+          id,
+          reason: normalizeOptionalText(options.reason)
+        });
+        return {
+          output: { entitlement: publicEntitlement(entitlement) },
+          audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
+        };
+      }
+    );
+  });
+
+entitlementCommand
+  .command("show")
+  .argument("[entitlement-id]")
+  .description("Show an entitlement by id or the current user entitlement with --user.")
+  .option("--user <id>", "user id")
+  .action((id, options) => {
+    withStore((store) => {
+      if (id) {
+        const entitlement = store.getEntitlement(id);
+        if (!entitlement) {
+          throw new Error(`Entitlement not found: ${id}`);
+        }
+        printJson({ entitlement: publicEntitlement(entitlement) });
+        return;
+      }
+      if (!options.user) {
+        throw new Error("Use an entitlement id or --user.");
+      }
+      const access = store.entitlementAccessForSubject(options.user);
+      printJson({
+        user_id: options.user,
+        access: publicEntitlementAccess(access)
+      });
+    });
+  });
+
+entitlementCommand
+  .command("list")
+  .description("List entitlements.")
+  .option("--user <id>", "filter by user id")
+  .option("--plan <id>", "filter by plan id")
+  .option("--state <state>", "filter by state", parseEntitlementState)
+  .option("--period-active-at <iso>", "filter entitlements active at this time", parseDate)
+  .action((options) => {
+    withStore((store) => {
+      printJson({
+        entitlements: store
+          .listEntitlements({
+            subjectId: options.user,
+            planId: options.plan,
+            state: options.state,
+            periodActiveAt: options.periodActiveAt
+          })
+          .map(publicEntitlement)
+      });
+    });
+  });
+
+entitlementCommand
+  .command("bulk-grant")
+  .description("Grant a plan entitlement to multiple users, best effort.")
+  .requiredOption("--plan <id>", "plan id")
+  .requiredOption("--period <kind>", "monthly, one_off, or unlimited", parsePeriodKind)
+  .requiredOption("--users <list>", "comma-separated user ids")
+  .option("--start <iso>", "period start", parseDate)
+  .option("--duration <duration>", "one_off duration such as 1h, 30m, or 7d", parseDurationMs)
+  .option("--end <iso>", "period end for one_off", parseDate)
+  .option("--replace", "cancel conflicting current/scheduled entitlement before grant")
+  .action((options) => {
+    withAuditedStore(
+      {
+        action: "entitlement-grant",
+        params: {
+          bulk: true,
+          plan_id: options.plan,
+          users: parseCommaList(options.users),
+          period: options.period,
+          replace: Boolean(options.replace)
+        }
+      },
+      (store) => {
+        const periodEnd = entitlementEndFromOptions(options.start, options.end, options.duration);
+        const granted: Entitlement[] = [];
+        const failures: Array<{ user_id: string; error: string }> = [];
+        for (const user of parseCommaList(options.users)) {
+          try {
+            granted.push(
+              store.grantEntitlement({
+                subjectId: user,
+                planId: options.plan,
+                periodKind: options.period,
+                periodStart: options.start,
+                periodEnd,
+                replace: Boolean(options.replace)
+              })
+            );
+          } catch (err) {
+            failures.push({
+              user_id: user,
+              error: err instanceof Error ? err.message : String(err)
+            });
+          }
+        }
+        return {
+          output: {
+            granted: granted.map(publicEntitlement),
+            failures
+          },
+          audit: {
+            params: {
+              plan_id: options.plan,
+              granted: granted.length,
+              failed: failures.length
+            }
+          }
+        };
+      }
+    );
+  });
+
 program
   .command("update-user")
   .argument("<user>")
@@ -359,6 +695,7 @@ program
   .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
   .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
   .option("--clear-token-policy", "remove token budget policy from this credential")
+  .option("--no-entitlement-check", "allow updating a key without an active entitlement during compatibility rollout")
   .action((prefix, options: UpdateKeyOptions) => {
     withAuditedStore(
       {
@@ -379,6 +716,12 @@ program
         if (oldCredential.revokedAt) {
           throw new Error(`Credential prefix is revoked and cannot be updated: ${prefix}`);
         }
+        assertCanIssueCredentialForEntitlement(
+          store,
+          oldCredential.subjectId,
+          options.scope ?? oldCredential.scope,
+          Boolean(options.noEntitlementCheck)
+        );
 
         const expiresAt = updateKeyExpiresAt(options);
         const rate = updateKeyRate(oldCredential.rate, options);
@@ -502,6 +845,7 @@ program
   .option("--days <days>", "days to report when --since is omitted", parsePositiveInteger, 7)
   .option("--since <iso>", "inclusive ISO start time", parseDate)
   .option("--until <iso>", "exclusive ISO end time", parseDate)
+  .option("--group-by <dimension>", "optional grouping dimension: entitlement", parseReportGroupBy)
   .action((options) => {
     withStore((store) => {
       const subjectId = resolveUserId(options);
@@ -514,7 +858,8 @@ program
         credentialId: options.credentialId,
         subjectId,
         since,
-        until
+        until,
+        groupBy: options.groupBy
       });
       printJson({
         since: since.toISOString(),
@@ -526,6 +871,7 @@ program
           scope: row.scope,
           upstream_account_id: row.upstreamAccountId,
           provider: row.provider,
+          entitlement_id: row.entitlementId ?? null,
           requests: row.requests,
           ok: row.ok,
           errors: row.errors,
@@ -557,17 +903,19 @@ program
       if (!userId) {
         throw new Error("--user is required.");
       }
-      const credential = resolveTokenPolicyCredential(store, userId, options.credentialPrefix);
+      const resolved = resolveTokenWindowPolicy(store, userId, options.credentialPrefix);
       const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
       const usage = await limiter.getCurrentUsage({
         subjectId: userId,
-        policy: credential.rate.token as TokenLimitPolicy
+        entitlementId: resolved.entitlementId,
+        policy: resolved.policy
       });
       printJson({
         user_id: userId,
-        credential_id: credential.id,
-        credential_prefix: credential.prefix,
-        token: publicTokenPolicy(credential.rate.token as TokenLimitPolicy),
+        credential_id: resolved.credential?.id ?? null,
+        credential_prefix: resolved.credential?.prefix ?? null,
+        entitlement_id: resolved.entitlementId,
+        token: publicTokenPolicy(resolved.policy),
         token_usage: publicTokenUsage(usage)
       });
     });
@@ -595,6 +943,7 @@ program
           kind: reservation.kind,
           credential_id: reservation.credentialId,
           subject_id: reservation.subjectId,
+          entitlement_id: reservation.entitlementId,
           scope: reservation.scope,
           upstream_account_id: reservation.upstreamAccountId,
           provider: reservation.provider,
@@ -849,6 +1198,7 @@ interface UpdateKeyOptions {
   reserveTokens?: number;
   missingUsageCharge?: MissingUsageCharge;
   clearTokenPolicy?: boolean;
+  noEntitlementCheck?: boolean;
 }
 
 interface UpdateUserOptions {
@@ -1012,6 +1362,9 @@ function buildTrialCheck(
     activeApiKeyTrialCheck(activeCredentials.length),
     apiKeyLimitsTrialCheck(uncappedCredentials),
     userContactTrialCheck(activeUsersMissingContact),
+    activeCredentialEntitlementTrialCheck(store, activeCredentials),
+    expiringEntitlementTrialCheck(store, generatedAt),
+    idleActivePlanTrialCheck(store, generatedAt),
     auditTrailTrialCheck(latestAuditEvent)
   ];
 
@@ -1187,6 +1540,117 @@ function userContactTrialCheck(subjects: Subject[]): TrialCheck {
   };
 }
 
+function activeCredentialEntitlementTrialCheck(
+  store: ReturnType<typeof createSqliteStore>,
+  activeCredentials: AccessCredentialRecord[]
+): TrialCheck {
+  const legacy: string[] = [];
+  const rejected: Array<{ user_id: string; status: string; reason?: string }> = [];
+  for (const subjectId of new Set(activeCredentials.map((credential) => credential.subjectId))) {
+    const access = store.entitlementAccessForSubject(subjectId);
+    if (access.status === "active") {
+      continue;
+    }
+    if (access.status === "legacy") {
+      legacy.push(subjectId);
+      continue;
+    }
+    rejected.push({
+      user_id: subjectId,
+      status: access.status,
+      ...("reason" in access ? { reason: access.reason } : {})
+    });
+  }
+  if (legacy.length === 0 && rejected.length === 0) {
+    return {
+      name: "active_credential_entitlements",
+      status: "ok",
+      message: "Active credentials have active entitlements."
+    };
+  }
+  const strict = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
+  if (rejected.length > 0) {
+    return {
+      name: "active_credential_entitlements",
+      status: "error",
+      message: "Some active credentials have entitlement states that gateway requests reject.",
+      detail: {
+        ...(legacy.length > 0 ? { legacy_users: legacy } : {}),
+        rejected_users: rejected
+      }
+    };
+  }
+  return {
+    name: "active_credential_entitlements",
+    status: strict ? "error" : "warning",
+    message: strict
+      ? "Some active credentials have no active entitlement and will be rejected."
+      : "Some active credentials have no active entitlement; compatibility mode keeps legacy keys usable.",
+    detail: { users: legacy }
+  };
+}
+
+function expiringEntitlementTrialCheck(
+  store: ReturnType<typeof createSqliteStore>,
+  now: Date
+): TrialCheck {
+  const soon = addDays(now, 7);
+  const expiring = store
+    .listEntitlements({ state: "active" })
+    .filter(
+      (entitlement) =>
+        entitlement.periodEnd &&
+        entitlement.periodEnd.getTime() > now.getTime() &&
+        entitlement.periodEnd.getTime() < soon.getTime()
+    );
+  if (expiring.length === 0) {
+    return {
+      name: "entitlement_renewal_window",
+      status: "ok",
+      message: "No active entitlements expire in the next 7 days."
+    };
+  }
+  return {
+    name: "entitlement_renewal_window",
+    status: "warning",
+    message: "Some active entitlements expire in the next 7 days.",
+    detail: {
+      entitlements: expiring.map((entitlement) => ({
+        id: entitlement.id,
+        user_id: entitlement.subjectId,
+        period_end: entitlement.periodEnd?.toISOString() ?? null
+      }))
+    }
+  };
+}
+
+function idleActivePlanTrialCheck(
+  store: ReturnType<typeof createSqliteStore>,
+  now: Date
+): TrialCheck {
+  const cutoff = addDays(now, -90);
+  const idlePlans = store
+    .listPlans({ state: "active" })
+    .filter(
+      (plan) =>
+        plan.createdAt.getTime() < cutoff.getTime() &&
+        store.listEntitlements({ planId: plan.id }).length === 0
+    );
+  if (idlePlans.length === 0) {
+    return {
+      name: "active_plan_usage",
+      status: "ok",
+      message: "Active plans have recent or historical entitlement usage."
+    };
+  }
+  return {
+    name: "active_plan_usage",
+    status: "warning",
+    message: "Some active plans have no entitlements granted in 90 days.",
+    detail: { plans: idlePlans.map((plan) => plan.id) }
+  };
+}
+
 function auditTrailTrialCheck(latestAuditEvent: AdminAuditEventRecord | null): TrialCheck {
   if (!latestAuditEvent) {
     return {
@@ -1344,6 +1808,27 @@ function issueSubject(
   };
 }
 
+function assertCanIssueCredentialForEntitlement(
+  store: ReturnType<typeof createSqliteStore>,
+  userId: string,
+  scope: Scope,
+  bypass: boolean
+): void {
+  const access = store.entitlementAccessForSubject(userId);
+  if (access.status === "active") {
+    if (!access.entitlement.scopeAllowlist.includes(scope)) {
+      throw new Error(`Credential scope is not allowed by active entitlement: ${scope}`);
+    }
+    return;
+  }
+  if (access.status !== "legacy" && !bypass) {
+    throw new Error(`User has no active entitlement: ${userId}`);
+  }
+  if (process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1" && !bypass) {
+    throw new Error(`User has no active entitlement: ${userId}`);
+  }
+}
+
 function resolveUserId(options: { user?: string; subjectId?: string }): string | undefined {
   if (options.user && options.subjectId && options.subjectId !== defaultSubjectId) {
     throw new Error("Use --user or --subject-id, not both.");
@@ -1464,7 +1949,8 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
     rpd: normalizeNullableIntegerOption(options.rpd),
     concurrent: normalizeNullableIntegerOption(options.concurrent),
     token: requestedTokenPolicyParams(options),
-    clear_token_policy: Boolean(options.clearTokenPolicy)
+    clear_token_policy: Boolean(options.clearTokenPolicy),
+    no_entitlement_check: Boolean(options.noEntitlementCheck)
   };
 }
 
@@ -1624,6 +2110,57 @@ function publicCredential(
   return output;
 }
 
+function publicPlan(plan: Plan, includePolicy: boolean) {
+  return {
+    id: plan.id,
+    display_name: plan.displayName,
+    scope_allowlist: plan.scopeAllowlist,
+    priority_class: plan.priorityClass,
+    team_pool_id: plan.teamPoolId,
+    state: plan.state,
+    created_at: plan.createdAt.toISOString(),
+    metadata: plan.metadata,
+    ...(includePolicy ? { policy: plan.policy } : {})
+  };
+}
+
+function publicEntitlement(entitlement: Entitlement) {
+  return {
+    id: entitlement.id,
+    user_id: entitlement.subjectId,
+    subject_id: entitlement.subjectId,
+    plan_id: entitlement.planId,
+    policy_snapshot: entitlement.policySnapshot,
+    scope_allowlist: entitlement.scopeAllowlist,
+    period_kind: entitlement.periodKind,
+    period_start: entitlement.periodStart.toISOString(),
+    period_end: entitlement.periodEnd?.toISOString() ?? null,
+    state: entitlement.state,
+    team_seat_id: entitlement.teamSeatId,
+    created_at: entitlement.createdAt.toISOString(),
+    cancelled_at: entitlement.cancelledAt?.toISOString() ?? null,
+    cancelled_reason: entitlement.cancelledReason,
+    notes: entitlement.notes
+  };
+}
+
+function publicEntitlementAccess(
+  access: ReturnType<ReturnType<typeof createSqliteStore>["entitlementAccessForSubject"]>
+) {
+  if (access.status === "active") {
+    return {
+      status: access.status,
+      plan: access.plan ? publicPlan(access.plan, false) : null,
+      entitlement: publicEntitlement(access.entitlement)
+    };
+  }
+  return {
+    status: access.status,
+    ...("reason" in access ? { reason: access.reason } : {}),
+    ...("entitlement" in access ? { entitlement: access.entitlement ? publicEntitlement(access.entitlement) : null } : {})
+  };
+}
+
 function publicTokenPolicy(policy: TokenLimitPolicy) {
   return {
     tokensPerMinute: policy.tokensPerMinute,
@@ -1636,6 +2173,7 @@ function publicTokenPolicy(policy: TokenLimitPolicy) {
 
 function publicTokenUsage(usage: Awaited<ReturnType<ReturnType<typeof createSqliteTokenBudgetLimiter>["getCurrentUsage"]>>) {
   return {
+    source: usage.source,
     minute: publicTokenWindow(usage.minute),
     day: publicTokenWindow(usage.day),
     month: publicTokenWindow(usage.month)
@@ -1741,6 +2279,174 @@ function publicAdminAuditEvent(record: AdminAuditEventRecord) {
   };
 }
 
+function readTokenPolicyFile(filePath: string): TokenLimitPolicy {
+  const parsed = JSON.parse(readFileSync(filePath, "utf8")) as TokenLimitPolicy;
+  return validatePlanPolicy(parsed);
+}
+
+function resolveTokenWindowPolicy(
+  store: ReturnType<typeof createSqliteStore>,
+  userId: string,
+  prefix?: string
+): {
+  credential: AccessCredentialRecord | null;
+  entitlementId: string | null;
+  policy: TokenLimitPolicy;
+} {
+  const access = store.entitlementAccessForSubject(userId);
+  const credential = prefix
+    ? resolveCredentialForUser(store, userId, prefix)
+    : firstActiveCredential(store, userId);
+  if (access.status === "active") {
+    return {
+      credential,
+      entitlementId: access.entitlement.id,
+      policy: mergeEntitlementTokenPolicy(
+        access.entitlement.policySnapshot,
+        credential?.rate.token ?? null
+      )
+    };
+  }
+  const tokenCredential = resolveTokenPolicyCredential(store, userId, prefix);
+  return {
+    credential: tokenCredential,
+    entitlementId: null,
+    policy: tokenCredential.rate.token as TokenLimitPolicy
+  };
+}
+
+function firstActiveCredential(
+  store: ReturnType<typeof createSqliteStore>,
+  userId: string
+): AccessCredentialRecord | null {
+  const now = new Date();
+  const subject = store.getSubject(userId);
+  return (
+    store
+      .listAccessCredentials({ subjectId: userId, includeRevoked: false })
+      .find((credential) => credentialStatus(credential, subject, now) === "active") ?? null
+  );
+}
+
+function resolveCredentialForUser(
+  store: ReturnType<typeof createSqliteStore>,
+  userId: string,
+  prefix: string
+): AccessCredentialRecord {
+  const credential = store.getAccessCredentialByPrefix(prefix);
+  if (!credential || credential.subjectId !== userId) {
+    throw new Error(`Credential prefix not found for user ${userId}: ${prefix}`);
+  }
+  return credential;
+}
+
+function entitlementEndFromOptions(
+  start: Date | undefined,
+  end: Date | undefined,
+  durationMs: number | undefined
+): Date | null | undefined {
+  if (end && durationMs !== undefined) {
+    throw new Error("Use --end or --duration, not both.");
+  }
+  if (end) {
+    return end;
+  }
+  if (durationMs !== undefined) {
+    return new Date((start ?? new Date()).getTime() + durationMs);
+  }
+  return undefined;
+}
+
+function entitlementGrantAuditParams(options: {
+  plan: string;
+  period: PeriodKind;
+  start?: Date;
+  end?: Date;
+  duration?: number;
+  replace?: boolean;
+  notes?: string;
+}): Record<string, unknown> {
+  return {
+    plan_id: options.plan,
+    period: options.period,
+    start: options.start?.toISOString(),
+    end: options.end?.toISOString(),
+    duration_ms: options.duration,
+    replace: Boolean(options.replace),
+    notes: normalizeOptionalText(options.notes)
+  };
+}
+
+function parseScopeList(value: string): Scope[] {
+  const scopes = parseCommaList(value).map(parseScope);
+  if (scopes.length === 0) {
+    throw new InvalidArgumentError("scope list must not be empty");
+  }
+  return Array.from(new Set(scopes));
+}
+
+function parseCommaList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parsePlanState(value: string): PlanState {
+  if (value === "active" || value === "deprecated") {
+    return value;
+  }
+  throw new InvalidArgumentError("plan state must be active or deprecated");
+}
+
+function parsePeriodKind(value: string): PeriodKind {
+  if (value === "monthly" || value === "one_off" || value === "unlimited") {
+    return value;
+  }
+  throw new InvalidArgumentError("period must be monthly, one_off, or unlimited");
+}
+
+function parseEntitlementState(value: string): EntitlementState {
+  if (
+    value === "scheduled" ||
+    value === "active" ||
+    value === "paused" ||
+    value === "expired" ||
+    value === "cancelled"
+  ) {
+    return value;
+  }
+  throw new InvalidArgumentError(
+    "entitlement state must be scheduled, active, paused, expired, or cancelled"
+  );
+}
+
+function parseReportGroupBy(value: string): "entitlement" {
+  if (value === "entitlement") {
+    return value;
+  }
+  throw new InvalidArgumentError("group-by must be entitlement");
+}
+
+function parseDurationMs(value: string): number {
+  const match = value.match(/^(\d+)(m|h|d)$/);
+  if (!match) {
+    throw new InvalidArgumentError("duration must look like 30m, 1h, or 7d");
+  }
+  const amount = Number.parseInt(match[1], 10);
+  const unit = match[2];
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new InvalidArgumentError("duration amount must be a positive integer");
+  }
+  if (unit === "m") {
+    return amount * 60_000;
+  }
+  if (unit === "h") {
+    return amount * 60 * 60_000;
+  }
+  return amount * 24 * 60 * 60_000;
+}
+
 function parseScope(value: string): Scope {
   if (value === "code" || value === "medical") {
     return value;
@@ -1767,12 +2473,21 @@ function parseAdminAuditAction(value: string): AdminAuditAction {
     value === "enable-user" ||
     value === "prune-events" ||
     value === "token-overrun" ||
-    value === "token-reservation-expired"
+    value === "token-reservation-expired" ||
+    value === "plan-create" ||
+    value === "plan-deprecate" ||
+    value === "entitlement-grant" ||
+    value === "entitlement-renew" ||
+    value === "entitlement-cancel" ||
+    value === "entitlement-pause" ||
+    value === "entitlement-resume" ||
+    value === "entitlement-activate" ||
+    value === "entitlement-expire"
   ) {
     return value;
   }
   throw new InvalidArgumentError(
-    "action must be issue, update-key, revoke, rotate, reveal-key, update-user, disable-user, enable-user, prune-events, token-overrun, or token-reservation-expired"
+    "action must be a known admin audit action"
   );
 }
 

@@ -2,28 +2,43 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type {
-  AccessCredentialRecord,
-  AdminAuditEventRecord,
-  ClientMessageEventRecord,
-  ClientMessageEventStore,
-  CreateGatewaySessionInput,
-  GatewaySession,
-  GatewayStore,
-  ListAccessCredentialsInput,
-  ListAdminAuditEventsInput,
-  ListRequestEventsInput,
-  ListSubjectsInput,
-  PruneRequestEventsInput,
-  PruneRequestEventsResult,
-  RequestEventRecord,
-  RequestUsageReportInput,
-  RequestUsageReportRow,
-  RateLimitPolicy,
-  Subject,
-  SubjectState,
-  UpstreamAccount,
-  UpdateAccessCredentialInput
+import {
+  validatePlanPolicy,
+  type AccessCredentialRecord,
+  type AdminAuditEventRecord,
+  type ClientMessageEventRecord,
+  type ClientMessageEventStore,
+  type CreateGatewaySessionInput,
+  type CreatePlanInput,
+  type Entitlement,
+  type EntitlementAccessDecision,
+  type EntitlementState,
+  type GatewaySession,
+  type GatewayStore,
+  type GrantEntitlementInput,
+  type ListAccessCredentialsInput,
+  type ListAdminAuditEventsInput,
+  type ListEntitlementsInput,
+  type ListPlansInput,
+  type ListRequestEventsInput,
+  type ListSubjectsInput,
+  type PeriodKind,
+  type Plan,
+  type PlanState,
+  type PruneRequestEventsInput,
+  type PruneRequestEventsResult,
+  type RateLimitPolicy,
+  type RenewEntitlementInput,
+  type RequestEventRecord,
+  type RequestUsageReportInput,
+  type RequestUsageReportRow,
+  type Scope,
+  type Subject,
+  type SubjectState,
+  type TokenLimitPolicy,
+  type UpstreamAccount,
+  type UpdateAccessCredentialInput,
+  type UpdateEntitlementStateInput
 } from "@codex-gateway/core";
 
 export interface SqliteStoreOptions {
@@ -295,6 +310,242 @@ export class SqliteGatewayStore implements GatewayStore {
     return this.getAccessCredentialByPrefix(prefix);
   }
 
+  createPlan(input: {
+    id: string;
+    displayName: string;
+    policy: TokenLimitPolicy;
+    scopeAllowlist: Scope[];
+    priorityClass?: number;
+    teamPoolId?: string | null;
+    metadata?: Record<string, unknown> | null;
+    now?: Date;
+  }): Plan {
+    const plan = normalizeCreatePlanInput(input);
+    this.db
+      .prepare(
+        `INSERT INTO plans (
+          id, display_name, policy_json, scope_allowlist_json, priority_class,
+          team_pool_id, state, created_at, metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+      )
+      .run(
+        plan.id,
+        plan.displayName,
+        JSON.stringify(plan.policy),
+        JSON.stringify(plan.scopeAllowlist),
+        plan.priorityClass,
+        plan.teamPoolId,
+        plan.createdAt.toISOString(),
+        plan.metadata ? JSON.stringify(plan.metadata) : null
+      );
+    return plan;
+  }
+
+  listPlans(input: ListPlansInput = {}): Plan[] {
+    const rows = input.state
+      ? this.db
+          .prepare(
+            `SELECT id, display_name, policy_json, scope_allowlist_json, priority_class,
+                    team_pool_id, state, created_at, metadata_json
+             FROM plans
+             WHERE state = ?
+             ORDER BY created_at DESC, id`
+          )
+          .all(input.state)
+      : this.db
+          .prepare(
+            `SELECT id, display_name, policy_json, scope_allowlist_json, priority_class,
+                    team_pool_id, state, created_at, metadata_json
+             FROM plans
+             ORDER BY created_at DESC, id`
+          )
+          .all();
+    return rows.map(rowToPlan);
+  }
+
+  getPlan(id: string): Plan | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, display_name, policy_json, scope_allowlist_json, priority_class,
+                team_pool_id, state, created_at, metadata_json
+         FROM plans
+         WHERE id = ?`
+      )
+      .get(id);
+    return row ? rowToPlan(row) : null;
+  }
+
+  deprecatePlan(id: string): Plan | null {
+    this.db.prepare("UPDATE plans SET state = 'deprecated' WHERE id = ?").run(id);
+    return this.getPlan(id);
+  }
+
+  grantEntitlement(input: GrantEntitlementInput): Entitlement {
+    const now = input.now ?? new Date();
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const plan = this.getPlan(input.planId);
+      if (!plan) {
+        throw new Error(`Plan not found: ${input.planId}`);
+      }
+      if (plan.state !== "active") {
+        throw new Error(`Plan is deprecated and cannot grant new entitlements: ${input.planId}`);
+      }
+      this.assertActiveCredentialScopesAllowed(input.subjectId, plan.scopeAllowlist, now);
+      return this.insertEntitlementFromPlan(plan, input, now);
+    });
+  }
+
+  renewEntitlement(input: RenewEntitlementInput): Entitlement {
+    const now = input.now ?? new Date();
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const current = this.activeEntitlementForSubjectInTransaction(input.subjectId, now);
+      if (!current) {
+        throw new Error(`No active entitlement found for user: ${input.subjectId}`);
+      }
+      if (!current.periodEnd) {
+        throw new Error("Cannot renew an unlimited entitlement.");
+      }
+      const planId = input.planId ?? current.planId;
+      const plan = this.getPlan(planId);
+      if (!plan) {
+        throw new Error(`Plan not found: ${planId}`);
+      }
+      if (plan.state !== "active") {
+        throw new Error(`Plan is deprecated and cannot grant new entitlements: ${planId}`);
+      }
+      this.assertActiveCredentialScopesAllowed(input.subjectId, plan.scopeAllowlist, now);
+      return this.insertEntitlementFromPlan(
+        plan,
+        {
+          subjectId: input.subjectId,
+          planId,
+          periodKind: "monthly",
+          periodStart: current.periodEnd,
+          replace: input.replace,
+          now
+        },
+        now
+      );
+    });
+  }
+
+  getEntitlement(id: string): Entitlement | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                period_kind, period_start, period_end, state, team_seat_id, created_at,
+                cancelled_at, cancelled_reason, notes
+         FROM entitlements
+         WHERE id = ?`
+      )
+      .get(id);
+    return row ? rowToEntitlement(row) : null;
+  }
+
+  listEntitlements(input: ListEntitlementsInput = {}): Entitlement[] {
+    const clauses: string[] = [];
+    const params: string[] = [];
+    if (input.subjectId) {
+      clauses.push("subject_id = ?");
+      params.push(input.subjectId);
+    }
+    if (input.planId) {
+      clauses.push("plan_id = ?");
+      params.push(input.planId);
+    }
+    if (input.state) {
+      clauses.push("state = ?");
+      params.push(input.state);
+    }
+    if (input.periodActiveAt) {
+      clauses.push("period_start <= ?");
+      clauses.push("(period_end IS NULL OR period_end > ?)");
+      params.push(input.periodActiveAt.toISOString(), input.periodActiveAt.toISOString());
+    }
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const rows = this.db
+      .prepare(
+        `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                period_kind, period_start, period_end, state, team_seat_id, created_at,
+                cancelled_at, cancelled_reason, notes
+         FROM entitlements
+         ${where}
+         ORDER BY created_at DESC, id DESC`
+      )
+      .all(...params);
+    return rows.map(rowToEntitlement);
+  }
+
+  pauseEntitlement(input: UpdateEntitlementStateInput): Entitlement {
+    return this.updateEntitlementState(input.id, "paused", input.now ?? new Date());
+  }
+
+  resumeEntitlement(input: UpdateEntitlementStateInput): Entitlement {
+    return this.updateEntitlementState(input.id, "active", input.now ?? new Date());
+  }
+
+  cancelEntitlement(input: UpdateEntitlementStateInput): Entitlement {
+    const now = input.now ?? new Date();
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const existing = this.getEntitlement(input.id);
+      if (!existing) {
+        throw new Error(`Entitlement not found: ${input.id}`);
+      }
+      if (!["scheduled", "active", "paused"].includes(existing.state)) {
+        throw new Error(`Cannot cancel entitlement from state ${existing.state}.`);
+      }
+      this.db
+        .prepare(
+          `UPDATE entitlements
+           SET state = 'cancelled', cancelled_at = ?, cancelled_reason = ?
+           WHERE id = ?`
+        )
+        .run(now.toISOString(), input.reason ?? null, input.id);
+      const updated = this.getEntitlement(input.id);
+      if (!updated) {
+        throw new Error(`Entitlement not found after update: ${input.id}`);
+      }
+      return updated;
+    });
+  }
+
+  entitlementAccessForSubject(
+    subjectId: string,
+    now: Date = new Date()
+  ): EntitlementAccessDecision {
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const active = this.activeEntitlementForSubjectInTransaction(subjectId, now);
+      if (active) {
+        return { status: "active", entitlement: active, plan: this.getPlan(active.planId) };
+      }
+
+      const latest = this.latestEntitlementForSubject(subjectId);
+      if (!latest) {
+        return { status: "legacy" };
+      }
+      if (latest.state === "expired") {
+        return { status: "expired", entitlement: latest };
+      }
+      if (latest.state === "paused") {
+        return { status: "inactive", reason: "paused", entitlement: latest };
+      }
+      if (latest.state === "scheduled") {
+        return { status: "inactive", reason: "scheduled", entitlement: latest };
+      }
+      if (latest.state === "cancelled") {
+        return { status: "inactive", reason: "cancelled", entitlement: latest };
+      }
+      return { status: "inactive", reason: "missing", entitlement: latest };
+    });
+  }
+
+  subjectHasEntitlementHistory(subjectId: string): boolean {
+    const row = this.db
+      .prepare("SELECT 1 AS found FROM entitlements WHERE subject_id = ? LIMIT 1")
+      .get(subjectId);
+    return Boolean(row);
+  }
+
   insertAdminAuditEvent(record: AdminAuditEventRecord): AdminAuditEventRecord {
     this.db
       .prepare(
@@ -530,60 +781,69 @@ export class SqliteGatewayStore implements GatewayStore {
   }
 
   reportRequestUsage(input: RequestUsageReportInput): RequestUsageReportRow[] {
-    const clauses = ["started_at >= ?"];
+    const groupByEntitlement = input.groupBy === "entitlement";
+    const clauses = ["request_events.started_at >= ?"];
     const params: string[] = [input.since.toISOString()];
     if (input.until) {
-      clauses.push("started_at < ?");
+      clauses.push("request_events.started_at < ?");
       params.push(input.until.toISOString());
     }
     if (input.credentialId) {
-      clauses.push("credential_id = ?");
+      clauses.push("request_events.credential_id = ?");
       params.push(input.credentialId);
     }
     if (input.subjectId) {
-      clauses.push("subject_id = ?");
+      clauses.push("request_events.subject_id = ?");
       params.push(input.subjectId);
     }
 
+    const entitlementSelect = groupByEntitlement ? "tr.entitlement_id AS entitlement_id," : "NULL AS entitlement_id,";
+    const entitlementJoin = groupByEntitlement
+      ? "LEFT JOIN token_reservations tr ON tr.id = request_events.reservation_id"
+      : "";
+    const entitlementGroup = groupByEntitlement ? ", tr.entitlement_id" : "";
     const requestRows = this.db
       .prepare(
-        `SELECT
-           substr(started_at, 1, 10) AS date,
-           credential_id,
-           subject_id,
-           scope,
-           upstream_account_id,
-           provider,
+         `SELECT
+           substr(request_events.started_at, 1, 10) AS date,
+           request_events.credential_id AS credential_id,
+           request_events.subject_id AS subject_id,
+           request_events.scope AS scope,
+           request_events.upstream_account_id AS upstream_account_id,
+           request_events.provider AS provider,
+           ${entitlementSelect}
            COUNT(*) AS requests,
-           SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok,
-           SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS errors,
-           SUM(CASE WHEN rate_limited = 1 THEN 1 ELSE 0 END) AS rate_limited,
-           AVG(duration_ms) AS avg_duration_ms,
-           AVG(first_byte_ms) AS avg_first_byte_ms,
+           SUM(CASE WHEN request_events.status = 'ok' THEN 1 ELSE 0 END) AS ok,
+           SUM(CASE WHEN request_events.status = 'error' THEN 1 ELSE 0 END) AS errors,
+           SUM(CASE WHEN request_events.rate_limited = 1 THEN 1 ELSE 0 END) AS rate_limited,
+           AVG(request_events.duration_ms) AS avg_duration_ms,
+           AVG(request_events.first_byte_ms) AS avg_first_byte_ms,
            0 AS prompt_tokens,
            0 AS completion_tokens,
            0 AS total_tokens,
            0 AS cached_prompt_tokens,
            0 AS estimated_tokens,
-           SUM(CASE WHEN limit_kind = 'request_minute' THEN 1 ELSE 0 END) AS request_minute,
-           SUM(CASE WHEN limit_kind = 'request_day' THEN 1 ELSE 0 END) AS request_day,
-           SUM(CASE WHEN limit_kind = 'concurrency' THEN 1 ELSE 0 END) AS concurrency,
-           SUM(CASE WHEN limit_kind = 'token_minute' THEN 1 ELSE 0 END) AS token_minute,
-           SUM(CASE WHEN limit_kind = 'token_day' THEN 1 ELSE 0 END) AS token_day,
-           SUM(CASE WHEN limit_kind = 'token_month' THEN 1 ELSE 0 END) AS token_month,
-           SUM(CASE WHEN limit_kind = 'token_request_prompt' THEN 1 ELSE 0 END) AS token_request_prompt,
-           SUM(CASE WHEN limit_kind = 'token_request_total' THEN 1 ELSE 0 END) AS token_request_total,
-           SUM(CASE WHEN over_request_limit = 1 THEN 1 ELSE 0 END) AS over_request_limit,
-           SUM(CASE WHEN identity_guard_hit = 1 THEN 1 ELSE 0 END) AS identity_guard_hit
+           SUM(CASE WHEN request_events.limit_kind = 'request_minute' THEN 1 ELSE 0 END) AS request_minute,
+           SUM(CASE WHEN request_events.limit_kind = 'request_day' THEN 1 ELSE 0 END) AS request_day,
+           SUM(CASE WHEN request_events.limit_kind = 'concurrency' THEN 1 ELSE 0 END) AS concurrency,
+           SUM(CASE WHEN request_events.limit_kind = 'token_minute' THEN 1 ELSE 0 END) AS token_minute,
+           SUM(CASE WHEN request_events.limit_kind = 'token_day' THEN 1 ELSE 0 END) AS token_day,
+           SUM(CASE WHEN request_events.limit_kind = 'token_month' THEN 1 ELSE 0 END) AS token_month,
+           SUM(CASE WHEN request_events.limit_kind = 'token_request_prompt' THEN 1 ELSE 0 END) AS token_request_prompt,
+           SUM(CASE WHEN request_events.limit_kind = 'token_request_total' THEN 1 ELSE 0 END) AS token_request_total,
+           SUM(CASE WHEN request_events.over_request_limit = 1 THEN 1 ELSE 0 END) AS over_request_limit,
+           SUM(CASE WHEN request_events.identity_guard_hit = 1 THEN 1 ELSE 0 END) AS identity_guard_hit
          FROM request_events
+         ${entitlementJoin}
          WHERE ${clauses.join(" AND ")}
          GROUP BY
-           substr(started_at, 1, 10),
-           credential_id,
-           subject_id,
-           scope,
-           upstream_account_id,
-           provider
+           substr(request_events.started_at, 1, 10),
+           request_events.credential_id,
+           request_events.subject_id,
+           request_events.scope,
+           request_events.upstream_account_id,
+           request_events.provider
+           ${entitlementGroup}
          ORDER BY date DESC, requests DESC, credential_id, subject_id`
       )
       .all(...params);
@@ -603,7 +863,8 @@ export class SqliteGatewayStore implements GatewayStore {
           subjectId: row.subject_id,
           scope: row.scope,
           upstreamAccountId: row.upstream_account_id,
-          provider: row.provider
+          provider: row.provider,
+          entitlementId: row.entitlement_id
         });
       report.promptTokens += row.prompt_tokens;
       report.completionTokens += row.completion_tokens;
@@ -636,14 +897,15 @@ export class SqliteGatewayStore implements GatewayStore {
     rows.push(
       ...(this.db
         .prepare(
-          `SELECT
-             substr(day_window_start, 1, 10) AS date,
-             credential_id,
-             subject_id,
-             scope,
-             upstream_account_id,
-             provider,
-             COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
+           `SELECT
+              substr(day_window_start, 1, 10) AS date,
+              credential_id,
+              subject_id,
+              scope,
+              upstream_account_id,
+              provider,
+              ${input.groupBy === "entitlement" ? "entitlement_id" : "NULL"} AS entitlement_id,
+              COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
              COALESCE(SUM(final_completion_tokens), 0) AS completion_tokens,
              COALESCE(SUM(final_total_tokens), 0) AS total_tokens,
              COALESCE(SUM(final_cached_prompt_tokens), 0) AS cached_prompt_tokens,
@@ -653,10 +915,11 @@ export class SqliteGatewayStore implements GatewayStore {
            GROUP BY
              substr(day_window_start, 1, 10),
              credential_id,
-             subject_id,
-             scope,
-             upstream_account_id,
-             provider`
+              subject_id,
+              scope,
+              upstream_account_id,
+              provider
+              ${input.groupBy === "entitlement" ? ", entitlement_id" : ""}`
         )
         .all(...reservationParams) as unknown as TokenUsageAggregateRow[])
     );
@@ -683,14 +946,15 @@ export class SqliteGatewayStore implements GatewayStore {
     rows.push(
       ...(this.db
         .prepare(
-          `SELECT
-             substr(started_at, 1, 10) AS date,
-             credential_id,
-             subject_id,
-             scope,
-             upstream_account_id,
-             provider,
-             COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
+           `SELECT
+              substr(started_at, 1, 10) AS date,
+              credential_id,
+              subject_id,
+              scope,
+              upstream_account_id,
+              provider,
+              NULL AS entitlement_id,
+              COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
              COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
              COALESCE(SUM(total_tokens), 0) AS total_tokens,
              COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
@@ -735,6 +999,257 @@ export class SqliteGatewayStore implements GatewayStore {
       matched: deleted,
       deleted
     };
+  }
+
+  private insertEntitlementFromPlan(
+    plan: Plan,
+    input: GrantEntitlementInput,
+    now: Date
+  ): Entitlement {
+    const period = entitlementPeriod(input.periodKind, input.periodStart, input.periodEnd, now);
+    const state: EntitlementState = period.start.getTime() > now.getTime() ? "scheduled" : "active";
+
+    if (state === "active") {
+      if (input.replace) {
+        this.cancelCurrentEntitlements(input.subjectId, now, "replaced");
+        this.cancelScheduledEntitlements(input.subjectId, now, "replaced");
+      } else if (this.currentEntitlementExists(input.subjectId)) {
+        throw new Error(`User already has an active or paused entitlement: ${input.subjectId}`);
+      }
+    } else if (input.replace) {
+      this.cancelScheduledEntitlements(input.subjectId, now, "replaced");
+    } else if (this.scheduledEntitlementExists(input.subjectId)) {
+      throw new Error(`User already has a scheduled entitlement: ${input.subjectId}`);
+    }
+
+    const entitlement: Entitlement = {
+      id: `ent_${randomUUID().replaceAll("-", "")}`,
+      subjectId: input.subjectId,
+      planId: plan.id,
+      policySnapshot: plan.policy,
+      scopeAllowlist: plan.scopeAllowlist,
+      periodKind: input.periodKind,
+      periodStart: period.start,
+      periodEnd: period.end,
+      state,
+      teamSeatId: null,
+      createdAt: now,
+      cancelledAt: null,
+      cancelledReason: null,
+      notes: input.notes ?? null
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO entitlements (
+          id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+          period_kind, period_start, period_end, state, team_seat_id, created_at,
+          cancelled_at, cancelled_reason, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        entitlement.id,
+        entitlement.subjectId,
+        entitlement.planId,
+        JSON.stringify(entitlement.policySnapshot),
+        JSON.stringify(entitlement.scopeAllowlist),
+        entitlement.periodKind,
+        entitlement.periodStart.toISOString(),
+        entitlement.periodEnd?.toISOString() ?? null,
+        entitlement.state,
+        entitlement.teamSeatId,
+        entitlement.createdAt.toISOString(),
+        entitlement.cancelledAt?.toISOString() ?? null,
+        entitlement.cancelledReason,
+        entitlement.notes
+      );
+
+    return entitlement;
+  }
+
+  private updateEntitlementState(
+    id: string,
+    nextState: EntitlementState,
+    now: Date
+  ): Entitlement {
+    return runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      const existing = this.getEntitlement(id);
+      if (!existing) {
+        throw new Error(`Entitlement not found: ${id}`);
+      }
+      assertEntitlementTransition(existing, nextState, now);
+      this.db.prepare("UPDATE entitlements SET state = ? WHERE id = ?").run(nextState, id);
+      const updated = this.getEntitlement(id);
+      if (!updated) {
+        throw new Error(`Entitlement not found after update: ${id}`);
+      }
+      return updated;
+    });
+  }
+
+  private activeEntitlementForSubjectInTransaction(
+    subjectId: string,
+    now: Date
+  ): Entitlement | null {
+    const expiredRows = this.db
+      .prepare(
+        `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                period_kind, period_start, period_end, state, team_seat_id, created_at,
+                cancelled_at, cancelled_reason, notes
+         FROM entitlements
+         WHERE subject_id = ?
+           AND state = 'active'
+           AND period_end IS NOT NULL
+           AND period_end <= ?`
+      )
+      .all(subjectId, now.toISOString())
+      .map(rowToEntitlement);
+
+    for (const entitlement of expiredRows) {
+      this.db.prepare("UPDATE entitlements SET state = 'expired' WHERE id = ?").run(entitlement.id);
+      this.insertAdminAuditEvent({
+        id: `audit_${randomUUID()}`,
+        action: "entitlement-expire",
+        targetUserId: entitlement.subjectId,
+        targetCredentialId: null,
+        targetCredentialPrefix: null,
+        status: "ok",
+        params: { entitlement_id: entitlement.id, plan_id: entitlement.planId },
+        errorMessage: null,
+        createdAt: now
+      });
+    }
+
+    if (!this.currentEntitlementExists(subjectId)) {
+      const scheduled = this.db
+        .prepare(
+          `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                  period_kind, period_start, period_end, state, team_seat_id, created_at,
+                  cancelled_at, cancelled_reason, notes
+           FROM entitlements
+           WHERE subject_id = ?
+             AND state = 'scheduled'
+             AND period_start <= ?
+           ORDER BY period_start ASC, created_at ASC
+           LIMIT 1`
+        )
+        .get(subjectId, now.toISOString());
+      if (scheduled) {
+        const entitlement = rowToEntitlement(scheduled);
+        this.db
+          .prepare("UPDATE entitlements SET state = 'active' WHERE id = ?")
+          .run(entitlement.id);
+        this.insertAdminAuditEvent({
+          id: `audit_${randomUUID()}`,
+          action: "entitlement-activate",
+          targetUserId: entitlement.subjectId,
+          targetCredentialId: null,
+          targetCredentialPrefix: null,
+          status: "ok",
+          params: { entitlement_id: entitlement.id, plan_id: entitlement.planId },
+          errorMessage: null,
+          createdAt: now
+        });
+      }
+    }
+
+    const active = this.db
+      .prepare(
+        `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                period_kind, period_start, period_end, state, team_seat_id, created_at,
+                cancelled_at, cancelled_reason, notes
+         FROM entitlements
+         WHERE subject_id = ?
+           AND state = 'active'
+           AND period_start <= ?
+           AND (period_end IS NULL OR period_end > ?)
+         ORDER BY period_start DESC, created_at DESC
+         LIMIT 1`
+      )
+      .get(subjectId, now.toISOString(), now.toISOString());
+    return active ? rowToEntitlement(active) : null;
+  }
+
+  private latestEntitlementForSubject(subjectId: string): Entitlement | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+                period_kind, period_start, period_end, state, team_seat_id, created_at,
+                cancelled_at, cancelled_reason, notes
+         FROM entitlements
+         WHERE subject_id = ?
+         ORDER BY period_start DESC, created_at DESC
+         LIMIT 1`
+      )
+      .get(subjectId);
+    return row ? rowToEntitlement(row) : null;
+  }
+
+  private currentEntitlementExists(subjectId: string): boolean {
+    const row = this.db
+      .prepare(
+        `SELECT 1 AS found
+         FROM entitlements
+         WHERE subject_id = ?
+           AND state IN ('active', 'paused')
+         LIMIT 1`
+      )
+      .get(subjectId);
+    return Boolean(row);
+  }
+
+  private scheduledEntitlementExists(subjectId: string): boolean {
+    const row = this.db
+      .prepare(
+        `SELECT 1 AS found
+         FROM entitlements
+         WHERE subject_id = ?
+           AND state = 'scheduled'
+         LIMIT 1`
+      )
+      .get(subjectId);
+    return Boolean(row);
+  }
+
+  private cancelCurrentEntitlements(subjectId: string, now: Date, reason: string): void {
+    this.db
+      .prepare(
+        `UPDATE entitlements
+         SET state = 'cancelled', cancelled_at = ?, cancelled_reason = ?
+         WHERE subject_id = ?
+           AND state IN ('active', 'paused')`
+      )
+      .run(now.toISOString(), reason, subjectId);
+  }
+
+  private cancelScheduledEntitlements(subjectId: string, now: Date, reason: string): void {
+    this.db
+      .prepare(
+        `UPDATE entitlements
+         SET state = 'cancelled', cancelled_at = ?, cancelled_reason = ?
+         WHERE subject_id = ?
+           AND state = 'scheduled'`
+      )
+      .run(now.toISOString(), reason, subjectId);
+  }
+
+  private assertActiveCredentialScopesAllowed(
+    subjectId: string,
+    scopeAllowlist: Scope[],
+    now: Date
+  ): void {
+    const disallowed = this.listAccessCredentials({ subjectId, includeRevoked: false }).filter(
+      (credential) =>
+        credential.expiresAt.getTime() > now.getTime() &&
+        !scopeAllowlist.includes(credential.scope)
+    );
+    if (disallowed.length > 0) {
+      throw new Error(
+        `Active credential scopes are not allowed by plan: ${disallowed
+          .map((credential) => credential.prefix)
+          .join(", ")}`
+      );
+    }
   }
 
   close(): void {
@@ -949,6 +1464,81 @@ export class SqliteGatewayStore implements GatewayStore {
       CREATE INDEX IF NOT EXISTS idx_token_reservations_finalized
         ON token_reservations(finalized_at);
     `);
+
+    this.applyMigration(9, () => {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS plans (
+          id TEXT PRIMARY KEY,
+          display_name TEXT NOT NULL,
+          policy_json TEXT NOT NULL,
+          scope_allowlist_json TEXT NOT NULL,
+          priority_class INTEGER NOT NULL DEFAULT 5,
+          team_pool_id TEXT,
+          state TEXT NOT NULL CHECK (state IN ('active', 'deprecated')),
+          created_at TEXT NOT NULL,
+          metadata_json TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_plans_state
+          ON plans(state);
+
+        CREATE TRIGGER IF NOT EXISTS trg_plans_policy_immutable
+        BEFORE UPDATE OF policy_json ON plans
+        BEGIN
+          SELECT RAISE(ABORT, 'plans.policy_json is immutable');
+        END;
+
+        CREATE TABLE IF NOT EXISTS entitlements (
+          id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          plan_id TEXT NOT NULL,
+          policy_snapshot_json TEXT NOT NULL,
+          scope_allowlist_json TEXT NOT NULL,
+          period_kind TEXT NOT NULL CHECK (period_kind IN ('monthly', 'one_off', 'unlimited')),
+          period_start TEXT NOT NULL,
+          period_end TEXT,
+          state TEXT NOT NULL CHECK (state IN ('scheduled', 'active', 'paused', 'expired', 'cancelled')),
+          team_seat_id TEXT,
+          created_at TEXT NOT NULL,
+          cancelled_at TEXT,
+          cancelled_reason TEXT,
+          notes TEXT,
+          FOREIGN KEY(subject_id) REFERENCES subjects(id),
+          FOREIGN KEY(plan_id) REFERENCES plans(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_entitlements_subject_active
+          ON entitlements(subject_id, state, period_end);
+
+        CREATE INDEX IF NOT EXISTS idx_entitlements_plan
+          ON entitlements(plan_id);
+
+        CREATE TABLE IF NOT EXISTS entitlement_token_windows (
+          entitlement_id TEXT NOT NULL,
+          window_kind TEXT NOT NULL CHECK (window_kind IN ('minute', 'day', 'month')),
+          window_start TEXT NOT NULL,
+          prompt_tokens INTEGER NOT NULL DEFAULT 0,
+          completion_tokens INTEGER NOT NULL DEFAULT 0,
+          total_tokens INTEGER NOT NULL DEFAULT 0,
+          cached_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+          estimated_tokens INTEGER NOT NULL DEFAULT 0,
+          requests INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(entitlement_id, window_kind, window_start),
+          FOREIGN KEY(entitlement_id) REFERENCES entitlements(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_entitlement_token_windows_kind
+          ON entitlement_token_windows(entitlement_id, window_kind, window_start DESC);
+      `);
+      if (!this.columnExists("token_reservations", "entitlement_id")) {
+        this.db.exec("ALTER TABLE token_reservations ADD COLUMN entitlement_id TEXT REFERENCES entitlements(id)");
+      }
+      this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_token_reservations_entitlement_created
+          ON token_reservations(entitlement_id, created_at);
+      `);
+    });
   }
 
   private applyMigration(version: number, migration: string | (() => void)): void {
@@ -1200,6 +1790,7 @@ interface TokenUsageAggregateRow {
   scope: RequestUsageReportRow["scope"];
   upstream_account_id: string | null;
   provider: RequestUsageReportRow["provider"];
+  entitlement_id: string | null;
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
@@ -1232,6 +1823,7 @@ function emptyRequestUsageReportRow(input: {
   scope: RequestUsageReportRow["scope"];
   upstreamAccountId: string | null;
   provider: RequestUsageReportRow["provider"];
+  entitlementId?: string | null;
 }): RequestUsageReportRow {
   return {
     date: input.date,
@@ -1240,6 +1832,7 @@ function emptyRequestUsageReportRow(input: {
     scope: input.scope,
     upstreamAccountId: input.upstreamAccountId,
     provider: input.provider,
+    entitlementId: input.entitlementId ?? null,
     requests: 0,
     ok: 0,
     errors: 0,
@@ -1262,6 +1855,7 @@ function requestUsageReportKey(row: RequestUsageReportRow): string {
     row.date,
     row.credentialId ?? "",
     row.subjectId ?? "",
+    row.entitlementId ?? "",
     row.scope ?? "",
     row.upstreamAccountId ?? "",
     row.provider ?? ""
@@ -1273,10 +1867,145 @@ function tokenUsageAggregateKey(row: TokenUsageAggregateRow): string {
     row.date,
     row.credential_id ?? "",
     row.subject_id ?? "",
+    row.entitlement_id ?? "",
     row.scope ?? "",
     row.upstream_account_id ?? "",
     row.provider ?? ""
   ].join("\u0000");
+}
+
+function normalizeCreatePlanInput(input: CreatePlanInput): Plan {
+  if (!input.id.trim()) {
+    throw new Error("Plan id is required.");
+  }
+  if (!input.displayName.trim()) {
+    throw new Error("Plan display name is required.");
+  }
+  const scopeAllowlist = normalizeScopeAllowlist(input.scopeAllowlist);
+  const priorityClass = input.priorityClass ?? 5;
+  if (!Number.isInteger(priorityClass) || priorityClass < 0) {
+    throw new Error("Plan priority_class must be a non-negative integer.");
+  }
+  const now = input.now ?? new Date();
+  return {
+    id: input.id,
+    displayName: input.displayName,
+    policy: validatePlanPolicy(input.policy),
+    scopeAllowlist,
+    priorityClass,
+    teamPoolId: input.teamPoolId ?? null,
+    state: "active",
+    createdAt: now,
+    metadata: input.metadata ?? null
+  };
+}
+
+function entitlementPeriod(
+  kind: PeriodKind,
+  requestedStart: Date | undefined,
+  requestedEnd: Date | null | undefined,
+  now: Date
+): { start: Date; end: Date | null } {
+  if (kind === "unlimited") {
+    if (requestedStart || requestedEnd) {
+      throw new Error("unlimited entitlement does not accept start or end.");
+    }
+    return { start: now, end: null };
+  }
+
+  const start = requestedStart ?? (kind === "monthly" ? utcMonthStart(now) : now);
+  if (kind === "monthly") {
+    if (!isUtcMonthStart(start)) {
+      throw new Error("monthly entitlement period_start must be a UTC month boundary.");
+    }
+    if (requestedEnd) {
+      throw new Error("monthly entitlement period_end is derived automatically.");
+    }
+    return { start, end: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)) };
+  }
+
+  if (!requestedEnd) {
+    throw new Error("one_off entitlement requires period_end.");
+  }
+  if (requestedEnd.getTime() <= start.getTime()) {
+    throw new Error("one_off entitlement period_end must be after period_start.");
+  }
+  return { start, end: requestedEnd };
+}
+
+function assertEntitlementTransition(
+  entitlement: Entitlement,
+  nextState: EntitlementState,
+  now: Date
+): void {
+  const from = entitlement.state;
+  if (from === nextState) {
+    return;
+  }
+  if (from === "active" && (nextState === "paused" || nextState === "cancelled")) {
+    return;
+  }
+  if (from === "active" && nextState === "expired") {
+    if (entitlement.periodEnd && entitlement.periodEnd.getTime() <= now.getTime()) {
+      return;
+    }
+  }
+  if (from === "paused" && (nextState === "active" || nextState === "cancelled")) {
+    return;
+  }
+  if (from === "scheduled" && (nextState === "active" || nextState === "cancelled")) {
+    if (nextState === "cancelled" || entitlement.periodStart.getTime() <= now.getTime()) {
+      return;
+    }
+  }
+  throw new Error(`Invalid entitlement state transition: ${from} -> ${nextState}.`);
+}
+
+function parseScopeAllowlist(value: string): Scope[] {
+  return normalizeScopeAllowlist(JSON.parse(value) as unknown);
+}
+
+function normalizeScopeAllowlist(value: unknown): Scope[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("scope_allowlist must be a non-empty array.");
+  }
+  const scopes = value.map((item) => {
+    if (item !== "code" && item !== "medical") {
+      throw new Error("scope_allowlist entries must be code or medical.");
+    }
+    return item;
+  });
+  return Array.from(new Set(scopes));
+}
+
+function utcMonthStart(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function isUtcMonthStart(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0 &&
+    date.getUTCDate() === 1
+  );
+}
+
+function runInTransaction<T>(
+  db: DatabaseSync,
+  begin: "BEGIN" | "BEGIN IMMEDIATE",
+  fn: () => T
+): T {
+  db.exec(begin);
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 function compareRequestUsageRows(
@@ -1366,6 +2095,68 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     rate: JSON.parse(value.rate_json) as RateLimitPolicy,
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
+  };
+}
+
+function rowToPlan(row: unknown): Plan {
+  const value = row as {
+    id: string;
+    display_name: string;
+    policy_json: string;
+    scope_allowlist_json: string;
+    priority_class: number;
+    team_pool_id: string | null;
+    state: PlanState;
+    created_at: string;
+    metadata_json: string | null;
+  };
+  return {
+    id: value.id,
+    displayName: value.display_name,
+    policy: validatePlanPolicy(JSON.parse(value.policy_json) as TokenLimitPolicy),
+    scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
+    priorityClass: value.priority_class,
+    teamPoolId: value.team_pool_id,
+    state: value.state,
+    createdAt: new Date(value.created_at),
+    metadata: value.metadata_json
+      ? (JSON.parse(value.metadata_json) as Record<string, unknown>)
+      : null
+  };
+}
+
+function rowToEntitlement(row: unknown): Entitlement {
+  const value = row as {
+    id: string;
+    subject_id: string;
+    plan_id: string;
+    policy_snapshot_json: string;
+    scope_allowlist_json: string;
+    period_kind: PeriodKind;
+    period_start: string;
+    period_end: string | null;
+    state: EntitlementState;
+    team_seat_id: string | null;
+    created_at: string;
+    cancelled_at: string | null;
+    cancelled_reason: string | null;
+    notes: string | null;
+  };
+  return {
+    id: value.id,
+    subjectId: value.subject_id,
+    planId: value.plan_id,
+    policySnapshot: validatePlanPolicy(JSON.parse(value.policy_snapshot_json) as TokenLimitPolicy),
+    scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
+    periodKind: value.period_kind,
+    periodStart: new Date(value.period_start),
+    periodEnd: value.period_end ? new Date(value.period_end) : null,
+    state: value.state,
+    teamSeatId: value.team_seat_id,
+    createdAt: new Date(value.created_at),
+    cancelledAt: value.cancelled_at ? new Date(value.cancelled_at) : null,
+    cancelledReason: value.cancelled_reason,
+    notes: value.notes
   };
 }
 
@@ -1503,6 +2294,7 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     scope: RequestUsageReportRow["scope"];
     upstream_account_id: string | null;
     provider: RequestUsageReportRow["provider"];
+    entitlement_id: string | null;
     requests: number;
     ok: number;
     errors: number;
@@ -1533,6 +2325,7 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     scope: value.scope,
     upstreamAccountId: value.upstream_account_id,
     provider: value.provider,
+    entitlementId: value.entitlement_id,
     requests: value.requests,
     ok: value.ok,
     errors: value.errors,

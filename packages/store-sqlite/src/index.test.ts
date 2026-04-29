@@ -86,6 +86,64 @@ describe("SqliteGatewayStore", () => {
     }
   });
 
+  it("creates plan entitlement schema during migration", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-store-plan-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+
+    const store = createSeededStore(dbPath);
+    store.close();
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      expect(tableExists(db, "plans")).toBe(true);
+      expect(tableExists(db, "entitlements")).toBe(true);
+      expect(tableExists(db, "entitlement_token_windows")).toBe(true);
+      expect(columnNames(db, "token_reservations")).toContain("entitlement_id");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("keeps plan policy snapshots immutable", () => {
+    const store = createSeededStore(":memory:");
+    store.createPlan({
+      id: "plan_immutable_v1",
+      displayName: "Immutable",
+      policy: {
+        tokensPerMinute: null,
+        tokensPerDay: 10_000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      },
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    expect(() =>
+      store.database
+        .prepare("UPDATE plans SET policy_json = ? WHERE id = ?")
+        .run(
+          JSON.stringify({
+            tokensPerMinute: null,
+            tokensPerDay: 1,
+            tokensPerMonth: null,
+            maxPromptTokensPerRequest: null,
+            maxTotalTokensPerRequest: null,
+            reserveTokensPerRequest: 0,
+            missingUsageCharge: "none"
+          }),
+          "plan_immutable_v1"
+        )
+    ).toThrow("plans.policy_json is immutable");
+    expect(store.getPlan("plan_immutable_v1")?.policy.tokensPerDay).toBe(10_000);
+
+    store.close();
+  });
+
   it("returns null when updating an unknown session", () => {
     const store = createSeededStore(":memory:");
     expect(store.setProviderSessionRef("missing", "thread_1")).toBeNull();
@@ -468,6 +526,7 @@ describe("SqliteGatewayStore", () => {
         scope: "code",
         upstreamAccountId: "sub_openai_codex",
         provider: "openai-codex",
+        entitlementId: null,
         requests: 2,
         ok: 1,
         errors: 1,
@@ -602,6 +661,223 @@ describe("SqliteGatewayStore", () => {
       completionTokens: 2,
       totalTokens: 12,
       cachedPromptTokens: 4
+    });
+
+    store.close();
+  });
+
+  it("keeps entitlement token windows separate from legacy subject windows", async () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: 1_000,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 20,
+      missingUsageCharge: "reserve" as const
+    };
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Entitlement credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_pro_v1",
+      displayName: "Pro",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_pro_v1",
+      periodKind: "one_off",
+      periodStart: new Date("2026-01-01T00:00:00Z"),
+      periodEnd: new Date("2099-01-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const acquired = await limiter.acquire({
+      requestId: "req_entitled",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 5,
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(acquired.ok).toBe(true);
+    if (!acquired.ok) {
+      throw new Error("token acquire unexpectedly failed");
+    }
+    await limiter.finalize({
+      reservationId: acquired.reservationId,
+      usage: {
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 4
+      },
+      now: new Date("2026-01-01T00:00:01Z")
+    });
+    store.insertRequestEvent({
+      requestId: "req_entitled",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "sess_1",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      reservationId: acquired.reservationId
+    });
+
+    const entitlementUsage = await limiter.getCurrentUsage({
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      policy,
+      now: new Date("2026-01-01T00:00:02Z")
+    });
+    const subjectUsage = await limiter.getCurrentUsage({
+      subjectId: "subj_1",
+      policy,
+      now: new Date("2026-01-01T00:00:02Z")
+    });
+    const reservations = limiter.listReservations({
+      subjectId: "subj_1",
+      includeFinalized: true,
+      limit: 1
+    });
+    const report = store.reportRequestUsage({
+      since: new Date("2026-01-01T00:00:00Z"),
+      until: new Date("2026-01-02T00:00:00Z"),
+      groupBy: "entitlement"
+    })[0];
+
+    expect(entitlementUsage.source).toBe("entitlement");
+    expect(entitlementUsage.day.used).toBe(12);
+    expect(subjectUsage.source).toBe("subject");
+    expect(subjectUsage.day.used).toBe(0);
+    expect(reservations[0]).toMatchObject({
+      id: acquired.reservationId,
+      entitlementId: entitlement.id
+    });
+    expect(report).toMatchObject({
+      entitlementId: entitlement.id,
+      requests: 1,
+      totalTokens: 12
+    });
+
+    store.close();
+  });
+
+  it("expires the current entitlement before activating a scheduled renewal", () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    store.createPlan({
+      id: "plan_monthly_v1",
+      displayName: "Monthly",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const current = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_monthly_v1",
+      periodKind: "monthly",
+      periodStart: new Date("2026-01-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const renewal = store.renewEntitlement({
+      subjectId: "subj_1",
+      now: new Date("2026-01-15T00:00:00Z")
+    });
+
+    const access = store.entitlementAccessForSubject(
+      "subj_1",
+      new Date("2026-02-01T00:00:00Z")
+    );
+
+    expect(current.periodEnd?.toISOString()).toBe("2026-02-01T00:00:00.000Z");
+    expect(renewal.state).toBe("scheduled");
+    expect(access).toMatchObject({
+      status: "active",
+      entitlement: {
+        id: renewal.id,
+        state: "active"
+      }
+    });
+    expect(store.getEntitlement(current.id)?.state).toBe("expired");
+    expect(store.getEntitlement(renewal.id)?.state).toBe("active");
+
+    store.close();
+  });
+
+  it("cancels scheduled renewals when an active replacement entitlement is granted", () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    store.createPlan({
+      id: "plan_replace_v1",
+      displayName: "Replace",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const current = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_replace_v1",
+      periodKind: "monthly",
+      periodStart: new Date("2026-01-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const renewal = store.renewEntitlement({
+      subjectId: "subj_1",
+      now: new Date("2026-01-15T00:00:00Z")
+    });
+    const replacement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_replace_v1",
+      periodKind: "unlimited",
+      replace: true,
+      now: new Date("2026-01-20T00:00:00Z")
+    });
+
+    expect(store.getEntitlement(current.id)?.state).toBe("cancelled");
+    expect(store.getEntitlement(renewal.id)?.state).toBe("cancelled");
+    expect(store.entitlementAccessForSubject("subj_1", new Date("2026-02-01T00:00:00Z"))).toMatchObject({
+      status: "active",
+      entitlement: {
+        id: replacement.id,
+        state: "active"
+      }
     });
 
     store.close();

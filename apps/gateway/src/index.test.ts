@@ -2482,6 +2482,346 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("uses active plan entitlements for token budgets without exposing internal charge fields", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Entitled credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_pro_v1",
+      displayName: "Pro",
+      scopeAllowlist: ["code"],
+      policy: {
+        tokensPerMinute: 1_000,
+        tokensPerDay: 10_000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: 500,
+        maxTotalTokensPerRequest: 1_000,
+        reserveTokensPerRequest: 100,
+        missingUsageCharge: "reserve"
+      },
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_pro_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "ok" },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 10,
+          completionTokens: 2,
+          totalTokens: 12
+        }
+      }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const current = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers
+    });
+    expect(current.statusCode).toBe(200);
+    expect(current.json()).toMatchObject({
+      plan: {
+        display_name: "Pro",
+        scope_allowlist: ["code"]
+      },
+      entitlement: {
+        period_kind: "unlimited",
+        period_end: null,
+        state: "active"
+      },
+      credential: {
+        token: {
+          tokensPerMinute: 1_000,
+          tokensPerDay: 10_000,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: 500,
+          maxTotalTokensPerRequest: 1_000
+        }
+      },
+      token_usage: {
+        source: "entitlement",
+        day: {
+          limit: 10_000,
+          used: 0,
+          reserved: 0,
+          remaining: 10_000
+        }
+      }
+    });
+    expect(JSON.stringify(current.json())).not.toContain("reserveTokensPerRequest");
+    expect(JSON.stringify(current.json())).not.toContain("missingUsageCharge");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const reservations = limiter.listReservations({
+      subjectId: "subj_dev",
+      includeFinalized: true
+    });
+    expect(reservations).toHaveLength(1);
+    expect(reservations[0]).toMatchObject({
+      kind: "reservation",
+      entitlementId: entitlement.id,
+      finalTotalTokens: 12,
+      finalUsageSource: "provider"
+    });
+
+    await app.close();
+  });
+
+  it("shows inactive entitlement state on current credential validation without token fallback", async () => {
+    const cases = [
+      { state: "expired", reason: undefined },
+      { state: "paused", reason: "paused" },
+      { state: "cancelled", reason: "cancelled" }
+    ] as const;
+
+    for (const item of cases) {
+      const store = createSqliteStore({ path: ":memory:" });
+      const issued = issueAccessCredential({
+        subjectId: "subj_dev",
+        label: `${item.state} entitlement credential`,
+        scope: "code",
+        expiresAt: new Date("2030-02-01T00:00:00Z"),
+        now: new Date("2026-01-01T00:00:00Z"),
+        rate: {
+          requestsPerMinute: 30,
+          requestsPerDay: null,
+          concurrentRequests: 1,
+          token: {
+            tokensPerMinute: 1,
+            tokensPerDay: 1,
+            tokensPerMonth: null,
+            maxPromptTokensPerRequest: null,
+            maxTotalTokensPerRequest: null,
+            reserveTokensPerRequest: 10,
+            missingUsageCharge: "reserve"
+          }
+        }
+      });
+      store.upsertSubject({
+        id: "subj_dev",
+        label: "Credential Subject",
+        state: "active",
+        createdAt: new Date("2026-01-01T00:00:00Z")
+      });
+      store.insertAccessCredential(issued.record);
+      store.createPlan({
+        id: `plan_${item.state}_v1`,
+        displayName: "Trial",
+        scopeAllowlist: ["code"],
+        policy: {
+          tokensPerMinute: null,
+          tokensPerDay: 10_000,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: null,
+          reserveTokensPerRequest: 0,
+          missingUsageCharge: "none"
+        },
+        now: new Date("2026-01-01T00:00:00Z")
+      });
+      const entitlement = store.grantEntitlement({
+        subjectId: "subj_dev",
+        planId: `plan_${item.state}_v1`,
+        periodKind: item.state === "expired" ? "one_off" : "unlimited",
+        periodStart:
+          item.state === "expired" ? new Date("2000-01-01T00:00:00Z") : undefined,
+        periodEnd:
+          item.state === "expired" ? new Date("2000-01-02T00:00:00Z") : undefined,
+        now: new Date("2026-01-01T00:00:00Z")
+      });
+      if (item.state === "paused") {
+        store.pauseEntitlement({ id: entitlement.id });
+      }
+      if (item.state === "cancelled") {
+        store.cancelEntitlement({ id: entitlement.id, reason: "test" });
+      }
+
+      const app = buildGateway({
+        authMode: "credential",
+        provider: new FakeProvider(),
+        sessionStore: store,
+        logger: false
+      });
+      const current = await app.inject({
+        method: "GET",
+        url: "/gateway/credentials/current",
+        headers: { authorization: `Bearer ${issued.token}` }
+      });
+      const body = current.json();
+
+      expect(current.statusCode).toBe(200);
+      expect(body).toMatchObject({
+        plan: {
+          display_name: "Trial",
+          scope_allowlist: ["code"]
+        },
+        entitlement: {
+          period_kind: item.state === "expired" ? "one_off" : "unlimited",
+          state: item.state,
+          ...(item.reason ? { reason: item.reason } : {})
+        }
+      });
+      expect(body.credential).not.toHaveProperty("token");
+      expect(body).not.toHaveProperty("token_usage");
+      expect(JSON.stringify(body)).not.toContain("reserveTokensPerRequest");
+      expect(JSON.stringify(body)).not.toContain("missingUsageCharge");
+
+      await app.close();
+    }
+  });
+
+  it("rejects legacy users only when entitlement enforcement is enabled", async () => {
+    const previousRequireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT;
+    process.env.GATEWAY_REQUIRE_ENTITLEMENT = "1";
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Legacy strict credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: `Bearer ${issued.token}` },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "Say ok." }]
+        }
+      });
+
+      expect(response.statusCode).toBe(402);
+      expect(response.json().error.code).toBe("plan_inactive");
+      expect(provider.messages).toHaveLength(0);
+    } finally {
+      if (previousRequireEntitlement === undefined) {
+        delete process.env.GATEWAY_REQUIRE_ENTITLEMENT;
+      } else {
+        process.env.GATEWAY_REQUIRE_ENTITLEMENT = previousRequireEntitlement;
+      }
+      await app.close();
+    }
+  });
+
+  it("does not fall back to legacy token handling after an entitlement expires", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Expired entitlement credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_trial_v1",
+      displayName: "Trial",
+      scopeAllowlist: ["code"],
+      policy: {
+        tokensPerMinute: null,
+        tokensPerDay: 10_000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      },
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_trial_v1",
+      periodKind: "one_off",
+      periodStart: new Date("2000-01-01T00:00:00Z"),
+      periodEnd: new Date("2000-01-02T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: `Bearer ${issued.token}` },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error.code).toBe("plan_expired");
+    expect(provider.messages).toHaveLength(0);
+    expect(store.getEntitlement(entitlement.id)?.state).toBe("expired");
+
+    await app.close();
+  });
+
   it("blocks only credentials with token policy when token budget is exceeded", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

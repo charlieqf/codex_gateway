@@ -14,6 +14,7 @@ import type {
   UpstreamAccount
 } from "./types.js";
 import type { LimitKind } from "./token-budget.js";
+import type { PlanEntitlementStore } from "./plan-entitlement.js";
 
 export interface CreateGatewaySessionInput {
   subjectId: string;
@@ -83,6 +84,7 @@ export interface RequestUsageReportInput {
   until?: Date;
   credentialId?: string;
   subjectId?: string;
+  groupBy?: "default" | "entitlement";
 }
 
 export interface RequestUsageReportRow {
@@ -92,6 +94,7 @@ export interface RequestUsageReportRow {
   scope: Scope | null;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
+  entitlementId?: string | null;
   requests: number;
   ok: number;
   errors: number;
@@ -147,3 +150,4 @@ export interface ClientMessageEventStore {
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;
 export type CredentialAuthStore = AccessCredentialStore & SubjectStore;
+export type EntitlementBackedGatewayStore = GatewayStore & PlanEntitlementStore;

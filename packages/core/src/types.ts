@@ -59,7 +59,16 @@ export type AdminAuditAction =
   | "enable-user"
   | "prune-events"
   | "token-overrun"
-  | "token-reservation-expired";
+  | "token-reservation-expired"
+  | "plan-create"
+  | "plan-deprecate"
+  | "entitlement-grant"
+  | "entitlement-renew"
+  | "entitlement-cancel"
+  | "entitlement-pause"
+  | "entitlement-resume"
+  | "entitlement-activate"
+  | "entitlement-expire";
 
 export type AdminAuditStatus = "ok" | "error";
 

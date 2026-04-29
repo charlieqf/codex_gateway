@@ -8,6 +8,8 @@ import {
   type GatewaySession,
   type GatewayStore,
   type ObservationStore,
+  mergeEntitlementTokenPolicy,
+  type PlanEntitlementStore,
   type ProviderAdapter,
   type RateLimitPolicy,
   type Scope,
@@ -91,6 +93,7 @@ export interface GatewayOptions {
   clientEventsRateLimiter?: CredentialRateLimiter;
   clientEventsRatePolicy?: RateLimitPolicy;
   tokenBudgetLimiter?: TokenBudgetLimiter;
+  planEntitlementStore?: PlanEntitlementStore;
   logger?: boolean;
 }
 
@@ -154,6 +157,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     (sessions instanceof SqliteGatewayStore
       ? createSqliteTokenBudgetLimiter({ db: sessions.database, logger: app.log })
       : undefined);
+  const planEntitlementStore =
+    options.planEntitlementStore ??
+    (isPlanEntitlementStore(sessions) ? sessions : undefined);
+  const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
   const clientEventsStore =
     options.clientEventsStore === undefined
       ? createDefaultClientEventsStore()
@@ -292,11 +299,27 @@ export function buildGateway(options: GatewayOptions = {}) {
     },
     async (request) => {
       const { subject, scope, credential } = getGatewayContext(request);
-      const tokenPolicy = credential.rate?.token ?? null;
+      const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
+      const activeEntitlement = access?.status === "active" ? access.entitlement : null;
+      const activePlan = access?.status === "active" ? access.plan : null;
+      const visibleEntitlement =
+        activeEntitlement ?? (access && "entitlement" in access ? access.entitlement : null);
+      const visiblePlan =
+        activePlan ??
+        (visibleEntitlement ? planEntitlementStore?.getPlan(visibleEntitlement.planId) ?? null : null);
+      const tokenPolicy = activeEntitlement
+        ? mergeEntitlementTokenPolicy(activeEntitlement.policySnapshot, credential.rate?.token ?? null)
+        : access?.status === undefined || access.status === "legacy"
+          ? credential.rate?.token ?? null
+          : null;
       const tokenUsage =
         tokenPolicy && tokenBudgetLimiter
           ? await tokenBudgetLimiter
-              .getCurrentUsage({ subjectId: subject.id, policy: tokenPolicy })
+              .getCurrentUsage({
+                subjectId: subject.id,
+                entitlementId: activeEntitlement?.id ?? null,
+                policy: tokenPolicy
+              })
               .then(publicTokenUsage)
               .catch((err) => {
                 request.log.warn(
@@ -320,6 +343,25 @@ export function buildGateway(options: GatewayOptions = {}) {
           rate: publicRatePolicy(credential.rate),
           ...(tokenPolicy ? { token: publicTokenPolicy(tokenPolicy) } : {})
         },
+        ...(visibleEntitlement
+          ? {
+              ...(visiblePlan
+                ? {
+                    plan: {
+                      display_name: visiblePlan.displayName,
+                      scope_allowlist: visibleEntitlement.scopeAllowlist
+                    }
+                  }
+                : {}),
+              entitlement: {
+                period_kind: visibleEntitlement.periodKind,
+                period_start: visibleEntitlement.periodStart.toISOString(),
+                period_end: visibleEntitlement.periodEnd?.toISOString() ?? null,
+                state: visibleEntitlement.state,
+                ...(access?.status === "inactive" ? { reason: access.reason } : {})
+              }
+            }
+          : {}),
         ...(tokenUsage ? { token_usage: tokenUsage } : {})
       };
     }
@@ -477,7 +519,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     const tokenBudgetError = await beginTokenBudget(
       request,
       tokenBudgetLimiter,
-      request.gatewayEstimatedTokens
+      request.gatewayEstimatedTokens,
+      { entitlementStore: planEntitlementStore, requireEntitlement }
     );
     if (tokenBudgetError) {
       return sendOpenAIError(request, reply, tokenBudgetError);
@@ -751,7 +794,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       const tokenBudgetError = await beginTokenBudget(
         request,
         tokenBudgetLimiter,
-        request.gatewayEstimatedTokens
+        request.gatewayEstimatedTokens,
+        { entitlementStore: planEntitlementStore, requireEntitlement }
       );
       if (tokenBudgetError) {
         return sendError(request, reply, tokenBudgetError);
@@ -1469,6 +1513,16 @@ function isObservationStore(store: GatewayStore): store is GatewayStore & Observ
     typeof candidate.listRequestEvents === "function" &&
     typeof candidate.reportRequestUsage === "function" &&
     typeof candidate.pruneRequestEvents === "function"
+  );
+}
+
+function isPlanEntitlementStore(store: GatewayStore): store is GatewayStore & PlanEntitlementStore {
+  const candidate = store as Partial<PlanEntitlementStore>;
+  return (
+    typeof candidate.createPlan === "function" &&
+    typeof candidate.getPlan === "function" &&
+    typeof candidate.grantEntitlement === "function" &&
+    typeof candidate.entitlementAccessForSubject === "function"
   );
 }
 
