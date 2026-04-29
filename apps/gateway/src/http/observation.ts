@@ -130,7 +130,10 @@ export function recordObservation(
     totalTokens: tokenUsage?.totalTokens ?? null,
     cachedPromptTokens: tokenUsage?.cachedPromptTokens ?? null,
     estimatedTokens: tokenUsage ? null : request.gatewayEstimatedTokens ?? null,
-    usageSource: tokenUsage ? request.gatewayTokenUsageSource ?? "provider" : null,
+    usageSource:
+      tokenUsage || request.gatewayTokenUsageSource
+        ? request.gatewayTokenUsageSource ?? "provider"
+        : null,
     limitKind: request.gatewayLimitKind ?? null,
     reservationId: request.gatewayTokenReservationId ?? null,
     overRequestLimit: request.gatewayOverRequestLimit === true,

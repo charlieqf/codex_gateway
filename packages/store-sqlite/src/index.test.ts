@@ -606,6 +606,48 @@ describe("SqliteGatewayStore", () => {
 
     store.close();
   });
+
+  it("cleans up stale soft-write reservations without charging tokens", async () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Legacy credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const softWrite = await limiter.beginSoftWrite({
+      requestId: "req_soft_crash",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const cleanup = await limiter.cleanupExpired(new Date("2026-01-01T02:00:00Z"));
+    const reservation = limiter.listReservations({
+      subjectId: "subj_1",
+      includeFinalized: true,
+      limit: 1
+    })[0];
+
+    expect(cleanup).toEqual({
+      count: 1,
+      sampleIds: [softWrite.reservationId]
+    });
+    expect(reservation).toMatchObject({
+      id: softWrite.reservationId,
+      kind: "soft_write",
+      finalUsageSource: "none",
+      finalTotalTokens: 0
+    });
+    expect(reservation.finalizedAt).not.toBeNull();
+
+    store.close();
+  });
 });
 
 describe("SqliteClientEventsStore", () => {

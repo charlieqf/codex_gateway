@@ -90,6 +90,14 @@ export async function beginTokenBudget(
     markTokenReservation(request, result.reservationId, "reservation");
     return null;
   } catch (err) {
+    request.log.error(
+      {
+        request_id: request.id,
+        credential_id: credential.id,
+        error: err instanceof Error ? err.message : String(err)
+      },
+      "Token budget acquire failed."
+    );
     return new GatewayError({
       code: "service_unavailable",
       message: "Token budget service is unavailable.",
@@ -145,6 +153,19 @@ export function publicTokenPolicy(policy: TokenLimitPolicy) {
   };
 }
 
+export function publicRatePolicy<T extends { token?: TokenLimitPolicy | null }>(
+  policy: T | null
+) {
+  if (!policy) {
+    return policy;
+  }
+  const { token, ...rest } = policy;
+  return {
+    ...rest,
+    ...(token ? { token: publicTokenPolicy(token) } : {})
+  };
+}
+
 export function publicTokenUsage(
   usage: Awaited<ReturnType<TokenBudgetLimiter["getCurrentUsage"]>>
 ) {
@@ -155,8 +176,8 @@ export function publicTokenUsage(
   };
 }
 
-export function estimatePromptTokens(text: string): number {
-  return Math.max(1, Math.ceil(text.length / 4));
+export function estimatePromptTokens(text: string, extraText = ""): number {
+  return Math.max(1, Math.ceil((text.length + extraText.length) / 3));
 }
 
 interface TokenBudgetLogger {

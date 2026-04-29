@@ -341,6 +341,73 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("does not expose internal token budget policy fields on public credential routes", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Token policy credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 30,
+        requestsPerDay: null,
+        concurrentRequests: 1,
+        token: {
+          tokensPerMinute: 1_000,
+          tokensPerDay: 10_000,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: 500,
+          maxTotalTokensPerRequest: 1_000,
+          reserveTokensPerRequest: 100,
+          missingUsageCharge: "reserve"
+        }
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const status = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    const current = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers
+    });
+
+    expect(status.statusCode).toBe(200);
+    expect(current.statusCode).toBe(200);
+    expect(status.json().credential.rate.token).toEqual({
+      tokensPerMinute: 1_000,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: 500,
+      maxTotalTokensPerRequest: 1_000
+    });
+    expect(current.json().credential.token).toEqual(status.json().credential.rate.token);
+    expect(JSON.stringify(status.json())).not.toContain("reserveTokensPerRequest");
+    expect(JSON.stringify(status.json())).not.toContain("missingUsageCharge");
+    expect(JSON.stringify(current.json())).not.toContain("reserveTokensPerRequest");
+    expect(JSON.stringify(current.json())).not.toContain("missingUsageCharge");
+
+    await app.close();
+  });
+
   it("returns service_unavailable for client message events when storage is not configured", async () => {
     const app = buildGateway({
       accessToken: "secret",
@@ -2475,6 +2542,71 @@ describe("gateway phase 1 routes", () => {
         reservationId: null
       })
     ]);
+
+    await app.close();
+  });
+
+  it("records reserve token finalize source when provider usage is missing", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Reserve usage token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 30,
+        requestsPerDay: null,
+        concurrentRequests: 1,
+        token: {
+          tokensPerMinute: null,
+          tokensPerDay: null,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: null,
+          reserveTokensPerRequest: 100,
+          missingUsageCharge: "reserve"
+        }
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "ok" },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: `Bearer ${issued.token}` },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const events = store.listRequestEvents({ credentialId: issued.record.id });
+    expect(events).toEqual([
+      expect.objectContaining({
+        usageSource: "reserve",
+        promptTokens: null,
+        totalTokens: null
+      })
+    ]);
+    expect(events[0].estimatedTokens).toBeGreaterThanOrEqual(100);
 
     await app.close();
   });

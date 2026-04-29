@@ -69,6 +69,7 @@ import {
   cleanupExpiredTokenReservations,
   estimatePromptTokens,
   finalizeTokenBudget,
+  publicRatePolicy,
   publicTokenPolicy,
   publicTokenUsage
 } from "./services/token-budget-hook.js";
@@ -267,7 +268,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         prefix: credential.prefix,
         scope,
         expires_at: credential.expiresAt?.toISOString() ?? null,
-        rate: credential.rate
+        rate: publicRatePolicy(credential.rate)
       },
       upstream_account: {
         label: publicMetadata.upstreamAccountLabel,
@@ -316,7 +317,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           prefix: credential.prefix,
           scope,
           expires_at: credential.expiresAt?.toISOString() ?? null,
-          rate: credential.rate,
+          rate: publicRatePolicy(credential.rate),
           ...(tokenPolicy ? { token: publicTokenPolicy(tokenPolicy) } : {})
         },
         ...(tokenUsage ? { token_usage: tokenUsage } : {})
@@ -469,7 +470,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed);
-    request.gatewayEstimatedTokens = estimatePromptTokens(prompt);
+    request.gatewayEstimatedTokens = estimatePromptTokens(
+      prompt,
+      chatCompletionEstimateExtras(parsed, strictClientTools)
+    );
     const tokenBudgetError = await beginTokenBudget(
       request,
       tokenBudgetLimiter,
@@ -1088,6 +1092,19 @@ function createChatCompletionShape(model: string): ChatCompletionShape {
     created: Math.floor(Date.now() / 1000),
     model
   };
+}
+
+function chatCompletionEstimateExtras(
+  request: ChatCompletionRequest,
+  strictClientTools: boolean
+): string {
+  if (strictClientTools) {
+    return "";
+  }
+  return JSON.stringify({
+    tools: request.tools ?? null,
+    tool_choice: request.toolChoice
+  });
 }
 
 function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {

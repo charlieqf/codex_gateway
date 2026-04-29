@@ -240,18 +240,20 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   async cleanupExpired(now: Date = new Date()): Promise<CleanupResult> {
     const nowIso = now.toISOString();
+    const staleSoftWriteBefore = new Date(now.getTime() - 60 * 60_000).toISOString();
     const rows = this.db
       .prepare(
         `SELECT id
          FROM token_reservations
-         WHERE kind = 'reservation'
-           AND finalized_at IS NULL
-           AND expires_at IS NOT NULL
-           AND expires_at <= ?
+         WHERE finalized_at IS NULL
+           AND (
+             (kind = 'reservation' AND expires_at IS NOT NULL AND expires_at <= ?)
+             OR (kind = 'soft_write' AND created_at <= ?)
+           )
          ORDER BY expires_at ASC
          LIMIT 50`
       )
-      .all(nowIso) as Array<{ id: string }>;
+      .all(nowIso, staleSoftWriteBefore) as Array<{ id: string }>;
 
     for (const row of rows) {
       this.finalizeReservation(row.id, undefined, now);
