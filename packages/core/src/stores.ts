@@ -96,6 +96,11 @@ export interface RequestUsageReportRow {
   rateLimited: number;
   avgDurationMs: number | null;
   avgFirstByteMs: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedPromptTokens: number;
+  estimatedTokens: number;
 }
 
 export interface PruneRequestEventsInput {

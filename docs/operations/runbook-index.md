@@ -18,11 +18,11 @@ Deployment and safety:
 
 Operational workflows now covered:
 
-- User-friendly API key issue, list, update, rotate, and revoke.
-- User listing plus user disable/enable.
+- User-friendly API key issue, list, active-key inventory, update, reveal, rotate, and revoke.
+- User listing plus user contact metadata update and user disable/enable.
 - Request event inspection by API key or user.
-- Dynamic usage reports by API key or user.
-- Admin operation audit for issue/update/revoke/rotate/disable/enable/prune actions.
+- Dynamic usage reports by API key or user, including token usage fields.
+- Admin operation audit for issue/update/reveal/revoke/rotate/disable/enable/prune actions.
 - Read-only `trial-check` for 1-2 user controlled internal trials.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
@@ -32,6 +32,8 @@ Operational workflows now covered:
 - Docker maintenance-window checklist for shared VM installation.
 - MedCode Windows `shell` tool-call smoke checklist.
 - Partner trial checklist for MedEvidence, OpenCode CLI, and OpenCode Desktop.
+- Public API key self-validation through `GET /gateway/credentials/current`, including client-facing guidance in `docs/client-api-key-validation-guide.md`.
+- Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 
 Operational workflows still pending:
 
@@ -39,8 +41,8 @@ Operational workflows still pending:
 - Admin operator identity capture.
 - Scheduled retention automation.
 - Materialized usage reports.
-- Long-running production deployment activation.
-- Public TLS routing execution through a maintenance window.
+- Token budget enforcement beyond current token usage recording.
+- Systemd ownership/monitoring for the long-running gateway container.
 
 The local `codex-gateway-ops` skill stores workstation-specific VM access notes
 outside this repository. Do not commit operator-local secrets.

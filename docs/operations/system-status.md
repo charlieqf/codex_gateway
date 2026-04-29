@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-04-23
+Last updated: 2026-04-28
 
 ## Current Phase
 
@@ -23,14 +23,17 @@ Completed:
 - SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
 - User-friendly API key issue/list/update/revoke/rotate MVP.
+- API key user metadata management for `name` and `phone_number`, including `issue --name --phone`, `update-user`, `list-active-keys`, `reveal-key`, and `reveal-keys`.
+- Recoverable API key storage for newly issued/rotated keys via encrypted `token_ciphertext`; historical hash-only keys cannot be reconstructed.
 - Opaque access credential generation with stored SHA-256 hash and prefix lookup.
 - SQLite-backed credential auth hook for gateway requests.
+- API key self-validation route `GET /gateway/credentials/current`, which validates the current bearer credential, returns public user/key metadata, and skips normal request rate-limit consumption.
 - Auth mode selection prefers credential auth when a credential store is available; dev auth is rejected under `NODE_ENV=production`.
 - `/gateway/health` exposes `auth_mode`.
-- Admin CLI `issue`, `list`, `list-users`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
+- Admin CLI `issue`, `list`, `list-users`, `list-active-keys`, `update-user`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `reveal-key`, `reveal-keys`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
-- SQLite request event writer for gateway observations.
-- Admin CLI usage aggregation and dry-run-capable manual request event pruning.
+- SQLite request event writer for gateway observations, including Phase 1 token usage fields when provider usage is available.
+- Admin CLI usage aggregation with token totals and dry-run-capable manual request event pruning.
 - Production runtime startup validation for credential auth, SQLite state, `CODEX_HOME`, and dev-token rejection.
 - Docker Compose gateway skeleton with loopback-only port mapping, non-root runtime image, and local resource limits.
 - Docker maintenance-window runbook for shared VM installation and rollback.
@@ -50,6 +53,7 @@ Completed:
 - Phase 2 strict client-defined tools runtime has local gateway support: when `/v1/chat/completions` receives non-empty `tools[]`, the gateway asks for a strict JSON envelope, validates tool names against the client registry, validates arguments with JSON Schema, performs one repair attempt, and only then returns OpenAI-shaped `tool_calls`.
 - Phase 2 strict client-defined tools runtime has been deployed to the public controlled-trial gateway and validated with a temporary `medevidence(question: string)` tool call plus `role: "tool"` follow-up.
 - Phase 2 strict client-defined tools now honors OpenAI-style `tool_choice` for `"none"`, `"required"`, and named function choices, suppresses upstream native tool calls when `tool_choice` is `"none"`, validates complex nested JSON Schemas, and records strict validation failures through request observations and sanitized gateway logs.
+- Strict client-defined tools accept JSON Schemas tagged as draft-07, draft 2019-09, or draft 2020-12, including client-generated `$schema: "https://json-schema.org/draft/2020-12/schema"` tool parameters.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
@@ -58,6 +62,8 @@ Not completed:
 - `/v1/responses`.
 - OpenAI-compatible SSE framing for the native `/sessions/:id/messages` endpoint.
 - Persistent/distributed rate limiting for multiple gateway processes.
+- Token budget enforcement; current implementation records token usage but does not block by token quota.
+- Code-level enforcement that every issued API key has user name and phone; the CLI supports these fields and runbooks require them, but missing fields are currently a workflow violation rather than a hard error.
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Systemd ownership/monitoring for the long-running container.
@@ -75,16 +81,25 @@ npm test
 
 Most recent Azure VM validation:
 
-- Commit `cd23f96`.
+- Current deployed source includes API key contact metadata/reveal support,
+  Phase 1 token usage recording, `gpt-5.5` with high reasoning effort, and the
+  request id / usage aggregation fix that prevents reused Fastify request ids
+  from pinning new usage to old `started_at` timestamps.
+- Local Windows validation passed `npm run build` and `npm test` with 6 test files and 65 tests.
+- Azure VM checkout `/home/qian/codex-gateway-test` was updated from the current working tree; VM `npm run build` and `npm test` passed with 6 test files and 65 tests.
+- Docker image rebuild initially exposed VM-side `package-lock.json` platform drift caused by `npm install`; lockfile metadata was corrected with the same npm generation used by the container, `npm ci --dry-run` passed, and the gateway image rebuilt successfully.
+- Docker Compose gateway was recreated from the current image and is healthy as `codex_gateway_test-gateway-1`, publishing only `127.0.0.1:18787->8787`.
 - DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
-- Docker Compose gateway is running as `codex_gateway_test-gateway-1` and publishes only `127.0.0.1:18787->8787`.
 - Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
 - Nginx has a dedicated `gw.instmarket.com.au` server that proxies HTTPS traffic to `http://127.0.0.1:18787`.
 - Let's Encrypt certificate for `gw.instmarket.com.au` was issued with certbot and expires on 2026-07-21; certbot installed its automatic renewal task.
 - Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
 - HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
+- Public `GET /gateway/credentials/current` smoke passed with a temporary API key, including success metadata, missing credential `401 missing_credential`, wrong credential `401 invalid_credential`, `X-Request-Id` headers, and cleanup by revoking the temporary key and disabling the temporary smoke user.
+- Public Ajv compatibility smoke passed: `POST /v1/chat/completions` accepted a strict client-defined `tools[]` schema containing `$schema: "https://json-schema.org/draft/2020-12/schema"` and returned an OpenAI-shaped `tool_calls` response. The temporary smoke key was revoked and the smoke user was disabled.
 - Public OpenAI-compatible smoke against `https://gw.instmarket.com.au/v1` passed health, unauthenticated `/v1/models` rejection, wrong-model `404 model_not_found`, model listing, non-stream chat with usage, tool-result history, streaming SSE, and `X-Request-Id` response headers; the temporary smoke key was revoked afterward.
-- Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema with `tool_choice: "required"`, produced a named `search_evidence` call with function `tool_choice`, returned a normal message with `tool_choice: "none"`, then used a `role: "tool"` follow-up to return `strict-tools-result-ok`. Temporary smoke key prefix `e4iMfjEIpmjzyA` was revoked and the temporary smoke user was disabled. Request ids were `req-b`, `req-c`, `req-d`, and `req-e`.
+- Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema with `tool_choice: "required"`, produced a named `search_evidence` call with function `tool_choice`, returned a normal message with `tool_choice: "none"`, then used a `role: "tool"` follow-up to return `strict-tools-result-ok`. The temporary smoke key was revoked and the temporary smoke user was disabled.
+- API key management and token usage smoke passed against the deployed public gateway: temporary key issue, active-key listing, full-key reveal, `GET /gateway/credentials/current`, chat completion usage, request-level `events`, daily `report-usage`, sanitized `audit`, and cleanup all succeeded.
 - After the shared VM vhost correction, IP-based HTTP access to `http://4.242.58.89/` again reaches MedEvidence instead of the Codex Gateway vhost, while `https://gw.instmarket.com.au/gateway/health` continues to reach Codex Gateway.
 - `trial-check --max-active-users 2` currently reports ready for controlled trial with 2 active users and 2 active API keys.
 - Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
@@ -108,12 +123,16 @@ Current test coverage:
 
 - Provider Codex adapter event mapping and error normalization.
 - Provider token usage mapping from upstream completed turns.
+- Provider error stream handling now stops after turn-level or item-level provider errors and sanitizes provider-specific auth text.
 - SQLite store migration/session persistence.
+- SQLite bootstrap upserts no longer reactivate disabled users or overwrite subscription runtime state.
 - Access credential generation, hash verification, expiration, and revocation.
-- SQLite user and API key persistence, API key update/revocation, user disable/enable, and admin audit event persistence.
+- SQLite user and API key persistence, API key update/revocation/reveal, user contact metadata update, user disable/enable, and admin audit event persistence.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
-- SQLite request event persistence, usage aggregation, manual pruning, admin CLI event listing, and read-only controlled-trial checks.
+- SQLite request event persistence with token usage fields, usage aggregation with token totals, manual pruning, admin CLI event listing, and read-only controlled-trial checks.
 - Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, OpenAI Chat Completions routes, OpenAI-shaped tool-call/usage wrapping, and SQLite-backed session persistence.
+- Gateway API key self-validation route coverage, including invalid key handling and rate-limit bypass for validation-only calls.
+- Strict client-defined tool schema compatibility coverage for draft 2020-12 and draft-07 `$schema` declarations.
 
 ## Provider Status
 
@@ -161,7 +180,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key update/revoke/rotate, user-level disable/enable, single-process API key rate limiting, request event writing, admin action audit events, dynamic usage reports, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Scheduled retention jobs, materialized reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key issue/update/revoke/rotate/reveal, user contact metadata, user-level disable/enable, single-process API key rate limiting, request event writing with token usage fields, admin action audit events, dynamic usage reports with token totals, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Token budget enforcement, scheduled retention jobs, materialized usage reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

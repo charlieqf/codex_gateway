@@ -114,11 +114,13 @@ Issue the first API key inside the running container:
 docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  issue --user bootstrap --label bootstrap --scope code
+  issue --user bootstrap --name "Bootstrap User" --phone "+15550000000" --label bootstrap --scope code
 ```
 
-The token is printed once. Store it in the operator secret store, not in Git or
-shell history.
+`GATEWAY_API_KEY_ENCRYPTION_SECRET` must be set in the container environment
+before issuing or rotating keys. The token is printed and stored as encrypted
+`token_ciphertext`, so operators can later run `reveal-key <credential-prefix>`.
+Do not put the full token in Git, shell history, or audit notes.
 
 ## Codex Login
 
@@ -150,6 +152,10 @@ docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
   --db /var/lib/codex-gateway/gateway.db \
   report-usage --user bootstrap --days 7
 ```
+
+`events` and `report-usage` include token usage fields when upstream provider
+usage is available: `prompt_tokens`, `completion_tokens`, `total_tokens`,
+`cached_prompt_tokens`, `estimated_tokens`, and `usage_source`.
 
 Preview retention cleanup first:
 

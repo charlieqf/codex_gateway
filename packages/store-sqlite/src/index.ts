@@ -28,6 +28,12 @@ export interface SqliteStoreOptions {
   path: string;
 }
 
+export interface UpdateSubjectInput {
+  label?: string;
+  name?: string | null;
+  phoneNumber?: string | null;
+}
+
 export class SqliteGatewayStore implements GatewayStore {
   readonly kind = "sqlite";
   readonly path: string;
@@ -50,12 +56,21 @@ export class SqliteGatewayStore implements GatewayStore {
   upsertSubject(subject: Subject): void {
     this.db
       .prepare(
-        `INSERT INTO subjects (id, label, state, created_at)
-         VALUES (?, ?, ?, ?)
+        `INSERT INTO subjects (id, label, name, phone_number, state, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
-           label = excluded.label`
+           label = excluded.label,
+           name = COALESCE(excluded.name, subjects.name),
+           phone_number = COALESCE(excluded.phone_number, subjects.phone_number)`
       )
-      .run(subject.id, subject.label, subject.state, subject.createdAt.toISOString());
+      .run(
+        subject.id,
+        subject.label,
+        subject.name ?? null,
+        subject.phoneNumber ?? null,
+        subject.state,
+        subject.createdAt.toISOString()
+      );
   }
 
   upsertSubscription(subscription: Subscription): void {
@@ -84,7 +99,7 @@ export class SqliteGatewayStore implements GatewayStore {
 
   getSubject(id: string): Subject | null {
     const row = this.db
-      .prepare("SELECT id, label, state, created_at FROM subjects WHERE id = ?")
+      .prepare("SELECT id, label, name, phone_number, state, created_at FROM subjects WHERE id = ?")
       .get(id);
 
     return row ? rowToSubject(row) : null;
@@ -95,7 +110,7 @@ export class SqliteGatewayStore implements GatewayStore {
     const rows = input.state
       ? this.db
           .prepare(
-            `SELECT id, label, state, created_at
+            `SELECT id, label, name, phone_number, state, created_at
              FROM subjects
              WHERE state = ?
                AND (? = 1 OR state != 'archived')
@@ -104,7 +119,7 @@ export class SqliteGatewayStore implements GatewayStore {
           .all(input.state, includeArchived ? 1 : 0)
       : this.db
           .prepare(
-            `SELECT id, label, state, created_at
+            `SELECT id, label, name, phone_number, state, created_at
              FROM subjects
              WHERE (? = 1 OR state != 'archived')
              ORDER BY id`
@@ -112,6 +127,28 @@ export class SqliteGatewayStore implements GatewayStore {
           .all(includeArchived ? 1 : 0);
 
     return rows.map(rowToSubject);
+  }
+
+  updateSubject(id: string, input: UpdateSubjectInput): Subject | null {
+    this.db
+      .prepare(
+        `UPDATE subjects
+         SET label = CASE WHEN ? = 1 THEN ? ELSE label END,
+             name = CASE WHEN ? = 1 THEN ? ELSE name END,
+             phone_number = CASE WHEN ? = 1 THEN ? ELSE phone_number END
+         WHERE id = ?`
+      )
+      .run(
+        input.label === undefined ? 0 : 1,
+        input.label ?? null,
+        input.name === undefined ? 0 : 1,
+        input.name ?? null,
+        input.phoneNumber === undefined ? 0 : 1,
+        input.phoneNumber ?? null,
+        id
+      );
+
+    return this.getSubject(id);
   }
 
   setSubjectState(id: string, state: SubjectState): Subject | null {
@@ -130,14 +167,15 @@ export class SqliteGatewayStore implements GatewayStore {
     this.db
       .prepare(
         `INSERT INTO access_credentials (
-          id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+          id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at,
           rate_json, created_at, rotates_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.id,
         record.prefix,
         record.hash,
+        record.tokenCiphertext ?? null,
         record.subjectId,
         record.label,
         record.scope,
@@ -154,7 +192,7 @@ export class SqliteGatewayStore implements GatewayStore {
   getAccessCredentialByPrefix(prefix: string): AccessCredentialRecord | null {
     const row = this.db
       .prepare(
-        `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
+        `SELECT id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at,
                 rate_json, created_at, rotates_id
          FROM access_credentials
          WHERE prefix = ?`
@@ -170,7 +208,7 @@ export class SqliteGatewayStore implements GatewayStore {
       ? this.db
           .prepare(
             `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
-                    rate_json, created_at, rotates_id
+                    token_ciphertext, rate_json, created_at, rotates_id
              FROM access_credentials
              WHERE subject_id = ?
                AND (? = 1 OR revoked_at IS NULL)
@@ -180,7 +218,7 @@ export class SqliteGatewayStore implements GatewayStore {
       : this.db
           .prepare(
             `SELECT id, prefix, hash, subject_id, label, scope, expires_at, revoked_at,
-                    rate_json, created_at, rotates_id
+                    token_ciphertext, rate_json, created_at, rotates_id
              FROM access_credentials
              WHERE (? = 1 OR revoked_at IS NULL)
              ORDER BY created_at DESC`
@@ -374,8 +412,10 @@ export class SqliteGatewayStore implements GatewayStore {
       .prepare(
         `INSERT INTO request_events (
           request_id, credential_id, subject_id, scope, session_id, subscription_id, provider,
-          started_at, duration_ms, first_byte_ms, status, error_code, rate_limited
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
+          prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
+          estimated_tokens, usage_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(request_id) DO UPDATE SET
           credential_id = excluded.credential_id,
           subject_id = excluded.subject_id,
@@ -383,11 +423,18 @@ export class SqliteGatewayStore implements GatewayStore {
           session_id = excluded.session_id,
           subscription_id = excluded.subscription_id,
           provider = excluded.provider,
+          started_at = excluded.started_at,
           duration_ms = excluded.duration_ms,
           first_byte_ms = excluded.first_byte_ms,
           status = excluded.status,
           error_code = excluded.error_code,
-          rate_limited = excluded.rate_limited`
+          rate_limited = excluded.rate_limited,
+          prompt_tokens = excluded.prompt_tokens,
+          completion_tokens = excluded.completion_tokens,
+          total_tokens = excluded.total_tokens,
+          cached_prompt_tokens = excluded.cached_prompt_tokens,
+          estimated_tokens = excluded.estimated_tokens,
+          usage_source = excluded.usage_source`
       )
       .run(
         record.requestId,
@@ -402,7 +449,13 @@ export class SqliteGatewayStore implements GatewayStore {
         record.firstByteMs,
         record.status,
         record.errorCode,
-        record.rateLimited ? 1 : 0
+        record.rateLimited ? 1 : 0,
+        record.promptTokens ?? null,
+        record.completionTokens ?? null,
+        record.totalTokens ?? null,
+        record.cachedPromptTokens ?? null,
+        record.estimatedTokens ?? null,
+        record.usageSource ?? null
       );
 
     return record;
@@ -415,7 +468,8 @@ export class SqliteGatewayStore implements GatewayStore {
           .prepare(
             `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
                     provider, started_at, duration_ms, first_byte_ms, status, error_code,
-                    rate_limited
+                    rate_limited, prompt_tokens, completion_tokens, total_tokens,
+                    cached_prompt_tokens, estimated_tokens, usage_source
              FROM request_events
              WHERE credential_id = ?
              ORDER BY started_at DESC
@@ -427,7 +481,8 @@ export class SqliteGatewayStore implements GatewayStore {
             .prepare(
               `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
-                      rate_limited
+                      rate_limited, prompt_tokens, completion_tokens, total_tokens,
+                      cached_prompt_tokens, estimated_tokens, usage_source
                FROM request_events
                WHERE subject_id = ?
                ORDER BY started_at DESC
@@ -438,7 +493,8 @@ export class SqliteGatewayStore implements GatewayStore {
             .prepare(
               `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
-                      rate_limited
+                      rate_limited, prompt_tokens, completion_tokens, total_tokens,
+                      cached_prompt_tokens, estimated_tokens, usage_source
                FROM request_events
                ORDER BY started_at DESC
                LIMIT ?`
@@ -478,7 +534,12 @@ export class SqliteGatewayStore implements GatewayStore {
            SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS errors,
            SUM(CASE WHEN rate_limited = 1 THEN 1 ELSE 0 END) AS rate_limited,
            AVG(duration_ms) AS avg_duration_ms,
-           AVG(first_byte_ms) AS avg_first_byte_ms
+           AVG(first_byte_ms) AS avg_first_byte_ms,
+           COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
+           COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+           COALESCE(SUM(total_tokens), 0) AS total_tokens,
+           COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
+           COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens
          FROM request_events
          WHERE ${clauses.join(" AND ")}
          GROUP BY
@@ -641,6 +702,24 @@ export class SqliteGatewayStore implements GatewayStore {
       CREATE INDEX IF NOT EXISTS idx_admin_audit_action_created
         ON admin_audit_events(action, created_at);
     `);
+
+    this.applyMigration(4, `
+      ALTER TABLE request_events ADD COLUMN prompt_tokens INTEGER;
+      ALTER TABLE request_events ADD COLUMN completion_tokens INTEGER;
+      ALTER TABLE request_events ADD COLUMN total_tokens INTEGER;
+      ALTER TABLE request_events ADD COLUMN cached_prompt_tokens INTEGER;
+      ALTER TABLE request_events ADD COLUMN estimated_tokens INTEGER;
+      ALTER TABLE request_events ADD COLUMN usage_source TEXT;
+    `);
+
+    this.applyMigration(5, `
+      ALTER TABLE subjects ADD COLUMN name TEXT;
+      ALTER TABLE subjects ADD COLUMN phone_number TEXT;
+    `);
+
+    this.applyMigration(6, `
+      ALTER TABLE access_credentials ADD COLUMN token_ciphertext TEXT;
+    `);
   }
 
   private applyMigration(version: number, sql: string): void {
@@ -709,6 +788,8 @@ function rowToSubject(row: unknown): Subject {
   const value = row as {
     id: string;
     label: string;
+    name: string | null;
+    phone_number: string | null;
     state: Subject["state"];
     created_at: string;
   };
@@ -716,6 +797,8 @@ function rowToSubject(row: unknown): Subject {
   return {
     id: value.id,
     label: value.label,
+    name: value.name,
+    phoneNumber: value.phone_number,
     state: value.state,
     createdAt: new Date(value.created_at)
   };
@@ -726,6 +809,7 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     id: string;
     prefix: string;
     hash: string;
+    token_ciphertext: string | null;
     subject_id: string;
     label: string;
     scope: AccessCredentialRecord["scope"];
@@ -740,6 +824,7 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     id: value.id,
     prefix: value.prefix,
     hash: value.hash,
+    tokenCiphertext: value.token_ciphertext,
     subjectId: value.subject_id,
     label: value.label,
     scope: value.scope,
@@ -766,6 +851,12 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     status: RequestEventRecord["status"];
     error_code: string | null;
     rate_limited: number;
+    prompt_tokens: number | null;
+    completion_tokens: number | null;
+    total_tokens: number | null;
+    cached_prompt_tokens: number | null;
+    estimated_tokens: number | null;
+    usage_source: RequestEventRecord["usageSource"];
   };
 
   return {
@@ -781,7 +872,13 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     firstByteMs: value.first_byte_ms,
     status: value.status,
     errorCode: value.error_code,
-    rateLimited: value.rate_limited === 1
+    rateLimited: value.rate_limited === 1,
+    promptTokens: value.prompt_tokens,
+    completionTokens: value.completion_tokens,
+    totalTokens: value.total_tokens,
+    cachedPromptTokens: value.cached_prompt_tokens,
+    estimatedTokens: value.estimated_tokens,
+    usageSource: value.usage_source
   };
 }
 
@@ -825,6 +922,11 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     rate_limited: number;
     avg_duration_ms: number | null;
     avg_first_byte_ms: number | null;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cached_prompt_tokens: number;
+    estimated_tokens: number;
   };
 
   return {
@@ -839,6 +941,11 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     errors: value.errors,
     rateLimited: value.rate_limited,
     avgDurationMs: value.avg_duration_ms,
-    avgFirstByteMs: value.avg_first_byte_ms
+    avgFirstByteMs: value.avg_first_byte_ms,
+    promptTokens: value.prompt_tokens,
+    completionTokens: value.completion_tokens,
+    totalTokens: value.total_tokens,
+    cachedPromptTokens: value.cached_prompt_tokens,
+    estimatedTokens: value.estimated_tokens
   };
 }

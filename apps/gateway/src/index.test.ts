@@ -380,7 +380,7 @@ describe("gateway phase 1 routes", () => {
 
   it("validates configured upstream reasoning effort", async () => {
     const previousReasoningEffort = process.env.MEDCODE_UPSTREAM_REASONING_EFFORT;
-    process.env.MEDCODE_UPSTREAM_REASONING_EFFORT = "medium";
+    process.env.MEDCODE_UPSTREAM_REASONING_EFFORT = "high";
     const app = buildGateway({
       accessToken: "secret",
       logger: false
@@ -2019,6 +2019,70 @@ describe("gateway phase 1 routes", () => {
     );
     expect(events.every((event) => event.durationMs !== null)).toBe(true);
     expect(events.every((event) => event.firstByteMs !== null)).toBe(true);
+
+    await app.close();
+  });
+
+  it("records provider token usage in request observations", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Observed usage token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "ok" },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 10,
+          completionTokens: 2,
+          totalTokens: 12,
+          cachedPromptTokens: 4
+        }
+      }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: `Bearer ${issued.token}` },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(200);
+    expect(store.listRequestEvents({ credentialId: issued.record.id })).toEqual([
+      expect.objectContaining({
+        requestId,
+        credentialId: issued.record.id,
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 4,
+        estimatedTokens: null,
+        usageSource: "provider"
+      })
+    ]);
 
     await app.close();
   });

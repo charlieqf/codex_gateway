@@ -219,6 +219,8 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   --db /var/lib/codex-gateway/gateway.db \
   issue \
   --user trial-alice \
+  --name "Alice Zhang" \
+  --phone "+15551234567" \
   --label "Alice internal trial" \
   --scope code \
   --expires-days 14 \
@@ -227,14 +229,19 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   --concurrent 1
 ```
 
-The API key is printed once. Send it through the agreed private channel only.
-The database stores only a prefix and hash.
+`GATEWAY_API_KEY_ENCRYPTION_SECRET` must be configured in the container
+environment before issuing or rotating keys. The API key is printed and stored
+as encrypted `token_ciphertext`, so an operator can later run
+`reveal-key <credential-prefix>`. Send full keys through the agreed private
+channel only.
 
 After issuing:
 
 ```bash
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db list --user trial-alice --active-only
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db list-active-keys --user trial-alice
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db audit --user trial-alice --limit 20
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
@@ -260,8 +267,11 @@ Look for:
 
 - Unexpected active users or API keys.
 - API keys without daily and concurrency caps.
+- Missing user name or phone metadata for active trial users.
+- Token usage spikes in `report-usage` or request-level `events`.
 - Repeated `rate_limited` or provider errors.
 - Admin actions that were not expected.
+- Any `reveal-key` audit event that was not expected.
 
 ## Public OpenAI-Compatible Smoke
 

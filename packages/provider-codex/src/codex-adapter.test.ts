@@ -61,7 +61,12 @@ describe("CodexProviderAdapter", () => {
       },
       {
         type: "turn.completed",
-        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 2 }
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 2,
+          reasoning_output_tokens: 0
+        }
       }
     ]);
     const client = new FakeClient(thread);
@@ -89,7 +94,12 @@ describe("CodexProviderAdapter", () => {
     const thread = new FakeThread("thread_existing", [
       {
         type: "turn.completed",
-        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
       }
     ]);
     const client = new FakeClient(thread);
@@ -118,20 +128,25 @@ describe("CodexProviderAdapter", () => {
     const thread = new FakeThread(null, [
       {
         type: "turn.completed",
-        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
       }
     ]);
     const client = new FakeClient(thread);
     const adapter = createAdapter(client, {
-      model: "gpt-5.4",
-      modelReasoningEffort: "medium"
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
     });
 
     await collect(adapter.message(messageInput({ providerSessionRef: null })));
 
     expect(client.startedOptions[0]).toMatchObject({
-      model: "gpt-5.4",
-      modelReasoningEffort: "medium"
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
     });
   });
 
@@ -222,7 +237,12 @@ describe("CodexProviderAdapter", () => {
       } as ThreadEvent,
       {
         type: "turn.completed",
-        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
       }
     ]);
     const adapter = createAdapter(new FakeClient(thread));
@@ -251,7 +271,12 @@ describe("CodexProviderAdapter", () => {
       } as ThreadEvent,
       {
         type: "turn.completed",
-        usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 }
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
       }
     ]);
     const adapter = createAdapter(new FakeClient(thread));

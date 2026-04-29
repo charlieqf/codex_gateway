@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Command, InvalidArgumentError } from "commander";
@@ -34,6 +34,8 @@ program
   .requiredOption("--scope <scope>", "credential scope: code or medical", parseScope)
   .option("--user <id>", "user id; preferred alias for --subject-id")
   .option("--user-label <label>", "user label; preferred alias for --subject-label")
+  .option("--name <name>", "user real name")
+  .option("--phone <phone>", "user phone number")
   .option("--subject-id <id>", "subject id", defaultSubjectId)
   .option("--subject-label <label>", "subject label", defaultSubjectLabel)
   .option("--expires-days <days>", "days until expiration", parsePositiveInteger, 365)
@@ -48,6 +50,9 @@ program
         params: {
           label: options.label,
           scope: options.scope,
+          user_id: issueTargetUserId(options),
+          user_name: normalizeOptionalText(options.name),
+          user_phone: normalizeOptionalText(options.phone),
           expires_days: options.expiresDays,
           rate: rateFromOptions(options)
         }
@@ -63,17 +68,21 @@ program
           expiresAt: addDays(new Date(), options.expiresDays),
           rate: rateFromOptions(options)
         });
-        store.insertAccessCredential(issued.record);
+        const record = {
+          ...issued.record,
+          tokenCiphertext: encryptAccessCredentialToken(issued.token)
+        };
+        store.insertAccessCredential(record);
 
         return {
           output: {
             token: issued.token,
-            credential: publicCredential(issued.record)
+            credential: publicCredential(record, subject)
           },
           audit: {
             targetUserId: subject.id,
-            targetCredentialId: issued.record.id,
-            targetCredentialPrefix: issued.record.prefix
+            targetCredentialId: record.id,
+            targetCredentialPrefix: record.prefix
           }
         };
       }
@@ -85,18 +94,139 @@ program
   .description("List API keys.")
   .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--subject-id <id>", "filter by subject id")
-  .option("--active-only", "hide revoked credentials")
+  .option("--active-only", "hide revoked, expired, or disabled-user credentials")
   .action((options) => {
     withStore((store) => {
       const subjectId = resolveUserId(options);
+      const now = new Date();
+      const subjects = subjectMap(store.listSubjects({ includeArchived: true }));
       const credentials = store.listAccessCredentials({
         subjectId,
         includeRevoked: options.activeOnly ? false : true
-      });
+      }).filter(
+        (credential) =>
+          !options.activeOnly || credentialStatus(credential, subjects.get(credential.subjectId), now) === "active"
+      );
       printJson({
-        credentials: credentials.map(publicCredential)
+        credentials: credentials.map((credential) =>
+          publicCredential(credential, subjects.get(credential.subjectId) ?? null, now)
+        )
       });
     });
+  });
+
+program
+  .command("list-active-keys")
+  .alias("active-keys")
+  .description("List currently valid API keys with user contact metadata.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
+  .option("--subject-id <id>", "filter by subject id")
+  .action((options) => {
+    withStore((store) => {
+      const subjectId = resolveUserId(options);
+      const now = new Date();
+      const subjects = subjectMap(store.listSubjects({ includeArchived: true }));
+      const credentials = store
+        .listAccessCredentials({ subjectId, includeRevoked: false })
+        .filter(
+          (credential) =>
+            credentialStatus(credential, subjects.get(credential.subjectId), now) === "active"
+        );
+
+      printJson({
+        credentials: credentials.map((credential) =>
+          publicCredential(credential, subjects.get(credential.subjectId) ?? null, now)
+        )
+      });
+    });
+  });
+
+program
+  .command("reveal-key")
+  .argument("<credential-prefix>")
+  .description("Reveal a stored full API key by prefix.")
+  .action((prefix) => {
+    withAuditedStore(
+      {
+        action: "reveal-key",
+        targetCredentialPrefix: prefix
+      },
+      (store) => {
+        const credential = store.getAccessCredentialByPrefix(prefix);
+        if (!credential) {
+          throw new Error(`Credential prefix not found: ${prefix}`);
+        }
+        const subject = store.getSubject(credential.subjectId);
+        return {
+          output: {
+            credential: publicCredential(
+              credential,
+              subject,
+              new Date(),
+              revealAccessCredentialToken(credential)
+            )
+          },
+          audit: {
+            targetUserId: credential.subjectId,
+            targetCredentialId: credential.id,
+            targetCredentialPrefix: credential.prefix
+          }
+        };
+      }
+    );
+  });
+
+program
+  .command("reveal-keys")
+  .description("Reveal stored full API keys, optionally filtered to currently valid keys.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
+  .option("--subject-id <id>", "filter by subject id")
+  .option("--active-only", "hide revoked, expired, or disabled-user credentials")
+  .action((options) => {
+    withAuditedStore(
+      {
+        action: "reveal-key",
+        targetUserId: resolveUserId(options),
+        params: {
+          active_only: Boolean(options.activeOnly)
+        }
+      },
+      (store) => {
+        const subjectId = resolveUserId(options);
+        const now = new Date();
+        const subjects = subjectMap(store.listSubjects({ includeArchived: true }));
+        const credentials = store
+          .listAccessCredentials({
+            subjectId,
+            includeRevoked: options.activeOnly ? false : true
+          })
+          .filter(
+            (credential) =>
+              !options.activeOnly ||
+              credentialStatus(credential, subjects.get(credential.subjectId), now) === "active"
+          );
+
+        return {
+          output: {
+            credentials: credentials.map((credential) =>
+              publicCredential(
+                credential,
+                subjects.get(credential.subjectId) ?? null,
+                now,
+                revealAccessCredentialToken(credential)
+              )
+            )
+          },
+          audit: {
+            targetUserId: subjectId ?? null,
+            params: {
+              active_only: Boolean(options.activeOnly),
+              credential_count: credentials.length
+            }
+          }
+        };
+      }
+    );
   });
 
 program
@@ -115,6 +245,57 @@ program
           .map(publicSubject)
       });
     });
+  });
+
+program
+  .command("update-user")
+  .argument("<user>")
+  .description("Update user display/contact metadata.")
+  .option("--label <label>", "user display label")
+  .option("--name <name>", "user real name")
+  .option("--phone <phone>", "user phone number")
+  .option("--clear-name", "clear stored user real name")
+  .option("--clear-phone", "clear stored user phone number")
+  .action((user, options: UpdateUserOptions) => {
+    withAuditedStore(
+      {
+        action: "update-user",
+        targetUserId: user,
+        params: requestedUpdateUserParams(options)
+      },
+      (store) => {
+        assertHasUpdateUserChanges(options);
+        if (options.name !== undefined && options.clearName) {
+          throw new Error("Use --name or --clear-name, not both.");
+        }
+        if (options.phone !== undefined && options.clearPhone) {
+          throw new Error("Use --phone or --clear-phone, not both.");
+        }
+
+        const existing = store.getSubject(user);
+        if (!existing) {
+          throw new Error(`User not found: ${user}`);
+        }
+
+        const updated = store.updateSubject(user, updateSubjectInput(options));
+        if (!updated) {
+          throw new Error(`User not found: ${user}`);
+        }
+
+        return {
+          output: {
+            user: publicSubject(updated)
+          },
+          audit: {
+            targetUserId: updated.id,
+            params: {
+              before: publicSubject(existing),
+              after: publicSubject(updated)
+            }
+          }
+        };
+      }
+    );
   });
 
 program
@@ -196,7 +377,7 @@ program
 
         return {
           output: {
-            credential: publicCredential(updated)
+            credential: publicCredential(updated, store.getSubject(updated.subjectId))
           },
           audit: {
             targetUserId: updated.subjectId,
@@ -279,7 +460,13 @@ program
           first_byte_ms: event.firstByteMs,
           status: event.status,
           error_code: event.errorCode,
-          rate_limited: event.rateLimited
+          rate_limited: event.rateLimited,
+          prompt_tokens: event.promptTokens ?? null,
+          completion_tokens: event.completionTokens ?? null,
+          total_tokens: event.totalTokens ?? null,
+          cached_prompt_tokens: event.cachedPromptTokens ?? null,
+          estimated_tokens: event.estimatedTokens ?? null,
+          usage_source: event.usageSource ?? null
         }))
       });
     });
@@ -323,7 +510,12 @@ program
           errors: row.errors,
           rate_limited: row.rateLimited,
           avg_duration_ms: row.avgDurationMs,
-          avg_first_byte_ms: row.avgFirstByteMs
+          avg_first_byte_ms: row.avgFirstByteMs,
+          prompt_tokens: row.promptTokens,
+          completion_tokens: row.completionTokens,
+          total_tokens: row.totalTokens,
+          cached_prompt_tokens: row.cachedPromptTokens,
+          estimated_tokens: row.estimatedTokens
         }))
       });
     });
@@ -386,7 +578,7 @@ program
 
         return {
           output: {
-            credential: publicCredential(revoked)
+            credential: publicCredential(revoked, store.getSubject(revoked.subjectId))
           },
           audit: {
             targetUserId: revoked.subjectId,
@@ -450,7 +642,11 @@ program
           }),
           rotatesId: oldCredential.id
         });
-        store.insertAccessCredential(issued.record);
+        const record = {
+          ...issued.record,
+          tokenCiphertext: encryptAccessCredentialToken(issued.token)
+        };
+        store.insertAccessCredential(record);
 
         const graceHours = options.graceHours as number;
         const oldAfterRotate =
@@ -460,26 +656,27 @@ program
                 oldCredential.prefix,
                 earlierDate(oldCredential.expiresAt, addHours(now, graceHours))
               ) ?? oldCredential;
+        const subject = store.getSubject(oldCredential.subjectId);
 
         return {
           output: {
             token: issued.token,
-            credential: publicCredential(issued.record),
-            rotated_from: publicCredential(oldAfterRotate)
+            credential: publicCredential(record, subject),
+            rotated_from: publicCredential(oldAfterRotate, subject)
           },
           audit: {
             targetUserId: oldCredential.subjectId,
             targetCredentialId: oldCredential.id,
             targetCredentialPrefix: oldCredential.prefix,
             params: {
-              new_credential_id: issued.record.id,
-              new_credential_prefix: issued.record.prefix,
-              label: issued.record.label,
-              expires_at: issued.record.expiresAt.toISOString(),
+              new_credential_id: record.id,
+              new_credential_prefix: record.prefix,
+              label: record.label,
+              expires_at: record.expiresAt.toISOString(),
               old_expires_at: oldAfterRotate.expiresAt.toISOString(),
               old_revoked_at: oldAfterRotate.revokedAt?.toISOString() ?? null,
               grace_hours: graceHours,
-              rate: issued.record.rate
+              rate: record.rate
             }
           }
         };
@@ -533,6 +730,14 @@ interface UpdateKeyOptions {
   concurrent?: NullableIntegerOption;
 }
 
+interface UpdateUserOptions {
+  label?: string;
+  name?: string;
+  phone?: string;
+  clearName?: boolean;
+  clearPhone?: boolean;
+}
+
 type NullableIntegerOption = number | null | "";
 
 interface TrialCheckOptions {
@@ -559,6 +764,7 @@ interface TrialSummary {
   revoked_api_keys: number;
   expired_api_keys: number;
   uncapped_active_api_keys: number;
+  active_users_missing_contact: number;
   ignored_internal_users: number;
   latest_audit_event_at: string | null;
 }
@@ -613,6 +819,7 @@ function buildTrialCheck(
 ) {
   const generatedAt = new Date();
   const subjects = store.listSubjects({ includeArchived: true });
+  const subjectsById = subjectMap(subjects);
   const trialSubjects = subjects.filter((subject) => subject.id !== defaultSubjectId);
   const credentials = store.listAccessCredentials({ includeRevoked: true });
   const activeUsers = trialSubjects.filter((subject) => subject.state === "active");
@@ -620,7 +827,7 @@ function buildTrialCheck(
   const archivedUsers = trialSubjects.filter((subject) => subject.state === "archived");
   const activeCredentials = credentials.filter(
     (credential) =>
-      credential.revokedAt === null && credential.expiresAt.getTime() > generatedAt.getTime()
+      credentialStatus(credential, subjectsById.get(credential.subjectId), generatedAt) === "active"
   );
   const revokedCredentials = credentials.filter((credential) => credential.revokedAt !== null);
   const expiredCredentials = credentials.filter(
@@ -630,6 +837,9 @@ function buildTrialCheck(
   const uncappedCredentials = activeCredentials.filter(
     (credential) =>
       credential.rate.requestsPerDay === null || credential.rate.concurrentRequests === null
+  );
+  const activeUsersMissingContact = activeUsers.filter(
+    (subject) => !subject.name || !subject.phoneNumber
   );
   const latestAuditEvent = store.listAdminAuditEvents({ limit: 1 })[0] ?? null;
 
@@ -644,6 +854,7 @@ function buildTrialCheck(
     revoked_api_keys: revokedCredentials.length,
     expired_api_keys: expiredCredentials.length,
     uncapped_active_api_keys: uncappedCredentials.length,
+    active_users_missing_contact: activeUsersMissingContact.length,
     ignored_internal_users: subjects.length - trialSubjects.length,
     latest_audit_event_at: latestAuditEvent?.createdAt.toISOString() ?? null
   };
@@ -661,6 +872,7 @@ function buildTrialCheck(
     activeUserCountTrialCheck(activeUsers.length, maxActiveUsers),
     activeApiKeyTrialCheck(activeCredentials.length),
     apiKeyLimitsTrialCheck(uncappedCredentials),
+    userContactTrialCheck(activeUsersMissingContact),
     auditTrailTrialCheck(latestAuditEvent)
   ];
 
@@ -688,6 +900,7 @@ function emptyTrialSummary(maxActiveUsers: number): TrialSummary {
     revoked_api_keys: 0,
     expired_api_keys: 0,
     uncapped_active_api_keys: 0,
+    active_users_missing_contact: 0,
     ignored_internal_users: 0,
     latest_audit_event_at: null
   };
@@ -817,6 +1030,24 @@ function apiKeyLimitsTrialCheck(uncappedCredentials: AccessCredentialRecord[]): 
   };
 }
 
+function userContactTrialCheck(subjects: Subject[]): TrialCheck {
+  if (subjects.length > 0) {
+    return {
+      name: "user_contact_metadata",
+      status: "warning",
+      message: "Some active users are missing name or phone metadata.",
+      detail: {
+        users: subjects.map((subject) => subject.id)
+      }
+    };
+  }
+  return {
+    name: "user_contact_metadata",
+    status: "ok",
+    message: "Active users have name and phone metadata."
+  };
+}
+
 function auditTrailTrialCheck(latestAuditEvent: AdminAuditEventRecord | null): TrialCheck {
   if (!latestAuditEvent) {
     return {
@@ -870,23 +1101,73 @@ function sanitizeAuditErrorMessage(err: unknown): string {
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
 }
 
+function encryptAccessCredentialToken(token: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", apiKeyEncryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return [
+    "v1",
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    ciphertext.toString("base64url")
+  ].join(".");
+}
+
+function revealAccessCredentialToken(record: AccessCredentialRecord): string | null {
+  if (!record.tokenCiphertext) {
+    return null;
+  }
+  const [version, ivText, tagText, ciphertextText] = record.tokenCiphertext.split(".");
+  if (version !== "v1" || !ivText || !tagText || !ciphertextText) {
+    throw new Error(`Credential prefix has an unsupported stored token format: ${record.prefix}`);
+  }
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    apiKeyEncryptionKey(),
+    Buffer.from(ivText, "base64url")
+  );
+  decipher.setAuthTag(Buffer.from(tagText, "base64url"));
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(ciphertextText, "base64url")),
+    decipher.final()
+  ]);
+  return plaintext.toString("utf8");
+}
+
+function apiKeyEncryptionKey(): Buffer {
+  const secret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "GATEWAY_API_KEY_ENCRYPTION_SECRET is required to issue or reveal recoverable API keys."
+    );
+  }
+  return createHash("sha256").update(secret, "utf8").digest();
+}
+
 function subjectFromOptions(options: {
   user?: string;
   userLabel?: string;
+  name?: string;
+  phone?: string;
   subjectId: string;
   subjectLabel: string;
 }): Subject {
   const user = resolveUserId(options) ?? defaultSubjectId;
+  const name = normalizeOptionalText(options.name);
+  const phoneNumber = normalizeOptionalText(options.phone);
   const label =
-    "userLabel" in options && typeof options.userLabel === "string"
-      ? options.userLabel
-      : options.user
-        ? user
-        : options.subjectLabel;
+    normalizeOptionalText(options.userLabel) ??
+    name ??
+    (options.user
+      ? user
+      : normalizeOptionalText(options.subjectLabel) ?? defaultSubjectLabel);
 
   return {
     id: user,
     label,
+    name,
+    phoneNumber,
     state: "active",
     createdAt: new Date()
   };
@@ -901,6 +1182,8 @@ function issueSubject(
   options: {
     user?: string;
     userLabel?: string;
+    name?: string;
+    phone?: string;
     subjectId: string;
     subjectLabel: string;
   }
@@ -916,7 +1199,9 @@ function issueSubject(
 
   return {
     ...existing,
-    label: requested.label
+    label: requested.label,
+    name: requested.name ?? existing.name ?? null,
+    phoneNumber: requested.phoneNumber ?? existing.phoneNumber ?? null
   };
 }
 
@@ -952,6 +1237,16 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
   };
 }
 
+function requestedUpdateUserParams(options: UpdateUserOptions): Record<string, unknown> {
+  return {
+    label: normalizeOptionalText(options.label),
+    name: options.clearName ? null : normalizeOptionalText(options.name),
+    phone: options.clearPhone ? null : normalizeOptionalText(options.phone),
+    clear_name: Boolean(options.clearName),
+    clear_phone: Boolean(options.clearPhone)
+  };
+}
+
 function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
   if (
     options.label === undefined &&
@@ -966,6 +1261,41 @@ function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
       "Set at least one of --label, --scope, --expires-days, --expires-at, --rpm, --rpd, or --concurrent."
     );
   }
+}
+
+function assertHasUpdateUserChanges(options: UpdateUserOptions): void {
+  if (
+    options.label === undefined &&
+    options.name === undefined &&
+    options.phone === undefined &&
+    !options.clearName &&
+    !options.clearPhone
+  ) {
+    throw new Error(
+      "Set at least one of --label, --name, --phone, --clear-name, or --clear-phone."
+    );
+  }
+  if (options.label !== undefined && !normalizeOptionalText(options.label)) {
+    throw new Error("--label cannot be empty.");
+  }
+  if (options.name !== undefined && !normalizeOptionalText(options.name)) {
+    throw new Error("--name cannot be empty; use --clear-name to remove it.");
+  }
+  if (options.phone !== undefined && !normalizeOptionalText(options.phone)) {
+    throw new Error("--phone cannot be empty; use --clear-phone to remove it.");
+  }
+}
+
+function updateSubjectInput(options: UpdateUserOptions) {
+  return {
+    label: options.label === undefined ? undefined : normalizeOptionalText(options.label) ?? undefined,
+    name: options.clearName ? null : options.name === undefined ? undefined : normalizeOptionalText(options.name),
+    phoneNumber: options.clearPhone
+      ? null
+      : options.phone === undefined
+        ? undefined
+        : normalizeOptionalText(options.phone)
+  };
 }
 
 function updateKeyExpiresAt(options: UpdateKeyOptions): Date | undefined {
@@ -1005,8 +1335,22 @@ function auditCredentialSnapshot(record: AccessCredentialRecord) {
   };
 }
 
-function publicCredential(record: AccessCredentialRecord) {
-  return {
+type CredentialStatus =
+  | "active"
+  | "revoked"
+  | "expired"
+  | "user_disabled"
+  | "user_archived"
+  | "user_missing";
+
+function publicCredential(
+  record: AccessCredentialRecord,
+  subject?: Subject | null,
+  now: Date = new Date(),
+  revealedToken?: string | null
+) {
+  const status = credentialStatus(record, subject, now);
+  const output: Record<string, unknown> = {
     id: record.id,
     prefix: record.prefix,
     user_id: record.subjectId,
@@ -1015,19 +1359,57 @@ function publicCredential(record: AccessCredentialRecord) {
     scope: record.scope,
     expires_at: record.expiresAt.toISOString(),
     revoked_at: record.revokedAt?.toISOString() ?? null,
+    status,
+    is_currently_valid: status === "active",
+    token_available: Boolean(record.tokenCiphertext),
+    token_unavailable_reason: record.tokenCiphertext ? null : "not_stored",
     rate: record.rate,
     created_at: record.createdAt.toISOString(),
-    rotates_id: record.rotatesId
+    rotates_id: record.rotatesId,
+    user: subject ? publicSubject(subject) : null
   };
+  if (revealedToken !== undefined) {
+    output.token = revealedToken;
+  }
+  return output;
 }
 
 function publicSubject(subject: Subject) {
   return {
     id: subject.id,
     label: subject.label,
+    name: subject.name ?? null,
+    phone_number: subject.phoneNumber ?? null,
     state: subject.state,
     created_at: subject.createdAt.toISOString()
   };
+}
+
+function subjectMap(subjects: Subject[]): Map<string, Subject> {
+  return new Map(subjects.map((subject) => [subject.id, subject]));
+}
+
+function credentialStatus(
+  record: AccessCredentialRecord,
+  subject: Subject | null | undefined,
+  now: Date
+): CredentialStatus {
+  if (record.revokedAt) {
+    return "revoked";
+  }
+  if (record.expiresAt.getTime() <= now.getTime()) {
+    return "expired";
+  }
+  if (!subject) {
+    return "user_missing";
+  }
+  if (subject.state === "disabled") {
+    return "user_disabled";
+  }
+  if (subject.state === "archived") {
+    return "user_archived";
+  }
+  return "active";
 }
 
 function publicAdminAuditEvent(record: AdminAuditEventRecord) {
@@ -1064,6 +1446,8 @@ function parseAdminAuditAction(value: string): AdminAuditAction {
     value === "update-key" ||
     value === "revoke" ||
     value === "rotate" ||
+    value === "reveal-key" ||
+    value === "update-user" ||
     value === "disable-user" ||
     value === "enable-user" ||
     value === "prune-events"
@@ -1071,7 +1455,7 @@ function parseAdminAuditAction(value: string): AdminAuditAction {
     return value;
   }
   throw new InvalidArgumentError(
-    "action must be issue, update-key, revoke, rotate, disable-user, enable-user, or prune-events"
+    "action must be issue, update-key, revoke, rotate, reveal-key, update-user, disable-user, enable-user, or prune-events"
   );
 }
 
@@ -1115,6 +1499,14 @@ function normalizeNullableIntegerOption(
     return null;
   }
   return value;
+}
+
+function normalizeOptionalText(value: string | undefined): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function parseDate(value: string): Date {

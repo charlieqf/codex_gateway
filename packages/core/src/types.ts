@@ -18,6 +18,8 @@ export type SubjectState = "active" | "disabled" | "archived";
 export interface Subject {
   id: string;
   label: string;
+  name?: string | null;
+  phoneNumber?: string | null;
   state: SubjectState;
   createdAt: Date;
 }
@@ -26,6 +28,7 @@ export interface AccessCredentialRecord {
   id: string;
   prefix: string;
   hash: string;
+  tokenCiphertext?: string | null;
   subjectId: string;
   label: string;
   scope: Scope;
@@ -49,6 +52,8 @@ export type AdminAuditAction =
   | "update-key"
   | "revoke"
   | "rotate"
+  | "reveal-key"
+  | "update-user"
   | "disable-user"
   | "enable-user"
   | "prune-events";
@@ -81,7 +86,15 @@ export interface RequestEventRecord {
   status: RequestEventStatus;
   errorCode: string | null;
   rateLimited: boolean;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  totalTokens?: number | null;
+  cachedPromptTokens?: number | null;
+  estimatedTokens?: number | null;
+  usageSource?: RequestTokenUsageSource | null;
 }
+
+export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
 
 export interface Subscription {
   id: string;

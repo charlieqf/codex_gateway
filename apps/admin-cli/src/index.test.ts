@@ -23,6 +23,10 @@ describe("codex-gateway-admin user API key operations", () => {
       "issue",
       "--user",
       "alice",
+      "--name",
+      "Alice Zhang",
+      "--phone",
+      "+15551234567",
       "--label",
       "Alice laptop",
       "--scope",
@@ -42,7 +46,14 @@ describe("codex-gateway-admin user API key operations", () => {
         subject_id: string;
         label: string;
         scope: string;
+        status: string;
+        is_currently_valid: boolean;
         expires_at: string;
+        user: {
+          id: string;
+          name: string | null;
+          phone_number: string | null;
+        };
         rate: {
           requestsPerMinute: number;
           requestsPerDay: number | null;
@@ -55,6 +66,13 @@ describe("codex-gateway-admin user API key operations", () => {
     expect(issued.credential).toMatchObject({
       user_id: "alice",
       subject_id: "alice",
+      status: "active",
+      is_currently_valid: true,
+      user: {
+        id: "alice",
+        name: "Alice Zhang",
+        phone_number: "+15551234567"
+      },
       rate: {
         requestsPerMinute: 2,
         requestsPerDay: 10,
@@ -106,17 +124,91 @@ describe("codex-gateway-admin user API key operations", () => {
       }
     });
 
-    const users = runCli(dbPath, ["list-users"]) as { users: Array<{ id: string }> };
+    const users = runCli(dbPath, ["list-users"]) as {
+      users: Array<{ id: string; name: string | null; phone_number: string | null }>;
+    };
     expect(users.users.map((user) => user.id)).toEqual(["alice"]);
+    expect(users.users[0]).toMatchObject({
+      name: "Alice Zhang",
+      phone_number: "+15551234567"
+    });
+
+    const updatedUser = runCli(dbPath, [
+      "update-user",
+      "alice",
+      "--name",
+      "Alice Chen",
+      "--phone",
+      "+15557654321"
+    ]) as {
+      user: { id: string; name: string | null; phone_number: string | null };
+    };
+    expect(updatedUser.user).toMatchObject({
+      id: "alice",
+      name: "Alice Chen",
+      phone_number: "+15557654321"
+    });
 
     const keys = runCli(dbPath, ["list", "--user", "alice", "--active-only"]) as {
-      credentials: Array<{ prefix: string; user_id: string }>;
+      credentials: Array<{
+        prefix: string;
+        user_id: string;
+        status: string;
+        is_currently_valid: boolean;
+        user: { name: string | null; phone_number: string | null };
+      }>;
     };
     expect(keys.credentials).toEqual([
       {
         ...keys.credentials[0],
         prefix: issued.credential.prefix,
-        user_id: "alice"
+        user_id: "alice",
+        status: "active",
+        is_currently_valid: true,
+        user: {
+          ...keys.credentials[0].user,
+          name: "Alice Chen",
+          phone_number: "+15557654321"
+        }
+      }
+    ]);
+
+    const activeKeys = runCli(dbPath, ["list-active-keys"]) as {
+      credentials: Array<{
+        prefix: string;
+        user: { id: string; name: string | null; phone_number: string | null };
+      }>;
+    };
+    expect(activeKeys.credentials).toEqual([
+      {
+        ...activeKeys.credentials[0],
+        prefix: issued.credential.prefix,
+        user: {
+          ...activeKeys.credentials[0].user,
+          id: "alice",
+          name: "Alice Chen",
+          phone_number: "+15557654321"
+        }
+      }
+    ]);
+
+    const revealed = runCli(dbPath, ["reveal-key", issued.credential.prefix]) as {
+      credential: { prefix: string; token: string; token_available: boolean };
+    };
+    expect(revealed.credential).toMatchObject({
+      prefix: issued.credential.prefix,
+      token: issued.token,
+      token_available: true
+    });
+
+    const revealedActive = runCli(dbPath, ["reveal-keys", "--active-only"]) as {
+      credentials: Array<{ prefix: string; token: string }>;
+    };
+    expect(revealedActive.credentials).toEqual([
+      {
+        ...revealedActive.credentials[0],
+        prefix: issued.credential.prefix,
+        token: issued.token
       }
     ]);
 
@@ -201,6 +293,19 @@ describe("codex-gateway-admin user API key operations", () => {
         }),
         expect.objectContaining({
           action: "update-key",
+          target_user_id: "alice",
+          target_credential_prefix: issued.credential.prefix,
+          status: "ok",
+          error_message: null
+        }),
+        expect.objectContaining({
+          action: "update-user",
+          target_user_id: "alice",
+          status: "ok",
+          error_message: null
+        }),
+        expect.objectContaining({
+          action: "reveal-key",
           target_user_id: "alice",
           target_credential_prefix: issued.credential.prefix,
           status: "ok",
@@ -320,6 +425,10 @@ function runCliRaw(dbPath: string, args: string[]): string {
     ["--import", "tsx", path.resolve("apps/admin-cli/src/index.ts"), "--db", dbPath, ...args],
     {
       cwd: path.resolve("."),
+      env: {
+        ...process.env,
+        GATEWAY_API_KEY_ENCRYPTION_SECRET: "test-api-key-encryption-secret"
+      },
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
     }

@@ -1,5 +1,10 @@
 import type { FastifyRequest } from "fastify";
-import type { GatewayError, ObservationStore } from "@codex-gateway/core";
+import type {
+  GatewayError,
+  ObservationStore,
+  RequestTokenUsageSource,
+  TokenUsage
+} from "@codex-gateway/core";
 
 export function startObservation(request: FastifyRequest): void {
   request.gatewayObservationStartedAt = new Date();
@@ -27,6 +32,19 @@ export function markFirstByte(request: FastifyRequest): void {
   }
 }
 
+export function markTokenUsage(
+  request: FastifyRequest,
+  usage: TokenUsage | undefined,
+  source: RequestTokenUsageSource = "provider"
+): void {
+  if (!usage) {
+    return;
+  }
+
+  request.gatewayTokenUsage = usage;
+  request.gatewayTokenUsageSource = source;
+}
+
 export function recordObservation(
   request: FastifyRequest,
   store: ObservationStore | undefined,
@@ -49,6 +67,7 @@ export function recordObservation(
   const subjectId = context?.subject.id ?? observedCredential?.subjectId ?? null;
   const scope = context?.scope ?? observedCredential?.scope ?? null;
   const subscription = context?.subscription ?? null;
+  const tokenUsage = request.gatewayTokenUsage;
 
   store.insertRequestEvent({
     requestId: request.id,
@@ -63,7 +82,13 @@ export function recordObservation(
     firstByteMs: firstByteMs(request, completedAt),
     status: isErrorResponse(request, statusCode) ? "error" : "ok",
     errorCode: request.gatewayErrorCode ?? null,
-    rateLimited: request.gatewayRateLimited === true
+    rateLimited: request.gatewayRateLimited === true,
+    promptTokens: tokenUsage?.promptTokens ?? null,
+    completionTokens: tokenUsage?.completionTokens ?? null,
+    totalTokens: tokenUsage?.totalTokens ?? null,
+    cachedPromptTokens: tokenUsage?.cachedPromptTokens ?? null,
+    estimatedTokens: request.gatewayEstimatedTokens ?? null,
+    usageSource: tokenUsage ? request.gatewayTokenUsageSource ?? "provider" : null
   });
 }
 

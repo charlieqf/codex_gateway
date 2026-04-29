@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Safety Rules That Worked
 
@@ -23,6 +23,7 @@ Last updated: 2026-04-23
   - base64-encoded script transfer for quote-heavy commands.
 - In PowerShell, remote Bash variables such as `$HOME`, `$PATH`, and custom env vars can be expanded locally if the SSH command is double-quoted. For multi-step VM scripts, normalize line endings and transfer a base64-encoded script.
 - If the VM test checkout has harmless local lockfile drift from prior Linux `npm install` optional dependency metadata, do not use `git reset --hard`. Use `git merge --ff-only` when possible and `npm ci` to avoid further lockfile writes.
+- Docker build uses `npm ci` inside the Node container image. If VM-side `npm install` rewrites optional/peer lockfile metadata and Docker later reports missing lockfile entries, repair only the lockfile metadata with the matching container npm generation, verify `npm ci --dry-run`, and keep the checkout clean before rebuilding.
 
 ## Operator Vocabulary
 
@@ -30,7 +31,10 @@ Last updated: 2026-04-23
 - Use "API key" for the bearer token issued to a user. The internal table is `access_credentials`, and only the prefix plus hash is stored.
 - Use "upstream Codex account" for the server-side ChatGPT/Codex login state under `CODEX_HOME`. The internal provider record is a subscription.
 - 中文文档里优先写“用户 / API key / 上游 Codex 账号 / 用量”，只在排查数据库或代码时补充 `subject`、`access_credential`、`subscription`。
-- Admin write actions are stored as audit events. Audit rows must not contain raw API keys; store only user ids, credential ids, credential prefixes, parameter summaries, status, and sanitized errors.
+- Admin write actions and full-key reveal actions are stored as audit events. Audit rows must not contain raw API keys; store only user ids, credential ids, credential prefixes, parameter summaries, status, and sanitized errors.
+- API key issue/rotate/reveal requires a stable `GATEWAY_API_KEY_ENCRYPTION_SECRET`; losing it makes encrypted `token_ciphertext` unrecoverable.
+- Historical hash-only API keys cannot be reconstructed. If full-key lookup is required for every active key, rotate historical keys after encrypted token storage is deployed or attach encrypted tokens from an existing secure source.
+- Current token usage recording is observational: `events` and `report-usage` show provider usage fields, but token budget enforcement is still pending.
 
 ## Codex Auth Lessons
 
@@ -53,6 +57,7 @@ Last updated: 2026-04-23
 - The SQLite credential auth path was validated on the VM after commit `5f57221`; issue/list/revoke worked through the admin CLI, the gateway accepted the issued token, and rejected it after revoke.
 - Credential rotate and in-process rate limiting were validated on the VM after commit `c696be0`; keep rate-limit smoke DBs explicitly named and remove them after validation.
 - API key update operations should be validated with temporary DBs: update label/scope/expiration/rate limits, check `audit --action update-key`, and confirm no raw API key appears in audit output.
+- API key management changes should be validated with temporary DBs: issue with `--name` and `--phone`, list active keys, reveal by prefix, rotate, revoke, check token usage fields in `events` and `report-usage`, and confirm audit output never contains a full API key.
 - Auth-mode hardening was validated on the VM after commit `6f4d9d6`; health exposed credential auth mode, the leftover dev token path was rejected, and production dev auth failed at startup.
 - Request event writing and admin CLI event inspection were validated on the VM after commit `3a35b24`; one successful credential request and one rate-limited request produced two queryable events, and the smoke DB was removed after validation.
 - Admin CLI `report-usage` and `prune-events --dry-run` were validated on the VM after commit `43a5e08`; use explicitly named temporary DBs for prune validation and confirm there are no `usage-smoke.*` directories left afterward.
@@ -63,6 +68,7 @@ Last updated: 2026-04-23
 - After adding CA certificates to the runtime image, `codex login --device-auth` works inside the gateway container and persists auth under the `gateway_state` volume.
 - The packaged runtime workdir `/app` is not a git checkout. Keep `CODEX_SKIP_GIT_REPO_CHECK=1` for the default container path, or change `CODEX_WORKDIR` to a mounted trusted git checkout before setting it back to `0`.
 - When running `docker compose exec -T` inside a remote heredoc/base64 script, redirect stdin from `/dev/null`; otherwise compose can consume the remaining script input.
+- After adding `GET /gateway/credentials/current`, validate API key UX without burning normal request limits by issuing a temporary key, calling the route once successfully, checking missing and wrong credentials return `401`, then revoking the key and disabling the smoke user.
 
 ## Known Pitfalls
 
@@ -88,6 +94,7 @@ Container loopback validation and public HTTPS routing are complete. The next sa
 
 1. Keep `/v1/chat/completions` as the primary compatibility target.
 2. Verify OpenAI-shaped `tool_calls`, tool-result history messages, streaming chunks, and usage fields after every gateway rebuild.
-3. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
-4. Keep the gateway container loopback-only and keep Nginx as the only public edge.
-5. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.
+3. Verify `GET /gateway/credentials/current` after every gateway rebuild so client login/settings pages can validate API keys without model calls.
+4. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
+5. Keep the gateway container loopback-only and keep Nginx as the only public edge.
+6. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.

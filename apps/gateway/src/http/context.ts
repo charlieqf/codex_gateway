@@ -3,9 +3,11 @@ import type {
   ProviderAdapter,
   GatewayErrorCode,
   RateLimitPolicy,
+  RequestTokenUsageSource,
   Scope,
   Subject,
-  Subscription
+  Subscription,
+  TokenUsage
 } from "@codex-gateway/core";
 
 export interface GatewayRequestContext {
@@ -41,6 +43,9 @@ declare module "fastify" {
     gatewayErrorCode?: GatewayErrorCode | string;
     gatewayRateLimited?: boolean;
     gatewaySessionId?: string | null;
+    gatewayTokenUsage?: TokenUsage;
+    gatewayEstimatedTokens?: number | null;
+    gatewayTokenUsageSource?: RequestTokenUsageSource;
     gatewayObservedCredential?: {
       id: string | null;
       subjectId: string | null;

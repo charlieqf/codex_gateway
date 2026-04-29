@@ -128,11 +128,15 @@ SQLite-backed API keys are now available for the MVP path:
 
 ```powershell
 $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user alice --label "Alice laptop" --scope code --rpm 30 --rpd 500 --concurrent 1
+$env:GATEWAY_API_KEY_ENCRYPTION_SECRET = "<operator-managed-secret>"
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user alice --name "Alice Zhang" --phone "+15551234567" --label "Alice laptop" --scope code --rpm 30 --rpd 500 --concurrent 1
 ```
 
-The `issue` command prints the API key once. The database stores only a prefix
-and SHA-256 hash.
+The `issue` command prints the API key and also stores an encrypted copy so an
+operator can reveal it later. The database still stores the SHA-256 hash for
+authentication; `GATEWAY_API_KEY_ENCRYPTION_SECRET` is required to issue,
+rotate, or reveal recoverable API keys. Older keys issued before encrypted token
+storage cannot be reconstructed from their hash-only rows.
 
 Run the gateway in API key auth mode:
 
@@ -153,6 +157,10 @@ API key and user operations:
 ```powershell
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list-users
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list --user alice --active-only
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH list-active-keys
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH update-user alice --name "Alice Chen" --phone "+15557654321"
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH reveal-key <credential-prefix>
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH reveal-keys --active-only
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH update-key <credential-prefix> --scope medical --rpm 10 --rpd 200 --concurrent 1
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --user alice --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --user alice --days 7
@@ -165,8 +173,12 @@ npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH rotate <credential-prefix> --
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH revoke <credential-prefix>
 ```
 
-`update-key` changes an existing API key's label, scope, expiration, or
-`rpm`/`rpd`/`concurrent` limits without issuing a new token. `disable-user`
+`list-active-keys` returns only currently usable keys: not revoked, not expired,
+and owned by an active user. `update-user` records user name and phone metadata.
+`reveal-key` and `reveal-keys` decrypt full API keys for operators and record an
+audit event, but audit rows never store the full key. `update-key` changes an
+existing API key's label, scope, expiration, or `rpm`/`rpd`/`concurrent` limits
+without issuing a new token. `disable-user`
 makes all API keys for that user fail authentication without deleting usage
 history. `rotate` issues a new token for the same user so session history is
 shared. The old token stays active until the grace window expires; use
@@ -175,7 +187,9 @@ key's `rpm`, `rpd`, and `concurrent` policy in the current gateway process and
 returns `rate_limited` with `retry_after_seconds` when exceeded.
 
 `events` lists request-level observation records. `report-usage` dynamically
-aggregates `request_events` into daily rows. `audit` lists administrator actions
+aggregates `request_events` into daily rows, including `prompt_tokens`,
+`completion_tokens`, `total_tokens`, `cached_prompt_tokens`,
+`estimated_tokens`, and `usage_source` when provider usage is available. `audit` lists administrator actions
 such as issuing, updating, revoking, rotating, disabling users, enabling users,
 and pruning request events. `trial-check` runs read-only checks before a 1-2
 user controlled internal trial. `prune-events` manually deletes old request

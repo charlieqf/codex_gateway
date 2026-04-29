@@ -47,6 +47,8 @@ describe("SqliteGatewayStore", () => {
     store.upsertSubject({
       id: "alice",
       label: "Alice",
+      name: "Alice Zhang",
+      phoneNumber: "+15551234567",
       state: "active",
       createdAt: new Date("2026-01-02T00:00:00Z")
     });
@@ -60,12 +62,27 @@ describe("SqliteGatewayStore", () => {
     expect(disabled).toMatchObject({
       id: "alice",
       label: "Alice",
+      name: "Alice Zhang",
+      phoneNumber: "+15551234567",
+      state: "disabled"
+    });
+    const updated = store.updateSubject("alice", {
+      label: "Alice managed",
+      name: "Alice Chen",
+      phoneNumber: null
+    });
+    expect(updated).toMatchObject({
+      id: "alice",
+      label: "Alice managed",
+      name: "Alice Chen",
+      phoneNumber: null,
       state: "disabled"
     });
     expect(store.listSubjects({ state: "active" }).map((subject) => subject.id)).toEqual([
       "subj_1"
     ]);
     expect(store.setSubjectState("missing", "disabled")).toBeNull();
+    expect(store.updateSubject("missing", { name: "Nope" })).toBeNull();
 
     store.close();
   });
@@ -77,6 +94,8 @@ describe("SqliteGatewayStore", () => {
     store.upsertSubject({
       id: "subj_1",
       label: "Renamed Subject",
+      name: "Test User",
+      phoneNumber: "+15550000000",
       state: "active",
       createdAt: new Date("2026-01-02T00:00:00Z")
     });
@@ -84,6 +103,8 @@ describe("SqliteGatewayStore", () => {
     expect(store.getSubject("subj_1")).toMatchObject({
       id: "subj_1",
       label: "Renamed Subject",
+      name: "Test User",
+      phoneNumber: "+15550000000",
       state: "disabled"
     });
 
@@ -100,11 +121,15 @@ describe("SqliteGatewayStore", () => {
       now: new Date("2026-01-01T00:00:00Z")
     });
 
-    store.insertAccessCredential(issued.record);
+    store.insertAccessCredential({
+      ...issued.record,
+      tokenCiphertext: "v1.encrypted"
+    });
     expect(store.getAccessCredentialByPrefix(issued.record.prefix)).toMatchObject({
       id: issued.record.id,
       prefix: issued.record.prefix,
       hash: issued.record.hash,
+      tokenCiphertext: "v1.encrypted",
       subjectId: "subj_1",
       scope: "code"
     });
@@ -163,7 +188,13 @@ describe("SqliteGatewayStore", () => {
       firstByteMs: 10,
       status: "error",
       errorCode: "rate_limited",
-      rateLimited: true
+      rateLimited: true,
+      promptTokens: 10,
+      completionTokens: 2,
+      totalTokens: 12,
+      cachedPromptTokens: 4,
+      estimatedTokens: null,
+      usageSource: "provider"
     });
 
     expect(store.listRequestEvents()).toMatchObject([
@@ -179,7 +210,70 @@ describe("SqliteGatewayStore", () => {
         firstByteMs: 10,
         status: "error",
         errorCode: "rate_limited",
-        rateLimited: true
+        rateLimited: true,
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 4,
+        estimatedTokens: null,
+        usageSource: "provider"
+      }
+    ]);
+    store.close();
+  });
+
+  it("refreshes request event timestamps when a request id is reused", () => {
+    const store = createSeededStore(":memory:");
+    const event = {
+      requestId: "req_reused",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code" as const,
+      sessionId: "sess_1",
+      subscriptionId: "sub_openai_codex",
+      provider: "openai-codex" as const,
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 25,
+      firstByteMs: 10,
+      status: "ok" as const,
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 10,
+      completionTokens: 2,
+      totalTokens: 12,
+      cachedPromptTokens: 4,
+      estimatedTokens: null,
+      usageSource: "provider" as const
+    };
+
+    store.insertRequestEvent(event);
+    store.insertRequestEvent({
+      ...event,
+      startedAt: new Date("2026-01-02T00:00:00Z"),
+      promptTokens: 20,
+      completionTokens: 3,
+      totalTokens: 23
+    });
+
+    expect(store.listRequestEvents({ credentialId: "cred_1" })).toMatchObject([
+      {
+        requestId: "req_reused",
+        startedAt: new Date("2026-01-02T00:00:00Z"),
+        promptTokens: 20,
+        completionTokens: 3,
+        totalTokens: 23
+      }
+    ]);
+    expect(
+      store.reportRequestUsage({
+        subjectId: "subj_1",
+        since: new Date("2026-01-02T00:00:00Z"),
+        until: new Date("2026-01-03T00:00:00Z")
+      })
+    ).toMatchObject([
+      {
+        date: "2026-01-02",
+        totalTokens: 23
       }
     ]);
     store.close();
@@ -271,7 +365,13 @@ describe("SqliteGatewayStore", () => {
       firstByteMs: 10,
       status: "ok",
       errorCode: null,
-      rateLimited: false
+      rateLimited: false,
+      promptTokens: 10,
+      completionTokens: 2,
+      totalTokens: 12,
+      cachedPromptTokens: 4,
+      estimatedTokens: null,
+      usageSource: "provider"
     });
     store.insertRequestEvent({
       requestId: "req_limited",
@@ -323,7 +423,12 @@ describe("SqliteGatewayStore", () => {
         errors: 1,
         rateLimited: 1,
         avgDurationMs: 30,
-        avgFirstByteMs: 15
+        avgFirstByteMs: 15,
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 4,
+        estimatedTokens: 0
       }
     ]);
 

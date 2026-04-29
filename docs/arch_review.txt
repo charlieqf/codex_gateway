@@ -1,0 +1,185 @@
+  ---
+  1. 整体评价
+
+  结构和目标匹配得不错：
+  - npm workspaces 把 core / provider-codex / store-sqlite 和 apps/gateway / apps/admin-cli 切得很干净。
+  - ProviderAdapter 合同只吐 StreamEvent、ProviderHealth、GatewayError，这条边界是对的，后续加第二个 provider 成本能控制。
+  - SQLite store 有幂等 migration、WAL、0o600 权限、schema 完整覆盖 subjects/subscriptions/access_credentials/sessions/request_events，脚手架给将来 Phase 2-4 留了位置。
+  - 文档和系统状态记录是同步的（docs/operations/system-status.md, roadmap.md），对一个 Phase 1 原型来说是少见的整洁度。
+
+  真正需要警惕的地方集中在"Phase 1 的捷径"正在悄悄固化成架构，一旦 Phase 2 接正式 credential 会被放大。下面具体说。
+
+  ---
+  2. 分层与依赖
+
+  2.1 GatewaySessionStore 接口错放 (中等问题)
+
+  packages/store-sqlite/src/index.ts:17 导出的 GatewaySessionStore 被 apps/gateway/src/index.ts:11 和 apps/gateway/src/services/session-store.ts:3 反向依赖——SQLite 实现持有抽象接口，内存实现反而要 import type 自 sqlite 包。
+
+  这是典型的依赖倒置反了：
+  - InMemorySessionStore 本质上不依赖 SQLite，但它 import type { GatewaySessionStore } from "@codex-gateway/store-sqlite"。
+  - 再加一个 store（Postgres / Redis / remote）时，要么每家都自己宣告自己的接口，要么得把接口提升到 core。
+
+  建议：把 GatewaySessionStore 迁到 @codex-gateway/core（同 ProviderAdapter 一样定性为合同），store-sqlite 只提供实现。这在 Phase 2 加 AccessCredentialStore、RequestEventStore 时会更自然，现在做迁移成本还很低。
+
+  2.2 upsertSubject / upsertSubscription 挂错了地方 (小问题)
+
+  这俩方法被放在 Session Store 接口上，但 InMemorySessionStore 里是空实现（apps/gateway/src/services/session-store.ts:8-14）。这是"seeding / bootstrap"语义，不是 session 生命周期。
+
+  建议：把 subject/subscription 的 CRUD 抽成独立 store（SubjectStore、SubscriptionStore），或者至少独立成 Bootstrap 接口。现在这种 "每家实现都要空写两个方法" 的模式，在 Phase 2 加 access_credentials 时会继续烂下去。
+
+  2.3 Gateway 应用层的"逻辑"都堆在路由里 (中等问题)
+
+  apps/gateway/src/index.ts 是路由 + 认证 + SSE 编排 + 默认 subject/subscription 注入全揉在一起的大函数。buildGateway 既是工厂也是组装者。
+
+  短期能跑是因为就一个 subject、一个 subscription。但 Phase 2 要加：
+  - credential → subject 解析
+  - subscription scheduler（按 health / cooldown 选择）
+  - scope enforcement
+  - rate limiting
+  - observation writer
+
+  都塞进一个 buildGateway 函数会爆炸。
+
+  建议：在 apps/gateway/src/ 下按职责分目录，至少：
+  - auth/ 认证中间件
+  - sessions/ 业务 handler（接收 store）
+  - streaming/ SSE 封装
+  - bootstrap/ 环境配置 + DI 组装
+
+  路由文件只剩 Fastify 的 schema 和 handler 绑定。现在这一层没拆，后面每加一个 Phase 都会冲回 index.ts。
+
+  ---
+  3. HTTP 网关层的具体问题
+
+  3.1 认证用 route-level 函数调用而非 hook (中等风险)
+
+  apps/gateway/src/index.ts:54, 80, 89, 106 每个路由里第一行都是 const auth = authenticate(request, accessToken); if (auth) return sendError(reply, auth);。
+
+  问题：
+  - 任何新加的路由如果忘记这两行，就是一个未授权接口。这是"约定式安全"，迟早出事。
+  - GET /gateway/health 本来就是故意 unauth 的，但没有任何结构上的标记区分它和其他路由。
+
+  建议：改成 Fastify onRequest preHandler hook，全局默认需要 bearer，health 路由用 config: { public: true } 显式 opt-out。同时把 token 比较改成 timingSafeEqual（crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))），即使 Phase 1 也没理由放一个 === 比较。
+
+  3.2 SSE 流没有客户端断开处理 (中等风险)
+
+  apps/gateway/src/index.ts:136-153：
+  - reply.hijack() 后直接 for await (const event of provider.message(...))。
+  - 客户端提前断开连接时，你没有监听 request.raw.on('close')，Codex 这一侧的 turn 还在跑到底，白白烧 token 和 quota。
+  - 没有 SSE keep-alive（:ping\n\n 定时心跳）。后面过 Caddy/Nginx 默认 60s 空闲就会断流。
+  - reply.raw.write 没 try/catch；如果底层 socket 已经关闭，第二次 write 会抛，async generator 里会抛给 for-await 循环，但循环外面没有 catch —— Fastify 又因为 hijack() 不接管——最后是一个 unhandled rejection。
+
+  建议（phase 1 就值得修）：
+  const abort = new AbortController();
+  request.raw.on('close', () => abort.abort());
+  // 传入 provider.message，并在 for-await 外层加 try/finally 清理
+  外加一个固定间隔的 comment-line heartbeat。
+
+  3.3 错误码用错 (小问题)
+
+  apps/gateway/src/index.ts:123-131：message body 校验失败时 throw service_unavailable + 400。code 和 httpStatus 不匹配，客户端依 code 分流逻辑会把"用户发空消息"当成"后端挂了"。
+
+  建议：GatewayErrorCode 里加 invalid_request，同时所有 4xx 业务错误都用它。
+
+  3.4 subject / subscription 是 closure 里的常量 (结构性问题)
+
+  defaultSubject() / defaultSubscription() 在 buildGateway 里被固化进闭包。每条路由都拿这俩做 owner。这等于把 "当前唯一 bearer token → 固定的 subj_dev" 的绑定硬编码进了路由。
+
+  Phase 2 接真实 credential 时，必须从 credential 反查 subject 和可用 subscription，这会导致：
+  - 路由里用到的 subject、subscription 都要从 closure 常量变成 request.credential.subjectId 上下文。
+  - CodexProviderAdapter 在 buildGateway 里被 new 出来，绑定具体 CODEX_HOME；Phase 2 多 subscription 时需要按 subscription.credentialRef 动态选 provider 实例，这个工厂位置要挪。
+
+  建议：现在就把 subject 和 subscription 从路由闭包里提出来，做成 request.context = { subject, subscription }，由认证中间件注入。这能让 Phase 2 只改注入逻辑、不改每个 handler。
+
+  ---
+  4. Provider 层
+
+  4.1 health() 只查文件存在 (中等问题)
+
+  packages/provider-codex/src/codex-adapter.ts:51-66 只检查 auth.json 存在。这会出现"文件在、token 已过期、下一次 message 才报 reauth"的情形。
+
+  对于一个以 "端到端可用" 为卖点的网关，health 应该能检出 token 过期。现在 refresh() 也一样只看文件。
+
+  建议：health 至少调一次 codex login status（或等价 SDK 路径），命中 401 就归一化为 reauth_required。
+
+  4.2 normalize() 用子串匹配英文错误消息 (中等风险)
+
+  packages/provider-codex/src/codex-adapter.ts:185-221 检测 "not logged in" / "401" / "rate limit" 等关键字。这是真的脆：
+  - 不同 SDK 版本、不同语言错误 message 会飘。
+  - 400 和 402 等等没覆盖。
+
+  建议：优先读 error 对象上的结构化字段（SDK 一般有 error.code / error.status），子串匹配仅作 fallback。写一个 adapter-level "error classification" 单元测试矩阵，明确枚举 10 个样本 error → Gateway code。
+
+  4.3 list() / cancel() 是空实现 (设计不一致)
+
+  ProviderAdapter 契约里承诺 list 和 cancel，现实：
+  - list 返回 []，因为 Codex SDK 没有 stable list API（已在注释里说明）。
+  - cancel 是空 return。
+
+  这说明契约被过度拟合到了"多 provider 理想值"，而首个 provider 就不支持。两种修法任选：
+  1. 把 list / cancel 改成可选（list?:, cancel?:），消费端判空。
+  2. 保留必选，但至少 cancel 要真的把 SDK 的 abort 接进来（SDK 的 runStreamed 接受 signal）。
+
+  我更建议 (2) 的 cancel 接 abort，因为 4.2 的 SSE 断开就靠它。list 可以改可选。
+
+  4.4 Provider 实例复用 (性能/正确性)
+
+  apps/gateway/src/index.ts:32-38 在 buildGateway 时构造一个 CodexProviderAdapter，但 createClient() (codex-adapter.ts:223-240) 每次 message 都 new Codex(...) 并做 mkdirSync。mkdirSync 本身很便宜，但每次都重新创建 Codex 客户端进程/状态是不必要的（看 SDK
+  语义可能也是被期望的，但没被验证过）。
+
+  建议：给 CodexProviderAdapter 加一个懒加载 + 缓存的 client 字段，并在 gateway onClose 里释放。不要现在优化，先加一个 FIXME 和 perf benchmark 计划。
+
+  ---
+  5. Store 层
+
+  5.1 list(subjectId) 没有状态过滤、没分页 (小问题)
+
+  packages/store-sqlite/src/index.ts:118-129 返回全部 state 包括 archived / failed。也没 LIMIT。单个 subject 跑一阵子就会拖慢。
+
+  建议：接一个 { state?, limit?, cursor? } 参数。Phase 4 "跨设备会话列表"之前修一次就行。
+
+  5.2 Foreign key 校验抛原始 SQLite 错误 (小问题)
+
+  PRAGMA foreign_keys = ON 开了，但 create(...) 如果传了不存在的 subjectId 会抛 SQLite 约束错，没被归一化成 GatewayError。
+
+  建议：Store 方法外面包一层 try/catch 把常见约束错归一化。
+
+  5.3 DatabaseSync 阻塞事件循环 (设计噪声)
+
+  node:sqlite 的 DatabaseSync 每次 prepare/run 都是同步的，阻塞 event loop。对单机、低 QPS 的 MVP 够用，但值得写进 ADR，避免以后有人想当然觉得它无代价。
+
+  ---
+  6. 测试覆盖
+
+  目前：
+  - codex-adapter.test.ts ✅ 事件映射、resume、tool call、normalize。
+  - store-sqlite ✅ migration 幂等、持久化往返。
+  - gateway ✅ 401、SSE、SQLite 集成。
+
+  缺口：
+  - Provider contract test 没有独立文件。 docs/architecture/provider-adapter-contract.md 明确说"任何新 provider 必须先有 contract test"，但没有一个 adapter-agnostic 的 tests/contract/provider-adapter.test.ts。第二个 provider 来的时候会各自造轮子，合同漂移。
+  - 没有 "session 不属于当前 subject → 404" 的测试。
+  - 没有 message body 校验失败的测试。
+  - SSE abort / client disconnect 场景完全没测（因为功能也不在）。
+  - 没有 reauth_required 路径的路由测试（用 FakeProvider 返回 unhealthy 就能加）。
+
+  建议：进入 Phase 2 前先把 tests/contract/ 实跑起来，做成一个 suite 可接受任意 adapter factory 喂进去。
+
+  ---
+  7. 运行时 / 部署细节
+
+  - Dockerfile: CODEX_WORKDIR 没设，默认是 /app（不是 git repo），而 CodexProviderAdapter 默认 skipGitRepoCheck = false。容器里跑会在第一次 message 就炸。要么在 Dockerfile 设 ENV CODEX_SKIP_GIT_REPO_CHECK=1，要么 README 明确要求 compose override。
+  - config/gateway.container.example.env 我没看，但值得确认那里有没有 CODEX_SKIP_GIT_REPO_CHECK。
+  - Fastify logger 默认开着（logger: options.logger ?? true）。Pino 默认不会记录 authorization header，但要在 ADR 里把"永不记请求 body、永不记 bearer"列为硬规则，避免以后有人 verbose 一下。
+
+  ---
+  8. 在进入 Phase 2 之前建议先做的 5 件事
+
+  按优先级：
+
+  1. 把 GatewaySessionStore 迁到 @codex-gateway/core，同时顺便把 SubjectStore / SubscriptionStore 抽成独立接口。这是 Phase 2 加 AccessCredentialStore 前最便宜的结构修正。
+  2. 把 auth 改成 Fastify onRequest hook + config.public opt-out，并用 timingSafeEqual。这是正确性 + Phase 2 credential 解析的前置条件。
+  3. 把 subject / subscription 从 closure 提成 request.context 注入。这样 Phase 2 credential → subject 解析只改中间件，不改 handler。
+  4. SSE 加 AbortController + heartbeat + 外层 try/finally。这是一个"开发态"之外必须有的稳态能力。
+  5. 加 tests/contract/provider-adapter.test.ts，把现有 CodexAdapter 接进去跑。新加 provider 就直接复用。

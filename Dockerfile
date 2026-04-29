@@ -19,7 +19,7 @@ RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime
 
-ARG CODEX_CLI_VERSION=0.122.0
+ARG CODEX_CLI_VERSION=0.125.0
 
 ENV NODE_ENV=production
 ENV GATEWAY_AUTH_MODE=credential

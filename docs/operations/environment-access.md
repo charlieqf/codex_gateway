@@ -33,7 +33,8 @@ Issue a local SQLite-backed API key for a user:
 
 ```powershell
 $env:GATEWAY_SQLITE_PATH = "C:\work\code\codex-gateway\.gateway-state\gateway.db"
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user local-user --label local-dev --scope code
+$env:GATEWAY_API_KEY_ENCRYPTION_SECRET = "<operator-managed-secret>"
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH issue --user local-user --name "Local User" --phone "+15550000000" --label local-dev --scope code
 ```
 
 Run the gateway in API key auth mode:
@@ -119,12 +120,17 @@ npm test
 User/API key CLI smoke:
 
 ```bash
-node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --user vm-smoke --label vm-smoke --scope code
+export GATEWAY_API_KEY_ENCRYPTION_SECRET="<operator-managed-secret>"
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" issue --user vm-smoke --name "VM Smoke" --phone "+15550000000" --label vm-smoke --scope code
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list-users
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list --user vm-smoke --active-only
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" list-active-keys
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" update-user vm-smoke --name "VM Smoke" --phone "+15550000000"
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" reveal-key <credential-prefix>
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" update-key <credential-prefix> --scope medical --rpm 10 --rpd 200 --concurrent 1
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" events --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --user vm-smoke --days 7
+node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" report-usage --credential-id <credential-id> --days 7
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" audit --user vm-smoke --limit 50
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" trial-check --max-active-users 2
 node apps/admin-cli/dist/index.js --db "$HOME/codex-gateway-state/gateway.db" disable-user vm-smoke
@@ -139,6 +145,8 @@ matched count, preferably against an explicitly named smoke DB first. The admin
 CLI records write-side operations in `admin_audit_events`; use `audit` to inspect
 who was changed, which API key prefix was touched, and whether the operation
 succeeded.
+`events` and `report-usage` include token usage fields when the upstream provider
+returns usage.
 
 Provider status probe:
 

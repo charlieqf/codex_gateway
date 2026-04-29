@@ -23,6 +23,7 @@ import {
   markFirstByte,
   markGatewayError,
   markSession,
+  markTokenUsage,
   recordObservation,
   startObservation
 } from "./http/observation.js";
@@ -89,7 +90,10 @@ interface MessageBody {
 }
 
 export function buildGateway(options: GatewayOptions = {}) {
-  const app = Fastify({ logger: options.logger ?? true });
+  const app = Fastify({
+    logger: options.logger ?? true,
+    genReqId: () => `req-${randomUUID()}`
+  });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
   const subject = options.subject ?? defaultSubject();
   const subscription = options.subscription ?? defaultSubscription();
@@ -330,6 +334,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           } else if (strictResult.toolCalls.length > 0) {
             hasToolCalls = true;
             usage = strictResult.usage;
+            markOpenAITokenUsage(request, usage);
             for (const toolCall of strictResult.toolCalls) {
               const chunk = streamEventToChatCompletionChunk({
                 shape,
@@ -344,6 +349,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
           } else {
             usage = strictResult.usage;
+            markOpenAITokenUsage(request, usage);
             const chunk = streamEventToChatCompletionChunk({
               shape,
               event: { type: "message_delta", text: strictResult.content },
@@ -367,6 +373,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             if (event.type === "completed") {
               usage = openAIUsageFromTokenUsage(event.usage);
+              markTokenUsage(request, event.usage);
               continue;
             }
             if (event.type === "error") {
@@ -442,6 +449,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       content = strictResult.content;
       toolCalls.push(...strictResult.toolCalls);
       usage = strictResult.usage;
+      markOpenAITokenUsage(request, usage);
     } else {
       for await (const event of provider.message({
         subscription,
@@ -470,6 +478,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
         } else if (event.type === "completed") {
           usage = openAIUsageFromTokenUsage(event.usage);
+          markTokenUsage(request, event.usage);
         }
       }
     }
@@ -569,6 +578,9 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
           if (event.type === "completed" && event.providerSessionRef) {
             sessions.setProviderSessionRef(session.id, event.providerSessionRef);
+          }
+          if (event.type === "completed") {
+            markTokenUsage(request, event.usage);
           }
           if (event.type === "error") {
             request.gatewayErrorCode = event.code;
@@ -771,6 +783,24 @@ function openAIToolCallToStreamEvent(toolCall: OpenAIChatToolCall) {
     name: toolCall.function.name,
     arguments: parsedArguments
   };
+}
+
+function markOpenAITokenUsage(
+  request: FastifyRequest,
+  usage: OpenAIChatUsage | null
+): void {
+  if (!usage) {
+    return;
+  }
+
+  markTokenUsage(request, {
+    promptTokens: usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+    ...(usage.prompt_tokens_details?.cached_tokens !== undefined
+      ? { cachedPromptTokens: usage.prompt_tokens_details.cached_tokens }
+      : {})
+  });
 }
 
 async function main() {
