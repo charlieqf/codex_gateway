@@ -18,7 +18,7 @@ import {
   type ProviderSession,
   type RefreshResult,
   type StreamEvent,
-  type Subscription,
+  type UpstreamAccount,
   type TokenUsage
 } from "@codex-gateway/core";
 
@@ -56,7 +56,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
   constructor(private readonly options: CodexProviderOptions) {}
 
-  async health(_subscription: Subscription): Promise<ProviderHealth> {
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
     const authFile = `${this.options.codexHome}/auth.json`;
     if (existsSync(authFile)) {
       return {
@@ -73,7 +73,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     };
   }
 
-  async refresh(_subscription: Subscription): Promise<RefreshResult> {
+  async refresh(_upstreamAccount: UpstreamAccount): Promise<RefreshResult> {
     if (existsSync(`${this.options.codexHome}/auth.json`)) {
       return {
         state: "not_needed",

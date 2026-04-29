@@ -12,7 +12,7 @@ import {
   type RateLimitPolicy,
   type Scope,
   type Subject,
-  type Subscription
+  type UpstreamAccount
 } from "@codex-gateway/core";
 import {
   CodexProviderAdapter,
@@ -72,7 +72,7 @@ export interface GatewayOptions {
   provider?: ProviderAdapter;
   sessionStore?: GatewayStore;
   subject?: Subject;
-  subscription?: Subscription;
+  upstreamAccount?: UpstreamAccount;
   rateLimiter?: CredentialRateLimiter;
   observationStore?: ObservationStore;
   clientEventsStore?: ClientMessageEventStore | null;
@@ -85,7 +85,7 @@ export interface GatewayPublicMetadata {
   serviceName?: string;
   providerName?: string;
   providerDisplayName?: string;
-  subscriptionId?: string;
+  upstreamAccountLabel?: string;
   phase?: string;
 }
 
@@ -93,7 +93,7 @@ interface ResolvedGatewayPublicMetadata {
   serviceName: string;
   providerName: string;
   providerDisplayName: string;
-  subscriptionId: string;
+  upstreamAccountLabel: string;
   phase: string;
 }
 
@@ -108,7 +108,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
   const subject = options.subject ?? defaultSubject();
-  const subscription = options.subscription ?? defaultSubscription();
+  const upstreamAccount = options.upstreamAccount ?? defaultUpstreamAccount();
   const provider =
     options.provider ??
     new CodexProviderAdapter({
@@ -120,10 +120,10 @@ export function buildGateway(options: GatewayOptions = {}) {
       workingDirectory: process.env.CODEX_WORKDIR ?? process.cwd(),
       skipGitRepoCheck: process.env.CODEX_SKIP_GIT_REPO_CHECK === "1"
     });
-  const sessions = options.sessionStore ?? createDefaultSessionStore();
+  const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
-  const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env);
+  const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env, app.log);
   const openAIModelId = process.env.MEDCODE_PUBLIC_MODEL_ID ?? "medcode";
   const openAIModelLimits = resolveOpenAIModelLimits(process.env);
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
@@ -147,10 +147,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   if (authMode === "dev") {
     sessions.upsertSubject(subject);
   }
-  sessions.upsertSubscription(subscription);
+  sessions.upsertUpstreamAccount(upstreamAccount);
   const devContext = {
     subject,
-    subscription,
+    upstreamAccount,
     provider,
     scope: "code" as const,
     credential: {
@@ -190,7 +190,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       credentialAuthHook(request, reply, {
         store: credentialStore,
         provider,
-        subscription
+        upstreamAccount
       })
     );
   } else {
@@ -230,8 +230,8 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   app.get("/gateway/status", async (request) => {
-    const { subject, subscription, provider, scope, credential } = getGatewayContext(request);
-    const health = await provider.health(subscription);
+    const { subject, upstreamAccount, provider, scope, credential } = getGatewayContext(request);
+    const health = await provider.health(upstreamAccount);
 
     return {
       state: health.state === "healthy" ? "ready" : health.state,
@@ -245,8 +245,14 @@ export function buildGateway(options: GatewayOptions = {}) {
         expires_at: credential.expiresAt?.toISOString() ?? null,
         rate: credential.rate
       },
+      upstream_account: {
+        label: publicMetadata.upstreamAccountLabel,
+        provider: publicMetadata.providerName,
+        state: health.state,
+        detail: publicProviderDetail(health.state, publicMetadata.providerDisplayName)
+      },
       subscription: {
-        id: publicMetadata.subscriptionId,
+        id: publicMetadata.upstreamAccountLabel,
         provider: publicMetadata.providerName,
         state: health.state,
         detail: publicProviderDetail(health.state, publicMetadata.providerDisplayName)
@@ -407,7 +413,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
-    const { subject, subscription, provider, scope } = getGatewayContext(request);
+    const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
     const parsed = parseChatCompletionRequest(request.body, openAIModelId);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
@@ -416,7 +422,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
     }
 
-    const session = createStatelessSession(subject.id, subscription.id);
+    const session = createStatelessSession(subject.id, upstreamAccount.id);
     markSession(request, session.id);
     const shape = createChatCompletionShape(openAIModelId);
     const strictClientTools = hasStrictClientTools(parsed);
@@ -453,7 +459,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         if (strictClientTools) {
           const strictResult = await runStrictClientTools({
             provider,
-            subscription,
+            upstreamAccount,
             subject,
             scope,
             session,
@@ -497,7 +503,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         } else {
           for await (const event of provider.message({
-            subscription,
+            upstreamAccount,
             subject,
             scope,
             session,
@@ -569,7 +575,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (strictClientTools) {
       const strictResult = await runStrictClientTools({
         provider,
-        subscription,
+        upstreamAccount,
         subject,
         scope,
         session,
@@ -588,7 +594,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       markOpenAITokenUsage(request, usage);
     } else {
       for await (const event of provider.message({
-        subscription,
+        upstreamAccount,
         subject,
         scope,
         session,
@@ -638,10 +644,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.post("/sessions", async (request, reply) => {
-    const { subject, subscription } = getGatewayContext(request);
+    const { subject, upstreamAccount } = getGatewayContext(request);
     const session = sessions.create({
       subjectId: subject.id,
-      subscriptionId: subscription.id
+      upstreamAccountId: upstreamAccount.id
     });
     markSession(request, session.id);
 
@@ -654,7 +660,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.post<{ Params: { id: string }; Body: MessageBody }>(
     "/sessions/:id/messages",
     async (request, reply) => {
-      const { subject, subscription, provider, scope } = getGatewayContext(request);
+      const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
       markSession(request, request.params.id);
 
       const session = sessions.get(request.params.id);
@@ -702,7 +708,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
       try {
         for await (const event of provider.message({
-          subscription,
+          upstreamAccount,
           subject,
           scope,
           session,
@@ -744,7 +750,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
 interface StrictClientToolsInput {
   provider: ProviderAdapter;
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   subject: Subject;
   scope: Scope;
   session: GatewaySession;
@@ -771,7 +777,7 @@ async function runStrictClientTools(
 ): Promise<StrictClientToolsResult | GatewayError> {
   const first = await collectProviderText({
     provider: input.provider,
-    subscription: input.subscription,
+    upstreamAccount: input.upstreamAccount,
     subject: input.subject,
     scope: input.scope,
     session: input.session,
@@ -809,7 +815,7 @@ async function runStrictClientTools(
   });
   const repaired = await collectProviderText({
     provider: input.provider,
-    subscription: input.subscription,
+    upstreamAccount: input.upstreamAccount,
     subject: input.subject,
     scope: input.scope,
     session: input.session,
@@ -852,7 +858,7 @@ async function runStrictClientTools(
 
 async function collectProviderText(input: {
   provider: ProviderAdapter;
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   subject: Subject;
   scope: Scope;
   session: GatewaySession;
@@ -863,7 +869,7 @@ async function collectProviderText(input: {
   let usage: OpenAIChatUsage | null = null;
 
   for await (const event of input.provider.message({
-    subscription: input.subscription,
+    upstreamAccount: input.upstreamAccount,
     subject: input.subject,
     scope: input.scope,
     session: input.session,
@@ -998,12 +1004,12 @@ function createChatCompletionShape(model: string): ChatCompletionShape {
   };
 }
 
-function createStatelessSession(subjectId: string, subscriptionId: string): GatewaySession {
+function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {
   const now = new Date();
   return {
     id: `sess_stateless_${randomUUID().replaceAll("-", "")}`,
     subjectId,
-    subscriptionId,
+    upstreamAccountId,
     providerSessionRef: null,
     title: null,
     state: "active",
@@ -1119,11 +1125,11 @@ function defaultSubject(): Subject {
   };
 }
 
-function defaultSubscription(): Subscription {
+function defaultUpstreamAccount(): UpstreamAccount {
   return {
     id: "sub_openai_codex_dev",
     provider: "openai-codex",
-    label: "OpenAI Codex dev subscription",
+    label: "OpenAI Codex dev upstream account",
     credentialRef: "CODEX_HOME",
     state: "active",
     lastUsedAt: null,
@@ -1138,7 +1144,8 @@ function serializeSession(
   return {
     id: session.id,
     subject_id: session.subjectId,
-    subscription_id: publicMetadata.subscriptionId,
+    upstream_account_label: publicMetadata.upstreamAccountLabel,
+    subscription_id: publicMetadata.upstreamAccountLabel,
     provider_session_ref: session.providerSessionRef,
     title: session.title,
     state: session.state,
@@ -1149,18 +1156,37 @@ function serializeSession(
 
 function resolvePublicMetadata(
   input: GatewayPublicMetadata | undefined,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
 ): ResolvedGatewayPublicMetadata {
   const providerDisplayName =
     input?.providerDisplayName ?? env.GATEWAY_PUBLIC_PROVIDER_DISPLAY_NAME ?? "MedCode";
   const providerName = input?.providerName ?? env.GATEWAY_PUBLIC_PROVIDER_NAME ?? "medcode";
+  const upstreamAccountLabel =
+    input?.upstreamAccountLabel ??
+    env.GATEWAY_PUBLIC_UPSTREAM_ACCOUNT_LABEL ??
+    env.GATEWAY_PUBLIC_SUBSCRIPTION_ID ??
+    providerName;
+
+  if (
+    !input?.upstreamAccountLabel &&
+    !env.GATEWAY_PUBLIC_UPSTREAM_ACCOUNT_LABEL &&
+    env.GATEWAY_PUBLIC_SUBSCRIPTION_ID
+  ) {
+    logger?.warn(
+      {
+        deprecated_env: "GATEWAY_PUBLIC_SUBSCRIPTION_ID",
+        replacement_env: "GATEWAY_PUBLIC_UPSTREAM_ACCOUNT_LABEL"
+      },
+      "GATEWAY_PUBLIC_SUBSCRIPTION_ID is deprecated; use GATEWAY_PUBLIC_UPSTREAM_ACCOUNT_LABEL."
+    );
+  }
 
   return {
     serviceName: input?.serviceName ?? env.GATEWAY_PUBLIC_SERVICE_NAME ?? "medcode",
     providerName,
     providerDisplayName,
-    subscriptionId:
-      input?.subscriptionId ?? env.GATEWAY_PUBLIC_SUBSCRIPTION_ID ?? providerName,
+    upstreamAccountLabel,
     phase: input?.phase ?? env.GATEWAY_PUBLIC_PHASE ?? "controlled-trial"
   };
 }
@@ -1216,10 +1242,10 @@ function publicProviderDetail(
   return `${providerDisplayName} service is unavailable.`;
 }
 
-function createDefaultSessionStore(): GatewayStore {
+function createDefaultSessionStore(logger?: { info: (message: string) => void }): GatewayStore {
   const sqlitePath = process.env.GATEWAY_SQLITE_PATH;
   if (sqlitePath) {
-    return createSqliteStore({ path: sqlitePath });
+    return createSqliteStore({ path: sqlitePath, logger });
   }
 
   return new InMemorySessionStore();

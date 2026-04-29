@@ -16,7 +16,7 @@ import {
   type RateLimitPolicy,
   type RefreshResult,
   type StreamEvent,
-  type Subscription
+  type UpstreamAccount
 } from "@codex-gateway/core";
 import {
   createSqliteClientEventsStore,
@@ -30,14 +30,14 @@ class FakeProvider implements ProviderAdapter {
 
   constructor(private readonly events?: StreamEvent[]) {}
 
-  async health(_subscription: Subscription): Promise<ProviderHealth> {
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
     return {
       state: "healthy",
       checkedAt: new Date("2026-01-01T00:00:00Z")
     };
   }
 
-  async refresh(_subscription: Subscription): Promise<RefreshResult> {
+  async refresh(_upstreamAccount: UpstreamAccount): Promise<RefreshResult> {
     return { state: "not_needed" };
   }
 
@@ -134,6 +134,12 @@ describe("gateway phase 1 routes", () => {
       provider: "medcode",
       detail: "MedCode service is available."
     });
+    expect(status.json().upstream_account).toMatchObject({
+      label: "medcode",
+      provider: "medcode",
+      detail: "MedCode service is available."
+    });
+    expect(status.json().upstream_account).not.toHaveProperty("id");
 
     const created = await app.inject({
       method: "POST",
@@ -141,6 +147,7 @@ describe("gateway phase 1 routes", () => {
       headers
     });
     expect(created.json().session.subscription_id).toBe("medcode");
+    expect(created.json().session.upstream_account_label).toBe("medcode");
 
     const publicPayloads = [
       JSON.stringify(health.json()),

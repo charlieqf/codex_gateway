@@ -7,7 +7,7 @@ export type ProviderKind =
 
 export type Scope = "medical" | "code";
 
-export type SubscriptionState =
+export type UpstreamAccountState =
   | "active"
   | "disabled"
   | "reauth_required"
@@ -78,7 +78,7 @@ export interface RequestEventRecord {
   subjectId: string | null;
   scope: Scope | null;
   sessionId: string | null;
-  subscriptionId: string | null;
+  upstreamAccountId: string | null;
   provider: ProviderKind | null;
   startedAt: Date;
   durationMs: number | null;
@@ -118,12 +118,12 @@ export interface ClientMessageEventRecord {
   receivedAt: Date;
 }
 
-export interface Subscription {
+export interface UpstreamAccount {
   id: string;
   provider: ProviderKind;
   label: string;
   credentialRef: string;
-  state: SubscriptionState;
+  state: UpstreamAccountState;
   lastUsedAt: Date | null;
   cooldownUntil: Date | null;
 }
@@ -131,7 +131,7 @@ export interface Subscription {
 export interface GatewaySession {
   id: string;
   subjectId: string;
-  subscriptionId: string;
+  upstreamAccountId: string;
   providerSessionRef: string | null;
   title: string | null;
   state: "active" | "archived" | "failed";
@@ -159,7 +159,7 @@ export interface ProviderHealth {
 }
 
 export interface CreateSessionInput {
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   subject: Subject;
   scope: Scope;
   initialMessage?: string;
@@ -171,7 +171,7 @@ export interface CreateSessionResult {
 }
 
 export interface ListSessionInput {
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   subject: Subject;
 }
 
@@ -182,7 +182,7 @@ export interface ProviderSession {
 }
 
 export interface MessageInput {
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   session: GatewaySession;
   subject: Subject;
   scope: Scope;
@@ -191,6 +191,6 @@ export interface MessageInput {
 }
 
 export interface CancelInput {
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   session: GatewaySession;
 }

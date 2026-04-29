@@ -6,7 +6,7 @@ import {
   verifyAccessCredentialToken,
   type CredentialAuthStore,
   type ProviderAdapter,
-  type Subscription
+  type UpstreamAccount
 } from "@codex-gateway/core";
 import type { GatewayRequestContext } from "./context.js";
 import { markGatewayError } from "./observation.js";
@@ -38,7 +38,7 @@ export async function devAuthHook(
 export interface CredentialAuthOptions {
   store: CredentialAuthStore;
   provider: ProviderAdapter;
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   now?: () => Date;
 }
 
@@ -161,7 +161,7 @@ function authenticateCredentialBearer(
 
   return {
     subject,
-    subscription: options.subscription,
+    upstreamAccount: options.upstreamAccount,
     provider: options.provider,
     scope: credential.scope,
     credential: {

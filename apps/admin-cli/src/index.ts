@@ -25,7 +25,8 @@ program
   .name("codex-gateway-admin")
   .description("Admin CLI for Codex Gateway")
   .version("0.1.0")
-  .option("--db <path>", "SQLite database path", process.env.GATEWAY_SQLITE_PATH);
+  .option("--db <path>", "SQLite database path", process.env.GATEWAY_SQLITE_PATH)
+  .option("--verbose", "write diagnostic logs to stderr");
 
 program
   .command("issue")
@@ -453,7 +454,7 @@ program
           subject_id: event.subjectId,
           scope: event.scope,
           session_id: event.sessionId,
-          subscription_id: event.subscriptionId,
+          upstream_account_id: event.upstreamAccountId,
           provider: event.provider,
           started_at: event.startedAt.toISOString(),
           duration_ms: event.durationMs,
@@ -503,7 +504,7 @@ program
           credential_id: row.credentialId,
           subject_id: row.subjectId,
           scope: row.scope,
-          subscription_id: row.subscriptionId,
+          upstream_account_id: row.upstreamAccountId,
           provider: row.provider,
           requests: row.requests,
           ok: row.ok,
@@ -776,7 +777,7 @@ interface TrialCheckResultInput {
 }
 
 function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T {
-  const store = createSqliteStore({ path: requireDbPath() });
+  const store = createSqliteStore({ path: requireDbPath(), logger: sqliteLogger() });
   try {
     return fn(store);
   } finally {
@@ -788,7 +789,7 @@ function withAuditedStore(
   baseAudit: AuditInput,
   fn: (store: ReturnType<typeof createSqliteStore>) => AuditedActionResult
 ): void {
-  const store = createSqliteStore({ path: requireDbPath() });
+  const store = createSqliteStore({ path: requireDbPath(), logger: sqliteLogger() });
   try {
     const result = fn(store);
     const finalAudit = mergeAudit(baseAudit, result.audit);
@@ -802,6 +803,12 @@ function withAuditedStore(
   } finally {
     store.close();
   }
+}
+
+function sqliteLogger() {
+  return program.opts<{ verbose?: boolean }>().verbose
+    ? { info: (message: string) => console.error(message) }
+    : undefined;
 }
 
 function requireDbPath(): string {

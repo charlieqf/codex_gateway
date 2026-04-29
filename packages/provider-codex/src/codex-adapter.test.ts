@@ -8,7 +8,7 @@ import {
   type CodexClientLike,
   type CodexThreadLike
 } from "./codex-adapter.js";
-import type { GatewaySession, MessageInput, Subject, Subscription } from "@codex-gateway/core";
+import type { GatewaySession, MessageInput, Subject, UpstreamAccount } from "@codex-gateway/core";
 
 class FakeThread implements CodexThreadLike {
   readonly runInputs: string[] = [];
@@ -308,7 +308,7 @@ function createAdapter(
 
 function messageInput(input: { providerSessionRef: string | null }): MessageInput {
   return {
-    subscription: subscription(),
+    upstreamAccount: upstreamAccount(),
     subject: subject(),
     scope: "code",
     session: session(input.providerSessionRef),
@@ -316,7 +316,7 @@ function messageInput(input: { providerSessionRef: string | null }): MessageInpu
   };
 }
 
-function subscription(): Subscription {
+function upstreamAccount(): UpstreamAccount {
   return {
     id: "sub_1",
     provider: "openai-codex",
@@ -341,7 +341,7 @@ function session(providerSessionRef: string | null): GatewaySession {
   return {
     id: "sess_1",
     subjectId: "subject_1",
-    subscriptionId: "sub_1",
+    upstreamAccountId: "sub_1",
     providerSessionRef,
     title: null,
     state: "active",

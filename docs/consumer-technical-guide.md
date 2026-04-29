@@ -1,5 +1,8 @@
 # MedCode 服务消费者技术说明
 
+上游账号字段重命名的客户端适配说明见
+[MedCode Gateway 客户端适配说明：上游账号字段重命名](./consumer-upstream-account-adaptation-notice.md)。
+
 版本日期：2026-04-23
 
 本文面向接入 MedCode 的后端开发人员。典型接入方会开发类似 coding CLI、OpenCode、IDE 插件后端、自动化 coding agent 后端的应用。
@@ -227,6 +230,12 @@ curl -sS https://gw.instmarket.com.au/gateway/status \
       "concurrentRequests": 1
     }
   },
+  "upstream_account": {
+    "label": "medcode",
+    "provider": "medcode",
+    "state": "healthy",
+    "detail": "MedCode service is available."
+  },
   "subscription": {
     "id": "medcode",
     "provider": "medcode",
@@ -240,7 +249,7 @@ curl -sS https://gw.instmarket.com.au/gateway/status \
 
 - `subject` 是内部字段名，可以理解为“这个 API key 属于哪个用户”。
 - `credential` 是当前 API key 的公开元信息，只包含 prefix、权限和限额，不包含完整 token。
-- `subscription` 是内部字段名，可以理解为“MedCode 服务状态”。
+- `upstream_account` is the MedCode upstream service status. `subscription` is a deprecated compatibility alias for older clients.
 
 ## 创建会话
 
@@ -258,6 +267,7 @@ curl -sS -X POST https://gw.instmarket.com.au/sessions \
   "session": {
     "id": "sess_...",
     "subject_id": "trial-user-1",
+    "upstream_account_label": "medcode",
     "subscription_id": "medcode",
     "provider_session_ref": null,
     "title": null,
@@ -287,6 +297,7 @@ curl -sS https://gw.instmarket.com.au/sessions \
     {
       "id": "sess_...",
       "subject_id": "trial-user-1",
+      "upstream_account_label": "medcode",
       "subscription_id": "medcode",
       "provider_session_ref": "thread-or-provider-ref",
       "title": null,

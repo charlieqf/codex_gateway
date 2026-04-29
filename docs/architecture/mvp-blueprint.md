@@ -13,7 +13,7 @@
 | Access credential | opaque key，服务端只保存 hash + prefix |
 | Scope | `medical` / `code` 两档进入 MVP |
 | Session 归属 | `subject_id` 是会话隔离边界 |
-| Subscription | MVP 仅一条 active subscription，但所有 session 都写入 `subscription_id` |
+| Upstream account | MVP 仅一条 active upstream account，但所有 session 都写入 `upstream_account_id` |
 | 管理面 | Admin CLI 优先，Admin API 可后置 |
 
 ## 组件边界
@@ -41,7 +41,7 @@ packages/provider-codex
   ChatGPT subscription auth verification
 
 packages/store-sqlite
-  credential/subject/session/subscription/event stores
+  credential/subject/session/upstream-account/event stores
 
 compose.azure.yml
   gateway container
@@ -54,8 +54,8 @@ compose.azure.yml
 1. 客户端携带 `Authorization: Bearer <access_credential>`。
 2. Gateway 用 prefix 定位候选 credential，用 hash 校验完整凭据。
 3. Gateway 检查 revoked/expired/scope/rate limit。
-4. 新会话由 scheduler 绑定唯一 active subscription。
-5. 已有会话必须属于当前 `subject_id`，并复用 `subscription_id`。
+4. 新会话由 scheduler 绑定唯一 active upstream account。
+5. 已有会话必须属于当前 `subject_id`，并复用 `upstream_account_id`。
 6. Gateway 调用 provider adapter 并透传 stream event。
 7. Observation writer 记录元数据，不记录请求/响应正文和完整凭据。
 

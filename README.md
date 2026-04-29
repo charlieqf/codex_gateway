@@ -6,7 +6,7 @@
 
 - 用户：你要授权的人、客户或设备组。内部表名是 `subjects`。
 - API key：发给用户的 bearer token。内部表名是 `access_credentials`；数据库只保存 prefix 和 hash。
-- 上游 Codex 账号：服务端 `CODEX_HOME` 里的 ChatGPT/Codex 登录态。内部 provider 记录叫 subscription。
+- 上游 Codex 账号：服务端 `CODEX_HOME` 里的 ChatGPT/Codex 登录态。内部 provider 记录叫 upstream account，数据库表是 `upstream_accounts`。
 - 用量：按 API key 或用户统计的请求事件和日报。
 
 访问网关原型项目，用于把订阅持有者的 AI/Codex 能力通过受控服务端代理给多设备或少数受信用户使用。
@@ -35,6 +35,7 @@
 - 环境访问方式：[docs/operations/environment-access.md](./docs/operations/environment-access.md)
 - 操作经验：[docs/operations/operational-experience.md](./docs/operations/operational-experience.md)
 - MedCode 服务消费者技术说明：[docs/consumer-technical-guide.md](./docs/consumer-technical-guide.md)
+- MedCode 客户端适配说明：[docs/consumer-upstream-account-adaptation-notice.md](./docs/consumer-upstream-account-adaptation-notice.md)
 
 ## 仓库结构
 

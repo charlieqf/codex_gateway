@@ -10,6 +10,7 @@ export const gatewayErrorCodes = [
   "forbidden_scope",
   "session_not_found",
   "tool_call_validation_failed",
+  // Public compatibility error code; do not rename during upstream account cleanup.
   "subscription_unavailable",
   "provider_reauth_required",
   "service_unavailable"

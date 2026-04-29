@@ -1,12 +1,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   issueAccessCredential,
   type ClientMessageEventRecord,
   type Subject,
-  type Subscription
+  type UpstreamAccount
 } from "@codex-gateway/core";
 import {
   createSqliteClientEventsStore,
@@ -31,7 +32,7 @@ describe("SqliteGatewayStore", () => {
     const first = createSeededStore(dbPath);
     const session = first.create({
       subjectId: "subj_1",
-      subscriptionId: "sub_openai_codex"
+      upstreamAccountId: "sub_openai_codex"
     });
     expect(session.providerSessionRef).toBeNull();
 
@@ -43,6 +44,45 @@ describe("SqliteGatewayStore", () => {
     expect(second.get(session.id)?.providerSessionRef).toBe("thread_1");
     expect(second.list("subj_1").map((item) => item.id)).toEqual([session.id]);
     second.close();
+  });
+
+  it("migrates legacy upstream account tables and columns without stdout", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-store-legacy-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    createLegacyUpstreamAccountDb(dbPath);
+
+    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    let store: SqliteGatewayStore | undefined;
+    try {
+      store = createSqliteStore({ path: dbPath });
+      expect(stdoutWrite).not.toHaveBeenCalled();
+      expect(store.get("sess_legacy")).toMatchObject({
+        id: "sess_legacy",
+        upstreamAccountId: "sub_legacy"
+      });
+      expect(store.listRequestEvents()).toMatchObject([
+        {
+          requestId: "req_legacy",
+          upstreamAccountId: "sub_legacy"
+        }
+      ]);
+    } finally {
+      store?.close();
+      stdoutWrite.mockRestore();
+    }
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      expect(tableExists(db, "upstream_accounts")).toBe(true);
+      expect(tableExists(db, "subscriptions")).toBe(false);
+      expect(columnNames(db, "sessions")).toContain("upstream_account_id");
+      expect(columnNames(db, "sessions")).not.toContain("subscription_id");
+      expect(columnNames(db, "request_events")).toContain("upstream_account_id");
+      expect(columnNames(db, "request_events")).not.toContain("subscription_id");
+    } finally {
+      db.close();
+    }
   });
 
   it("returns null when updating an unknown session", () => {
@@ -190,7 +230,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code",
       sessionId: "sess_1",
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
@@ -213,7 +253,7 @@ describe("SqliteGatewayStore", () => {
         subjectId: "subj_1",
         scope: "code",
         sessionId: "sess_1",
-        subscriptionId: "sub_openai_codex",
+        upstreamAccountId: "sub_openai_codex",
         provider: "openai-codex",
         durationMs: 25,
         firstByteMs: 10,
@@ -239,7 +279,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code" as const,
       sessionId: "sess_1",
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex" as const,
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
@@ -352,7 +392,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code",
       sessionId: null,
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
       startedAt: new Date("2025-12-31T23:59:59Z"),
       durationMs: 10,
@@ -367,7 +407,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code",
       sessionId: "sess_1",
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 20,
@@ -388,7 +428,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code",
       sessionId: "sess_1",
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
       startedAt: new Date("2026-01-01T00:01:00Z"),
       durationMs: 40,
@@ -403,7 +443,7 @@ describe("SqliteGatewayStore", () => {
       subjectId: "subj_1",
       scope: "code",
       sessionId: null,
-      subscriptionId: "sub_openai_codex",
+      upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
       startedAt: new Date("2026-01-02T00:00:00Z"),
       durationMs: 100,
@@ -425,7 +465,7 @@ describe("SqliteGatewayStore", () => {
         credentialId: "cred_1",
         subjectId: "subj_1",
         scope: "code",
-        subscriptionId: "sub_openai_codex",
+        upstreamAccountId: "sub_openai_codex",
         provider: "openai-codex",
         requests: 2,
         ok: 1,
@@ -531,7 +571,7 @@ describe("SqliteClientEventsStore", () => {
 function createSeededStore(dbPath: string): SqliteGatewayStore {
   const store = createSqliteStore({ path: dbPath });
   store.upsertSubject(subject());
-  store.upsertSubscription(subscription());
+  store.upsertUpstreamAccount(upstreamAccount());
   return store;
 }
 
@@ -544,7 +584,7 @@ function subject(): Subject {
   };
 }
 
-function subscription(): Subscription {
+function upstreamAccount(): UpstreamAccount {
   return {
     id: "sub_openai_codex",
     provider: "openai-codex",
@@ -554,6 +594,114 @@ function subscription(): Subscription {
     lastUsedAt: null,
     cooldownUntil: null
   };
+}
+
+function createLegacyUpstreamAccountDb(dbPath: string): void {
+  const db = new DatabaseSync(dbPath);
+  try {
+    db.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      );
+      INSERT INTO schema_migrations (version, applied_at) VALUES
+        (1, '2026-01-01T00:00:00.000Z'),
+        (2, '2026-01-01T00:00:00.000Z'),
+        (3, '2026-01-01T00:00:00.000Z'),
+        (4, '2026-01-01T00:00:00.000Z'),
+        (5, '2026-01-01T00:00:00.000Z'),
+        (6, '2026-01-01T00:00:00.000Z');
+
+      CREATE TABLE subjects (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        name TEXT,
+        phone_number TEXT
+      );
+      CREATE TABLE subscriptions (
+        id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        label TEXT NOT NULL,
+        credential_ref TEXT NOT NULL,
+        state TEXT NOT NULL,
+        health_json TEXT,
+        last_used_at TEXT,
+        cooldown_until TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        subject_id TEXT NOT NULL,
+        subscription_id TEXT NOT NULL,
+        provider_session_ref TEXT,
+        title TEXT,
+        state TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY(subject_id) REFERENCES subjects(id),
+        FOREIGN KEY(subscription_id) REFERENCES subscriptions(id)
+      );
+      CREATE TABLE request_events (
+        request_id TEXT PRIMARY KEY,
+        credential_id TEXT,
+        subject_id TEXT,
+        scope TEXT,
+        session_id TEXT,
+        subscription_id TEXT,
+        provider TEXT,
+        started_at TEXT NOT NULL,
+        duration_ms INTEGER,
+        first_byte_ms INTEGER,
+        status TEXT NOT NULL,
+        error_code TEXT,
+        rate_limited INTEGER NOT NULL DEFAULT 0,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        total_tokens INTEGER,
+        cached_prompt_tokens INTEGER,
+        estimated_tokens INTEGER,
+        usage_source TEXT
+      );
+
+      INSERT INTO subjects (id, label, state, created_at)
+        VALUES ('subj_legacy', 'Legacy Subject', 'active', '2026-01-01T00:00:00.000Z');
+      INSERT INTO subscriptions (
+        id, provider, label, credential_ref, state, created_at, updated_at
+      ) VALUES (
+        'sub_legacy', 'openai-codex', 'Legacy Codex', 'CODEX_HOME', 'active',
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO sessions (
+        id, subject_id, subscription_id, provider_session_ref, title, state, created_at, updated_at
+      ) VALUES (
+        'sess_legacy', 'subj_legacy', 'sub_legacy', 'thread_legacy', 'Legacy', 'active',
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      );
+      INSERT INTO request_events (
+        request_id, subject_id, session_id, subscription_id, provider, started_at, status
+      ) VALUES (
+        'req_legacy', 'subj_legacy', 'sess_legacy', 'sub_legacy', 'openai-codex',
+        '2026-01-01T00:00:00.000Z', 'ok'
+      );
+    `);
+  } finally {
+    db.close();
+  }
+}
+
+function tableExists(db: DatabaseSync, table: string): boolean {
+  return Boolean(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(table)
+  );
+}
+
+function columnNames(db: DatabaseSync, table: string): string[] {
+  return (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+    (row) => row.name
+  );
 }
 
 function clientMessageEventRecord(

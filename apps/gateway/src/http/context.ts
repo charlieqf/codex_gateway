@@ -6,13 +6,13 @@ import type {
   RequestTokenUsageSource,
   Scope,
   Subject,
-  Subscription,
+  UpstreamAccount,
   TokenUsage
 } from "@codex-gateway/core";
 
 export interface GatewayRequestContext {
   subject: Subject;
-  subscription: Subscription;
+  upstreamAccount: UpstreamAccount;
   provider: ProviderAdapter;
   scope: Scope;
   credential: {

@@ -11,12 +11,12 @@ import type {
   Scope,
   Subject,
   SubjectState,
-  Subscription
+  UpstreamAccount
 } from "./types.js";
 
 export interface CreateGatewaySessionInput {
   subjectId: string;
-  subscriptionId: string;
+  upstreamAccountId: string;
   now?: Date;
 }
 
@@ -30,7 +30,7 @@ export interface GatewaySessionStore {
 
 export interface BootstrapStore {
   upsertSubject(subject: Subject): void;
-  upsertSubscription(subscription: Subscription): void;
+  upsertUpstreamAccount(upstreamAccount: UpstreamAccount): void;
 }
 
 export interface SubjectStore {
@@ -89,7 +89,7 @@ export interface RequestUsageReportRow {
   credentialId: string | null;
   subjectId: string | null;
   scope: Scope | null;
-  subscriptionId: string | null;
+  upstreamAccountId: string | null;
   provider: ProviderKind | null;
   requests: number;
   ok: number;

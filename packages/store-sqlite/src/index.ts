@@ -22,12 +22,17 @@ import type {
   RateLimitPolicy,
   Subject,
   SubjectState,
-  Subscription,
+  UpstreamAccount,
   UpdateAccessCredentialInput
 } from "@codex-gateway/core";
 
 export interface SqliteStoreOptions {
   path: string;
+  logger?: SqliteStoreLogger;
+}
+
+export interface SqliteStoreLogger {
+  info(message: string): void;
 }
 
 export interface UpdateSubjectInput {
@@ -40,9 +45,11 @@ export class SqliteGatewayStore implements GatewayStore {
   readonly kind = "sqlite";
   readonly path: string;
   private readonly db: DatabaseSync;
+  private readonly logger?: SqliteStoreLogger;
 
   constructor(options: SqliteStoreOptions) {
     this.path = options.path;
+    this.logger = options.logger;
     if (options.path !== ":memory:") {
       mkdirSync(path.dirname(options.path), { recursive: true });
       const fd = openSync(options.path, "a", 0o600);
@@ -75,10 +82,10 @@ export class SqliteGatewayStore implements GatewayStore {
       );
   }
 
-  upsertSubscription(subscription: Subscription): void {
+  upsertUpstreamAccount(upstreamAccount: UpstreamAccount): void {
     this.db
       .prepare(
-        `INSERT INTO subscriptions (
+        `INSERT INTO upstream_accounts (
           id, provider, label, credential_ref, state, last_used_at, cooldown_until, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
@@ -88,13 +95,13 @@ export class SqliteGatewayStore implements GatewayStore {
           updated_at = excluded.updated_at`
       )
       .run(
-        subscription.id,
-        subscription.provider,
-        subscription.label,
-        subscription.credentialRef,
-        subscription.state,
-        subscription.lastUsedAt?.toISOString() ?? null,
-        subscription.cooldownUntil?.toISOString() ?? null,
+        upstreamAccount.id,
+        upstreamAccount.provider,
+        upstreamAccount.label,
+        upstreamAccount.credentialRef,
+        upstreamAccount.state,
+        upstreamAccount.lastUsedAt?.toISOString() ?? null,
+        upstreamAccount.cooldownUntil?.toISOString() ?? null,
         new Date().toISOString()
       );
   }
@@ -343,7 +350,7 @@ export class SqliteGatewayStore implements GatewayStore {
     const session: GatewaySession = {
       id: `sess_${randomUUID()}`,
       subjectId: input.subjectId,
-      subscriptionId: input.subscriptionId,
+      upstreamAccountId: input.upstreamAccountId,
       providerSessionRef: null,
       title: null,
       state: "active",
@@ -354,13 +361,13 @@ export class SqliteGatewayStore implements GatewayStore {
     this.db
       .prepare(
         `INSERT INTO sessions (
-          id, subject_id, subscription_id, provider_session_ref, title, state, created_at, updated_at
+          id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         session.id,
         session.subjectId,
-        session.subscriptionId,
+        session.upstreamAccountId,
         session.providerSessionRef,
         session.title,
         session.state,
@@ -374,7 +381,7 @@ export class SqliteGatewayStore implements GatewayStore {
   list(subjectId: string): GatewaySession[] {
     const rows = this.db
       .prepare(
-        `SELECT id, subject_id, subscription_id, provider_session_ref, title, state, created_at, updated_at
+        `SELECT id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at
          FROM sessions
          WHERE subject_id = ?
          ORDER BY updated_at DESC, created_at DESC`
@@ -387,7 +394,7 @@ export class SqliteGatewayStore implements GatewayStore {
   get(id: string): GatewaySession | null {
     const row = this.db
       .prepare(
-        `SELECT id, subject_id, subscription_id, provider_session_ref, title, state, created_at, updated_at
+        `SELECT id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at
          FROM sessions
          WHERE id = ?`
       )
@@ -413,7 +420,7 @@ export class SqliteGatewayStore implements GatewayStore {
     this.db
       .prepare(
         `INSERT INTO request_events (
-          request_id, credential_id, subject_id, scope, session_id, subscription_id, provider,
+          request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider,
           started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
           prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
           estimated_tokens, usage_source
@@ -423,7 +430,7 @@ export class SqliteGatewayStore implements GatewayStore {
           subject_id = excluded.subject_id,
           scope = excluded.scope,
           session_id = excluded.session_id,
-          subscription_id = excluded.subscription_id,
+          upstream_account_id = excluded.upstream_account_id,
           provider = excluded.provider,
           started_at = excluded.started_at,
           duration_ms = excluded.duration_ms,
@@ -444,7 +451,7 @@ export class SqliteGatewayStore implements GatewayStore {
         record.subjectId,
         record.scope,
         record.sessionId,
-        record.subscriptionId,
+        record.upstreamAccountId,
         record.provider,
         record.startedAt.toISOString(),
         record.durationMs,
@@ -468,7 +475,7 @@ export class SqliteGatewayStore implements GatewayStore {
     const rows = input.credentialId
       ? this.db
           .prepare(
-            `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+            `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                     provider, started_at, duration_ms, first_byte_ms, status, error_code,
                     rate_limited, prompt_tokens, completion_tokens, total_tokens,
                     cached_prompt_tokens, estimated_tokens, usage_source
@@ -481,7 +488,7 @@ export class SqliteGatewayStore implements GatewayStore {
       : input.subjectId
         ? this.db
             .prepare(
-              `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+              `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
                       rate_limited, prompt_tokens, completion_tokens, total_tokens,
                       cached_prompt_tokens, estimated_tokens, usage_source
@@ -493,7 +500,7 @@ export class SqliteGatewayStore implements GatewayStore {
             .all(input.subjectId, limit)
         : this.db
             .prepare(
-              `SELECT request_id, credential_id, subject_id, scope, session_id, subscription_id,
+              `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
                       rate_limited, prompt_tokens, completion_tokens, total_tokens,
                       cached_prompt_tokens, estimated_tokens, usage_source
@@ -529,7 +536,7 @@ export class SqliteGatewayStore implements GatewayStore {
            credential_id,
            subject_id,
            scope,
-           subscription_id,
+           upstream_account_id,
            provider,
            COUNT(*) AS requests,
            SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok,
@@ -549,7 +556,7 @@ export class SqliteGatewayStore implements GatewayStore {
            credential_id,
            subject_id,
            scope,
-           subscription_id,
+           upstream_account_id,
            provider
          ORDER BY date DESC, requests DESC, credential_id, subject_id`
       )
@@ -609,7 +616,7 @@ export class SqliteGatewayStore implements GatewayStore {
         created_at TEXT NOT NULL
       );
 
-      CREATE TABLE IF NOT EXISTS subscriptions (
+      CREATE TABLE IF NOT EXISTS upstream_accounts (
         id TEXT PRIMARY KEY,
         provider TEXT NOT NULL,
         label TEXT NOT NULL,
@@ -641,14 +648,14 @@ export class SqliteGatewayStore implements GatewayStore {
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         subject_id TEXT NOT NULL,
-        subscription_id TEXT NOT NULL,
+        upstream_account_id TEXT NOT NULL,
         provider_session_ref TEXT,
         title TEXT,
         state TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY(subject_id) REFERENCES subjects(id),
-        FOREIGN KEY(subscription_id) REFERENCES subscriptions(id)
+        FOREIGN KEY(upstream_account_id) REFERENCES upstream_accounts(id)
       );
 
       CREATE INDEX IF NOT EXISTS idx_sessions_subject_updated
@@ -660,7 +667,7 @@ export class SqliteGatewayStore implements GatewayStore {
         subject_id TEXT,
         scope TEXT,
         session_id TEXT,
-        subscription_id TEXT,
+        upstream_account_id TEXT,
         provider TEXT,
         started_at TEXT NOT NULL,
         duration_ms INTEGER,
@@ -722,9 +729,13 @@ export class SqliteGatewayStore implements GatewayStore {
     this.applyMigration(6, `
       ALTER TABLE access_credentials ADD COLUMN token_ciphertext TEXT;
     `);
+
+    this.applyMigration(7, () => {
+      this.migrateLegacyUpstreamAccountSchema();
+    });
   }
 
-  private applyMigration(version: number, sql: string): void {
+  private applyMigration(version: number, migration: string | (() => void)): void {
     const existing = this.db
       .prepare("SELECT version FROM schema_migrations WHERE version = ?")
       .get(version);
@@ -734,15 +745,46 @@ export class SqliteGatewayStore implements GatewayStore {
 
     this.db.exec("BEGIN");
     try {
-      this.db.exec(sql);
+      if (typeof migration === "string") {
+        this.db.exec(migration);
+      } else {
+        migration();
+      }
       this.db
         .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
         .run(version, new Date().toISOString());
       this.db.exec("COMMIT");
+      this.logger?.info(`SQLite schema migrated to v${version}.`);
     } catch (err) {
       this.db.exec("ROLLBACK");
       throw err;
     }
+  }
+
+  private migrateLegacyUpstreamAccountSchema(): void {
+    if (this.tableExists("subscriptions") && !this.tableExists("upstream_accounts")) {
+      this.db.exec("ALTER TABLE subscriptions RENAME TO upstream_accounts");
+    }
+    if (this.columnExists("sessions", "subscription_id")) {
+      this.db.exec("ALTER TABLE sessions RENAME COLUMN subscription_id TO upstream_account_id");
+    }
+    if (this.columnExists("request_events", "subscription_id")) {
+      this.db.exec(
+        "ALTER TABLE request_events RENAME COLUMN subscription_id TO upstream_account_id"
+      );
+    }
+  }
+
+  private tableExists(table: string): boolean {
+    const row = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table);
+    return Boolean(row);
+  }
+
+  private columnExists(table: string, column: string): boolean {
+    const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    return rows.some((row) => row.name === column);
   }
 
   private tightenFilePermissions(): void {
@@ -931,7 +973,7 @@ function rowToSession(row: unknown): GatewaySession {
   const value = row as {
     id: string;
     subject_id: string;
-    subscription_id: string;
+    upstream_account_id: string;
     provider_session_ref: string | null;
     title: string | null;
     state: GatewaySession["state"];
@@ -942,7 +984,7 @@ function rowToSession(row: unknown): GatewaySession {
   return {
     id: value.id,
     subjectId: value.subject_id,
-    subscriptionId: value.subscription_id,
+    upstreamAccountId: value.upstream_account_id,
     providerSessionRef: value.provider_session_ref,
     title: value.title,
     state: value.state,
@@ -1010,7 +1052,7 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     subject_id: string | null;
     scope: RequestEventRecord["scope"];
     session_id: string | null;
-    subscription_id: string | null;
+    upstream_account_id: string | null;
     provider: RequestEventRecord["provider"];
     started_at: string;
     duration_ms: number | null;
@@ -1032,7 +1074,7 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     subjectId: value.subject_id,
     scope: value.scope,
     sessionId: value.session_id,
-    subscriptionId: value.subscription_id,
+    upstreamAccountId: value.upstream_account_id,
     provider: value.provider,
     startedAt: new Date(value.started_at),
     durationMs: value.duration_ms,
@@ -1127,7 +1169,7 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     credential_id: string | null;
     subject_id: string | null;
     scope: RequestUsageReportRow["scope"];
-    subscription_id: string | null;
+    upstream_account_id: string | null;
     provider: RequestUsageReportRow["provider"];
     requests: number;
     ok: number;
@@ -1147,7 +1189,7 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     credentialId: value.credential_id,
     subjectId: value.subject_id,
     scope: value.scope,
-    subscriptionId: value.subscription_id,
+    upstreamAccountId: value.upstream_account_id,
     provider: value.provider,
     requests: value.requests,
     ok: value.ok,

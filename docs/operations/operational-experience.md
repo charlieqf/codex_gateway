@@ -29,8 +29,8 @@ Last updated: 2026-04-24
 
 - Use "user" in operator docs and CLI examples for the person, client, or device group receiving access. The internal table is `subjects`.
 - Use "API key" for the bearer token issued to a user. The internal table is `access_credentials`, and only the prefix plus hash is stored.
-- Use "upstream Codex account" for the server-side ChatGPT/Codex login state under `CODEX_HOME`. The internal provider record is a subscription.
-- 中文文档里优先写“用户 / API key / 上游 Codex 账号 / 用量”，只在排查数据库或代码时补充 `subject`、`access_credential`、`subscription`。
+- Use "upstream Codex account" for the server-side ChatGPT/Codex login state under `CODEX_HOME`. The internal provider record is an upstream account.
+- 中文文档里优先写“用户 / API key / 上游 Codex 账号 / 用量”，只在排查数据库或代码时补充 `subject`、`access_credential`、`upstream_account`。
 - Admin write actions and full-key reveal actions are stored as audit events. Audit rows must not contain raw API keys; store only user ids, credential ids, credential prefixes, parameter summaries, status, and sanitized errors.
 - API key issue/rotate/reveal requires a stable `GATEWAY_API_KEY_ENCRYPTION_SECRET`; losing it makes encrypted `token_ciphertext` unrecoverable.
 - Historical hash-only API keys cannot be reconstructed. If full-key lookup is required for every active key, rotate historical keys after encrypted token storage is deployed or attach encrypted tokens from an existing secure source.

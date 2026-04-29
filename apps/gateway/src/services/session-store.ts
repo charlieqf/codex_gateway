@@ -8,16 +8,16 @@ export class InMemorySessionStore implements GatewayStore {
     return;
   }
 
-  upsertSubscription(): void {
+  upsertUpstreamAccount(): void {
     return;
   }
 
-  create(input: { subjectId: string; subscriptionId: string; now?: Date }): GatewaySession {
+  create(input: { subjectId: string; upstreamAccountId: string; now?: Date }): GatewaySession {
     const now = input.now ?? new Date();
     const session: GatewaySession = {
       id: `sess_${randomUUID()}`,
       subjectId: input.subjectId,
-      subscriptionId: input.subscriptionId,
+      upstreamAccountId: input.upstreamAccountId,
       providerSessionRef: null,
       title: null,
       state: "active",

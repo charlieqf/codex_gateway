@@ -19,7 +19,7 @@ Completed:
   - `POST /sessions/:id/messages` as SSE
 - Temporary development bearer token via `GATEWAY_DEV_ACCESS_TOKEN`.
 - Default-protected Fastify auth hook with explicit public health route.
-- Request context injection for dev subject/subscription/provider/scope.
+- Request context injection for dev subject/upstream account/provider/scope.
 - SSE close abort, heartbeat, and write cleanup.
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
 - User-friendly API key issue/list/update/revoke/rotate MVP.
@@ -125,7 +125,7 @@ Current test coverage:
 - Provider token usage mapping from upstream completed turns.
 - Provider error stream handling now stops after turn-level or item-level provider errors and sanitizes provider-specific auth text.
 - SQLite store migration/session persistence.
-- SQLite bootstrap upserts no longer reactivate disabled users or overwrite subscription runtime state.
+- SQLite bootstrap upserts no longer reactivate disabled users or overwrite upstream account runtime state.
 - Access credential generation, hash verification, expiration, and revocation.
 - SQLite user and API key persistence, API key update/revocation/reveal, user contact metadata update, user disable/enable, and admin audit event persistence.
 - In-memory gateway rate limiter for rpm/day/concurrency policies.
@@ -174,13 +174,13 @@ SQLite schema currently includes:
 
 - `schema_migrations`
 - `subjects`
-- `subscriptions`
+- `upstream_accounts`
 - `access_credentials`
 - `sessions`
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key issue/update/revoke/rotate/reveal, user contact metadata, user-level disable/enable, single-process API key rate limiting, request event writing with token usage fields, admin action audit events, dynamic usage reports with token totals, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Token budget enforcement, scheduled retention jobs, materialized usage reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key issue/update/revoke/rotate/reveal, user contact metadata, user-level disable/enable, single-process API key rate limiting, request event writing with token usage fields, admin action audit events, dynamic usage reports with token totals, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Existing SQLite databases migrate `subscriptions` / `subscription_id` to `upstream_accounts` / `upstream_account_id`; public compatibility aliases remain for `/gateway/status`, session JSON, and `GATEWAY_PUBLIC_SUBSCRIPTION_ID`. Token budget enforcement, scheduled retention jobs, materialized usage reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 
