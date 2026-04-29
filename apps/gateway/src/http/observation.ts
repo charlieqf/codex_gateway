@@ -50,7 +50,12 @@ export function recordObservation(
   store: ObservationStore | undefined,
   statusCode?: number
 ): void {
-  if (!store || request.gatewayObservationRecorded || request.routeOptions.config?.public) {
+  if (
+    !store ||
+    request.gatewayObservationRecorded ||
+    request.routeOptions.config?.public ||
+    request.routeOptions.config?.skipObservation
+  ) {
     return;
   }
 

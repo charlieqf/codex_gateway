@@ -13,11 +13,15 @@ import {
   type ProviderAdapter,
   type ProviderHealth,
   type ProviderSession,
+  type RateLimitPolicy,
   type RefreshResult,
   type StreamEvent,
   type Subscription
 } from "@codex-gateway/core";
-import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import {
+  createSqliteClientEventsStore,
+  createSqliteStore
+} from "@codex-gateway/store-sqlite";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
 
 class FakeProvider implements ProviderAdapter {
@@ -325,6 +329,245 @@ describe("gateway phase 1 routes", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
+  it("returns service_unavailable for client message events when storage is not configured", async () => {
+    const app = buildGateway({
+      accessToken: "secret",
+      provider: new FakeProvider(),
+      clientEventsStore: null,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      payload: clientMessagePayload()
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("service_unavailable");
+
+    await app.close();
+  });
+
+  it("writes client message events to the dedicated store without request observation", async () => {
+    const { store, issued, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_write_1",
+        text: "系统性红斑狼疮最新研究进展",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            mime: "application/pdf",
+            size: 123456
+          }
+        ]
+      })
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      event_id: "evt_write_1",
+      duplicate: false
+    });
+    const stored = clientEventsStore.getClientMessageEvent("subj_dev", "evt_write_1");
+    expect(stored).toMatchObject({
+      eventId: "evt_write_1",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: "ses_1",
+      messageId: "msg_1",
+      text: "系统性红斑狼疮最新研究进展",
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6"
+    });
+    expect(stored?.textSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.parse(stored?.attachmentsJson ?? "[]")).toEqual([
+      {
+        type: "file",
+        filename: "report.pdf",
+        mime: "application/pdf",
+        size: 123456
+      }
+    ]);
+    expect(store.listRequestEvents()).toEqual([]);
+
+    await app.close();
+  });
+
+  it("keeps client message event idempotency immutable", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+    const payload = clientMessagePayload({
+      event_id: "evt_idempotent_1",
+      text: "first text"
+    });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload
+    });
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload
+    });
+    const conflict = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_idempotent_1",
+        text: "changed text"
+      })
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json()).toMatchObject({
+      ok: true,
+      event_id: "evt_idempotent_1",
+      duplicate: true
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error.code).toBe("idempotency_conflict");
+    expect(clientEventsStore.getClientMessageEvent("subj_dev", "evt_idempotent_1")?.text).toBe(
+      "first text"
+    );
+
+    await app.close();
+  });
+
+  it("validates client message text byte length and attachment metadata", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const oversized = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_oversized_1",
+        text: "a".repeat(64 * 1024 + 1)
+      })
+    });
+    const attachmentContent = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_attachment_1",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            content: "raw body"
+          }
+        ]
+      })
+    });
+
+    expect(oversized.statusCode).toBe(413);
+    expect(oversized.json().error.code).toBe("invalid_request");
+    expect(attachmentContent.statusCode).toBe(400);
+    expect(attachmentContent.json().error.message).toContain("content is not allowed");
+    expect(clientEventsStore.getClientMessageEvent("subj_dev", "evt_oversized_1")).toBeNull();
+    expect(clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_1")).toBeNull();
+
+    await app.close();
+  });
+
+  it("uses credential auth and an independent rate limit for client message events", async () => {
+    const { store, headers } = createCredentialBackedStore({
+      requestsPerMinute: 1,
+      requestsPerDay: null,
+      concurrentRequests: null
+    });
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      clientEventsRatePolicy: {
+        requestsPerMinute: 1,
+        requestsPerDay: null,
+        concurrentRequests: null
+      },
+      logger: false
+    });
+
+    const unauthenticated = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      payload: clientMessagePayload()
+    });
+    const firstClientEvent = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({ event_id: "evt_limit_1" })
+    });
+    const firstModelRoute = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+    const secondClientEvent = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({ event_id: "evt_limit_2" })
+    });
+    const secondModelRoute = await app.inject({
+      method: "GET",
+      url: "/gateway/status",
+      headers
+    });
+
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(unauthenticated.json().error.code).toBe("missing_credential");
+    expect(firstClientEvent.statusCode).toBe(201);
+    expect(firstModelRoute.statusCode).toBe(200);
+    expect(secondClientEvent.statusCode).toBe(429);
+    expect(secondClientEvent.json().error.code).toBe("rate_limited");
+    expect(secondModelRoute.statusCode).toBe(429);
 
     await app.close();
   });
@@ -2242,4 +2485,50 @@ function expectRequestIdHeader(response: { headers: Record<string, unknown> }): 
   expect(typeof requestId).toBe("string");
   expect(requestId).toMatch(/^req-/);
   return requestId as string;
+}
+
+function createCredentialBackedStore(rate?: RateLimitPolicy) {
+  const store = createSqliteStore({ path: ":memory:" });
+  const issued = issueAccessCredential({
+    subjectId: "subj_dev",
+    label: "Client event credential",
+    scope: "code",
+    expiresAt: new Date("2030-02-01T00:00:00Z"),
+    now: new Date("2026-01-01T00:00:00Z"),
+    rate
+  });
+  store.upsertSubject({
+    id: "subj_dev",
+    label: "Credential Subject",
+    state: "active",
+    createdAt: new Date("2026-01-01T00:00:00Z")
+  });
+  store.insertAccessCredential(issued.record);
+
+  return {
+    store,
+    issued,
+    headers: { authorization: `Bearer ${issued.token}` }
+  };
+}
+
+function clientMessagePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: "client_message.v1",
+    event_id: "evt_1",
+    session_id: "ses_1",
+    message_id: "msg_1",
+    created_at: "2026-04-29T10:00:00.000Z",
+    app: {
+      name: "medevidence-desktop",
+      version: "1.4.6"
+    },
+    agent: "research",
+    provider_id: "medcode",
+    model_id: "medcode",
+    engine: "agent",
+    text: "What is the latest evidence?",
+    attachments: [],
+    ...overrides
+  };
 }

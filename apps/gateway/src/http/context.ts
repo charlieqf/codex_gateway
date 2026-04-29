@@ -32,6 +32,7 @@ declare module "fastify" {
   interface FastifyContextConfig {
     public?: boolean;
     skipRateLimit?: boolean;
+    skipObservation?: boolean;
   }
 
   interface FastifyRequest {

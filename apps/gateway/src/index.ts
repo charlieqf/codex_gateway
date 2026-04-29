@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
+  type ClientMessageEventStore,
   type CredentialAuthStore,
   GatewayError,
   type GatewaySession,
   type GatewayStore,
   type ObservationStore,
   type ProviderAdapter,
+  type RateLimitPolicy,
   type Scope,
   type Subject,
   type Subscription
@@ -16,7 +18,14 @@ import {
   CodexProviderAdapter,
   type CodexProviderOptions
 } from "@codex-gateway/provider-codex";
-import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import {
+  createSqliteClientEventsStore,
+  createSqliteStore
+} from "@codex-gateway/store-sqlite";
+import {
+  CLIENT_MESSAGE_BODY_LIMIT_BYTES,
+  parseClientMessageEventRequest
+} from "./client-events.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
 import {
@@ -66,6 +75,9 @@ export interface GatewayOptions {
   subscription?: Subscription;
   rateLimiter?: CredentialRateLimiter;
   observationStore?: ObservationStore;
+  clientEventsStore?: ClientMessageEventStore | null;
+  clientEventsRateLimiter?: CredentialRateLimiter;
+  clientEventsRatePolicy?: RateLimitPolicy;
   logger?: boolean;
 }
 
@@ -124,6 +136,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
   const observationStore =
     options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
+  const clientEventsStore =
+    options.clientEventsStore === undefined
+      ? createDefaultClientEventsStore()
+      : options.clientEventsStore ?? undefined;
+  const clientEventsRateLimiter =
+    options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter();
+  const clientEventsRatePolicy =
+    options.clientEventsRatePolicy ?? resolveClientEventsRatePolicy(process.env);
   if (authMode === "dev") {
     sessions.upsertSubject(subject);
   }
@@ -144,6 +164,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   app.addHook("onClose", async () => {
     sessions.close?.();
+    clientEventsStore?.close?.();
   });
 
   app.addHook("onRequest", async (request, reply) => {
@@ -254,6 +275,121 @@ export function buildGateway(options: GatewayOptions = {}) {
           rate: credential.rate
         }
       };
+    }
+  );
+
+  app.post<{ Body: unknown }>(
+    "/gateway/client-events/messages",
+    {
+      bodyLimit: CLIENT_MESSAGE_BODY_LIMIT_BYTES,
+      config: {
+        public: !clientEventsStore,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (request, reply) => {
+      if (!clientEventsStore) {
+        return sendError(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Client message event storage is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const { subject, scope, credential } = getGatewayContext(request);
+      if (!credential.id) {
+        return sendError(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Client message events require credential auth.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const permit = clientEventsRateLimiter.acquire({
+        credentialId: credential.id,
+        policy: clientEventsRatePolicy
+      });
+      if (permit instanceof GatewayError) {
+        return sendError(request, reply, permit);
+      }
+
+      try {
+        const parsed = parseClientMessageEventRequest(request.body);
+        if (parsed instanceof GatewayError) {
+          return sendError(request, reply, parsed);
+        }
+
+        const existing = clientEventsStore.getClientMessageEvent(
+          subject.id,
+          parsed.eventId
+        );
+        if (existing) {
+          if (
+            existing.textSha256 === parsed.textSha256 &&
+            existing.sessionId === parsed.sessionId &&
+            existing.messageId === parsed.messageId
+          ) {
+            return {
+              ok: true,
+              event_id: parsed.eventId,
+              duplicate: true,
+              received_at: existing.receivedAt.toISOString()
+            };
+          }
+
+          return sendError(
+            request,
+            reply,
+            new GatewayError({
+              code: "idempotency_conflict",
+              message: "event_id already exists for this user with different content.",
+              httpStatus: 409
+            })
+          );
+        }
+
+        const receivedAt = new Date();
+        clientEventsStore.insertClientMessageEvent({
+          id: `cme_${randomUUID().replaceAll("-", "")}`,
+          eventId: parsed.eventId,
+          requestId: request.id,
+          credentialId: credential.id,
+          subjectId: subject.id,
+          scope,
+          sessionId: parsed.sessionId,
+          messageId: parsed.messageId,
+          agent: parsed.agent,
+          providerId: parsed.providerId,
+          modelId: parsed.modelId,
+          engine: parsed.engine,
+          text: parsed.text,
+          textSha256: parsed.textSha256,
+          attachmentsJson: parsed.attachmentsJson,
+          appName: parsed.appName,
+          appVersion: parsed.appVersion,
+          createdAt: parsed.createdAt,
+          receivedAt
+        });
+
+        reply.code(201);
+        return {
+          ok: true,
+          event_id: parsed.eventId,
+          duplicate: false,
+          received_at: receivedAt.toISOString()
+        };
+      } finally {
+        permit.release();
+      }
     }
   );
 
@@ -1087,6 +1223,31 @@ function createDefaultSessionStore(): GatewayStore {
   }
 
   return new InMemorySessionStore();
+}
+
+function createDefaultClientEventsStore(): ClientMessageEventStore | undefined {
+  const sqlitePath = process.env.GATEWAY_CLIENT_EVENTS_SQLITE_PATH;
+  if (!sqlitePath) {
+    return undefined;
+  }
+
+  return createSqliteClientEventsStore({ path: sqlitePath });
+}
+
+function resolveClientEventsRatePolicy(env: NodeJS.ProcessEnv): RateLimitPolicy {
+  return {
+    requestsPerMinute: parsePositiveIntegerEnv(
+      env.GATEWAY_CLIENT_EVENTS_RPM,
+      60,
+      "GATEWAY_CLIENT_EVENTS_RPM"
+    ),
+    requestsPerDay: parsePositiveIntegerEnv(
+      env.GATEWAY_CLIENT_EVENTS_RPD,
+      2_000,
+      "GATEWAY_CLIENT_EVENTS_RPD"
+    ),
+    concurrentRequests: null
+  };
 }
 
 function parseAuthMode(value: string | undefined): GatewayAuthMode | undefined {

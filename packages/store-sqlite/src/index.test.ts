@@ -2,8 +2,17 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { issueAccessCredential, type Subject, type Subscription } from "@codex-gateway/core";
-import { createSqliteStore, type SqliteGatewayStore } from "./index.js";
+import {
+  issueAccessCredential,
+  type ClientMessageEventRecord,
+  type Subject,
+  type Subscription
+} from "@codex-gateway/core";
+import {
+  createSqliteClientEventsStore,
+  createSqliteStore,
+  type SqliteGatewayStore
+} from "./index.js";
 
 const cleanupDirs: string[] = [];
 
@@ -462,6 +471,63 @@ describe("SqliteGatewayStore", () => {
   });
 });
 
+describe("SqliteClientEventsStore", () => {
+  it("migrates idempotently and persists client message events", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-client-events-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "client-events.db");
+
+    const first = createSqliteClientEventsStore({ path: dbPath });
+    first.insertClientMessageEvent(clientMessageEventRecord());
+    first.close();
+
+    const second = createSqliteClientEventsStore({ path: dbPath });
+    expect(second.getClientMessageEvent("subj_1", "evt_1")).toMatchObject({
+      id: "cme_1",
+      eventId: "evt_1",
+      requestId: "req_1",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "ses_1",
+      messageId: "msg_1",
+      text: "What is the evidence?",
+      textSha256: "0".repeat(64),
+      attachmentsJson: "[]",
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6"
+    });
+    second.close();
+  });
+
+  it("keeps subject-scoped event ids unique without overwriting existing rows", () => {
+    const store = createSqliteClientEventsStore({ path: ":memory:" });
+    store.insertClientMessageEvent(clientMessageEventRecord());
+
+    expect(() =>
+      store.insertClientMessageEvent({
+        ...clientMessageEventRecord(),
+        id: "cme_conflict",
+        requestId: "req_conflict",
+        text: "Changed text",
+        textSha256: "1".repeat(64)
+      })
+    ).toThrow();
+    expect(store.getClientMessageEvent("subj_1", "evt_1")?.text).toBe(
+      "What is the evidence?"
+    );
+
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_other_subject",
+        subjectId: "subj_2"
+      })
+    );
+    expect(store.getClientMessageEvent("subj_2", "evt_1")?.id).toBe("cme_other_subject");
+    store.close();
+  });
+});
+
 function createSeededStore(dbPath: string): SqliteGatewayStore {
   const store = createSqliteStore({ path: dbPath });
   store.upsertSubject(subject());
@@ -487,5 +553,32 @@ function subscription(): Subscription {
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null
+  };
+}
+
+function clientMessageEventRecord(
+  overrides: Partial<ClientMessageEventRecord> = {}
+): ClientMessageEventRecord {
+  return {
+    id: "cme_1",
+    eventId: "evt_1",
+    requestId: "req_1",
+    credentialId: "cred_1",
+    subjectId: "subj_1",
+    scope: "code",
+    sessionId: "ses_1",
+    messageId: "msg_1",
+    agent: "research",
+    providerId: "medcode",
+    modelId: "medcode",
+    engine: "agent",
+    text: "What is the evidence?",
+    textSha256: "0".repeat(64),
+    attachmentsJson: "[]",
+    appName: "medevidence-desktop",
+    appVersion: "1.4.6",
+    createdAt: new Date("2026-04-29T10:00:00Z"),
+    receivedAt: new Date("2026-04-29T10:00:01Z"),
+    ...overrides
   };
 }

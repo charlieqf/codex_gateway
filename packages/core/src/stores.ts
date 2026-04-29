@@ -3,6 +3,7 @@ import type {
   AdminAuditAction,
   AdminAuditEventRecord,
   AdminAuditStatus,
+  ClientMessageEventRecord,
   GatewaySession,
   ProviderKind,
   RateLimitPolicy,
@@ -132,6 +133,12 @@ export interface ObservationStore {
   listRequestEvents(input?: ListRequestEventsInput): RequestEventRecord[];
   reportRequestUsage(input: RequestUsageReportInput): RequestUsageReportRow[];
   pruneRequestEvents(input: PruneRequestEventsInput): PruneRequestEventsResult;
+}
+
+export interface ClientMessageEventStore {
+  getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null;
+  insertClientMessageEvent(record: ClientMessageEventRecord): ClientMessageEventRecord;
+  close?(): void;
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

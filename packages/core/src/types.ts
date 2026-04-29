@@ -96,6 +96,28 @@ export interface RequestEventRecord {
 
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
 
+export interface ClientMessageEventRecord {
+  id: string;
+  eventId: string;
+  requestId: string;
+  credentialId: string;
+  subjectId: string;
+  scope: Scope;
+  sessionId: string;
+  messageId: string;
+  agent: string | null;
+  providerId: string | null;
+  modelId: string | null;
+  engine: string | null;
+  text: string;
+  textSha256: string;
+  attachmentsJson: string;
+  appName: string | null;
+  appVersion: string | null;
+  createdAt: Date;
+  receivedAt: Date;
+}
+
 export interface Subscription {
   id: string;
   provider: ProviderKind;

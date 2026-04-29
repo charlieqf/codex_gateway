@@ -4,6 +4,7 @@ export const gatewayErrorCodes = [
   "revoked_credential",
   "expired_credential",
   "invalid_request",
+  "idempotency_conflict",
   "model_not_found",
   "rate_limited",
   "forbidden_scope",

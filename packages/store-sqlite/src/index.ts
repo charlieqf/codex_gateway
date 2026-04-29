@@ -5,6 +5,8 @@ import { DatabaseSync } from "node:sqlite";
 import type {
   AccessCredentialRecord,
   AdminAuditEventRecord,
+  ClientMessageEventRecord,
+  ClientMessageEventStore,
   CreateGatewaySessionInput,
   GatewaySession,
   GatewayStore,
@@ -760,6 +762,171 @@ export function createSqliteStore(options: SqliteStoreOptions): SqliteGatewaySto
   return new SqliteGatewayStore(options);
 }
 
+export class SqliteClientEventsStore implements ClientMessageEventStore {
+  readonly kind = "sqlite-client-events";
+  readonly path: string;
+  private readonly db: DatabaseSync;
+
+  constructor(options: SqliteStoreOptions) {
+    this.path = options.path;
+    if (options.path !== ":memory:") {
+      mkdirSync(path.dirname(options.path), { recursive: true });
+      const fd = openSync(options.path, "a", 0o600);
+      closeSync(fd);
+      chmodSync(options.path, 0o600);
+    }
+    this.db = new DatabaseSync(options.path);
+    this.configure();
+    this.migrate();
+    this.tightenFilePermissions();
+  }
+
+  getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+                message_id, agent, provider_id, model_id, engine, text, text_sha256,
+                attachments_json, app_name, app_version, created_at, received_at
+         FROM client_message_events
+         WHERE subject_id = ? AND event_id = ?`
+      )
+      .get(subjectId, eventId);
+
+    return row ? rowToClientMessageEvent(row) : null;
+  }
+
+  insertClientMessageEvent(record: ClientMessageEventRecord): ClientMessageEventRecord {
+    this.db
+      .prepare(
+        `INSERT INTO client_message_events (
+          id, event_id, request_id, credential_id, subject_id, scope, session_id, message_id,
+          agent, provider_id, model_id, engine, text, text_sha256, attachments_json,
+          app_name, app_version, created_at, received_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.eventId,
+        record.requestId,
+        record.credentialId,
+        record.subjectId,
+        record.scope,
+        record.sessionId,
+        record.messageId,
+        record.agent,
+        record.providerId,
+        record.modelId,
+        record.engine,
+        record.text,
+        record.textSha256,
+        record.attachmentsJson,
+        record.appName,
+        record.appVersion,
+        record.createdAt.toISOString(),
+        record.receivedAt.toISOString()
+      );
+
+    return record;
+  }
+
+  close(): void {
+    this.db.close();
+  }
+
+  private configure(): void {
+    this.db.exec("PRAGMA foreign_keys = ON");
+    this.db.exec("PRAGMA journal_mode = WAL");
+  }
+
+  private migrate(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      );
+    `);
+
+    this.applyMigration(1, `
+      CREATE TABLE IF NOT EXISTS client_message_events (
+        id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL,
+        request_id TEXT NOT NULL,
+        credential_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        agent TEXT,
+        provider_id TEXT,
+        model_id TEXT,
+        engine TEXT,
+        text TEXT NOT NULL,
+        text_sha256 TEXT NOT NULL,
+        attachments_json TEXT NOT NULL,
+        app_name TEXT,
+        app_version TEXT,
+        created_at TEXT NOT NULL,
+        received_at TEXT NOT NULL,
+        UNIQUE(subject_id, event_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_client_message_events_received_at
+        ON client_message_events(received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_message_events_subject_received
+        ON client_message_events(subject_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_message_events_credential_received
+        ON client_message_events(credential_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_message_events_session_received
+        ON client_message_events(session_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_message_events_text_sha256
+        ON client_message_events(text_sha256);
+    `);
+  }
+
+  private applyMigration(version: number, sql: string): void {
+    const existing = this.db
+      .prepare("SELECT version FROM schema_migrations WHERE version = ?")
+      .get(version);
+    if (existing) {
+      return;
+    }
+
+    this.db.exec("BEGIN");
+    try {
+      this.db.exec(sql);
+      this.db
+        .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+        .run(version, new Date().toISOString());
+      this.db.exec("COMMIT");
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    }
+  }
+
+  private tightenFilePermissions(): void {
+    if (this.path === ":memory:") {
+      return;
+    }
+
+    for (const file of [this.path, `${this.path}-wal`, `${this.path}-shm`]) {
+      if (existsSync(file)) {
+        chmodSync(file, 0o600);
+      }
+    }
+  }
+}
+
+export function createSqliteClientEventsStore(
+  options: SqliteStoreOptions
+): SqliteClientEventsStore {
+  return new SqliteClientEventsStore(options);
+}
+
 function rowToSession(row: unknown): GatewaySession {
   const value = row as {
     id: string;
@@ -905,6 +1072,52 @@ function rowToAdminAuditEvent(row: unknown): AdminAuditEventRecord {
     params: value.params_json ? (JSON.parse(value.params_json) as Record<string, unknown>) : null,
     errorMessage: value.error_message,
     createdAt: new Date(value.created_at)
+  };
+}
+
+function rowToClientMessageEvent(row: unknown): ClientMessageEventRecord {
+  const value = row as {
+    id: string;
+    event_id: string;
+    request_id: string;
+    credential_id: string;
+    subject_id: string;
+    scope: ClientMessageEventRecord["scope"];
+    session_id: string;
+    message_id: string;
+    agent: string | null;
+    provider_id: string | null;
+    model_id: string | null;
+    engine: string | null;
+    text: string;
+    text_sha256: string;
+    attachments_json: string;
+    app_name: string | null;
+    app_version: string | null;
+    created_at: string;
+    received_at: string;
+  };
+
+  return {
+    id: value.id,
+    eventId: value.event_id,
+    requestId: value.request_id,
+    credentialId: value.credential_id,
+    subjectId: value.subject_id,
+    scope: value.scope,
+    sessionId: value.session_id,
+    messageId: value.message_id,
+    agent: value.agent,
+    providerId: value.provider_id,
+    modelId: value.model_id,
+    engine: value.engine,
+    text: value.text,
+    textSha256: value.text_sha256,
+    attachmentsJson: value.attachments_json,
+    appName: value.app_name,
+    appVersion: value.app_version,
+    createdAt: new Date(value.created_at),
+    receivedAt: new Date(value.received_at)
   };
 }
 
