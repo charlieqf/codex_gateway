@@ -13,6 +13,7 @@ import type {
   SubjectState,
   UpstreamAccount
 } from "./types.js";
+import type { LimitKind } from "./token-budget.js";
 
 export interface CreateGatewaySessionInput {
   subjectId: string;
@@ -102,6 +103,9 @@ export interface RequestUsageReportRow {
   totalTokens: number;
   cachedPromptTokens: number;
   estimatedTokens: number;
+  rateLimitedBy: Partial<Record<LimitKind, number>>;
+  overRequestLimit: number;
+  identityGuardHit: number;
 }
 
 export interface PruneRequestEventsInput {

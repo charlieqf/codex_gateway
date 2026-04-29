@@ -62,6 +62,10 @@ export class SqliteGatewayStore implements GatewayStore {
     this.tightenFilePermissions();
   }
 
+  get database(): DatabaseSync {
+    return this.db;
+  }
+
   upsertSubject(subject: Subject): void {
     this.db
       .prepare(
@@ -423,8 +427,9 @@ export class SqliteGatewayStore implements GatewayStore {
           request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider,
           started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
           prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
-          estimated_tokens, usage_source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          estimated_tokens, usage_source, limit_kind, reservation_id, over_request_limit,
+          identity_guard_hit
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(request_id) DO UPDATE SET
           credential_id = excluded.credential_id,
           subject_id = excluded.subject_id,
@@ -443,7 +448,11 @@ export class SqliteGatewayStore implements GatewayStore {
           total_tokens = excluded.total_tokens,
           cached_prompt_tokens = excluded.cached_prompt_tokens,
           estimated_tokens = excluded.estimated_tokens,
-          usage_source = excluded.usage_source`
+          usage_source = excluded.usage_source,
+          limit_kind = excluded.limit_kind,
+          reservation_id = excluded.reservation_id,
+          over_request_limit = excluded.over_request_limit,
+          identity_guard_hit = excluded.identity_guard_hit`
       )
       .run(
         record.requestId,
@@ -464,7 +473,11 @@ export class SqliteGatewayStore implements GatewayStore {
         record.totalTokens ?? null,
         record.cachedPromptTokens ?? null,
         record.estimatedTokens ?? null,
-        record.usageSource ?? null
+        record.usageSource ?? null,
+        record.limitKind ?? null,
+        record.reservationId ?? null,
+        record.overRequestLimit === true ? 1 : 0,
+        record.identityGuardHit === true ? 1 : 0
       );
 
     return record;
@@ -478,7 +491,8 @@ export class SqliteGatewayStore implements GatewayStore {
             `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                     provider, started_at, duration_ms, first_byte_ms, status, error_code,
                     rate_limited, prompt_tokens, completion_tokens, total_tokens,
-                    cached_prompt_tokens, estimated_tokens, usage_source
+                    cached_prompt_tokens, estimated_tokens, usage_source, limit_kind,
+                    reservation_id, over_request_limit, identity_guard_hit
              FROM request_events
              WHERE credential_id = ?
              ORDER BY started_at DESC
@@ -491,7 +505,8 @@ export class SqliteGatewayStore implements GatewayStore {
               `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
                       rate_limited, prompt_tokens, completion_tokens, total_tokens,
-                      cached_prompt_tokens, estimated_tokens, usage_source
+                      cached_prompt_tokens, estimated_tokens, usage_source, limit_kind,
+                      reservation_id, over_request_limit, identity_guard_hit
                FROM request_events
                WHERE subject_id = ?
                ORDER BY started_at DESC
@@ -503,7 +518,8 @@ export class SqliteGatewayStore implements GatewayStore {
               `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
                       provider, started_at, duration_ms, first_byte_ms, status, error_code,
                       rate_limited, prompt_tokens, completion_tokens, total_tokens,
-                      cached_prompt_tokens, estimated_tokens, usage_source
+                      cached_prompt_tokens, estimated_tokens, usage_source, limit_kind,
+                      reservation_id, over_request_limit, identity_guard_hit
                FROM request_events
                ORDER BY started_at DESC
                LIMIT ?`
@@ -515,7 +531,7 @@ export class SqliteGatewayStore implements GatewayStore {
 
   reportRequestUsage(input: RequestUsageReportInput): RequestUsageReportRow[] {
     const clauses = ["started_at >= ?"];
-    const params = [input.since.toISOString()];
+    const params: string[] = [input.since.toISOString()];
     if (input.until) {
       clauses.push("started_at < ?");
       params.push(input.until.toISOString());
@@ -529,7 +545,7 @@ export class SqliteGatewayStore implements GatewayStore {
       params.push(input.subjectId);
     }
 
-    const rows = this.db
+    const requestRows = this.db
       .prepare(
         `SELECT
            substr(started_at, 1, 10) AS date,
@@ -544,11 +560,21 @@ export class SqliteGatewayStore implements GatewayStore {
            SUM(CASE WHEN rate_limited = 1 THEN 1 ELSE 0 END) AS rate_limited,
            AVG(duration_ms) AS avg_duration_ms,
            AVG(first_byte_ms) AS avg_first_byte_ms,
-           COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
-           COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
-           COALESCE(SUM(total_tokens), 0) AS total_tokens,
-           COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
-           COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens
+           0 AS prompt_tokens,
+           0 AS completion_tokens,
+           0 AS total_tokens,
+           0 AS cached_prompt_tokens,
+           0 AS estimated_tokens,
+           SUM(CASE WHEN limit_kind = 'request_minute' THEN 1 ELSE 0 END) AS request_minute,
+           SUM(CASE WHEN limit_kind = 'request_day' THEN 1 ELSE 0 END) AS request_day,
+           SUM(CASE WHEN limit_kind = 'concurrency' THEN 1 ELSE 0 END) AS concurrency,
+           SUM(CASE WHEN limit_kind = 'token_minute' THEN 1 ELSE 0 END) AS token_minute,
+           SUM(CASE WHEN limit_kind = 'token_day' THEN 1 ELSE 0 END) AS token_day,
+           SUM(CASE WHEN limit_kind = 'token_month' THEN 1 ELSE 0 END) AS token_month,
+           SUM(CASE WHEN limit_kind = 'token_request_prompt' THEN 1 ELSE 0 END) AS token_request_prompt,
+           SUM(CASE WHEN limit_kind = 'token_request_total' THEN 1 ELSE 0 END) AS token_request_total,
+           SUM(CASE WHEN over_request_limit = 1 THEN 1 ELSE 0 END) AS over_request_limit,
+           SUM(CASE WHEN identity_guard_hit = 1 THEN 1 ELSE 0 END) AS identity_guard_hit
          FROM request_events
          WHERE ${clauses.join(" AND ")}
          GROUP BY
@@ -562,7 +588,127 @@ export class SqliteGatewayStore implements GatewayStore {
       )
       .all(...params);
 
-    return rows.map(rowToRequestUsageReport);
+    const merged = new Map<string, RequestUsageReportRow>();
+    for (const row of requestRows) {
+      const report = rowToRequestUsageReport(row);
+      merged.set(requestUsageReportKey(report), report);
+    }
+
+    for (const row of this.tokenUsageRows(input)) {
+      const report =
+        merged.get(tokenUsageAggregateKey(row)) ??
+        emptyRequestUsageReportRow({
+          date: row.date,
+          credentialId: row.credential_id,
+          subjectId: row.subject_id,
+          scope: row.scope,
+          upstreamAccountId: row.upstream_account_id,
+          provider: row.provider
+        });
+      report.promptTokens += row.prompt_tokens;
+      report.completionTokens += row.completion_tokens;
+      report.totalTokens += row.total_tokens;
+      report.cachedPromptTokens += row.cached_prompt_tokens;
+      report.estimatedTokens += row.estimated_tokens;
+      merged.set(requestUsageReportKey(report), report);
+    }
+
+    return Array.from(merged.values()).sort(compareRequestUsageRows);
+  }
+
+  private tokenUsageRows(input: RequestUsageReportInput): TokenUsageAggregateRow[] {
+    const rows: TokenUsageAggregateRow[] = [];
+    const reservationClauses = ["finalized_at IS NOT NULL", "created_at >= ?"];
+    const reservationParams: string[] = [input.since.toISOString()];
+    if (input.until) {
+      reservationClauses.push("created_at < ?");
+      reservationParams.push(input.until.toISOString());
+    }
+    if (input.credentialId) {
+      reservationClauses.push("credential_id = ?");
+      reservationParams.push(input.credentialId);
+    }
+    if (input.subjectId) {
+      reservationClauses.push("subject_id = ?");
+      reservationParams.push(input.subjectId);
+    }
+
+    rows.push(
+      ...(this.db
+        .prepare(
+          `SELECT
+             substr(day_window_start, 1, 10) AS date,
+             credential_id,
+             subject_id,
+             scope,
+             upstream_account_id,
+             provider,
+             COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
+             COALESCE(SUM(final_completion_tokens), 0) AS completion_tokens,
+             COALESCE(SUM(final_total_tokens), 0) AS total_tokens,
+             COALESCE(SUM(final_cached_prompt_tokens), 0) AS cached_prompt_tokens,
+             COALESCE(SUM(final_estimated_tokens), 0) AS estimated_tokens
+           FROM token_reservations
+           WHERE ${reservationClauses.join(" AND ")}
+           GROUP BY
+             substr(day_window_start, 1, 10),
+             credential_id,
+             subject_id,
+             scope,
+             upstream_account_id,
+             provider`
+        )
+        .all(...reservationParams) as unknown as TokenUsageAggregateRow[])
+    );
+
+    const legacyClauses = [
+      "started_at >= ?",
+      "reservation_id IS NULL",
+      "total_tokens IS NOT NULL"
+    ];
+    const legacyParams: string[] = [input.since.toISOString()];
+    if (input.until) {
+      legacyClauses.push("started_at < ?");
+      legacyParams.push(input.until.toISOString());
+    }
+    if (input.credentialId) {
+      legacyClauses.push("credential_id = ?");
+      legacyParams.push(input.credentialId);
+    }
+    if (input.subjectId) {
+      legacyClauses.push("subject_id = ?");
+      legacyParams.push(input.subjectId);
+    }
+
+    rows.push(
+      ...(this.db
+        .prepare(
+          `SELECT
+             substr(started_at, 1, 10) AS date,
+             credential_id,
+             subject_id,
+             scope,
+             upstream_account_id,
+             provider,
+             COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
+             COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+             COALESCE(SUM(total_tokens), 0) AS total_tokens,
+             COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
+             COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens
+           FROM request_events
+           WHERE ${legacyClauses.join(" AND ")}
+           GROUP BY
+             substr(started_at, 1, 10),
+             credential_id,
+             subject_id,
+             scope,
+             upstream_account_id,
+             provider`
+        )
+        .all(...legacyParams) as unknown as TokenUsageAggregateRow[])
+    );
+
+    return mergeTokenUsageRows(rows);
   }
 
   pruneRequestEvents(input: PruneRequestEventsInput): PruneRequestEventsResult {
@@ -733,6 +879,76 @@ export class SqliteGatewayStore implements GatewayStore {
     this.applyMigration(7, () => {
       this.migrateLegacyUpstreamAccountSchema();
     });
+
+    this.applyMigration(8, `
+      ALTER TABLE request_events ADD COLUMN limit_kind TEXT;
+      ALTER TABLE request_events ADD COLUMN reservation_id TEXT;
+      ALTER TABLE request_events ADD COLUMN over_request_limit INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE request_events ADD COLUMN identity_guard_hit INTEGER NOT NULL DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS token_windows (
+        subject_id TEXT NOT NULL,
+        window_kind TEXT NOT NULL CHECK (window_kind IN ('minute', 'day', 'month')),
+        window_start TEXT NOT NULL,
+        prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        cached_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        estimated_tokens INTEGER NOT NULL DEFAULT 0,
+        requests INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(subject_id, window_kind, window_start),
+        FOREIGN KEY(subject_id) REFERENCES subjects(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS token_reservations (
+        id TEXT PRIMARY KEY,
+        request_id TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL CHECK (kind IN ('reservation', 'soft_write')),
+        credential_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        upstream_account_id TEXT,
+        provider TEXT,
+        created_at TEXT NOT NULL,
+        expires_at TEXT,
+        finalized_at TEXT,
+        estimated_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        estimated_total_tokens INTEGER NOT NULL DEFAULT 0,
+        reserved_tokens INTEGER NOT NULL DEFAULT 0,
+        final_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        final_completion_tokens INTEGER NOT NULL DEFAULT 0,
+        final_total_tokens INTEGER NOT NULL DEFAULT 0,
+        final_cached_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        final_estimated_tokens INTEGER NOT NULL DEFAULT 0,
+        final_usage_source TEXT,
+        charge_policy_snapshot TEXT NOT NULL CHECK (charge_policy_snapshot IN ('none', 'estimate', 'reserve')),
+        minute_window_start TEXT NOT NULL,
+        day_window_start TEXT NOT NULL,
+        month_window_start TEXT NOT NULL,
+        max_prompt_tokens_per_request INTEGER,
+        max_total_tokens_per_request INTEGER,
+        over_request_limit INTEGER NOT NULL DEFAULT 0,
+        policy_json TEXT,
+        FOREIGN KEY(subject_id) REFERENCES subjects(id),
+        FOREIGN KEY(credential_id) REFERENCES access_credentials(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_token_reservations_subject_created
+        ON token_reservations(subject_id, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_token_reservations_subject_active_minute
+        ON token_reservations(subject_id, minute_window_start, finalized_at, expires_at);
+
+      CREATE INDEX IF NOT EXISTS idx_token_reservations_subject_active_day
+        ON token_reservations(subject_id, day_window_start, finalized_at, expires_at);
+
+      CREATE INDEX IF NOT EXISTS idx_token_reservations_subject_active_month
+        ON token_reservations(subject_id, month_window_start, finalized_at, expires_at);
+
+      CREATE INDEX IF NOT EXISTS idx_token_reservations_finalized
+        ON token_reservations(finalized_at);
+    `);
   }
 
   private applyMigration(version: number, migration: string | (() => void)): void {
@@ -803,6 +1019,14 @@ export class SqliteGatewayStore implements GatewayStore {
 export function createSqliteStore(options: SqliteStoreOptions): SqliteGatewayStore {
   return new SqliteGatewayStore(options);
 }
+
+export {
+  createSqliteTokenBudgetLimiter,
+  SqliteTokenBudgetLimiter,
+  type SqliteTokenBudgetLimiterOptions,
+  type TokenReservationListInput,
+  type TokenReservationListRow
+} from "./token-budget.js";
 
 export class SqliteClientEventsStore implements ClientMessageEventStore {
   readonly kind = "sqlite-client-events";
@@ -969,6 +1193,106 @@ export function createSqliteClientEventsStore(
   return new SqliteClientEventsStore(options);
 }
 
+interface TokenUsageAggregateRow {
+  date: string;
+  credential_id: string | null;
+  subject_id: string | null;
+  scope: RequestUsageReportRow["scope"];
+  upstream_account_id: string | null;
+  provider: RequestUsageReportRow["provider"];
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cached_prompt_tokens: number;
+  estimated_tokens: number;
+}
+
+function mergeTokenUsageRows(rows: TokenUsageAggregateRow[]): TokenUsageAggregateRow[] {
+  const merged = new Map<string, TokenUsageAggregateRow>();
+  for (const row of rows) {
+    const key = tokenUsageAggregateKey(row);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...row });
+      continue;
+    }
+    existing.prompt_tokens += row.prompt_tokens;
+    existing.completion_tokens += row.completion_tokens;
+    existing.total_tokens += row.total_tokens;
+    existing.cached_prompt_tokens += row.cached_prompt_tokens;
+    existing.estimated_tokens += row.estimated_tokens;
+  }
+  return Array.from(merged.values());
+}
+
+function emptyRequestUsageReportRow(input: {
+  date: string;
+  credentialId: string | null;
+  subjectId: string | null;
+  scope: RequestUsageReportRow["scope"];
+  upstreamAccountId: string | null;
+  provider: RequestUsageReportRow["provider"];
+}): RequestUsageReportRow {
+  return {
+    date: input.date,
+    credentialId: input.credentialId,
+    subjectId: input.subjectId,
+    scope: input.scope,
+    upstreamAccountId: input.upstreamAccountId,
+    provider: input.provider,
+    requests: 0,
+    ok: 0,
+    errors: 0,
+    rateLimited: 0,
+    avgDurationMs: null,
+    avgFirstByteMs: null,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    cachedPromptTokens: 0,
+    estimatedTokens: 0,
+    rateLimitedBy: {},
+    overRequestLimit: 0,
+    identityGuardHit: 0
+  };
+}
+
+function requestUsageReportKey(row: RequestUsageReportRow): string {
+  return [
+    row.date,
+    row.credentialId ?? "",
+    row.subjectId ?? "",
+    row.scope ?? "",
+    row.upstreamAccountId ?? "",
+    row.provider ?? ""
+  ].join("\u0000");
+}
+
+function tokenUsageAggregateKey(row: TokenUsageAggregateRow): string {
+  return [
+    row.date,
+    row.credential_id ?? "",
+    row.subject_id ?? "",
+    row.scope ?? "",
+    row.upstream_account_id ?? "",
+    row.provider ?? ""
+  ].join("\u0000");
+}
+
+function compareRequestUsageRows(
+  first: RequestUsageReportRow,
+  second: RequestUsageReportRow
+): number {
+  const dateCompare = second.date.localeCompare(first.date);
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+  if (second.requests !== first.requests) {
+    return second.requests - first.requests;
+  }
+  return requestUsageReportKey(first).localeCompare(requestUsageReportKey(second));
+}
+
 function rowToSession(row: unknown): GatewaySession {
   const value = row as {
     id: string;
@@ -1066,6 +1390,10 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     cached_prompt_tokens: number | null;
     estimated_tokens: number | null;
     usage_source: RequestEventRecord["usageSource"];
+    limit_kind: RequestEventRecord["limitKind"];
+    reservation_id: string | null;
+    over_request_limit: number;
+    identity_guard_hit: number;
   };
 
   return {
@@ -1087,7 +1415,11 @@ function rowToRequestEvent(row: unknown): RequestEventRecord {
     totalTokens: value.total_tokens,
     cachedPromptTokens: value.cached_prompt_tokens,
     estimatedTokens: value.estimated_tokens,
-    usageSource: value.usage_source
+    usageSource: value.usage_source,
+    limitKind: value.limit_kind,
+    reservationId: value.reservation_id,
+    overRequestLimit: value.over_request_limit === 1,
+    identityGuardHit: value.identity_guard_hit === 1
   };
 }
 
@@ -1182,6 +1514,16 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     total_tokens: number;
     cached_prompt_tokens: number;
     estimated_tokens: number;
+    request_minute: number;
+    request_day: number;
+    concurrency: number;
+    token_minute: number;
+    token_day: number;
+    token_month: number;
+    token_request_prompt: number;
+    token_request_total: number;
+    over_request_limit: number;
+    identity_guard_hit: number;
   };
 
   return {
@@ -1201,6 +1543,18 @@ function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     completionTokens: value.completion_tokens,
     totalTokens: value.total_tokens,
     cachedPromptTokens: value.cached_prompt_tokens,
-    estimatedTokens: value.estimated_tokens
+    estimatedTokens: value.estimated_tokens,
+    rateLimitedBy: {
+      request_minute: value.request_minute,
+      request_day: value.request_day,
+      concurrency: value.concurrency,
+      token_minute: value.token_minute,
+      token_day: value.token_day,
+      token_month: value.token_month,
+      token_request_prompt: value.token_request_prompt,
+      token_request_total: value.token_request_total
+    },
+    overRequestLimit: value.over_request_limit,
+    identityGuardHit: value.identity_guard_hit
   };
 }

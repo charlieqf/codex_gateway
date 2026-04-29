@@ -43,6 +43,7 @@ export interface RateLimitPolicy {
   requestsPerMinute: number;
   requestsPerDay: number | null;
   concurrentRequests: number | null;
+  token?: import("./token-budget.js").TokenLimitPolicy | null;
 }
 
 export type RequestEventStatus = "ok" | "error";
@@ -56,7 +57,9 @@ export type AdminAuditAction =
   | "update-user"
   | "disable-user"
   | "enable-user"
-  | "prune-events";
+  | "prune-events"
+  | "token-overrun"
+  | "token-reservation-expired";
 
 export type AdminAuditStatus = "ok" | "error";
 
@@ -92,6 +95,10 @@ export interface RequestEventRecord {
   cachedPromptTokens?: number | null;
   estimatedTokens?: number | null;
   usageSource?: RequestTokenUsageSource | null;
+  limitKind?: import("./token-budget.js").LimitKind | null;
+  reservationId?: string | null;
+  overRequestLimit?: boolean;
+  identityGuardHit?: boolean;
 }
 
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";

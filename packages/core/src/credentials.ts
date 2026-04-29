@@ -39,7 +39,8 @@ export function issueAccessCredential(input: IssueAccessCredentialInput): Issued
       rate: {
         requestsPerMinute: input.rate?.requestsPerMinute ?? 30,
         requestsPerDay: input.rate?.requestsPerDay ?? null,
-        concurrentRequests: input.rate?.concurrentRequests ?? 1
+        concurrentRequests: input.rate?.concurrentRequests ?? 1,
+        ...(input.rate?.token !== undefined ? { token: input.rate.token } : {})
       },
       createdAt: now,
       rotatesId: input.rotatesId ?? null

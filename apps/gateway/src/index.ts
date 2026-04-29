@@ -12,6 +12,7 @@ import {
   type RateLimitPolicy,
   type Scope,
   type Subject,
+  type TokenBudgetLimiter,
   type UpstreamAccount
 } from "@codex-gateway/core";
 import {
@@ -20,7 +21,9 @@ import {
 } from "@codex-gateway/provider-codex";
 import {
   createSqliteClientEventsStore,
-  createSqliteStore
+  createSqliteStore,
+  createSqliteTokenBudgetLimiter,
+  SqliteGatewayStore
 } from "@codex-gateway/store-sqlite";
 import {
   CLIENT_MESSAGE_BODY_LIMIT_BYTES,
@@ -61,6 +64,14 @@ import {
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
 import { InMemorySessionStore } from "./services/session-store.js";
+import {
+  beginTokenBudget,
+  cleanupExpiredTokenReservations,
+  estimatePromptTokens,
+  finalizeTokenBudget,
+  publicTokenPolicy,
+  publicTokenUsage
+} from "./services/token-budget-hook.js";
 
 export type GatewayAuthMode = "dev" | "credential";
 
@@ -78,6 +89,7 @@ export interface GatewayOptions {
   clientEventsStore?: ClientMessageEventStore | null;
   clientEventsRateLimiter?: CredentialRateLimiter;
   clientEventsRatePolicy?: RateLimitPolicy;
+  tokenBudgetLimiter?: TokenBudgetLimiter;
   logger?: boolean;
 }
 
@@ -136,6 +148,11 @@ export function buildGateway(options: GatewayOptions = {}) {
   const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
   const observationStore =
     options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
+  const tokenBudgetLimiter =
+    options.tokenBudgetLimiter ??
+    (sessions instanceof SqliteGatewayStore
+      ? createSqliteTokenBudgetLimiter({ db: sessions.database, logger: app.log })
+      : undefined);
   const clientEventsStore =
     options.clientEventsStore === undefined
       ? createDefaultClientEventsStore()
@@ -206,6 +223,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     rateLimitHook(request, reply, rateLimiter)
   );
 
+  app.addHook("preHandler", async (request) => {
+    if (request.routeOptions.config?.public) {
+      return;
+    }
+    await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log);
+  });
+
   app.addHook("onResponse", async (request, reply) => {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
@@ -267,6 +291,20 @@ export function buildGateway(options: GatewayOptions = {}) {
     },
     async (request) => {
       const { subject, scope, credential } = getGatewayContext(request);
+      const tokenPolicy = credential.rate?.token ?? null;
+      const tokenUsage =
+        tokenPolicy && tokenBudgetLimiter
+          ? await tokenBudgetLimiter
+              .getCurrentUsage({ subjectId: subject.id, policy: tokenPolicy })
+              .then(publicTokenUsage)
+              .catch((err) => {
+                request.log.warn(
+                  { error: err instanceof Error ? err.message : String(err) },
+                  "Failed to read token usage for current credential."
+                );
+                return null;
+              })
+          : null;
 
       return {
         valid: true,
@@ -278,8 +316,10 @@ export function buildGateway(options: GatewayOptions = {}) {
           prefix: credential.prefix,
           scope,
           expires_at: credential.expiresAt?.toISOString() ?? null,
-          rate: credential.rate
-        }
+          rate: credential.rate,
+          ...(tokenPolicy ? { token: publicTokenPolicy(tokenPolicy) } : {})
+        },
+        ...(tokenUsage ? { token_usage: tokenUsage } : {})
       };
     }
   );
@@ -324,8 +364,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         credentialId: credential.id,
         policy: clientEventsRatePolicy
       });
-      if (permit instanceof GatewayError) {
-        return sendError(request, reply, permit);
+      if (!("release" in permit)) {
+        return sendError(request, reply, permit.error);
       }
 
       try {
@@ -429,6 +469,15 @@ export function buildGateway(options: GatewayOptions = {}) {
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed);
+    request.gatewayEstimatedTokens = estimatePromptTokens(prompt);
+    const tokenBudgetError = await beginTokenBudget(
+      request,
+      tokenBudgetLimiter,
+      request.gatewayEstimatedTokens
+    );
+    if (tokenBudgetError) {
+      return sendOpenAIError(request, reply, tokenBudgetError);
+    }
 
     if (parsed.stream) {
       reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
@@ -557,6 +606,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           writeOpenAISseDone(reply);
         }
       } finally {
+        await finalizeTokenBudget(request, tokenBudgetLimiter);
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         clearInterval(heartbeat);
@@ -572,66 +622,70 @@ export function buildGateway(options: GatewayOptions = {}) {
     const toolCalls: OpenAIChatToolCall[] = [];
     let usage: OpenAIChatUsage | null = null;
 
-    if (strictClientTools) {
-      const strictResult = await runStrictClientTools({
-        provider,
-        upstreamAccount,
-        subject,
-        scope,
-        session,
-        request: parsed,
-        prompt,
-        requestId: request.id,
-        log: request.log
-      });
-      if (strictResult instanceof GatewayError) {
-        return sendOpenAIError(request, reply, strictResult);
-      }
-      markFirstByte(request);
-      content = strictResult.content;
-      toolCalls.push(...strictResult.toolCalls);
-      usage = strictResult.usage;
-      markOpenAITokenUsage(request, usage);
-    } else {
-      for await (const event of provider.message({
-        upstreamAccount,
-        subject,
-        scope,
-        session,
-        message: prompt
-      })) {
-        if (event.type === "message_delta") {
-          markFirstByte(request);
-          content += event.text;
-        } else if (event.type === "tool_call") {
-          if (parsed.toolChoice === "none") {
-            continue;
-          }
-          markFirstByte(request);
-          toolCalls.push({
-            id: event.callId,
-            type: "function",
-            function: {
-              name: event.name,
-              arguments: JSON.stringify(event.arguments ?? {})
+    try {
+      if (strictClientTools) {
+        const strictResult = await runStrictClientTools({
+          provider,
+          upstreamAccount,
+          subject,
+          scope,
+          session,
+          request: parsed,
+          prompt,
+          requestId: request.id,
+          log: request.log
+        });
+        if (strictResult instanceof GatewayError) {
+          return sendOpenAIError(request, reply, strictResult);
+        }
+        markFirstByte(request);
+        content = strictResult.content;
+        toolCalls.push(...strictResult.toolCalls);
+        usage = strictResult.usage;
+        markOpenAITokenUsage(request, usage);
+      } else {
+        for await (const event of provider.message({
+          upstreamAccount,
+          subject,
+          scope,
+          session,
+          message: prompt
+        })) {
+          if (event.type === "message_delta") {
+            markFirstByte(request);
+            content += event.text;
+          } else if (event.type === "tool_call") {
+            if (parsed.toolChoice === "none") {
+              continue;
             }
-          });
-        } else if (event.type === "error") {
-          return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
-        } else if (event.type === "completed") {
-          usage = openAIUsageFromTokenUsage(event.usage);
-          markTokenUsage(request, event.usage);
+            markFirstByte(request);
+            toolCalls.push({
+              id: event.callId,
+              type: "function",
+              function: {
+                name: event.name,
+                arguments: JSON.stringify(event.arguments ?? {})
+              }
+            });
+          } else if (event.type === "error") {
+            return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
+          } else if (event.type === "completed") {
+            usage = openAIUsageFromTokenUsage(event.usage);
+            markTokenUsage(request, event.usage);
+          }
         }
       }
-    }
 
-    return createChatCompletionResponse({
-      shape,
-      content,
-      toolCalls,
-      finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
-      usage
-    });
+      return createChatCompletionResponse({
+        shape,
+        content,
+        toolCalls,
+        finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
+        usage
+      });
+    } finally {
+      await finalizeTokenBudget(request, tokenBudgetLimiter);
+    }
   });
 
   app.get("/sessions", async (request) => {
@@ -689,6 +743,16 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
+      request.gatewayEstimatedTokens = estimatePromptTokens(message);
+      const tokenBudgetError = await beginTokenBudget(
+        request,
+        tokenBudgetLimiter,
+        request.gatewayEstimatedTokens
+      );
+      if (tokenBudgetError) {
+        return sendError(request, reply, tokenBudgetError);
+      }
+
       reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
       reply.raw.setHeader("cache-control", "no-cache");
       reply.raw.setHeader("connection", "keep-alive");
@@ -734,6 +798,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         }
       } finally {
+        await finalizeTokenBudget(request, tokenBudgetLimiter);
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         clearInterval(heartbeat);
@@ -853,7 +918,7 @@ async function runStrictClientTools(
     "Strict client-defined tool output repaired successfully."
   );
 
-  return strictDecisionToResult(repairedParsed, repaired.usage);
+  return strictDecisionToResult(repairedParsed, addOpenAIUsage(first.usage, repaired.usage));
 }
 
 async function collectProviderText(input: {
@@ -943,6 +1008,27 @@ function markOpenAITokenUsage(
       ? { cachedPromptTokens: usage.prompt_tokens_details.cached_tokens }
       : {})
   });
+}
+
+function addOpenAIUsage(
+  first: OpenAIChatUsage | null,
+  second: OpenAIChatUsage | null
+): OpenAIChatUsage | null {
+  if (!first) {
+    return second;
+  }
+  if (!second) {
+    return first;
+  }
+  const cachedTokens =
+    (first.prompt_tokens_details?.cached_tokens ?? 0) +
+    (second.prompt_tokens_details?.cached_tokens ?? 0);
+  return {
+    prompt_tokens: first.prompt_tokens + second.prompt_tokens,
+    completion_tokens: first.completion_tokens + second.completion_tokens,
+    total_tokens: first.total_tokens + second.total_tokens,
+    ...(cachedTokens > 0 ? { prompt_tokens_details: { cached_tokens: cachedTokens } } : {})
+  };
 }
 
 async function main() {

@@ -11,6 +11,7 @@ import {
 } from "@codex-gateway/core";
 import {
   createSqliteClientEventsStore,
+  createSqliteTokenBudgetLimiter,
   createSqliteStore,
   type SqliteGatewayStore
 } from "./index.js";
@@ -477,7 +478,19 @@ describe("SqliteGatewayStore", () => {
         completionTokens: 2,
         totalTokens: 12,
         cachedPromptTokens: 4,
-        estimatedTokens: 0
+        estimatedTokens: 0,
+        rateLimitedBy: {
+          request_minute: 0,
+          request_day: 0,
+          concurrency: 0,
+          token_minute: 0,
+          token_day: 0,
+          token_month: 0,
+          token_request_prompt: 0,
+          token_request_total: 0
+        },
+        overRequestLimit: 0,
+        identityGuardHit: 0
       }
     ]);
 
@@ -507,6 +520,90 @@ describe("SqliteGatewayStore", () => {
     expect(store.listRequestEvents({ limit: 10 }).map((event) => event.requestId)).not.toContain(
       "req_old"
     );
+    store.close();
+  });
+
+  it("reports token usage from token reservations, not request event token copies", async () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Token budget credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 30,
+        requestsPerDay: null,
+        concurrentRequests: 1,
+        token: {
+          tokensPerMinute: 1_000,
+          tokensPerDay: 10_000,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: null,
+          reserveTokensPerRequest: 20,
+          missingUsageCharge: "reserve"
+        }
+      }
+    });
+    store.insertAccessCredential(issued.record);
+
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const acquired = await limiter.acquire({
+      requestId: "req_token",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy: issued.record.rate.token!,
+      estimatedPromptTokens: 5,
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(acquired.ok).toBe(true);
+    if (!acquired.ok) {
+      throw new Error("token acquire unexpectedly failed");
+    }
+    await limiter.finalize({
+      reservationId: acquired.reservationId,
+      usage: {
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 4
+      },
+      now: new Date("2026-01-01T00:00:01Z")
+    });
+    store.insertRequestEvent({
+      requestId: "req_token",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "sess_1",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      reservationId: acquired.reservationId
+    });
+
+    expect(
+      store.reportRequestUsage({
+        since: new Date("2026-01-01T00:00:00Z"),
+        until: new Date("2026-01-02T00:00:00Z"),
+        credentialId: issued.record.id
+      })[0]
+    ).toMatchObject({
+      requests: 1,
+      promptTokens: 10,
+      completionTokens: 2,
+      totalTokens: 12,
+      cachedPromptTokens: 4
+    });
+
     store.close();
   });
 });

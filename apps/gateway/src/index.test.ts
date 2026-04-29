@@ -20,6 +20,7 @@ import {
 } from "@codex-gateway/core";
 import {
   createSqliteClientEventsStore,
+  createSqliteTokenBudgetLimiter,
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
@@ -2331,6 +2332,147 @@ describe("gateway phase 1 routes", () => {
         cachedPromptTokens: 4,
         estimatedTokens: null,
         usageSource: "provider"
+      })
+    ]);
+
+    await app.close();
+  });
+
+  it("keeps credentials without token policy usable and records soft-write usage", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Legacy usage token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "ok" },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 10,
+          completionTokens: 2,
+          totalTokens: 12
+        }
+      }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const current = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers
+    });
+    expect(current.statusCode).toBe(200);
+    expect(current.json()).not.toHaveProperty("token_usage");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(provider.messages).toHaveLength(1);
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const reservations = limiter.listReservations({
+      subjectId: "subj_dev",
+      includeFinalized: true
+    });
+    expect(reservations).toHaveLength(1);
+    expect(reservations[0]).toMatchObject({
+      kind: "soft_write",
+      reservedTokens: 0,
+      finalTotalTokens: 12,
+      finalUsageSource: "soft_write"
+    });
+    expect(store.listRequestEvents({ credentialId: issued.record.id })[0]).toMatchObject({
+      reservationId: reservations[0].id,
+      totalTokens: 12,
+      usageSource: "provider"
+    });
+
+    await app.close();
+  });
+
+  it("blocks only credentials with token policy when token budget is exceeded", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Token limited credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 30,
+        requestsPerDay: null,
+        concurrentRequests: 1,
+        token: {
+          tokensPerMinute: null,
+          tokensPerDay: null,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: 10,
+          reserveTokensPerRequest: 100,
+          missingUsageCharge: "reserve"
+        }
+      }
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: `Bearer ${issued.token}` },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json().error.code).toBe("rate_limited");
+    expect(provider.messages).toHaveLength(0);
+    expect(store.listRequestEvents({ credentialId: issued.record.id })).toEqual([
+      expect.objectContaining({
+        status: "error",
+        errorCode: "rate_limited",
+        rateLimited: true,
+        limitKind: "token_request_total",
+        reservationId: null
       })
     ]);
 

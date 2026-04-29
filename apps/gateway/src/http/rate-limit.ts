@@ -1,8 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { GatewayError } from "@codex-gateway/core";
+import type { GatewayError } from "@codex-gateway/core";
 import type { CredentialRateLimiter } from "../services/rate-limiter.js";
 import { openAIErrorPayload } from "../openai-compat.js";
-import { markGatewayError, markRateLimited } from "./observation.js";
+import { markGatewayError, markLimitKind, markRateLimited } from "./observation.js";
 
 export async function rateLimitHook(
   request: FastifyRequest,
@@ -22,10 +22,11 @@ export async function rateLimitHook(
     credentialId: credential.id,
     policy: credential.rate
   });
-  if (result instanceof GatewayError) {
-    markGatewayError(request, result);
+  if (!("release" in result)) {
+    markGatewayError(request, result.error);
     markRateLimited(request);
-    reply.code(result.httpStatus).send(errorPayload(request, result));
+    markLimitKind(request, result.limitKind);
+    reply.code(result.error.httpStatus).send(errorPayload(request, result.error));
     return;
   }
 

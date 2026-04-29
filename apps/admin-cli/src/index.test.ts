@@ -424,6 +424,63 @@ describe("codex-gateway-admin user API key operations", () => {
     );
   }, 20_000);
 
+  it("issues token policy credentials and reads token windows without charging", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-token-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice token budget",
+      "--scope",
+      "code",
+      "--tokens-per-day",
+      "1000",
+      "--max-total-tokens",
+      "200",
+      "--reserve-tokens",
+      "50",
+      "--missing-usage-charge",
+      "reserve"
+    ]) as {
+      credential: {
+        prefix: string;
+        rate: {
+          token: {
+            tokensPerDay: number;
+            maxTotalTokensPerRequest: number;
+            reserveTokensPerRequest: number;
+            missingUsageCharge: string;
+          };
+        };
+      };
+    };
+
+    expect(issued.credential.rate.token).toMatchObject({
+      tokensPerDay: 1000,
+      maxTotalTokensPerRequest: 200,
+      reserveTokensPerRequest: 50,
+      missingUsageCharge: "reserve"
+    });
+
+    const windows = runCli(dbPath, ["token-windows", "--user", "alice"]) as {
+      credential_prefix: string;
+      token_usage: {
+        day: { limit: number; used: number; reserved: number; remaining: number };
+      };
+    };
+    expect(windows.credential_prefix).toBe(issued.credential.prefix);
+    expect(windows.token_usage.day).toMatchObject({
+      limit: 1000,
+      used: 0,
+      reserved: 0,
+      remaining: 1000
+    });
+  });
+
   it("keeps stdout as clean JSON when migrating a legacy request-event database", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-legacy-"));
     cleanupDirs.push(dir);

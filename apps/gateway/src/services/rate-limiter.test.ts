@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GatewayError, type RateLimitPolicy } from "@codex-gateway/core";
+import { type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
 import { InMemoryCredentialRateLimiter, type RateLimitPermit } from "./rate-limiter.js";
 
 const policy: RateLimitPolicy = {
@@ -17,9 +17,9 @@ describe("InMemoryCredentialRateLimiter", () => {
     first.release();
 
     const limited = limiter.acquire({ credentialId: "cred_1", policy });
-    expect(limited).toBeInstanceOf(GatewayError);
-    expect((limited as GatewayError).code).toBe("rate_limited");
-    expect((limited as GatewayError).retryAfterSeconds).toBe(60);
+    expect(rejection(limited).limitKind).toBe("request_minute");
+    expect(rejection(limited).error.code).toBe("rate_limited");
+    expect(rejection(limited).error.retryAfterSeconds).toBe(60);
 
     now = new Date("2026-01-01T00:01:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy })).release();
@@ -36,8 +36,8 @@ describe("InMemoryCredentialRateLimiter", () => {
 
     permit(limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy })).release();
     const limited = limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy });
-    expect(limited).toBeInstanceOf(GatewayError);
-    expect((limited as GatewayError).retryAfterSeconds).toBe(60);
+    expect(rejection(limited).limitKind).toBe("request_day");
+    expect(rejection(limited).error.retryAfterSeconds).toBe(60);
 
     now = new Date("2026-01-02T00:00:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy })).release();
@@ -55,15 +55,20 @@ describe("InMemoryCredentialRateLimiter", () => {
 
     const first = permit(limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy }));
     const limited = limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy });
-    expect(limited).toBeInstanceOf(GatewayError);
-    expect((limited as GatewayError).retryAfterSeconds).toBe(1);
+    expect(rejection(limited).limitKind).toBe("concurrency");
+    expect(rejection(limited).error.retryAfterSeconds).toBe(1);
 
     first.release();
     permit(limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy })).release();
   });
 });
 
-function permit(result: RateLimitPermit | GatewayError): RateLimitPermit {
-  expect(result).not.toBeInstanceOf(GatewayError);
+function permit(result: RateLimitPermit | LimitRejection): RateLimitPermit {
+  expect("release" in result).toBe(true);
   return result as RateLimitPermit;
+}
+
+function rejection(result: RateLimitPermit | LimitRejection): LimitRejection {
+  expect("release" in result).toBe(false);
+  return result as LimitRejection;
 }

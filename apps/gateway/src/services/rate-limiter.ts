@@ -1,4 +1,4 @@
-import { GatewayError, type RateLimitPolicy } from "@codex-gateway/core";
+import { GatewayError, type LimitKind, type LimitRejection, type RateLimitPolicy } from "@codex-gateway/core";
 
 export interface RateLimitInput {
   credentialId: string;
@@ -10,7 +10,7 @@ export interface RateLimitPermit {
 }
 
 export interface CredentialRateLimiter {
-  acquire(input: RateLimitInput): RateLimitPermit | GatewayError;
+  acquire(input: RateLimitInput): RateLimitPermit | LimitRejection;
 }
 
 interface RateLimiterOptions {
@@ -33,12 +33,12 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     this.now = options.now ?? (() => new Date());
   }
 
-  acquire(input: RateLimitInput): RateLimitPermit | GatewayError {
+  acquire(input: RateLimitInput): RateLimitPermit | LimitRejection {
     const now = this.now();
     const state = this.state(input.credentialId, now);
     const concurrencyLimit = input.policy.concurrentRequests;
     if (concurrencyLimit !== null && state.active >= concurrencyLimit) {
-      return rateLimited("Concurrent request limit reached.", 1);
+      return rateLimited("concurrency", "Concurrent request limit reached.", 1);
     }
 
     const minuteWindow = Math.floor(now.getTime() / 60_000);
@@ -49,6 +49,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     if (state.minuteCount >= input.policy.requestsPerMinute) {
       const nextMinuteAt = (minuteWindow + 1) * 60_000;
       return rateLimited(
+        "request_minute",
         "Requests per minute limit reached.",
         Math.max(1, Math.ceil((nextMinuteAt - now.getTime()) / 1000))
       );
@@ -64,6 +65,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       state.dayCount >= input.policy.requestsPerDay
     ) {
       return rateLimited(
+        "request_day",
         "Requests per day limit reached.",
         Math.max(1, Math.ceil((nextUtcDay(now).getTime() - now.getTime()) / 1000))
       );
@@ -103,13 +105,21 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
   }
 }
 
-function rateLimited(message: string, retryAfterSeconds: number): GatewayError {
-  return new GatewayError({
-    code: "rate_limited",
-    message,
-    httpStatus: 429,
-    retryAfterSeconds
-  });
+function rateLimited(
+  limitKind: LimitKind,
+  message: string,
+  retryAfterSeconds: number
+): LimitRejection {
+  return {
+    ok: false,
+    limitKind,
+    error: new GatewayError({
+      code: "rate_limited",
+      message,
+      httpStatus: 429,
+      retryAfterSeconds
+    })
+  };
 }
 
 function utcDayWindow(date: Date): string {

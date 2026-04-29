@@ -12,9 +12,10 @@ import {
   type RateLimitPolicy,
   type Scope,
   type Subject,
-  type SubjectState
+  type SubjectState,
+  type TokenLimitPolicy
 } from "@codex-gateway/core";
-import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
 
 const defaultSubjectId = "subj_dev";
 const defaultSubjectLabel = "dev-subject";
@@ -43,6 +44,13 @@ program
   .option("--rpm <n>", "requests per minute", parsePositiveInteger, 30)
   .option("--rpd <n>", "requests per day; omit for unlimited", parseNullablePositiveInteger)
   .option("--concurrent <n>", "concurrent requests", parseNullablePositiveInteger, 1)
+  .option("--tokens-per-minute <n>", "tokens per minute; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--tokens-per-day <n>", "tokens per day; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--tokens-per-month <n>", "tokens per month; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--max-prompt-tokens <n>", "max prompt tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--max-total-tokens <n>", "max total reserved tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
+  .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
   .action((options) => {
     withAuditedStore(
       {
@@ -343,6 +351,14 @@ program
   .option("--rpm <n>", "requests per minute", parsePositiveInteger)
   .option("--rpd <n>", "requests per day; use none for unlimited", parseNullablePositiveInteger)
   .option("--concurrent <n>", "concurrent requests; use none for unlimited", parseNullablePositiveInteger)
+  .option("--tokens-per-minute <n>", "tokens per minute; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--tokens-per-day <n>", "tokens per day; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--tokens-per-month <n>", "tokens per month; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--max-prompt-tokens <n>", "max prompt tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--max-total-tokens <n>", "max total reserved tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
+  .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
+  .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
+  .option("--clear-token-policy", "remove token budget policy from this credential")
   .action((prefix, options: UpdateKeyOptions) => {
     withAuditedStore(
       {
@@ -467,7 +483,11 @@ program
           total_tokens: event.totalTokens ?? null,
           cached_prompt_tokens: event.cachedPromptTokens ?? null,
           estimated_tokens: event.estimatedTokens ?? null,
-          usage_source: event.usageSource ?? null
+          usage_source: event.usageSource ?? null,
+          limit_kind: event.limitKind ?? null,
+          reservation_id: event.reservationId ?? null,
+          over_request_limit: event.overRequestLimit === true,
+          identity_guard_hit: event.identityGuardHit === true
         }))
       });
     });
@@ -516,8 +536,97 @@ program
           completion_tokens: row.completionTokens,
           total_tokens: row.totalTokens,
           cached_prompt_tokens: row.cachedPromptTokens,
-          estimated_tokens: row.estimatedTokens
+          estimated_tokens: row.estimatedTokens,
+          rate_limited_by: row.rateLimitedBy,
+          over_request_limit: row.overRequestLimit,
+          identity_guard_hit: row.identityGuardHit
         }))
+      });
+    });
+  });
+
+program
+  .command("token-windows")
+  .description("Show current token usage windows for a user's token policy.")
+  .requiredOption("--user <id>", "user id; preferred alias for --subject-id")
+  .option("--credential-prefix <prefix>", "credential prefix to choose the token policy")
+  .option("--subject-id <id>", "subject id")
+  .action(async (options) => {
+    await withStoreAsync(async (store) => {
+      const userId = resolveUserId(options);
+      if (!userId) {
+        throw new Error("--user is required.");
+      }
+      const credential = resolveTokenPolicyCredential(store, userId, options.credentialPrefix);
+      const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+      const usage = await limiter.getCurrentUsage({
+        subjectId: userId,
+        policy: credential.rate.token as TokenLimitPolicy
+      });
+      printJson({
+        user_id: userId,
+        credential_id: credential.id,
+        credential_prefix: credential.prefix,
+        token: publicTokenPolicy(credential.rate.token as TokenLimitPolicy),
+        token_usage: publicTokenUsage(usage)
+      });
+    });
+  });
+
+program
+  .command("token-reservations")
+  .description("List token reservations.")
+  .option("--user <id>", "filter by user id; preferred alias for --subject-id")
+  .option("--subject-id <id>", "filter by subject id")
+  .option("--include-finalized", "include recently finalized reservations")
+  .option("--limit <n>", "maximum reservations to return", parsePositiveInteger, 50)
+  .action((options) => {
+    withStore((store) => {
+      const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+      const reservations = limiter.listReservations({
+        subjectId: resolveUserId(options),
+        includeFinalized: options.includeFinalized,
+        limit: options.limit
+      });
+      printJson({
+        reservations: reservations.map((reservation) => ({
+          id: reservation.id,
+          request_id: reservation.requestId,
+          kind: reservation.kind,
+          credential_id: reservation.credentialId,
+          subject_id: reservation.subjectId,
+          scope: reservation.scope,
+          upstream_account_id: reservation.upstreamAccountId,
+          provider: reservation.provider,
+          created_at: reservation.createdAt.toISOString(),
+          expires_at: reservation.expiresAt?.toISOString() ?? null,
+          finalized_at: reservation.finalizedAt?.toISOString() ?? null,
+          reserved_tokens: reservation.reservedTokens,
+          estimated_prompt_tokens: reservation.estimatedPromptTokens,
+          estimated_total_tokens: reservation.estimatedTotalTokens,
+          final_prompt_tokens: reservation.finalPromptTokens,
+          final_completion_tokens: reservation.finalCompletionTokens,
+          final_total_tokens: reservation.finalTotalTokens,
+          final_cached_prompt_tokens: reservation.finalCachedPromptTokens,
+          final_estimated_tokens: reservation.finalEstimatedTokens,
+          final_usage_source: reservation.finalUsageSource,
+          charge_policy_snapshot: reservation.chargePolicySnapshot,
+          over_request_limit: reservation.overRequestLimit
+        }))
+      });
+    });
+  });
+
+program
+  .command("cleanup-token-reservations")
+  .description("Finalize expired token reservations using their snapshot charge policy.")
+  .action(async () => {
+    await withStoreAsync(async (store) => {
+      const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+      const result = await limiter.cleanupExpired();
+      printJson({
+        count: result.count,
+        sample_ids: result.sampleIds
       });
     });
   });
@@ -633,14 +742,17 @@ program
           label: options.label ?? oldCredential.label,
           scope: oldCredential.scope,
           expiresAt: addDays(now, options.expiresDays),
-          rate: rateFromOptions({
-            rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
-            rpd: nullableOptionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
-            concurrent: nullableOptionOrExisting(
-              options.concurrent,
-              oldCredential.rate.concurrentRequests
-            )
-          }),
+          rate: {
+            ...rateFromOptions({
+              rpm: options.rpm ?? oldCredential.rate.requestsPerMinute,
+              rpd: nullableOptionOrExisting(options.rpd, oldCredential.rate.requestsPerDay),
+              concurrent: nullableOptionOrExisting(
+                options.concurrent,
+                oldCredential.rate.concurrentRequests
+              )
+            }),
+            token: oldCredential.rate.token ?? undefined
+          },
           rotatesId: oldCredential.id
         });
         const record = {
@@ -729,6 +841,14 @@ interface UpdateKeyOptions {
   rpm?: number;
   rpd?: NullableIntegerOption;
   concurrent?: NullableIntegerOption;
+  tokensPerMinute?: NullableIntegerOption;
+  tokensPerDay?: NullableIntegerOption;
+  tokensPerMonth?: NullableIntegerOption;
+  maxPromptTokens?: NullableIntegerOption;
+  maxTotalTokens?: NullableIntegerOption;
+  reserveTokens?: number;
+  missingUsageCharge?: MissingUsageCharge;
+  clearTokenPolicy?: boolean;
 }
 
 interface UpdateUserOptions {
@@ -740,6 +860,7 @@ interface UpdateUserOptions {
 }
 
 type NullableIntegerOption = number | null | "";
+type MissingUsageCharge = TokenLimitPolicy["missingUsageCharge"];
 
 interface TrialCheckOptions {
   maxActiveUsers: number;
@@ -780,6 +901,17 @@ function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T
   const store = createSqliteStore({ path: requireDbPath(), logger: sqliteLogger() });
   try {
     return fn(store);
+  } finally {
+    store.close();
+  }
+}
+
+async function withStoreAsync<T>(
+  fn: (store: ReturnType<typeof createSqliteStore>) => Promise<T>
+): Promise<T> {
+  const store = createSqliteStore({ path: requireDbPath(), logger: sqliteLogger() });
+  try {
+    return await fn(store);
   } finally {
     store.close();
   }
@@ -1224,11 +1356,101 @@ function rateFromOptions(options: {
   rpm: number;
   rpd?: NullableIntegerOption;
   concurrent?: NullableIntegerOption;
+  tokensPerMinute?: NullableIntegerOption;
+  tokensPerDay?: NullableIntegerOption;
+  tokensPerMonth?: NullableIntegerOption;
+  maxPromptTokens?: NullableIntegerOption;
+  maxTotalTokens?: NullableIntegerOption;
+  reserveTokens?: number;
+  missingUsageCharge?: MissingUsageCharge;
 }): RateLimitPolicy {
-  return {
+  const rate: RateLimitPolicy = {
     requestsPerMinute: options.rpm,
     requestsPerDay: normalizeNullableIntegerOption(options.rpd) ?? null,
     concurrentRequests: normalizeNullableIntegerOption(options.concurrent) ?? null
+  };
+  const token = tokenPolicyFromOptions(options);
+  if (token !== undefined) {
+    rate.token = token;
+  }
+  return rate;
+}
+
+function tokenPolicyFromOptions(
+  options: {
+    tokensPerMinute?: NullableIntegerOption;
+    tokensPerDay?: NullableIntegerOption;
+    tokensPerMonth?: NullableIntegerOption;
+    maxPromptTokens?: NullableIntegerOption;
+    maxTotalTokens?: NullableIntegerOption;
+    reserveTokens?: number;
+    missingUsageCharge?: MissingUsageCharge;
+  },
+  existing?: TokenLimitPolicy | null
+): TokenLimitPolicy | undefined {
+  if (!hasTokenPolicyOption(options)) {
+    return undefined;
+  }
+  if (!existing && options.missingUsageCharge === undefined) {
+    throw new Error("--missing-usage-charge is required when setting a token policy.");
+  }
+  return {
+    tokensPerMinute: nullableOptionOrExisting(options.tokensPerMinute, existing?.tokensPerMinute ?? null),
+    tokensPerDay: nullableOptionOrExisting(options.tokensPerDay, existing?.tokensPerDay ?? null),
+    tokensPerMonth: nullableOptionOrExisting(options.tokensPerMonth, existing?.tokensPerMonth ?? null),
+    maxPromptTokensPerRequest: nullableOptionOrExisting(
+      options.maxPromptTokens,
+      existing?.maxPromptTokensPerRequest ?? null
+    ),
+    maxTotalTokensPerRequest: nullableOptionOrExisting(
+      options.maxTotalTokens,
+      existing?.maxTotalTokensPerRequest ?? null
+    ),
+    reserveTokensPerRequest: options.reserveTokens ?? existing?.reserveTokensPerRequest ?? 0,
+    missingUsageCharge: options.missingUsageCharge ?? existing?.missingUsageCharge ?? "none"
+  };
+}
+
+function hasTokenPolicyOption(options: {
+  tokensPerMinute?: NullableIntegerOption;
+  tokensPerDay?: NullableIntegerOption;
+  tokensPerMonth?: NullableIntegerOption;
+  maxPromptTokens?: NullableIntegerOption;
+  maxTotalTokens?: NullableIntegerOption;
+  reserveTokens?: number;
+  missingUsageCharge?: MissingUsageCharge;
+}): boolean {
+  return (
+    options.tokensPerMinute !== undefined ||
+    options.tokensPerDay !== undefined ||
+    options.tokensPerMonth !== undefined ||
+    options.maxPromptTokens !== undefined ||
+    options.maxTotalTokens !== undefined ||
+    options.reserveTokens !== undefined ||
+    options.missingUsageCharge !== undefined
+  );
+}
+
+function requestedTokenPolicyParams(options: {
+  tokensPerMinute?: NullableIntegerOption;
+  tokensPerDay?: NullableIntegerOption;
+  tokensPerMonth?: NullableIntegerOption;
+  maxPromptTokens?: NullableIntegerOption;
+  maxTotalTokens?: NullableIntegerOption;
+  reserveTokens?: number;
+  missingUsageCharge?: MissingUsageCharge;
+}) {
+  if (!hasTokenPolicyOption(options)) {
+    return undefined;
+  }
+  return {
+    tokens_per_minute: normalizeNullableIntegerOption(options.tokensPerMinute),
+    tokens_per_day: normalizeNullableIntegerOption(options.tokensPerDay),
+    tokens_per_month: normalizeNullableIntegerOption(options.tokensPerMonth),
+    max_prompt_tokens: normalizeNullableIntegerOption(options.maxPromptTokens),
+    max_total_tokens: normalizeNullableIntegerOption(options.maxTotalTokens),
+    reserve_tokens: options.reserveTokens,
+    missing_usage_charge: options.missingUsageCharge
   };
 }
 
@@ -1240,7 +1462,9 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
     expires_at: options.expiresAt?.toISOString(),
     rpm: options.rpm,
     rpd: normalizeNullableIntegerOption(options.rpd),
-    concurrent: normalizeNullableIntegerOption(options.concurrent)
+    concurrent: normalizeNullableIntegerOption(options.concurrent),
+    token: requestedTokenPolicyParams(options),
+    clear_token_policy: Boolean(options.clearTokenPolicy)
   };
 }
 
@@ -1262,11 +1486,16 @@ function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
     options.expiresAt === undefined &&
     options.rpm === undefined &&
     options.rpd === undefined &&
-    options.concurrent === undefined
+    options.concurrent === undefined &&
+    !hasTokenPolicyOption(options) &&
+    !options.clearTokenPolicy
   ) {
     throw new Error(
-      "Set at least one of --label, --scope, --expires-days, --expires-at, --rpm, --rpd, or --concurrent."
+      "Set at least one key field or rate/token policy option."
     );
+  }
+  if (options.clearTokenPolicy && hasTokenPolicyOption(options)) {
+    throw new Error("Use --clear-token-policy or token policy options, not both.");
   }
 }
 
@@ -1319,14 +1548,28 @@ function updateKeyRate(
   existing: RateLimitPolicy,
   options: UpdateKeyOptions
 ): RateLimitPolicy | undefined {
-  if (options.rpm === undefined && options.rpd === undefined && options.concurrent === undefined) {
+  if (
+    options.rpm === undefined &&
+    options.rpd === undefined &&
+    options.concurrent === undefined &&
+    !hasTokenPolicyOption(options) &&
+    !options.clearTokenPolicy
+  ) {
     return undefined;
   }
-  return rateFromOptions({
+  const rate = rateFromOptions({
     rpm: options.rpm ?? existing.requestsPerMinute,
     rpd: nullableOptionOrExisting(options.rpd, existing.requestsPerDay),
     concurrent: nullableOptionOrExisting(options.concurrent, existing.concurrentRequests)
   });
+  if (options.clearTokenPolicy) {
+    rate.token = null;
+  } else if (hasTokenPolicyOption(options)) {
+    rate.token = tokenPolicyFromOptions(options, existing.token ?? null);
+  } else {
+    rate.token = existing.token ?? undefined;
+  }
+  return rate;
 }
 
 function auditCredentialSnapshot(record: AccessCredentialRecord) {
@@ -1381,6 +1624,40 @@ function publicCredential(
   return output;
 }
 
+function publicTokenPolicy(policy: TokenLimitPolicy) {
+  return {
+    tokensPerMinute: policy.tokensPerMinute,
+    tokensPerDay: policy.tokensPerDay,
+    tokensPerMonth: policy.tokensPerMonth,
+    maxPromptTokensPerRequest: policy.maxPromptTokensPerRequest,
+    maxTotalTokensPerRequest: policy.maxTotalTokensPerRequest
+  };
+}
+
+function publicTokenUsage(usage: Awaited<ReturnType<ReturnType<typeof createSqliteTokenBudgetLimiter>["getCurrentUsage"]>>) {
+  return {
+    minute: publicTokenWindow(usage.minute),
+    day: publicTokenWindow(usage.day),
+    month: publicTokenWindow(usage.month)
+  };
+}
+
+function publicTokenWindow(input: {
+  limit: number | null;
+  used: number;
+  reserved: number;
+  remaining: number | null;
+  windowStart: string;
+}) {
+  return {
+    limit: input.limit,
+    used: input.used,
+    reserved: input.reserved,
+    remaining: input.remaining,
+    window_start: input.windowStart
+  };
+}
+
 function publicSubject(subject: Subject) {
   return {
     id: subject.id,
@@ -1394,6 +1671,37 @@ function publicSubject(subject: Subject) {
 
 function subjectMap(subjects: Subject[]): Map<string, Subject> {
   return new Map(subjects.map((subject) => [subject.id, subject]));
+}
+
+function resolveTokenPolicyCredential(
+  store: ReturnType<typeof createSqliteStore>,
+  userId: string,
+  prefix?: string
+): AccessCredentialRecord {
+  if (prefix) {
+    const credential = store.getAccessCredentialByPrefix(prefix);
+    if (!credential || credential.subjectId !== userId) {
+      throw new Error(`Credential prefix not found for user ${userId}: ${prefix}`);
+    }
+    if (!credential.rate.token) {
+      throw new Error(`Credential has no token policy: ${prefix}`);
+    }
+    return credential;
+  }
+
+  const now = new Date();
+  const subject = store.getSubject(userId);
+  const credential = store
+    .listAccessCredentials({ subjectId: userId, includeRevoked: false })
+    .find(
+      (candidate) =>
+        candidate.rate.token &&
+        credentialStatus(candidate, subject, now) === "active"
+    );
+  if (!credential) {
+    throw new Error(`No active token policy credential found for user: ${userId}`);
+  }
+  return credential;
 }
 
 function credentialStatus(
@@ -1457,12 +1765,14 @@ function parseAdminAuditAction(value: string): AdminAuditAction {
     value === "update-user" ||
     value === "disable-user" ||
     value === "enable-user" ||
-    value === "prune-events"
+    value === "prune-events" ||
+    value === "token-overrun" ||
+    value === "token-reservation-expired"
   ) {
     return value;
   }
   throw new InvalidArgumentError(
-    "action must be issue, update-key, revoke, rotate, reveal-key, update-user, disable-user, enable-user, or prune-events"
+    "action must be issue, update-key, revoke, rotate, reveal-key, update-user, disable-user, enable-user, prune-events, token-overrun, or token-reservation-expired"
   );
 }
 
@@ -1494,6 +1804,20 @@ function parseNullablePositiveInteger(value: string): number | null {
     return null;
   }
   return parsePositiveInteger(value);
+}
+
+function parseNullableNonNegativeInteger(value: string): number | null {
+  if (value.toLowerCase() === "null" || value.toLowerCase() === "none") {
+    return null;
+  }
+  return parseNonNegativeInteger(value);
+}
+
+function parseMissingUsageCharge(value: string): MissingUsageCharge {
+  if (value === "none" || value === "estimate" || value === "reserve") {
+    return value;
+  }
+  throw new InvalidArgumentError("missing usage charge must be none, estimate, or reserve");
 }
 
 function normalizeNullableIntegerOption(
