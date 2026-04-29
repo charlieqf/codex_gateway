@@ -4,7 +4,7 @@ Last updated: 2026-04-28
 
 ## Current Phase
 
-The project is in a controlled public HTTPS internal trial for 1-2 trusted users. It is not a broad production service.
+The project is in a controlled public HTTPS internal trial for up to 10 trusted users. It is not a broad production service.
 
 Completed:
 
@@ -101,7 +101,7 @@ Most recent Azure VM validation:
 - Phase 2 strict client-defined tools public smoke passed against `https://gw.instmarket.com.au/v1`: a temporary API key produced a `medevidence` tool call from the client-declared schema with `tool_choice: "required"`, produced a named `search_evidence` call with function `tool_choice`, returned a normal message with `tool_choice: "none"`, then used a `role: "tool"` follow-up to return `strict-tools-result-ok`. The temporary smoke key was revoked and the temporary smoke user was disabled.
 - API key management and token usage smoke passed against the deployed public gateway: temporary key issue, active-key listing, full-key reveal, `GET /gateway/credentials/current`, chat completion usage, request-level `events`, daily `report-usage`, sanitized `audit`, and cleanup all succeeded.
 - After the shared VM vhost correction, IP-based HTTP access to `http://4.242.58.89/` again reaches MedEvidence instead of the Codex Gateway vhost, while `https://gw.instmarket.com.au/gateway/health` continues to reach Codex Gateway.
-- `trial-check --max-active-users 2` currently reports ready for controlled trial with 2 active users and 2 active API keys.
+- `trial-check --max-active-users 10` is the current controlled-trial preflight threshold; it remains a guardrail against accidental broad key issuance, not a runtime user limit.
 - Existing services remained active: Nginx, Docker/containerd, PostgreSQL, SSH, `medevidence-v2`, and `medevidence-v2-worker`; Apache and Caddy stayed inactive.
 
 Earlier Azure VM validation:

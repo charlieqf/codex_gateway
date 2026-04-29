@@ -5,7 +5,7 @@ test VM also hosts important services, so deployment work must stay isolated
 until a maintenance window is explicitly approved.
 
 For the container runbook, see [container-deploy.md](./container-deploy.md).
-For the 1-2 user public internal trial plan, see
+For the controlled internal trial plan, see
 [internal-trial-runbook.md](./internal-trial-runbook.md).
 For non-invasive shared-VM rules, see [safe-vm-testing.md](./safe-vm-testing.md).
 

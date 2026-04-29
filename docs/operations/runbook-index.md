@@ -23,7 +23,7 @@ Operational workflows now covered:
 - Request event inspection by API key or user.
 - Dynamic usage reports by API key or user, including token usage fields.
 - Admin operation audit for issue/update/reveal/revoke/rotate/disable/enable/prune actions.
-- Read-only `trial-check` for 1-2 user controlled internal trials.
+- Read-only `trial-check` for controlled internal trials.
 - Dry-run-capable request event pruning.
 - Shared VM loopback smoke validation.
 - Container deployment skeleton.

@@ -97,4 +97,4 @@ Container loopback validation and public HTTPS routing are complete. The next sa
 3. Verify `GET /gateway/credentials/current` after every gateway rebuild so client login/settings pages can validate API keys without model calls.
 4. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
 5. Keep the gateway container loopback-only and keep Nginx as the only public edge.
-6. Before expanding beyond 1-2 users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.
+6. Before expanding beyond 10 controlled-trial users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.

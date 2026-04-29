@@ -166,7 +166,7 @@ npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH update-key <credential-prefix
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH events --user alice --limit 50
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH report-usage --user alice --days 7
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH audit --user alice --limit 50
-npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH trial-check --max-active-users 2
+npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH trial-check --max-active-users 10
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH disable-user alice
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH enable-user alice
 npm run dev:admin -- --db $env:GATEWAY_SQLITE_PATH prune-events --before-days 30 --dry-run

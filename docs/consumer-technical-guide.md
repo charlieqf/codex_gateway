@@ -7,7 +7,7 @@
 
 本文面向接入 MedCode 的后端开发人员。典型接入方会开发类似 coding CLI、OpenCode、IDE 插件后端、自动化 coding agent 后端的应用。
 
-当前服务处于 1-2 位可信内部用户受控试用阶段。接口已经可以从公网 HTTPS 访问，并提供 OpenAI Chat Completions 兼容 beta，便于已有 OpenAI SDK 客户端接入。原生 MedCode session API 仍然保留，适合需要服务端保存长对话上下文的 coding agent。
+当前服务处于最多 10 位可信内部用户受控试用阶段。接口已经可以从公网 HTTPS 访问，并提供 OpenAI Chat Completions 兼容 beta，便于已有 OpenAI SDK 客户端接入。原生 MedCode session API 仍然保留，适合需要服务端保存长对话上下文的 coding agent。
 
 ## 接入信息
 
@@ -502,7 +502,7 @@ service_unavailable
 - `requestsPerDay`：每天请求数，可能为 `null` 表示不设日限额。
 - `concurrentRequests`：同一 API key 同时进行的请求数，当前建议为 `1`。
 
-限流按 API key 执行。当前是单 gateway 进程内限流，适合 1-2 位可信内部用户试用；扩展到多实例或更多用户前，需要升级为持久化/分布式限流。
+限流按 API key 执行。当前是单 gateway 进程内限流，适合最多 10 位可信内部用户试用；扩展到多实例或更多用户前，需要升级为持久化/分布式限流。
 
 ## 推荐接入方式
 

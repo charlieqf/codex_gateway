@@ -221,7 +221,7 @@ Do not use them on the shared VM until `80/443` ownership and the maintenance
 window are explicitly confirmed.
 
 On the current shared VM, existing Nginx owns public `80` and proxies an
-existing service to `127.0.0.1:8081`. For a 1-2 user internal public trial,
+existing service to `127.0.0.1:8081`. For a controlled internal public trial,
 prefer the Nginx example in
 `ops/nginx/codex-gateway-public-trial.example.conf`: it leaves the gateway
 container loopback-only and has Nginx proxy the dedicated hostname to

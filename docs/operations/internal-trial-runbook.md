@@ -2,7 +2,7 @@
 
 Last updated: 2026-04-23
 
-This runbook is for a very small internal trial with 1-2 trusted users who must
+This runbook is for a small controlled internal trial with up to 10 trusted users who must
 reach the gateway from the public internet. It is not a public beta plan.
 
 ## Current VM Inventory
@@ -49,7 +49,7 @@ Current state after the approved maintenance window:
 Use this runbook only when:
 
 - One trusted operator owns all admin CLI actions.
-- The trial has at most 1-2 active users.
+- The trial has at most 10 active users.
 - The gateway runs as a single Docker Compose instance.
 - Users receive individual API keys with daily and concurrency caps.
 - A dedicated public hostname is available for the gateway.
@@ -201,7 +201,7 @@ least one trial API key exists:
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  trial-check --max-active-users 2
+  trial-check --max-active-users 10
 ```
 
 A result with warnings can still be acceptable for a tiny trial, but any `error`
@@ -245,7 +245,7 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db audit --user trial-alice --limit 20
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db trial-check --max-active-users 2
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db trial-check --max-active-users 10
 ```
 
 ## Daily Checks
@@ -260,7 +260,7 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db audit --limit 50
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db trial-check --max-active-users 2
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db trial-check --max-active-users 10
 ```
 
 Look for:
