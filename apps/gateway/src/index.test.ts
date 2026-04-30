@@ -3,18 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  GatewayError,
   issueAccessCredential,
-  type CancelInput,
-  type CreateSessionInput,
-  type CreateSessionResult,
-  type ListSessionInput,
   type MessageInput,
   type ProviderAdapter,
   type ProviderHealth,
-  type ProviderSession,
   type RateLimitPolicy,
-  type RefreshResult,
   type StreamEvent,
   type UpstreamAccount
 } from "@codex-gateway/core";
@@ -38,18 +31,6 @@ class FakeProvider implements ProviderAdapter {
     };
   }
 
-  async refresh(_upstreamAccount: UpstreamAccount): Promise<RefreshResult> {
-    return { state: "not_needed" };
-  }
-
-  async create(_input: CreateSessionInput): Promise<CreateSessionResult> {
-    return { providerSessionRef: null };
-  }
-
-  async list(_input: ListSessionInput): Promise<ProviderSession[]> {
-    return [];
-  }
-
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     this.messages.push(input);
     if (this.events) {
@@ -61,18 +42,6 @@ class FakeProvider implements ProviderAdapter {
 
     yield { type: "message_delta", text: `echo:${input.message}` };
     yield { type: "completed", providerSessionRef: "provider_thread_1" };
-  }
-
-  async cancel(_input: CancelInput): Promise<void> {
-    return;
-  }
-
-  normalize(err: unknown): GatewayError {
-    return new GatewayError({
-      code: "service_unavailable",
-      message: String(err),
-      httpStatus: 503
-    });
   }
 }
 
@@ -761,8 +730,8 @@ describe("gateway phase 1 routes", () => {
           object: "model",
           created: 0,
           owned_by: "medcode",
-          context_window: 272000,
-          max_context_window: 1000000,
+          context_window: 400000,
+          max_context_window: 400000,
           max_output_tokens: 128000
         }
       ]

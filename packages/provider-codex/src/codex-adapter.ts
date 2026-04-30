@@ -8,15 +8,9 @@ import {
 } from "@openai/codex-sdk";
 import {
   GatewayError,
-  type CancelInput,
-  type CreateSessionInput,
-  type CreateSessionResult,
-  type ListSessionInput,
   type MessageInput,
   type ProviderAdapter,
   type ProviderHealth,
-  type ProviderSession,
-  type RefreshResult,
   type StreamEvent,
   type UpstreamAccount,
   type TokenUsage
@@ -57,6 +51,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
   constructor(private readonly options: CodexProviderOptions) {}
 
   async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
+    // Phase 1 health is an auth-cache presence check, not credential validation.
     const authFile = `${this.options.codexHome}/auth.json`;
     if (existsSync(authFile)) {
       return {
@@ -71,57 +66,6 @@ export class CodexProviderAdapter implements ProviderAdapter {
       checkedAt: new Date(),
       detail: "Codex auth cache is missing; run device-code authorization."
     };
-  }
-
-  async refresh(_upstreamAccount: UpstreamAccount): Promise<RefreshResult> {
-    if (existsSync(`${this.options.codexHome}/auth.json`)) {
-      return {
-        state: "not_needed",
-        detail: "Codex CLI refreshes ChatGPT tokens during active use."
-      };
-    }
-
-    return {
-      state: "reauth_required",
-      detail: "Codex auth cache is missing."
-    };
-  }
-
-  async create(input: CreateSessionInput): Promise<CreateSessionResult> {
-    if (!input.initialMessage) {
-      return {
-        providerSessionRef: null
-      };
-    }
-
-    const client = this.createClient();
-    const thread = client.startThread(this.threadOptions(input.scope));
-    let providerSessionRef: string | null = null;
-
-    try {
-      const { events } = await thread.runStreamed(input.initialMessage);
-      for await (const event of events) {
-        if (event.type === "thread.started") {
-          providerSessionRef = event.thread_id;
-        } else if (event.type === "turn.failed") {
-          throw this.normalize(new Error(event.error.message));
-        } else if (event.type === "error") {
-          throw this.normalize(new Error(event.message));
-        }
-      }
-    } catch (err) {
-      throw this.normalize(err);
-    }
-
-    return {
-      providerSessionRef: providerSessionRef ?? thread.id
-    };
-  }
-
-  async list(_input: ListSessionInput): Promise<ProviderSession[]> {
-    // Codex SDK threads are persisted under CODEX_HOME but are not exposed through
-    // a stable list API. Gateway Session Store remains the source of truth.
-    return [];
   }
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
@@ -200,11 +144,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
   }
 
-  async cancel(_input: CancelInput): Promise<void> {
-    return;
-  }
-
-  normalize(err: unknown): GatewayError {
+  private normalize(err: unknown): GatewayError {
     if (err instanceof GatewayError) {
       return err;
     }

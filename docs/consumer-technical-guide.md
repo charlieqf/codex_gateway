@@ -58,13 +58,13 @@ model: medcode
   "id": "medcode",
   "object": "model",
   "owned_by": "medcode",
-  "context_window": 272000,
-  "max_context_window": 1000000,
+  "context_window": 400000,
+  "max_context_window": 400000,
   "max_output_tokens": 128000
 }
 ```
 
-建议客户端当前用 `context_window: 272000` 做默认上下文进度条和压缩触发阈值。`max_context_window` 表示上游模型能力上限，不代表当前受控试用建议把上下文堆到这个大小。
+三者关系：`context_window` 是当前建议客户端用于上下文进度条和压缩触发的输入上限，`max_context_window` 是当前公开元数据中的模型 context 上限，`max_output_tokens` 是客户端可用的输出上限。建议客户端当前用 `context_window: 400000` 做默认上下文进度条和压缩触发阈值。
 
 当前未支持：
 

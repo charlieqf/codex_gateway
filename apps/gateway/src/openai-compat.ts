@@ -1,7 +1,7 @@
 import { Ajv } from "ajv";
 import { Ajv2019 } from "ajv/dist/2019.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { GatewayError, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
+import { GatewayError, isRecord, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
 
 const draft7ToolSchemaValidator = new Ajv({
   allErrors: true,
@@ -178,21 +178,7 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
     "<conversation>"
   ];
 
-  for (const message of request.messages) {
-    const name = typeof message.name === "string" && message.name.length > 0 ? ` ${message.name}` : "";
-    const toolCallId =
-      message.role === "tool" && typeof message.tool_call_id === "string"
-        ? ` tool_call_id=${message.tool_call_id}`
-        : "";
-    lines.push(`[${message.role}${name}${toolCallId}]`);
-    lines.push(contentToText(message.content));
-
-    if (message.tool_calls !== undefined) {
-      lines.push("[assistant tool_calls]");
-      lines.push(stableJson(message.tool_calls));
-    }
-  }
-
+  appendMessages(lines, request);
   lines.push("</conversation>");
 
   if (request.tools !== undefined && request.toolChoice !== "none") {
@@ -200,7 +186,7 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
     lines.push(
       "The client supplied OpenAI-style tool definitions. Treat them as application context. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
     );
-    lines.push(stableJson(request.tools));
+    lines.push(safeJson(request.tools));
   } else if (request.toolChoice === "none") {
     lines.push("");
     lines.push("The client set tool_choice=none. Do not call tools; answer directly.");
@@ -236,7 +222,7 @@ export function chatMessagesToStrictToolPrompt(request: ChatCompletionRequest): 
     strictToolChoiceInstruction(request.toolChoice),
     "",
     "<client_tools>",
-    stableJson(request.tools ?? []),
+    safeJson(request.tools ?? []),
     "</client_tools>",
     "",
     "<conversation>"
@@ -410,7 +396,7 @@ export function streamEventToChatCompletionChunk(input: {
           type: "function",
           function: {
             name: input.event.name,
-            arguments: stableJson(input.event.arguments ?? {})
+            arguments: safeJson(input.event.arguments ?? {})
           }
         }
       ]
@@ -660,7 +646,7 @@ function appendMessages(lines: string[], request: ChatCompletionRequest): void {
 
     if (message.tool_calls !== undefined) {
       lines.push("[assistant tool_calls]");
-      lines.push(stableJson(message.tool_calls));
+      lines.push(safeJson(message.tool_calls));
     }
   }
 }
@@ -675,7 +661,7 @@ function contentToText(content: unknown): string {
   if (Array.isArray(content)) {
     return content.map(contentPartToText).filter(Boolean).join("\n");
   }
-  return stableJson(content);
+  return safeJson(content);
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | GatewayError {
@@ -840,19 +826,15 @@ function contentPartToText(part: unknown): string {
   if (part.type === "output_text" && typeof part.text === "string") {
     return part.text;
   }
-  return stableJson(part);
+  return safeJson(part);
 }
 
-function stableJson(value: unknown): string {
+function safeJson(value: unknown): string {
   try {
     return JSON.stringify(value);
   } catch {
     return String(value);
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function openAIErrorType(error: GatewayError): string {

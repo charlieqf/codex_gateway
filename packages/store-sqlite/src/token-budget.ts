@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { runInTransaction } from "./sql.js";
 import {
   GatewayError,
   validateTokenPolicy,
@@ -847,22 +848,6 @@ function tokenRejection(
       retryAfterSeconds
     })
   };
-}
-
-function runInTransaction<T>(
-  db: DatabaseSync,
-  begin: "BEGIN" | "BEGIN IMMEDIATE",
-  fn: () => T
-): T {
-  db.exec(begin);
-  try {
-    const result = fn();
-    db.exec("COMMIT");
-    return result;
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
 }
 
 function reservationColumns(): string {

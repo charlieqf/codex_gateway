@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { GatewayError } from "@codex-gateway/core";
+import { GatewayError, isRecord } from "@codex-gateway/core";
 
 export const CLIENT_MESSAGE_TEXT_LIMIT_BYTES = 64 * 1024;
 export const CLIENT_MESSAGE_BODY_LIMIT_BYTES = 512 * 1024;
@@ -271,10 +271,6 @@ function readOptionalSize(value: unknown, label: string): number | null | Gatewa
 
 function hasPathSeparator(value: string): boolean {
   return value.includes("/") || value.includes("\\") || value === "." || value === "..";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function invalid(message: string, httpStatus = 400): GatewayError {

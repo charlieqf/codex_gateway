@@ -618,6 +618,171 @@ describe("codex-gateway-admin user API key operations", () => {
     });
   }, 20_000);
 
+  it("records entitlement pause reasons in audit params", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-pause-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: null,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      }),
+      "utf8"
+    );
+
+    runCli(dbPath, ["plan", "create", "--id", "plan_pause_v1", "--policy-file", policyPath]);
+    runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice pause-plan key",
+      "--scope",
+      "code"
+    ]);
+    const granted = runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_pause_v1",
+      "--period",
+      "unlimited"
+    ]) as { entitlement: { id: string; state: string } };
+    const paused = runCli(dbPath, [
+      "entitlement",
+      "pause",
+      granted.entitlement.id,
+      "--reason",
+      "billing hold"
+    ]) as { entitlement: { id: string; state: string } };
+
+    expect(paused.entitlement).toMatchObject({
+      id: granted.entitlement.id,
+      state: "paused"
+    });
+    const resumed = runCli(dbPath, ["entitlement", "resume", granted.entitlement.id]) as {
+      entitlement: { id: string; state: string };
+    };
+    expect(resumed.entitlement).toMatchObject({
+      id: granted.entitlement.id,
+      state: "active"
+    });
+    const cancelled = runCli(dbPath, [
+      "entitlement",
+      "cancel",
+      granted.entitlement.id,
+      "--reason",
+      "customer request"
+    ]) as { entitlement: { id: string; state: string } };
+    expect(cancelled.entitlement).toMatchObject({
+      id: granted.entitlement.id,
+      state: "cancelled"
+    });
+    expect(() => runCli(dbPath, ["entitlement", "pause", granted.entitlement.id])).toThrow();
+
+    const pauseAudit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "entitlement-pause",
+      "--status",
+      "ok",
+      "--limit",
+      "10"
+    ]) as {
+      events: Array<{
+        target_user_id: string | null;
+        error_message: string | null;
+        params: Record<string, unknown>;
+      }>;
+    };
+    expect(pauseAudit.events).toHaveLength(1);
+    expect(pauseAudit.events[0]).toMatchObject({
+      target_user_id: "alice",
+      error_message: null,
+      params: expect.objectContaining({
+        entitlement_id: granted.entitlement.id,
+        plan_id: "plan_pause_v1",
+        from_state: "active",
+        to_state: "paused",
+        reason: "billing hold"
+      })
+    });
+
+    const resumeAudit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "entitlement-resume",
+      "--status",
+      "ok",
+      "--limit",
+      "10"
+    ]) as { events: Array<{ params: Record<string, unknown> }> };
+    expect(resumeAudit.events).toHaveLength(1);
+    expect(resumeAudit.events[0]).toMatchObject({
+      params: expect.objectContaining({
+        entitlement_id: granted.entitlement.id,
+        from_state: "paused",
+        to_state: "active"
+      })
+    });
+
+    const cancelAudit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "entitlement-cancel",
+      "--status",
+      "ok",
+      "--limit",
+      "10"
+    ]) as { events: Array<{ params: Record<string, unknown> }> };
+    expect(cancelAudit.events).toHaveLength(1);
+    expect(cancelAudit.events[0]).toMatchObject({
+      params: expect.objectContaining({
+        entitlement_id: granted.entitlement.id,
+        from_state: "active",
+        to_state: "cancelled",
+        reason: "customer request"
+      })
+    });
+
+    const failedPauseAudit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "entitlement-pause",
+      "--status",
+      "error",
+      "--limit",
+      "10"
+    ]) as {
+      events: Array<{
+        target_user_id: string | null;
+        error_message: string | null;
+        params: Record<string, unknown>;
+      }>;
+    };
+    expect(failedPauseAudit.events).toHaveLength(1);
+    expect(failedPauseAudit.events[0]).toMatchObject({
+      target_user_id: "alice",
+      error_message: "Invalid entitlement state transition: cancelled -> paused.",
+      params: expect.objectContaining({
+        entitlement_id: granted.entitlement.id,
+        plan_id: "plan_pause_v1",
+        from_state: "cancelled",
+        to_state: "paused",
+        reason: null
+      })
+    });
+  }, 20_000);
+
   it("rejects API key scopes outside the active entitlement allowlist", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-scope-"));
     cleanupDirs.push(dir);
@@ -679,6 +844,126 @@ describe("codex-gateway-admin user API key operations", () => {
       ])
     ).toThrow();
     expect(() => runCli(dbPath, ["update-key", issued.credential.prefix, "--scope", "medical"])).toThrow();
+  }, 20_000);
+
+  it("honors --no-entitlement-check for issue and update-key audit params", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-bypass-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: null,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      }),
+      "utf8"
+    );
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice rollout key",
+      "--scope",
+      "code"
+    ]) as { credential: { prefix: string } };
+    runCli(dbPath, ["plan", "create", "--id", "plan_expired_v1", "--policy-file", policyPath]);
+    runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_expired_v1",
+      "--period",
+      "one_off",
+      "--start",
+      "2000-01-01T00:00:00Z",
+      "--end",
+      "2000-01-02T00:00:00Z"
+    ]);
+
+    expect(() =>
+      runCli(dbPath, [
+        "issue",
+        "--user",
+        "alice",
+        "--label",
+        "Alice blocked key",
+        "--scope",
+        "code"
+      ])
+    ).toThrow();
+    expect(() =>
+      runCli(dbPath, ["update-key", issued.credential.prefix, "--label", "Alice blocked update"])
+    ).toThrow();
+
+    const bypassIssued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice bypass key",
+      "--scope",
+      "code",
+      "--no-entitlement-check"
+    ]) as { credential: { label: string; scope: string } };
+    const bypassUpdated = runCli(dbPath, [
+      "update-key",
+      issued.credential.prefix,
+      "--label",
+      "Alice bypass update",
+      "--no-entitlement-check"
+    ]) as { credential: { label: string } };
+
+    expect(bypassIssued.credential).toMatchObject({
+      label: "Alice bypass key",
+      scope: "code"
+    });
+    expect(bypassUpdated.credential.label).toBe("Alice bypass update");
+
+    const issueAudit = runCli(dbPath, ["audit", "--action", "issue", "--status", "ok", "--limit", "10"]) as {
+      events: Array<{ params: Record<string, unknown> }>;
+    };
+    const updateAudit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "update-key",
+      "--status",
+      "ok",
+      "--limit",
+      "10"
+    ]) as {
+      events: Array<{ params: Record<string, unknown> }>;
+    };
+
+    expect(issueAudit.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          params: expect.objectContaining({
+            label: "Alice bypass key",
+            no_entitlement_check: true
+          })
+        })
+      ])
+    );
+    expect(updateAudit.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          params: expect.objectContaining({
+            label: "Alice bypass update",
+            no_entitlement_check: true
+          })
+        })
+      ])
+    );
   }, 20_000);
 
   it("reports rejected entitlement states as trial-check errors", () => {
@@ -745,6 +1030,72 @@ describe("codex-gateway-admin user API key operations", () => {
       detail: {
         rejected_users: [{ user_id: "alice", status: "expired" }]
       }
+    });
+  }, 20_000);
+
+  it("reports active plans with no entitlement grants in the last 90 days as info", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-plan-idle-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: null,
+        tokensPerDay: 1000,
+        tokensPerMonth: null,
+        maxPromptTokensPerRequest: null,
+        maxTotalTokensPerRequest: null,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      }),
+      "utf8"
+    );
+
+    runCli(dbPath, ["plan", "create", "--id", "plan_idle_v1", "--policy-file", policyPath]);
+    runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice idle-plan key",
+      "--scope",
+      "code"
+    ]);
+    runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_idle_v1",
+      "--period",
+      "unlimited"
+    ]);
+
+    const store = createSqliteStore({ path: dbPath });
+    store.database
+      .prepare("UPDATE plans SET created_at = ? WHERE id = ?")
+      .run("2000-01-01T00:00:00.000Z", "plan_idle_v1");
+    store.database
+      .prepare("UPDATE entitlements SET created_at = ? WHERE plan_id = ?")
+      .run("2000-01-01T00:00:00.000Z", "plan_idle_v1");
+    store.close();
+
+    const trialCheck = runCli(dbPath, ["trial-check", "--max-active-users", "2"]) as {
+      ready_for_controlled_trial: boolean;
+      checks: Array<{
+        name: string;
+        status: string;
+        detail?: { plans?: string[] };
+      }>;
+    };
+    const activePlanCheck = trialCheck.checks.find((check) => check.name === "active_plan_usage");
+
+    expect(trialCheck.ready_for_controlled_trial).toBe(true);
+    expect(activePlanCheck).toMatchObject({
+      status: "info",
+      detail: { plans: ["plan_idle_v1"] }
     });
   }, 20_000);
 

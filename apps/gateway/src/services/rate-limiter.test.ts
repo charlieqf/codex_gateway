@@ -61,6 +61,44 @@ describe("InMemoryCredentialRateLimiter", () => {
     first.release();
     permit(limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy })).release();
   });
+
+  it("does not prune active state after windows expire", () => {
+    let now = new Date("2026-01-01T00:00:00Z");
+    const limiter = new InMemoryCredentialRateLimiter({ now: () => now });
+    const concurrencyPolicy = {
+      requestsPerMinute: 100,
+      requestsPerDay: 100,
+      concurrentRequests: 1
+    };
+
+    const first = permit(limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy }));
+    now = new Date("2026-01-02T00:00:00Z");
+
+    const limited = limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy });
+
+    expect(rejection(limited).limitKind).toBe("concurrency");
+    expect(stateCount(limiter)).toBe(1);
+
+    first.release();
+  });
+
+  it("prunes released state after minute and day windows expire", () => {
+    let now = new Date("2026-01-01T00:00:00Z");
+    const limiter = new InMemoryCredentialRateLimiter({ now: () => now });
+    const generousPolicy = {
+      requestsPerMinute: 100,
+      requestsPerDay: 100,
+      concurrentRequests: null
+    };
+
+    const first = permit(limiter.acquire({ credentialId: "cred_1", policy: generousPolicy }));
+    expect(stateCount(limiter)).toBe(1);
+
+    now = new Date("2026-01-02T00:00:00Z");
+    first.release();
+
+    expect(stateCount(limiter)).toBe(0);
+  });
 });
 
 function permit(result: RateLimitPermit | LimitRejection): RateLimitPermit {
@@ -71,4 +109,8 @@ function permit(result: RateLimitPermit | LimitRejection): RateLimitPermit {
 function rejection(result: RateLimitPermit | LimitRejection): LimitRejection {
   expect("release" in result).toBe(false);
   return result as LimitRejection;
+}
+
+function stateCount(limiter: InMemoryCredentialRateLimiter): number {
+  return (limiter as unknown as { states: Map<string, unknown> }).states.size;
 }

@@ -174,29 +174,6 @@ export interface ProviderHealth {
   detail?: string;
 }
 
-export interface CreateSessionInput {
-  upstreamAccount: UpstreamAccount;
-  subject: Subject;
-  scope: Scope;
-  initialMessage?: string;
-}
-
-export interface CreateSessionResult {
-  providerSessionRef: string | null;
-  title?: string;
-}
-
-export interface ListSessionInput {
-  upstreamAccount: UpstreamAccount;
-  subject: Subject;
-}
-
-export interface ProviderSession {
-  providerSessionRef: string;
-  title: string | null;
-  updatedAt: Date | null;
-}
-
 export interface MessageInput {
   upstreamAccount: UpstreamAccount;
   session: GatewaySession;
@@ -204,9 +181,4 @@ export interface MessageInput {
   scope: Scope;
   message: string;
   signal?: AbortSignal;
-}
-
-export interface CancelInput {
-  upstreamAccount: UpstreamAccount;
-  session: GatewaySession;
 }

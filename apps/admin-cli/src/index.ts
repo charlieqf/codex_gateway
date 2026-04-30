@@ -1,20 +1,18 @@
 #!/usr/bin/env node
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { Command, InvalidArgumentError } from "commander";
+import { Command } from "commander";
 import {
   issueAccessCredential,
   mergeEntitlementTokenPolicy,
+  publicTokenPolicy,
+  publicTokenUsage,
   validatePlanPolicy,
   type AccessCredentialRecord,
-  type AdminAuditAction,
   type AdminAuditEventRecord,
-  type AdminAuditStatus,
   type Entitlement,
   type EntitlementState,
   type PeriodKind,
-  type Plan,
   type PlanState,
   type RateLimitPolicy,
   type Scope,
@@ -23,6 +21,54 @@ import {
   type TokenLimitPolicy
 } from "@codex-gateway/core";
 import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
+import {
+  type AuditedActionResult,
+  type AuditInput,
+  adminAuditRecord,
+  mergeAudit,
+  sanitizeAuditErrorMessage
+} from "./audit.js";
+import {
+  buildCommandContext,
+  type CommandRateOptions,
+  type MissingUsageCharge,
+  type NullableIntegerOption
+} from "./commands/command-context.js";
+import { registerIssueCommand } from "./commands/issue.js";
+import { resolveSubjectUserId } from "./commands/subject-options.js";
+import {
+  encryptAccessCredentialToken,
+  revealAccessCredentialToken
+} from "./crypto.js";
+import {
+  parseAdminAuditAction,
+  parseAdminAuditStatus,
+  parseCommaList,
+  parseDate,
+  parseDurationMs,
+  parseEntitlementState,
+  parseMissingUsageCharge,
+  parseNonNegativeInteger,
+  parseNullableNonNegativeInteger,
+  parseNullablePositiveInteger,
+  parsePeriodKind,
+  parsePlanState,
+  parsePositiveInteger,
+  parseReportGroupBy,
+  parseScope,
+  parseScopeList,
+  parseSubjectState
+} from "./parsers.js";
+import {
+  auditCredentialSnapshot,
+  credentialStatus,
+  publicAdminAuditEvent,
+  publicCredential,
+  publicEntitlement,
+  publicEntitlementAccess,
+  publicPlan,
+  publicSubject
+} from "./serializers.js";
 
 const defaultSubjectId = "subj_dev";
 const defaultSubjectLabel = "dev-subject";
@@ -36,82 +82,18 @@ program
   .option("--db <path>", "SQLite database path", process.env.GATEWAY_SQLITE_PATH)
   .option("--verbose", "write diagnostic logs to stderr");
 
-program
-  .command("issue")
-  .description("Issue an API key.")
-  .requiredOption("--label <label>", "credential label")
-  .requiredOption("--scope <scope>", "credential scope: code or medical", parseScope)
-  .option("--user <id>", "user id; preferred alias for --subject-id")
-  .option("--user-label <label>", "user label; preferred alias for --subject-label")
-  .option("--name <name>", "user real name")
-  .option("--phone <phone>", "user phone number")
-  .option("--subject-id <id>", "subject id", defaultSubjectId)
-  .option("--subject-label <label>", "subject label", defaultSubjectLabel)
-  .option("--expires-days <days>", "days until expiration", parsePositiveInteger, 365)
-  .option("--rpm <n>", "requests per minute", parsePositiveInteger, 30)
-  .option("--rpd <n>", "requests per day; omit for unlimited", parseNullablePositiveInteger)
-  .option("--concurrent <n>", "concurrent requests", parseNullablePositiveInteger, 1)
-  .option("--tokens-per-minute <n>", "tokens per minute; use none for unlimited", parseNullableNonNegativeInteger)
-  .option("--tokens-per-day <n>", "tokens per day; use none for unlimited", parseNullableNonNegativeInteger)
-  .option("--tokens-per-month <n>", "tokens per month; use none for unlimited", parseNullableNonNegativeInteger)
-  .option("--max-prompt-tokens <n>", "max prompt tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
-  .option("--max-total-tokens <n>", "max total reserved tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
-  .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
-  .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
-  .option("--no-entitlement-check", "allow issuing a key without an active entitlement during compatibility rollout")
-  .action((options) => {
-    withAuditedStore(
-      {
-        action: "issue",
-        targetUserId: issueTargetUserId(options),
-        params: {
-          label: options.label,
-          scope: options.scope,
-          user_id: issueTargetUserId(options),
-          user_name: normalizeOptionalText(options.name),
-          user_phone: normalizeOptionalText(options.phone),
-          expires_days: options.expiresDays,
-          no_entitlement_check: Boolean(options.noEntitlementCheck),
-          rate: rateFromOptions(options)
-        }
-      },
-      (store) => {
-        const subject = issueSubject(store, options);
-        store.upsertSubject(subject);
-        assertCanIssueCredentialForEntitlement(
-          store,
-          subject.id,
-          options.scope,
-          Boolean(options.noEntitlementCheck)
-        );
+const commandContext = buildCommandContext({
+  defaultSubjectId,
+  defaultSubjectLabel,
+  withAuditedStore,
+  normalizeOptionalText,
+  entitlementCheckBypassed,
+  rateFromOptions,
+  assertCanIssueCredentialForEntitlement,
+  addDays
+});
 
-        const issued = issueAccessCredential({
-          subjectId: subject.id,
-          label: options.label,
-          scope: options.scope,
-          expiresAt: addDays(new Date(), options.expiresDays),
-          rate: rateFromOptions(options)
-        });
-        const record = {
-          ...issued.record,
-          tokenCiphertext: encryptAccessCredentialToken(issued.token)
-        };
-        store.insertAccessCredential(record);
-
-        return {
-          output: {
-            token: issued.token,
-            credential: publicCredential(record, subject)
-          },
-          audit: {
-            targetUserId: subject.id,
-            targetCredentialId: record.id,
-            targetCredentialPrefix: record.prefix
-          }
-        };
-      }
-    );
-  });
+registerIssueCommand(program, commandContext);
 
 program
   .command("list")
@@ -437,13 +419,12 @@ entitlementCommand
   .command("pause")
   .argument("<entitlement-id>")
   .description("Pause an active entitlement.")
-  .action((id) => {
-    withAuditedStore({ action: "entitlement-pause", params: { entitlement_id: id } }, (store) => {
-      const entitlement = store.pauseEntitlement({ id });
-      return {
-        output: { entitlement: publicEntitlement(entitlement) },
-        audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
-      };
+  .option("--reason <text>", "pause reason")
+  .action((id, options) => {
+    const reason = normalizeOptionalText(options.reason);
+    withStore((store) => {
+      const entitlement = store.pauseEntitlement({ id, reason });
+      printJson({ entitlement: publicEntitlement(entitlement) });
     });
   });
 
@@ -452,12 +433,9 @@ entitlementCommand
   .argument("<entitlement-id>")
   .description("Resume a paused entitlement.")
   .action((id) => {
-    withAuditedStore({ action: "entitlement-resume", params: { entitlement_id: id } }, (store) => {
+    withStore((store) => {
       const entitlement = store.resumeEntitlement({ id });
-      return {
-        output: { entitlement: publicEntitlement(entitlement) },
-        audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
-      };
+      printJson({ entitlement: publicEntitlement(entitlement) });
     });
   });
 
@@ -467,19 +445,13 @@ entitlementCommand
   .description("Cancel an entitlement.")
   .option("--reason <text>", "cancellation reason")
   .action((id, options) => {
-    withAuditedStore(
-      { action: "entitlement-cancel", params: { entitlement_id: id, reason: options.reason } },
-      (store) => {
-        const entitlement = store.cancelEntitlement({
-          id,
-          reason: normalizeOptionalText(options.reason)
-        });
-        return {
-          output: { entitlement: publicEntitlement(entitlement) },
-          audit: { targetUserId: entitlement.subjectId, params: { entitlement_id: entitlement.id } }
-        };
-      }
-    );
+    withStore((store) => {
+      const entitlement = store.cancelEntitlement({
+        id,
+        reason: normalizeOptionalText(options.reason)
+      });
+      printJson({ entitlement: publicEntitlement(entitlement) });
+    });
   });
 
 entitlementCommand
@@ -720,7 +692,7 @@ program
           store,
           oldCredential.subjectId,
           options.scope ?? oldCredential.scope,
-          Boolean(options.noEntitlementCheck)
+          entitlementCheckBypassed(options)
         );
 
         const expiresAt = updateKeyExpiresAt(options);
@@ -1169,19 +1141,6 @@ program
 
 await program.parseAsync();
 
-interface AuditInput {
-  action: AdminAuditAction;
-  targetUserId?: string | null;
-  targetCredentialId?: string | null;
-  targetCredentialPrefix?: string | null;
-  params?: Record<string, unknown> | null;
-}
-
-interface AuditedActionResult {
-  output: unknown;
-  audit?: Partial<AuditInput>;
-}
-
 interface UpdateKeyOptions {
   label?: string;
   scope?: Scope;
@@ -1198,7 +1157,7 @@ interface UpdateKeyOptions {
   reserveTokens?: number;
   missingUsageCharge?: MissingUsageCharge;
   clearTokenPolicy?: boolean;
-  noEntitlementCheck?: boolean;
+  entitlementCheck?: boolean;
 }
 
 interface UpdateUserOptions {
@@ -1209,14 +1168,11 @@ interface UpdateUserOptions {
   clearPhone?: boolean;
 }
 
-type NullableIntegerOption = number | null | "";
-type MissingUsageCharge = TokenLimitPolicy["missingUsageCharge"];
-
 interface TrialCheckOptions {
   maxActiveUsers: number;
 }
 
-type TrialCheckStatus = "ok" | "warning" | "error";
+type TrialCheckStatus = "ok" | "info" | "warning" | "error";
 
 interface TrialCheck {
   name: string;
@@ -1318,10 +1274,13 @@ function buildTrialCheck(
     (credential) =>
       credentialStatus(credential, subjectsById.get(credential.subjectId), generatedAt) === "active"
   );
-  const revokedCredentials = credentials.filter((credential) => credential.revokedAt !== null);
+  const revokedCredentials = credentials.filter(
+    (credential) =>
+      credentialStatus(credential, subjectsById.get(credential.subjectId), generatedAt) === "revoked"
+  );
   const expiredCredentials = credentials.filter(
     (credential) =>
-      credential.revokedAt === null && credential.expiresAt.getTime() <= generatedAt.getTime()
+      credentialStatus(credential, subjectsById.get(credential.subjectId), generatedAt) === "expired"
   );
   const uncappedCredentials = activeCredentials.filter(
     (credential) =>
@@ -1634,18 +1593,20 @@ function idleActivePlanTrialCheck(
     .filter(
       (plan) =>
         plan.createdAt.getTime() < cutoff.getTime() &&
-        store.listEntitlements({ planId: plan.id }).length === 0
+        !store
+          .listEntitlements({ planId: plan.id })
+          .some((entitlement) => entitlement.createdAt.getTime() >= cutoff.getTime())
     );
   if (idlePlans.length === 0) {
     return {
       name: "active_plan_usage",
       status: "ok",
-      message: "Active plans have recent or historical entitlement usage."
+      message: "Active plans have recent entitlement usage or are still inside the 90-day window."
     };
   }
   return {
     name: "active_plan_usage",
-    status: "warning",
+    status: "info",
     message: "Some active plans have no entitlements granted in 90 days.",
     detail: { plans: idlePlans.map((plan) => plan.id) }
   };
@@ -1671,143 +1632,6 @@ function auditTrailTrialCheck(latestAuditEvent: AdminAuditEventRecord | null): T
   };
 }
 
-function mergeAudit(base: AuditInput, extra: Partial<AuditInput> | undefined): AuditInput {
-  return {
-    ...base,
-    ...extra,
-    params: extra?.params ?? base.params ?? null
-  };
-}
-
-function adminAuditRecord(
-  input: AuditInput,
-  status: AdminAuditStatus,
-  errorMessage: string | null
-): AdminAuditEventRecord {
-  return {
-    id: `audit_${randomUUID()}`,
-    action: input.action,
-    targetUserId: input.targetUserId ?? null,
-    targetCredentialId: input.targetCredentialId ?? null,
-    targetCredentialPrefix: input.targetCredentialPrefix ?? null,
-    status,
-    params: input.params ?? null,
-    errorMessage,
-    createdAt: new Date()
-  };
-}
-
-function sanitizeAuditErrorMessage(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  return message
-    .replace(/cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "cgw.<redacted>")
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
-}
-
-function encryptAccessCredentialToken(token: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", apiKeyEncryptionKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return [
-    "v1",
-    iv.toString("base64url"),
-    tag.toString("base64url"),
-    ciphertext.toString("base64url")
-  ].join(".");
-}
-
-function revealAccessCredentialToken(record: AccessCredentialRecord): string | null {
-  if (!record.tokenCiphertext) {
-    return null;
-  }
-  const [version, ivText, tagText, ciphertextText] = record.tokenCiphertext.split(".");
-  if (version !== "v1" || !ivText || !tagText || !ciphertextText) {
-    throw new Error(`Credential prefix has an unsupported stored token format: ${record.prefix}`);
-  }
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    apiKeyEncryptionKey(),
-    Buffer.from(ivText, "base64url")
-  );
-  decipher.setAuthTag(Buffer.from(tagText, "base64url"));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(ciphertextText, "base64url")),
-    decipher.final()
-  ]);
-  return plaintext.toString("utf8");
-}
-
-function apiKeyEncryptionKey(): Buffer {
-  const secret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
-  if (!secret) {
-    throw new Error(
-      "GATEWAY_API_KEY_ENCRYPTION_SECRET is required to issue or reveal recoverable API keys."
-    );
-  }
-  return createHash("sha256").update(secret, "utf8").digest();
-}
-
-function subjectFromOptions(options: {
-  user?: string;
-  userLabel?: string;
-  name?: string;
-  phone?: string;
-  subjectId: string;
-  subjectLabel: string;
-}): Subject {
-  const user = resolveUserId(options) ?? defaultSubjectId;
-  const name = normalizeOptionalText(options.name);
-  const phoneNumber = normalizeOptionalText(options.phone);
-  const label =
-    normalizeOptionalText(options.userLabel) ??
-    name ??
-    (options.user
-      ? user
-      : normalizeOptionalText(options.subjectLabel) ?? defaultSubjectLabel);
-
-  return {
-    id: user,
-    label,
-    name,
-    phoneNumber,
-    state: "active",
-    createdAt: new Date()
-  };
-}
-
-function issueTargetUserId(options: { user?: string; subjectId?: string }): string {
-  return resolveUserId(options) ?? defaultSubjectId;
-}
-
-function issueSubject(
-  store: ReturnType<typeof createSqliteStore>,
-  options: {
-    user?: string;
-    userLabel?: string;
-    name?: string;
-    phone?: string;
-    subjectId: string;
-    subjectLabel: string;
-  }
-): Subject {
-  const requested = subjectFromOptions(options);
-  const existing = store.getSubject(requested.id);
-  if (!existing) {
-    return requested;
-  }
-  if (existing.state !== "active") {
-    throw new Error(`User is ${existing.state}; enable the user before issuing a new API key.`);
-  }
-
-  return {
-    ...existing,
-    label: requested.label,
-    name: requested.name ?? existing.name ?? null,
-    phoneNumber: requested.phoneNumber ?? existing.phoneNumber ?? null
-  };
-}
-
 function assertCanIssueCredentialForEntitlement(
   store: ReturnType<typeof createSqliteStore>,
   userId: string,
@@ -1829,26 +1653,15 @@ function assertCanIssueCredentialForEntitlement(
   }
 }
 
-function resolveUserId(options: { user?: string; subjectId?: string }): string | undefined {
-  if (options.user && options.subjectId && options.subjectId !== defaultSubjectId) {
-    throw new Error("Use --user or --subject-id, not both.");
-  }
-
-  return options.user ?? options.subjectId;
+function entitlementCheckBypassed(options: { entitlementCheck?: boolean }): boolean {
+  return options.entitlementCheck === false;
 }
 
-function rateFromOptions(options: {
-  rpm: number;
-  rpd?: NullableIntegerOption;
-  concurrent?: NullableIntegerOption;
-  tokensPerMinute?: NullableIntegerOption;
-  tokensPerDay?: NullableIntegerOption;
-  tokensPerMonth?: NullableIntegerOption;
-  maxPromptTokens?: NullableIntegerOption;
-  maxTotalTokens?: NullableIntegerOption;
-  reserveTokens?: number;
-  missingUsageCharge?: MissingUsageCharge;
-}): RateLimitPolicy {
+function resolveUserId(options: { user?: string; subjectId?: string }): string | undefined {
+  return resolveSubjectUserId(options, defaultSubjectId);
+}
+
+function rateFromOptions(options: CommandRateOptions): RateLimitPolicy {
   const rate: RateLimitPolicy = {
     requestsPerMinute: options.rpm,
     requestsPerDay: normalizeNullableIntegerOption(options.rpd) ?? null,
@@ -1950,7 +1763,7 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
     concurrent: normalizeNullableIntegerOption(options.concurrent),
     token: requestedTokenPolicyParams(options),
     clear_token_policy: Boolean(options.clearTokenPolicy),
-    no_entitlement_check: Boolean(options.noEntitlementCheck)
+    no_entitlement_check: entitlementCheckBypassed(options)
   };
 }
 
@@ -2058,155 +1871,6 @@ function updateKeyRate(
   return rate;
 }
 
-function auditCredentialSnapshot(record: AccessCredentialRecord) {
-  return {
-    id: record.id,
-    prefix: record.prefix,
-    user_id: record.subjectId,
-    label: record.label,
-    scope: record.scope,
-    expires_at: record.expiresAt.toISOString(),
-    revoked_at: record.revokedAt?.toISOString() ?? null,
-    rate: record.rate
-  };
-}
-
-type CredentialStatus =
-  | "active"
-  | "revoked"
-  | "expired"
-  | "user_disabled"
-  | "user_archived"
-  | "user_missing";
-
-function publicCredential(
-  record: AccessCredentialRecord,
-  subject?: Subject | null,
-  now: Date = new Date(),
-  revealedToken?: string | null
-) {
-  const status = credentialStatus(record, subject, now);
-  const output: Record<string, unknown> = {
-    id: record.id,
-    prefix: record.prefix,
-    user_id: record.subjectId,
-    subject_id: record.subjectId,
-    label: record.label,
-    scope: record.scope,
-    expires_at: record.expiresAt.toISOString(),
-    revoked_at: record.revokedAt?.toISOString() ?? null,
-    status,
-    is_currently_valid: status === "active",
-    token_available: Boolean(record.tokenCiphertext),
-    token_unavailable_reason: record.tokenCiphertext ? null : "not_stored",
-    rate: record.rate,
-    created_at: record.createdAt.toISOString(),
-    rotates_id: record.rotatesId,
-    user: subject ? publicSubject(subject) : null
-  };
-  if (revealedToken !== undefined) {
-    output.token = revealedToken;
-  }
-  return output;
-}
-
-function publicPlan(plan: Plan, includePolicy: boolean) {
-  return {
-    id: plan.id,
-    display_name: plan.displayName,
-    scope_allowlist: plan.scopeAllowlist,
-    priority_class: plan.priorityClass,
-    team_pool_id: plan.teamPoolId,
-    state: plan.state,
-    created_at: plan.createdAt.toISOString(),
-    metadata: plan.metadata,
-    ...(includePolicy ? { policy: plan.policy } : {})
-  };
-}
-
-function publicEntitlement(entitlement: Entitlement) {
-  return {
-    id: entitlement.id,
-    user_id: entitlement.subjectId,
-    subject_id: entitlement.subjectId,
-    plan_id: entitlement.planId,
-    policy_snapshot: entitlement.policySnapshot,
-    scope_allowlist: entitlement.scopeAllowlist,
-    period_kind: entitlement.periodKind,
-    period_start: entitlement.periodStart.toISOString(),
-    period_end: entitlement.periodEnd?.toISOString() ?? null,
-    state: entitlement.state,
-    team_seat_id: entitlement.teamSeatId,
-    created_at: entitlement.createdAt.toISOString(),
-    cancelled_at: entitlement.cancelledAt?.toISOString() ?? null,
-    cancelled_reason: entitlement.cancelledReason,
-    notes: entitlement.notes
-  };
-}
-
-function publicEntitlementAccess(
-  access: ReturnType<ReturnType<typeof createSqliteStore>["entitlementAccessForSubject"]>
-) {
-  if (access.status === "active") {
-    return {
-      status: access.status,
-      plan: access.plan ? publicPlan(access.plan, false) : null,
-      entitlement: publicEntitlement(access.entitlement)
-    };
-  }
-  return {
-    status: access.status,
-    ...("reason" in access ? { reason: access.reason } : {}),
-    ...("entitlement" in access ? { entitlement: access.entitlement ? publicEntitlement(access.entitlement) : null } : {})
-  };
-}
-
-function publicTokenPolicy(policy: TokenLimitPolicy) {
-  return {
-    tokensPerMinute: policy.tokensPerMinute,
-    tokensPerDay: policy.tokensPerDay,
-    tokensPerMonth: policy.tokensPerMonth,
-    maxPromptTokensPerRequest: policy.maxPromptTokensPerRequest,
-    maxTotalTokensPerRequest: policy.maxTotalTokensPerRequest
-  };
-}
-
-function publicTokenUsage(usage: Awaited<ReturnType<ReturnType<typeof createSqliteTokenBudgetLimiter>["getCurrentUsage"]>>) {
-  return {
-    source: usage.source,
-    minute: publicTokenWindow(usage.minute),
-    day: publicTokenWindow(usage.day),
-    month: publicTokenWindow(usage.month)
-  };
-}
-
-function publicTokenWindow(input: {
-  limit: number | null;
-  used: number;
-  reserved: number;
-  remaining: number | null;
-  windowStart: string;
-}) {
-  return {
-    limit: input.limit,
-    used: input.used,
-    reserved: input.reserved,
-    remaining: input.remaining,
-    window_start: input.windowStart
-  };
-}
-
-function publicSubject(subject: Subject) {
-  return {
-    id: subject.id,
-    label: subject.label,
-    name: subject.name ?? null,
-    phone_number: subject.phoneNumber ?? null,
-    state: subject.state,
-    created_at: subject.createdAt.toISOString()
-  };
-}
-
 function subjectMap(subjects: Subject[]): Map<string, Subject> {
   return new Map(subjects.map((subject) => [subject.id, subject]));
 }
@@ -2240,43 +1904,6 @@ function resolveTokenPolicyCredential(
     throw new Error(`No active token policy credential found for user: ${userId}`);
   }
   return credential;
-}
-
-function credentialStatus(
-  record: AccessCredentialRecord,
-  subject: Subject | null | undefined,
-  now: Date
-): CredentialStatus {
-  if (record.revokedAt) {
-    return "revoked";
-  }
-  if (record.expiresAt.getTime() <= now.getTime()) {
-    return "expired";
-  }
-  if (!subject) {
-    return "user_missing";
-  }
-  if (subject.state === "disabled") {
-    return "user_disabled";
-  }
-  if (subject.state === "archived") {
-    return "user_archived";
-  }
-  return "active";
-}
-
-function publicAdminAuditEvent(record: AdminAuditEventRecord) {
-  return {
-    id: record.id,
-    action: record.action,
-    target_user_id: record.targetUserId,
-    target_credential_id: record.targetCredentialId,
-    target_credential_prefix: record.targetCredentialPrefix,
-    status: record.status,
-    params: record.params,
-    error_message: record.errorMessage,
-    created_at: record.createdAt.toISOString()
-  };
 }
 
 function readTokenPolicyFile(filePath: string): TokenLimitPolicy {
@@ -2377,164 +2004,6 @@ function entitlementGrantAuditParams(options: {
   };
 }
 
-function parseScopeList(value: string): Scope[] {
-  const scopes = parseCommaList(value).map(parseScope);
-  if (scopes.length === 0) {
-    throw new InvalidArgumentError("scope list must not be empty");
-  }
-  return Array.from(new Set(scopes));
-}
-
-function parseCommaList(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parsePlanState(value: string): PlanState {
-  if (value === "active" || value === "deprecated") {
-    return value;
-  }
-  throw new InvalidArgumentError("plan state must be active or deprecated");
-}
-
-function parsePeriodKind(value: string): PeriodKind {
-  if (value === "monthly" || value === "one_off" || value === "unlimited") {
-    return value;
-  }
-  throw new InvalidArgumentError("period must be monthly, one_off, or unlimited");
-}
-
-function parseEntitlementState(value: string): EntitlementState {
-  if (
-    value === "scheduled" ||
-    value === "active" ||
-    value === "paused" ||
-    value === "expired" ||
-    value === "cancelled"
-  ) {
-    return value;
-  }
-  throw new InvalidArgumentError(
-    "entitlement state must be scheduled, active, paused, expired, or cancelled"
-  );
-}
-
-function parseReportGroupBy(value: string): "entitlement" {
-  if (value === "entitlement") {
-    return value;
-  }
-  throw new InvalidArgumentError("group-by must be entitlement");
-}
-
-function parseDurationMs(value: string): number {
-  const match = value.match(/^(\d+)(m|h|d)$/);
-  if (!match) {
-    throw new InvalidArgumentError("duration must look like 30m, 1h, or 7d");
-  }
-  const amount = Number.parseInt(match[1], 10);
-  const unit = match[2];
-  if (!Number.isSafeInteger(amount) || amount <= 0) {
-    throw new InvalidArgumentError("duration amount must be a positive integer");
-  }
-  if (unit === "m") {
-    return amount * 60_000;
-  }
-  if (unit === "h") {
-    return amount * 60 * 60_000;
-  }
-  return amount * 24 * 60 * 60_000;
-}
-
-function parseScope(value: string): Scope {
-  if (value === "code" || value === "medical") {
-    return value;
-  }
-  throw new InvalidArgumentError("scope must be code or medical");
-}
-
-function parseSubjectState(value: string): SubjectState {
-  if (value === "active" || value === "disabled" || value === "archived") {
-    return value;
-  }
-  throw new InvalidArgumentError("state must be active, disabled, or archived");
-}
-
-function parseAdminAuditAction(value: string): AdminAuditAction {
-  if (
-    value === "issue" ||
-    value === "update-key" ||
-    value === "revoke" ||
-    value === "rotate" ||
-    value === "reveal-key" ||
-    value === "update-user" ||
-    value === "disable-user" ||
-    value === "enable-user" ||
-    value === "prune-events" ||
-    value === "token-overrun" ||
-    value === "token-reservation-expired" ||
-    value === "plan-create" ||
-    value === "plan-deprecate" ||
-    value === "entitlement-grant" ||
-    value === "entitlement-renew" ||
-    value === "entitlement-cancel" ||
-    value === "entitlement-pause" ||
-    value === "entitlement-resume" ||
-    value === "entitlement-activate" ||
-    value === "entitlement-expire"
-  ) {
-    return value;
-  }
-  throw new InvalidArgumentError(
-    "action must be a known admin audit action"
-  );
-}
-
-function parseAdminAuditStatus(value: string): AdminAuditStatus {
-  if (value === "ok" || value === "error") {
-    return value;
-  }
-  throw new InvalidArgumentError("status must be ok or error");
-}
-
-function parsePositiveInteger(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new InvalidArgumentError("value must be a positive integer");
-  }
-  return parsed;
-}
-
-function parseNonNegativeInteger(value: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new InvalidArgumentError("value must be a non-negative integer");
-  }
-  return parsed;
-}
-
-function parseNullablePositiveInteger(value: string): number | null {
-  if (value.toLowerCase() === "null" || value.toLowerCase() === "none") {
-    return null;
-  }
-  return parsePositiveInteger(value);
-}
-
-function parseNullableNonNegativeInteger(value: string): number | null {
-  if (value.toLowerCase() === "null" || value.toLowerCase() === "none") {
-    return null;
-  }
-  return parseNonNegativeInteger(value);
-}
-
-function parseMissingUsageCharge(value: string): MissingUsageCharge {
-  if (value === "none" || value === "estimate" || value === "reserve") {
-    return value;
-  }
-  throw new InvalidArgumentError("missing usage charge must be none, estimate, or reserve");
-}
-
 function normalizeNullableIntegerOption(
   value: NullableIntegerOption | undefined
 ): number | null | undefined {
@@ -2553,14 +2022,6 @@ function normalizeOptionalText(value: string | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function parseDate(value: string): Date {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new InvalidArgumentError("value must be a valid ISO date or datetime");
-  }
-  return parsed;
 }
 
 function addDays(date: Date, days: number): Date {

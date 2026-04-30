@@ -65,6 +65,7 @@ export function markTokenFinalizeResult(
 ): void {
   request.gatewayOverRequestLimit = result.overRequestLimit;
   if (!request.gatewayTokenUsage && result.finalTotalTokens > 0) {
+    // No provider usage was recorded, so observation falls back to the finalized charge amount.
     request.gatewayEstimatedTokens = result.finalTotalTokens;
     request.gatewayTokenUsageSource =
       result.finalUsageSource === "soft_write" ? "provider" : result.finalUsageSource;
@@ -130,10 +131,7 @@ export function recordObservation(
     totalTokens: tokenUsage?.totalTokens ?? null,
     cachedPromptTokens: tokenUsage?.cachedPromptTokens ?? null,
     estimatedTokens: tokenUsage ? null : request.gatewayEstimatedTokens ?? null,
-    usageSource:
-      tokenUsage || request.gatewayTokenUsageSource
-        ? request.gatewayTokenUsageSource ?? "provider"
-        : null,
+    usageSource: requestUsageSource(request, tokenUsage),
     limitKind: request.gatewayLimitKind ?? null,
     reservationId: request.gatewayTokenReservationId ?? null,
     overRequestLimit: request.gatewayOverRequestLimit === true,
@@ -153,4 +151,17 @@ function firstByteMs(request: FastifyRequest, completedAt: Date): number {
 
 function isErrorResponse(request: FastifyRequest, statusCode: number | undefined): boolean {
   return Boolean(request.gatewayErrorCode) || (statusCode ?? 200) >= 400;
+}
+
+function requestUsageSource(
+  request: FastifyRequest,
+  tokenUsage: TokenUsage | undefined
+): RequestTokenUsageSource | null {
+  if (request.gatewayTokenUsageSource) {
+    return request.gatewayTokenUsageSource;
+  }
+  if (tokenUsage) {
+    return "provider";
+  }
+  return null;
 }

@@ -42,6 +42,7 @@ import {
   startObservation
 } from "./http/observation.js";
 import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
+import { setupSseResponse } from "./http/sse.js";
 import {
   chatMessagesToPrompt,
   chatMessagesToStrictToolPrompt,
@@ -65,6 +66,12 @@ import {
   InMemoryCredentialRateLimiter,
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
+import {
+  collectProviderMessage,
+  streamErrorToGatewayError,
+  type CollectedProviderMessage,
+  type ProviderToolCall
+} from "./services/provider-stream.js";
 import { InMemorySessionStore } from "./services/session-store.js";
 import {
   beginTokenBudget,
@@ -527,29 +534,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
 
     if (parsed.stream) {
-      reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
-      reply.raw.setHeader("cache-control", "no-cache");
-      reply.raw.setHeader("connection", "keep-alive");
-      reply.hijack();
-
-      const abort = new AbortController();
-      let closed = false;
+      const sse = setupSseResponse(reply);
       let failed = false;
       let hasToolCalls = false;
       let toolCallIndex = 0;
       let usage: OpenAIChatUsage | null = null;
-      const close = () => {
-        closed = true;
-        abort.abort();
-      };
-      reply.raw.on("close", close);
-      const heartbeat = setInterval(() => {
-        writeSseComment(reply, "ping");
-      }, 25_000);
-      heartbeat.unref?.();
 
       try {
-        writeOpenAISseData(reply, createInitialChatCompletionChunk(shape));
+        sse.writeData(createInitialChatCompletionChunk(shape));
         markFirstByte(request);
 
         if (strictClientTools) {
@@ -561,13 +553,13 @@ export function buildGateway(options: GatewayOptions = {}) {
             session,
             request: parsed,
             prompt,
-            signal: abort.signal,
+            signal: sse.signal,
             requestId: request.id,
             log: request.log
           });
           if (strictResult instanceof GatewayError) {
             request.gatewayErrorCode = strictResult.code;
-            writeOpenAISseData(reply, openAIErrorPayload(strictResult));
+            sse.writeData(openAIErrorPayload(strictResult));
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
             hasToolCalls = true;
@@ -580,8 +572,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 toolCallIndex
               });
               toolCallIndex += 1;
-              if (chunk && !writeOpenAISseData(reply, chunk)) {
-                abort.abort();
+              if (chunk && !sse.writeData(chunk)) {
                 break;
               }
             }
@@ -593,9 +584,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               event: { type: "message_delta", text: strictResult.content },
               toolCallIndex
             });
-            if (chunk && !writeOpenAISseData(reply, chunk)) {
-              abort.abort();
-            }
+            chunk && sse.writeData(chunk);
           }
         } else {
           for await (const event of provider.message({
@@ -604,9 +593,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             scope,
             session,
             message: prompt,
-            signal: abort.signal
+            signal: sse.signal
           })) {
-            if (closed) {
+            if (sse.isClosed()) {
               break;
             }
             if (event.type === "completed") {
@@ -617,7 +606,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (event.type === "error") {
               const error = streamErrorToGatewayError(event);
               request.gatewayErrorCode = error.code;
-              writeOpenAISseData(reply, openAIErrorPayload(error));
+              sse.writeData(openAIErrorPayload(error));
               failed = true;
               break;
             }
@@ -640,27 +629,22 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (event.type === "tool_call") {
               toolCallIndex += 1;
             }
-            if (chunk && !writeOpenAISseData(reply, chunk)) {
-              abort.abort();
+            if (chunk && !sse.writeData(chunk)) {
               break;
             }
           }
         }
 
-        if (!closed && !failed) {
+        if (!sse.isClosed() && !failed) {
           const finishReason = hasToolCalls ? "tool_calls" : "stop";
-          writeOpenAISseData(reply, createFinalChatCompletionChunk(shape, finishReason, usage));
-          writeOpenAISseDone(reply);
+          sse.writeData(createFinalChatCompletionChunk(shape, finishReason, usage));
+          sse.writeDone();
         }
       } finally {
         await finalizeTokenBudget(request, tokenBudgetLimiter);
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
-        clearInterval(heartbeat);
-        reply.raw.off("close", close);
-        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-          reply.raw.end();
-        }
+        sse.end();
       }
       return;
     }
@@ -691,36 +675,26 @@ export function buildGateway(options: GatewayOptions = {}) {
         usage = strictResult.usage;
         markOpenAITokenUsage(request, usage);
       } else {
-        for await (const event of provider.message({
+        const collected = await collectProviderMessage({
+          provider,
           upstreamAccount,
           subject,
           scope,
           session,
-          message: prompt
-        })) {
-          if (event.type === "message_delta") {
-            markFirstByte(request);
-            content += event.text;
-          } else if (event.type === "tool_call") {
-            if (parsed.toolChoice === "none") {
-              continue;
-            }
-            markFirstByte(request);
-            toolCalls.push({
-              id: event.callId,
-              type: "function",
-              function: {
-                name: event.name,
-                arguments: JSON.stringify(event.arguments ?? {})
-              }
-            });
-          } else if (event.type === "error") {
-            return sendOpenAIError(request, reply, streamErrorToGatewayError(event));
-          } else if (event.type === "completed") {
-            usage = openAIUsageFromTokenUsage(event.usage);
-            markTokenUsage(request, event.usage);
-          }
+          message: prompt,
+          suppressToolCalls: parsed.toolChoice === "none",
+          suppressTextAfterToolCall: true
+        });
+        if (collected instanceof GatewayError) {
+          return sendOpenAIError(request, reply, collected);
         }
+        if (collected.content.length > 0 || collected.toolCalls.length > 0) {
+          markFirstByte(request);
+        }
+        content = collected.content;
+        toolCalls.push(...collected.toolCalls.map(providerToolCallToOpenAI));
+        usage = openAIUsageFromTokenUsage(collected.usage);
+        markTokenUsage(request, collected.usage);
       }
 
       return createChatCompletionResponse({
@@ -801,22 +775,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         return sendError(request, reply, tokenBudgetError);
       }
 
-      reply.raw.setHeader("content-type", "text/event-stream; charset=utf-8");
-      reply.raw.setHeader("cache-control", "no-cache");
-      reply.raw.setHeader("connection", "keep-alive");
-      reply.hijack();
-
-      const abort = new AbortController();
-      let closed = false;
-      const close = () => {
-        closed = true;
-        abort.abort();
-      };
-      reply.raw.on("close", close);
-      const heartbeat = setInterval(() => {
-        writeSseComment(reply, "ping");
-      }, 25_000);
-      heartbeat.unref?.();
+      const sse = setupSseResponse(reply);
 
       try {
         for await (const event of provider.message({
@@ -825,9 +784,9 @@ export function buildGateway(options: GatewayOptions = {}) {
           scope,
           session,
           message,
-          signal: abort.signal
+          signal: sse.signal
         })) {
-          if (closed) {
+          if (sse.isClosed()) {
             break;
           }
           if (event.type === "completed" && event.providerSessionRef) {
@@ -840,8 +799,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             request.gatewayErrorCode = event.code;
           }
           markFirstByte(request);
-          if (!writeSseEvent(reply, event.type, event)) {
-            abort.abort();
+          if (!sse.writeEvent(event.type, event)) {
             break;
           }
         }
@@ -849,11 +807,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         await finalizeTokenBudget(request, tokenBudgetLimiter);
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
-        clearInterval(heartbeat);
-        reply.raw.off("close", close);
-        if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-          reply.raw.end();
-        }
+        sse.end();
       }
     }
   );
@@ -885,30 +839,23 @@ interface StrictClientToolsLogger {
   warn: (obj: Record<string, unknown>, msg: string) => void;
 }
 
+interface StrictToolCollection {
+  collected: CollectedProviderMessage;
+  parsed: StrictToolDecision | GatewayError;
+}
+
 async function runStrictClientTools(
   input: StrictClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
-  const first = await collectProviderText({
-    provider: input.provider,
-    upstreamAccount: input.upstreamAccount,
-    subject: input.subject,
-    scope: input.scope,
-    session: input.session,
-    prompt: input.prompt,
-    signal: input.signal
-  });
+  const first = await collectStrictToolDecision(input, input.prompt);
   if (first instanceof GatewayError) {
     return first;
   }
 
-  const parsed = parseStrictToolDecision({
-    text: first.content,
-    tools: input.request.tools ?? [],
-    toolChoice: input.request.toolChoice,
-    createToolCallId
-  });
+  const firstUsage = openAIUsageFromTokenUsage(first.collected.usage);
+  const parsed = first.parsed;
   if (!(parsed instanceof GatewayError)) {
-    return strictDecisionToResult(parsed, first.usage);
+    return strictDecisionToResult(parsed, firstUsage);
   }
 
   input.log?.warn(
@@ -923,28 +870,15 @@ async function runStrictClientTools(
 
   const repairPrompt = chatMessagesToStrictToolRepairPrompt({
     originalPrompt: input.prompt,
-    invalidOutput: first.content,
+    invalidOutput: first.collected.content,
     validationError: parsed.message
   });
-  const repaired = await collectProviderText({
-    provider: input.provider,
-    upstreamAccount: input.upstreamAccount,
-    subject: input.subject,
-    scope: input.scope,
-    session: input.session,
-    prompt: repairPrompt,
-    signal: input.signal
-  });
+  const repaired = await collectStrictToolDecision(input, repairPrompt);
   if (repaired instanceof GatewayError) {
     return repaired;
   }
 
-  const repairedParsed = parseStrictToolDecision({
-    text: repaired.content,
-    tools: input.request.tools ?? [],
-    toolChoice: input.request.toolChoice,
-    createToolCallId
-  });
+  const repairedParsed = repaired.parsed;
   if (repairedParsed instanceof GatewayError) {
     input.log?.warn(
       {
@@ -966,39 +900,39 @@ async function runStrictClientTools(
     "Strict client-defined tool output repaired successfully."
   );
 
-  return strictDecisionToResult(repairedParsed, addOpenAIUsage(first.usage, repaired.usage));
+  return strictDecisionToResult(
+    repairedParsed,
+    addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage))
+  );
 }
 
-async function collectProviderText(input: {
-  provider: ProviderAdapter;
-  upstreamAccount: UpstreamAccount;
-  subject: Subject;
-  scope: Scope;
-  session: GatewaySession;
-  prompt: string;
-  signal?: AbortSignal;
-}): Promise<{ content: string; usage: OpenAIChatUsage | null } | GatewayError> {
-  let content = "";
-  let usage: OpenAIChatUsage | null = null;
-
-  for await (const event of input.provider.message({
+async function collectStrictToolDecision(
+  input: StrictClientToolsInput,
+  prompt: string
+): Promise<StrictToolCollection | GatewayError> {
+  const collected = await collectProviderMessage({
+    provider: input.provider,
     upstreamAccount: input.upstreamAccount,
     subject: input.subject,
     scope: input.scope,
     session: input.session,
-    message: input.prompt,
-    signal: input.signal
-  })) {
-    if (event.type === "message_delta") {
-      content += event.text;
-    } else if (event.type === "completed") {
-      usage = openAIUsageFromTokenUsage(event.usage);
-    } else if (event.type === "error") {
-      return streamErrorToGatewayError(event);
-    }
+    message: prompt,
+    signal: input.signal,
+    suppressToolCalls: true
+  });
+  if (collected instanceof GatewayError) {
+    return collected;
   }
 
-  return { content, usage };
+  return {
+    collected,
+    parsed: parseStrictToolDecision({
+      text: collected.content,
+      tools: input.request.tools ?? [],
+      toolChoice: input.request.toolChoice,
+      createToolCallId
+    })
+  };
 }
 
 function strictDecisionToResult(
@@ -1037,6 +971,17 @@ function openAIToolCallToStreamEvent(toolCall: OpenAIChatToolCall) {
     callId: toolCall.id,
     name: toolCall.function.name,
     arguments: parsedArguments
+  };
+}
+
+function providerToolCallToOpenAI(toolCall: ProviderToolCall): OpenAIChatToolCall {
+  return {
+    id: toolCall.id,
+    type: "function",
+    function: {
+      name: toolCall.name,
+      arguments: JSON.stringify(toolCall.arguments ?? {})
+    }
   };
 }
 
@@ -1165,102 +1110,12 @@ function createStatelessSession(subjectId: string, upstreamAccountId: string): G
   };
 }
 
-function streamErrorToGatewayError(event: { code: string; message: string }): GatewayError {
-  if (event.code === "rate_limited") {
-    return new GatewayError({
-      code: "rate_limited",
-      message: event.message,
-      httpStatus: 429,
-      retryAfterSeconds: 60
-    });
-  }
-  if (event.code === "provider_reauth_required") {
-    return new GatewayError({
-      code: "provider_reauth_required",
-      message: event.message,
-      httpStatus: 503
-    });
-  }
-  if (event.code === "subscription_unavailable") {
-    return new GatewayError({
-      code: "subscription_unavailable",
-      message: event.message,
-      httpStatus: 503
-    });
-  }
-  if (event.code === "invalid_request") {
-    return new GatewayError({
-      code: "invalid_request",
-      message: event.message,
-      httpStatus: 400
-    });
-  }
-  return new GatewayError({
-    code: "service_unavailable",
-    message: event.message,
-    httpStatus: 503
-  });
-}
-
 function modelNotFoundError(model: string): GatewayError {
   return new GatewayError({
     code: "model_not_found",
     message: `Model '${model}' does not exist.`,
     httpStatus: 404
   });
-}
-
-function writeSseEvent(reply: FastifyReply, event: string, data: unknown): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.raw.write(`event: ${event}\n`);
-    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeOpenAISseData(reply: FastifyReply, data: unknown): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeOpenAISseDone(reply: FastifyReply): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.raw.write("data: [DONE]\n\n");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function writeSseComment(reply: FastifyReply, comment: string): boolean {
-  if (reply.raw.destroyed || reply.raw.writableEnded) {
-    return false;
-  }
-
-  try {
-    reply.raw.write(`:${comment}\n\n`);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function defaultSubject(): Subject {
@@ -1342,12 +1197,12 @@ function resolveOpenAIModelLimits(env: NodeJS.ProcessEnv): OpenAIModelLimits {
   return {
     contextWindow: parsePositiveIntegerEnv(
       env.MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW,
-      272_000,
+      400_000,
       "MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW"
     ),
     maxContextWindow: parsePositiveIntegerEnv(
       env.MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW,
-      1_000_000,
+      400_000,
       "MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW"
     ),
     maxOutputTokens: parsePositiveIntegerEnv(

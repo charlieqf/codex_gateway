@@ -23,6 +23,7 @@ interface CredentialRateState {
   dayWindow: string;
   dayCount: number;
   active: number;
+  lastSeenMs: number;
 }
 
 export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
@@ -36,6 +37,7 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
   acquire(input: RateLimitInput): RateLimitPermit | LimitRejection {
     const now = this.now();
     const state = this.state(input.credentialId, now);
+    state.lastSeenMs = now.getTime();
     const concurrencyLimit = input.policy.concurrentRequests;
     if (concurrencyLimit !== null && state.active >= concurrencyLimit) {
       return rateLimited("concurrency", "Concurrent request limit reached.", 1);
@@ -83,6 +85,9 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         }
         released = true;
         state.active = Math.max(0, state.active - 1);
+        const releasedAt = this.now();
+        state.lastSeenMs = releasedAt.getTime();
+        this.pruneIdleState(input.credentialId, state, releasedAt);
       }
     };
   }
@@ -98,10 +103,23 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       minuteCount: 0,
       dayWindow: utcDayWindow(now),
       dayCount: 0,
-      active: 0
+      active: 0,
+      lastSeenMs: now.getTime()
     };
     this.states.set(credentialId, state);
     return state;
+  }
+
+  private pruneIdleState(credentialId: string, state: CredentialRateState, now: Date): void {
+    if (state.active > 0) {
+      return;
+    }
+
+    const currentMinuteWindow = Math.floor(now.getTime() / 60_000);
+    const currentDayWindow = utcDayWindow(now);
+    if (state.minuteWindow !== currentMinuteWindow && state.dayWindow !== currentDayWindow) {
+      this.states.delete(credentialId);
+    }
   }
 }
 

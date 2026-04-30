@@ -144,7 +144,7 @@ curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" \
   -o "$tmp_dir/models.json" \
   -H "Authorization: Bearer $token" \
   "$BASE_URL/v1/models"
-assert_json "$tmp_dir/models.json" 'const m = x.data?.[0]; if (m?.id !== "medcode" || m?.context_window !== 272000) process.exit(1);'
+assert_json "$tmp_dir/models.json" 'const m = x.data?.[0]; if (m?.id !== "medcode" || m?.context_window !== 272000 || m?.max_context_window !== 400000 || m?.max_output_tokens !== 128000) process.exit(1);'
 models_request_id="$(require_request_id "models" "$tmp_dir/models.headers")"
 echo "models=ok ${models_request_id}"
 

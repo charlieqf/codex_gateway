@@ -829,6 +829,168 @@ describe("SqliteGatewayStore", () => {
     });
     expect(store.getEntitlement(current.id)?.state).toBe("expired");
     expect(store.getEntitlement(renewal.id)?.state).toBe("active");
+    expect(store.listAdminAuditEvents({ userId: "subj_1", limit: 10 })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "entitlement-expire",
+          targetUserId: "subj_1",
+          params: expect.objectContaining({
+            entitlement_id: current.id,
+            plan_id: "plan_monthly_v1",
+            from_state: "active",
+            to_state: "expired"
+          })
+        }),
+        expect.objectContaining({
+          action: "entitlement-activate",
+          targetUserId: "subj_1",
+          params: expect.objectContaining({
+            entitlement_id: renewal.id,
+            plan_id: "plan_monthly_v1",
+            from_state: "scheduled",
+            to_state: "active"
+          })
+        })
+      ])
+    );
+
+    store.close();
+  });
+
+  it("writes audit rows for explicit entitlement state transitions", () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    store.createPlan({
+      id: "plan_audit_v1",
+      displayName: "Audit",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_audit_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    store.pauseEntitlement({
+      id: entitlement.id,
+      reason: "billing hold",
+      now: new Date("2026-01-02T00:00:00Z")
+    });
+    store.resumeEntitlement({ id: entitlement.id, now: new Date("2026-01-03T00:00:00Z") });
+    store.cancelEntitlement({
+      id: entitlement.id,
+      reason: "customer request",
+      now: new Date("2026-01-04T00:00:00Z")
+    });
+
+    const auditEvents = store.listAdminAuditEvents({ userId: "subj_1", status: "ok", limit: 10 });
+    expect(auditEvents).toHaveLength(3);
+    expect(auditEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "entitlement-pause",
+          targetUserId: "subj_1",
+          params: expect.objectContaining({
+            entitlement_id: entitlement.id,
+            plan_id: "plan_audit_v1",
+            from_state: "active",
+            to_state: "paused",
+            reason: "billing hold"
+          })
+        }),
+        expect.objectContaining({
+          action: "entitlement-resume",
+          targetUserId: "subj_1",
+          params: expect.objectContaining({
+            entitlement_id: entitlement.id,
+            plan_id: "plan_audit_v1",
+            from_state: "paused",
+            to_state: "active"
+          })
+        }),
+        expect.objectContaining({
+          action: "entitlement-cancel",
+          targetUserId: "subj_1",
+          params: expect.objectContaining({
+            entitlement_id: entitlement.id,
+            plan_id: "plan_audit_v1",
+            from_state: "active",
+            to_state: "cancelled",
+            reason: "customer request"
+          })
+        })
+      ])
+    );
+
+    store.close();
+  });
+
+  it("writes error audit rows for failed entitlement state transitions", () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: 10_000,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    store.createPlan({
+      id: "plan_error_audit_v1",
+      displayName: "Error Audit",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_error_audit_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.cancelEntitlement({
+      id: entitlement.id,
+      reason: "customer request",
+      now: new Date("2026-01-02T00:00:00Z")
+    });
+
+    expect(() =>
+      store.resumeEntitlement({
+        id: entitlement.id,
+        now: new Date("2026-01-03T00:00:00Z")
+      })
+    ).toThrow("Invalid entitlement state transition: cancelled -> active.");
+
+    const errorAudits = store.listAdminAuditEvents({
+      userId: "subj_1",
+      status: "error",
+      limit: 10
+    });
+    expect(errorAudits).toHaveLength(1);
+    expect(errorAudits[0]).toMatchObject({
+      action: "entitlement-resume",
+      targetUserId: "subj_1",
+      errorMessage: "Invalid entitlement state transition: cancelled -> active.",
+      params: expect.objectContaining({
+        entitlement_id: entitlement.id,
+        plan_id: "plan_error_audit_v1",
+        from_state: "cancelled",
+        to_state: "active",
+        reason: null
+      })
+    });
 
     store.close();
   });
@@ -879,6 +1041,28 @@ describe("SqliteGatewayStore", () => {
         state: "active"
       }
     });
+    expect(store.listAdminAuditEvents({ userId: "subj_1", limit: 10 })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "entitlement-cancel",
+          params: expect.objectContaining({
+            entitlement_id: current.id,
+            from_state: "active",
+            to_state: "cancelled",
+            reason: "replaced"
+          })
+        }),
+        expect.objectContaining({
+          action: "entitlement-cancel",
+          params: expect.objectContaining({
+            entitlement_id: renewal.id,
+            from_state: "scheduled",
+            to_state: "cancelled",
+            reason: "replaced"
+          })
+        })
+      ])
+    );
 
     store.close();
   });

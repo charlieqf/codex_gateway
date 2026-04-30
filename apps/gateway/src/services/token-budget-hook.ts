@@ -2,6 +2,7 @@ import type { FastifyRequest } from "fastify";
 import {
   GatewayError,
   mergeEntitlementTokenPolicy,
+  publicTokenPolicy,
   type PlanEntitlementStore,
   type TokenBudgetLimiter,
   type TokenLimitPolicy,
@@ -15,6 +16,8 @@ import {
   markTokenFinalizeResult,
   markTokenReservation
 } from "../http/observation.js";
+
+export { publicTokenPolicy, publicTokenUsage } from "@codex-gateway/core";
 
 export async function cleanupExpiredTokenReservations(
   limiter: TokenBudgetLimiter | undefined,
@@ -202,16 +205,6 @@ export async function finalizeTokenBudget(
   }
 }
 
-export function publicTokenPolicy(policy: TokenLimitPolicy) {
-  return {
-    tokensPerMinute: policy.tokensPerMinute,
-    tokensPerDay: policy.tokensPerDay,
-    tokensPerMonth: policy.tokensPerMonth,
-    maxPromptTokensPerRequest: policy.maxPromptTokensPerRequest,
-    maxTotalTokensPerRequest: policy.maxTotalTokensPerRequest
-  };
-}
-
 export function publicRatePolicy<T extends { token?: TokenLimitPolicy | null }>(
   policy: T | null
 ) {
@@ -225,37 +218,10 @@ export function publicRatePolicy<T extends { token?: TokenLimitPolicy | null }>(
   };
 }
 
-export function publicTokenUsage(
-  usage: Awaited<ReturnType<TokenBudgetLimiter["getCurrentUsage"]>>
-) {
-  return {
-    source: usage.source,
-    minute: publicWindowUsage(usage.minute),
-    day: publicWindowUsage(usage.day),
-    month: publicWindowUsage(usage.month)
-  };
-}
-
 export function estimatePromptTokens(text: string, extraText = ""): number {
   return Math.max(1, Math.ceil((text.length + extraText.length) / 3));
 }
 
 interface TokenBudgetLogger {
   warn: (obj: Record<string, unknown>, msg: string) => void;
-}
-
-function publicWindowUsage(input: {
-  limit: number | null;
-  used: number;
-  reserved: number;
-  remaining: number | null;
-  windowStart: string;
-}) {
-  return {
-    limit: input.limit,
-    used: input.used,
-    reserved: input.reserved,
-    remaining: input.remaining,
-    window_start: input.windowStart
-  };
 }

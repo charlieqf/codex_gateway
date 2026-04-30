@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ThreadEvent, ThreadOptions, TurnOptions } from "@openai/codex-sdk";
@@ -44,6 +44,29 @@ class FakeClient implements CodexClientLike {
 }
 
 describe("CodexProviderAdapter", () => {
+  it("reports healthy when the Codex auth cache is present", async () => {
+    const codexHome = mkdtempSync(path.join(tmpdir(), "codex-provider-health-"));
+    writeFileSync(path.join(codexHome, "auth.json"), "{}");
+    const adapter = createAdapter(new FakeClient(new FakeThread(null, [])), { codexHome });
+
+    const health = await adapter.health(upstreamAccount());
+
+    expect(health.state).toBe("healthy");
+    expect(health.checkedAt).toBeInstanceOf(Date);
+    expect(health.detail).toBe("Codex auth cache is present.");
+  });
+
+  it("reports reauth required when the Codex auth cache is missing", async () => {
+    const codexHome = mkdtempSync(path.join(tmpdir(), "codex-provider-health-"));
+    const adapter = createAdapter(new FakeClient(new FakeThread(null, [])), { codexHome });
+
+    const health = await adapter.health(upstreamAccount());
+
+    expect(health.state).toBe("reauth_required");
+    expect(health.checkedAt).toBeInstanceOf(Date);
+    expect(health.detail).toBe("Codex auth cache is missing; run device-code authorization.");
+  });
+
   it("maps streamed agent message updates into gateway deltas", async () => {
     const thread = new FakeThread(null, [
       { type: "thread.started", thread_id: "thread_1" },
@@ -193,17 +216,18 @@ describe("CodexProviderAdapter", () => {
 
   it("normalizes auth and rate limit failures", () => {
     const adapter = createAdapter(new FakeClient(new FakeThread(null, [])));
+    const normalize = normalizeForTest(adapter);
 
-    expect(adapter.normalize(new Error("Not logged in")).code).toBe("provider_reauth_required");
-    expect(adapter.normalize(new Error("Not logged in")).message).toBe(
+    expect(normalize(new Error("Not logged in")).code).toBe("provider_reauth_required");
+    expect(normalize(new Error("Not logged in")).message).toBe(
       "MedCode service requires administrator reauthorization."
     );
-    expect(adapter.normalize(new Error("HTTP 429 rate limit")).code).toBe("rate_limited");
-    expect(adapter.normalize(new Error("HTTP 429 rate limit")).message).toBe(
+    expect(normalize(new Error("HTTP 429 rate limit")).code).toBe("rate_limited");
+    expect(normalize(new Error("HTTP 429 rate limit")).message).toBe(
       "MedCode service rate limit reached."
     );
-    expect(adapter.normalize(new Error("connection reset")).code).toBe("service_unavailable");
-    expect(adapter.normalize(new Error("connection reset")).message).toBe(
+    expect(normalize(new Error("connection reset")).code).toBe("service_unavailable");
+    expect(normalize(new Error("connection reset")).message).toBe(
       "MedCode service is temporarily unavailable."
     );
   });
@@ -304,6 +328,16 @@ function createAdapter(
     makeClient: () => client,
     ...options
   });
+}
+
+function normalizeForTest(
+  adapter: CodexProviderAdapter
+): (err: unknown) => { code: string; message: string } {
+  type TestableAdapter = {
+    normalize(err: unknown): { code: string; message: string };
+  };
+
+  return (adapter as unknown as TestableAdapter).normalize.bind(adapter);
 }
 
 function messageInput(input: { providerSessionRef: string | null }): MessageInput {
