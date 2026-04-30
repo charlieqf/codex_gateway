@@ -34,6 +34,7 @@ Operational workflows now covered:
 - Partner trial checklist for MedEvidence, OpenCode CLI, and OpenCode Desktop.
 - Public API key self-validation through `GET /gateway/credentials/current`, including client-facing guidance in `docs/client-api-key-validation-guide.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
+- Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.
 
 Operational workflows still pending:
 
