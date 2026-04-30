@@ -69,6 +69,7 @@ import {
   publicPlan,
   publicSubject
 } from "./serializers.js";
+import { writeQuotaDashboard } from "./quota-dashboard.js";
 
 const defaultSubjectId = "subj_dev";
 const defaultSubjectLabel = "dev-subject";
@@ -889,6 +890,28 @@ program
         entitlement_id: resolved.entitlementId,
         token: publicTokenPolicy(resolved.policy),
         token_usage: publicTokenUsage(usage)
+      });
+    });
+  });
+
+program
+  .command("quota-dashboard")
+  .description("Generate a static HTML dashboard for user plans and token quota windows.")
+  .option("--out <path>", "HTML output path", "quota-dashboard.html")
+  .option("--include-inactive", "include disabled and archived users")
+  .action(async (options: { out: string; includeInactive?: boolean }) => {
+    await withStoreAsync(async (store) => {
+      const result = await writeQuotaDashboard(store, {
+        outputPath: options.out,
+        includeInactive: Boolean(options.includeInactive)
+      });
+      printJson({
+        output_path: result.outputPath,
+        generated_at: result.generatedAt,
+        users: result.users,
+        active_entitlements: result.activeEntitlements,
+        legacy_users: result.legacyUsers,
+        users_without_quota: result.usersWithoutQuota
       });
     });
   });

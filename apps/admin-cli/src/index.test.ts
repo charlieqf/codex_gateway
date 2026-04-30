@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
@@ -616,6 +616,83 @@ describe("codex-gateway-admin user API key operations", () => {
         }
       }
     });
+  }, 20_000);
+
+  it("generates a static quota dashboard for users and plans", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-dashboard-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    const dashboardPath = path.join(dir, "quota-dashboard.html");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: 100,
+        tokensPerDay: 1000,
+        tokensPerMonth: 5000,
+        maxPromptTokensPerRequest: 200,
+        maxTotalTokensPerRequest: 500,
+        reserveTokensPerRequest: 50,
+        missingUsageCharge: "reserve"
+      }),
+      "utf8"
+    );
+
+    runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--name",
+      "Alice Zhang",
+      "--phone",
+      "+15551234567",
+      "--label",
+      "Alice entitlement key",
+      "--scope",
+      "code"
+    ]);
+    runCli(dbPath, [
+      "plan",
+      "create",
+      "--id",
+      "plan_pro_v1",
+      "--display-name",
+      "Pro",
+      "--policy-file",
+      policyPath
+    ]);
+    runCli(dbPath, [
+      "entitlement",
+      "grant",
+      "--user",
+      "alice",
+      "--plan",
+      "plan_pro_v1",
+      "--period",
+      "unlimited"
+    ]);
+
+    const result = runCli(dbPath, ["quota-dashboard", "--out", dashboardPath]) as {
+      output_path: string;
+      users: number;
+      active_entitlements: number;
+      legacy_users: number;
+      users_without_quota: number;
+    };
+    const html = readFileSync(dashboardPath, "utf8");
+
+    expect(result).toMatchObject({
+      output_path: dashboardPath,
+      users: 1,
+      active_entitlements: 1,
+      legacy_users: 0,
+      users_without_quota: 0
+    });
+    expect(html).toContain("用户 Plan / Quota Dashboard");
+    expect(html).toContain("Alice Zhang");
+    expect(html).toContain("plan_pro_v1");
+    expect(html).toContain("\"remaining\":1000");
+    expect(html).not.toContain("test-api-key-encryption-secret");
   }, 20_000);
 
   it("records entitlement pause reasons in audit params", () => {
