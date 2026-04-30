@@ -469,7 +469,7 @@ await sendMessage(sessionId, "Give me one concise coding tip.", (text) => {
 | 401 | `revoked_credential` | API key 已吊销，需要换新 key |
 | 401 | `expired_credential` | API key 已过期，需要换新 key |
 | 404 | `session_not_found` | session 不存在，或不属于当前 API key 的用户 |
-| 429 | `rate_limited` | 按 `retry_after_seconds` 延迟后重试 |
+| 429 | `rate_limited` | 按 `retry_after_seconds` 延迟后重试；如需显示额度用尽，再调用 `/gateway/credentials/current` 读取 `token_usage` |
 | 503 | `provider_reauth_required` | MedCode 服务需要管理员处理授权状态，联系服务管理员 |
 | 503 | `subscription_unavailable` | MedCode 服务暂不可用，联系服务管理员 |
 | 503 | `service_unavailable` | 服务暂不可用，可稍后重试并通知管理员 |
@@ -503,6 +503,23 @@ service_unavailable
 - `concurrentRequests`：同一 API key 同时进行的请求数，当前建议为 `1`。
 
 限流按 API key 执行。当前是单 gateway 进程内限流，适合最多 10 位可信内部用户试用；扩展到多实例或更多用户前，需要升级为持久化/分布式限流。
+
+如果 `/v1/chat/completions` 返回 HTTP `429` 且 `error.code` 是 `rate_limited`，客户端不要直接假设日额度或月额度耗尽。用同一个 API key 调用：
+
+```http
+GET /gateway/credentials/current
+Authorization: Bearer <api-key>
+```
+
+然后按 `token_usage` 判断展示文案：
+
+| 字段 | 判断 | 建议提示 |
+| --- | --- | --- |
+| `token_usage.minute.remaining` | `0` | 请求过快，请稍后重试 |
+| `token_usage.day.remaining` | `0` | 今日额度已用尽 |
+| `token_usage.month.remaining` | `0` | 本月额度已用尽 |
+
+如果这些 `remaining` 都大于 `0`，或没有返回 `token_usage`，通常不是日/月额度耗尽；应显示请求过快、请求过大或稍后重试，并优先使用错误响应中的 `message` 和 `retry_after_seconds`。`/gateway/credentials/current` 不消耗普通请求限流和 token quota。
 
 ## 推荐接入方式
 
