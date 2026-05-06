@@ -375,6 +375,53 @@ export function migrateClientEventsSchema(db: DatabaseSync): void {
         ON client_message_events(text_sha256);
     `
   );
+
+  applyMigration(
+    db,
+    2,
+    `
+      CREATE TABLE IF NOT EXISTS client_diagnostic_events (
+        id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL,
+        request_id TEXT NOT NULL,
+        credential_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        session_id TEXT,
+        message_id TEXT,
+        category TEXT NOT NULL,
+        action TEXT NOT NULL,
+        status TEXT NOT NULL,
+        method TEXT,
+        path TEXT,
+        duration_ms INTEGER,
+        http_status INTEGER,
+        error_code TEXT,
+        error_message TEXT,
+        metadata_json TEXT NOT NULL,
+        app_name TEXT,
+        app_version TEXT,
+        created_at TEXT NOT NULL,
+        received_at TEXT NOT NULL,
+        UNIQUE(subject_id, event_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_client_diagnostic_events_received_at
+        ON client_diagnostic_events(received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_diagnostic_events_subject_received
+        ON client_diagnostic_events(subject_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_diagnostic_events_credential_received
+        ON client_diagnostic_events(credential_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_diagnostic_events_session_received
+        ON client_diagnostic_events(session_id, received_at);
+
+      CREATE INDEX IF NOT EXISTS idx_client_diagnostic_events_action_received
+        ON client_diagnostic_events(action, received_at);
+    `
+  );
 }
 
 function migrateLegacyUpstreamAccountSchema(db: DatabaseSync): void {

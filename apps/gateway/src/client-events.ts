@@ -3,6 +3,8 @@ import { GatewayError, isRecord } from "@codex-gateway/core";
 
 export const CLIENT_MESSAGE_TEXT_LIMIT_BYTES = 64 * 1024;
 export const CLIENT_MESSAGE_BODY_LIMIT_BYTES = 512 * 1024;
+export const CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES = 128 * 1024;
+export const CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES = 16 * 1024;
 
 export interface ParsedClientMessageEventRequest {
   eventId: string;
@@ -20,6 +22,25 @@ export interface ParsedClientMessageEventRequest {
   attachmentsJson: string;
 }
 
+export interface ParsedClientDiagnosticEventRequest {
+  eventId: string;
+  sessionId: string | null;
+  messageId: string | null;
+  createdAt: Date;
+  appName: string;
+  appVersion: string | null;
+  category: string;
+  action: string;
+  status: "started" | "ok" | "error" | "aborted" | "timeout";
+  method: string | null;
+  path: string | null;
+  durationMs: number | null;
+  httpStatus: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  metadataJson: string;
+}
+
 interface NormalizedAttachment {
   type: string;
   filename: string | null;
@@ -28,6 +49,43 @@ interface NormalizedAttachment {
 }
 
 const forbiddenAttachmentKeys = new Set(["content", "data", "base64", "text", "path"]);
+const forbiddenDiagnosticKeys = new Set([
+  "access_token",
+  "accesstoken",
+  "authorization",
+  "auth",
+  "api_key",
+  "api-key",
+  "apikey",
+  "bearer",
+  "bearer_token",
+  "bearertoken",
+  "body",
+  "client_secret",
+  "clientsecret",
+  "content",
+  "credential",
+  "credentials",
+  "cookie",
+  "data",
+  "id_token",
+  "idtoken",
+  "key",
+  "password",
+  "prompt",
+  "refresh_token",
+  "refreshtoken",
+  "request",
+  "response",
+  "secret",
+  "text",
+  "token",
+  "x_api_key",
+  "x-api-key",
+  "xapikey"
+]);
+const diagnosticCategories = new Set(["http", "sse", "medevidence", "ui", "network"]);
+const diagnosticStatuses = new Set(["started", "ok", "error", "aborted", "timeout"]);
 const isoDateTimePattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -119,6 +177,110 @@ export function parseClientMessageEventRequest(
 
 export function clientMessageTextSha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+export function parseClientDiagnosticEventRequest(
+  body: unknown
+): ParsedClientDiagnosticEventRequest | GatewayError {
+  if (!isRecord(body)) {
+    return invalid("Request body must be a JSON object.");
+  }
+
+  const schema = readRequiredString(body, "schema", 64);
+  if (schema instanceof GatewayError) {
+    return schema;
+  }
+  if (schema !== "client_diagnostic.v1") {
+    return invalid("schema must be client_diagnostic.v1.");
+  }
+
+  const eventId = readRequiredString(body, "event_id", 128);
+  if (eventId instanceof GatewayError) {
+    return eventId;
+  }
+  const createdAt = readIsoDateTime(body, "created_at");
+  if (createdAt instanceof GatewayError) {
+    return createdAt;
+  }
+  const app = readApp(body.app);
+  if (app instanceof GatewayError) {
+    return app;
+  }
+
+  const sessionId = readOptionalString(body, "session_id", 128);
+  if (sessionId instanceof GatewayError) {
+    return sessionId;
+  }
+  const messageId = readOptionalString(body, "message_id", 128);
+  if (messageId instanceof GatewayError) {
+    return messageId;
+  }
+  const category = readRequiredString(body, "category", 64);
+  if (category instanceof GatewayError) {
+    return category;
+  }
+  if (!diagnosticCategories.has(category)) {
+    return invalid("category must be http, sse, medevidence, ui, or network.");
+  }
+  const action = readRequiredDiagnosticString(body, "action", 128);
+  if (action instanceof GatewayError) {
+    return action;
+  }
+  const status = readRequiredString(body, "status", 32);
+  if (status instanceof GatewayError) {
+    return status;
+  }
+  if (!diagnosticStatuses.has(status)) {
+    return invalid("status must be started, ok, error, aborted, or timeout.");
+  }
+
+  const method = readOptionalString(body, "method", 16);
+  if (method instanceof GatewayError) {
+    return method;
+  }
+  const path = readOptionalDiagnosticPath(body, "path", 512);
+  if (path instanceof GatewayError) {
+    return path;
+  }
+  const durationMs = readOptionalInteger(body.duration_ms, "duration_ms", 86_400_000);
+  if (durationMs instanceof GatewayError) {
+    return durationMs;
+  }
+  const httpStatus = readOptionalInteger(body.http_status, "http_status", 599, 100);
+  if (httpStatus instanceof GatewayError) {
+    return httpStatus;
+  }
+  const errorCode = readOptionalString(body, "error_code", 128);
+  if (errorCode instanceof GatewayError) {
+    return errorCode;
+  }
+  const errorMessage = readOptionalDiagnosticString(body, "error_message", 512);
+  if (errorMessage instanceof GatewayError) {
+    return errorMessage;
+  }
+  const metadataJson = readMetadata(body.metadata);
+  if (metadataJson instanceof GatewayError) {
+    return metadataJson;
+  }
+
+  return {
+    eventId,
+    sessionId,
+    messageId,
+    createdAt,
+    appName: app.name,
+    appVersion: app.version,
+    category,
+    action,
+    status: status as ParsedClientDiagnosticEventRequest["status"],
+    method,
+    path,
+    durationMs,
+    httpStatus,
+    errorCode,
+    errorMessage,
+    metadataJson
+  };
 }
 
 function readApp(value: unknown): { name: string; version: string | null } | GatewayError {
@@ -241,6 +403,58 @@ function readOptionalString(
   return value;
 }
 
+function readRequiredDiagnosticString(
+  source: Record<string, unknown>,
+  key: string,
+  maxLength: number,
+  label = key
+): string | GatewayError {
+  const value = readRequiredString(source, key, maxLength, label);
+  if (value instanceof GatewayError) {
+    return value;
+  }
+  return validateDiagnosticString(value, label);
+}
+
+function readOptionalDiagnosticString(
+  source: Record<string, unknown>,
+  key: string,
+  maxLength: number,
+  label = key
+): string | null | GatewayError {
+  const value = readOptionalString(source, key, maxLength, label);
+  if (value instanceof GatewayError || value === null) {
+    return value;
+  }
+  return validateDiagnosticString(value, label);
+}
+
+function readOptionalDiagnosticPath(
+  source: Record<string, unknown>,
+  key: string,
+  maxLength: number,
+  label = key
+): string | null | GatewayError {
+  const value = readOptionalString(source, key, maxLength, label);
+  if (value instanceof GatewayError || value === null) {
+    return value;
+  }
+  if (!value.startsWith("/")) {
+    return invalid(`${label} must be a path beginning with /.`);
+  }
+  if (value.includes("?") || value.includes("#")) {
+    return invalid(`${label} must not include a query string or fragment.`);
+  }
+  return validateDiagnosticString(value, label);
+}
+
+function validateDiagnosticString(value: string, label: string): string | GatewayError {
+  if (containsSensitiveDiagnosticText(value)) {
+    return invalid(`${label} must not contain credentials or secrets.`);
+  }
+  return value;
+}
+
 function readIsoDateTime(
   source: Record<string, unknown>,
   key: string
@@ -267,6 +481,86 @@ function readOptionalSize(value: unknown, label: string): number | null | Gatewa
     return invalid(`${label} must be a non-negative integer or null.`);
   }
   return value;
+}
+
+function readOptionalInteger(
+  value: unknown,
+  label: string,
+  max: number,
+  min = 0
+): number | null | GatewayError {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < min ||
+    value > max
+  ) {
+    return invalid(`${label} must be an integer from ${min} to ${max}.`);
+  }
+  return value;
+}
+
+function readMetadata(value: unknown): string | GatewayError {
+  if (value === undefined || value === null) {
+    return "{}";
+  }
+  if (!isRecord(value)) {
+    return invalid("metadata must be a JSON object.");
+  }
+  const forbidden = findForbiddenMetadataKey(value);
+  if (forbidden) {
+    return invalid(`metadata.${forbidden} is not allowed.`);
+  }
+  const json = JSON.stringify(value);
+  if (Buffer.byteLength(json, "utf8") > CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES) {
+    return invalid("metadata exceeds 16KB UTF-8 byte length.", 413);
+  }
+  return json;
+}
+
+function findForbiddenMetadataKey(value: unknown, prefix = ""): string | null {
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      const found = findForbiddenMetadataKey(item, `${prefix}[${index}]`);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+  if (!isRecord(value)) {
+    return null;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    const next = prefix ? `${prefix}.${key}` : key;
+    if (isForbiddenDiagnosticKey(key)) {
+      return next;
+    }
+    if (typeof item === "string" && containsSensitiveDiagnosticText(item)) {
+      return next;
+    }
+    const found = findForbiddenMetadataKey(item, next);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+function isForbiddenDiagnosticKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  const compact = normalized.replace(/[^a-z0-9]/g, "");
+  return forbiddenDiagnosticKeys.has(normalized) || forbiddenDiagnosticKeys.has(compact);
+}
+
+function containsSensitiveDiagnosticText(value: string): boolean {
+  return (
+    /\bbearer\s+[A-Za-z0-9._~+/=-]{8,}/i.test(value) ||
+    /\b(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|password|secret)\b\s*[:=]\s*["']?[^"'\s&]{4,}/i.test(value)
+  );
 }
 
 function hasPathSeparator(value: string): boolean {

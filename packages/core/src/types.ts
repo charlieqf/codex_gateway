@@ -134,6 +134,38 @@ export interface ClientMessageEventRecord {
   receivedAt: Date;
 }
 
+export type ClientDiagnosticEventStatus =
+  | "started"
+  | "ok"
+  | "error"
+  | "aborted"
+  | "timeout";
+
+export interface ClientDiagnosticEventRecord {
+  id: string;
+  eventId: string;
+  requestId: string;
+  credentialId: string;
+  subjectId: string;
+  scope: Scope;
+  sessionId: string | null;
+  messageId: string | null;
+  category: string;
+  action: string;
+  status: ClientDiagnosticEventStatus;
+  method: string | null;
+  path: string | null;
+  durationMs: number | null;
+  httpStatus: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  metadataJson: string;
+  appName: string | null;
+  appVersion: string | null;
+  createdAt: Date;
+  receivedAt: Date;
+}
+
 export interface UpstreamAccount {
   id: string;
   provider: ProviderKind;

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
+  type ClientDiagnosticEventRecord,
   type ClientMessageEventStore,
   type CredentialAuthStore,
   GatewayError,
@@ -28,7 +29,10 @@ import {
   SqliteGatewayStore
 } from "@codex-gateway/store-sqlite";
 import {
+  CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES,
   CLIENT_MESSAGE_BODY_LIMIT_BYTES,
+  type ParsedClientDiagnosticEventRequest,
+  parseClientDiagnosticEventRequest,
   parseClientMessageEventRequest
 } from "./client-events.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
@@ -411,7 +415,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
 
       const permit = clientEventsRateLimiter.acquire({
-        credentialId: credential.id,
+        credentialId: clientEventsRateLimitKey(credential.id, "messages"),
         policy: clientEventsRatePolicy
       });
       if (!("release" in permit)) {
@@ -470,6 +474,120 @@ export function buildGateway(options: GatewayOptions = {}) {
           text: parsed.text,
           textSha256: parsed.textSha256,
           attachmentsJson: parsed.attachmentsJson,
+          appName: parsed.appName,
+          appVersion: parsed.appVersion,
+          createdAt: parsed.createdAt,
+          receivedAt
+        });
+
+        reply.code(201);
+        return {
+          ok: true,
+          event_id: parsed.eventId,
+          duplicate: false,
+          received_at: receivedAt.toISOString()
+        };
+      } finally {
+        permit.release();
+      }
+    }
+  );
+
+  app.post<{ Body: unknown }>(
+    "/gateway/client-events/diagnostics",
+    {
+      bodyLimit: CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES,
+      config: {
+        public: !clientEventsStore,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (request, reply) => {
+      if (!clientEventsStore) {
+        return sendError(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Client diagnostic event storage is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const { subject, scope, credential } = getGatewayContext(request);
+      if (!credential.id) {
+        return sendError(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Client diagnostic events require credential auth.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const permit = clientEventsRateLimiter.acquire({
+        credentialId: clientEventsRateLimitKey(credential.id, "diagnostics"),
+        policy: clientEventsRatePolicy
+      });
+      if (!("release" in permit)) {
+        return sendError(request, reply, permit.error);
+      }
+
+      try {
+        const parsed = parseClientDiagnosticEventRequest(request.body);
+        if (parsed instanceof GatewayError) {
+          return sendError(request, reply, parsed);
+        }
+
+        const existing = clientEventsStore.getClientDiagnosticEvent(
+          subject.id,
+          parsed.eventId
+        );
+        if (existing) {
+          if (clientDiagnosticEventsMatch(existing, parsed)) {
+            return {
+              ok: true,
+              event_id: parsed.eventId,
+              duplicate: true,
+              received_at: existing.receivedAt.toISOString()
+            };
+          }
+
+          return sendError(
+            request,
+            reply,
+            new GatewayError({
+              code: "idempotency_conflict",
+              message: "event_id already exists for this user with different content.",
+              httpStatus: 409
+            })
+          );
+        }
+
+        const receivedAt = new Date();
+        clientEventsStore.insertClientDiagnosticEvent({
+          id: `cde_${randomUUID().replaceAll("-", "")}`,
+          eventId: parsed.eventId,
+          requestId: request.id,
+          credentialId: credential.id,
+          subjectId: subject.id,
+          scope,
+          sessionId: parsed.sessionId,
+          messageId: parsed.messageId,
+          category: parsed.category,
+          action: parsed.action,
+          status: parsed.status,
+          method: parsed.method,
+          path: parsed.path,
+          durationMs: parsed.durationMs,
+          httpStatus: parsed.httpStatus,
+          errorCode: parsed.errorCode,
+          errorMessage: parsed.errorMessage,
+          metadataJson: parsed.metadataJson,
           appName: parsed.appName,
           appVersion: parsed.appVersion,
           createdAt: parsed.createdAt,
@@ -1260,6 +1378,36 @@ function createDefaultClientEventsStore(): ClientMessageEventStore | undefined {
   }
 
   return createSqliteClientEventsStore({ path: sqlitePath });
+}
+
+function clientEventsRateLimitKey(
+  credentialId: string,
+  eventFamily: "messages" | "diagnostics"
+): string {
+  return `${credentialId}:${eventFamily}`;
+}
+
+function clientDiagnosticEventsMatch(
+  existing: ClientDiagnosticEventRecord,
+  parsed: ParsedClientDiagnosticEventRequest
+): boolean {
+  return (
+    existing.sessionId === parsed.sessionId &&
+    existing.messageId === parsed.messageId &&
+    existing.createdAt.getTime() === parsed.createdAt.getTime() &&
+    existing.appName === parsed.appName &&
+    existing.appVersion === parsed.appVersion &&
+    existing.category === parsed.category &&
+    existing.action === parsed.action &&
+    existing.status === parsed.status &&
+    existing.method === parsed.method &&
+    existing.path === parsed.path &&
+    existing.durationMs === parsed.durationMs &&
+    existing.httpStatus === parsed.httpStatus &&
+    existing.errorCode === parsed.errorCode &&
+    existing.errorMessage === parsed.errorMessage &&
+    existing.metadataJson === parsed.metadataJson
+  );
 }
 
 function resolveClientEventsRatePolicy(env: NodeJS.ProcessEnv): RateLimitPolicy {

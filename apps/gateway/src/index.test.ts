@@ -458,6 +458,198 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("writes client diagnostic events to the dedicated store without request observation", async () => {
+    const { store, issued, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_write_1",
+        action: "GET /session/:sessionID/message",
+        duration_ms: 1530,
+        http_status: 200,
+        metadata: { count: 3, source: "prefetch" }
+      })
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      event_id: "diag_write_1",
+      duplicate: false
+    });
+    const stored = clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_write_1");
+    expect(stored).toMatchObject({
+      eventId: "diag_write_1",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: "ses_1",
+      messageId: "msg_1",
+      category: "http",
+      action: "GET /session/:sessionID/message",
+      status: "ok",
+      method: "GET",
+      path: "/session/ses_1/message",
+      durationMs: 1530,
+      httpStatus: 200,
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6"
+    });
+    expect(JSON.parse(stored?.metadataJson ?? "{}")).toEqual({
+      count: 3,
+      source: "prefetch"
+    });
+    expect(store.listRequestEvents()).toEqual([]);
+
+    await app.close();
+  });
+
+  it("validates client diagnostic metadata before storage", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_forbidden_1",
+        metadata: {
+          authorization: "Bearer should-not-store"
+        }
+      })
+    });
+    const invalidStatus = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_status_1",
+        status: "waiting"
+      })
+    });
+    const sensitivePath = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_path_1",
+        path: "/v1/chat/completions?api_key=should-not-store"
+      })
+    });
+    const sensitiveError = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_error_1",
+        error_message: "Authorization: Bearer should-not-store-token"
+      })
+    });
+    const sensitiveMetadataValue = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_metadata_value_1",
+        metadata: {
+          detail: "access_token=should-not-store"
+        }
+      })
+    });
+
+    expect(forbidden.statusCode).toBe(400);
+    expect(forbidden.json().error.message).toContain("authorization is not allowed");
+    expect(invalidStatus.statusCode).toBe(400);
+    expect(invalidStatus.json().error.message).toContain("status must be");
+    expect(sensitivePath.statusCode).toBe(400);
+    expect(sensitivePath.json().error.message).toContain("query string");
+    expect(sensitiveError.statusCode).toBe(400);
+    expect(sensitiveError.json().error.message).toContain("credentials or secrets");
+    expect(sensitiveMetadataValue.statusCode).toBe(400);
+    expect(sensitiveMetadataValue.json().error.message).toContain("metadata.detail is not allowed");
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_forbidden_1")).toBeNull();
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_status_1")).toBeNull();
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_path_1")).toBeNull();
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_error_1")).toBeNull();
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_metadata_value_1")).toBeNull();
+
+    await app.close();
+  });
+
+  it("keeps client diagnostic event idempotency immutable", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+    const payload = clientDiagnosticPayload({
+      event_id: "diag_idempotent_1",
+      duration_ms: 120,
+      metadata: { count: 1 }
+    });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload
+    });
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload
+    });
+    const conflict = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_idempotent_1",
+        duration_ms: 121,
+        metadata: { count: 1 }
+      })
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json()).toMatchObject({
+      ok: true,
+      event_id: "diag_idempotent_1",
+      duplicate: true
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error.code).toBe("idempotency_conflict");
+    expect(
+      clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_idempotent_1")?.durationMs
+    ).toBe(120);
+
+    await app.close();
+  });
+
   it("keeps client message event idempotency immutable", async () => {
     const { store, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
@@ -612,6 +804,49 @@ describe("gateway phase 1 routes", () => {
     expect(secondClientEvent.statusCode).toBe(429);
     expect(secondClientEvent.json().error.code).toBe("rate_limited");
     expect(secondModelRoute.statusCode).toBe(429);
+
+    await app.close();
+  });
+
+  it("uses separate ingest rate limit buckets for messages and diagnostics", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      clientEventsRatePolicy: {
+        requestsPerMinute: 1,
+        requestsPerDay: null,
+        concurrentRequests: null
+      },
+      logger: false
+    });
+
+    const firstDiagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({ event_id: "diag_bucket_1" })
+    });
+    const messageAfterDiagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({ event_id: "evt_bucket_1" })
+    });
+    const secondDiagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({ event_id: "diag_bucket_2" })
+    });
+
+    expect(firstDiagnostic.statusCode).toBe(201);
+    expect(messageAfterDiagnostic.statusCode).toBe(201);
+    expect(secondDiagnostic.statusCode).toBe(429);
+    expect(secondDiagnostic.json().error.code).toBe("rate_limited");
 
     await app.close();
   });
@@ -3119,6 +3354,29 @@ function clientMessagePayload(overrides: Record<string, unknown> = {}) {
     engine: "agent",
     text: "What is the latest evidence?",
     attachments: [],
+    ...overrides
+  };
+}
+
+function clientDiagnosticPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: "client_diagnostic.v1",
+    event_id: "diag_1",
+    session_id: "ses_1",
+    message_id: "msg_1",
+    created_at: "2026-04-29T10:00:00.000Z",
+    app: {
+      name: "medevidence-desktop",
+      version: "1.4.6"
+    },
+    category: "http",
+    action: "GET /session/:sessionID/message",
+    status: "ok",
+    method: "GET",
+    path: "/session/ses_1/message",
+    duration_ms: 120,
+    http_status: 200,
+    metadata: {},
     ...overrides
   };
 }

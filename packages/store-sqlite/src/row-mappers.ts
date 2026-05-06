@@ -2,6 +2,7 @@ import {
   validatePlanPolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
+  type ClientDiagnosticEventRecord,
   type ClientMessageEventRecord,
   type Entitlement,
   type EntitlementState,
@@ -274,6 +275,58 @@ export function rowToClientMessageEvent(row: unknown): ClientMessageEventRecord 
     text: value.text,
     textSha256: value.text_sha256,
     attachmentsJson: value.attachments_json,
+    appName: value.app_name,
+    appVersion: value.app_version,
+    createdAt: new Date(value.created_at),
+    receivedAt: new Date(value.received_at)
+  };
+}
+
+export function rowToClientDiagnosticEvent(row: unknown): ClientDiagnosticEventRecord {
+  const value = row as {
+    id: string;
+    event_id: string;
+    request_id: string;
+    credential_id: string;
+    subject_id: string;
+    scope: ClientDiagnosticEventRecord["scope"];
+    session_id: string | null;
+    message_id: string | null;
+    category: string;
+    action: string;
+    status: ClientDiagnosticEventRecord["status"];
+    method: string | null;
+    path: string | null;
+    duration_ms: number | null;
+    http_status: number | null;
+    error_code: string | null;
+    error_message: string | null;
+    metadata_json: string;
+    app_name: string | null;
+    app_version: string | null;
+    created_at: string;
+    received_at: string;
+  };
+
+  return {
+    id: value.id,
+    eventId: value.event_id,
+    requestId: value.request_id,
+    credentialId: value.credential_id,
+    subjectId: value.subject_id,
+    scope: value.scope,
+    sessionId: value.session_id,
+    messageId: value.message_id,
+    category: value.category,
+    action: value.action,
+    status: value.status,
+    method: value.method,
+    path: value.path,
+    durationMs: value.duration_ms,
+    httpStatus: value.http_status,
+    errorCode: value.error_code,
+    errorMessage: value.error_message,
+    metadataJson: value.metadata_json,
     appName: value.app_name,
     appVersion: value.app_version,
     createdAt: new Date(value.created_at),

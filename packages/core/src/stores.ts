@@ -3,6 +3,7 @@ import type {
   AdminAuditAction,
   AdminAuditEventRecord,
   AdminAuditStatus,
+  ClientDiagnosticEventRecord,
   ClientMessageEventRecord,
   GatewaySession,
   ProviderKind,
@@ -145,6 +146,10 @@ export interface ObservationStore {
 export interface ClientMessageEventStore {
   getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null;
   insertClientMessageEvent(record: ClientMessageEventRecord): ClientMessageEventRecord;
+  getClientDiagnosticEvent(subjectId: string, eventId: string): ClientDiagnosticEventRecord | null;
+  insertClientDiagnosticEvent(
+    record: ClientDiagnosticEventRecord
+  ): ClientDiagnosticEventRecord;
   close?(): void;
 }
 

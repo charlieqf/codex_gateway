@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   issueAccessCredential,
+  type ClientDiagnosticEventRecord,
   type ClientMessageEventRecord,
   type Subject,
   type UpstreamAccount
@@ -1118,6 +1119,7 @@ describe("SqliteClientEventsStore", () => {
 
     const first = createSqliteClientEventsStore({ path: dbPath });
     first.insertClientMessageEvent(clientMessageEventRecord());
+    first.insertClientDiagnosticEvent(clientDiagnosticEventRecord());
     first.close();
 
     const second = createSqliteClientEventsStore({ path: dbPath });
@@ -1133,6 +1135,26 @@ describe("SqliteClientEventsStore", () => {
       text: "What is the evidence?",
       textSha256: "0".repeat(64),
       attachmentsJson: "[]",
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6"
+    });
+    expect(second.getClientDiagnosticEvent("subj_1", "diag_1")).toMatchObject({
+      id: "cde_1",
+      eventId: "diag_1",
+      requestId: "req_1",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: "ses_1",
+      messageId: "msg_1",
+      category: "http",
+      action: "GET /session/:sessionID/message",
+      status: "ok",
+      method: "GET",
+      path: "/session/ses_1/message",
+      durationMs: 250,
+      httpStatus: 200,
+      metadataJson: "{\"count\":3}",
       appName: "medevidence-desktop",
       appVersion: "1.4.6"
     });
@@ -1163,6 +1185,18 @@ describe("SqliteClientEventsStore", () => {
       })
     );
     expect(store.getClientMessageEvent("subj_2", "evt_1")?.id).toBe("cme_other_subject");
+    store.insertClientDiagnosticEvent(clientDiagnosticEventRecord());
+    expect(() =>
+      store.insertClientDiagnosticEvent({
+        ...clientDiagnosticEventRecord(),
+        id: "cde_conflict",
+        requestId: "req_conflict",
+        action: "POST /session/:sessionID/prompt_async"
+      })
+    ).toThrow();
+    expect(store.getClientDiagnosticEvent("subj_1", "diag_1")?.action).toBe(
+      "GET /session/:sessionID/message"
+    );
     store.close();
   });
 });
@@ -1322,6 +1356,36 @@ function clientMessageEventRecord(
     text: "What is the evidence?",
     textSha256: "0".repeat(64),
     attachmentsJson: "[]",
+    appName: "medevidence-desktop",
+    appVersion: "1.4.6",
+    createdAt: new Date("2026-04-29T10:00:00Z"),
+    receivedAt: new Date("2026-04-29T10:00:01Z"),
+    ...overrides
+  };
+}
+
+function clientDiagnosticEventRecord(
+  overrides: Partial<ClientDiagnosticEventRecord> = {}
+): ClientDiagnosticEventRecord {
+  return {
+    id: "cde_1",
+    eventId: "diag_1",
+    requestId: "req_1",
+    credentialId: "cred_1",
+    subjectId: "subj_1",
+    scope: "code",
+    sessionId: "ses_1",
+    messageId: "msg_1",
+    category: "http",
+    action: "GET /session/:sessionID/message",
+    status: "ok",
+    method: "GET",
+    path: "/session/ses_1/message",
+    durationMs: 250,
+    httpStatus: 200,
+    errorCode: null,
+    errorMessage: null,
+    metadataJson: "{\"count\":3}",
     appName: "medevidence-desktop",
     appVersion: "1.4.6",
     createdAt: new Date("2026-04-29T10:00:00Z"),
