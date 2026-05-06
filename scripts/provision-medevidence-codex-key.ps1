@@ -13,7 +13,10 @@ the public credential endpoint, and checks that no active key or entitlement
 expires before the requested cutoff.
 
 The full API key is written only into the requested local JSON file. Console
-output prints only a masked prefix.
+output prints only a masked prefix. By default the script also writes a
+top-level `unified_key` in the form:
+
+  cmev1.<codex-gateway-api-key>.<medevidence-v2-api-key>
 
 .EXAMPLE
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\provision-medevidence-codex-key.ps1 `
@@ -38,6 +41,7 @@ param(
   [string]$GatewayService = "gateway",
   [string]$GatewayDb = "/var/lib/codex-gateway/gateway.db",
   [string]$GatewayBaseUrl = "https://gw.instmarket.com.au",
+  [string]$UnifiedKeyVersion = "cmev1",
 
   [string]$PlanId = "plan_internal_high_quota_v1",
   [string]$PeriodEnd = "2026-07-01T00:00:00.000Z",
@@ -51,7 +55,8 @@ param(
   [string]$KeyLabel,
   [switch]$ForceNewKey,
   [switch]$NoBackup,
-  [switch]$SkipCredentialValidation
+  [switch]$SkipCredentialValidation,
+  [switch]$SkipUnifiedKey
 )
 
 Set-StrictMode -Version 2.0
@@ -115,6 +120,26 @@ function Get-DefaultLabel {
 function ConvertTo-Base64Utf8 {
   param([Parameter(Mandatory = $true)][string]$Value)
   [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Value))
+}
+
+function New-UnifiedKey {
+  param(
+    [Parameter(Mandatory = $true)][string]$Version,
+    [Parameter(Mandatory = $true)][string]$CodexGatewayToken,
+    [Parameter(Mandatory = $true)][string]$MedEvidenceV2Token
+  )
+
+  if ($Version -notmatch "^[A-Za-z0-9_-]+$") {
+    throw "Unified key version contains unsupported characters: $Version"
+  }
+  if ($CodexGatewayToken -notmatch "^cgw\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}$") {
+    throw "Codex Gateway token does not match the expected cgw.<prefix>.<secret> format."
+  }
+  if ($MedEvidenceV2Token -notmatch "^[A-Za-z0-9_-]+$") {
+    throw "MedEvidence v2 plaintext key must not contain whitespace or dot separators."
+  }
+
+  "$Version.$CodexGatewayToken.$MedEvidenceV2Token"
 }
 
 function Invoke-RemoteNodeProvision {
@@ -433,6 +458,14 @@ foreach ($field in @("principal_id", "display_name", "phone_e164")) {
   }
 }
 
+$medEvidenceV2Token = $null
+if ($entry.PSObject.Properties["plaintext_api_key"]) {
+  $medEvidenceV2Token = [string]$entry.plaintext_api_key
+}
+if (-not $SkipUnifiedKey -and [string]::IsNullOrWhiteSpace($medEvidenceV2Token)) {
+  throw "Missing top-level plaintext_api_key in $resolvedPath; cannot build unified_key."
+}
+
 $principalId = [string]$entry.principal_id
 $displayName = [string]$entry.display_name
 $phone = [string]$entry.phone_e164
@@ -472,6 +505,8 @@ if (-not $PSCmdlet.ShouldProcess($UserId, "provision Codex Gateway API key and u
     key_label = $KeyLabel
     plan_id = $PlanId
     period_end = $PeriodEnd
+    unified_key_version = $(if ($SkipUnifiedKey) { $null } else { $UnifiedKeyVersion })
+    will_write_unified_key = -not $SkipUnifiedKey
     dry_run = $true
   } | ConvertTo-Json -Depth 5
   exit 0
@@ -507,6 +542,14 @@ $codexGateway = [ordered]@{
   entitlement = $result.entitlement
 }
 $entry | Add-Member -Force -NotePropertyName codex_gateway -NotePropertyValue $codexGateway
+if (-not $SkipUnifiedKey) {
+  $unifiedKey = New-UnifiedKey `
+    -Version $UnifiedKeyVersion `
+    -CodexGatewayToken ([string]$result.token) `
+    -MedEvidenceV2Token $medEvidenceV2Token
+  $entry | Add-Member -Force -NotePropertyName unified_key_version -NotePropertyValue $UnifiedKeyVersion
+  $entry | Add-Member -Force -NotePropertyName unified_key -NotePropertyValue $unifiedKey
+}
 Write-JsonPreservingRoot -Path $resolvedPath -Entries $jsonState.Entries -WasArray $jsonState.WasArray
 
 $shortPrefix = [string]$result.credential.prefix
@@ -528,5 +571,6 @@ if ($shortPrefix.Length -gt 8) {
   validation = $(if ($SkipCredentialValidation) { "skipped" } else { "ok" })
   short_active_keys = @($result.access_check.short_keys).Count
   short_active_entitlements = @($result.access_check.short_entitlements).Count
+  unified_key_written = -not $SkipUnifiedKey
   file_updated = $resolvedPath
 } | ConvertTo-Json -Depth 8

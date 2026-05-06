@@ -3,7 +3,7 @@
 Use `scripts/provision-medevidence-codex-key.ps1` after the MedEvidence v2 key
 file already exists locally. The script provisions or reuses the matching Codex
 Gateway user, API key, and plan entitlement, then writes a `codex_gateway`
-section back into the same JSON file.
+section and a top-level `unified_key` back into the same JSON file.
 
 Default production trial settings match Wang Yun's current access:
 
@@ -34,10 +34,20 @@ Expected output prints only a masked prefix and operational status, for example:
   "credential_mode": "reused",
   "entitlement_mode": "reused",
   "validation": "ok",
+  "unified_key_written": true,
   "short_active_keys": 0,
   "short_active_entitlements": 0
 }
 ```
+
+The unified key is a composed credential for clients that need one pasted value:
+
+```text
+cmev1.<codex-gateway-api-key>.<medevidence-v2-api-key>
+```
+
+The script writes the full value to `unified_key` and the version marker to
+`unified_key_version`. Do not print the full value in logs or chat.
 
 The script is intentionally defensive:
 
@@ -55,6 +65,8 @@ The script is intentionally defensive:
 - Validates `GET /gateway/credentials/current` with the resulting key.
 - Checks that no active key or active entitlement expires before the configured
   cutoff.
+- Builds the unified key from the recovered Codex Gateway key and the existing
+  top-level MedEvidence v2 `plaintext_api_key`.
 
 Do not paste full API keys into chat, tickets, or runbooks. The full key is
 written only to the requested local handoff JSON file.
