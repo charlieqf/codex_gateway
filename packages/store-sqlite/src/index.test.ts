@@ -1147,11 +1147,15 @@ describe("SqliteClientEventsStore", () => {
       scope: "code",
       sessionId: "ses_1",
       messageId: "msg_1",
+      toolCallId: "toolu_1",
+      providerId: "medcode",
+      modelId: "medcode",
       category: "http",
       action: "GET /session/:sessionID/message",
       status: "ok",
       method: "GET",
       path: "/session/ses_1/message",
+      monoMs: 12345,
       durationMs: 250,
       httpStatus: 200,
       metadataJson: "{\"count\":3}",
@@ -1198,6 +1202,204 @@ describe("SqliteClientEventsStore", () => {
       "GET /session/:sessionID/message"
     );
     store.close();
+  });
+
+  it("supports Phase 1A diagnostic query columns and indexes", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-client-diag-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "client-events.db");
+    const store = createSqliteClientEventsStore({ path: dbPath });
+    const commonMetadata = JSON.stringify({
+      instance_id: "inst_1",
+      process: "main",
+      provider_id: "medcode",
+      model_id: "gpt-5.5"
+    });
+    const records = [
+      clientDiagnosticEventRecord({
+        id: "cde_turn_http",
+        eventId: "diag_turn_http",
+        messageId: "msg_turn_1",
+        toolCallId: null,
+        category: "http",
+        action: "prompt_async",
+        status: "ok",
+        method: "POST",
+        path: "/session/:sessionID/prompt_async",
+        monoMs: 10,
+        httpStatus: 204,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_turn_started",
+        eventId: "diag_turn_started",
+        messageId: "msg_turn_1",
+        toolCallId: null,
+        category: "agent_turn",
+        action: "turn",
+        status: "started",
+        monoMs: 20,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_stream_request",
+        eventId: "diag_stream_request",
+        messageId: "msg_turn_1",
+        toolCallId: null,
+        category: "provider_stream",
+        action: "request",
+        status: "started",
+        monoMs: 30,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_stream_delta",
+        eventId: "diag_stream_delta",
+        messageId: "msg_turn_1",
+        toolCallId: null,
+        category: "provider_stream",
+        action: "first_delta",
+        status: "ok",
+        monoMs: 40,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_tool",
+        eventId: "diag_tool",
+        messageId: "msg_turn_1",
+        toolCallId: "toolu_1",
+        category: "tool",
+        action: "call",
+        status: "ok",
+        monoMs: 50,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_fs",
+        eventId: "diag_fs",
+        messageId: "msg_turn_1",
+        toolCallId: "toolu_1",
+        category: "fs",
+        action: "read_file",
+        status: "ok",
+        monoMs: 60,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_turn_ok",
+        eventId: "diag_turn_ok",
+        messageId: "msg_turn_1",
+        toolCallId: null,
+        category: "agent_turn",
+        action: "turn",
+        status: "ok",
+        monoMs: 70,
+        metadataJson: commonMetadata
+      }),
+      clientDiagnosticEventRecord({
+        id: "cde_auth_failed",
+        eventId: "diag_auth_failed",
+        messageId: "msg_auth_1",
+        toolCallId: null,
+        category: "http",
+        action: "request",
+        status: "error",
+        method: "POST",
+        path: "/gateway/client-events/diagnostics",
+        monoMs: 80,
+        httpStatus: 401,
+        errorCode: "auth_failed",
+        metadataJson: JSON.stringify({ instance_id: "inst_1", process: "main" })
+      })
+    ];
+    for (const record of records) {
+      store.insertClientDiagnosticEvent(record);
+    }
+    store.close();
+
+    const db = new DatabaseSync(dbPath);
+    try {
+      expect(columnNames(db, "client_diagnostic_events")).toEqual(
+        expect.arrayContaining([
+          "message_id",
+          "tool_call_id",
+          "provider_id",
+          "model_id",
+          "method",
+          "path",
+          "mono_ms",
+          "metadata_json"
+        ])
+      );
+      expect(columnType(db, "client_diagnostic_events", "mono_ms")).toBe("REAL");
+      expect(indexNames(db, "client_diagnostic_events")).not.toContain(
+        "idx_client_diag_subject_time"
+      );
+      expect(indexNames(db, "client_diagnostic_events")).toEqual(
+        expect.arrayContaining([
+          "idx_client_diag_session_message",
+          "idx_client_diag_category_action",
+          "idx_client_diag_tool_call"
+        ])
+      );
+      expect(indexSql(db, "idx_client_diag_tool_call")).toContain(
+        "WHERE tool_call_id IS NOT NULL"
+      );
+
+      const turnRows = db
+        .prepare(
+          `SELECT category, action, status
+           FROM client_diagnostic_events
+           WHERE session_id = ? AND message_id = ?
+           ORDER BY mono_ms`
+        )
+        .all("ses_1", "msg_turn_1") as Array<{
+        category: string;
+        action: string;
+        status: string;
+      }>;
+      expect(turnRows).toEqual([
+        { category: "http", action: "prompt_async", status: "ok" },
+        { category: "agent_turn", action: "turn", status: "started" },
+        { category: "provider_stream", action: "request", status: "started" },
+        { category: "provider_stream", action: "first_delta", status: "ok" },
+        { category: "tool", action: "call", status: "ok" },
+        { category: "fs", action: "read_file", status: "ok" },
+        { category: "agent_turn", action: "turn", status: "ok" }
+      ]);
+
+      const toolRows = db
+        .prepare(
+          `SELECT category
+           FROM client_diagnostic_events
+           WHERE tool_call_id = ?
+           ORDER BY mono_ms`
+        )
+        .all("toolu_1") as Array<{ category: string }>;
+      expect(toolRows.map((row) => row.category)).toEqual(["tool", "fs"]);
+
+      const startupRows = db
+        .prepare(
+          `SELECT event_id
+           FROM client_diagnostic_events
+           WHERE json_extract(metadata_json, '$.instance_id') = ?
+             AND json_extract(metadata_json, '$.process') = ?
+           ORDER BY mono_ms`
+        )
+        .all("inst_1", "main") as Array<{ event_id: string }>;
+      expect(startupRows.map((row) => row.event_id)).toContain("diag_turn_http");
+
+      const authFailed = db
+        .prepare(
+          `SELECT http_status
+           FROM client_diagnostic_events
+           WHERE category = 'http' AND error_code = ?`
+        )
+        .get("auth_failed") as { http_status: number };
+      expect(authFailed.http_status).toBe(401);
+    } finally {
+      db.close();
+    }
   });
 });
 
@@ -1337,6 +1539,29 @@ function columnNames(db: DatabaseSync, table: string): string[] {
   );
 }
 
+function columnType(db: DatabaseSync, table: string, column: string): string | null {
+  const row = (
+    db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string;
+      type: string;
+    }>
+  ).find((item) => item.name === column);
+  return row?.type ?? null;
+}
+
+function indexNames(db: DatabaseSync, table: string): string[] {
+  return (db.prepare(`PRAGMA index_list(${table})`).all() as Array<{ name: string }>).map(
+    (row) => row.name
+  );
+}
+
+function indexSql(db: DatabaseSync, indexName: string): string {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?")
+    .get(indexName) as { sql: string | null } | undefined;
+  return row?.sql ?? "";
+}
+
 function clientMessageEventRecord(
   overrides: Partial<ClientMessageEventRecord> = {}
 ): ClientMessageEventRecord {
@@ -1376,11 +1601,15 @@ function clientDiagnosticEventRecord(
     scope: "code",
     sessionId: "ses_1",
     messageId: "msg_1",
+    toolCallId: "toolu_1",
+    providerId: "medcode",
+    modelId: "medcode",
     category: "http",
     action: "GET /session/:sessionID/message",
     status: "ok",
     method: "GET",
     path: "/session/ses_1/message",
+    monoMs: 12345,
     durationMs: 250,
     httpStatus: 200,
     errorCode: null,

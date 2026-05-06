@@ -475,10 +475,23 @@ describe("gateway phase 1 routes", () => {
       headers,
       payload: clientDiagnosticPayload({
         event_id: "diag_write_1",
-        action: "GET /session/:sessionID/message",
+        category: "agent_turn",
+        action: "turn",
+        status: "queued",
+        tool_call_id: "toolu_1",
+        method: "POST",
+        path: "/session/:sessionID/prompt_async",
+        mono_ms: 12345.25,
         duration_ms: 1530,
-        http_status: 200,
-        metadata: { count: 3, source: "prefetch" }
+        http_status: 204,
+        metadata: {
+          count: 3,
+          source: "prefetch",
+          provider_id: "medcode",
+          model_id: "gpt-5.5",
+          instance_id: "inst_1",
+          process: "main"
+        }
       })
     });
 
@@ -496,21 +509,75 @@ describe("gateway phase 1 routes", () => {
       scope: "code",
       sessionId: "ses_1",
       messageId: "msg_1",
-      category: "http",
-      action: "GET /session/:sessionID/message",
-      status: "ok",
-      method: "GET",
-      path: "/session/ses_1/message",
+      toolCallId: "toolu_1",
+      providerId: "medcode",
+      modelId: "gpt-5.5",
+      category: "agent_turn",
+      action: "turn",
+      status: "queued",
+      method: "POST",
+      path: "/session/:sessionID/prompt_async",
+      monoMs: 12345.25,
       durationMs: 1530,
-      httpStatus: 200,
+      httpStatus: 204,
       appName: "medevidence-desktop",
       appVersion: "1.4.6"
     });
     expect(JSON.parse(stored?.metadataJson ?? "{}")).toEqual({
       count: 3,
-      source: "prefetch"
+      source: "prefetch",
+      provider_id: "medcode",
+      model_id: "gpt-5.5",
+      instance_id: "inst_1",
+      process: "main"
     });
     expect(store.listRequestEvents()).toEqual([]);
+
+    await app.close();
+  });
+
+  it("accepts Phase 1A client diagnostic categories and statuses", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+    const categories = [
+      "agent_turn",
+      "provider_stream",
+      "tool",
+      "fs",
+      "sidecar",
+      "renderer",
+      "user_action",
+      "system",
+      "storage",
+      "diagnostic_upload"
+    ];
+
+    for (const [index, category] of categories.entries()) {
+      const status = index % 2 === 0 ? "queued" : "dropped";
+      const response = await app.inject({
+        method: "POST",
+        url: "/gateway/client-events/diagnostics",
+        headers,
+        payload: clientDiagnosticPayload({
+          event_id: `diag_phase1a_${index}`,
+          category,
+          action: "event",
+          status
+        })
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(
+        clientEventsStore.getClientDiagnosticEvent("subj_dev", `diag_phase1a_${index}`)
+      ).toMatchObject({ category, status });
+    }
 
     await app.close();
   });

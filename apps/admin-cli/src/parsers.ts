@@ -14,6 +14,7 @@ type MissingUsageCharge = TokenLimitPolicy["missingUsageCharge"];
 
 const adminAuditActions = new Set<AdminAuditAction>([
   "issue",
+  "provision-user",
   "update-key",
   "revoke",
   "rotate",

@@ -578,11 +578,15 @@ export function buildGateway(options: GatewayOptions = {}) {
           scope,
           sessionId: parsed.sessionId,
           messageId: parsed.messageId,
+          toolCallId: parsed.toolCallId,
+          providerId: parsed.providerId,
+          modelId: parsed.modelId,
           category: parsed.category,
           action: parsed.action,
           status: parsed.status,
           method: parsed.method,
           path: parsed.path,
+          monoMs: parsed.monoMs,
           durationMs: parsed.durationMs,
           httpStatus: parsed.httpStatus,
           errorCode: parsed.errorCode,
@@ -1394,6 +1398,9 @@ function clientDiagnosticEventsMatch(
   return (
     existing.sessionId === parsed.sessionId &&
     existing.messageId === parsed.messageId &&
+    existing.toolCallId === parsed.toolCallId &&
+    existing.providerId === parsed.providerId &&
+    existing.modelId === parsed.modelId &&
     existing.createdAt.getTime() === parsed.createdAt.getTime() &&
     existing.appName === parsed.appName &&
     existing.appVersion === parsed.appVersion &&
@@ -1402,6 +1409,7 @@ function clientDiagnosticEventsMatch(
     existing.status === parsed.status &&
     existing.method === parsed.method &&
     existing.path === parsed.path &&
+    existing.monoMs === parsed.monoMs &&
     existing.durationMs === parsed.durationMs &&
     existing.httpStatus === parsed.httpStatus &&
     existing.errorCode === parsed.errorCode &&

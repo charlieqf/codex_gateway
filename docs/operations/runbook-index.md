@@ -19,6 +19,7 @@ Deployment and safety:
 Operational workflows now covered:
 
 - User-friendly API key issue, list, active-key inventory, update, reveal, rotate, and revoke.
+- One-command `provision-user` workflow for trusted backends or operators to create/update a user, grant or renew a plan entitlement, and optionally issue an API key after external approval/payment.
 - User listing plus user contact metadata update and user disable/enable.
 - Request event inspection by API key or user.
 - Dynamic usage reports by API key or user, including token usage fields.
@@ -36,6 +37,7 @@ Operational workflows now covered:
 - MedEvidence v2 handoff JSON to Codex Gateway API key provisioning through `scripts/provision-medevidence-codex-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 - Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.
+- Registration/payment integration contract in `docs/implementation/registration-payment-integration-spec.md` for external signup, checkout, webhook, CRM, or billing teams that need to trigger gateway provisioning.
 
 Operational workflows still pending:
 

@@ -422,6 +422,37 @@ export function migrateClientEventsSchema(db: DatabaseSync): void {
         ON client_diagnostic_events(action, received_at);
     `
   );
+
+  applyMigration(
+    db,
+    3,
+    () => {
+      if (!columnExists(db, "client_diagnostic_events", "tool_call_id")) {
+        db.exec("ALTER TABLE client_diagnostic_events ADD COLUMN tool_call_id TEXT");
+      }
+      if (!columnExists(db, "client_diagnostic_events", "provider_id")) {
+        db.exec("ALTER TABLE client_diagnostic_events ADD COLUMN provider_id TEXT");
+      }
+      if (!columnExists(db, "client_diagnostic_events", "model_id")) {
+        db.exec("ALTER TABLE client_diagnostic_events ADD COLUMN model_id TEXT");
+      }
+      if (!columnExists(db, "client_diagnostic_events", "mono_ms")) {
+        db.exec("ALTER TABLE client_diagnostic_events ADD COLUMN mono_ms REAL");
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_client_diag_session_message
+          ON client_diagnostic_events(session_id, message_id, received_at);
+
+        CREATE INDEX IF NOT EXISTS idx_client_diag_category_action
+          ON client_diagnostic_events(category, action, status, received_at DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_client_diag_tool_call
+          ON client_diagnostic_events(tool_call_id, received_at DESC)
+          WHERE tool_call_id IS NOT NULL;
+      `);
+    }
+  );
 }
 
 function migrateLegacyUpstreamAccountSchema(db: DatabaseSync): void {

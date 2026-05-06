@@ -10,6 +10,11 @@
 
 This runbook covers only server-side work needed to operate subscription-style access control and manual commercial follow-up.
 
+For teams building registration pages, checkout pages, payment webhooks, or CRM
+workflows, use `docs/implementation/registration-payment-integration-spec.md`
+as the integration contract. This runbook remains the gateway-side operations
+guide.
+
 Explicitly out of scope:
 
 - Account creation pages.
@@ -53,6 +58,78 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
 ```
 
 Never print or store full API keys in rollout notes. Use user ids, credential ids, and credential prefixes.
+
+## One-Command User Provisioning
+
+Use `provision-user` when an operator or trusted backend has already approved a
+new user or confirmed payment outside the gateway. The command combines the
+normal manual steps:
+
+1. create or update the user contact record;
+2. grant or renew a plan entitlement;
+3. optionally issue a new API key.
+
+Create or update a paid user, grant quota, and issue a new API key:
+
+```bash
+node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db provision-user \
+  --user medevidence-example-user \
+  --name "Example User" \
+  --phone "+15550001111" \
+  --plan plan_pro_v1 \
+  --period monthly \
+  --replace \
+  --key-label "Example User API key" \
+  --scope code \
+  --external-id checkout_123
+```
+
+Renew an existing user without issuing another API key:
+
+```bash
+node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db provision-user \
+  --user medevidence-example-user \
+  --name "Example User" \
+  --phone "+15550001111" \
+  --plan plan_pro_v1 \
+  --renew \
+  --replace \
+  --external-id invoice_456
+```
+
+Notes:
+
+- `--name` and `--phone` are required so real paid users do not enter the
+  system with missing contact metadata.
+- `--key-label` controls whether a new API key is issued. Omit it for renewal
+  or plan changes where the user should keep the existing API key.
+- stdout is clean JSON. If a key is issued, stdout includes the full API key
+  once; callers must store or display it securely and must not log it.
+- Admin audit records use action `provision-user` and store user id, plan id,
+  entitlement id, credential prefix, and `--external-id`; they do not store the
+  full API key.
+
+## Calling The CLI From Another Backend
+
+Registration, CRM, or payment-page backends may call this CLI as a trusted
+server-side integration point. Do not call it from browser code.
+
+Minimum integration rules:
+
+- Run it only in a trusted backend, worker, or job runner with access to the
+  gateway database and `GATEWAY_API_KEY_ENCRYPTION_SECRET`.
+- Use process execution APIs such as Node.js `execFile` or Python
+  `subprocess.run([...])`; do not build one shell string from user input.
+- Pass arguments as an array, parse JSON stdout, and treat non-zero exit as a
+  failed provisioning attempt.
+- Redact `token` from application logs when `--key-label` is used.
+- Use `--external-id` for the upstream registration/payment/customer id so
+  retries and manual reconciliation can be traced through `audit`.
+
+For broader self-service traffic, prefer adding a narrow internal admin API
+later instead of exposing CLI execution over HTTP. That API should stay behind
+internal networking plus service authentication such as mTLS or a dedicated
+service token, and should reuse the same provisioning semantics.
 
 ## Phase 0: Pre-Rollout Inventory Snapshot
 

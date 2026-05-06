@@ -35,6 +35,7 @@ import {
   type NullableIntegerOption
 } from "./commands/command-context.js";
 import { registerIssueCommand } from "./commands/issue.js";
+import { registerProvisionUserCommand } from "./commands/provision-user.js";
 import { resolveSubjectUserId } from "./commands/subject-options.js";
 import {
   encryptAccessCredentialToken,
@@ -95,6 +96,7 @@ const commandContext = buildCommandContext({
 });
 
 registerIssueCommand(program, commandContext);
+registerProvisionUserCommand(program, commandContext);
 
 program
   .command("list")

@@ -26,14 +26,18 @@ export interface ParsedClientDiagnosticEventRequest {
   eventId: string;
   sessionId: string | null;
   messageId: string | null;
+  toolCallId: string | null;
+  providerId: string | null;
+  modelId: string | null;
   createdAt: Date;
   appName: string;
   appVersion: string | null;
   category: string;
   action: string;
-  status: "started" | "ok" | "error" | "aborted" | "timeout";
+  status: "started" | "ok" | "error" | "aborted" | "timeout" | "queued" | "dropped";
   method: string | null;
   path: string | null;
+  monoMs: number | null;
   durationMs: number | null;
   httpStatus: number | null;
   errorCode: string | null;
@@ -84,8 +88,32 @@ const forbiddenDiagnosticKeys = new Set([
   "x-api-key",
   "xapikey"
 ]);
-const diagnosticCategories = new Set(["http", "sse", "medevidence", "ui", "network"]);
-const diagnosticStatuses = new Set(["started", "ok", "error", "aborted", "timeout"]);
+const diagnosticCategories = new Set([
+  "http",
+  "sse",
+  "medevidence",
+  "ui",
+  "network",
+  "agent_turn",
+  "provider_stream",
+  "tool",
+  "fs",
+  "sidecar",
+  "renderer",
+  "user_action",
+  "system",
+  "storage",
+  "diagnostic_upload"
+]);
+const diagnosticStatuses = new Set([
+  "started",
+  "ok",
+  "error",
+  "aborted",
+  "timeout",
+  "queued",
+  "dropped"
+]);
 const isoDateTimePattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -215,12 +243,24 @@ export function parseClientDiagnosticEventRequest(
   if (messageId instanceof GatewayError) {
     return messageId;
   }
+  const topLevelToolCallId = readOptionalDiagnosticString(body, "tool_call_id", 128);
+  if (topLevelToolCallId instanceof GatewayError) {
+    return topLevelToolCallId;
+  }
+  const topLevelProviderId = readOptionalDiagnosticString(body, "provider_id", 128);
+  if (topLevelProviderId instanceof GatewayError) {
+    return topLevelProviderId;
+  }
+  const topLevelModelId = readOptionalDiagnosticString(body, "model_id", 128);
+  if (topLevelModelId instanceof GatewayError) {
+    return topLevelModelId;
+  }
   const category = readRequiredString(body, "category", 64);
   if (category instanceof GatewayError) {
     return category;
   }
   if (!diagnosticCategories.has(category)) {
-    return invalid("category must be http, sse, medevidence, ui, or network.");
+    return invalid("category must be a supported client_diagnostic.v1 category.");
   }
   const action = readRequiredDiagnosticString(body, "action", 128);
   if (action instanceof GatewayError) {
@@ -231,7 +271,7 @@ export function parseClientDiagnosticEventRequest(
     return status;
   }
   if (!diagnosticStatuses.has(status)) {
-    return invalid("status must be started, ok, error, aborted, or timeout.");
+    return invalid("status must be a supported client_diagnostic.v1 status.");
   }
 
   const method = readOptionalString(body, "method", 16);
@@ -241,6 +281,10 @@ export function parseClientDiagnosticEventRequest(
   const path = readOptionalDiagnosticPath(body, "path", 512);
   if (path instanceof GatewayError) {
     return path;
+  }
+  const monoMs = readOptionalDiagnosticNumber(body.mono_ms, "mono_ms", Number.MAX_SAFE_INTEGER);
+  if (monoMs instanceof GatewayError) {
+    return monoMs;
   }
   const durationMs = readOptionalInteger(body.duration_ms, "duration_ms", 86_400_000);
   if (durationMs instanceof GatewayError) {
@@ -254,19 +298,25 @@ export function parseClientDiagnosticEventRequest(
   if (errorCode instanceof GatewayError) {
     return errorCode;
   }
-  const errorMessage = readOptionalDiagnosticString(body, "error_message", 512);
+  const errorMessage = readOptionalDiagnosticString(body, "error_message", 2048);
   if (errorMessage instanceof GatewayError) {
     return errorMessage;
   }
-  const metadataJson = readMetadata(body.metadata);
-  if (metadataJson instanceof GatewayError) {
-    return metadataJson;
+  const metadata = readMetadata(body.metadata);
+  if (metadata instanceof GatewayError) {
+    return metadata;
   }
+  const toolCallId = topLevelToolCallId ?? readMetadataString(metadata.value, "tool_call_id", 128);
+  const providerId = topLevelProviderId ?? readMetadataString(metadata.value, "provider_id", 128);
+  const modelId = topLevelModelId ?? readMetadataString(metadata.value, "model_id", 128);
 
   return {
     eventId,
     sessionId,
     messageId,
+    toolCallId,
+    providerId,
+    modelId,
     createdAt,
     appName: app.name,
     appVersion: app.version,
@@ -275,11 +325,12 @@ export function parseClientDiagnosticEventRequest(
     status: status as ParsedClientDiagnosticEventRequest["status"],
     method,
     path,
+    monoMs,
     durationMs,
     httpStatus,
     errorCode,
     errorMessage,
-    metadataJson
+    metadataJson: metadata.json
   };
 }
 
@@ -503,9 +554,31 @@ function readOptionalInteger(
   return value;
 }
 
-function readMetadata(value: unknown): string | GatewayError {
+function readOptionalDiagnosticNumber(
+  value: unknown,
+  label: string,
+  max: number,
+  min = 0
+): number | null | GatewayError {
   if (value === undefined || value === null) {
-    return "{}";
+    return null;
+  }
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < min ||
+    value > max
+  ) {
+    return invalid(`${label} must be a finite number from ${min} to ${max}.`);
+  }
+  return value;
+}
+
+function readMetadata(
+  value: unknown
+): { json: string; value: Record<string, unknown> } | GatewayError {
+  if (value === undefined || value === null) {
+    return { json: "{}", value: {} };
   }
   if (!isRecord(value)) {
     return invalid("metadata must be a JSON object.");
@@ -518,7 +591,22 @@ function readMetadata(value: unknown): string | GatewayError {
   if (Buffer.byteLength(json, "utf8") > CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES) {
     return invalid("metadata exceeds 16KB UTF-8 byte length.", 413);
   }
-  return json;
+  return { json, value };
+}
+
+function readMetadataString(
+  metadata: Record<string, unknown>,
+  key: string,
+  maxLength: number
+): string | null {
+  const value = metadata[key];
+  if (typeof value !== "string" || value.length === 0 || value.trim().length === 0) {
+    return null;
+  }
+  if (value.length > maxLength) {
+    return null;
+  }
+  return value;
 }
 
 function findForbiddenMetadataKey(value: unknown, prefix = ""): string | null {

@@ -618,6 +618,136 @@ describe("codex-gateway-admin user API key operations", () => {
     });
   }, 20_000);
 
+  it("provisions a user with a plan entitlement and new API key in one command", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-provision-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const policyPath = path.join(dir, "plan-policy.json");
+    writeFileSync(
+      policyPath,
+      JSON.stringify({
+        tokensPerMinute: 100,
+        tokensPerDay: 1000,
+        tokensPerMonth: 5000,
+        maxPromptTokensPerRequest: 200,
+        maxTotalTokensPerRequest: 500,
+        reserveTokensPerRequest: 50,
+        missingUsageCharge: "reserve"
+      }),
+      "utf8"
+    );
+
+    runCli(dbPath, [
+      "plan",
+      "create",
+      "--id",
+      "plan_paid_v1",
+      "--display-name",
+      "Paid",
+      "--policy-file",
+      policyPath
+    ]);
+
+    const provisioned = runCli(dbPath, [
+      "provision-user",
+      "--user",
+      "paid-user-1",
+      "--name",
+      "Paid User",
+      "--phone",
+      "+15550001111",
+      "--plan",
+      "plan_paid_v1",
+      "--period",
+      "unlimited",
+      "--key-label",
+      "Paid User API key",
+      "--scope",
+      "code",
+      "--external-id",
+      "checkout_123"
+    ]) as {
+      user: { id: string; name: string; phone_number: string };
+      plan: { id: string; display_name: string };
+      entitlement: { id: string; user_id: string; plan_id: string; state: string };
+      credential: {
+        id: string;
+        prefix: string;
+        token: string;
+        user_id: string;
+        label: string;
+        scope: string;
+        rate: { requestsPerMinute: number; requestsPerDay: number; concurrentRequests: number };
+      };
+      credential_issued: boolean;
+      mode: string;
+    };
+
+    expect(provisioned).toMatchObject({
+      user: {
+        id: "paid-user-1",
+        name: "Paid User",
+        phone_number: "+15550001111"
+      },
+      plan: {
+        id: "plan_paid_v1",
+        display_name: "Paid"
+      },
+      entitlement: {
+        user_id: "paid-user-1",
+        plan_id: "plan_paid_v1",
+        state: "active"
+      },
+      credential: {
+        user_id: "paid-user-1",
+        label: "Paid User API key",
+        scope: "code",
+        rate: {
+          requestsPerMinute: 60,
+          requestsPerDay: 5000,
+          concurrentRequests: 4
+        }
+      },
+      credential_issued: true,
+      mode: "grant"
+    });
+    expect(provisioned.credential.token).toContain(provisioned.credential.prefix);
+
+    const windows = runCli(dbPath, ["token-windows", "--user", "paid-user-1"]) as {
+      entitlement_id: string | null;
+      token_usage: { source: string; day: { remaining: number } };
+    };
+    expect(windows).toMatchObject({
+      entitlement_id: provisioned.entitlement.id,
+      token_usage: {
+        source: "entitlement",
+        day: { remaining: 1000 }
+      }
+    });
+
+    const audit = runCli(dbPath, ["audit", "--action", "provision-user", "--limit", "5"]) as {
+      events: Array<{
+        target_user_id: string;
+        target_credential_prefix: string | null;
+        status: string;
+        params: Record<string, unknown>;
+      }>;
+    };
+    expect(audit.events).toHaveLength(1);
+    expect(audit.events[0]).toMatchObject({
+      target_user_id: "paid-user-1",
+      target_credential_prefix: provisioned.credential.prefix,
+      status: "ok",
+      params: expect.objectContaining({
+        external_id: "checkout_123",
+        entitlement_id: provisioned.entitlement.id,
+        credential_issued: true,
+        credential_prefix: provisioned.credential.prefix
+      })
+    });
+    expect(JSON.stringify(audit.events)).not.toContain(provisioned.credential.token);
+  }, 20_000);
+
   it("generates a static quota dashboard for users and plans", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-dashboard-"));
     cleanupDirs.push(dir);

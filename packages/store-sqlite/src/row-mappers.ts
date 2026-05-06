@@ -292,11 +292,15 @@ export function rowToClientDiagnosticEvent(row: unknown): ClientDiagnosticEventR
     scope: ClientDiagnosticEventRecord["scope"];
     session_id: string | null;
     message_id: string | null;
+    tool_call_id: string | null;
+    provider_id: string | null;
+    model_id: string | null;
     category: string;
     action: string;
     status: ClientDiagnosticEventRecord["status"];
     method: string | null;
     path: string | null;
+    mono_ms: number | null;
     duration_ms: number | null;
     http_status: number | null;
     error_code: string | null;
@@ -317,11 +321,15 @@ export function rowToClientDiagnosticEvent(row: unknown): ClientDiagnosticEventR
     scope: value.scope,
     sessionId: value.session_id,
     messageId: value.message_id,
+    toolCallId: value.tool_call_id,
+    providerId: value.provider_id,
+    modelId: value.model_id,
     category: value.category,
     action: value.action,
     status: value.status,
     method: value.method,
     path: value.path,
+    monoMs: value.mono_ms,
     durationMs: value.duration_ms,
     httpStatus: value.http_status,
     errorCode: value.error_code,

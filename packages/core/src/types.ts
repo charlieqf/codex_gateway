@@ -50,6 +50,7 @@ export type RequestEventStatus = "ok" | "error";
 
 export type AdminAuditAction =
   | "issue"
+  | "provision-user"
   | "update-key"
   | "revoke"
   | "rotate"
@@ -139,7 +140,9 @@ export type ClientDiagnosticEventStatus =
   | "ok"
   | "error"
   | "aborted"
-  | "timeout";
+  | "timeout"
+  | "queued"
+  | "dropped";
 
 export interface ClientDiagnosticEventRecord {
   id: string;
@@ -150,11 +153,15 @@ export interface ClientDiagnosticEventRecord {
   scope: Scope;
   sessionId: string | null;
   messageId: string | null;
+  toolCallId: string | null;
+  providerId: string | null;
+  modelId: string | null;
   category: string;
   action: string;
   status: ClientDiagnosticEventStatus;
   method: string | null;
   path: string | null;
+  monoMs: number | null;
   durationMs: number | null;
   httpStatus: number | null;
   errorCode: string | null;

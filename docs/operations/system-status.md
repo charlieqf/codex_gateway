@@ -24,6 +24,7 @@ Completed:
 - SQLite schema migration and SQLite-backed session persistence via `GATEWAY_SQLITE_PATH`.
 - User-friendly API key issue/list/update/revoke/rotate MVP.
 - API key user metadata management for `name` and `phone_number`, including `issue --name --phone`, `update-user`, `list-active-keys`, `reveal-key`, and `reveal-keys`.
+- One-command admin provisioning through `provision-user` for trusted backends/operators to create or update a user, grant or renew a plan entitlement, and optionally issue an API key after external approval or payment.
 - Recoverable API key storage for newly issued/rotated keys via encrypted `token_ciphertext`; historical hash-only keys cannot be reconstructed.
 - Opaque access credential generation with stored SHA-256 hash and prefix lookup.
 - SQLite-backed credential auth hook for gateway requests.

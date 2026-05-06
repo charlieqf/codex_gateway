@@ -76,9 +76,10 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
     const row = this.db
       .prepare(
         `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
-                message_id, category, action, status, method, path, duration_ms,
-                http_status, error_code, error_message, metadata_json, app_name,
-                app_version, created_at, received_at
+                message_id, tool_call_id, provider_id, model_id, category, action,
+                status, method, path, mono_ms, duration_ms, http_status, error_code,
+                error_message, metadata_json, app_name, app_version, created_at,
+                received_at
          FROM client_diagnostic_events
          WHERE subject_id = ? AND event_id = ?`
       )
@@ -94,9 +95,10 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
       .prepare(
         `INSERT INTO client_diagnostic_events (
           id, event_id, request_id, credential_id, subject_id, scope, session_id, message_id,
-          category, action, status, method, path, duration_ms, http_status, error_code,
-          error_message, metadata_json, app_name, app_version, created_at, received_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          tool_call_id, provider_id, model_id, category, action, status, method, path,
+          mono_ms, duration_ms, http_status, error_code, error_message, metadata_json,
+          app_name, app_version, created_at, received_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         record.id,
@@ -107,11 +109,15 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
         record.scope,
         record.sessionId,
         record.messageId,
+        record.toolCallId,
+        record.providerId,
+        record.modelId,
         record.category,
         record.action,
         record.status,
         record.method,
         record.path,
+        record.monoMs,
         record.durationMs,
         record.httpStatus,
         record.errorCode,
