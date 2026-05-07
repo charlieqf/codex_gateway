@@ -34,6 +34,10 @@ import {
   type MissingUsageCharge,
   type NullableIntegerOption
 } from "./commands/command-context.js";
+import {
+  defaultClientEventsDbPath,
+  registerClientEventQueryCommands
+} from "./commands/client-event-queries.js";
 import { registerIssueCommand } from "./commands/issue.js";
 import { registerProvisionUserCommand } from "./commands/provision-user.js";
 import { resolveSubjectUserId } from "./commands/subject-options.js";
@@ -82,6 +86,11 @@ program
   .description("Admin CLI for Codex Gateway")
   .version("0.1.0")
   .option("--db <path>", "SQLite database path", process.env.GATEWAY_SQLITE_PATH)
+  .option(
+    "--client-events-db <path>",
+    "client events SQLite database path",
+    process.env.GATEWAY_CLIENT_EVENTS_SQLITE_PATH
+  )
   .option("--verbose", "write diagnostic logs to stderr");
 
 const commandContext = buildCommandContext({
@@ -97,6 +106,11 @@ const commandContext = buildCommandContext({
 
 registerIssueCommand(program, commandContext);
 registerProvisionUserCommand(program, commandContext);
+registerClientEventQueryCommands(program, {
+  gatewayDbPath: requireDbPath,
+  clientEventsDbPath: requireClientEventsDbPath,
+  printJson
+});
 
 program
   .command("list")
@@ -1280,6 +1294,11 @@ function requireDbPath(): string {
     throw new Error("SQLite database path is required. Use --db or GATEWAY_SQLITE_PATH.");
   }
   return dbPath;
+}
+
+function requireClientEventsDbPath(): string {
+  const dbPath = program.opts<{ clientEventsDb?: string }>().clientEventsDb;
+  return dbPath ?? defaultClientEventsDbPath(requireDbPath());
 }
 
 function buildTrialCheck(

@@ -85,7 +85,8 @@ Known VM constraints from current testing:
 
 ## VM Project Paths
 
-Use only user-owned paths for Codex Gateway tests:
+Use only user-owned paths for native Node smoke tests and isolated development
+checks:
 
 ```bash
 cd "$HOME/codex-gateway-test"
@@ -101,6 +102,22 @@ Directory permissions:
 ```bash
 chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 ```
+
+These `$HOME/codex-gateway-state` paths are not the current production state for
+`gw.instmarket.com.au`. The live gateway runs in Docker Compose project
+`codex_gateway_test`, and its production SQLite files are inside the gateway
+container at:
+
+```text
+/var/lib/codex-gateway/gateway.db
+/var/lib/codex-gateway/client-events.db
+```
+
+Those container paths are backed on the host by Docker volume
+`codex_gateway_test_gateway_state`, not by a host `/var/lib/codex-gateway`
+directory. For production admin CLI queries, run the CLI inside the running
+container with `sudo docker compose -p codex_gateway_test -f compose.azure.yml
+exec -T gateway ...`.
 
 ## Safe VM Test Commands
 

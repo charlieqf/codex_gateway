@@ -1611,6 +1611,173 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("falls back to a plain assistant message for auto strict tools plain text", async () => {
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "Here is a simulated dataset analysis." },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 5,
+          completionTokens: 4,
+          totalTokens: 9
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Continue the analysis without tools." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0]).toMatchObject({
+      message: {
+        role: "assistant",
+        content: "Here is a simulated dataset analysis."
+      },
+      finish_reason: "stop"
+    });
+    expect(response.json().choices[0].message.tool_calls).toBeUndefined();
+    expect(response.json().usage).toMatchObject({
+      prompt_tokens: 10,
+      completion_tokens: 8,
+      total_tokens: 18
+    });
+    expect(provider.messages).toHaveLength(2);
+    expect(provider.messages[1].message).toContain("previous output was invalid");
+
+    await app.close();
+  });
+
+  it("does not fallback for malformed strict tool-call output", async () => {
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: '{"type":"tool_calls","tool_calls":[{"name":"medevidence","arguments":'
+      },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use a medical evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error).toMatchObject({
+      code: "tool_call_validation_failed",
+      message: "Expected valid JSON object output."
+    });
+    expect(provider.messages).toHaveLength(2);
+
+    await app.close();
+  });
+
+  it("does not fallback for required or named tool_choice plain text", async () => {
+    const toolChoices = [
+      "required",
+      {
+        type: "function",
+        function: { name: "medevidence" }
+      }
+    ];
+
+    for (const toolChoice of toolChoices) {
+      const provider = new FakeProvider([
+        { type: "message_delta", text: "I can answer directly without a tool." },
+        { type: "completed", providerSessionRef: "provider_thread_1" }
+      ]);
+      const app = buildGateway({
+        accessToken: "secret",
+        provider,
+        logger: false
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: "Bearer secret" },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "Use the evidence tool." }],
+          tool_choice: toolChoice,
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "medevidence",
+                parameters: {
+                  type: "object",
+                  properties: { question: { type: "string" } },
+                  required: ["question"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json().error).toMatchObject({
+        code: "tool_call_validation_failed",
+        message: "Expected valid JSON object output."
+      });
+      expect(provider.messages).toHaveLength(2);
+
+      await app.close();
+    }
+  });
+
   it("honors tool_choice none by avoiding strict mode and suppressing tool calls", async () => {
     const provider = new FakeProvider([
       {

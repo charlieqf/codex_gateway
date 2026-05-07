@@ -34,8 +34,18 @@ The gateway container runs as a non-root user and uses:
 
 ```text
 /var/lib/codex-gateway/gateway.db
+/var/lib/codex-gateway/client-events.db
 /var/lib/codex-gateway/codex-home
 ```
+
+Those are container paths. In the current Azure VM public internal-trial deployment,
+they are backed by Docker named volume `codex_gateway_test_gateway_state`; the
+VM host path is Docker-managed under
+`/var/lib/docker/volumes/codex_gateway_test_gateway_state/_data`. The host does
+not need a `/var/lib/codex-gateway` directory.
+
+`$HOME/codex-gateway-state/gateway.db` is legacy native/smoke-test state and is
+not the production database for `gw.instmarket.com.au`.
 
 The default compose service also sets conservative local limits:
 
@@ -62,6 +72,7 @@ Minimum required production values:
 NODE_ENV=production
 GATEWAY_AUTH_MODE=credential
 GATEWAY_SQLITE_PATH=/var/lib/codex-gateway/gateway.db
+GATEWAY_CLIENT_EVENTS_SQLITE_PATH=/var/lib/codex-gateway/client-events.db
 CODEX_HOME=/var/lib/codex-gateway/codex-home
 CODEX_WORKDIR=/app
 CODEX_SKIP_GIT_REPO_CHECK=1
@@ -156,6 +167,26 @@ docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
 `events` and `report-usage` include token usage fields when upstream provider
 usage is available: `prompt_tokens`, `completion_tokens`, `total_tokens`,
 `cached_prompt_tokens`, `estimated_tokens`, and `usage_source`.
+
+Inspect Desktop client message and diagnostic uploads from inside the running
+container:
+
+```bash
+docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js \
+  --db /var/lib/codex-gateway/gateway.db \
+  --client-events-db /var/lib/codex-gateway/client-events.db \
+  client-messages --user "Alice Zhang" --limit 5
+
+docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js \
+  --db /var/lib/codex-gateway/gateway.db \
+  --client-events-db /var/lib/codex-gateway/client-events.db \
+  client-diagnostics --user "Alice Zhang" --limit 50
+```
+
+The admin CLI opens both SQLite files read-only for these query commands. Use
+`--include-text` only when the support case requires full prompt text.
 
 Preview retention cleanup first:
 

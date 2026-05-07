@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import {
+  createSqliteClientEventsStore,
+  createSqliteStore
+} from "@codex-gateway/store-sqlite";
 
 const cleanupDirs: string[] = [];
 
@@ -1337,6 +1340,175 @@ describe("codex-gateway-admin user API key operations", () => {
     ).toThrow();
   });
 
+  it("queries Desktop client messages and diagnostics without leaking full keys or full text by default", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-client-events-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const clientEventsDbPath = path.join(dir, "client-events.db");
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "duheng",
+      "--name",
+      "杜衡",
+      "--phone",
+      "+8613800000000",
+      "--label",
+      "Du Heng Desktop",
+      "--scope",
+      "code"
+    ]) as {
+      token: string;
+      credential: {
+        id: string;
+        prefix: string;
+      };
+    };
+
+    const prompt =
+      "请不要调用 MedEvidence。请作为医学科研基金写作顾问，帮我重写课题背景和创新点。";
+    const clientEvents = createSqliteClientEventsStore({ path: clientEventsDbPath });
+    clientEvents.insertClientMessageEvent({
+      id: "cme_duheng_1",
+      eventId: "evt_duheng_1",
+      requestId: "req_ingest_1",
+      credentialId: issued.credential.id,
+      subjectId: "duheng",
+      scope: "code",
+      sessionId: "ses_duheng_1",
+      messageId: "msg_duheng_1",
+      agent: "research",
+      providerId: "medcode",
+      modelId: "gpt-5.5",
+      engine: "agent",
+      text: prompt,
+      textSha256: "0".repeat(64),
+      attachmentsJson: "[]",
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6",
+      createdAt: new Date("2026-05-07T03:30:00Z"),
+      receivedAt: new Date("2026-05-07T03:31:19Z")
+    });
+    clientEvents.insertClientDiagnosticEvent({
+      id: "cde_duheng_tool_1",
+      eventId: "diag_duheng_tool_1",
+      requestId: "req_diag_1",
+      credentialId: issued.credential.id,
+      subjectId: "duheng",
+      scope: "code",
+      sessionId: "ses_duheng_1",
+      messageId: "msg_duheng_1",
+      toolCallId: "toolu_medevidence_1",
+      providerId: "medcode",
+      modelId: "gpt-5.5",
+      category: "tool",
+      action: "medevidence",
+      status: "started",
+      method: null,
+      path: null,
+      monoMs: 1234,
+      durationMs: null,
+      httpStatus: null,
+      errorCode: null,
+      errorMessage: null,
+      metadataJson: JSON.stringify({
+        request_id: "me_req_1",
+        article_id: "article_1",
+        tool_name: "medevidence"
+      }),
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6",
+      createdAt: new Date("2026-05-07T03:32:00Z"),
+      receivedAt: new Date("2026-05-07T03:32:01Z")
+    });
+    clientEvents.close();
+
+    const unifiedKey = `cmev1.${issued.token}.mev2_live_test_secret`;
+    const rawMessages = runCliRaw(
+      dbPath,
+      [
+        "--client-events-db",
+        clientEventsDbPath,
+        "client-messages",
+        "--unified-key-env",
+        "SUPPORT_UNIFIED_KEY",
+        "--limit",
+        "1",
+        "--preview-chars",
+        "12",
+        "--timezone",
+        "Asia/Shanghai"
+      ],
+      { SUPPORT_UNIFIED_KEY: unifiedKey }
+    );
+    expect(rawMessages).not.toContain(issued.token);
+    expect(rawMessages).not.toContain(unifiedKey);
+    expect(rawMessages).not.toContain("mev2_live_test_secret");
+    expect(rawMessages).not.toContain(prompt);
+
+    const messages = JSON.parse(rawMessages) as {
+      subject: { id: string; name: string };
+      credential: { prefix: string; token?: string };
+      messages: Array<{
+        credential_prefix: string;
+        text_preview: string;
+        text?: string;
+        received_at_local: string;
+      }>;
+    };
+    expect(messages.subject).toMatchObject({ id: "duheng", name: "杜衡" });
+    expect(messages.credential).toMatchObject({ prefix: issued.credential.prefix });
+    expect(messages.credential.token).toBeUndefined();
+    expect(messages.messages).toHaveLength(1);
+    expect(messages.messages[0]).toMatchObject({
+      credential_prefix: issued.credential.prefix,
+      text_preview: "请不要调用 MedEvi...",
+      received_at_local: "2026-05-07 11:31:19 Asia/Shanghai"
+    });
+    expect(messages.messages[0].text).toBeUndefined();
+
+    const fullText = runCli(dbPath, [
+      "--client-events-db",
+      clientEventsDbPath,
+      "client-messages",
+      "--user",
+      "杜衡",
+      "--include-text",
+      "--limit",
+      "1"
+    ]) as { messages: Array<{ text: string }> };
+    expect(fullText.messages[0]?.text).toBe(prompt);
+
+    const diagnostics = runCli(dbPath, [
+      "--client-events-db",
+      clientEventsDbPath,
+      "client-diagnostics",
+      "--credential-prefix",
+      issued.credential.prefix,
+      "--request-id",
+      "me_req_1",
+      "--include-metadata"
+    ]) as {
+      diagnostics: Array<{
+        category: string;
+        action: string;
+        metadata_request_id: string;
+        metadata_article_id: string;
+        metadata: { tool_name: string };
+      }>;
+    };
+    expect(diagnostics.diagnostics).toEqual([
+      expect.objectContaining({
+        category: "tool",
+        action: "medevidence",
+        metadata_request_id: "me_req_1",
+        metadata_article_id: "article_1",
+        metadata: expect.objectContaining({ tool_name: "medevidence" })
+      })
+    ]);
+  }, 20_000);
+
   it("keeps stdout as clean JSON when migrating a legacy request-event database", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-legacy-"));
     cleanupDirs.push(dir);
@@ -1359,11 +1531,11 @@ describe("codex-gateway-admin user API key operations", () => {
   });
 });
 
-function runCli(dbPath: string, args: string[]): unknown {
-  return JSON.parse(runCliRaw(dbPath, args));
+function runCli(dbPath: string, args: string[], env: Record<string, string> = {}): unknown {
+  return JSON.parse(runCliRaw(dbPath, args, env));
 }
 
-function runCliRaw(dbPath: string, args: string[]): string {
+function runCliRaw(dbPath: string, args: string[], env: Record<string, string> = {}): string {
   return execFileSync(
     process.execPath,
     ["--import", "tsx", path.resolve("apps/admin-cli/src/index.ts"), "--db", dbPath, ...args],
@@ -1371,6 +1543,7 @@ function runCliRaw(dbPath: string, args: string[]): string {
       cwd: path.resolve("."),
       env: {
         ...process.env,
+        ...env,
         GATEWAY_API_KEY_ENCRYPTION_SECRET: "test-api-key-encryption-secret"
       },
       encoding: "utf8",

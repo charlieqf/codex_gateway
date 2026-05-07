@@ -15,13 +15,35 @@ For non-invasive shared-VM rules, see [safe-vm-testing.md](./safe-vm-testing.md)
 - Default VM exposure: `127.0.0.1:18787` on the VM only.
 - Container listener: `0.0.0.0:8787` inside the container.
 - Default compose file contains no `80/443` service.
-- State: Docker named volume mounted at `/var/lib/codex-gateway`.
-- SQLite path: `/var/lib/codex-gateway/gateway.db`.
-- Codex auth home: `/var/lib/codex-gateway/codex-home`.
+- Current public internal-trial endpoint: `https://gw.instmarket.com.au`,
+  through host Nginx to `127.0.0.1:18787`.
+- Current compose project name: `codex_gateway_test`.
+- Current gateway container name: `codex_gateway_test-gateway-1`.
+- State: Docker named volume `codex_gateway_test_gateway_state`, mounted inside
+  the container at `/var/lib/codex-gateway`.
+- Host volume directory:
+  `/var/lib/docker/volumes/codex_gateway_test_gateway_state/_data`.
+- Main SQLite path inside the container:
+  `/var/lib/codex-gateway/gateway.db`.
+- Desktop client-events SQLite path inside the container:
+  `/var/lib/codex-gateway/client-events.db`.
+- Codex auth home inside the container:
+  `/var/lib/codex-gateway/codex-home`.
 - Production auth: `GATEWAY_AUTH_MODE=credential`.
 - Public `80/443`: not managed by this project by default. A controlled
   internal public trial should add only a dedicated Nginx hostname that proxies
   to `127.0.0.1:18787`, and only during an approved maintenance window.
+
+The VM host is not expected to have `/var/lib/codex-gateway`; that path is the
+container mount point. Do not use `$HOME/codex-gateway-state/gateway.db` for
+current production investigations; it is legacy native/smoke state and does not
+represent traffic served through `gw.instmarket.com.au`.
+
+The `codex_gateway_test` names are historical from the first controlled trial.
+They currently identify the live compose project and volume, so do not rename
+them during normal operations. A later maintenance task can migrate names to a
+less confusing `codex_gateway` / `codex_gateway_prod` convention with explicit
+backup and rollback.
 
 ## Shared VM Boundary
 
@@ -80,7 +102,7 @@ rate limiting, request event writing, usage reports, and manual event pruning.
 Those validations did not modify host reverse proxy, firewall, Docker, or
 public ports.
 
-The most recent public-trial preflight found existing Nginx on public `80`, no
-host listener on `443`, an existing local upstream on `127.0.0.1:8081`,
-PostgreSQL on `127.0.0.1:5432`, Docker active, and no running Codex Gateway
-container.
+The current public internal-trial deployment keeps existing Nginx on public
+`80/443`, preserves the existing local upstream on `127.0.0.1:8081`, keeps
+PostgreSQL on `127.0.0.1:5432`, and runs Codex Gateway only through the
+loopback-published Docker container.

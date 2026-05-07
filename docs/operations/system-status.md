@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-04-28
+Last updated: 2026-05-07
 
 ## Current Phase
 
@@ -32,6 +32,7 @@ Completed:
 - Auth mode selection prefers credential auth when a credential store is available; dev auth is rejected under `NODE_ENV=production`.
 - `/gateway/health` exposes `auth_mode`.
 - Admin CLI `issue`, `list`, `list-users`, `list-active-keys`, `update-user`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `reveal-key`, `reveal-keys`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
+- Admin CLI read-only Desktop client event queries: `client-messages` and `client-diagnostics` across the main `gateway.db` identity store and `client-events.db`, including user/name lookup, credential prefix lookup, unified-key env lookup, prompt preview/full-text switch, and diagnostic metadata filters.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations, including Phase 1 token usage fields when provider usage is available.
 - Admin CLI usage aggregation with token totals and dry-run-capable manual request event pruning.
@@ -54,6 +55,11 @@ Completed:
 - Phase 2 strict client-defined tools runtime has local gateway support: when `/v1/chat/completions` receives non-empty `tools[]`, the gateway asks for a strict JSON envelope, validates tool names against the client registry, validates arguments with JSON Schema, performs one repair attempt, and only then returns OpenAI-shaped `tool_calls`.
 - Phase 2 strict client-defined tools runtime has been deployed to the public controlled-trial gateway and validated with a temporary `medevidence(question: string)` tool call plus `role: "tool"` follow-up.
 - Phase 2 strict client-defined tools now honors OpenAI-style `tool_choice` for `"none"`, `"required"`, and named function choices, suppresses upstream native tool calls when `tool_choice` is `"none"`, validates complex nested JSON Schemas, and records strict validation failures through request observations and sanitized gateway logs.
+- Phase 2 strict client-defined tools now falls back to a normal assistant
+  message only when `tool_choice=auto`, the upstream output is non-empty plain
+  text, and both the initial parse and repair fail with non-JSON output.
+  Malformed tool-call attempts, schema validation failures, `tool_choice=required`,
+  and named function choices still fail with `tool_call_validation_failed`.
 - Strict client-defined tools accept JSON Schemas tagged as draft-07, draft 2019-09, or draft 2020-12, including client-generated `$schema: "https://json-schema.org/draft/2020-12/schema"` tool parameters.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
@@ -82,6 +88,17 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-07 admin CLI rebuild deployed to the live Azure VM Gateway container.
+  The container is healthy as `codex_gateway_test-gateway-1`, public
+  `https://gw.instmarket.com.au/gateway/health` succeeds, and
+  `codex-gateway-admin --help` inside the container exposes
+  `--client-events-db`, `client-messages`, and `client-diagnostics`.
+- The deployed read-only Desktop message query was validated against production
+  `gateway.db` and `client-events.db` by querying a real user display name.
+- 2026-05-07 strict client-defined tools auto plain-text fallback was deployed
+  to the live Azure VM Gateway container. Local and VM Gateway typecheck passed,
+  local `npm run build` and `npm test` passed with 117 tests, VM `npm run build`
+  passed, and the rebuilt container is healthy on loopback and public health.
 - Current deployed source includes API key contact metadata/reveal support,
   Phase 1 token usage recording, `gpt-5.5` with high reasoning effort, and the
   request id / usage aggregation fix that prevents reused Fastify request ids
@@ -90,6 +107,15 @@ Most recent Azure VM validation:
 - Azure VM checkout `/home/qian/codex-gateway-test` was updated from the current working tree; VM `npm run build` and `npm test` passed with 6 test files and 65 tests.
 - Docker image rebuild initially exposed VM-side `package-lock.json` platform drift caused by `npm install`; lockfile metadata was corrected with the same npm generation used by the container, `npm ci --dry-run` passed, and the gateway image rebuilt successfully.
 - Docker Compose gateway was recreated from the current image and is healthy as `codex_gateway_test-gateway-1`, publishing only `127.0.0.1:18787->8787`.
+- The `codex_gateway_test` compose project and `codex_gateway_test_gateway_state`
+  volume names are historical trial names but currently identify the live
+  Gateway deployment. Do not rename them outside an explicit maintenance task.
+- Current production SQLite paths are container paths:
+  `/var/lib/codex-gateway/gateway.db` and
+  `/var/lib/codex-gateway/client-events.db`, backed by Docker volume
+  `codex_gateway_test_gateway_state`. The VM host does not need
+  `/var/lib/codex-gateway`, and `$HOME/codex-gateway-state/gateway.db` is not
+  the live production database.
 - DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
 - Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
 - Nginx has a dedicated `gw.instmarket.com.au` server that proxies HTTPS traffic to `http://127.0.0.1:18787`.
@@ -134,6 +160,10 @@ Current test coverage:
 - Gateway dev auth hook, credential auth hook, production runtime validation, rate-limit hook, request validation, subject isolation, SSE routes, OpenAI Chat Completions routes, OpenAI-shaped tool-call/usage wrapping, and SQLite-backed session persistence.
 - Gateway API key self-validation route coverage, including invalid key handling and rate-limit bypass for validation-only calls.
 - Strict client-defined tool schema compatibility coverage for draft 2020-12 and draft-07 `$schema` declarations.
+- Strict client-defined tools fallback coverage for `tool_choice=auto` plain
+  text, plus non-fallback coverage for malformed tool-call output and
+  `tool_choice=required` / named function choices.
+- Admin CLI Desktop client message/diagnostic query coverage for unified-key env parsing without full-key leakage, preview/full-text behavior, cross-database user/credential joins, and diagnostic metadata lookup.
 
 ## Provider Status
 

@@ -1002,6 +1002,31 @@ async function runStrictClientTools(
 
   const repairedParsed = repaired.parsed;
   if (repairedParsed instanceof GatewayError) {
+    if (
+      shouldFallbackStrictAutoPlainText({
+        toolChoice: input.request.toolChoice,
+        firstValidationError: parsed.message,
+        repairValidationError: repairedParsed.message,
+        firstOutput: first.collected.content
+      })
+    ) {
+      input.log?.info(
+        {
+          request_id: input.requestId,
+          strict_tools_fallback: "auto_plain_text",
+          tool_choice: "auto",
+          validation_error: repairedParsed.message,
+          invalid_output_chars: first.collected.content.length,
+          repair_invalid_output_chars: repaired.collected.content.length
+        },
+        "Strict client-defined tool output fell back to plain assistant message."
+      );
+      return strictDecisionToResult(
+        { type: "message", content: first.collected.content },
+        addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage))
+      );
+    }
+
     input.log?.warn(
       {
         request_id: input.requestId,
@@ -1026,6 +1051,37 @@ async function runStrictClientTools(
     repairedParsed,
     addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage))
   );
+}
+
+function shouldFallbackStrictAutoPlainText(input: {
+  toolChoice: ChatCompletionRequest["toolChoice"];
+  firstValidationError: string;
+  repairValidationError: string;
+  firstOutput: string;
+}): boolean {
+  return (
+    input.toolChoice === "auto" &&
+    input.firstValidationError === "Expected valid JSON object output." &&
+    input.repairValidationError === "Expected valid JSON object output." &&
+    input.firstOutput.trim().length > 0 &&
+    !looksLikeStrictToolOutputAttempt(input.firstOutput)
+  );
+}
+
+function looksLikeStrictToolOutputAttempt(output: string): boolean {
+  const trimmed = output.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[") || /^```(?:json)?\s*[\[{]/i.test(trimmed)) {
+    return true;
+  }
+  return [
+    /["']type["']\s*:\s*["']tool_calls["']/i,
+    /["']tool_calls["']\s*:/i,
+    /["']function["']\s*:/i,
+    /["']arguments["']\s*:/i,
+    /\btool_calls?\b/i,
+    /\bfunction_call\b/i,
+    /<tool_call\b/i
+  ].some((pattern) => pattern.test(trimmed));
 }
 
 async function collectStrictToolDecision(

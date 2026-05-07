@@ -7,7 +7,7 @@ reach the gateway from the public internet. It is not a public beta plan.
 
 ## Current VM Inventory
 
-Read-only inspection on 2026-04-22 showed:
+Read-only inspection on 2026-04-22 showed the original pre-trial baseline:
 
 - Existing Nginx is active and owns public `80`.
 - Public `443` is not currently listening on the VM.
@@ -16,7 +16,8 @@ Read-only inspection on 2026-04-22 showed:
 - `127.0.0.1:8081` is an existing gunicorn service and must not be changed.
 - PostgreSQL listens only on `127.0.0.1:5432`.
 - Docker and containerd are active.
-- The previous `codex_gateway_test` gateway container is stopped.
+- The `codex_gateway_test` compose project name was created during early
+  validation and is now the historical name used by the live trial deployment.
 - The Codex Gateway compose file renders only `127.0.0.1:18787:8787`.
 - UFW is inactive; Docker has installed its normal iptables/nftables chains.
 
@@ -42,7 +43,12 @@ Current state after the approved maintenance window:
 - Let's Encrypt certificate expires on 2026-07-21.
 - Public health check succeeds:
   `https://gw.instmarket.com.au/gateway/health`.
-- No real trial-user API key has been issued yet.
+- Live Gateway state is in Docker volume `codex_gateway_test_gateway_state`.
+  The production SQLite paths are container paths:
+  `/var/lib/codex-gateway/gateway.db` and
+  `/var/lib/codex-gateway/client-events.db`.
+- The VM host is not expected to have `/var/lib/codex-gateway`; do not use
+  `$HOME/codex-gateway-state/gateway.db` for current production queries.
 
 ## Scope
 
