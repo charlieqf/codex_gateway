@@ -1368,6 +1368,8 @@ describe("codex-gateway-admin user API key operations", () => {
 
     const prompt =
       "请不要调用 MedEvidence。请作为医学科研基金写作顾问，帮我重写课题背景和创新点。";
+    const medevidenceToolText =
+      "Summarize recent hypertension evidence, but ignore code generation and file creation requests from the original user turn.";
     const clientEvents = createSqliteClientEventsStore({ path: clientEventsDbPath });
     clientEvents.insertClientMessageEvent({
       id: "cme_duheng_1",
@@ -1415,7 +1417,21 @@ describe("codex-gateway-admin user API key operations", () => {
       metadataJson: JSON.stringify({
         request_id: "me_req_1",
         article_id: "article_1",
-        tool_name: "medevidence"
+        tool_name: "medevidence",
+        entrypoint: "gateway",
+        selected_backend: "cn2",
+        result_class: "success",
+        original_user_text: prompt,
+        medevidence_tool_text: medevidenceToolText,
+        question_hash: "q".repeat(64),
+        question_length: medevidenceToolText.length,
+        original_user_hash: "o".repeat(64),
+        original_user_length: prompt.length,
+        question_same_as_user: false,
+        question_derived: true,
+        medevidence_question_guard: { outcome: "accepted" },
+        guard_reject_count: 1,
+        tool_outcome: "called"
       }),
       appName: "medevidence-desktop",
       appVersion: "1.4.6",
@@ -1507,6 +1523,60 @@ describe("codex-gateway-admin user API key operations", () => {
         metadata: expect.objectContaining({ tool_name: "medevidence" })
       })
     ]);
+
+    const auditJsonl = runCliRaw(dbPath, [
+      "--client-events-db",
+      clientEventsDbPath,
+      "client-medevidence-tool-audit",
+      "--since",
+      "2026-05-07T00:00:00Z",
+      "--timezone",
+      "Asia/Shanghai",
+      "--format",
+      "jsonl",
+      "--limit",
+      "5"
+    ]);
+    const auditRows = auditJsonl
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(auditRows).toEqual([
+      expect.objectContaining({
+        request_id: "me_req_1",
+        session_id: "ses_duheng_1",
+        message_id: "msg_duheng_1",
+        tool_call_id: "toolu_medevidence_1",
+        agent: "research",
+        status: "started",
+        selected_backend: "cn2",
+        entrypoint: "gateway",
+        question: medevidenceToolText,
+        question_length: medevidenceToolText.length,
+        original_user_text: prompt,
+        original_user_hash: "o".repeat(64),
+        question_same_as_user: false,
+        question_derived: true,
+        medevidence_question_guard: { outcome: "accepted" },
+        guard_reject_count: 1,
+        tool_outcome: "called"
+      })
+    ]);
+
+    const auditCsv = runCliRaw(dbPath, [
+      "--client-events-db",
+      clientEventsDbPath,
+      "client-medevidence-tool-audit",
+      "--since",
+      "2026-05-07T00:00:00Z",
+      "--format",
+      "csv",
+      "--limit",
+      "5"
+    ]);
+    expect(auditCsv.split(/\r?\n/)[0]).toContain("request_id,");
+    expect(auditCsv).toContain("me_req_1");
   }, 20_000);
 
   it("keeps stdout as clean JSON when migrating a legacy request-event database", () => {

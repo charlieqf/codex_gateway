@@ -93,6 +93,60 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
 
 `client-diagnostics --request-id <id>` 会同时匹配 Gateway ingest `request_id` 和 `metadata.request_id`，用于反查 MedEvidence diagnostic metadata 中的 request id。
 
+MedEvidence tool 审计导出入口：
+
+```bash
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js \
+  --db /var/lib/codex-gateway/gateway.db \
+  --client-events-db /var/lib/codex-gateway/client-events.db \
+  client-medevidence-tool-audit \
+  --hours 48 \
+  --timezone Asia/Shanghai \
+  --limit 100 \
+  --min-question-length 50 \
+  --format jsonl
+```
+
+该命令面向 MedEvidence App 上传的 `client_diagnostic_events.metadata_json` 审计字段，并会按
+`session_id/message_id` 反查 `client_message_events` 中的 Desktop 原始消息。支持：
+
+```text
+--hours <n>
+--since <iso>
+--timezone <iana-zone>
+--limit <n>
+--min-question-length <n>
+--entrypoint <value>
+--format <json|jsonl|csv>
+--user / --subject-id / --credential-prefix / --unified-key-env
+--session-id / --message-id / --tool-call-id / --request-id / --article-id
+```
+
+默认筛选最近 48 小时、`entrypoint=gateway`、`question` 长度大于 50 字符，按
+diagnostic `created_at desc` 导出最多 100 条。`entrypoint` 来自 metadata；为了兼容当前只由
+Gateway 采集的 MedEvidence tool diagnostic，缺失时命令按 `gateway` 处理，并在输出中标记
+`entrypoint_source=default_gateway`。
+
+导出字段包括：
+
+```text
+request_id, gateway_diagnostic_ingest_request_id, created_at, created_at_local,
+session_id, message_id, tool_call_id, agent, status, error_code,
+selected_backend, entrypoint, question, question_length, question_hash,
+original_user_text, original_user_length, original_user_hash,
+medevidence_tool_text, question_same_as_user, question_derived,
+medevidence_question_guard, guard_reject_count, tool_outcome, result_class,
+article_id, parent_article_id_present
+```
+
+边界说明：
+
+- Gateway CLI 直接读取的是 `client-events.db`，不是 MedEvidence v2 RDS。
+- `original_user_text`、`medevidence_tool_text`、hash、length、guard 和 `tool_outcome` 等字段只要在 diagnostic metadata JSON 中上传，Gateway 会整体保存并可导出。
+- `selected_backend`、`result_class`、MedEvidence `status` 等上游执行字段如果需要出现在该 CLI 导出里，也需要 App diagnostic metadata 一并上传；否则需由 Gateway ops 使用 `metadata.request_id` 去 MedEvidence RDS 做另一次只读联查。
+- 当前 Gateway diagnostic metadata 上限为 192KB UTF-8，diagnostic body 上限为 256KB，足够短期承载 Desktop 原文和抽取后的 MedEvidence question。显式 credential/secret 形态的 key 或 value 仍会被拒绝保存。
+
 处理 unified key 时，不要把完整 key 放进命令行历史。使用环境变量或 stdin：
 
 ```bash
@@ -185,10 +239,11 @@ Gateway 团队已把以下能力产品化：
 
 1. `client-messages` 只读 admin CLI 命令，支持按 user、credential prefix、unified key env、session/message/request id 查询。
 2. `client-diagnostics` 只读 admin CLI 命令，支持按 user/session/message/tool_call/request id、metadata request id、article id 查询。
-3. 命令只读打开主 `gateway.db` 和 `client-events.db`，不执行 migration 或 schema 变更。
-4. 默认只输出 prompt preview；显式 `--include-text` 才输出完整正文。
-5. 单元测试覆盖 unified key env 解析不泄露、preview/full text 开关、跨库关联、diagnostic metadata 查询。
-6. 生产 runbook 示例命令，避免操作者临时拼 SQL。
+3. `client-medevidence-tool-audit` 只读 admin CLI 命令，支持 JSON/JSONL/CSV 导出 MedEvidence tool diagnostic metadata，并反查 Desktop 原始消息。
+4. 命令只读打开主 `gateway.db` 和 `client-events.db`，不执行 migration 或 schema 变更。
+5. 默认只输出 prompt preview；显式 `--include-text` 才输出完整正文。审计导出命令会输出完整审计文本，应按敏感支持材料处理。
+6. 单元测试覆盖 unified key env 解析不泄露、preview/full text 开关、跨库关联、diagnostic metadata 查询和 MedEvidence tool 审计 JSONL/CSV 导出。
+7. 生产 runbook 示例命令，避免操作者临时拼 SQL。
 
 仍需运维流程长期补齐：
 

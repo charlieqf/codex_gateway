@@ -109,7 +109,8 @@ registerProvisionUserCommand(program, commandContext);
 registerClientEventQueryCommands(program, {
   gatewayDbPath: requireDbPath,
   clientEventsDbPath: requireClientEventsDbPath,
-  printJson
+  printJson,
+  printText
 });
 
 program
@@ -2090,4 +2091,8 @@ function nullableOptionOrExisting(
 
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
+}
+
+function printText(value: string): void {
+  process.stdout.write(value);
 }

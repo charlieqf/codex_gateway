@@ -183,10 +183,24 @@ docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   --db /var/lib/codex-gateway/gateway.db \
   --client-events-db /var/lib/codex-gateway/client-events.db \
   client-diagnostics --user "Alice Zhang" --limit 50
+
+docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js \
+  --db /var/lib/codex-gateway/gateway.db \
+  --client-events-db /var/lib/codex-gateway/client-events.db \
+  client-medevidence-tool-audit \
+  --hours 48 \
+  --timezone Asia/Shanghai \
+  --limit 100 \
+  --min-question-length 50 \
+  --format jsonl
 ```
 
 The admin CLI opens both SQLite files read-only for these query commands. Use
-`--include-text` only when the support case requires full prompt text.
+`--include-text` only when the support case requires full prompt text. The
+MedEvidence tool audit export intentionally returns full audit text from
+diagnostic metadata and matching Desktop messages; treat its stdout as sensitive
+support material.
 
 Preview retention cleanup first:
 

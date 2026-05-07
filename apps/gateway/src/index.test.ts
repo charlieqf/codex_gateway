@@ -536,6 +536,59 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("preserves MedEvidence tool audit diagnostic metadata including raw text fields", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+    const originalUserText = "original medical analysis prompt ".repeat(1200);
+    const medevidenceToolText = "extract evidence question and avoid file/code work ".repeat(900);
+    const metadata = {
+      original_user_text: originalUserText,
+      medevidence_tool_text: medevidenceToolText,
+      question_hash: "q".repeat(64),
+      question_length: medevidenceToolText.length,
+      original_user_hash: "o".repeat(64),
+      original_user_length: originalUserText.length,
+      question_same_as_user: false,
+      question_derived: true,
+      medevidence_question_guard: {
+        outcome: "accepted",
+        rejected_spans: 1
+      },
+      guard_reject_count: 1,
+      tool_outcome: "called"
+    };
+    expect(Buffer.byteLength(JSON.stringify(metadata), "utf8")).toBeGreaterThan(16 * 1024);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_medevidence_audit_1",
+        category: "medevidence",
+        action: "tool_audit",
+        status: "ok",
+        metadata
+      })
+    });
+
+    expect(response.statusCode).toBe(201);
+    const stored = clientEventsStore.getClientDiagnosticEvent(
+      "subj_dev",
+      "diag_medevidence_audit_1"
+    );
+    expect(JSON.parse(stored?.metadataJson ?? "{}")).toMatchObject(metadata);
+
+    await app.close();
+  });
+
   it("accepts Phase 1A client diagnostic categories and statuses", async () => {
     const { store, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });

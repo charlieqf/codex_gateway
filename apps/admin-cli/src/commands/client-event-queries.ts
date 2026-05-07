@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -13,13 +14,14 @@ import {
   type Subject
 } from "@codex-gateway/core";
 
-import { parseDate, parsePositiveInteger } from "../parsers.js";
+import { parseDate, parseNonNegativeInteger, parsePositiveInteger } from "../parsers.js";
 import { credentialStatus, publicCredential, publicSubject } from "../serializers.js";
 
 export interface ClientEventQueryCommandDeps {
   gatewayDbPath(): string;
   clientEventsDbPath(): string;
   printJson(value: unknown): void;
+  printText(value: string): void;
 }
 
 interface ClientMessageQueryOptions extends ClientEventIdentityOptions {
@@ -48,6 +50,23 @@ interface ClientDiagnosticQueryOptions extends ClientEventIdentityOptions {
   includeMetadata?: boolean;
   since?: Date;
   timezone: string;
+}
+
+type ClientMedevidenceToolAuditFormat = "json" | "jsonl" | "csv";
+
+interface ClientMedevidenceToolAuditOptions extends ClientEventIdentityOptions {
+  sessionId?: string;
+  messageId?: string;
+  toolCallId?: string;
+  requestId?: string;
+  articleId?: string;
+  since?: Date;
+  hours: number;
+  timezone: string;
+  limit: number;
+  minQuestionLength: number;
+  entrypoint: string;
+  format: ClientMedevidenceToolAuditFormat;
 }
 
 interface ClientEventIdentityOptions {
@@ -147,6 +166,45 @@ export function registerClientEventQueryCommands(
             })
           )
         });
+      });
+    });
+
+  program
+    .command("client-medevidence-tool-audit")
+    .description(
+      "Export MedEvidence tool diagnostic audit metadata joined with Desktop client messages."
+    )
+    .option("--user <display-name-or-subject-id>", "filter by user id, label, or stored name")
+    .option("--subject-id <id>", "filter by subject id")
+    .option("--credential-prefix <prefix>", "filter by API key prefix")
+    .option("--unified-key-env <env-name>", "read a cmev1 unified key from an environment variable")
+    .option("--session-id <id>", "filter by Desktop session id")
+    .option("--message-id <id>", "filter by Desktop message id")
+    .option("--tool-call-id <id>", "filter by Desktop tool call id")
+    .option("--request-id <id>", "filter by Gateway ingest request id or metadata.request_id")
+    .option("--article-id <id>", "filter by metadata.article_id")
+    .option("--since <iso>", "inclusive ISO start time; overrides --hours", parseDate)
+    .option("--hours <n>", "lookback window in hours when --since is omitted", parsePositiveInteger, 48)
+    .option("--timezone <iana-zone>", "IANA timezone for local timestamp fields", "UTC")
+    .option("--limit <n>", "maximum export rows", parsePositiveInteger, 100)
+    .option(
+      "--min-question-length <n>",
+      "minimum extracted MedEvidence question length in characters",
+      parseNonNegativeInteger,
+      50
+    )
+    .option(
+      "--entrypoint <value>",
+      "filter by metadata.entrypoint; missing metadata defaults to gateway for Gateway-ingested tool diagnostics",
+      "gateway"
+    )
+    .option("--format <json|jsonl|csv>", "export format", parseAuditExportFormat, "jsonl")
+    .action((options: ClientMedevidenceToolAuditOptions) => {
+      withClientEventQuery(deps, (context) => {
+        assertTimezone(options.timezone);
+        const identity = resolveIdentity(context.gateway, options);
+        const rows = queryClientMedevidenceToolAudit(context, options, identity);
+        writeMedevidenceToolAuditExport(deps, rows, options, context.now);
       });
     });
 }
@@ -388,6 +446,72 @@ function queryClientDiagnostics(
     .map(rowToClientDiagnostic);
 }
 
+function queryClientMedevidenceToolAudit(
+  context: QueryContext,
+  options: ClientMedevidenceToolAuditOptions,
+  identity: ResolvedIdentity
+): Array<Record<string, unknown>> {
+  const since = options.since ?? new Date(context.now.getTime() - options.hours * 60 * 60 * 1000);
+  const query = buildBaseClientEventQuery("client_diagnostic_events", options, identity);
+  query.where.push(
+    "(lower(category) = ? OR lower(action) = ? OR lower(CAST(json_extract(metadata_json, '$.tool_name') AS TEXT)) = ?)"
+  );
+  query.params.push("medevidence", "medevidence", "medevidence");
+  if (options.sessionId) {
+    query.where.push("session_id = ?");
+    query.params.push(options.sessionId);
+  }
+  if (options.messageId) {
+    query.where.push("message_id = ?");
+    query.params.push(options.messageId);
+  }
+  if (options.toolCallId) {
+    query.where.push("tool_call_id = ?");
+    query.params.push(options.toolCallId);
+  }
+  if (options.requestId) {
+    query.where.push("(request_id = ? OR json_extract(metadata_json, '$.request_id') = ?)");
+    query.params.push(options.requestId, options.requestId);
+  }
+  if (options.articleId) {
+    query.where.push("json_extract(metadata_json, '$.article_id') = ?");
+    query.params.push(options.articleId);
+  }
+  query.where.push("created_at >= ?");
+  query.params.push(since.toISOString());
+
+  const scanLimit = Math.max(options.limit, Math.min(options.limit * 10, 2000));
+  query.params.push(scanLimit);
+  const diagnostics = context.clientEvents
+    .prepare(
+      `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+              message_id, tool_call_id, provider_id, model_id, category, action,
+              status, method, path, mono_ms, duration_ms, http_status, error_code,
+              error_message, metadata_json, app_name, app_version, created_at,
+              received_at
+       FROM client_diagnostic_events
+       ${whereSql(query.where)}
+       ORDER BY created_at DESC, received_at DESC
+       LIMIT ?`
+    )
+    .all(...query.params)
+    .map(rowToClientDiagnostic);
+
+  const output: Array<Record<string, unknown>> = [];
+  for (const diagnostic of diagnostics) {
+    const message = findMatchingClientMessage(context.clientEvents, diagnostic);
+    const row = publicMedevidenceToolAuditRow(diagnostic, message, context, options.timezone);
+    if (!auditRowMatchesFilters(row, options)) {
+      continue;
+    }
+    output.push(row);
+    if (output.length >= options.limit) {
+      break;
+    }
+  }
+  return output;
+}
+
 function buildBaseClientEventQuery(
   _table: "client_message_events" | "client_diagnostic_events",
   _options: ClientEventIdentityOptions,
@@ -499,6 +623,144 @@ function publicClientDiagnostic(
     output.metadata = metadata;
   }
   return output;
+}
+
+function findMatchingClientMessage(
+  db: DatabaseSync,
+  diagnostic: ClientDiagnosticRow
+): ClientMessageRow | null {
+  if (!diagnostic.sessionId) {
+    return null;
+  }
+  if (diagnostic.messageId) {
+    const exact = db
+      .prepare(
+        `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+                message_id, agent, provider_id, model_id, engine, text, text_sha256,
+                attachments_json, app_name, app_version, created_at, received_at
+         FROM client_message_events
+         WHERE subject_id = ? AND session_id = ? AND message_id = ?
+         ORDER BY received_at DESC
+         LIMIT 1`
+      )
+      .get(diagnostic.subjectId, diagnostic.sessionId, diagnostic.messageId);
+    if (exact) {
+      return rowToClientMessage(exact);
+    }
+  }
+
+  const nearest = db
+    .prepare(
+      `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+              message_id, agent, provider_id, model_id, engine, text, text_sha256,
+              attachments_json, app_name, app_version, created_at, received_at
+       FROM client_message_events
+       WHERE subject_id = ? AND session_id = ? AND created_at <= ?
+       ORDER BY created_at DESC, received_at DESC
+       LIMIT 1`
+    )
+    .get(diagnostic.subjectId, diagnostic.sessionId, diagnostic.createdAt.toISOString());
+  return nearest ? rowToClientMessage(nearest) : null;
+}
+
+function publicMedevidenceToolAuditRow(
+  diagnostic: ClientDiagnosticRow,
+  message: ClientMessageRow | null,
+  context: QueryContext,
+  timezone: string
+): Record<string, unknown> {
+  const subject = getSubject(context.gateway, diagnostic.subjectId);
+  const credential = getCredentialById(context.gateway, diagnostic.credentialId);
+  const metadata = metadataObject(parseJson(diagnostic.metadataJson));
+  const medevidenceToolText = metadataString(metadata, "medevidence_tool_text");
+  const metadataQuestion =
+    metadataString(metadata, "question") ?? metadataString(metadata, "medevidence_question");
+  const question = metadataQuestion ?? medevidenceToolText;
+  const questionSource = metadataQuestion
+    ? metadataString(metadata, "question") !== null
+      ? "metadata.question"
+      : "metadata.medevidence_question"
+    : medevidenceToolText
+      ? "metadata.medevidence_tool_text"
+      : null;
+  const originalUserText = metadataString(metadata, "original_user_text") ?? message?.text ?? null;
+  const questionLength = question ? charLength(question) : null;
+  const originalUserLength =
+    metadataNumber(metadata, "original_user_length") ??
+    (originalUserText ? charLength(originalUserText) : null);
+  const questionSameAsUser =
+    metadataBoolean(metadata, "question_same_as_user") ??
+    (question && originalUserText ? question === originalUserText : null);
+  const questionDerived =
+    metadataBoolean(metadata, "question_derived") ??
+    (typeof questionSameAsUser === "boolean" ? !questionSameAsUser : null);
+  const entrypoint = metadataString(metadata, "entrypoint") ?? "gateway";
+  const parentArticleId = metadataString(metadata, "parent_article_id");
+
+  return {
+    request_id: metadataString(metadata, "request_id") ?? diagnostic.requestId,
+    gateway_diagnostic_ingest_request_id: diagnostic.requestId,
+    created_at: diagnostic.createdAt.toISOString(),
+    created_at_local: formatInTimezone(diagnostic.createdAt, timezone),
+    timezone,
+    session_id: diagnostic.sessionId,
+    message_id: diagnostic.messageId ?? message?.messageId ?? null,
+    tool_call_id: diagnostic.toolCallId ?? metadataString(metadata, "tool_call_id"),
+    agent: message?.agent ?? metadataString(metadata, "agent"),
+    status: diagnostic.status,
+    diagnostic_status: diagnostic.status,
+    medevidence_status: metadataString(metadata, "status"),
+    result_class: metadataString(metadata, "result_class"),
+    error_code: diagnostic.errorCode ?? metadataString(metadata, "error_code"),
+    selected_backend: metadataString(metadata, "selected_backend"),
+    entrypoint,
+    entrypoint_source: metadataString(metadata, "entrypoint") ? "metadata" : "default_gateway",
+    question,
+    question_source: questionSource,
+    question_length: metadataNumber(metadata, "question_length") ?? questionLength,
+    question_char_length: questionLength,
+    question_hash: metadataString(metadata, "question_hash") ?? (question ? sha256(question) : null),
+    original_user_text: originalUserText,
+    original_user_length: originalUserLength,
+    original_user_hash:
+      metadataString(metadata, "original_user_hash") ??
+      message?.textSha256 ??
+      (originalUserText ? sha256(originalUserText) : null),
+    medevidence_tool_text: medevidenceToolText,
+    medevidence_tool_text_length: medevidenceToolText ? charLength(medevidenceToolText) : null,
+    question_same_as_user: questionSameAsUser,
+    question_derived: questionDerived,
+    medevidence_question_guard: metadataValue(metadata, "medevidence_question_guard"),
+    guard_reject_count: metadataNumber(metadata, "guard_reject_count"),
+    tool_outcome: metadataString(metadata, "tool_outcome"),
+    article_id: metadataString(metadata, "article_id"),
+    medevidence_article_id: metadataString(metadata, "article_id"),
+    parent_article_id: parentArticleId,
+    parent_article_id_present: parentArticleId !== null,
+    subject_id: diagnostic.subjectId,
+    credential_prefix: credential?.prefix ?? null,
+    credential_status: credential ? credentialStatus(credential, subject, context.now) : "missing",
+    category: diagnostic.category,
+    action: diagnostic.action,
+    app_name: diagnostic.appName,
+    app_version: diagnostic.appVersion,
+    provider_id: diagnostic.providerId,
+    model_id: diagnostic.modelId,
+    client_message_ingest_request_id: message?.requestId ?? null
+  };
+}
+
+function auditRowMatchesFilters(
+  row: Record<string, unknown>,
+  options: ClientMedevidenceToolAuditOptions
+): boolean {
+  if (row.entrypoint !== options.entrypoint) {
+    return false;
+  }
+  if (typeof row.question !== "string" || row.question.length === 0) {
+    return false;
+  }
+  return charLength(row.question) > options.minQuestionLength;
 }
 
 function getSubject(db: DatabaseSync, id: string): Subject | null {
@@ -705,12 +967,127 @@ function parseJson(value: string): unknown {
   }
 }
 
+function metadataObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function metadataValue(metadata: Record<string, unknown>, field: string): unknown {
+  return metadata[field] === undefined ? null : metadata[field];
+}
+
+function metadataString(metadata: Record<string, unknown>, field: string): string | null {
+  const value = metadata[field];
+  if (typeof value !== "string") {
+    return null;
+  }
+  return value.length > 0 ? value : null;
+}
+
+function metadataNumber(metadata: Record<string, unknown>, field: string): number | null {
+  const value = metadata[field];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function metadataBoolean(metadata: Record<string, unknown>, field: string): boolean | null {
+  const value = metadata[field];
+  return typeof value === "boolean" ? value : null;
+}
+
 function metadataField(metadata: unknown, field: string): string | null {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
     return null;
   }
   const value = (metadata as Record<string, unknown>)[field];
   return typeof value === "string" ? value : null;
+}
+
+function writeMedevidenceToolAuditExport(
+  deps: ClientEventQueryCommandDeps,
+  rows: Array<Record<string, unknown>>,
+  options: ClientMedevidenceToolAuditOptions,
+  generatedAt: Date
+): void {
+  if (options.format === "json") {
+    deps.printJson({
+      generated_at: generatedAt.toISOString(),
+      timezone: options.timezone,
+      filters: {
+        entrypoint: options.entrypoint,
+        min_question_length: options.minQuestionLength,
+        limit: options.limit,
+        since: (options.since ?? new Date(generatedAt.getTime() - options.hours * 60 * 60 * 1000))
+          .toISOString()
+      },
+      rows
+    });
+    return;
+  }
+  if (options.format === "jsonl") {
+    deps.printText(rows.map((row) => JSON.stringify(row)).join("\n") + (rows.length ? "\n" : ""));
+    return;
+  }
+  deps.printText(toCsv(rows));
+}
+
+const medevidenceToolAuditCsvColumns = [
+  "request_id",
+  "gateway_diagnostic_ingest_request_id",
+  "created_at",
+  "created_at_local",
+  "session_id",
+  "message_id",
+  "tool_call_id",
+  "agent",
+  "status",
+  "error_code",
+  "selected_backend",
+  "entrypoint",
+  "question",
+  "question_length",
+  "question_hash",
+  "original_user_text",
+  "original_user_length",
+  "original_user_hash",
+  "medevidence_tool_text",
+  "question_same_as_user",
+  "question_derived",
+  "medevidence_question_guard",
+  "guard_reject_count",
+  "tool_outcome",
+  "result_class",
+  "article_id",
+  "parent_article_id_present"
+];
+
+function toCsv(rows: Array<Record<string, unknown>>): string {
+  const lines = [medevidenceToolAuditCsvColumns.map(csvCell).join(",")];
+  for (const row of rows) {
+    lines.push(medevidenceToolAuditCsvColumns.map((column) => csvCell(row[column])).join(","));
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  const text =
+    typeof value === "object" ? JSON.stringify(value) : typeof value === "string" ? value : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function charLength(value: string): number {
+  return Array.from(value).length;
 }
 
 function formatInTimezone(date: Date, timezone: string): string {
@@ -750,4 +1127,11 @@ function parseClientDiagnosticStatus(value: string): ClientDiagnosticEventStatus
     throw new Error("status must be started, ok, error, aborted, timeout, queued, or dropped");
   }
   return value as ClientDiagnosticEventStatus;
+}
+
+function parseAuditExportFormat(value: string): ClientMedevidenceToolAuditFormat {
+  if (value === "json" || value === "jsonl" || value === "csv") {
+    return value;
+  }
+  throw new Error("format must be json, jsonl, or csv");
 }

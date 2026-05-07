@@ -3,8 +3,8 @@ import { GatewayError, isRecord } from "@codex-gateway/core";
 
 export const CLIENT_MESSAGE_TEXT_LIMIT_BYTES = 64 * 1024;
 export const CLIENT_MESSAGE_BODY_LIMIT_BYTES = 512 * 1024;
-export const CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES = 128 * 1024;
-export const CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES = 16 * 1024;
+export const CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES = 256 * 1024;
+export const CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES = 192 * 1024;
 
 export interface ParsedClientMessageEventRequest {
   eventId: string;
@@ -589,7 +589,10 @@ function readMetadata(
   }
   const json = JSON.stringify(value);
   if (Buffer.byteLength(json, "utf8") > CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES) {
-    return invalid("metadata exceeds 16KB UTF-8 byte length.", 413);
+    return invalid(
+      `metadata exceeds ${CLIENT_DIAGNOSTIC_METADATA_LIMIT_BYTES / 1024}KB UTF-8 byte length.`,
+      413
+    );
   }
   return { json, value };
 }
