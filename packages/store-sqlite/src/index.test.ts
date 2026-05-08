@@ -1138,6 +1138,22 @@ describe("SqliteClientEventsStore", () => {
       appName: "medevidence-desktop",
       appVersion: "1.4.6"
     });
+    expect(second.findClientMessageEventByMessageId("subj_1", "msg_1")).toMatchObject({
+      eventId: "evt_1",
+      sessionId: "ses_1",
+      messageId: "msg_1"
+    });
+    expect(
+      second.findLatestClientMessageEventForSession(
+        "subj_1",
+        "ses_1",
+        new Date("2026-04-29T10:01:00.000Z")
+      )
+    ).toMatchObject({
+      eventId: "evt_1",
+      sessionId: "ses_1",
+      messageId: "msg_1"
+    });
     expect(second.getClientDiagnosticEvent("subj_1", "diag_1")).toMatchObject({
       id: "cde_1",
       eventId: "diag_1",

@@ -12,6 +12,7 @@ import {
   mergeEntitlementTokenPolicy,
   type PlanEntitlementStore,
   type ProviderAdapter,
+  type ProviderErrorDiagnostic,
   type RateLimitPolicy,
   type Scope,
   type Subject,
@@ -32,6 +33,7 @@ import {
   CLIENT_DIAGNOSTIC_BODY_LIMIT_BYTES,
   CLIENT_MESSAGE_BODY_LIMIT_BYTES,
   type ParsedClientDiagnosticEventRequest,
+  type ParsedClientMessageEventRequest,
   parseClientDiagnosticEventRequest,
   parseClientMessageEventRequest
 } from "./client-events.js";
@@ -479,6 +481,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           createdAt: parsed.createdAt,
           receivedAt
         });
+        backfillClientDiagnosticsForMessage(clientEventsStore, subject.id, parsed);
 
         reply.code(201);
         return {
@@ -542,16 +545,24 @@ export function buildGateway(options: GatewayOptions = {}) {
         if (parsed instanceof GatewayError) {
           return sendError(request, reply, parsed);
         }
+        const linked = linkClientDiagnosticEvent(clientEventsStore, subject.id, parsed);
 
         const existing = clientEventsStore.getClientDiagnosticEvent(
           subject.id,
-          parsed.eventId
+          linked.eventId
         );
         if (existing) {
-          if (clientDiagnosticEventsMatch(existing, parsed)) {
+          const relinked = relinkExistingClientDiagnosticEvent(
+            clientEventsStore,
+            subject.id,
+            existing,
+            parsed,
+            linked
+          );
+          if (relinked || clientDiagnosticEventsMatch(existing, linked)) {
             return {
               ok: true,
-              event_id: parsed.eventId,
+              event_id: linked.eventId,
               duplicate: true,
               received_at: existing.receivedAt.toISOString()
             };
@@ -571,37 +582,37 @@ export function buildGateway(options: GatewayOptions = {}) {
         const receivedAt = new Date();
         clientEventsStore.insertClientDiagnosticEvent({
           id: `cde_${randomUUID().replaceAll("-", "")}`,
-          eventId: parsed.eventId,
+          eventId: linked.eventId,
           requestId: request.id,
           credentialId: credential.id,
           subjectId: subject.id,
           scope,
-          sessionId: parsed.sessionId,
-          messageId: parsed.messageId,
-          toolCallId: parsed.toolCallId,
-          providerId: parsed.providerId,
-          modelId: parsed.modelId,
-          category: parsed.category,
-          action: parsed.action,
-          status: parsed.status,
-          method: parsed.method,
-          path: parsed.path,
-          monoMs: parsed.monoMs,
-          durationMs: parsed.durationMs,
-          httpStatus: parsed.httpStatus,
-          errorCode: parsed.errorCode,
-          errorMessage: parsed.errorMessage,
-          metadataJson: parsed.metadataJson,
-          appName: parsed.appName,
-          appVersion: parsed.appVersion,
-          createdAt: parsed.createdAt,
+          sessionId: linked.sessionId,
+          messageId: linked.messageId,
+          toolCallId: linked.toolCallId,
+          providerId: linked.providerId,
+          modelId: linked.modelId,
+          category: linked.category,
+          action: linked.action,
+          status: linked.status,
+          method: linked.method,
+          path: linked.path,
+          monoMs: linked.monoMs,
+          durationMs: linked.durationMs,
+          httpStatus: linked.httpStatus,
+          errorCode: linked.errorCode,
+          errorMessage: linked.errorMessage,
+          metadataJson: linked.metadataJson,
+          appName: linked.appName,
+          appVersion: linked.appVersion,
+          createdAt: linked.createdAt,
           receivedAt
         });
 
         reply.code(201);
         return {
           ok: true,
-          event_id: parsed.eventId,
+          event_id: linked.eventId,
           duplicate: false,
           received_at: receivedAt.toISOString()
         };
@@ -667,6 +678,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         markFirstByte(request);
 
         if (strictClientTools) {
+          const onProviderError = createProviderErrorLogger(request);
           const strictResult = await runStrictClientTools({
             provider,
             upstreamAccount,
@@ -677,7 +689,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             prompt,
             signal: sse.signal,
             requestId: request.id,
-            log: request.log
+            log: request.log,
+            onProviderError
           });
           if (strictResult instanceof GatewayError) {
             request.gatewayErrorCode = strictResult.code;
@@ -709,13 +722,15 @@ export function buildGateway(options: GatewayOptions = {}) {
             chunk && sse.writeData(chunk);
           }
         } else {
+          const onProviderError = createProviderErrorLogger(request);
           for await (const event of provider.message({
             upstreamAccount,
             subject,
             scope,
             session,
             message: prompt,
-            signal: sse.signal
+            signal: sse.signal,
+            onProviderError
           })) {
             if (sse.isClosed()) {
               break;
@@ -777,6 +792,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 
     try {
       if (strictClientTools) {
+        const onProviderError = createProviderErrorLogger(request);
         const strictResult = await runStrictClientTools({
           provider,
           upstreamAccount,
@@ -786,7 +802,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           request: parsed,
           prompt,
           requestId: request.id,
-          log: request.log
+          log: request.log,
+          onProviderError
         });
         if (strictResult instanceof GatewayError) {
           return sendOpenAIError(request, reply, strictResult);
@@ -797,6 +814,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         usage = strictResult.usage;
         markOpenAITokenUsage(request, usage);
       } else {
+        const onProviderError = createProviderErrorLogger(request);
         const collected = await collectProviderMessage({
           provider,
           upstreamAccount,
@@ -804,6 +822,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           scope,
           session,
           message: prompt,
+          onProviderError,
           suppressToolCalls: parsed.toolChoice === "none",
           suppressTextAfterToolCall: true
         });
@@ -906,7 +925,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           scope,
           session,
           message,
-          signal: sse.signal
+          signal: sse.signal,
+          onProviderError: createProviderErrorLogger(request)
         })) {
           if (sse.isClosed()) {
             break;
@@ -948,6 +968,7 @@ interface StrictClientToolsInput {
   signal?: AbortSignal;
   requestId?: string;
   log?: StrictClientToolsLogger;
+  onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }
 
 interface StrictClientToolsResult {
@@ -1096,6 +1117,7 @@ async function collectStrictToolDecision(
     session: input.session,
     message: prompt,
     signal: input.signal,
+    onProviderError: input.onProviderError,
     suppressToolCalls: true
   });
   if (collected instanceof GatewayError) {
@@ -1445,6 +1467,231 @@ function clientEventsRateLimitKey(
   eventFamily: "messages" | "diagnostics"
 ): string {
   return `${credentialId}:${eventFamily}`;
+}
+
+const diagnosticInferredLinkSource = "inferred_latest_session_message";
+const sessionScopedDiagnosticCategories = new Set([
+  "agent_turn",
+  "provider_stream",
+  "tool",
+  "medevidence"
+]);
+
+function linkClientDiagnosticEvent(
+  store: ClientMessageEventStore,
+  subjectId: string,
+  parsed: ParsedClientDiagnosticEventRequest
+): ParsedClientDiagnosticEventRequest {
+  if (parsed.sessionId && parsed.messageId) {
+    return parsed;
+  }
+
+  const byMessageId =
+    parsed.messageId && !parsed.sessionId
+      ? store.findClientMessageEventByMessageId(subjectId, parsed.messageId)
+      : null;
+  const bySession =
+    parsed.sessionId && !parsed.messageId && shouldInferSessionDiagnosticLink(parsed)
+      ? store.findLatestClientMessageEventForSession(subjectId, parsed.sessionId, parsed.createdAt)
+      : null;
+  const linked = byMessageId ?? bySession;
+  if (!linked) {
+    return parsed;
+  }
+
+  const linkedDiagnostic = {
+    ...parsed,
+    sessionId: parsed.sessionId ?? linked.sessionId,
+    messageId: parsed.messageId ?? linked.messageId
+  };
+  return bySession ? markInferredDiagnosticLink(linkedDiagnostic, linked.messageId) : linkedDiagnostic;
+}
+
+function shouldInferSessionDiagnosticLink(
+  parsed: Pick<ParsedClientDiagnosticEventRequest, "category" | "toolCallId" | "providerId">
+): boolean {
+  if (sessionScopedDiagnosticCategories.has(parsed.category)) {
+    return true;
+  }
+  return parsed.category === "renderer" && Boolean(parsed.toolCallId || parsed.providerId);
+}
+
+function markInferredDiagnosticLink(
+  parsed: ParsedClientDiagnosticEventRequest,
+  messageId: string
+): ParsedClientDiagnosticEventRequest {
+  return {
+    ...parsed,
+    metadataJson: addDiagnosticLinkMetadata(parsed.metadataJson, {
+      source: diagnosticInferredLinkSource,
+      message_id: messageId
+    })
+  };
+}
+
+function addDiagnosticLinkMetadata(
+  metadataJson: string,
+  link: { source: string; message_id: string }
+): string {
+  const metadata = parseMetadataObject(metadataJson);
+  metadata.diagnostic_link = link;
+  return JSON.stringify(metadata);
+}
+
+function removeDiagnosticLinkMetadata(metadataJson: string): string {
+  const metadata = parseMetadataObject(metadataJson);
+  delete metadata.diagnostic_link;
+  return JSON.stringify(metadata);
+}
+
+function parseMetadataObject(metadataJson: string): Record<string, unknown> {
+  try {
+    const value = JSON.parse(metadataJson);
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  } catch {
+    // Malformed stored metadata should not block diagnostic ingestion paths.
+  }
+  return {};
+}
+
+function hasInferredDiagnosticLink(metadataJson: string): boolean {
+  const link = parseMetadataObject(metadataJson).diagnostic_link;
+  return (
+    Boolean(link) &&
+    typeof link === "object" &&
+    !Array.isArray(link) &&
+    (link as Record<string, unknown>).source === diagnosticInferredLinkSource
+  );
+}
+
+function relinkExistingClientDiagnosticEvent(
+  store: ClientMessageEventStore,
+  subjectId: string,
+  existing: ClientDiagnosticEventRecord,
+  parsed: ParsedClientDiagnosticEventRequest,
+  linked: ParsedClientDiagnosticEventRequest
+): ClientDiagnosticEventRecord | null {
+  if (!linked.sessionId || !linked.messageId) {
+    return null;
+  }
+  if (existing.sessionId === linked.sessionId && existing.messageId === linked.messageId) {
+    return null;
+  }
+  if (!canRelinkClientDiagnostic(existing, parsed)) {
+    return null;
+  }
+
+  const metadataJson = hasInferredDiagnosticLink(linked.metadataJson)
+    ? addDiagnosticLinkMetadata(removeDiagnosticLinkMetadata(linked.metadataJson), {
+        source: diagnosticInferredLinkSource,
+        message_id: linked.messageId
+      })
+    : linked.metadataJson;
+  return store.updateClientDiagnosticEventLink(subjectId, existing.eventId, {
+    sessionId: linked.sessionId,
+    messageId: linked.messageId,
+    metadataJson
+  });
+}
+
+function canRelinkClientDiagnostic(
+  existing: ClientDiagnosticEventRecord,
+  parsed: ParsedClientDiagnosticEventRequest
+): boolean {
+  if (existing.messageId && !hasInferredDiagnosticLink(existing.metadataJson)) {
+    return false;
+  }
+  return clientDiagnosticEventsMatchExceptLink(existing, parsed);
+}
+
+function clientDiagnosticEventsMatchExceptLink(
+  existing: ClientDiagnosticEventRecord,
+  parsed: ParsedClientDiagnosticEventRequest
+): boolean {
+  return (
+    existing.toolCallId === parsed.toolCallId &&
+    existing.providerId === parsed.providerId &&
+    existing.modelId === parsed.modelId &&
+    existing.createdAt.getTime() === parsed.createdAt.getTime() &&
+    existing.appName === parsed.appName &&
+    existing.appVersion === parsed.appVersion &&
+    existing.category === parsed.category &&
+    existing.action === parsed.action &&
+    existing.status === parsed.status &&
+    existing.method === parsed.method &&
+    existing.path === parsed.path &&
+    existing.monoMs === parsed.monoMs &&
+    existing.durationMs === parsed.durationMs &&
+    existing.httpStatus === parsed.httpStatus &&
+    existing.errorCode === parsed.errorCode &&
+    existing.errorMessage === parsed.errorMessage &&
+    removeDiagnosticLinkMetadata(existing.metadataJson) ===
+      removeDiagnosticLinkMetadata(parsed.metadataJson)
+  );
+}
+
+function backfillClientDiagnosticsForMessage(
+  store: ClientMessageEventStore,
+  subjectId: string,
+  message: ParsedClientMessageEventRequest
+): void {
+  const candidates = store.listClientDiagnosticEventsForSession(
+    subjectId,
+    message.sessionId,
+    message.createdAt
+  );
+  for (const diagnostic of candidates) {
+    if (!shouldInferSessionDiagnosticLink(diagnostic)) {
+      continue;
+    }
+    if (diagnostic.messageId && !hasInferredDiagnosticLink(diagnostic.metadataJson)) {
+      continue;
+    }
+    const latest = store.findLatestClientMessageEventForSession(
+      subjectId,
+      message.sessionId,
+      diagnostic.createdAt
+    );
+    if (latest?.messageId !== message.messageId) {
+      continue;
+    }
+    if (diagnostic.sessionId === message.sessionId && diagnostic.messageId === message.messageId) {
+      continue;
+    }
+    store.updateClientDiagnosticEventLink(subjectId, diagnostic.eventId, {
+      sessionId: message.sessionId,
+      messageId: message.messageId,
+      metadataJson: addDiagnosticLinkMetadata(removeDiagnosticLinkMetadata(diagnostic.metadataJson), {
+        source: diagnosticInferredLinkSource,
+        message_id: message.messageId
+      })
+    });
+  }
+}
+
+function createProviderErrorLogger(
+  request: FastifyRequest
+): (diagnostic: ProviderErrorDiagnostic) => void {
+  return (diagnostic) => {
+    request.log.warn(
+      {
+        request_id: request.id,
+        session_id: request.gatewaySessionId ?? null,
+        provider_error: {
+          source: diagnostic.source,
+          code: diagnostic.code,
+          public_message: diagnostic.publicMessage,
+          raw_message: diagnostic.rawMessage,
+          ...(diagnostic.rawName ? { raw_name: diagnostic.rawName } : {}),
+          ...(diagnostic.rawCode ? { raw_code: diagnostic.rawCode } : {}),
+          ...(diagnostic.rawStatus !== undefined ? { raw_status: diagnostic.rawStatus } : {})
+        }
+      },
+      "Provider returned sanitized error."
+    );
+  };
 }
 
 function clientDiagnosticEventsMatch(

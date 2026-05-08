@@ -2,6 +2,7 @@ import {
   GatewayError,
   type GatewaySession,
   type ProviderAdapter,
+  type ProviderErrorDiagnostic,
   type Scope,
   type Subject,
   type TokenUsage,
@@ -29,6 +30,7 @@ export interface CollectProviderMessageInput {
   session: GatewaySession;
   message: string;
   signal?: AbortSignal;
+  onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   suppressToolCalls?: boolean;
   suppressTextAfterToolCall?: boolean;
 }
@@ -48,7 +50,8 @@ export async function collectProviderMessage(
     scope: input.scope,
     session: input.session,
     message: input.message,
-    signal: input.signal
+    signal: input.signal,
+    onProviderError: input.onProviderError
   })) {
     if (event.type === "message_delta") {
       if (input.suppressTextAfterToolCall && hasToolCalls) {

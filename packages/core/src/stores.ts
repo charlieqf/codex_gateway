@@ -145,8 +145,27 @@ export interface ObservationStore {
 
 export interface ClientMessageEventStore {
   getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null;
+  findClientMessageEventByMessageId(
+    subjectId: string,
+    messageId: string
+  ): ClientMessageEventRecord | null;
+  findLatestClientMessageEventForSession(
+    subjectId: string,
+    sessionId: string,
+    createdAt: Date
+  ): ClientMessageEventRecord | null;
   insertClientMessageEvent(record: ClientMessageEventRecord): ClientMessageEventRecord;
   getClientDiagnosticEvent(subjectId: string, eventId: string): ClientDiagnosticEventRecord | null;
+  listClientDiagnosticEventsForSession(
+    subjectId: string,
+    sessionId: string,
+    fromCreatedAt: Date
+  ): ClientDiagnosticEventRecord[];
+  updateClientDiagnosticEventLink(
+    subjectId: string,
+    eventId: string,
+    input: { sessionId: string; messageId: string; metadataJson: string }
+  ): ClientDiagnosticEventRecord | null;
   insertClientDiagnosticEvent(
     record: ClientDiagnosticEventRecord
   ): ClientDiagnosticEventRecord;

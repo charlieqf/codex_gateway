@@ -207,6 +207,16 @@ export type StreamEvent =
   | { type: "completed"; providerSessionRef?: string; usage?: TokenUsage }
   | { type: "error"; code: string; message: string };
 
+export interface ProviderErrorDiagnostic {
+  source: string;
+  code: string;
+  publicMessage: string;
+  rawMessage: string;
+  rawName?: string;
+  rawCode?: string;
+  rawStatus?: number;
+}
+
 export interface ProviderHealth {
   state: "healthy" | "degraded" | "reauth_required" | "unhealthy";
   checkedAt: Date;
@@ -220,4 +230,5 @@ export interface MessageInput {
   scope: Scope;
   message: string;
   signal?: AbortSignal;
+  onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }

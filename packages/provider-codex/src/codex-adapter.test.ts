@@ -8,7 +8,13 @@ import {
   type CodexClientLike,
   type CodexThreadLike
 } from "./codex-adapter.js";
-import type { GatewaySession, MessageInput, Subject, UpstreamAccount } from "@codex-gateway/core";
+import type {
+  GatewaySession,
+  MessageInput,
+  ProviderErrorDiagnostic,
+  Subject,
+  UpstreamAccount
+} from "@codex-gateway/core";
 
 class FakeThread implements CodexThreadLike {
   readonly runInputs: string[] = [];
@@ -282,6 +288,51 @@ describe("CodexProviderAdapter", () => {
     ]);
   });
 
+  it("reports sanitized raw provider errors through the diagnostics callback", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.failed",
+        error: {
+          message:
+            'HTTP 503 upstream reset Authorization: Bearer secretBearerToken123 cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456 {"refresh_token":"jsonSecret123","password":"pwSecret123"}'
+        }
+      } as ThreadEvent
+    ]);
+    const adapter = createAdapter(new FakeClient(thread));
+    const diagnostics: ProviderErrorDiagnostic[] = [];
+
+    const events = await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          onProviderError: (diagnostic) => diagnostics.push(diagnostic)
+        })
+      )
+    );
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        code: "service_unavailable",
+        message: "MedCode service is temporarily unavailable."
+      }
+    ]);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({
+      source: "turn.failed",
+      code: "service_unavailable",
+      publicMessage: "MedCode service is temporarily unavailable.",
+      rawName: "Error"
+    });
+    expect(diagnostics[0].rawMessage).toContain("HTTP 503 upstream reset");
+    expect(diagnostics[0].rawMessage).toContain("Authorization=<redacted>");
+    expect(diagnostics[0].rawMessage).toContain("cgw.<redacted>");
+    expect(diagnostics[0].rawMessage).not.toContain("secretBearerToken123");
+    expect(diagnostics[0].rawMessage).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
+    expect(diagnostics[0].rawMessage).not.toContain("jsonSecret123");
+    expect(diagnostics[0].rawMessage).not.toContain("pwSecret123");
+  });
+
   it("sanitizes item-level provider errors and stops the stream", async () => {
     const thread = new FakeThread(null, [
       { type: "thread.started", thread_id: "thread_1" },
@@ -340,13 +391,17 @@ function normalizeForTest(
   return (adapter as unknown as TestableAdapter).normalize.bind(adapter);
 }
 
-function messageInput(input: { providerSessionRef: string | null }): MessageInput {
+function messageInput(input: {
+  providerSessionRef: string | null;
+  onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
+}): MessageInput {
   return {
     upstreamAccount: upstreamAccount(),
     subject: subject(),
     scope: "code",
     session: session(input.providerSessionRef),
-    message: "hello"
+    message: "hello",
+    onProviderError: input.onProviderError
   };
 }
 

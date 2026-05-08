@@ -10,6 +10,7 @@ import {
   GatewayError,
   type MessageInput,
   type ProviderAdapter,
+  type ProviderErrorDiagnostic,
   type ProviderHealth,
   type StreamEvent,
   type UpstreamAccount,
@@ -90,7 +91,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
         }
 
         if (event.type === "turn.failed") {
-          const normalized = this.normalize(new Error(event.error.message));
+          const normalized = this.normalizeAndReport(
+            new Error(event.error.message),
+            "turn.failed",
+            input
+          );
           yield {
             type: "error",
             code: normalized.code,
@@ -100,7 +105,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
         }
 
         if (event.type === "error") {
-          const normalized = this.normalize(new Error(event.message));
+          const normalized = this.normalizeAndReport(
+            new Error(event.message),
+            "stream.error",
+            input
+          );
           yield {
             type: "error",
             code: normalized.code,
@@ -119,7 +128,12 @@ export class CodexProviderAdapter implements ProviderAdapter {
           event.type === "item.updated" ||
           event.type === "item.completed"
         ) {
-          const streamEvent = this.mapThreadItem(event.item, agentTextByItemId, emittedToolCalls);
+          const streamEvent = this.mapThreadItem(
+            event.item,
+            agentTextByItemId,
+            emittedToolCalls,
+            input
+          );
           if (streamEvent) {
             yield streamEvent;
             if (streamEvent.type === "error") {
@@ -135,13 +149,29 @@ export class CodexProviderAdapter implements ProviderAdapter {
         ...(usage ? { usage } : {})
       };
     } catch (err) {
-      const normalized = this.normalize(err);
+      const normalized = this.normalizeAndReport(err, "exception", input);
       yield {
         type: "error",
         code: normalized.code,
         message: normalized.message
       };
     }
+  }
+
+  private normalizeAndReport(
+    err: unknown,
+    source: string,
+    input: MessageInput
+  ): GatewayError {
+    const normalized = this.normalize(err);
+    if (input.onProviderError) {
+      try {
+        input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
+      } catch {
+        // Provider error reporting is best-effort and must not mask the user-facing error.
+      }
+    }
+    return normalized;
   }
 
   private normalize(err: unknown): GatewayError {
@@ -222,7 +252,8 @@ export class CodexProviderAdapter implements ProviderAdapter {
         : never
       : never,
     agentTextByItemId: Map<string, string>,
-    emittedToolCalls: Set<string>
+    emittedToolCalls: Set<string>,
+    input: MessageInput
   ): StreamEvent | null {
     if (item.type === "agent_message") {
       const previous = agentTextByItemId.get(item.id) ?? "";
@@ -268,7 +299,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     if (item.type === "error") {
-      const normalized = this.normalize(new Error(item.message));
+      const normalized = this.normalizeAndReport(new Error(item.message), "item.error", input);
       return {
         type: "error",
         code: normalized.code,
@@ -278,6 +309,81 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     return null;
   }
+}
+
+function createProviderErrorDiagnostic(
+  err: unknown,
+  source: string,
+  normalized: GatewayError
+): ProviderErrorDiagnostic {
+  const rawMessage = sanitizeProviderErrorText(errorMessage(err));
+  const diagnostic: ProviderErrorDiagnostic = {
+    source,
+    code: normalized.code,
+    publicMessage: normalized.message,
+    rawMessage: rawMessage.length > 0 ? rawMessage : "(empty provider error)"
+  };
+  const rawName = sanitizeProviderErrorText(errorStringProperty(err, "name"));
+  if (rawName) {
+    diagnostic.rawName = rawName;
+  }
+  const rawCode = sanitizeProviderErrorText(errorStringProperty(err, "code"));
+  if (rawCode) {
+    diagnostic.rawCode = rawCode;
+  }
+  const rawStatus = errorNumberProperty(err, "status") ?? errorNumberProperty(err, "statusCode");
+  if (rawStatus !== null) {
+    diagnostic.rawStatus = rawStatus;
+  }
+  return diagnostic;
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}
+
+function errorStringProperty(err: unknown, key: string): string {
+  if (!isObject(err)) {
+    return "";
+  }
+  const value = err[key];
+  return typeof value === "string" ? value : "";
+}
+
+function errorNumberProperty(err: unknown, key: string): number | null {
+  if (!isObject(err)) {
+    return null;
+  }
+  const value = err[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return Math.trunc(value);
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function sanitizeProviderErrorText(value: string): string {
+  const redacted = value
+    .replace(
+      /(["'])(authorization|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|cookie|set-cookie|password)\1\s*:\s*(["'])(?:\\.|(?!\3).)*\3/gi,
+      (_match, keyQuote: string, key: string, valueQuote: string) =>
+        `${keyQuote}${key}${keyQuote}:${valueQuote}<redacted>${valueQuote}`
+    )
+    .replace(/\bbearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, "Bearer <redacted>")
+    .replace(
+      /\b(authorization|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|cookie|set-cookie|password)\s*[:=]\s*["']?[^"',\s;}]+/gi,
+      "$1=<redacted>"
+    )
+    .replace(/\bcgw\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}\b/g, "cgw.<redacted>")
+    .replace(/\bcmev1\.[A-Za-z0-9._~-]{16,}\b/g, "cmev1.<redacted>")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "sk-<redacted>");
+  return redacted.length > 2048 ? `${redacted.slice(0, 2048)}...[truncated]` : redacted;
 }
 
 function mapCodexUsage(

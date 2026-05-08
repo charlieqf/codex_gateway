@@ -536,6 +536,241 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("links diagnostics without message ids to the latest message in the session", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const message = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_link_1",
+        session_id: "ses_link_1",
+        message_id: "msg_link_1",
+        created_at: "2026-04-29T10:00:00.000Z",
+        text: "Create an academic PPT."
+      })
+    });
+    expect(message.statusCode).toBe(201);
+
+    const diagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_link_1",
+        session_id: null,
+        message_id: null,
+        created_at: "2026-04-29T10:00:05.000Z",
+        category: "provider_stream",
+        action: "request",
+        status: "started",
+        metadata: {
+          session_id: "ses_link_1",
+          provider_id: "medcode"
+        }
+      })
+    });
+    expect(diagnostic.statusCode, diagnostic.body).toBe(201);
+
+    const stored = clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_link_1");
+    expect(stored).toMatchObject({
+      sessionId: "ses_link_1",
+      messageId: "msg_link_1",
+      providerId: "medcode",
+      category: "provider_stream"
+    });
+    expect(JSON.parse(stored?.metadataJson ?? "{}")).toMatchObject({
+      diagnostic_link: {
+        source: "inferred_latest_session_message",
+        message_id: "msg_link_1"
+      }
+    });
+
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_link_1",
+        session_id: null,
+        message_id: null,
+        created_at: "2026-04-29T10:00:05.000Z",
+        category: "provider_stream",
+        action: "request",
+        status: "started",
+        metadata: {
+          session_id: "ses_link_1",
+          provider_id: "medcode"
+        }
+      })
+    });
+    expect(duplicate.statusCode).toBe(200);
+    expect(duplicate.json()).toMatchObject({ duplicate: true });
+
+    await app.close();
+  });
+
+  it("backfills and reassigns inferred diagnostic message links when messages arrive late", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const earlyDiagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_late_message_1",
+        session_id: "ses_late_1",
+        message_id: null,
+        created_at: "2026-04-29T10:00:05.000Z",
+        category: "provider_stream",
+        action: "request",
+        status: "started",
+        metadata: {}
+      })
+    });
+    expect(earlyDiagnostic.statusCode).toBe(201);
+    expect(
+      clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_late_message_1")
+    ).toMatchObject({
+      sessionId: "ses_late_1",
+      messageId: null
+    });
+
+    const lateMessage = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_late_1",
+        session_id: "ses_late_1",
+        message_id: "msg_late_1",
+        created_at: "2026-04-29T10:00:00.000Z",
+        text: "Late uploaded prompt."
+      })
+    });
+    expect(lateMessage.statusCode).toBe(201);
+    expect(
+      clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_late_message_1")
+    ).toMatchObject({
+      sessionId: "ses_late_1",
+      messageId: "msg_late_1"
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_old_1",
+        session_id: "ses_reassign_1",
+        message_id: "msg_old_1",
+        created_at: "2026-04-29T10:00:00.000Z",
+        text: "Previous prompt."
+      })
+    });
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_reassign_1",
+        session_id: "ses_reassign_1",
+        message_id: null,
+        created_at: "2026-04-29T10:00:10.000Z",
+        category: "provider_stream",
+        action: "request",
+        status: "started",
+        metadata: {}
+      })
+    });
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_reassign_1")).toMatchObject({
+      messageId: "msg_old_1"
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_new_1",
+        session_id: "ses_reassign_1",
+        message_id: "msg_new_1",
+        created_at: "2026-04-29T10:00:05.000Z",
+        text: "Prompt uploaded after its diagnostics."
+      })
+    });
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_reassign_1")).toMatchObject({
+      messageId: "msg_new_1"
+    });
+
+    await app.close();
+  });
+
+  it("does not infer message links for background session diagnostics", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_background_1",
+        session_id: "ses_background_1",
+        message_id: "msg_background_1",
+        created_at: "2026-04-29T10:00:00.000Z"
+      })
+    });
+    const diagnostic = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_background_1",
+        session_id: "ses_background_1",
+        message_id: null,
+        created_at: "2026-04-29T10:00:05.000Z",
+        category: "http",
+        action: "GET /session",
+        status: "ok",
+        metadata: {}
+      })
+    });
+
+    expect(diagnostic.statusCode).toBe(201);
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_background_1")).toMatchObject({
+      sessionId: "ses_background_1",
+      messageId: null,
+      category: "http"
+    });
+
+    await app.close();
+  });
+
   it("preserves MedEvidence tool audit diagnostic metadata including raw text fields", async () => {
     const { store, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });

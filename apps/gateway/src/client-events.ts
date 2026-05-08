@@ -235,13 +235,13 @@ export function parseClientDiagnosticEventRequest(
     return app;
   }
 
-  const sessionId = readOptionalString(body, "session_id", 128);
-  if (sessionId instanceof GatewayError) {
-    return sessionId;
+  const topLevelSessionId = readOptionalString(body, "session_id", 128);
+  if (topLevelSessionId instanceof GatewayError) {
+    return topLevelSessionId;
   }
-  const messageId = readOptionalString(body, "message_id", 128);
-  if (messageId instanceof GatewayError) {
-    return messageId;
+  const topLevelMessageId = readOptionalString(body, "message_id", 128);
+  if (topLevelMessageId instanceof GatewayError) {
+    return topLevelMessageId;
   }
   const topLevelToolCallId = readOptionalDiagnosticString(body, "tool_call_id", 128);
   if (topLevelToolCallId instanceof GatewayError) {
@@ -306,6 +306,8 @@ export function parseClientDiagnosticEventRequest(
   if (metadata instanceof GatewayError) {
     return metadata;
   }
+  const sessionId = topLevelSessionId ?? readMetadataString(metadata.value, "session_id", 128);
+  const messageId = topLevelMessageId ?? readMetadataString(metadata.value, "message_id", 128);
   const toolCallId = topLevelToolCallId ?? readMetadataString(metadata.value, "tool_call_id", 128);
   const providerId = topLevelProviderId ?? readMetadataString(metadata.value, "provider_id", 128);
   const modelId = topLevelModelId ?? readMetadataString(metadata.value, "model_id", 128);
