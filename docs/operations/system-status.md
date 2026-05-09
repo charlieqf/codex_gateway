@@ -38,8 +38,9 @@ Completed:
   `GET /gateway/admin/client-messages` serves a static live-refresh UI and
   `GET /gateway/admin/client-messages.json` returns recent Desktop messages
   across all users. The data route is protected by the independent
-  `GATEWAY_ADMIN_MESSAGES_TOKEN` bearer token and does not accept normal user
-  API keys.
+  `GATEWAY_ADMIN_MESSAGES_TOKEN` bearer token by default and does not accept
+  normal user API keys. `GATEWAY_ADMIN_MESSAGES_AUTH=open` exists for temporary
+  controlled debugging and makes the page/data route unauthenticated.
 - Client diagnostic metadata ingestion stores the full metadata JSON object without field whitelisting, while rejecting obvious credential/secret material. The diagnostic metadata limit is 192KB UTF-8 and the diagnostic body limit is 256KB so MedEvidence tool audit fields can include both Desktop original text and the extracted MedEvidence question.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations, including Phase 1 token usage fields when provider usage is available.

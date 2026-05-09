@@ -9,6 +9,13 @@ import type {
 } from "@codex-gateway/core";
 
 export const adminMessagesTokenEnvName = "GATEWAY_ADMIN_MESSAGES_TOKEN";
+export const adminMessagesAuthEnvName = "GATEWAY_ADMIN_MESSAGES_AUTH";
+export type AdminMessagesAuthMode = "token" | "open";
+
+export interface AdminMessagesAccess {
+  mode: AdminMessagesAuthMode;
+  token: string | null;
+}
 
 export interface AdminClientMessagesQuery {
   user?: string;
@@ -25,15 +32,26 @@ export interface AdminClientMessagesQuery {
   preview_chars?: string;
 }
 
-export function resolveAdminMessagesToken(value: string | undefined): string | null {
-  const token = value?.trim();
+export function resolveAdminMessagesAccess(input: {
+  token?: string;
+  authMode?: string;
+}): AdminMessagesAccess | null {
+  const authMode = input.authMode?.trim().toLowerCase();
+  if (authMode === "open") {
+    return { mode: "open", token: null };
+  }
+  if (authMode && authMode !== "token") {
+    throw new Error(`${adminMessagesAuthEnvName} must be token or open.`);
+  }
+
+  const token = input.token?.trim();
   if (!token) {
     return null;
   }
   if (token.length < 24) {
     throw new Error(`${adminMessagesTokenEnvName} must be at least 24 characters.`);
   }
-  return token;
+  return { mode: "token", token };
 }
 
 export function authenticateAdminMessagesRequest(
@@ -155,7 +173,8 @@ export function buildAdminClientMessagesPayload(input: {
   };
 }
 
-export function renderAdminClientMessagesPage(): string {
+export function renderAdminClientMessagesPage(input: { authRequired?: boolean } = {}): string {
+  const authRequired = input.authRequired ?? true;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -244,8 +263,24 @@ export function renderAdminClientMessagesPage(): string {
       cursor: pointer;
     }
     button:hover { background: var(--accent-dark); }
+    button:disabled {
+      cursor: progress;
+      opacity: 0.72;
+    }
     .token {
       width: 280px;
+    }
+    .open-access {
+      align-self: end;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      background: #f7f8fa;
     }
     .check {
       display: flex;
@@ -272,6 +307,20 @@ export function renderAdminClientMessagesPage(): string {
     .meta strong { color: var(--text); }
     .status-ok { color: var(--ok); }
     .status-bad { color: var(--bad); }
+    .notice {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #f0c36d;
+      border-radius: 6px;
+      background: #fff8e6;
+      color: #6f4e00;
+      font-size: 14px;
+    }
+    .notice.bad {
+      border-color: #f3b5af;
+      background: #fff2f0;
+      color: var(--bad);
+    }
     .table-wrap {
       overflow: auto;
       border: 1px solid var(--line);
@@ -330,9 +379,9 @@ export function renderAdminClientMessagesPage(): string {
 <body>
   <header>
     <h1>Gateway Client Messages</h1>
-    <label>Admin token
-      <input class="token" id="token" type="password" autocomplete="off">
-    </label>
+    ${authRequired ? `<label>Admin token
+      <input class="token" id="token" type="password" autocomplete="off" placeholder="Paste admin token">
+    </label>` : `<div class="open-access">Open access</div>`}
   </header>
   <main>
     <section class="toolbar">
@@ -361,6 +410,7 @@ export function renderAdminClientMessagesPage(): string {
       <span>Messages: <strong id="count">0</strong></span>
       <span>Generated: <strong id="generated">-</strong></span>
     </div>
+    <div class="notice" id="notice" hidden></div>
     <section class="table-wrap">
       <table>
         <thead>
@@ -377,6 +427,7 @@ export function renderAdminClientMessagesPage(): string {
     </section>
   </main>
   <script>
+    const authRequired = ${JSON.stringify(authRequired)};
     const els = {
       token: document.getElementById("token"),
       user: document.getElementById("user"),
@@ -390,11 +441,14 @@ export function renderAdminClientMessagesPage(): string {
       status: document.getElementById("status"),
       count: document.getElementById("count"),
       generated: document.getElementById("generated"),
+      notice: document.getElementById("notice"),
       rows: document.getElementById("rows"),
       subjects: document.getElementById("subjects")
     };
-    els.token.value = sessionStorage.getItem("gatewayAdminMessagesToken") || "";
-    els.token.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", els.token.value));
+    if (els.token) {
+      els.token.value = sessionStorage.getItem("gatewayAdminMessagesToken") || "";
+      els.token.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", els.token.value));
+    }
     els.refresh.addEventListener("click", () => load());
     for (const id of ["user", "q", "hours", "limit", "preview", "includeText"]) {
       els[id].addEventListener("change", () => load());
@@ -405,12 +459,14 @@ export function renderAdminClientMessagesPage(): string {
     setInterval(() => {
       if (els.auto.checked) load();
     }, 10000);
-    if (els.token.value) load();
+    if (!authRequired || els.token?.value) load();
 
     async function load() {
-      const token = els.token.value.trim();
-      if (!token) {
+      const token = els.token ? els.token.value.trim() : "";
+      if (authRequired && !token) {
         setStatus("missing token", false);
+        showNotice("Admin token required. Paste the token, then click Refresh.", false);
+        els.token?.focus();
         return;
       }
       const params = new URLSearchParams();
@@ -421,17 +477,26 @@ export function renderAdminClientMessagesPage(): string {
       setParam(params, "preview_chars", els.preview.value);
       if (els.includeText.checked) params.set("include_text", "1");
       setStatus("loading", true);
+      showNotice("", true);
+      els.refresh.disabled = true;
+      els.refresh.textContent = "Loading";
       try {
+        const headers = token ? { authorization: "Bearer " + token } : {};
         const response = await fetch("/gateway/admin/client-messages.json?" + params.toString(), {
-          headers: { authorization: "Bearer " + token },
+          headers,
           cache: "no-store"
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error?.message || "request failed");
         render(payload);
         setStatus("ok", true);
+        showNotice("", true);
       } catch (error) {
         setStatus(error.message || String(error), false);
+        showNotice(error.message || String(error), false);
+      } finally {
+        els.refresh.disabled = false;
+        els.refresh.textContent = "Refresh";
       }
     }
 
@@ -441,7 +506,9 @@ export function renderAdminClientMessagesPage(): string {
       els.subjects.innerHTML = payload.subjects.map((subject) =>
         "<option value=\\"" + escapeAttr(subject.name || subject.label || subject.id) + "\\"></option>"
       ).join("");
-      els.rows.innerHTML = payload.messages.map(renderRow).join("");
+      els.rows.innerHTML = payload.messages.length > 0
+        ? payload.messages.map(renderRow).join("")
+        : "<tr><td colspan=\\"5\\" class=\\"muted\\">No messages match the current filters.</td></tr>";
     }
 
     function renderRow(message) {
@@ -471,6 +538,17 @@ export function renderAdminClientMessagesPage(): string {
     function setStatus(text, ok) {
       els.status.textContent = text;
       els.status.className = ok ? "status-ok" : "status-bad";
+    }
+
+    function showNotice(text, ok) {
+      if (!text) {
+        els.notice.hidden = true;
+        els.notice.textContent = "";
+        return;
+      }
+      els.notice.hidden = false;
+      els.notice.className = ok ? "notice" : "notice bad";
+      els.notice.textContent = text;
     }
 
     function formatTime(value) {

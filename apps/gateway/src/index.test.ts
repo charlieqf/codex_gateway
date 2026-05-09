@@ -503,6 +503,7 @@ describe("gateway phase 1 routes", () => {
     expect(page.statusCode).toBe(200);
     expect(page.headers["content-type"]).toContain("text/html");
     expect(page.body).toContain("Gateway Client Messages");
+    expect(page.body).toContain("Admin token required");
     expect(unauthenticated.statusCode).toBe(401);
     expect(userCredential.statusCode).toBe(401);
 
@@ -558,6 +559,49 @@ describe("gateway phase 1 routes", () => {
         prefix: second.record.prefix
       },
       text: "Second user detailed prompt"
+    });
+
+    await app.close();
+  });
+
+  it("can temporarily expose the admin client message UI without a token", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      adminMessagesAuthMode: "open",
+      logger: false
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_admin_open_1",
+        text: "Open admin dashboard prompt"
+      })
+    });
+
+    const page = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages"
+    });
+    const data = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?include_text=1"
+    });
+
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain("Open access");
+    expect(page.body).toContain("const authRequired = false");
+    expect(page.body).not.toContain('id="token"');
+    expect(data.statusCode).toBe(200);
+    expect(data.json().messages[0]).toMatchObject({
+      text: "Open admin dashboard prompt"
     });
 
     await app.close();
