@@ -37,6 +37,16 @@ import {
   parseClientDiagnosticEventRequest,
   parseClientMessageEventRequest
 } from "./client-events.js";
+import {
+  adminMessagesSecurityHeaders,
+  authenticateAdminMessagesRequest,
+  buildAdminClientMessagesPayload,
+  renderAdminClientMessagesPage,
+  resolveAdminMessagesToken,
+  sendAdminMessagesUnauthorized,
+  sendAdminMessagesUnavailable,
+  type AdminClientMessagesQuery
+} from "./admin-client-messages.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
 import {
@@ -105,6 +115,7 @@ export interface GatewayOptions {
   clientEventsStore?: ClientMessageEventStore | null;
   clientEventsRateLimiter?: CredentialRateLimiter;
   clientEventsRatePolicy?: RateLimitPolicy;
+  adminMessagesToken?: string;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
   logger?: boolean;
@@ -182,6 +193,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter();
   const clientEventsRatePolicy =
     options.clientEventsRatePolicy ?? resolveClientEventsRatePolicy(process.env);
+  const adminMessagesToken = resolveAdminMessagesToken(
+    options.adminMessagesToken ?? process.env.GATEWAY_ADMIN_MESSAGES_TOKEN
+  );
   if (authMode === "dev") {
     sessions.upsertSubject(subject);
   }
@@ -377,6 +391,53 @@ export function buildGateway(options: GatewayOptions = {}) {
           : {}),
         ...(tokenUsage ? { token_usage: tokenUsage } : {})
       };
+    }
+  );
+
+  app.get(
+    "/gateway/admin/client-messages",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (_request, reply) => {
+      if (!adminMessagesToken || !clientEventsStore || !credentialStore) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+
+      return adminMessagesSecurityHeaders(reply)
+        .type("text/html; charset=utf-8")
+        .send(renderAdminClientMessagesPage());
+    }
+  );
+
+  app.get<{ Querystring: AdminClientMessagesQuery }>(
+    "/gateway/admin/client-messages.json",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (request, reply) => {
+      if (!adminMessagesToken || !clientEventsStore || !credentialStore) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+      if (!authenticateAdminMessagesRequest(request, adminMessagesToken)) {
+        return sendAdminMessagesUnauthorized(adminMessagesSecurityHeaders(reply));
+      }
+
+      return adminMessagesSecurityHeaders(reply).send(
+        buildAdminClientMessagesPayload({
+          clientEventsStore,
+          credentialStore,
+          query: request.query
+        })
+      );
     }
   );
 

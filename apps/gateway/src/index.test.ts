@@ -458,6 +458,137 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("serves the admin client message UI and protects all-user message data", async () => {
+    const { store, issued, headers } = createCredentialBackedStore();
+    const second = issueAccessCredential({
+      subjectId: "subj_zhang",
+      label: "Second client event credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_zhang",
+      label: "Zhang Sheng",
+      name: "张晟",
+      phoneNumber: "15618504630",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(second.record);
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      adminMessagesToken: "admin-messages-token-1234567890",
+      logger: false
+    });
+
+    const page = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages"
+    });
+    const unauthenticated = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json"
+    });
+    const userCredential = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json",
+      headers
+    });
+
+    expect(page.statusCode).toBe(200);
+    expect(page.headers["content-type"]).toContain("text/html");
+    expect(page.body).toContain("Gateway Client Messages");
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(userCredential.statusCode).toBe(401);
+
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_admin_1",
+        session_id: "ses_admin_1",
+        message_id: "msg_admin_1",
+        text: "First user private prompt"
+      })
+    });
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers: { authorization: `Bearer ${second.token}` },
+      payload: clientMessagePayload({
+        event_id: "evt_admin_2",
+        session_id: "ses_admin_2",
+        message_id: "msg_admin_2",
+        text: "Second user detailed prompt"
+      })
+    });
+
+    const preview = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json().messages).toHaveLength(2);
+    expect(preview.json().messages[0].text).toBeUndefined();
+    expect(JSON.stringify(preview.json())).not.toContain(issued.token);
+    expect(JSON.stringify(preview.json())).not.toContain(second.token);
+    expect(JSON.stringify(preview.json())).not.toContain("admin-messages-token-1234567890");
+
+    const full = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?user=%E5%BC%A0%E6%99%9F&include_text=1&limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(full.statusCode).toBe(200);
+    expect(full.json().messages).toHaveLength(1);
+    expect(full.json().messages[0]).toMatchObject({
+      subject: {
+        id: "subj_zhang",
+        name: "张晟",
+        phone_number: "15618504630"
+      },
+      credential: {
+        prefix: second.record.prefix
+      },
+      text: "Second user detailed prompt"
+    });
+
+    await app.close();
+  });
+
+  it("hides the admin client message UI when the admin token is not configured", async () => {
+    const { store } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const page = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages"
+    });
+    const data = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json"
+    });
+
+    expect(page.statusCode).toBe(404);
+    expect(data.statusCode).toBe(404);
+
+    await app.close();
+  });
+
   it("writes client diagnostic events to the dedicated store without request observation", async () => {
     const { store, issued, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });

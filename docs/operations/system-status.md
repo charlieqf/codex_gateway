@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-07
+Last updated: 2026-05-09
 
 ## Current Phase
 
@@ -34,6 +34,12 @@ Completed:
 - Admin CLI `issue`, `list`, `list-users`, `list-active-keys`, `update-user`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `reveal-key`, `reveal-keys`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
 - Admin CLI read-only Desktop client event queries: `client-messages` and `client-diagnostics` across the main `gateway.db` identity store and `client-events.db`, including user/name lookup, credential prefix lookup, unified-key env lookup, prompt preview/full-text switch, and diagnostic metadata filters.
 - Admin CLI read-only MedEvidence tool audit export: `client-medevidence-tool-audit` reads `client_diagnostic_events.metadata_json`, joins matching `client_message_events`, supports recent-window filters, `entrypoint=gateway`, minimum question length, and JSON/JSONL/CSV output for mixed MedEvidence routing guard samples.
+- Browser-based read-only client message inspection for operators:
+  `GET /gateway/admin/client-messages` serves a static live-refresh UI and
+  `GET /gateway/admin/client-messages.json` returns recent Desktop messages
+  across all users. The data route is protected by the independent
+  `GATEWAY_ADMIN_MESSAGES_TOKEN` bearer token and does not accept normal user
+  API keys.
 - Client diagnostic metadata ingestion stores the full metadata JSON object without field whitelisting, while rejecting obvious credential/secret material. The diagnostic metadata limit is 192KB UTF-8 and the diagnostic body limit is 256KB so MedEvidence tool audit fields can include both Desktop original text and the extracted MedEvidence question.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
 - SQLite request event writer for gateway observations, including Phase 1 token usage fields when provider usage is available.

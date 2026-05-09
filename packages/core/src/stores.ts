@@ -145,6 +145,7 @@ export interface ObservationStore {
 
 export interface ClientMessageEventStore {
   getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null;
+  listClientMessageEvents(input?: ListClientMessageEventsInput): ClientMessageEventRecord[];
   findClientMessageEventByMessageId(
     subjectId: string,
     messageId: string
@@ -170,6 +171,16 @@ export interface ClientMessageEventStore {
     record: ClientDiagnosticEventRecord
   ): ClientDiagnosticEventRecord;
   close?(): void;
+}
+
+export interface ListClientMessageEventsInput {
+  subjectId?: string;
+  credentialId?: string;
+  sessionId?: string;
+  messageId?: string;
+  since?: Date;
+  until?: Date;
+  limit?: number;
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

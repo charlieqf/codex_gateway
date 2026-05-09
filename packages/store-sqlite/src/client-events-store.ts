@@ -2,7 +2,8 @@ import type { DatabaseSync } from "node:sqlite";
 import type {
   ClientDiagnosticEventRecord,
   ClientMessageEventRecord,
-  ClientMessageEventStore
+  ClientMessageEventStore,
+  ListClientMessageEventsInput
 } from "@codex-gateway/core";
 import { migrateClientEventsSchema } from "./migrations.js";
 import { rowToClientDiagnosticEvent, rowToClientMessageEvent } from "./row-mappers.js";
@@ -36,6 +37,53 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
       .get(subjectId, eventId);
 
     return row ? rowToClientMessageEvent(row) : null;
+  }
+
+  listClientMessageEvents(
+    input: ListClientMessageEventsInput = {}
+  ): ClientMessageEventRecord[] {
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+    if (input.subjectId) {
+      clauses.push("subject_id = ?");
+      params.push(input.subjectId);
+    }
+    if (input.credentialId) {
+      clauses.push("credential_id = ?");
+      params.push(input.credentialId);
+    }
+    if (input.sessionId) {
+      clauses.push("session_id = ?");
+      params.push(input.sessionId);
+    }
+    if (input.messageId) {
+      clauses.push("message_id = ?");
+      params.push(input.messageId);
+    }
+    if (input.since) {
+      clauses.push("received_at >= ?");
+      params.push(input.since.toISOString());
+    }
+    if (input.until) {
+      clauses.push("received_at <= ?");
+      params.push(input.until.toISOString());
+    }
+
+    const limit = clampListLimit(input.limit, 100, 1000);
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const rows = this.db
+      .prepare(
+        `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+                message_id, agent, provider_id, model_id, engine, text, text_sha256,
+                attachments_json, app_name, app_version, created_at, received_at
+         FROM client_message_events
+         ${where}
+         ORDER BY received_at DESC, created_at DESC
+         LIMIT ?`
+      )
+      .all(...params, limit);
+
+    return rows.map(rowToClientMessageEvent);
   }
 
   findClientMessageEventByMessageId(
@@ -217,4 +265,11 @@ export function createSqliteClientEventsStore(
   options: SqliteStoreOptions
 ): SqliteClientEventsStore {
   return new SqliteClientEventsStore(options);
+}
+
+function clampListLimit(value: number | undefined, fallback: number, max: number): number {
+  if (!Number.isInteger(value) || value === undefined || value <= 0) {
+    return fallback;
+  }
+  return Math.min(value, max);
 }
