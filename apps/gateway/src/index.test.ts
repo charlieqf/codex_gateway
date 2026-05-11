@@ -2424,7 +2424,7 @@ describe("gateway phase 1 routes", () => {
         GATEWAY_BILLING_ADMIN_TOKEN: "billing-admin-token-1234567890",
         GATEWAY_API_KEY_ENCRYPTION_SECRET: "billing-subject-secret-1234567890"
       })
-    ).toThrow("Production billing subject provisioning requires GATEWAY_UPSTREAM_V2_BASE_URL");
+    ).not.toThrow();
   });
 
   it("validates configured upstream reasoning effort", async () => {

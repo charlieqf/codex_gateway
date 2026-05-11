@@ -2337,9 +2337,6 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
     if (!env.GATEWAY_API_KEY_ENCRYPTION_SECRET) {
       throw new Error("Production billing admin API requires GATEWAY_API_KEY_ENCRYPTION_SECRET.");
     }
-    if (!env.GATEWAY_UPSTREAM_V2_BASE_URL || !env.GATEWAY_UPSTREAM_V2_TOKEN) {
-      throw new Error("Production billing subject provisioning requires GATEWAY_UPSTREAM_V2_BASE_URL and GATEWAY_UPSTREAM_V2_TOKEN.");
-    }
   }
 }
 
