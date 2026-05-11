@@ -108,6 +108,7 @@ import {
   parseImageGenerationRequest,
   parseImageModelMap,
   resolveImageUpstreamModel,
+  type ImageGenerationRequest,
   type ImageGenerationProvider
 } from "./image-generation.js";
 import {
@@ -117,6 +118,22 @@ import {
   type ProviderToolCall
 } from "./services/provider-stream.js";
 import { InMemorySessionStore } from "./services/session-store.js";
+import {
+  accountFromPoolConfig,
+  applyStartupAuthState,
+  readUpstreamAccountPoolConfigFile,
+  UpstreamAccountRouter,
+  type UpstreamAccountCooldownConfig,
+  type UpstreamAccountConfigLogger,
+  type UpstreamImageLease,
+  type UpstreamAccountLease,
+  type UpstreamAccountOutcome,
+  type ImageProviderOutcome,
+  type ParsedUpstreamAccountConfig,
+  type UpstreamAccountRuntimeInput,
+  type UpstreamAccountSelection,
+  type UpstreamSoftAffinity
+} from "./services/upstream-account-router.js";
 import {
   beginTokenBudget,
   cleanupExpiredTokenReservations,
@@ -137,6 +154,7 @@ export interface GatewayOptions {
   adminAuditStore?: AdminAuditStore;
   publicMetadata?: GatewayPublicMetadata;
   provider?: ProviderAdapter;
+  upstreamAccounts?: UpstreamAccountRuntimeInput[];
   sessionStore?: GatewayStore;
   subject?: Subject;
   upstreamAccount?: UpstreamAccount;
@@ -179,6 +197,24 @@ interface MessageBody {
   message?: unknown;
 }
 
+interface ResolvedUpstreamAccountPool {
+  runtimes: UpstreamAccountRuntimeInput[];
+  softAffinity: UpstreamSoftAffinity;
+  cooldown: UpstreamAccountCooldownConfig;
+  accountPoolConfigured: boolean;
+}
+
+interface StatelessUpstreamAttempt {
+  lease: UpstreamAccountLease;
+  subject: Subject;
+  upstreamAccount: UpstreamAccount;
+  provider: ProviderAdapter;
+  scope: Scope;
+  session: GatewaySession;
+}
+
+const maxStatelessAttempts = 2;
+
 export function buildGateway(options: GatewayOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
@@ -186,19 +222,16 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
   const subject = options.subject ?? defaultSubject();
-  const upstreamAccount = options.upstreamAccount ?? defaultUpstreamAccount();
-  const provider =
-    options.provider ??
-    new CodexProviderAdapter({
-      codexHome: process.env.CODEX_HOME ?? ".gateway-state/codex-home",
-      model: process.env.MEDCODE_UPSTREAM_MODEL,
-      modelReasoningEffort: parseModelReasoningEffort(
-        process.env.MEDCODE_UPSTREAM_REASONING_EFFORT
-      ),
-      workingDirectory: process.env.CODEX_WORKDIR ?? process.cwd(),
-      skipGitRepoCheck: process.env.CODEX_SKIP_GIT_REPO_CHECK === "1"
-    });
   const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
+  const upstreamPool = resolveUpstreamAccountPool(options, process.env, sessions, app.log);
+  const upstreamRouter = new UpstreamAccountRouter(upstreamPool.runtimes, {
+    softAffinity: upstreamPool.softAffinity,
+    cooldown: upstreamPool.cooldown,
+    onAccountUpdated: (account) => persistUpstreamAccountRuntimeState(sessions, account, app.log)
+  });
+  const defaultUpstream = upstreamRouter.defaultSelection();
+  const upstreamAccount = defaultUpstream.upstreamAccount;
+  const provider = defaultUpstream.provider;
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
   const unifiedClientKeyStore =
@@ -229,8 +262,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     (isPlanEntitlementStore(sessions) ? sessions : undefined);
   const imageGenerationProvider =
     options.imageGenerationProvider === undefined
-      ? createDefaultImageGenerationProvider(process.env)
+      ? upstreamRouter.hasImageBindingDeclared()
+        ? undefined
+        : createDefaultImageGenerationProvider(process.env)
       : options.imageGenerationProvider ?? undefined;
+  const accountPoolImageBindingDeclared = upstreamRouter.hasImageBindingDeclared();
   const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
@@ -260,10 +296,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.upstreamV2Client === undefined
       ? resolveUpstreamV2Client(process.env)
       : options.upstreamV2Client ?? null;
+  assertUpstreamPoolAvailable(upstreamRouter, process.env);
   if (authMode === "dev") {
     sessions.upsertSubject(subject);
   }
-  sessions.upsertUpstreamAccount(upstreamAccount);
+  for (const runtime of upstreamRouter.listAccounts()) {
+    sessions.upsertUpstreamAccount(runtime.upstreamAccount);
+  }
   const devContext = {
     subject,
     upstreamAccount,
@@ -352,7 +391,12 @@ export function buildGateway(options: GatewayOptions = {}) {
     })
   );
 
-  app.get("/gateway/status", async (request) => {
+  app.get("/gateway/status", async (request, reply) => {
+    const selected = upstreamRouter.selectForStatus();
+    if (selected instanceof GatewayError) {
+      return sendError(request, reply, selected);
+    }
+    applyUpstreamSelection(request, selected);
     const { subject, upstreamAccount, provider, scope, credential } = getGatewayContext(request);
     const health = await provider.health(upstreamAccount);
 
@@ -909,6 +953,12 @@ export function buildGateway(options: GatewayOptions = {}) {
       if (upstreamModel instanceof GatewayError) {
         return sendImageError(request, reply, upstreamModel);
       }
+      if (accountPoolImageBindingDeclared) {
+        return generateImageWithAccountPool(request, reply, upstreamRouter, {
+          parsed,
+          upstreamModel
+        });
+      }
       if (!imageGenerationProvider) {
         return sendImageError(
           request,
@@ -925,6 +975,12 @@ export function buildGateway(options: GatewayOptions = {}) {
       const abort = () => abortController.abort(new Error("client_aborted"));
       request.raw.once("aborted", abort);
       try {
+        if (upstreamPool.accountPoolConfigured) {
+          request.gatewayObservedUpstreamAccount = {
+            id: null,
+            provider: null
+          };
+        }
         const result = await imageGenerationProvider.generate({
           request: parsed,
           upstreamModel,
@@ -967,7 +1023,6 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
-    const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
     const parsed = parseChatCompletionRequest(request.body, openAIModelId);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
@@ -976,8 +1031,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
     }
 
-    const session = createStatelessSession(subject.id, upstreamAccount.id);
-    markSession(request, session.id);
+    const affinityKey = requestAffinityKey(request, upstreamRouter.softAffinity);
+    const attemptedAccountIds = new Set<string>();
+    let statelessAttempts = 1;
+    let attempt = beginStatelessUpstreamAttempt(request, upstreamRouter, { affinityKey });
+    if (attempt instanceof GatewayError) {
+      return sendOpenAIError(request, reply, attempt);
+    }
     const shape = createChatCompletionShape(openAIModelId);
     const strictClientTools = hasStrictClientTools(parsed);
     const prompt = strictClientTools
@@ -994,6 +1054,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       { entitlementStore: planEntitlementStore, requireEntitlement }
     );
     if (tokenBudgetError) {
+      attempt.lease.release();
       return sendOpenAIError(request, reply, tokenBudgetError);
     }
 
@@ -1003,19 +1064,26 @@ export function buildGateway(options: GatewayOptions = {}) {
       let hasToolCalls = false;
       let toolCallIndex = 0;
       let usage: OpenAIChatUsage | null = null;
+      let initialChunkSent = false;
+      const writeInitialChunk = () => {
+        if (initialChunkSent) {
+          return true;
+        }
+        initialChunkSent = true;
+        markFirstByte(request);
+        return sse.writeData(createInitialChatCompletionChunk(shape));
+      };
 
       try {
-        sse.writeData(createInitialChatCompletionChunk(shape));
-        markFirstByte(request);
-
         if (strictClientTools) {
           const onProviderError = createProviderErrorLogger(request);
+          writeInitialChunk();
           const strictResult = await runStrictClientTools({
-            provider,
-            upstreamAccount,
-            subject,
-            scope,
-            session,
+            provider: attempt.provider,
+            upstreamAccount: attempt.upstreamAccount,
+            subject: attempt.subject,
+            scope: attempt.scope,
+            session: attempt.session,
             request: parsed,
             prompt,
             signal: sse.signal,
@@ -1024,10 +1092,14 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderError
           });
           if (strictResult instanceof GatewayError) {
+            if (!recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, strictResult)) {
+              upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+            }
             request.gatewayErrorCode = strictResult.code;
             sse.writeData(openAIErrorPayload(strictResult));
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
+            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
             hasToolCalls = true;
             usage = strictResult.usage;
             markOpenAITokenUsage(request, usage);
@@ -1043,6 +1115,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
+            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
             usage = strictResult.usage;
             markOpenAITokenUsage(request, usage);
             const chunk = streamEventToChatCompletionChunk({
@@ -1053,63 +1126,98 @@ export function buildGateway(options: GatewayOptions = {}) {
             chunk && sse.writeData(chunk);
           }
         } else {
-          const onProviderError = createProviderErrorLogger(request);
-          for await (const event of provider.message({
-            upstreamAccount,
-            subject,
-            scope,
-            session,
-            message: prompt,
-            signal: sse.signal,
-            onProviderError
-          })) {
-            if (sse.isClosed()) {
-              break;
-            }
-            if (event.type === "completed") {
-              usage = openAIUsageFromTokenUsage(event.usage);
-              markTokenUsage(request, event.usage);
-              continue;
-            }
-            if (event.type === "error") {
-              const error = streamErrorToGatewayError(event);
-              request.gatewayErrorCode = error.code;
-              sse.writeData(openAIErrorPayload(error));
-              failed = true;
-              break;
-            }
-
-            if (event.type === "tool_call") {
-              if (parsed.toolChoice === "none") {
+          while (true) {
+            const onProviderError = createProviderErrorLogger(request);
+            let retrying = false;
+            for await (const event of attempt.provider.message({
+              upstreamAccount: attempt.upstreamAccount,
+              subject: attempt.subject,
+              scope: attempt.scope,
+              session: attempt.session,
+              message: prompt,
+              signal: sse.signal,
+              onProviderError
+            })) {
+              if (sse.isClosed()) {
+                break;
+              }
+              if (event.type === "completed") {
+                usage = openAIUsageFromTokenUsage(event.usage);
+                markTokenUsage(request, event.usage);
                 continue;
               }
-              hasToolCalls = true;
+              if (event.type === "error") {
+                const error = streamErrorToGatewayError(event);
+                recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, error);
+                if (
+                  !initialChunkSent &&
+                  statelessAttempts < maxStatelessAttempts &&
+                  isStatelessRetryableProviderError(error)
+                ) {
+                  attemptedAccountIds.add(attempt.upstreamAccount.id);
+                  attempt.lease.release();
+                  const nextAttempt = beginStatelessUpstreamAttempt(request, upstreamRouter, {
+                    affinityKey,
+                    excludeAccountIds: attemptedAccountIds
+                  });
+                  if (!(nextAttempt instanceof GatewayError)) {
+                    statelessAttempts += 1;
+                    attempt = nextAttempt;
+                    retrying = true;
+                    break;
+                  }
+                }
+                writeInitialChunk();
+                request.gatewayErrorCode = error.code;
+                sse.writeData(openAIErrorPayload(error));
+                failed = true;
+                break;
+              }
+
+              if (!writeInitialChunk()) {
+                break;
+              }
+              if (event.type === "tool_call") {
+                if (parsed.toolChoice === "none") {
+                  continue;
+                }
+                hasToolCalls = true;
+              }
+              if (event.type === "message_delta" && hasToolCalls) {
+                continue;
+              }
+
+              const chunk = streamEventToChatCompletionChunk({
+                shape,
+                event,
+                toolCallIndex
+              });
+              if (event.type === "tool_call") {
+                toolCallIndex += 1;
+              }
+              if (chunk && !sse.writeData(chunk)) {
+                break;
+              }
             }
-            if (event.type === "message_delta" && hasToolCalls) {
+            if (retrying) {
               continue;
             }
-
-            const chunk = streamEventToChatCompletionChunk({
-              shape,
-              event,
-              toolCallIndex
-            });
-            if (event.type === "tool_call") {
-              toolCallIndex += 1;
+            if (!failed) {
+              upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
             }
-            if (chunk && !sse.writeData(chunk)) {
-              break;
-            }
+            break;
           }
         }
 
         if (!sse.isClosed() && !failed) {
+          writeInitialChunk();
           const finishReason = hasToolCalls ? "tool_calls" : "stop";
           sse.writeData(createFinalChatCompletionChunk(shape, finishReason, usage));
           sse.writeDone();
         }
       } finally {
         await finalizeTokenBudget(request, tokenBudgetLimiter);
+        attempt.lease.release();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         sse.end();
@@ -1125,11 +1233,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       if (strictClientTools) {
         const onProviderError = createProviderErrorLogger(request);
         const strictResult = await runStrictClientTools({
-          provider,
-          upstreamAccount,
-          subject,
-          scope,
-          session,
+          provider: attempt.provider,
+          upstreamAccount: attempt.upstreamAccount,
+          subject: attempt.subject,
+          scope: attempt.scope,
+          session: attempt.session,
           request: parsed,
           prompt,
           requestId: request.id,
@@ -1137,28 +1245,66 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderError
         });
         if (strictResult instanceof GatewayError) {
+          if (!recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, strictResult)) {
+            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+          }
           return sendOpenAIError(request, reply, strictResult);
         }
+        upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
         markFirstByte(request);
         content = strictResult.content;
         toolCalls.push(...strictResult.toolCalls);
         usage = strictResult.usage;
         markOpenAITokenUsage(request, usage);
       } else {
-        const onProviderError = createProviderErrorLogger(request);
-        const collected = await collectProviderMessage({
-          provider,
-          upstreamAccount,
-          subject,
-          scope,
-          session,
-          message: prompt,
-          onProviderError,
-          suppressToolCalls: parsed.toolChoice === "none",
-          suppressTextAfterToolCall: true
-        });
-        if (collected instanceof GatewayError) {
-          return sendOpenAIError(request, reply, collected);
+        let collected: CollectedProviderMessage | null = null;
+        while (true) {
+          const onProviderError = createProviderErrorLogger(request);
+          const attemptResult = await collectProviderMessage({
+            provider: attempt.provider,
+            upstreamAccount: attempt.upstreamAccount,
+            subject: attempt.subject,
+            scope: attempt.scope,
+            session: attempt.session,
+            message: prompt,
+            onProviderError,
+            suppressToolCalls: parsed.toolChoice === "none",
+            suppressTextAfterToolCall: true
+          });
+          if (attemptResult instanceof GatewayError) {
+            recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, attemptResult);
+            if (
+              statelessAttempts < maxStatelessAttempts &&
+              isStatelessRetryableProviderError(attemptResult)
+            ) {
+              attemptedAccountIds.add(attempt.upstreamAccount.id);
+              attempt.lease.release();
+              const nextAttempt = beginStatelessUpstreamAttempt(request, upstreamRouter, {
+                affinityKey,
+                excludeAccountIds: attemptedAccountIds
+              });
+              if (!(nextAttempt instanceof GatewayError)) {
+                statelessAttempts += 1;
+                attempt = nextAttempt;
+                continue;
+              }
+            }
+            return sendOpenAIError(request, reply, attemptResult);
+          }
+          collected = attemptResult;
+          upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+          break;
+        }
+        if (!collected) {
+          return sendOpenAIError(
+            request,
+            reply,
+            new GatewayError({
+              code: "service_unavailable",
+              message: "MedCode service is temporarily unavailable.",
+              httpStatus: 503
+            })
+          );
         }
         if (collected.content.length > 0 || collected.toolCalls.length > 0) {
           markFirstByte(request);
@@ -1178,6 +1324,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       });
     } finally {
       await finalizeTokenBudget(request, tokenBudgetLimiter);
+      attempt.lease.release();
     }
   });
 
@@ -1191,6 +1338,13 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.post("/sessions", async (request, reply) => {
+    const selected = upstreamRouter.selectForNewSession({
+      affinityKey: requestAffinityKey(request, upstreamRouter.softAffinity)
+    });
+    if (selected instanceof GatewayError) {
+      return sendError(request, reply, selected);
+    }
+    applyUpstreamSelection(request, selected);
     const { subject, upstreamAccount } = getGatewayContext(request);
     const session = sessions.create({
       subjectId: subject.id,
@@ -1207,7 +1361,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.post<{ Params: { id: string }; Body: MessageBody }>(
     "/sessions/:id/messages",
     async (request, reply) => {
-      const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
+      const { subject } = getGatewayContext(request);
       markSession(request, request.params.id);
 
       const session = sessions.get(request.params.id);
@@ -1223,8 +1377,16 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
+      const lease = upstreamRouter.beginExistingSession(session.upstreamAccountId);
+      if (lease instanceof GatewayError) {
+        return sendError(request, reply, lease);
+      }
+      applyUpstreamSelection(request, lease);
+      const { upstreamAccount, provider, scope } = getGatewayContext(request);
+
       const message = request.body?.message;
       if (typeof message !== "string" || message.length === 0) {
+        lease.release();
         return sendError(
           request,
           reply,
@@ -1244,10 +1406,13 @@ export function buildGateway(options: GatewayOptions = {}) {
         { entitlementStore: planEntitlementStore, requireEntitlement }
       );
       if (tokenBudgetError) {
+        lease.release();
         return sendError(request, reply, tokenBudgetError);
       }
 
       const sse = setupSseResponse(reply);
+      let providerFailed = false;
+      let outcomeRecorded = false;
 
       try {
         for await (const event of provider.message({
@@ -1269,15 +1434,23 @@ export function buildGateway(options: GatewayOptions = {}) {
             markTokenUsage(request, event.usage);
           }
           if (event.type === "error") {
-            request.gatewayErrorCode = event.code;
+            const error = streamErrorToGatewayError(event);
+            recordUpstreamErrorOutcome(upstreamRouter, lease, error);
+            outcomeRecorded = true;
+            providerFailed = true;
+            request.gatewayErrorCode = error.code;
           }
           markFirstByte(request);
           if (!sse.writeEvent(event.type, event)) {
             break;
           }
         }
+        if (!providerFailed && !outcomeRecorded) {
+          upstreamRouter.recordOutcome(lease.upstreamAccount.id, "success");
+        }
       } finally {
         await finalizeTokenBudget(request, tokenBudgetLimiter);
+        lease.release();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         sse.end();
@@ -1592,6 +1765,124 @@ function sendImageError(request: FastifyRequest, reply: FastifyReply, error: Gat
       request_id: request.id
     }
   };
+}
+
+async function generateImageWithAccountPool(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  router: UpstreamAccountRouter,
+  input: {
+    parsed: ImageGenerationRequest;
+    upstreamModel: string;
+  }
+) {
+  const affinityKey = requestAffinityKey(request, router.softAffinity);
+  const attemptedAccountIds = new Set<string>();
+  let lastError: GatewayError | null = null;
+
+  for (let attemptIndex = 0; attemptIndex < maxStatelessAttempts; attemptIndex += 1) {
+    const lease = router.beginImage({ affinityKey, excludeAccountIds: attemptedAccountIds });
+    if (lease instanceof GatewayError) {
+      return sendImageError(request, reply, lastError ?? lease);
+    }
+    attemptedAccountIds.add(lease.upstreamAccount.id);
+    applyImageSelection(request, lease);
+
+    const abortController = new AbortController();
+    const abort = () => abortController.abort(new Error("client_aborted"));
+    request.raw.once("aborted", abort);
+    try {
+      const result = await lease.imageProvider.generate({
+        request: input.parsed,
+        upstreamModel: input.upstreamModel,
+        signal: abortController.signal
+      });
+      router.recordImageOutcome(lease.upstreamAccount.id, "success");
+      markFirstByte(request);
+      return buildImageGenerationResponse({
+        request: input.parsed,
+        result
+      });
+    } catch (err) {
+      const error =
+        err instanceof GatewayError
+          ? err
+          : new GatewayError({
+              code: "upstream_unavailable",
+              message: "Image generation service is unavailable.",
+              httpStatus: 503
+            });
+      const outcome = imageOutcomeFromError(error);
+      if (outcome) {
+        router.recordImageOutcome(lease.upstreamAccount.id, outcome);
+      }
+      lastError = error;
+      if (
+        !outcome ||
+        !isImageRetryableOutcome(outcome) ||
+        attemptIndex + 1 >= maxStatelessAttempts
+      ) {
+        return sendImageError(request, reply, error);
+      }
+    } finally {
+      lease.release();
+      request.raw.off("aborted", abort);
+    }
+  }
+
+  return sendImageError(
+    request,
+    reply,
+    lastError ??
+      new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503
+      })
+  );
+}
+
+function applyImageSelection(request: FastifyRequest, selection: UpstreamImageLease): void {
+  const context = getGatewayContext(request);
+  request.gatewayContext = {
+    ...context,
+    upstreamAccount: selection.upstreamAccount
+  };
+  request.gatewayObservedUpstreamAccount = {
+    id: selection.upstreamAccount.id,
+    provider: selection.upstreamAccount.provider
+  };
+}
+
+function imageOutcomeFromError(error: GatewayError): ImageProviderOutcome | null {
+  if (error.upstreamStatus === 401 || error.upstreamStatus === 403) {
+    return "key_invalid";
+  }
+  if (error.code === "rate_limited") {
+    return "rate_limited";
+  }
+  if (error.code === "upstream_timeout") {
+    return "upstream_timeout";
+  }
+  if (error.code === "content_policy_violation") {
+    return "content_policy_violation";
+  }
+  if (error.code === "invalid_request") {
+    return "invalid_request";
+  }
+  if (error.code === "upstream_unavailable" || error.code === "service_unavailable") {
+    return "service_error";
+  }
+  return null;
+}
+
+function isImageRetryableOutcome(outcome: ImageProviderOutcome): boolean {
+  return (
+    outcome === "rate_limited" ||
+    outcome === "service_error" ||
+    outcome === "upstream_timeout" ||
+    outcome === "key_invalid"
+  );
 }
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
@@ -2260,6 +2551,277 @@ function createDefaultImageGenerationProvider(
   });
 }
 
+function createImageProviderForAccount(
+  config: ParsedUpstreamAccountConfig,
+  env: NodeJS.ProcessEnv,
+  logger: UpstreamAccountConfigLogger
+): ImageGenerationProvider | null {
+  if (!config.imageApiKeyEnv) {
+    return null;
+  }
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
+    logger.info(
+      { upstream_account_id: config.id, image_api_key_env: config.imageApiKeyEnv },
+      "Image key declared for upstream account but image generation is disabled."
+    );
+    return null;
+  }
+  const apiKey = env[config.imageApiKeyEnv]?.trim();
+  if (!apiKey) {
+    logger.warn?.(
+      { upstream_account_id: config.id, image_api_key_env: config.imageApiKeyEnv },
+      "Image key env for upstream account is missing or empty."
+    );
+    return null;
+  }
+  logger.info(
+    { upstream_account_id: config.id, image_api_key_env: config.imageApiKeyEnv },
+    "Image key configured for upstream account."
+  );
+  return new OpenAIImageGenerationProvider({
+    apiKey,
+    baseUrl: config.imageBaseUrlEnv
+      ? env[config.imageBaseUrlEnv]
+      : env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+    timeoutMs:
+      config.imageTimeoutMs ??
+      parsePositiveIntegerEnv(
+        env.MEDCODE_IMAGE_TIMEOUT_MS,
+        180_000,
+        "MEDCODE_IMAGE_TIMEOUT_MS"
+      )
+  });
+}
+
+function resolveUpstreamAccountPool(
+  options: GatewayOptions,
+  env: NodeJS.ProcessEnv,
+  store: GatewayStore,
+  logger: UpstreamAccountConfigLogger
+): ResolvedUpstreamAccountPool {
+  if (options.upstreamAccounts) {
+    return {
+      runtimes: options.upstreamAccounts,
+      softAffinity: "credential",
+      cooldown: defaultUpstreamCooldown(),
+      accountPoolConfigured: true
+    };
+  }
+
+  if (env.GATEWAY_UPSTREAM_ACCOUNTS_JSON) {
+    const pool = readUpstreamAccountPoolConfigFile(env.GATEWAY_UPSTREAM_ACCOUNTS_JSON, {
+      nodeEnv: env.NODE_ENV,
+      logger
+    });
+    return {
+      runtimes: pool.accounts.map((config) => {
+        const upstreamAccount = applyStartupAuthState(
+          resolveConfiguredUpstreamAccount(config, store),
+          config,
+          {
+            validateAuthFiles: env.NODE_ENV === "production"
+          }
+        );
+        return {
+          upstreamAccount,
+          provider: createCodexProvider(env, config.codexHome),
+          imageProvider: createImageProviderForAccount(config, env, logger),
+          enabled: config.enabled,
+          weight: config.weight,
+          maxConcurrent: config.maxConcurrent
+        };
+      }),
+      softAffinity: pool.selection.softAffinity,
+      cooldown: pool.cooldown,
+      accountPoolConfigured: true
+    };
+  }
+
+  const codexHome = env.CODEX_HOME ?? ".gateway-state/codex-home";
+  return {
+    runtimes: [
+      {
+        upstreamAccount: options.upstreamAccount ?? defaultUpstreamAccount(),
+        provider: options.provider ?? createCodexProvider(env, codexHome)
+      }
+    ],
+    softAffinity: "credential",
+    cooldown: defaultUpstreamCooldown(),
+    accountPoolConfigured: false
+  };
+}
+
+function resolveConfiguredUpstreamAccount(
+  config: ParsedUpstreamAccountConfig,
+  store: GatewayStore
+): UpstreamAccount {
+  const configured = accountFromPoolConfig(config);
+  const existing = getStoredUpstreamAccount(store, config.id);
+  if (!existing) {
+    return configured;
+  }
+  return {
+    ...configured,
+    imageApiKeyEnv: configured.imageApiKeyEnv,
+    state: existing.state,
+    lastUsedAt: existing.lastUsedAt,
+    cooldownUntil: existing.cooldownUntil
+  };
+}
+
+function getStoredUpstreamAccount(store: GatewayStore, id: string): UpstreamAccount | null {
+  const candidate = store as Partial<{
+    getUpstreamAccount: (id: string) => UpstreamAccount | null;
+  }>;
+  return candidate.getUpstreamAccount?.(id) ?? null;
+}
+
+function persistUpstreamAccountRuntimeState(
+  store: GatewayStore,
+  account: UpstreamAccount,
+  logger: UpstreamAccountConfigLogger
+): void {
+  const candidate = store as Partial<{
+    updateUpstreamAccountRuntimeState: (
+      id: string,
+      input: {
+        state: UpstreamAccount["state"];
+        lastUsedAt: Date | null;
+        cooldownUntil: Date | null;
+      }
+    ) => UpstreamAccount | null;
+  }>;
+  try {
+    candidate.updateUpstreamAccountRuntimeState?.(account.id, {
+      state: account.state,
+      lastUsedAt: account.lastUsedAt,
+      cooldownUntil: account.cooldownUntil
+    });
+  } catch (err) {
+    logger.warn?.(
+      {
+        upstream_account_id: account.id,
+        error: err instanceof Error ? err.message : String(err)
+      },
+      "Failed to persist upstream account runtime state."
+    );
+  }
+}
+
+function defaultUpstreamCooldown(): UpstreamAccountCooldownConfig {
+  return {
+    rateLimitSeconds: 120,
+    reauthSeconds: 900,
+    serviceErrorSeconds: 30
+  };
+}
+
+function createCodexProvider(env: NodeJS.ProcessEnv, codexHome: string): ProviderAdapter {
+  return new CodexProviderAdapter({
+    codexHome,
+    model: env.MEDCODE_UPSTREAM_MODEL,
+    modelReasoningEffort: parseModelReasoningEffort(env.MEDCODE_UPSTREAM_REASONING_EFFORT),
+    workingDirectory: env.CODEX_WORKDIR ?? process.cwd(),
+    skipGitRepoCheck: env.CODEX_SKIP_GIT_REPO_CHECK === "1"
+  });
+}
+
+function assertUpstreamPoolAvailable(
+  router: UpstreamAccountRouter,
+  env: NodeJS.ProcessEnv
+): void {
+  if (env.NODE_ENV !== "production" || env.GATEWAY_ALLOW_EMPTY_UPSTREAM_POOL === "1") {
+    return;
+  }
+  const selection = router.selectForNewSession();
+  if (selection instanceof GatewayError) {
+    throw new Error(`Production runtime has no available upstream account: ${selection.message}`);
+  }
+}
+
+function applyUpstreamSelection(
+  request: FastifyRequest,
+  selection: UpstreamAccountSelection
+): void {
+  const context = getGatewayContext(request);
+  request.gatewayContext = {
+    ...context,
+    upstreamAccount: selection.upstreamAccount,
+    provider: selection.provider
+  };
+}
+
+function beginStatelessUpstreamAttempt(
+  request: FastifyRequest,
+  router: UpstreamAccountRouter,
+  input: {
+    affinityKey: string | null;
+    excludeAccountIds?: Iterable<string>;
+  }
+): StatelessUpstreamAttempt | GatewayError {
+  const lease = router.beginStateless(input);
+  if (lease instanceof GatewayError) {
+    return lease;
+  }
+  applyUpstreamSelection(request, lease);
+  const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
+  const session = createStatelessSession(subject.id, upstreamAccount.id);
+  markSession(request, session.id);
+  return {
+    lease,
+    subject,
+    upstreamAccount,
+    provider,
+    scope,
+    session
+  };
+}
+
+function requestAffinityKey(
+  request: FastifyRequest,
+  mode: UpstreamSoftAffinity
+): string | null {
+  if (mode === "none") {
+    return null;
+  }
+  const { credential, subject } = getGatewayContext(request);
+  return mode === "credential" ? credential.id : subject.id;
+}
+
+function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome | null {
+  if (error.code === "provider_reauth_required") {
+    return "provider_reauth_required";
+  }
+  if (error.code === "rate_limited") {
+    return "rate_limited";
+  }
+  if (
+    error.code === "service_unavailable" ||
+    error.code === "upstream_unavailable" ||
+    error.code === "upstream_timeout"
+  ) {
+    return "service_error";
+  }
+  return null;
+}
+
+function isStatelessRetryableProviderError(error: GatewayError): boolean {
+  return upstreamOutcomeFromError(error) !== null;
+}
+
+function recordUpstreamErrorOutcome(
+  router: UpstreamAccountRouter,
+  lease: UpstreamAccountLease,
+  error: GatewayError
+): boolean {
+  const outcome = upstreamOutcomeFromError(error);
+  if (outcome) {
+    router.recordOutcome(lease.upstreamAccount.id, outcome);
+    return true;
+  }
+  return false;
+}
+
 function parseAuthMode(value: string | undefined): GatewayAuthMode | undefined {
   if (!value) {
     return undefined;
@@ -2321,8 +2883,8 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
   if (!env.GATEWAY_SQLITE_PATH) {
     throw new Error("Production runtime requires GATEWAY_SQLITE_PATH.");
   }
-  if (!env.CODEX_HOME) {
-    throw new Error("Production runtime requires CODEX_HOME.");
+  if (!env.CODEX_HOME && !env.GATEWAY_UPSTREAM_ACCOUNTS_JSON) {
+    throw new Error("Production runtime requires CODEX_HOME or GATEWAY_UPSTREAM_ACCOUNTS_JSON.");
   }
   if (env.GATEWAY_DEV_ACCESS_TOKEN) {
     throw new Error("Production runtime must not set GATEWAY_DEV_ACCESS_TOKEN.");

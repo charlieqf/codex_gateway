@@ -212,6 +212,7 @@ export interface UpstreamAccount {
   provider: ProviderKind;
   label: string;
   credentialRef: string;
+  imageApiKeyEnv?: string | null;
   state: UpstreamAccountState;
   lastUsedAt: Date | null;
   cooldownUntil: Date | null;

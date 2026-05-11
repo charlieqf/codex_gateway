@@ -389,27 +389,31 @@ function normalizeOpenAIImageError(status: number, payload: unknown): GatewayErr
       code: "rate_limited",
       message: normalizedMessage ?? "Image generation rate limit reached.",
       httpStatus: 429,
-      retryAfterSeconds: 60
+      retryAfterSeconds: 60,
+      upstreamStatus: status
     });
   }
   if (status === 400 && /policy|safety|moderation/i.test(`${rawCode} ${rawMessage}`)) {
     return new GatewayError({
       code: "content_policy_violation",
       message: normalizedMessage ?? "Image generation request was rejected by content policy.",
-      httpStatus: 400
+      httpStatus: 400,
+      upstreamStatus: status
     });
   }
   if (status === 400) {
     return new GatewayError({
       code: "invalid_request",
       message: normalizedMessage ?? "Image generation request was invalid.",
-      httpStatus: 400
+      httpStatus: 400,
+      upstreamStatus: status
     });
   }
   return new GatewayError({
     code: "upstream_unavailable",
     message: "Image generation service is unavailable.",
-    httpStatus: status === 401 || status === 403 ? 503 : Math.max(500, Math.min(status, 599))
+    httpStatus: status === 401 || status === 403 ? 503 : Math.max(500, Math.min(status, 599)),
+    upstreamStatus: status
   });
 }
 

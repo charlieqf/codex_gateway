@@ -44,18 +44,21 @@ export class GatewayError extends Error {
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
   readonly retryAfterSeconds?: number;
+  readonly upstreamStatus?: number;
 
   constructor(input: {
     code: GatewayErrorCode;
     message: string;
     httpStatus: number;
     retryAfterSeconds?: number;
+    upstreamStatus?: number;
   }) {
     super(input.message);
     this.name = "GatewayError";
     this.code = input.code;
     this.httpStatus = input.httpStatus;
     this.retryAfterSeconds = input.retryAfterSeconds;
+    this.upstreamStatus = input.upstreamStatus;
   }
 }
 

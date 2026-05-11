@@ -1,10 +1,12 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   defaultImageGenerationFeaturePolicy,
   encryptSecret,
+  GatewayError,
   issueAccessCredential,
   issueUnifiedClientKey,
   validateFeaturePolicy,
@@ -57,8 +59,16 @@ class FakeProvider implements ProviderAdapter {
 class FakeImageGenerationProvider implements ImageGenerationProvider {
   readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
 
+  constructor(private readonly resultOrError?: Awaited<ReturnType<ImageGenerationProvider["generate"]>> | GatewayError) {}
+
   async generate(input: Parameters<ImageGenerationProvider["generate"]>[0]) {
     this.calls.push(input);
+    if (this.resultOrError instanceof GatewayError) {
+      throw this.resultOrError;
+    }
+    if (this.resultOrError) {
+      return this.resultOrError;
+    }
     return {
       created: 1778123456,
       data: [
@@ -482,6 +492,153 @@ describe("gateway phase 1 routes", () => {
       session_id: "ses_1"
     });
     expect(issued.record.prefix).toBeTruthy();
+
+    await app.close();
+  });
+
+  it("routes image generation through an account-bound image provider", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const imageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(imageProvider.calls).toHaveLength(1);
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "codex-pro-1",
+        status: "ok"
+      })
+    ]);
+
+    await app.close();
+  });
+
+  it("does not fall back to the legacy image provider when image binding is declared but unavailable", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const legacyImageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      imageGenerationProvider: legacyImageProvider,
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: null,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("upstream_unavailable");
+    expect(legacyImageProvider.calls).toHaveLength(0);
+
+    await app.close();
+  });
+
+  it("retries image generation on another account after key invalid", async () => {
+    const accountIds = ["codex-pro-1", "codex-pro-2"];
+    const issued = issueCredentialForHrwAccount("codex-pro-1", accountIds);
+    const { store, headers } = createImageEntitledStore(issued);
+    const firstImageProvider = new FakeImageGenerationProvider(
+      new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503,
+        upstreamStatus: 401
+      })
+    );
+    const secondImageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: firstImageProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-2", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_B"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: secondImageProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(firstImageProvider.calls).toHaveLength(1);
+    expect(secondImageProvider.calls).toHaveLength(1);
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "codex-pro-2",
+        status: "ok"
+      })
+    ]);
 
     await app.close();
   });
@@ -2409,6 +2566,23 @@ describe("gateway phase 1 routes", () => {
       validateRuntimeEnvironment({
         NODE_ENV: "production",
         GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db"
+      })
+    ).toThrow("Production runtime requires CODEX_HOME or GATEWAY_UPSTREAM_ACCOUNTS_JSON");
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        GATEWAY_UPSTREAM_ACCOUNTS_JSON: "/var/lib/codex-gateway/upstream-accounts.json"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
         GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
         CODEX_HOME: "/var/lib/codex-gateway/codex-home",
         GATEWAY_BILLING_ADMIN_TOKEN: "billing-admin-token-1234567890"
@@ -3916,6 +4090,760 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("sticks existing sessions to their selected upstream account", async () => {
+    const firstProvider = new FakeProvider();
+    const secondProvider = new FakeProvider();
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1"),
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-2"),
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    const sessionId = created.json().session.id as string;
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "first" }
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "second" }
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    const messages = [...firstProvider.messages, ...secondProvider.messages];
+    expect(messages).toHaveLength(2);
+    expect(messages[0].upstreamAccount.id).toBe(messages[1].upstreamAccount.id);
+    expect(
+      [firstProvider.messages.length, secondProvider.messages.length].sort((a, b) => a - b)
+    ).toEqual([0, 2]);
+
+    await app.close();
+  });
+
+  it("does not fail over an existing session when its sticky upstream account is unavailable", async () => {
+    const firstProvider = new FakeProvider();
+    const secondProvider = new FakeProvider();
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    const sessionId = created.json().session.id as string;
+    const first = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "first" }
+    });
+    const selectedAccountId =
+      firstProvider.messages[0]?.upstreamAccount.id ??
+      secondProvider.messages[0]?.upstreamAccount.id;
+    const selectedAccount = [firstAccount, secondAccount].find(
+      (account) => account.id === selectedAccountId
+    );
+    if (!selectedAccount) {
+      throw new Error("expected first request to select an upstream account");
+    }
+    selectedAccount.state = "disabled";
+
+    const second = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "second" }
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(503);
+    expect(second.json().error.code).toBe("subscription_unavailable");
+    expect(firstProvider.messages.length + secondProvider.messages.length).toBe(1);
+
+    await app.close();
+  });
+
+  it("uses HRW soft affinity to route stateless chat for different credentials", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    const accountIds = ["codex-pro-1", "codex-pro-2"];
+    const issuedByAccount = new Map<string, ReturnType<typeof issueAccessCredential>>();
+    for (let i = 0; i < 200 && issuedByAccount.size < 2; i += 1) {
+      const issued = issueAccessCredential({
+        subjectId: "subj_dev",
+        label: `Affinity credential ${i}`,
+        scope: "code",
+        expiresAt: new Date("2030-02-01T00:00:00Z"),
+        now: new Date("2026-01-01T00:00:00Z")
+      });
+      store.insertAccessCredential(issued.record);
+      const selectedAccountId = hrwAccountForKey(issued.record.id, accountIds);
+      issuedByAccount.set(selectedAccountId, issued);
+    }
+    expect(issuedByAccount.size).toBe(2);
+
+    const firstProvider = new FakeProvider();
+    const secondProvider = new FakeProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      sessionStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1"),
+          provider: firstProvider,
+          maxConcurrent: 10
+        },
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-2"),
+          provider: secondProvider,
+          maxConcurrent: 10
+        }
+      ],
+      logger: false
+    });
+
+    for (const issued of issuedByAccount.values()) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: `Bearer ${issued.token}` },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "Say ok." }]
+        }
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it("honors configured softAffinity=none when creating new sessions", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-upstream-affinity-"));
+    const configPath = path.join(dir, "upstream-accounts.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        accounts: [
+          {
+            id: "codex-pro-1",
+            label: "Codex Pro 1",
+            provider: "openai-codex",
+            codexHome: path.join(dir, "codex-home-pro-1"),
+            enabled: true,
+            initialState: "active",
+            weight: 1,
+            maxConcurrent: 1
+          },
+          {
+            id: "codex-pro-2",
+            label: "Codex Pro 2",
+            provider: "openai-codex",
+            codexHome: path.join(dir, "codex-home-pro-2"),
+            enabled: true,
+            initialState: "active",
+            weight: 1,
+            maxConcurrent: 1
+          }
+        ],
+        selection: {
+          strategy: "least_inflight",
+          softAffinity: "none"
+        }
+      })
+    );
+    const accountIds = ["codex-pro-1", "codex-pro-2"];
+    const store = createSqliteStore({ path: ":memory:" });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    const issued = issueCredentialForHrwAccount("codex-pro-2", accountIds);
+    store.insertAccessCredential(issued.record);
+    const previousPool = process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+    process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON = configPath;
+    const app = buildGateway({
+      authMode: "credential",
+      sessionStore: store,
+      logger: false
+    });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/sessions",
+        headers: { authorization: `Bearer ${issued.token}` }
+      });
+
+      expect(created.statusCode).toBe(201);
+      expect(store.list("subj_dev")[0].upstreamAccountId).toBe("codex-pro-1");
+    } finally {
+      await app.close();
+      if (previousPool === undefined) {
+        delete process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+      } else {
+        process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON = previousPool;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the single-account fallback when no upstream pool config is set", async () => {
+    const previousPool = process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+    delete process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+    const provider = new FakeProvider();
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: "Bearer secret" },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "Say ok." }]
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(provider.messages).toHaveLength(1);
+      expect(provider.messages[0].upstreamAccount.id).toBe("sub_openai_codex_dev");
+    } finally {
+      if (previousPool === undefined) {
+        delete process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+      } else {
+        process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON = previousPool;
+      }
+      await app.close();
+    }
+  });
+
+  it("records null upstream account for auth failures before selection", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("missing_credential");
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        credentialId: null,
+        subjectId: null,
+        upstreamAccountId: null,
+        status: "error",
+        errorCode: "missing_credential"
+      })
+    ]);
+
+    await app.close();
+  });
+
+  it("retries stateless non-streaming chat before first byte and records cooldown", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      { type: "error", code: "service_unavailable", message: "temporary upstream failure" }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "retry-ok" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      authMode: "dev",
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0].message.content).toBe("retry-ok");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+    expect(store.getUpstreamAccount("codex-pro-1")).toMatchObject({
+      state: "active",
+      cooldownUntil: firstAccount.cooldownUntil
+    });
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "codex-pro-2",
+        status: "ok",
+        errorCode: null
+      })
+    ]);
+
+    await app.close();
+  });
+
+  it("persists reauth_required outcome for a stateless provider failure", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const account = testUpstreamAccount("codex-pro-1");
+    const provider = new FakeProvider([
+      {
+        type: "error",
+        code: "provider_reauth_required",
+        message: "reauthorization required"
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      authMode: "dev",
+      sessionStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: account,
+          provider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("provider_reauth_required");
+    expect(account.state).toBe("reauth_required");
+    expect(account.cooldownUntil).toBeInstanceOf(Date);
+    expect(store.getUpstreamAccount("codex-pro-1")).toMatchObject({
+      state: "reauth_required",
+      cooldownUntil: account.cooldownUntil
+    });
+
+    await app.close();
+  });
+
+  it("honors the stateless retry cap when attempted accounts keep failing", async () => {
+    const accounts = [
+      testUpstreamAccount("codex-pro-1"),
+      testUpstreamAccount("codex-pro-2"),
+      testUpstreamAccount("codex-pro-3")
+    ];
+    const providers = accounts.map(
+      () =>
+        new FakeProvider([
+          {
+            type: "error",
+            code: "service_unavailable",
+            message: "temporary upstream failure"
+          }
+        ])
+    );
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: accounts.map((account, index) => ({
+        upstreamAccount: account,
+        provider: providers[index],
+        maxConcurrent: 1
+      })),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("service_unavailable");
+    expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1, 0]);
+    expect(accounts[0].cooldownUntil).toBeInstanceOf(Date);
+    expect(accounts[1].cooldownUntil).toBeInstanceOf(Date);
+    expect(accounts[2].cooldownUntil).toBeNull();
+
+    await app.close();
+  });
+
+  it("retries stateless streaming chat before the first business chunk", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      { type: "error", code: "rate_limited", message: "rate limited" }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "stream-retry-ok" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("stream-retry-ok");
+    expect(response.payload).not.toContain("rate limited");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
+  it("honors the stateless streaming retry cap before the first business chunk", async () => {
+    const accounts = [
+      testUpstreamAccount("codex-pro-1"),
+      testUpstreamAccount("codex-pro-2"),
+      testUpstreamAccount("codex-pro-3")
+    ];
+    const providers = accounts.map(
+      () =>
+        new FakeProvider([
+          {
+            type: "error",
+            code: "service_unavailable",
+            message: "temporary upstream failure"
+          }
+        ])
+    );
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: accounts.map((account, index) => ({
+        upstreamAccount: account,
+        provider: providers[index],
+        maxConcurrent: 1
+      })),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("service_unavailable");
+    expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1, 0]);
+    expect(accounts[0].cooldownUntil).toBeInstanceOf(Date);
+    expect(accounts[1].cooldownUntil).toBeInstanceOf(Date);
+    expect(accounts[2].cooldownUntil).toBeNull();
+
+    await app.close();
+  });
+
+  it("does not retry stateless streaming chat after a business chunk is visible", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      { type: "message_delta", text: "partial" },
+      { type: "error", code: "service_unavailable", message: "temporary upstream failure" }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "should-not-run" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("partial");
+    expect(response.payload).toContain("service_unavailable");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(0);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
+  it("records cooldown for existing-session provider errors without failover", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      { type: "error", code: "rate_limited", message: "sticky account limited" }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "should-not-run" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/sessions",
+      headers
+    });
+    const sessionId = created.json().session.id as string;
+    const streamed = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/messages`,
+      headers,
+      payload: { message: "first" }
+    });
+
+    expect(streamed.statusCode).toBe(200);
+    expect(streamed.payload).toContain("sticky account limited");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(0);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
+  it("records the selected upstream account in request events", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const provider = new FakeProvider([
+      { type: "message_delta", text: "ok" },
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      authMode: "dev",
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1"),
+          provider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(provider.messages).toHaveLength(1);
+    const events = store.listRequestEvents({ limit: 5 });
+    expect(events).toHaveLength(1);
+    expect(events[0].upstreamAccountId).toBe(provider.messages[0].upstreamAccount.id);
+
+    await app.close();
+  });
+
+  it("uses stored upstream account state instead of config initialState", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-upstream-pool-"));
+    const configPath = path.join(dir, "upstream-accounts.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        accounts: [
+          {
+            id: "codex-pro-1",
+            label: "Codex Pro 1",
+            provider: "openai-codex",
+            codexHome: path.join(dir, "codex-home-pro-1"),
+            enabled: true,
+            initialState: "active",
+            weight: 1,
+            maxConcurrent: 1
+          }
+        ]
+      })
+    );
+    const store = createSqliteStore({ path: ":memory:" });
+    store.upsertUpstreamAccount(testUpstreamAccount("codex-pro-1", { state: "disabled" }));
+
+    const previousPool = process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+    process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON = configPath;
+    const app = buildGateway({
+      accessToken: "secret",
+      authMode: "dev",
+      sessionStore: store,
+      logger: false
+    });
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/sessions",
+        headers: { authorization: "Bearer secret" }
+      });
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json().error.code).toBe("subscription_unavailable");
+    } finally {
+      await app.close();
+      if (previousPool === undefined) {
+        delete process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON;
+      } else {
+        process.env.GATEWAY_UPSTREAM_ACCOUNTS_JSON = previousPool;
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("returns invalid_request for an empty message", async () => {
     const app = buildGateway({
       accessToken: "secret",
@@ -5006,6 +5934,45 @@ function expectRequestIdHeader(response: { headers: Record<string, unknown> }): 
   return requestId as string;
 }
 
+function testUpstreamAccount(id: string, overrides: Partial<UpstreamAccount> = {}): UpstreamAccount {
+  return {
+    id,
+    provider: "openai-codex",
+    label: id,
+    credentialRef: `CODEX_HOME:${id}`,
+    imageApiKeyEnv: overrides.imageApiKeyEnv ?? null,
+    state: overrides.state ?? "active",
+    lastUsedAt: overrides.lastUsedAt ?? null,
+    cooldownUntil: overrides.cooldownUntil ?? null
+  };
+}
+
+function hrwAccountForKey(affinityKey: string, accountIds: string[]): string {
+  return accountIds.reduce((best, accountId) =>
+    hrwScore(affinityKey, accountId) > hrwScore(affinityKey, best) ? accountId : best
+  );
+}
+
+function hrwScore(affinityKey: string, accountId: string): string {
+  return createHash("sha256").update(affinityKey).update("\0").update(accountId).digest("hex");
+}
+
+function issueCredentialForHrwAccount(accountId: string, accountIds: string[]) {
+  for (let i = 0; i < 200; i += 1) {
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: `Affinity credential ${i}`,
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    if (hrwAccountForKey(issued.record.id, accountIds) === accountId) {
+      return issued;
+    }
+  }
+  throw new Error(`Could not issue a test credential for ${accountId}.`);
+}
+
 function createCredentialBackedStore(rate?: RateLimitPolicy) {
   const store = createSqliteStore({ path: ":memory:" });
   const issued = issueAccessCredential({
@@ -5031,15 +5998,14 @@ function createCredentialBackedStore(rate?: RateLimitPolicy) {
   };
 }
 
-function createImageEntitledStore() {
+function createImageEntitledStore(issued = issueAccessCredential({
+  subjectId: "subj_dev",
+  label: "Image generation credential",
+  scope: "code",
+  expiresAt: new Date("2030-02-01T00:00:00Z"),
+  now: new Date("2026-01-01T00:00:00Z")
+})) {
   const store = createSqliteStore({ path: ":memory:" });
-  const issued = issueAccessCredential({
-    subjectId: "subj_dev",
-    label: "Image generation credential",
-    scope: "code",
-    expiresAt: new Date("2030-02-01T00:00:00Z"),
-    now: new Date("2026-01-01T00:00:00Z")
-  });
   store.upsertSubject({
     id: "subj_dev",
     label: "Credential Subject",

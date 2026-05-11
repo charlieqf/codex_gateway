@@ -110,6 +110,7 @@ export function recordObservation(
   const subjectId = context?.subject.id ?? observedCredential?.subjectId ?? null;
   const scope = context?.scope ?? observedCredential?.scope ?? null;
   const upstreamAccount = context?.upstreamAccount ?? null;
+  const observedUpstreamAccount = request.gatewayObservedUpstreamAccount;
   const tokenUsage = request.gatewayTokenUsage;
 
   store.insertRequestEvent({
@@ -118,8 +119,14 @@ export function recordObservation(
     subjectId,
     scope,
     sessionId: request.gatewaySessionId ?? null,
-    upstreamAccountId: upstreamAccount?.id ?? null,
-    provider: upstreamAccount?.provider ?? null,
+    upstreamAccountId:
+      observedUpstreamAccount !== undefined
+        ? observedUpstreamAccount.id
+        : upstreamAccount?.id ?? null,
+    provider:
+      observedUpstreamAccount !== undefined
+        ? observedUpstreamAccount.provider
+        : upstreamAccount?.provider ?? null,
     startedAt,
     durationMs: completedAt.getTime() - startedAt.getTime(),
     firstByteMs: firstByteMs(request, completedAt),

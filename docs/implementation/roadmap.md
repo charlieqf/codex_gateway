@@ -79,6 +79,43 @@
 
 退出：S3、S12、S13 MVP 验收通过。
 
+## Phase 4b: 上游 Codex 账号池
+
+详见 [P4 上游 Codex 账号池开发设计](./p4-upstream-account-pool.md)。
+
+目标：
+
+- 支持 2-3 个服务端托管的 ChatGPT/Codex 登录态，每个账号使用独立 `CODEX_HOME`。
+- 新会话和 OpenAI-compatible stateless 请求由调度器选择上游账号。
+- 已有 Gateway session 按 `sessions.upstream_account_id` stick 到原账号。
+- `request_events.upstream_account_id` 记录每个下游请求实际落到的上游账号。
+
+退出：
+
+- 单账号 `CODEX_HOME` 配置保持兼容。
+- 账号池配置启用后，临时 API key smoke 能观察到请求分布到多个 `upstream_account_id`。
+- 已有 session 多轮请求保持同一个 `upstream_account_id`。
+
+## Phase 4c: 上游账号 OpenAI 生图 Key 绑定
+
+详见 [P4c 上游账号 OpenAI 生图 Key 绑定设计](./p4c-upstream-account-image-binding.md)。
+
+前置依赖：Phase 4b 已合入并稳定。
+
+目标：
+
+- 每个上游账号 JSON 可选声明 `imageApiKeyEnv`，指向 `process.env` 中的 OpenAI API key 变量名（不存 key 真值）。
+- Gateway 为每个有 image key 的账号创建独立 `OpenAIImageGenerationProvider`。
+- `POST /v1/images/generations` 通过 `UpstreamAccountRouter.selectForImage` 选路。
+- Codex 与 image 的 cooldown / inflight / state 在同一账号内独立追踪——一侧 reauth 或 key 失效不影响另一侧。
+- `request_events.upstream_account_id` 记录生图请求实际落到的账号。
+
+退出：
+
+- 单 `MEDCODE_IMAGE_OPENAI_API_KEY` 配置保持兼容。
+- 多 key 模式启用后，临时 API key smoke 能观察到生图请求分布到多个 `upstream_account_id`。
+- 任一账号 image env 缺失不影响该账号的 Codex 路径选路。
+
 ## Phase 5: Azure VM 运维固化
 
 - systemd service。

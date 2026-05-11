@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-10
+Last updated: 2026-05-11
 
 ## Current Phase
 
@@ -70,6 +70,27 @@ Completed:
   Malformed tool-call attempts, schema validation failures, `tool_choice=required`,
   and named function choices still fail with `tool_call_validation_failed`.
 - Strict client-defined tools accept JSON Schemas tagged as draft-07, draft 2019-09, or draft 2020-12, including client-generated `$schema: "https://json-schema.org/draft/2020-12/schema"` tool parameters.
+- Local P4 upstream Codex account pool implementation:
+  - Optional `GATEWAY_UPSTREAM_ACCOUNTS_JSON` config for multiple independent
+    `codexHome` login states, with single-account `CODEX_HOME` fallback.
+  - Router selection for new sessions and stateless OpenAI-compatible chat,
+    sticky existing sessions by `sessions.upstream_account_id`, HRW soft
+    affinity, config `enabled=false`, DB runtime state hydration, per-account
+    max concurrency and cooldown exclusion.
+  - Provider outcomes update per-account `state`, `last_used_at`, and
+    `cooldown_until`; stateless chat retries at most once before client-visible
+    business output; existing sessions never fail over.
+  - `request_events.upstream_account_id` records the selected runtime account.
+- Local P4c upstream-account image binding implementation:
+  - `upstream_accounts.image_api_key_env` is migrated and bootstrap-upserted as
+    non-secret config metadata while preserving account runtime state.
+  - Account pool config accepts `imageApiKeyEnv`, `imageBaseUrlEnv`, and
+    `imageTimeoutMs`; `imageApiKeyEnv` values that look like real `sk-...`
+    keys are rejected.
+  - Image generation can route through per-account OpenAI image providers with
+    independent image-side inflight, cooldown, key-invalid state, retry before
+    response body write, and legacy single-key fallback only when no image
+    binding is declared.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
@@ -83,6 +104,10 @@ Not completed:
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Systemd ownership/monitoring for the long-running container.
+- Production deployment of the multi-account upstream pool configuration and a
+  real two-account `codexHome` VM smoke remain pending. The current public VM
+  gateway still uses the existing deployed runtime configuration unless a
+  maintenance deployment changes it.
 
 ## Verified Runtime
 
@@ -97,6 +122,19 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-11 Local validation for P4 upstream account pool plus P4c
+  account-bound image generation passed `npm run build` and `npm test` with 8
+  test files and 177 tests.
+- 2026-05-11 Azure VM read-only baseline found the shared VM healthy with
+  Nginx and Docker active, public `80/443` listeners unchanged, and the live
+  Gateway still listening on `127.0.0.1:18787`. Public OpenAI-compatible smoke
+  against `https://gw.instmarket.com.au` passed health,
+  unauthenticated `/v1/models` rejection, wrong-model rejection, model listing,
+  non-stream chat with usage, tool-result history with usage, streaming SSE,
+  and request-id headers. The temporary smoke API key/user were revoked and
+  disabled by the smoke script. This smoke validates the currently deployed
+  live gateway; the P4 multi-account pool code has not yet been deployed to
+  that container.
 - 2026-05-10 Gateway-brokered `cgu_live_*` unified client key resolver was
   deployed to the live controlled-trial gateway. Local and VM `npm run build`
   and `npm test` passed with 7 test files and 131 tests. The Docker image was

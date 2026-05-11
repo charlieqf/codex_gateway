@@ -93,6 +93,21 @@ export class SqliteGatewayStore implements GatewayStore {
     upstreamAccounts.upsert(this.db, upstreamAccount);
   }
 
+  getUpstreamAccount(id: string): UpstreamAccount | null {
+    return upstreamAccounts.get(this.db, id);
+  }
+
+  updateUpstreamAccountRuntimeState(
+    id: string,
+    input: {
+      state: UpstreamAccount["state"];
+      lastUsedAt: Date | null;
+      cooldownUntil: Date | null;
+    }
+  ): UpstreamAccount | null {
+    return upstreamAccounts.updateRuntimeState(this.db, id, input);
+  }
+
   getSubject(id: string): Subject | null {
     return subjectsStore.get(this.db, id);
   }

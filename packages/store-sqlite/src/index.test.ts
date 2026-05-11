@@ -84,9 +84,66 @@ describe("SqliteGatewayStore", () => {
       expect(columnNames(db, "sessions")).not.toContain("subscription_id");
       expect(columnNames(db, "request_events")).toContain("upstream_account_id");
       expect(columnNames(db, "request_events")).not.toContain("subscription_id");
+      expect(columnNames(db, "upstream_accounts")).toContain("image_api_key_env");
     } finally {
       db.close();
     }
+  });
+
+  it("does not overwrite upstream account runtime state during bootstrap upsert", () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const disabled: UpstreamAccount = {
+      ...upstreamAccount(),
+      state: "disabled",
+      lastUsedAt: new Date("2026-01-02T00:00:00Z"),
+      cooldownUntil: new Date("2026-01-03T00:00:00Z")
+    };
+    store.upsertUpstreamAccount(disabled);
+    store.upsertUpstreamAccount({
+      ...upstreamAccount(),
+      label: "Updated Label",
+      credentialRef: "CODEX_HOME:updated",
+      imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A",
+      state: "active",
+      lastUsedAt: null,
+      cooldownUntil: null
+    });
+
+    expect(store.getUpstreamAccount("sub_openai_codex")).toMatchObject({
+      label: "Updated Label",
+      credentialRef: "CODEX_HOME:updated",
+      imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A",
+      state: "disabled",
+      lastUsedAt: new Date("2026-01-02T00:00:00Z"),
+      cooldownUntil: new Date("2026-01-03T00:00:00Z")
+    });
+
+    store.close();
+  });
+
+  it("updates upstream account runtime state separately from bootstrap metadata", () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    store.upsertUpstreamAccount(upstreamAccount());
+
+    const updated = store.updateUpstreamAccountRuntimeState("sub_openai_codex", {
+      state: "reauth_required",
+      lastUsedAt: new Date("2026-01-02T00:00:00Z"),
+      cooldownUntil: new Date("2026-01-03T00:00:00Z")
+    });
+
+    expect(updated).toMatchObject({
+      id: "sub_openai_codex",
+      state: "reauth_required",
+      lastUsedAt: new Date("2026-01-02T00:00:00Z"),
+      cooldownUntil: new Date("2026-01-03T00:00:00Z")
+    });
+    expect(store.getUpstreamAccount("sub_openai_codex")).toMatchObject({
+      label: "Codex",
+      credentialRef: "CODEX_HOME",
+      state: "reauth_required"
+    });
+
+    store.close();
   });
 
   it("creates plan entitlement schema during migration", () => {

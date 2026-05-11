@@ -3,6 +3,7 @@ import type {
   ProviderAdapter,
   GatewayErrorCode,
   LimitKind,
+  ProviderKind,
   RateLimitPolicy,
   RequestTokenUsageSource,
   Scope,
@@ -57,6 +58,10 @@ declare module "fastify" {
       id: string | null;
       subjectId: string | null;
       scope: Scope | null;
+    };
+    gatewayObservedUpstreamAccount?: {
+      id: string | null;
+      provider: ProviderKind | null;
     };
   }
 }

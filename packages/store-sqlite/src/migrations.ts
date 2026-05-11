@@ -30,6 +30,7 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
         provider TEXT NOT NULL,
         label TEXT NOT NULL,
         credential_ref TEXT NOT NULL,
+        image_api_key_env TEXT,
         state TEXT NOT NULL,
         health_json TEXT,
         last_used_at TEXT,
@@ -481,6 +482,17 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
         CREATE INDEX IF NOT EXISTS idx_billing_subject_events_subject_created
           ON billing_subject_events(subject_id, created_at DESC);
       `);
+    },
+    logger
+  );
+
+  applyMigration(
+    db,
+    14,
+    () => {
+      if (!columnExists(db, "upstream_accounts", "image_api_key_env")) {
+        db.exec("ALTER TABLE upstream_accounts ADD COLUMN image_api_key_env TEXT");
+      }
     },
     logger
   );
