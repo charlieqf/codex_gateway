@@ -9,13 +9,14 @@
 ## 1. 当前 Gateway 状态
 
 - Gateway 测试环境：`https://gw.instmarket.com.au`
-- 当前运行版本：`e1efe72`（2026-05-11）
+- 当前运行代码版本：`e1efe72`（2026-05-11）
 - Gateway Billing Admin `/gateway/admin/billing/v1/subjects` route 已部署。
 - Gateway 已配置 billing admin token 和 key 加密 secret。
-- Gateway 尚未配置：
+- Gateway 已配置 v2 internal 调用参数：
   - `GATEWAY_UPSTREAM_V2_BASE_URL`
   - `GATEWAY_UPSTREAM_V2_TOKEN`
-- 因此当前调用 `/subjects` 会稳定返回 `503 service_unavailable`，不会创建 subject，也不会调用 v2。
+  - `GATEWAY_UPSTREAM_V2_TIMEOUT_MS=5000`
+- 2026-05-11 已完成 Gateway -> v2 端到端 smoke：create subject、v2 create principal/key、Gateway 签发 `cgu_live_*`、opaque resolve、Gateway 幂等 replay、重复 external user 冲突、disable cleanup 均通过。
 
 ## 2. v2 团队需要先提供
 
@@ -170,6 +171,6 @@ Content-Type: application/json
 - disable 清理后，v2 principal 为 disabled，active v2 key 已被 revoke。
 - disabled principal 的 v2 auth/validate-key 返回 `disabled_principal`，并优先于 `revoked_api_key`。
 
-## 7. 当前阻塞
+## 7. 当前状态
 
-Gateway 侧已完成部署和 503 预检。下一步必须由 v2 团队提供测试 `base_url`、internal token 和网络放行确认后，才能执行端到端联调。
+Gateway 侧 v2 自动开户注册主链路已通过。建议 v2 团队补充确认 smoke 对应 principal 已 disabled、active key 已 revoke，且 v2 auth/validate-key 对 disabled principal 返回 `disabled_principal` 并优先于 `revoked_api_key`。
