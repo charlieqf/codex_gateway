@@ -150,6 +150,10 @@ Options:
 function sanitize(value: string): string {
   return value
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "<email:redacted>")
+    .replace(/cmev1\.[A-Za-z0-9._~-]{16,}/g, "cmev1.<redacted>")
+    .replace(/cgu_live_[A-Za-z0-9]{64}/g, "cgu_live_<redacted>")
+    .replace(/cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "cgw.<redacted>")
+    .replace(/mev2_live_[A-Za-z0-9_-]+/g, "mev2_live_<redacted>")
     .replace(/sk-[A-Za-z0-9_-]{12,}/g, "sk-<redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>")
     .replace(/eyJ[A-Za-z0-9._-]{20,}/g, "<jwt:redacted>");

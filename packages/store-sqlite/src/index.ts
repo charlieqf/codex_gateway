@@ -1,6 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import * as accessCredentials from "./access-credentials.js";
 import * as adminAudit from "./admin-audit.js";
+import * as billingEvents from "./billing-events.js";
+import * as billingSubjects from "./billing-subjects.js";
 import * as entitlementsStore from "./entitlements.js";
 import type { EntitlementStoreDependencies } from "./entitlements.js";
 import { migrateGatewaySchema } from "./migrations.js";
@@ -12,13 +14,26 @@ import {
   tightenSqliteFilePermissions
 } from "./sqlite-managed.js";
 import * as subjectsStore from "./subjects.js";
+import * as unifiedClientKeys from "./unified-client-keys.js";
 import type { SqliteStoreLogger, SqliteStoreOptions, UpdateSubjectInput } from "./types.js";
 import * as upstreamAccounts from "./upstream-accounts.js";
 import {
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
+  type ApplyBillingEntitlementEventInput,
+  type ApplyBillingEntitlementEventResult,
+  type BillingSubjectDetails,
+  type BillingEntitlementListResult,
+  type BillingEventListResult,
+  type BillingEventRecord,
+  type BillingUsageReportInput,
+  type BillingUsageReportResult,
   type CreatePlanInput,
+  type CreateBillingSubjectInput,
+  type CreateBillingSubjectResult,
   type CreateGatewaySessionInput,
+  type DisableBillingSubjectInput,
+  type DisableBillingSubjectResult,
   type Entitlement,
   type EntitlementAccessDecision,
   type GatewaySession,
@@ -26,6 +41,8 @@ import {
   type GrantEntitlementInput,
   type ListAccessCredentialsInput,
   type ListAdminAuditEventsInput,
+  type ListBillingEntitlementsInput,
+  type ListBillingEventsInput,
   type ListEntitlementsInput,
   type ListPlansInput,
   type ListRequestEventsInput,
@@ -37,9 +54,13 @@ import {
   type RequestEventRecord,
   type RequestUsageReportInput,
   type RequestUsageReportRow,
+  type RotateBillingSubjectInput,
+  type RotateBillingSubjectResult,
   type Subject,
   type SubjectState,
+  type UnifiedClientKeyRecord,
   type UpstreamAccount,
+  type ListUnifiedClientKeysInput,
   type UpdateAccessCredentialInput,
   type UpdateEntitlementStateInput
 } from "@codex-gateway/core";
@@ -121,6 +142,25 @@ export class SqliteGatewayStore implements GatewayStore {
     return accessCredentials.setExpiresAtByPrefix(this.db, prefix, expiresAt);
   }
 
+  insertUnifiedClientKey(record: UnifiedClientKeyRecord): UnifiedClientKeyRecord {
+    return unifiedClientKeys.insert(this.db, record);
+  }
+
+  getUnifiedClientKeyByPrefix(prefix: string): UnifiedClientKeyRecord | null {
+    return unifiedClientKeys.getByPrefix(this.db, prefix);
+  }
+
+  listUnifiedClientKeys(input: ListUnifiedClientKeysInput = {}): UnifiedClientKeyRecord[] {
+    return unifiedClientKeys.list(this.db, input);
+  }
+
+  revokeUnifiedClientKeyByPrefix(
+    prefix: string,
+    now: Date = new Date()
+  ): UnifiedClientKeyRecord | null {
+    return unifiedClientKeys.revokeByPrefix(this.db, prefix, now);
+  }
+
   createPlan(input: CreatePlanInput): Plan {
     return plansStore.create(this.db, input);
   }
@@ -187,6 +227,76 @@ export class SqliteGatewayStore implements GatewayStore {
 
   listAdminAuditEvents(input: ListAdminAuditEventsInput = {}): AdminAuditEventRecord[] {
     return adminAudit.list(this.db, input);
+  }
+
+  applyBillingEntitlementEvent(
+    input: ApplyBillingEntitlementEventInput
+  ): ApplyBillingEntitlementEventResult {
+    return billingEvents.apply(this.db, input);
+  }
+
+  replayBillingSubjectCreate(
+    idempotencyKey: string,
+    payloadHash: string
+  ): CreateBillingSubjectResult | null {
+    return billingSubjects.replayCreate(this.db, idempotencyKey, payloadHash);
+  }
+
+  createBillingSubject(input: CreateBillingSubjectInput): CreateBillingSubjectResult {
+    return billingSubjects.create(this.db, input);
+  }
+
+  replayBillingSubjectRotate(
+    idempotencyKey: string,
+    payloadHash: string
+  ): RotateBillingSubjectResult | null {
+    return billingSubjects.replayRotate(this.db, idempotencyKey, payloadHash);
+  }
+
+  rotateBillingSubject(input: RotateBillingSubjectInput): RotateBillingSubjectResult {
+    return billingSubjects.rotate(this.db, input);
+  }
+
+  replayBillingSubjectDisable(
+    idempotencyKey: string,
+    payloadHash: string
+  ): DisableBillingSubjectResult | null {
+    return billingSubjects.replayDisable(this.db, idempotencyKey, payloadHash);
+  }
+
+  disableBillingSubject(input: DisableBillingSubjectInput): DisableBillingSubjectResult {
+    return billingSubjects.disable(this.db, input);
+  }
+
+  getBillingSubject(subjectId: string): BillingSubjectDetails | null {
+    return billingSubjects.getDetails(this.db, subjectId);
+  }
+
+  getBillingSubjectByExternal(
+    provider: string,
+    externalUserId: string
+  ): BillingSubjectDetails | null {
+    return billingSubjects.getDetailsByExternal(this.db, provider, externalUserId);
+  }
+
+  getBillingSubjectActiveUnifiedKey(subjectId: string): UnifiedClientKeyRecord | null {
+    return billingSubjects.getActiveUnifiedKey(this.db, subjectId);
+  }
+
+  getBillingEventByIdempotencyKey(idempotencyKey: string): BillingEventRecord | null {
+    return billingEvents.getByIdempotencyKey(this.db, idempotencyKey);
+  }
+
+  listBillingEvents(input: ListBillingEventsInput = {}): BillingEventListResult {
+    return billingEvents.list(this.db, input);
+  }
+
+  listBillingEntitlements(input: ListBillingEntitlementsInput): BillingEntitlementListResult {
+    return billingEvents.listEntitlements(this.db, input);
+  }
+
+  reportBillingUsage(input: BillingUsageReportInput): BillingUsageReportResult {
+    return billingEvents.reportUsage(this.db, input);
   }
 
   create(input: CreateGatewaySessionInput): GatewaySession {

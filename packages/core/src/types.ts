@@ -20,6 +20,9 @@ export interface Subject {
   label: string;
   name?: string | null;
   phoneNumber?: string | null;
+  externalProvider?: string | null;
+  externalUserId?: string | null;
+  displayName?: string | null;
   state: SubjectState;
   createdAt: Date;
 }
@@ -39,6 +42,34 @@ export interface AccessCredentialRecord {
   rotatesId: string | null;
 }
 
+export interface UnifiedClientKeyRecord {
+  id: string;
+  prefix: string;
+  hash: string;
+  subjectId: string;
+  label: string;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  codexCredentialId: string;
+  codexCredentialPrefix: string;
+  codexKeyCiphertext: string;
+  medevidenceKeyCiphertext: string;
+  medevidenceKeyPrefix: string | null;
+  createdAt: Date;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface UpstreamV2BindingRecord {
+  subjectId: string;
+  v2UserId: string;
+  v2KeyId: string | null;
+  state: "active" | "disabled" | "pending";
+  lastSyncedAt: Date | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface RateLimitPolicy {
   requestsPerMinute: number;
   requestsPerDay: number | null;
@@ -50,6 +81,9 @@ export type RequestEventStatus = "ok" | "error";
 
 export type AdminAuditAction =
   | "issue"
+  | "unified-key-issue"
+  | "unified-key-resolve"
+  | "unified-key-revoke"
   | "provision-user"
   | "update-key"
   | "revoke"

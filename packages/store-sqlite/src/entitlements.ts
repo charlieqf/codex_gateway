@@ -198,6 +198,7 @@ function insertFromPlan(
     subjectId: input.subjectId,
     planId: plan.id,
     policySnapshot: plan.policy,
+    featurePolicySnapshot: plan.featurePolicy,
     scopeAllowlist: plan.scopeAllowlist,
     periodKind: input.periodKind,
     periodStart: period.start,
@@ -212,15 +213,16 @@ function insertFromPlan(
 
   db.prepare(
     `INSERT INTO entitlements (
-      id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json,
+      id, subject_id, plan_id, policy_snapshot_json, feature_policy_snapshot_json, scope_allowlist_json,
       period_kind, period_start, period_end, state, team_seat_id, created_at,
       cancelled_at, cancelled_reason, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     entitlement.id,
     entitlement.subjectId,
     entitlement.planId,
     JSON.stringify(entitlement.policySnapshot),
+    JSON.stringify(entitlement.featurePolicySnapshot),
     JSON.stringify(entitlement.scopeAllowlist),
     entitlement.periodKind,
     entitlement.periodStart.toISOString(),

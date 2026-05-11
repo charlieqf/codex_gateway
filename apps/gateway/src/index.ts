@@ -2,10 +2,15 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
+  type AdminAuditStore,
+  type BillingAdminStore,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventStore,
   type CredentialAuthStore,
+  decryptSecret,
+  extractUnifiedClientKeyPrefix,
   GatewayError,
+  publicFeaturePolicy,
   type GatewaySession,
   type GatewayStore,
   type ObservationStore,
@@ -16,8 +21,13 @@ import {
   type RateLimitPolicy,
   type Scope,
   type Subject,
+  type SubjectStore,
   type TokenBudgetLimiter,
-  type UpstreamAccount
+  type UnifiedClientKeyRecord,
+  type UnifiedClientKeyStore,
+  type UpstreamAccount,
+  verifyAccessCredentialToken,
+  verifyUnifiedClientKeyToken
 } from "@codex-gateway/core";
 import {
   CodexProviderAdapter,
@@ -48,6 +58,14 @@ import {
   type AdminMessagesAuthMode,
   type AdminClientMessagesQuery
 } from "./admin-client-messages.js";
+import {
+  registerBillingAdminRoutes,
+  resolveBillingAdminAccess
+} from "./billing-admin.js";
+import {
+  resolveUpstreamV2Client,
+  type UpstreamV2Client
+} from "./upstream-v2-client.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
 import {
@@ -84,6 +102,15 @@ import {
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
 import {
+  buildImageGenerationResponse,
+  maxPromptCharsFromEnv,
+  OpenAIImageGenerationProvider,
+  parseImageGenerationRequest,
+  parseImageModelMap,
+  resolveImageUpstreamModel,
+  type ImageGenerationProvider
+} from "./image-generation.js";
+import {
   collectProviderMessage,
   streamErrorToGatewayError,
   type CollectedProviderMessage,
@@ -106,6 +133,8 @@ export interface GatewayOptions {
   accessToken?: string;
   authMode?: GatewayAuthMode;
   credentialStore?: CredentialAuthStore;
+  unifiedClientKeyStore?: UnifiedClientKeyStore;
+  adminAuditStore?: AdminAuditStore;
   publicMetadata?: GatewayPublicMetadata;
   provider?: ProviderAdapter;
   sessionStore?: GatewayStore;
@@ -118,8 +147,15 @@ export interface GatewayOptions {
   clientEventsRatePolicy?: RateLimitPolicy;
   adminMessagesToken?: string;
   adminMessagesAuthMode?: AdminMessagesAuthMode;
+  billingAdminToken?: string;
+  billingAdminNextToken?: string;
+  billingAdminStore?: BillingAdminStore;
+  billingAdminRateLimiter?: CredentialRateLimiter;
+  billingAdminRatePolicy?: RateLimitPolicy;
+  upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
+  imageGenerationProvider?: ImageGenerationProvider | null;
   logger?: boolean;
 }
 
@@ -165,7 +201,12 @@ export function buildGateway(options: GatewayOptions = {}) {
   const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
   const credentialStore =
     options.credentialStore ?? (isCredentialAuthStore(sessions) ? sessions : undefined);
+  const unifiedClientKeyStore =
+    options.unifiedClientKeyStore ?? (isUnifiedClientKeyStore(sessions) ? sessions : undefined);
+  const adminAuditStore =
+    options.adminAuditStore ?? (isAdminAuditStore(sessions) ? sessions : undefined);
   const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env, app.log);
+  const publicGatewayBaseUrl = normalizeBaseUrl(process.env.GATEWAY_PUBLIC_BASE_URL);
   const openAIModelId = process.env.MEDCODE_PUBLIC_MODEL_ID ?? "medcode";
   const openAIModelLimits = resolveOpenAIModelLimits(process.env);
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
@@ -186,6 +227,12 @@ export function buildGateway(options: GatewayOptions = {}) {
   const planEntitlementStore =
     options.planEntitlementStore ??
     (isPlanEntitlementStore(sessions) ? sessions : undefined);
+  const imageGenerationProvider =
+    options.imageGenerationProvider === undefined
+      ? createDefaultImageGenerationProvider(process.env)
+      : options.imageGenerationProvider ?? undefined;
+  const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
+  const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
   const clientEventsStore =
     options.clientEventsStore === undefined
@@ -199,6 +246,20 @@ export function buildGateway(options: GatewayOptions = {}) {
     token: options.adminMessagesToken ?? process.env.GATEWAY_ADMIN_MESSAGES_TOKEN,
     authMode: options.adminMessagesAuthMode ?? process.env.GATEWAY_ADMIN_MESSAGES_AUTH
   });
+  const billingAdminAccess = resolveBillingAdminAccess({
+    token: options.billingAdminToken ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN,
+    nextToken: options.billingAdminNextToken ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN_NEXT
+  });
+  const billingAdminStore =
+    options.billingAdminStore ?? (isBillingAdminStore(sessions) ? sessions : undefined);
+  const billingAdminRateLimiter =
+    options.billingAdminRateLimiter ?? new InMemoryCredentialRateLimiter();
+  const billingAdminRatePolicy =
+    options.billingAdminRatePolicy ?? resolveBillingAdminRatePolicy(process.env);
+  const upstreamV2Client =
+    options.upstreamV2Client === undefined
+      ? resolveUpstreamV2Client(process.env)
+      : options.upstreamV2Client ?? null;
   if (authMode === "dev") {
     sessions.upsertSubject(subject);
   }
@@ -388,11 +449,124 @@ export function buildGateway(options: GatewayOptions = {}) {
                 period_start: visibleEntitlement.periodStart.toISOString(),
                 period_end: visibleEntitlement.periodEnd?.toISOString() ?? null,
                 state: visibleEntitlement.state,
+                feature_policy: publicFeaturePolicy(visibleEntitlement.featurePolicySnapshot),
                 ...(access?.status === "inactive" ? { reason: access.reason } : {})
               }
             }
           : {}),
         ...(tokenUsage ? { token_usage: tokenUsage } : {})
+      };
+    }
+  );
+
+  app.post(
+    "/gateway/unified-keys/resolve",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true
+      }
+    },
+    async (request, reply) => {
+      if (!unifiedClientKeyStore || !credentialStore) {
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Unified key resolver is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const result = authenticateUnifiedClientKeyBearer(request, {
+        store: unifiedClientKeyStore,
+        subjectStore: credentialStore
+      });
+      if (result instanceof GatewayError) {
+        return sendGatewayErrorResponse(request, reply, result);
+      }
+
+      const encryptionSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+      if (!encryptionSecret) {
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Unified key resolver encryption secret is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      let codexApiKey: string;
+      let medevidenceApiKey: string;
+      try {
+        codexApiKey = decryptSecret(result.record.codexKeyCiphertext, encryptionSecret);
+        medevidenceApiKey = decryptSecret(
+          result.record.medevidenceKeyCiphertext,
+          encryptionSecret
+        );
+      } catch (err) {
+        request.log.error(
+          {
+            error: err instanceof Error ? err.message : String(err),
+            unified_key_prefix: result.record.prefix
+          },
+          "Failed to decrypt unified client key payload."
+        );
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Unified key resolver payload is unavailable.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const backingCredentialError = validateBackingGatewayCredential({
+        store: credentialStore,
+        record: result.record,
+        codexApiKey
+      });
+      if (backingCredentialError) {
+        return sendGatewayErrorResponse(request, reply, backingCredentialError);
+      }
+
+      recordUnifiedKeyResolveAudit(adminAuditStore, result.record, request.log);
+
+      const medevidenceBaseUrl = normalizeBaseUrl(
+        metadataString(result.record.metadata, "medevidence_base_url")
+      );
+
+      return {
+        valid: true,
+        unified_key: {
+          prefix: result.record.prefix,
+          label: result.record.label,
+          expires_at: result.record.expiresAt.toISOString()
+        },
+        subject: {
+          id: result.subject.id,
+          label: result.subject.label
+        },
+        codex_gateway: {
+          endpoint_base_url: publicGatewayBaseUrl ? `${publicGatewayBaseUrl}/v1` : null,
+          credential_validation_url: publicGatewayBaseUrl
+            ? `${publicGatewayBaseUrl}/gateway/credentials/current`
+            : null,
+          key_prefix: result.record.codexCredentialPrefix,
+          api_key: codexApiKey
+        },
+        medevidence: {
+          base_url: medevidenceBaseUrl,
+          key_prefix: result.record.medevidenceKeyPrefix,
+          api_key: medevidenceApiKey
+        }
       };
     }
   );
@@ -447,6 +621,16 @@ export function buildGateway(options: GatewayOptions = {}) {
       );
     }
   );
+
+  registerBillingAdminRoutes(app, {
+    access: billingAdminAccess,
+    billingStore: billingAdminStore,
+    planEntitlementStore,
+    rateLimiter: billingAdminRateLimiter,
+    ratePolicy: billingAdminRatePolicy,
+    upstreamV2Client,
+    apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null
+  });
 
   app.post<{ Body: unknown }>(
     "/gateway/client-events/messages",
@@ -686,6 +870,85 @@ export function buildGateway(options: GatewayOptions = {}) {
         };
       } finally {
         permit.release();
+      }
+    }
+  );
+
+  app.post<{ Body: unknown }>(
+    "/gateway/images/generations",
+    {
+      config: { skipRateLimit: true }
+    },
+    async (request, reply) => {
+      const { subject } = getGatewayContext(request);
+      const parsed = parseImageGenerationRequest(request.body, {
+        maxPromptChars: imageMaxPromptChars
+      });
+      if (parsed instanceof GatewayError) {
+        return sendImageError(request, reply, parsed);
+      }
+
+      const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
+      if (!access || access.status !== "active") {
+        return sendImageError(
+          request,
+          reply,
+          new GatewayError({
+            code: "plan_capability_required",
+            message: "This credential is not entitled for image generation.",
+            httpStatus: 403
+          })
+        );
+      }
+
+      const upstreamModel = resolveImageUpstreamModel(
+        parsed,
+        access.entitlement.featurePolicySnapshot,
+        imageModelMap
+      );
+      if (upstreamModel instanceof GatewayError) {
+        return sendImageError(request, reply, upstreamModel);
+      }
+      if (!imageGenerationProvider) {
+        return sendImageError(
+          request,
+          reply,
+          new GatewayError({
+            code: "upstream_unavailable",
+            message: "Image generation service is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const abortController = new AbortController();
+      const abort = () => abortController.abort(new Error("client_aborted"));
+      request.raw.once("aborted", abort);
+      try {
+        const result = await imageGenerationProvider.generate({
+          request: parsed,
+          upstreamModel,
+          signal: abortController.signal
+        });
+        markFirstByte(request);
+        return buildImageGenerationResponse({
+          request: parsed,
+          result
+        });
+      } catch (err) {
+        return sendImageError(
+          request,
+          reply,
+          err instanceof GatewayError
+            ? err
+            : new GatewayError({
+                code: "upstream_unavailable",
+                message: "Image generation service is unavailable.",
+                httpStatus: 503
+              })
+        );
+      } finally {
+        request.raw.off("aborted", abort);
       }
     }
   );
@@ -1319,10 +1582,162 @@ function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayE
   };
 }
 
+function sendImageError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  markGatewayError(request, error);
+  reply.code(error.httpStatus);
+  return {
+    error: {
+      code: error.code,
+      message: error.message,
+      request_id: request.id
+    }
+  };
+}
+
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
   markGatewayError(request, error);
   reply.code(error.httpStatus);
   return openAIErrorPayload(error);
+}
+
+function sendGatewayErrorResponse(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  error: GatewayError
+): FastifyReply {
+  markGatewayError(request, error);
+  return reply.code(error.httpStatus).send({
+    error: {
+      code: error.code,
+      message: error.message,
+      retry_after_seconds: error.retryAfterSeconds
+    }
+  });
+}
+
+function authenticateUnifiedClientKeyBearer(
+  request: FastifyRequest,
+  options: {
+    store: UnifiedClientKeyStore;
+    subjectStore: SubjectStore;
+    now?: () => Date;
+  }
+): { record: NonNullable<ReturnType<UnifiedClientKeyStore["getUnifiedClientKeyByPrefix"]>>; subject: Subject } | GatewayError {
+  const token = bearerToken(request);
+  if (token instanceof GatewayError) {
+    return token;
+  }
+
+  const prefix = extractUnifiedClientKeyPrefix(token);
+  if (!prefix) {
+    return invalidUnifiedKeyError();
+  }
+
+  const record = options.store.getUnifiedClientKeyByPrefix(prefix);
+  if (!record) {
+    return invalidUnifiedKeyError();
+  }
+
+  const tokenError = verifyUnifiedClientKeyToken(token, record, options.now?.() ?? new Date());
+  if (tokenError) {
+    return tokenError;
+  }
+
+  const subject = options.subjectStore.getSubject(record.subjectId);
+  if (!subject || subject.state !== "active") {
+    return invalidUnifiedKeyError();
+  }
+
+  return { record, subject };
+}
+
+function validateBackingGatewayCredential(input: {
+  store: CredentialAuthStore;
+  record: UnifiedClientKeyRecord;
+  codexApiKey: string;
+  now?: () => Date;
+}): GatewayError | null {
+  const credential = input.store.getAccessCredentialByPrefix(input.record.codexCredentialPrefix);
+  if (
+    !credential ||
+    credential.id !== input.record.codexCredentialId ||
+    credential.subjectId !== input.record.subjectId
+  ) {
+    return invalidUnifiedKeyError();
+  }
+  return verifyAccessCredentialToken(input.codexApiKey, credential, input.now?.() ?? new Date());
+}
+
+function recordUnifiedKeyResolveAudit(
+  store: AdminAuditStore | undefined,
+  record: UnifiedClientKeyRecord,
+  logger: FastifyRequest["log"]
+): void {
+  if (!store) {
+    return;
+  }
+  try {
+    store.insertAdminAuditEvent({
+      id: `audit_${randomUUID()}`,
+      action: "unified-key-resolve",
+      targetUserId: record.subjectId,
+      targetCredentialId: record.id,
+      targetCredentialPrefix: record.prefix,
+      status: "ok",
+      params: {
+        codex_credential_prefix: record.codexCredentialPrefix,
+        medevidence_key_prefix: record.medevidenceKeyPrefix
+      },
+      errorMessage: null,
+      createdAt: new Date()
+    });
+  } catch (err) {
+    logger.warn(
+      {
+        error: err instanceof Error ? err.message : String(err),
+        unified_key_prefix: record.prefix
+      },
+      "Failed to write unified key resolve audit event."
+    );
+  }
+}
+
+function bearerToken(request: FastifyRequest): string | GatewayError {
+  const authorization = request.headers.authorization;
+  if (!authorization) {
+    return new GatewayError({
+      code: "missing_credential",
+      message: "Missing unified key.",
+      httpStatus: 401
+    });
+  }
+
+  const [scheme, token] = authorization.split(/\s+/, 2);
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return invalidUnifiedKeyError();
+  }
+  return token;
+}
+
+function invalidUnifiedKeyError(): GatewayError {
+  return new GatewayError({
+    code: "invalid_credential",
+    message: "Invalid unified key.",
+    httpStatus: 401
+  });
+}
+
+function normalizeBaseUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.replace(/\/+$/, "");
+}
+
+function metadataString(metadata: Record<string, unknown> | null, key: string): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : null;
 }
 
 interface OpenAIModelLimits {
@@ -1805,6 +2220,46 @@ function resolveClientEventsRatePolicy(env: NodeJS.ProcessEnv): RateLimitPolicy 
   };
 }
 
+function resolveBillingAdminRatePolicy(env: NodeJS.ProcessEnv): RateLimitPolicy {
+  return {
+    requestsPerMinute: parsePositiveIntegerEnv(
+      env.GATEWAY_BILLING_ADMIN_RPM,
+      120,
+      "GATEWAY_BILLING_ADMIN_RPM"
+    ),
+    requestsPerDay: parsePositiveIntegerEnv(
+      env.GATEWAY_BILLING_ADMIN_RPD,
+      10_000,
+      "GATEWAY_BILLING_ADMIN_RPD"
+    ),
+    concurrentRequests: parsePositiveIntegerEnv(
+      env.GATEWAY_BILLING_ADMIN_CONCURRENT,
+      8,
+      "GATEWAY_BILLING_ADMIN_CONCURRENT"
+    )
+  };
+}
+
+function createDefaultImageGenerationProvider(
+  env: NodeJS.ProcessEnv
+): ImageGenerationProvider | undefined {
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
+    return undefined;
+  }
+  if (!env.MEDCODE_IMAGE_OPENAI_API_KEY) {
+    throw new Error("MEDCODE_IMAGE_OPENAI_API_KEY is required when image generation is enabled.");
+  }
+  return new OpenAIImageGenerationProvider({
+    apiKey: env.MEDCODE_IMAGE_OPENAI_API_KEY,
+    baseUrl: env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_IMAGE_TIMEOUT_MS,
+      180_000,
+      "MEDCODE_IMAGE_TIMEOUT_MS"
+    )
+  });
+}
+
 function parseAuthMode(value: string | undefined): GatewayAuthMode | undefined {
   if (!value) {
     return undefined;
@@ -1872,6 +2327,20 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
   if (env.GATEWAY_DEV_ACCESS_TOKEN) {
     throw new Error("Production runtime must not set GATEWAY_DEV_ACCESS_TOKEN.");
   }
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED === "1" && !env.MEDCODE_IMAGE_OPENAI_API_KEY) {
+    throw new Error("Production image generation requires MEDCODE_IMAGE_OPENAI_API_KEY.");
+  }
+  if (Boolean(env.GATEWAY_UPSTREAM_V2_BASE_URL) !== Boolean(env.GATEWAY_UPSTREAM_V2_TOKEN)) {
+    throw new Error("Production upstream v2 config requires GATEWAY_UPSTREAM_V2_BASE_URL and GATEWAY_UPSTREAM_V2_TOKEN together.");
+  }
+  if (env.GATEWAY_BILLING_ADMIN_TOKEN) {
+    if (!env.GATEWAY_API_KEY_ENCRYPTION_SECRET) {
+      throw new Error("Production billing admin API requires GATEWAY_API_KEY_ENCRYPTION_SECRET.");
+    }
+    if (!env.GATEWAY_UPSTREAM_V2_BASE_URL || !env.GATEWAY_UPSTREAM_V2_TOKEN) {
+      throw new Error("Production billing subject provisioning requires GATEWAY_UPSTREAM_V2_BASE_URL and GATEWAY_UPSTREAM_V2_TOKEN.");
+    }
+  }
 }
 
 function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & CredentialAuthStore {
@@ -1885,6 +2354,26 @@ function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & Cre
     typeof candidate.updateAccessCredentialByPrefix === "function" &&
     typeof candidate.revokeAccessCredentialByPrefix === "function" &&
     typeof candidate.setAccessCredentialExpiresAtByPrefix === "function"
+  );
+}
+
+function isUnifiedClientKeyStore(
+  store: GatewayStore
+): store is GatewayStore & UnifiedClientKeyStore {
+  const candidate = store as Partial<UnifiedClientKeyStore>;
+  return (
+    typeof candidate.insertUnifiedClientKey === "function" &&
+    typeof candidate.getUnifiedClientKeyByPrefix === "function" &&
+    typeof candidate.listUnifiedClientKeys === "function" &&
+    typeof candidate.revokeUnifiedClientKeyByPrefix === "function"
+  );
+}
+
+function isAdminAuditStore(store: GatewayStore): store is GatewayStore & AdminAuditStore {
+  const candidate = store as Partial<AdminAuditStore>;
+  return (
+    typeof candidate.insertAdminAuditEvent === "function" &&
+    typeof candidate.listAdminAuditEvents === "function"
   );
 }
 
@@ -1905,6 +2394,26 @@ function isPlanEntitlementStore(store: GatewayStore): store is GatewayStore & Pl
     typeof candidate.getPlan === "function" &&
     typeof candidate.grantEntitlement === "function" &&
     typeof candidate.entitlementAccessForSubject === "function"
+  );
+}
+
+function isBillingAdminStore(store: GatewayStore): store is GatewayStore & BillingAdminStore {
+  const candidate = store as Partial<BillingAdminStore>;
+  return (
+    typeof candidate.applyBillingEntitlementEvent === "function" &&
+    typeof candidate.replayBillingSubjectCreate === "function" &&
+    typeof candidate.createBillingSubject === "function" &&
+    typeof candidate.replayBillingSubjectRotate === "function" &&
+    typeof candidate.rotateBillingSubject === "function" &&
+    typeof candidate.replayBillingSubjectDisable === "function" &&
+    typeof candidate.disableBillingSubject === "function" &&
+    typeof candidate.getBillingSubject === "function" &&
+    typeof candidate.getBillingSubjectByExternal === "function" &&
+    typeof candidate.getBillingSubjectActiveUnifiedKey === "function" &&
+    typeof candidate.getBillingEventByIdempotencyKey === "function" &&
+    typeof candidate.listBillingEvents === "function" &&
+    typeof candidate.listBillingEntitlements === "function" &&
+    typeof candidate.reportBillingUsage === "function"
   );
 }
 

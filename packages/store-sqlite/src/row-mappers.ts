@@ -1,5 +1,6 @@
 import {
   validatePlanPolicy,
+  validatePlanFeaturePolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
   type ClientDiagnosticEventRecord,
@@ -14,7 +15,8 @@ import {
   type RequestEventRecord,
   type RequestUsageReportRow,
   type Subject,
-  type TokenLimitPolicy
+  type TokenLimitPolicy,
+  type UnifiedClientKeyRecord
 } from "@codex-gateway/core";
 import { parseScopeAllowlist } from "./entitlement-rules.js";
 
@@ -48,6 +50,9 @@ export function rowToSubject(row: unknown): Subject {
     label: string;
     name: string | null;
     phone_number: string | null;
+    external_provider: string | null;
+    external_user_id: string | null;
+    display_name: string | null;
     state: Subject["state"];
     created_at: string;
   };
@@ -57,6 +62,9 @@ export function rowToSubject(row: unknown): Subject {
     label: value.label,
     name: value.name,
     phoneNumber: value.phone_number,
+    externalProvider: value.external_provider,
+    externalUserId: value.external_user_id,
+    displayName: value.display_name,
     state: value.state,
     createdAt: new Date(value.created_at)
   };
@@ -94,11 +102,48 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
   };
 }
 
+export function rowToUnifiedClientKey(row: unknown): UnifiedClientKeyRecord {
+  const value = row as {
+    id: string;
+    prefix: string;
+    hash: string;
+    subject_id: string;
+    label: string;
+    expires_at: string;
+    revoked_at: string | null;
+    codex_credential_id: string;
+    codex_credential_prefix: string;
+    codex_key_ciphertext: string;
+    medevidence_key_ciphertext: string;
+    medevidence_key_prefix: string | null;
+    created_at: string;
+    metadata_json: string | null;
+  };
+
+  return {
+    id: value.id,
+    prefix: value.prefix,
+    hash: value.hash,
+    subjectId: value.subject_id,
+    label: value.label,
+    expiresAt: new Date(value.expires_at),
+    revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
+    codexCredentialId: value.codex_credential_id,
+    codexCredentialPrefix: value.codex_credential_prefix,
+    codexKeyCiphertext: value.codex_key_ciphertext,
+    medevidenceKeyCiphertext: value.medevidence_key_ciphertext,
+    medevidenceKeyPrefix: value.medevidence_key_prefix,
+    createdAt: new Date(value.created_at),
+    metadata: value.metadata_json ? (JSON.parse(value.metadata_json) as Record<string, unknown>) : null
+  };
+}
+
 export function rowToPlan(row: unknown): Plan {
   const value = row as {
     id: string;
     display_name: string;
     policy_json: string;
+    feature_policy_json: string;
     scope_allowlist_json: string;
     priority_class: number;
     team_pool_id: string | null;
@@ -110,6 +155,7 @@ export function rowToPlan(row: unknown): Plan {
     id: value.id,
     displayName: value.display_name,
     policy: validatePlanPolicy(JSON.parse(value.policy_json) as TokenLimitPolicy),
+    featurePolicy: validatePlanFeaturePolicy(JSON.parse(value.feature_policy_json)),
     scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
     priorityClass: value.priority_class,
     teamPoolId: value.team_pool_id,
@@ -127,6 +173,7 @@ export function rowToEntitlement(row: unknown): Entitlement {
     subject_id: string;
     plan_id: string;
     policy_snapshot_json: string;
+    feature_policy_snapshot_json: string;
     scope_allowlist_json: string;
     period_kind: PeriodKind;
     period_start: string;
@@ -143,6 +190,7 @@ export function rowToEntitlement(row: unknown): Entitlement {
     subjectId: value.subject_id,
     planId: value.plan_id,
     policySnapshot: validatePlanPolicy(JSON.parse(value.policy_snapshot_json) as TokenLimitPolicy),
+    featurePolicySnapshot: validatePlanFeaturePolicy(JSON.parse(value.feature_policy_snapshot_json)),
     scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
     periodKind: value.period_kind,
     periodStart: new Date(value.period_start),

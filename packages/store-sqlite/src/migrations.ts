@@ -322,6 +322,168 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    10,
+    `
+      CREATE TABLE IF NOT EXISTS unified_client_keys (
+        id TEXT PRIMARY KEY,
+        prefix TEXT NOT NULL UNIQUE,
+        hash TEXT NOT NULL UNIQUE,
+        subject_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        codex_credential_id TEXT NOT NULL,
+        codex_credential_prefix TEXT NOT NULL,
+        codex_key_ciphertext TEXT NOT NULL,
+        medevidence_key_ciphertext TEXT NOT NULL,
+        medevidence_key_prefix TEXT,
+        created_at TEXT NOT NULL,
+        metadata_json TEXT,
+        FOREIGN KEY(subject_id) REFERENCES subjects(id),
+        FOREIGN KEY(codex_credential_id) REFERENCES access_credentials(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_unified_client_keys_subject_created
+        ON unified_client_keys(subject_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_unified_client_keys_codex_credential
+        ON unified_client_keys(codex_credential_id);
+    `,
+    logger
+  );
+
+  applyMigration(
+    db,
+    11,
+    () => {
+      if (!columnExists(db, "plans", "feature_policy_json")) {
+        db.exec(
+          `ALTER TABLE plans ADD COLUMN feature_policy_json TEXT NOT NULL DEFAULT '{"capabilities":["chat","tools"]}'`
+        );
+      }
+      if (!columnExists(db, "entitlements", "feature_policy_snapshot_json")) {
+        db.exec(
+          `ALTER TABLE entitlements ADD COLUMN feature_policy_snapshot_json TEXT NOT NULL DEFAULT '{"capabilities":["chat","tools"]}'`
+        );
+      }
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS trg_plans_feature_policy_immutable
+        BEFORE UPDATE OF feature_policy_json ON plans
+        BEGIN
+          SELECT RAISE(ABORT, 'plans.feature_policy_json is immutable');
+        END;
+      `);
+    },
+    logger
+  );
+
+  applyMigration(
+    db,
+    12,
+    `
+      CREATE TABLE IF NOT EXISTS billing_events (
+        id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        payload_hash TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        external_order_id TEXT NOT NULL,
+        external_event_id TEXT,
+        event_type TEXT NOT NULL,
+        apply_mode TEXT NOT NULL DEFAULT 'apply',
+        subject_id TEXT NOT NULL,
+        plan_id TEXT,
+        entitlement_id TEXT,
+        status TEXT NOT NULL,
+        amount_minor INTEGER,
+        currency TEXT,
+        period_kind TEXT,
+        period_start TEXT,
+        period_end TEXT,
+        applied_at TEXT,
+        error_message TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(subject_id) REFERENCES subjects(id),
+        FOREIGN KEY(plan_id) REFERENCES plans(id),
+        FOREIGN KEY(entitlement_id) REFERENCES entitlements(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_billing_events_provider_order_type
+        ON billing_events(provider, external_order_id, event_type);
+
+      CREATE INDEX IF NOT EXISTS idx_billing_events_subject_created
+        ON billing_events(subject_id, created_at DESC);
+    `,
+    logger
+  );
+
+  applyMigration(
+    db,
+    13,
+    () => {
+      if (!columnExists(db, "subjects", "external_provider")) {
+        db.exec("ALTER TABLE subjects ADD COLUMN external_provider TEXT");
+      }
+      if (!columnExists(db, "subjects", "external_user_id")) {
+        db.exec("ALTER TABLE subjects ADD COLUMN external_user_id TEXT");
+      }
+      if (!columnExists(db, "subjects", "display_name")) {
+        db.exec("ALTER TABLE subjects ADD COLUMN display_name TEXT");
+      }
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_subjects_external_provider_user
+          ON subjects(external_provider, external_user_id)
+          WHERE external_provider IS NOT NULL AND external_user_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS upstream_v2_bindings (
+          subject_id TEXT PRIMARY KEY,
+          v2_user_id TEXT NOT NULL,
+          v2_key_id TEXT,
+          state TEXT NOT NULL CHECK (state IN ('active', 'disabled', 'pending')),
+          last_synced_at TEXT,
+          metadata_json TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(subject_id) REFERENCES subjects(id)
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_upstream_v2_user
+          ON upstream_v2_bindings(v2_user_id);
+
+        CREATE TABLE IF NOT EXISTS billing_subject_events (
+          id TEXT PRIMARY KEY,
+          idempotency_key TEXT NOT NULL UNIQUE,
+          payload_hash TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          external_user_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          credential_id TEXT,
+          credential_prefix TEXT,
+          unified_key_id TEXT,
+          unified_key_prefix TEXT,
+          status TEXT NOT NULL,
+          error_message TEXT,
+          metadata_json TEXT,
+          applied_at TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(subject_id) REFERENCES subjects(id),
+          FOREIGN KEY(credential_id) REFERENCES access_credentials(id),
+          FOREIGN KEY(unified_key_id) REFERENCES unified_client_keys(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_billing_subject_events_external
+          ON billing_subject_events(provider, external_user_id, created_at DESC);
+
+        CREATE INDEX IF NOT EXISTS idx_billing_subject_events_subject_created
+          ON billing_subject_events(subject_id, created_at DESC);
+      `);
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

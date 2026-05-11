@@ -289,12 +289,16 @@ describe("CodexProviderAdapter", () => {
   });
 
   it("reports sanitized raw provider errors through the diagnostics callback", async () => {
+    const composedUnifiedKey =
+      "cmev1.cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456.mev2_live_secret";
+    const opaqueUnifiedKey =
+      "cgu_live_7KpQ2mN9vX4aRt6Bc8YwL3sD0fGhJkPq9UzEaVnTbR5xM1HdS7rZ2yA4C6mNp8Qz";
     const thread = new FakeThread(null, [
       {
         type: "turn.failed",
         error: {
           message:
-            'HTTP 503 upstream reset Authorization: Bearer secretBearerToken123 cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456 {"refresh_token":"jsonSecret123","password":"pwSecret123"}'
+            `HTTP 503 upstream reset Authorization: Bearer secretBearerToken123 cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456 ${composedUnifiedKey} ${opaqueUnifiedKey} mev2_live_secret {"refresh_token":"jsonSecret123","password":"pwSecret123"}`
         }
       } as ThreadEvent
     ]);
@@ -327,8 +331,14 @@ describe("CodexProviderAdapter", () => {
     expect(diagnostics[0].rawMessage).toContain("HTTP 503 upstream reset");
     expect(diagnostics[0].rawMessage).toContain("Authorization=<redacted>");
     expect(diagnostics[0].rawMessage).toContain("cgw.<redacted>");
+    expect(diagnostics[0].rawMessage).toContain("cmev1.<redacted>");
+    expect(diagnostics[0].rawMessage).toContain("cgu_live_<redacted>");
+    expect(diagnostics[0].rawMessage).toContain("mev2_live_<redacted>");
+    expect(diagnostics[0].rawMessage).not.toContain(composedUnifiedKey);
+    expect(diagnostics[0].rawMessage).not.toContain(opaqueUnifiedKey);
     expect(diagnostics[0].rawMessage).not.toContain("secretBearerToken123");
     expect(diagnostics[0].rawMessage).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
+    expect(diagnostics[0].rawMessage).not.toContain("mev2_live_secret");
     expect(diagnostics[0].rawMessage).not.toContain("jsonSecret123");
     expect(diagnostics[0].rawMessage).not.toContain("pwSecret123");
   });

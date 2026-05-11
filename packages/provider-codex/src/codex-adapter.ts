@@ -380,8 +380,10 @@ function sanitizeProviderErrorText(value: string): string {
       /\b(authorization|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|cookie|set-cookie|password)\s*[:=]\s*["']?[^"',\s;}]+/gi,
       "$1=<redacted>"
     )
-    .replace(/\bcgw\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}\b/g, "cgw.<redacted>")
     .replace(/\bcmev1\.[A-Za-z0-9._~-]{16,}\b/g, "cmev1.<redacted>")
+    .replace(/\bcgu_live_[A-Za-z0-9]{64}\b/g, "cgu_live_<redacted>")
+    .replace(/\bcgw\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}\b/g, "cgw.<redacted>")
+    .replace(/\bmev2_live_[A-Za-z0-9_-]+\b/g, "mev2_live_<redacted>")
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "sk-<redacted>");
   return redacted.length > 2048 ? `${redacted.slice(0, 2048)}...[truncated]` : redacted;
 }

@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 ## Current Phase
 
@@ -97,6 +97,27 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-10 Gateway-brokered `cgu_live_*` unified client key resolver was
+  deployed to the live controlled-trial gateway. Local and VM `npm run build`
+  and `npm test` passed with 7 test files and 131 tests. The Docker image was
+  rebuilt, the live SQLite volume was backed up, the Gateway container was
+  recreated, and public health remained ready at
+  `https://gw.instmarket.com.au/gateway/health`.
+- The deployed resolver was validated with a temporary `cgu_live_*`: public
+  resolve returned runtime Gateway and MedEvidence credentials, the returned
+  Gateway credential validated through `/gateway/credentials/current`, auth
+  boundary checks rejected `cgu_live_*` on Gateway business routes and `cgw.*`
+  on resolve, and revoking the backing `cgw.*` made resolve return
+  `revoked_credential`. Temporary smoke keys and user were cleaned up.
+- `GATEWAY_PUBLIC_BASE_URL` in the gateway container environment was corrected
+  to `https://gw.instmarket.com.au`, so resolve returns
+  `codex_gateway.endpoint_base_url: https://gw.instmarket.com.au/v1` and
+  `codex_gateway.credential_validation_url:
+  https://gw.instmarket.com.au/gateway/credentials/current`.
+- Public OpenAI-compatible smoke passed after the rebuild: health,
+  unauthenticated `/v1/models` rejection, wrong-model `404 model_not_found`,
+  model listing, non-stream chat with usage, tool-result history, streaming SSE,
+  and cleanup.
 - 2026-05-07 admin CLI rebuild deployed to the live Azure VM Gateway container.
   The container is healthy as `codex_gateway_test-gateway-1`, public
   `https://gw.instmarket.com.au/gateway/health` succeeds, and

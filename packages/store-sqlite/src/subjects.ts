@@ -11,17 +11,24 @@ import type { UpdateSubjectInput } from "./types.js";
 export function upsert(db: DatabaseSync, subject: Subject): void {
   // Bootstrap upsert preserves existing state so credential setup cannot reactivate disabled users.
   db.prepare(
-    `INSERT INTO subjects (id, label, name, phone_number, state, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO subjects (
+       id, label, name, phone_number, external_provider, external_user_id, display_name,
+       state, created_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        label = excluded.label,
        name = COALESCE(excluded.name, subjects.name),
-       phone_number = COALESCE(excluded.phone_number, subjects.phone_number)`
+       phone_number = COALESCE(excluded.phone_number, subjects.phone_number),
+       display_name = COALESCE(excluded.display_name, subjects.display_name)`
   ).run(
     subject.id,
     subject.label,
     subject.name ?? null,
     subject.phoneNumber ?? null,
+    subject.externalProvider ?? null,
+    subject.externalUserId ?? null,
+    subject.displayName ?? null,
     subject.state,
     subject.createdAt.toISOString()
   );
@@ -29,6 +36,22 @@ export function upsert(db: DatabaseSync, subject: Subject): void {
 
 export function get(db: DatabaseSync, id: string): Subject | null {
   const row = db.prepare(`SELECT ${subjectColumns} FROM subjects WHERE id = ?`).get(id);
+  return row ? rowToSubject(row) : null;
+}
+
+export function getByExternal(
+  db: DatabaseSync,
+  provider: string,
+  externalUserId: string
+): Subject | null {
+  const row = db
+    .prepare(
+      `SELECT ${subjectColumns}
+       FROM subjects
+       WHERE external_provider = ?
+         AND external_user_id = ?`
+    )
+    .get(provider, externalUserId);
   return row ? rowToSubject(row) : null;
 }
 

@@ -1,4 +1,5 @@
 import {
+  validatePlanFeaturePolicy,
   validatePlanPolicy,
   type AdminAuditAction,
   type CreatePlanInput,
@@ -27,6 +28,7 @@ export function normalizeCreatePlanInput(input: CreatePlanInput): Plan {
     id: input.id,
     displayName: input.displayName,
     policy: validatePlanPolicy(input.policy),
+    featurePolicy: validatePlanFeaturePolicy(input.featurePolicy),
     scopeAllowlist,
     priorityClass,
     teamPoolId: input.teamPoolId ?? null,

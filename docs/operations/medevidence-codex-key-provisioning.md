@@ -49,6 +49,14 @@ cmev1.<codex-gateway-api-key>.<medevidence-v2-api-key>
 The script writes the full value to `unified_key` and the version marker to
 `unified_key_version`. Do not print the full value in logs or chat.
 
+The script accepts `-UnifiedKeyMode cmev1|opaque`; the default remains `cmev1`.
+`opaque` is intentionally blocked in this provisioning script. Gateway-owned
+opaque client keys use the broker format `cgu_live_*` and are issued by the
+Admin CLI `unified-key` command path, not by this legacy `cmev1` handoff script.
+MedEvidence v2 does not parse `cgu_live_*`; Desktop resolves it through Codex
+Gateway and then calls Gateway and MedEvidence with the returned runtime
+credentials.
+
 The script is intentionally defensive:
 
 - Reads JSON with or without a UTF-8 BOM.
@@ -65,8 +73,10 @@ The script is intentionally defensive:
 - Validates `GET /gateway/credentials/current` with the resulting key.
 - Checks that no active key or active entitlement expires before the configured
   cutoff.
-- Builds the unified key from the recovered Codex Gateway key and the existing
-  top-level MedEvidence v2 `plaintext_api_key`.
+- Builds the `cmev1` unified key from the recovered Codex Gateway key and the
+  existing MedEvidence v2 `plaintext_api_key`, including the nested
+  `api_keys[].plaintext_api_key` shape when exactly one active nested key is
+  present.
 
 Do not paste full API keys into chat, tickets, or runbooks. The full key is
 written only to the requested local handoff JSON file.

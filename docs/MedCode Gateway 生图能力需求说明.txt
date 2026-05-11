@@ -1,0 +1,331 @@
+MedCode Gateway 生图能力需求说明
+
+目标：MedEvidence CLI/Desktop 用户只填写我们发放的 unified key 后，即可在 MedCode + Research agent 中使用图片生成能力，生成医学研究、论文、PPT 所需图片。用户电脑不应直接调用 OpenAI Image API，也不需要持有 OpenAI API key。
+
+一、产品边界
+
+- 客户端只关心 unified key 对应的用户是否具备 image_generation capability。
+- 客户端不关心 Gateway 内部使用哪种 provider、哪把上游 API key、哪个 OpenAI project，未来 Gateway 更换图片 provider 不应改变客户端契约。
+- 客户端使用稳定的内部图片模型 id，例如 `medcode-image-default`；Gateway 在服务端把内部模型 id 映射到真实上游模型。
+- Desktop/CLI 端会从 unified key `cmev1.<medcode-key>.<medevidence-key>` 中解析出 `<medcode-key>`，再以 `Authorization: Bearer <medcode-key>` 调用 Gateway。
+- Gateway 不需要接收完整 unified key。
+- 不要要求客户端提供、缓存、透传 OpenAI API key。
+
+二、Gateway 侧职责
+
+Gateway 提供图片生成服务 endpoint，并负责：
+
+- 校验 MedCode 凭证。
+- 根据用户套餐/entitlement/capability 判断是否允许生图。
+- 使用 Gateway 内部配置的图片生成 provider。MVP 计划使用 OpenAI Image API；当前上游默认候选模型为 `gpt-image-2`，但动手前必须确认目标 OpenAI organization 已开通该模型。如未开通，Gateway 可将 `medcode-image-default` 映射到已开通的 GPT Image 模型。
+- 管理上游 OpenAI API key、上游项目额度、请求超时、错误映射、审计、限流、用量统计。
+- 返回 base64 图片给客户端。
+
+注意：当前 Gateway 的 MedCode 文本能力走 Codex/ChatGPT subscription provider；生图能力是新增的 server-side image provider 能力，不应要求客户端理解或配置该 provider。
+
+三、建议 endpoint
+
+MVP 内部产品 endpoint：
+
+```http
+POST /gateway/images/generations
+Authorization: Bearer <medcode-key>
+Content-Type: application/json
+```
+
+说明：
+
+- 该 endpoint 是 MedEvidence/MedCode 内部 tool endpoint，不要求完全兼容 OpenAI SDK。
+- 如后续需要 OpenAI-compatible surface，可另行增加 `POST /v1/images/generations`，但不作为 MVP 必需项。
+
+四、请求体
+
+MVP 建议支持：
+
+```json
+{
+  "prompt": "Create a clean medical mechanism diagram showing ...",
+  "model": "medcode-image-default",
+  "size": "auto",
+  "quality": "auto",
+  "output_format": "png",
+  "metadata": {
+    "client": "medevidence-desktop",
+    "session_id": "optional",
+    "message_id": "optional",
+    "tool_call_id": "optional"
+  }
+}
+```
+
+字段要求：
+
+- `prompt`: 必填，字符串。Gateway 应设置最大长度并返回明确的 `invalid_request`。
+- `model`: 可选，MVP 默认并只允许稳定内部 id `medcode-image-default`。客户端不要传上游模型 id。
+- `size`: 可选，默认 `auto`。
+- `quality`: 可选，`auto | low | medium | high`，默认 `auto`。
+- `output_format`: 可选，`png | jpeg | webp`，默认 `png`。
+- `output_compression`: 可选，整数 `0-100`，仅对 `jpeg/webp` 有意义。`output_format=png` 时传入该字段应返回 `invalid_request`，避免客户端误以为 PNG 被压缩。
+- `metadata`: 可选，仅允许 `client`、`session_id`、`message_id`、`tool_call_id` 四个 key；每个值必须是字符串且不超过 256 字符。其余 key 返回 `invalid_request`，不得静默丢弃。
+
+MVP 不开放：
+
+- `n`: 固定只生成 1 张图；收到 `n != 1` 应返回 `invalid_request`。
+- `background: "transparent"`: 当前上游默认候选模型不支持透明背景；收到后返回 `invalid_request`，message 应明确说明 transparent background 不支持。
+- 图片编辑、参考图输入、多轮图片编辑：后续单独设计。
+
+MVP 允许的 `size`：
+
+- `auto`
+- `1024x1024`
+- `1536x1024`
+- `1024x1536`
+
+后续可开放：
+
+- `2048x2048`
+- `2048x1152`
+- `3840x2160`
+- `2160x3840`
+
+开放 2K/4K 前必须先确认 Gateway、Nginx、客户端和 UI 附件链路能承受 base64 响应体大小、超时和内存开销。MVP 部署时也要确认 1024x1536 高质量 PNG 的 base64 响应不会触发 Nginx buffer 或客户端内存问题。
+
+五、响应体
+
+成功响应：
+
+```json
+{
+  "id": "imgreq_...",
+  "model": "medcode-image-default",
+  "created": 1778123456,
+  "data": [
+    {
+      "b64_json": "...",
+      "mime_type": "image/png",
+      "size": "1024x1024",
+      "quality": "auto",
+      "output_format": "png"
+    }
+  ],
+  "usage": {
+    "total_tokens": 123,
+    "input_tokens": 45,
+    "output_tokens": 78
+  }
+}
+```
+
+最低要求：
+
+- 必须返回顶层 `id`，格式为 `imgreq_...`，便于图片业务事件排查。
+- 必须返回 `data[0].b64_json`。
+- 必须返回 `data[0].mime_type`。
+- 不返回 `filename`；客户端应基于会话、消息、request id 和扩展名自行生成本地文件名。
+- `usage` 在上游返回时透出；上游缺失或字段不全时记为 `null` 或省略，不影响成功返回。
+- 客户端不能依赖 `usage` 做权限判断。
+- Gateway 仍需在服务端记录图片请求用量，即使上游 usage 缺失。
+
+六、错误格式
+
+建议统一为：
+
+```json
+{
+  "error": {
+    "code": "plan_capability_required",
+    "message": "Current plan does not include image generation.",
+    "request_id": "req_..."
+  }
+}
+```
+
+`error.request_id` 始终使用 Gateway/Fastify request id。成功响应顶层 `id` 使用图片业务 id `imgreq_...`。两者不要混用。
+
+建议错误码：
+
+- `missing_credential`
+- `invalid_credential`
+- `plan_capability_required`
+- `rate_limited`
+- `invalid_request`
+- `unsupported_model`
+- `unsupported_size`
+- `unsupported_quality`
+- `unsupported_format`
+- `content_policy_violation`
+- `upstream_unavailable`
+- `upstream_timeout`
+- `internal_error`
+
+错误码映射规则：
+
+- 字段缺失、类型错误、`output_compression` 与 `png` 冲突、`n != 1`、`background: "transparent"`、metadata 非白名单或超长：返回 `invalid_request`。
+- 字段类型正确，但取值不在当前 entitlement allowlist：返回对应 `unsupported_model`、`unsupported_size`、`unsupported_quality`、`unsupported_format`。
+
+HTTP 状态建议：
+
+- `401`: missing/invalid credential
+- `403`: plan/capability 不允许
+- `400`: 请求参数错误或 unsupported 参数
+- `429`: Gateway 或上游限流
+- `502/503`: 上游不可用
+- `504`: 上游超时
+- `500`: Gateway 内部错误
+
+七、capability 和套餐
+
+Gateway 侧需要实现独立的生图 capability，例如 `image_generation`。
+
+`/gateway/credentials/current` 建议暴露 capability 信息。客户端应读取 capability，不要通过 `scope` 推断是否能生图。能力来自 active entitlement 的 feature policy snapshot；credential 继续只表达凭证身份、scope、有效期和基础 rate。
+
+建议响应结构：
+
+```json
+{
+  "valid": true,
+  "credential": {
+    "prefix": "abc123...",
+    "scope": "medical"
+  },
+  "entitlement": {
+    "state": "active",
+    "feature_policy": {
+      "capabilities": ["chat", "tools", "image_generation"],
+      "image_generation": {
+        "enabled": true,
+        "allowed_models": ["medcode-image-default"],
+        "allowed_sizes": ["auto", "1024x1024", "1536x1024", "1024x1536"],
+        "default_model": "medcode-image-default"
+      }
+    }
+  }
+}
+```
+
+实现要求：
+
+- capability 应来自 plan/entitlement 的服务端记录，而不是客户端传参。
+- plan 的 feature policy 必须像现有 `plans.policy_json` 一样不可变；能力变化通过新 plan + 新 entitlement snapshot 生效。
+- `scope` 继续表示现有 MedCode 权限域；是否具备生图应由 `entitlement.feature_policy.capabilities` 判定。
+- 没有 `image_generation` capability 时，图片 endpoint 返回 `plan_capability_required`。
+
+八、图片限流和额度
+
+图片生成额度必须和普通 MedCode 文本 token 额度分开。
+
+建议至少支持以下维度：
+
+- 每 credential 的图片请求 RPM。
+- 每 credential 的图片请求 RPD。
+- 每 credential 的图片并发数。
+- 每 entitlement 周期内的图片数量或图片 cost units。
+- 按内部 model id、size、quality 计算不同 cost units，避免 4K/high 与 1024/low 同价。
+
+服务端行为：
+
+- 请求进入上游前先做权限和限流检查。
+- MVP 即使是单进程 controlled trial，也应加 in-process per-credential image mutex，使同一个 credential 的图片 quota 检查、上游调用、事件写入串行化，降低 Desktop + CLI 并发超发风险。
+- 对高成本图片请求建议先预留额度，失败后按策略释放或记录失败计费。
+- 记录上游 `usage` 时保留 token usage；同时记录 Gateway 自己的 image cost units，避免图片额度完全依赖 token。
+- `image_generation_events` 是图片用量和审计事实表；`request_events` 只作为通用 request trace。
+- `rate_limited` 错误应能区分是请求频率、并发、日额度、周期额度还是上游限流。
+
+九、安全、隐私和审计
+
+安全要求：
+
+- OpenAI API key 只存在 Gateway 后端环境或密钥管理系统。
+- 客户端不得持有、缓存或透传 OpenAI API key。
+- 生图上游 key 建议使用独立环境变量或 secret，例如 `MEDCODE_IMAGE_OPENAI_API_KEY`，避免和 Codex/ChatGPT subscription 状态混用。
+- 生产部署时应确认 OpenAI 组织已具备 GPT Image 模型访问和必要的 organization verification。
+
+审计字段：
+
+- user/subject id
+- credential id/prefix
+- entitlement/plan id
+- Gateway request id
+- 图片业务 id
+- 时间
+- endpoint
+- 内部 model id
+- 上游 provider/model id
+- size
+- quality
+- output_format
+- status
+- error_code
+- latency/duration
+- upstream request id 或 response id（如可得）
+- usage tokens（如可得）
+- image cost units
+
+日志隐私：
+
+- 默认不要记录完整 prompt。医学图片 prompt 可能包含病例信息或 PHI。
+- 默认记录 prompt HMAC、prompt 长度、必要参数和 request id；不要使用裸 SHA256 以免跨用户关联相同 prompt。
+- 如确需记录 prompt 做排障，应有显式开关、脱敏策略、保留期限和访问控制。
+- 不要在日志、审计、错误响应中记录完整 API key、完整 unified key、完整 MedCode key、完整 base64 图片。
+
+医学安全：
+
+- Gateway 不负责判断生成图片的医学正确性。
+- MVP 不做 server-side PHI / 患者姓名 / MRN 预扫描；依赖客户端约束、用户协议、日志最小化和上游内容安全策略。
+- Gateway 仍需保留内容安全/政策拒绝能力，并把上游内容政策拒绝映射为 `content_policy_violation`。
+
+十、客户端预期用法
+
+MedEvidence app 会新增 Research agent 可用的 image tool。
+
+建议流程：
+
+1. 用户在 CLI/Desktop 中配置 unified key。
+2. 客户端从 unified key 解析出 `<medcode-key>`。
+3. 客户端调用 `GET /gateway/credentials/current`，判断 `entitlement.feature_policy.capabilities` 是否存在 `image_generation`。
+4. Research agent 需要生成图片时，调用 `POST /gateway/images/generations`，使用内部 model id `medcode-image-default`。
+5. 客户端将 `data[0].b64_json` 转成图片附件，保存到本地会话附件目录，并显示在会话 UI。
+6. 失败时展示 Gateway 返回的标准错误 message，并保留 `error.request_id` 供用户报错。
+
+医生用户只会看到“生成图片”的自然体验，不需要知道上游模型、OpenAI API key 或上游 provider。
+
+十一、验收标准
+
+MVP 至少验证：
+
+- 缺少 credential 返回 `401 missing_credential`，错误体含 Gateway request id。
+- 错误 credential 返回 `401 invalid_credential`，错误体含 Gateway request id。
+- 有效 credential 但无 `image_generation` capability 返回 `403 plan_capability_required`。
+- 有效 credential 且有 capability 时，`1024x1024/png/auto` 能返回顶层 `id`、`data[0].b64_json`、`mime_type`。
+- `unsupported_model`、`unsupported_size`、`unsupported_quality`、`unsupported_format` 有明确错误。
+- `background: "transparent"` 返回 `invalid_request`。
+- 图片请求限流和并发限制生效，且不影响普通文本 chat 限流桶或 token 额度。
+- 同一 credential 并发图片请求通过 in-process mutex 串行化 quota 检查和事件写入。
+- 审计记录包含必要字段，`image_generation_events` 作为图片用量事实表。
+- 日志不包含完整 prompt、完整凭证、完整 unified key、OpenAI API key 或 base64 图片。
+- 公网访问继续通过现有 `gw.instmarket.com.au` Nginx 路由；Gateway 容器仍保持 loopback-only，不因生图能力改变共享 VM 的 `80/443` 边界。
+- 部署前确认 gateway container 可出站访问 `api.openai.com`，并确认 host Nginx buffer / body size 能承受 MVP 最大预期响应。
+
+十二、OpenAI 官方文档依据
+
+当前 OpenAI 文档显示 `gpt-image-2` 已存在，并且 Image API 适合单 prompt 图片生成；但实际可用性仍取决于我们的 OpenAI organization、project 和模型权限。
+
+官方文档：
+
+- Image generation guide：
+  https://developers.openai.com/api/docs/guides/image-generation
+- Image API reference：
+  https://developers.openai.com/api/reference/resources/images
+- GPT Image prompting/model guide：
+  https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide
+
+说明：`platform.openai.com/docs/...` 当前会重定向到 `developers.openai.com/api/docs/...`，本文档引用重定向后的官方文档页面。
+
+十三、待确认问题
+
+- 上游实际使用 `gpt-image-2` 还是其他已开通 GPT Image 模型；确认后只需调整 provider 层映射，不影响客户端内部 model id。
+- MVP 图片套餐的具体 quota：按张数、按 cost units，还是两者都要。
+- 高质量/2K/4K 图片是否计入更高 cost units。
+- 上游失败、内容政策拒绝、用户取消时是否消耗图片额度。
+- 是否需要对客户端开放 OpenAI-compatible `POST /v1/images/generations`。
+- prompt 是否允许在受控排障模式下短期保留，以及保留期限。

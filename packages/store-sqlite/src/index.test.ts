@@ -4,7 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  billingPayloadHash,
   issueAccessCredential,
+  issueUnifiedClientKey,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventRecord,
   type Subject,
@@ -100,6 +102,7 @@ describe("SqliteGatewayStore", () => {
       expect(tableExists(db, "plans")).toBe(true);
       expect(tableExists(db, "entitlements")).toBe(true);
       expect(tableExists(db, "entitlement_token_windows")).toBe(true);
+      expect(tableExists(db, "billing_events")).toBe(true);
       expect(columnNames(db, "token_reservations")).toContain("entitlement_id");
     } finally {
       db.close();
@@ -142,6 +145,115 @@ describe("SqliteGatewayStore", () => {
     ).toThrow("plans.policy_json is immutable");
     expect(store.getPlan("plan_immutable_v1")?.policy.tokensPerDay).toBe(10_000);
 
+    store.close();
+  });
+
+  it("applies billing purchase events with explicit periods and idempotent replay", () => {
+    const store = createSeededStore(":memory:");
+    store.createPlan({
+      id: "plan_billing_monthly_v1",
+      displayName: "Billing Monthly",
+      policy: unrestrictedPolicy(),
+      scopeAllowlist: ["code"],
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const payload = {
+      event_type: "purchase",
+      apply_mode: "apply",
+      provider: "stripe",
+      external_order_id: "pay_123",
+      subject_id: "subj_1",
+      plan_id: "plan_billing_monthly_v1",
+      period_kind: "monthly",
+      period_start: "2026-05-11T00:00:00.000Z",
+      period_end: "2026-06-11T00:00:00.000Z"
+    } as const;
+
+    const result = store.applyBillingEntitlementEvent({
+      idempotencyKey: "stripe:pay_123:purchase",
+      eventType: "purchase",
+      applyMode: "apply",
+      provider: "stripe",
+      externalOrderId: "pay_123",
+      subjectId: "subj_1",
+      planId: "plan_billing_monthly_v1",
+      periodKind: "monthly",
+      periodStart: new Date(payload.period_start),
+      periodEnd: new Date(payload.period_end),
+      payloadHash: billingPayloadHash(payload),
+      now: new Date("2026-05-11T00:00:00Z")
+    });
+
+    expect(result.applied).toBe(true);
+    expect(result.idempotentReplay).toBe(false);
+    expect(result.billingEvent).toMatchObject({
+      idempotencyKey: "stripe:pay_123:purchase",
+      status: "applied",
+      subjectId: "subj_1",
+      planId: "plan_billing_monthly_v1"
+    });
+    expect(result.entitlement).toMatchObject({
+      subjectId: "subj_1",
+      planId: "plan_billing_monthly_v1",
+      periodKind: "monthly",
+      periodStart: new Date("2026-05-11T00:00:00.000Z"),
+      periodEnd: new Date("2026-06-11T00:00:00.000Z"),
+      state: "active"
+    });
+
+    const replay = store.applyBillingEntitlementEvent({
+      ...resultToInput(payload),
+      payloadHash: billingPayloadHash(payload)
+    });
+    expect(replay.idempotentReplay).toBe(true);
+    expect(replay.entitlement?.id).toBe(result.entitlement?.id);
+
+    expect(() =>
+      store.applyBillingEntitlementEvent({
+        ...resultToInput({ ...payload, external_order_id: "pay_changed" }),
+        payloadHash: billingPayloadHash({ ...payload, external_order_id: "pay_changed" })
+      })
+    ).toThrow("Idempotency key was already used with a different payload.");
+
+    expect(store.listAdminAuditEvents({ userId: "subj_1" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "entitlement-grant",
+          params: expect.objectContaining({
+            source: "billing",
+            billing_event_id: result.billingEvent.id,
+            event_type: "purchase"
+          })
+        })
+      ])
+    );
+    store.close();
+  });
+
+  it("records billing log-only notice events without changing entitlements", () => {
+    const store = createSeededStore(":memory:");
+    const payload = {
+      event_type: "notice",
+      apply_mode: "log_only",
+      provider: "stripe",
+      external_order_id: "refund_123",
+      subject_id: "subj_1"
+    } as const;
+
+    const result = store.applyBillingEntitlementEvent({
+      idempotencyKey: "stripe:refund_123:notice",
+      eventType: "notice",
+      applyMode: "log_only",
+      provider: "stripe",
+      externalOrderId: "refund_123",
+      subjectId: "subj_1",
+      payloadHash: billingPayloadHash(payload),
+      now: new Date("2026-05-11T00:00:00Z")
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.billingEvent.status).toBe("ignored");
+    expect(store.listEntitlements({ subjectId: "subj_1" })).toEqual([]);
     store.close();
   });
 
@@ -279,6 +391,47 @@ describe("SqliteGatewayStore", () => {
       new Date("2026-01-03T00:00:00Z")
     );
     expect(expiring?.expiresAt.toISOString()).toBe("2026-01-03T00:00:00.000Z");
+    store.close();
+  });
+
+  it("persists and revokes unified client broker keys", () => {
+    const store = createSeededStore(":memory:");
+    const issuedCredential = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Gateway token",
+      scope: "code",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issuedCredential.record);
+    const issued = issueUnifiedClientKey({
+      subjectId: "subj_1",
+      label: "Desktop unified key",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      codexCredentialId: issuedCredential.record.id,
+      codexCredentialPrefix: issuedCredential.record.prefix,
+      codexKeyCiphertext: "v1.codex",
+      medevidenceKeyCiphertext: "v1.medevidence",
+      medevidenceKeyPrefix: "mev2prefix",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    store.insertUnifiedClientKey(issued.record);
+    expect(store.getUnifiedClientKeyByPrefix(issued.record.prefix)).toMatchObject({
+      id: issued.record.id,
+      subjectId: "subj_1",
+      codexCredentialId: issuedCredential.record.id,
+      codexCredentialPrefix: issuedCredential.record.prefix,
+      medevidenceKeyPrefix: "mev2prefix"
+    });
+    expect(store.listUnifiedClientKeys({ includeRevoked: false })).toHaveLength(1);
+
+    const revoked = store.revokeUnifiedClientKeyByPrefix(
+      issued.record.prefix,
+      new Date("2026-01-02T00:00:00Z")
+    );
+    expect(revoked?.revokedAt?.toISOString()).toBe("2026-01-02T00:00:00.000Z");
+    expect(store.listUnifiedClientKeys({ includeRevoked: false })).toHaveLength(0);
     store.close();
   });
 
@@ -1424,6 +1577,44 @@ function createSeededStore(dbPath: string): SqliteGatewayStore {
   store.upsertSubject(subject());
   store.upsertUpstreamAccount(upstreamAccount());
   return store;
+}
+
+function resultToInput(payload: {
+  event_type: "purchase";
+  apply_mode: "apply";
+  provider: string;
+  external_order_id: string;
+  subject_id: string;
+  plan_id: string;
+  period_kind: "monthly";
+  period_start: string;
+  period_end: string;
+}) {
+  return {
+    idempotencyKey: "stripe:pay_123:purchase",
+    eventType: payload.event_type,
+    applyMode: payload.apply_mode,
+    provider: payload.provider,
+    externalOrderId: payload.external_order_id,
+    subjectId: payload.subject_id,
+    planId: payload.plan_id,
+    periodKind: payload.period_kind,
+    periodStart: new Date(payload.period_start),
+    periodEnd: new Date(payload.period_end),
+    now: new Date("2026-05-11T00:00:00Z")
+  };
+}
+
+function unrestrictedPolicy() {
+  return {
+    tokensPerMinute: null,
+    tokensPerDay: null,
+    tokensPerMonth: null,
+    maxPromptTokensPerRequest: null,
+    maxTotalTokensPerRequest: null,
+    reserveTokensPerRequest: 0,
+    missingUsageCharge: "none" as const
+  };
 }
 
 function subject(): Subject {

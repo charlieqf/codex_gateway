@@ -12,8 +12,10 @@ import type {
   Scope,
   Subject,
   SubjectState,
+  UnifiedClientKeyRecord,
   UpstreamAccount
 } from "./types.js";
+import type { BillingAdminStore } from "./billing.js";
 import type { LimitKind } from "./token-budget.js";
 import type { PlanEntitlementStore } from "./plan-entitlement.js";
 
@@ -72,6 +74,18 @@ export interface AccessCredentialStore {
     prefix: string,
     expiresAt: Date
   ): AccessCredentialRecord | null;
+}
+
+export interface ListUnifiedClientKeysInput {
+  subjectId?: string;
+  includeRevoked?: boolean;
+}
+
+export interface UnifiedClientKeyStore {
+  insertUnifiedClientKey(record: UnifiedClientKeyRecord): UnifiedClientKeyRecord;
+  getUnifiedClientKeyByPrefix(prefix: string): UnifiedClientKeyRecord | null;
+  listUnifiedClientKeys(input?: ListUnifiedClientKeysInput): UnifiedClientKeyRecord[];
+  revokeUnifiedClientKeyByPrefix(prefix: string, now?: Date): UnifiedClientKeyRecord | null;
 }
 
 export interface ListRequestEventsInput {
@@ -186,3 +200,4 @@ export interface ListClientMessageEventsInput {
 export type GatewayStore = GatewaySessionStore & BootstrapStore;
 export type CredentialAuthStore = AccessCredentialStore & SubjectStore;
 export type EntitlementBackedGatewayStore = GatewayStore & PlanEntitlementStore;
+export type BillingBackedGatewayStore = GatewayStore & BillingAdminStore;

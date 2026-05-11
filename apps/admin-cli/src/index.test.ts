@@ -8,6 +8,7 @@ import {
   createSqliteClientEventsStore,
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
+import { sanitizeAuditErrorMessage } from "./audit.js";
 
 const cleanupDirs: string[] = [];
 
@@ -18,6 +19,221 @@ afterEach(() => {
 });
 
 describe("codex-gateway-admin user API key operations", () => {
+  it("redacts cmev1 and underlying keys from audit errors", () => {
+    const cguKey =
+      "cgu_live_7KpQ2mN9vX4aRt6Bc8YwL3sD0fGhJkPq9UzEaVnTbR5xM1HdS7rZ2yA4C6mNp8Qz";
+    const message = sanitizeAuditErrorMessage(
+      new Error(
+        `failed ${cguKey} cmev1.cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456.mev2_live_secret mev2_live_secret`
+      )
+    );
+
+    expect(message).toContain("cgu_live_<redacted>");
+    expect(message).toContain("cmev1.<redacted>");
+    expect(message).toContain("mev2_live_<redacted>");
+    expect(message).not.toContain(cguKey);
+    expect(message).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
+    expect(message).not.toContain("mev2_live_secret");
+  });
+
+  it("issues, lists, shows, and revokes Gateway-brokered unified client keys", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-unified-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const medevidenceKey = "mev2_live_cli_unified_secret_1234567890";
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice laptop",
+      "--scope",
+      "code",
+      "--expires-days",
+      "365"
+    ]) as {
+      token: string;
+      credential: {
+        id: string;
+        prefix: string;
+      };
+    };
+
+    const unified = runCli(
+      dbPath,
+      [
+        "unified-key",
+        "issue",
+        "--user",
+        "alice",
+        "--codex-credential-prefix",
+        issued.credential.prefix,
+        "--medevidence-key-env",
+        "MEDEVIDENCE_KEY",
+        "--medevidence-key-prefix",
+        "mev2_live_cli_unified",
+        "--medevidence-base-url",
+        "https://medevidence.example",
+        "--label",
+        "Alice unified key",
+        "--expires-at",
+        "2030-03-01T00:00:00Z"
+      ],
+      { MEDEVIDENCE_KEY: medevidenceKey }
+    ) as {
+      unified_key: string;
+      key: {
+        id: string;
+        prefix: string;
+        user_id: string;
+        label: string;
+        status: string;
+        is_currently_valid: boolean;
+        codex_gateway: {
+          credential_id: string;
+          key_prefix: string;
+        };
+        medevidence: {
+          key_prefix: string;
+        };
+        metadata: Record<string, unknown>;
+      };
+      resolve: {
+        method: string;
+        path: string;
+      };
+    };
+
+    expect(unified.unified_key).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
+    expect(unified.key).toMatchObject({
+      prefix: unified.unified_key.slice("cgu_live_".length, "cgu_live_".length + 16),
+      user_id: "alice",
+      label: "Alice unified key",
+      status: "active",
+      is_currently_valid: true,
+      codex_gateway: {
+        credential_id: issued.credential.id,
+        key_prefix: issued.credential.prefix
+      },
+      medevidence: {
+        key_prefix: "mev2_live_cli_unified"
+      },
+      metadata: {
+        medevidence_base_url: "https://medevidence.example"
+      }
+    });
+    expect(unified.resolve).toEqual({
+      method: "POST",
+      path: "/gateway/unified-keys/resolve"
+    });
+    expect(JSON.stringify(unified)).not.toContain(issued.token);
+    expect(JSON.stringify(unified)).not.toContain(medevidenceKey);
+
+    const listed = runCli(dbPath, ["unified-key", "list", "--user", "alice"]) as {
+      keys: Array<{ prefix: string; status: string }>;
+    };
+    expect(listed.keys).toEqual([
+      expect.objectContaining({
+        prefix: unified.key.prefix,
+        status: "active"
+      })
+    ]);
+
+    const shown = runCli(dbPath, ["unified-key", "show", unified.key.prefix]) as {
+      key: { prefix: string; codex_gateway: { key_prefix: string } };
+    };
+    expect(shown.key).toMatchObject({
+      prefix: unified.key.prefix,
+      codex_gateway: {
+        key_prefix: issued.credential.prefix
+      }
+    });
+
+    const revoked = runCli(dbPath, ["unified-key", "revoke", unified.key.prefix]) as {
+      key: { prefix: string; status: string; is_currently_valid: boolean };
+    };
+    expect(revoked.key).toMatchObject({
+      prefix: unified.key.prefix,
+      status: "revoked",
+      is_currently_valid: false
+    });
+
+    const activeOnly = runCli(dbPath, ["unified-key", "list", "--user", "alice", "--active-only"]) as {
+      keys: Array<{ prefix: string }>;
+    };
+    expect(activeOnly.keys).toEqual([]);
+
+    const audit = runCli(dbPath, ["audit", "--user", "alice", "--limit", "10"]) as {
+      events: Array<{ action: string; status: string; target_credential_prefix: string | null }>;
+    };
+    expect(audit.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "unified-key-issue",
+          status: "ok",
+          target_credential_prefix: unified.key.prefix
+        }),
+        expect.objectContaining({
+          action: "unified-key-revoke",
+          status: "ok",
+          target_credential_prefix: unified.key.prefix
+        })
+      ])
+    );
+    expect(JSON.stringify(audit.events)).not.toContain(issued.token);
+    expect(JSON.stringify(audit.events)).not.toContain(medevidenceKey);
+  }, 20_000);
+
+  it("does not infer a MedEvidence key prefix from unknown key formats", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-unified-prefix-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const unknownMedevidenceKey = "custom-secret-medevidence-key-1234567890";
+
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "alice",
+      "--label",
+      "Alice laptop",
+      "--scope",
+      "code",
+      "--expires-days",
+      "365"
+    ]) as {
+      token: string;
+      credential: {
+        prefix: string;
+      };
+    };
+
+    const unified = runCli(
+      dbPath,
+      [
+        "unified-key",
+        "issue",
+        "--user",
+        "alice",
+        "--codex-credential-prefix",
+        issued.credential.prefix,
+        "--medevidence-key-env",
+        "MEDEVIDENCE_KEY"
+      ],
+      { MEDEVIDENCE_KEY: unknownMedevidenceKey }
+    ) as {
+      key: {
+        medevidence: {
+          key_prefix: string | null;
+        };
+      };
+    };
+
+    expect(unified.key.medevidence.key_prefix).toBeNull();
+    expect(JSON.stringify(unified)).not.toContain(unknownMedevidenceKey.slice(0, 16));
+    expect(JSON.stringify(unified)).not.toContain(issued.token);
+  }, 20_000);
+
   it("issues, lists, reports, disables, and enables API keys by user", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-"));
     cleanupDirs.push(dir);

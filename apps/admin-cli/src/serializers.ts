@@ -4,8 +4,10 @@ import type {
   Entitlement,
   EntitlementAccessDecision,
   Plan,
-  Subject
+  Subject,
+  UnifiedClientKeyRecord
 } from "@codex-gateway/core";
+import { publicFeaturePolicy } from "@codex-gateway/core";
 
 export type CredentialStatus =
   | "active"
@@ -59,6 +61,38 @@ export function publicCredential(
   return output;
 }
 
+export function publicUnifiedClientKey(record: UnifiedClientKeyRecord, subject?: Subject | null) {
+  const now = new Date();
+  const status = record.revokedAt
+    ? "revoked"
+    : record.expiresAt.getTime() <= now.getTime()
+      ? "expired"
+      : subject && subject.state !== "active"
+        ? `user_${subject.state}`
+        : "active";
+  return {
+    id: record.id,
+    prefix: record.prefix,
+    user_id: record.subjectId,
+    subject_id: record.subjectId,
+    label: record.label,
+    status,
+    is_currently_valid: status === "active",
+    expires_at: record.expiresAt.toISOString(),
+    revoked_at: record.revokedAt?.toISOString() ?? null,
+    codex_gateway: {
+      credential_id: record.codexCredentialId,
+      key_prefix: record.codexCredentialPrefix
+    },
+    medevidence: {
+      key_prefix: record.medevidenceKeyPrefix
+    },
+    created_at: record.createdAt.toISOString(),
+    metadata: record.metadata,
+    user: subject ? publicSubject(subject) : null
+  };
+}
+
 export function publicPlan(plan: Plan, includePolicy: boolean) {
   return {
     id: plan.id,
@@ -69,6 +103,7 @@ export function publicPlan(plan: Plan, includePolicy: boolean) {
     state: plan.state,
     created_at: plan.createdAt.toISOString(),
     metadata: plan.metadata,
+    feature_policy: publicFeaturePolicy(plan.featurePolicy),
     ...(includePolicy ? { policy: plan.policy } : {})
   };
 }
@@ -80,6 +115,8 @@ export function publicEntitlement(entitlement: Entitlement) {
     subject_id: entitlement.subjectId,
     plan_id: entitlement.planId,
     policy_snapshot: entitlement.policySnapshot,
+    feature_policy: publicFeaturePolicy(entitlement.featurePolicySnapshot),
+    feature_policy_snapshot: publicFeaturePolicy(entitlement.featurePolicySnapshot),
     scope_allowlist: entitlement.scopeAllowlist,
     period_kind: entitlement.periodKind,
     period_start: entitlement.periodStart.toISOString(),

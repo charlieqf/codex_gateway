@@ -3,6 +3,9 @@ import {
   extractAccessCredentialPrefix,
   hashAccessCredential,
   issueAccessCredential,
+  issueUnifiedClientKey,
+  extractUnifiedClientKeyPrefix,
+  verifyUnifiedClientKeyToken,
   verifyAccessCredentialToken,
   type AccessCredentialRecord
 } from "./index.js";
@@ -61,5 +64,38 @@ describe("access credentials", () => {
     expect(
       verifyAccessCredentialToken(issued.token, revoked, new Date("2026-01-01T13:00:00Z"))?.code
     ).toBe("revoked_credential");
+  });
+
+  it("issues Gateway unified client keys without exposing embedded service credentials", () => {
+    const issued = issueUnifiedClientKey({
+      subjectId: "subj_1",
+      label: "desktop handoff",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      codexCredentialId: "cred_1",
+      codexCredentialPrefix: "codexprefix",
+      codexKeyCiphertext: "v1.codex",
+      medevidenceKeyCiphertext: "v1.medevidence",
+      medevidenceKeyPrefix: "mev2prefix",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    expect(issued.token).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
+    expect(issued.record.prefix).toHaveLength(16);
+    expect(extractUnifiedClientKeyPrefix(issued.token)).toBe(issued.record.prefix);
+    expect(issued.record.hash).not.toContain(issued.token);
+    expect(
+      verifyUnifiedClientKeyToken(
+        issued.token,
+        issued.record,
+        new Date("2026-01-01T00:00:00Z")
+      )
+    ).toBeNull();
+    expect(
+      verifyUnifiedClientKeyToken(
+        `${issued.token}x`,
+        issued.record,
+        new Date("2026-01-01T00:00:00Z")
+      )?.code
+    ).toBe("invalid_credential");
   });
 });

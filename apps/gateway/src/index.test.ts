@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  defaultImageGenerationFeaturePolicy,
+  encryptSecret,
   issueAccessCredential,
+  issueUnifiedClientKey,
+  validateFeaturePolicy,
   type MessageInput,
   type ProviderAdapter,
   type ProviderHealth,
@@ -16,7 +20,12 @@ import {
   createSqliteTokenBudgetLimiter,
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
+import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
+import type {
+  UpstreamV2Client,
+  UpstreamV2CreateUserInput
+} from "./upstream-v2-client.js";
 
 class FakeProvider implements ProviderAdapter {
   readonly kind = "fake";
@@ -42,6 +51,74 @@ class FakeProvider implements ProviderAdapter {
 
     yield { type: "message_delta", text: `echo:${input.message}` };
     yield { type: "completed", providerSessionRef: "provider_thread_1" };
+  }
+}
+
+class FakeImageGenerationProvider implements ImageGenerationProvider {
+  readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
+
+  async generate(input: Parameters<ImageGenerationProvider["generate"]>[0]) {
+    this.calls.push(input);
+    return {
+      created: 1778123456,
+      data: [
+        {
+          b64_json: "ZmFrZS1pbWFnZQ=="
+        }
+      ],
+      usage: {
+        total_tokens: 12,
+        input_tokens: 5,
+        output_tokens: 7
+      }
+    };
+  }
+}
+
+class FakeUpstreamV2Client implements UpstreamV2Client {
+  readonly calls: UpstreamV2CreateUserInput[] = [];
+  readonly disableCalls: Parameters<UpstreamV2Client["disableUser"]>[0][] = [];
+  readonly revokeCalls: Parameters<UpstreamV2Client["revokeKey"]>[0][] = [];
+
+  async createUser(input: UpstreamV2CreateUserInput) {
+    this.calls.push(input);
+    return {
+      status: "created" as const,
+      user: {
+        id: `v2_${input.externalUserId}`,
+        state: "active"
+      },
+      key: {
+        id: `v2key_${input.externalUserId}`,
+        key: `mev2_live_${input.externalUserId}_secret`,
+        keyPrefix: `mev2_live_${input.externalUserId}`.slice(0, 24),
+        issuedAt: new Date("2026-05-11T00:00:00.000Z"),
+        expiresAt: null
+      }
+    };
+  }
+
+  async revokeKey(input: Parameters<UpstreamV2Client["revokeKey"]>[0]) {
+    this.revokeCalls.push(input);
+    return {
+      revoked: true,
+      key: {
+        id: input.keyId,
+        state: "revoked"
+      }
+    };
+  }
+
+  async disableUser(input: Parameters<UpstreamV2Client["disableUser"]>[0]) {
+    this.disableCalls.push(input);
+    return {
+      disabled: true,
+      user: {
+        id: input.userId,
+        state: "disabled"
+      },
+      revokedKeyCount: 1
+    };
   }
 }
 
@@ -289,6 +366,187 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("exposes image_generation capability on current credential entitlements", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Image enabled credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_image_v1",
+      displayName: "Image Trial",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_image_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const current = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+
+    expect(current.statusCode).toBe(200);
+    expect(current.json().entitlement.feature_policy).toMatchObject({
+      capabilities: ["chat", "tools", "image_generation"],
+      image_generation: {
+        enabled: true,
+        allowed_models: ["medcode-image-default"],
+        default_model: "medcode-image-default",
+        allowed_sizes: ["1024x1024", "1024x1536", "1536x1024", "auto"]
+      }
+    });
+
+    await app.close();
+  });
+
+  it("generates images for credentials with image_generation capability", async () => {
+    const { store, issued, headers } = createImageEntitledStore();
+    const imageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      imageGenerationProvider: imageProvider,
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a clean medical mechanism diagram.",
+        size: "auto",
+        metadata: {
+          client: "medevidence-desktop",
+          session_id: "ses_1"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expectRequestIdHeader(response);
+    expect(response.json()).toMatchObject({
+      id: expect.stringMatching(/^imgreq_/),
+      model: "medcode-image-default",
+      created: 1778123456,
+      data: [
+        {
+          b64_json: "ZmFrZS1pbWFnZQ==",
+          mime_type: "image/png"
+        }
+      ],
+      usage: {
+        total_tokens: 12,
+        input_tokens: 5,
+        output_tokens: 7
+      }
+    });
+    expect(imageProvider.calls).toHaveLength(1);
+    expect(imageProvider.calls[0]).toMatchObject({
+      upstreamModel: "gpt-image-2",
+      request: {
+        model: "medcode-image-default",
+        size: "auto",
+        quality: "auto",
+        outputFormat: "png"
+      }
+    });
+    expect(imageProvider.calls[0].request.metadata).toEqual({
+      client: "medevidence-desktop",
+      session_id: "ses_1"
+    });
+    expect(issued.record.prefix).toBeTruthy();
+
+    await app.close();
+  });
+
+  it("rejects image generation without image_generation capability using the client error shape", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Chat only credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_chat_v1",
+      displayName: "Chat Only",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_chat_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      imageGenerationProvider: new FakeImageGenerationProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers: { authorization: `Bearer ${issued.token}` },
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "plan_capability_required",
+        message: "This credential is not entitled for image generation.",
+        request_id: requestId
+      }
+    });
+
+    await app.close();
+  });
+
   it("rejects invalid API keys on the current credential validation route", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const app = buildGateway({
@@ -306,6 +564,672 @@ describe("gateway phase 1 routes", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
+  it("resolves Gateway-brokered unified client keys without accepting them as Gateway credentials", async () => {
+    const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+    const previousPublicBaseUrl = process.env.GATEWAY_PUBLIC_BASE_URL;
+    const encryptionSecret = "unified-resolver-test-secret";
+    process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = encryptionSecret;
+    process.env.GATEWAY_PUBLIC_BASE_URL = "https://gateway.example";
+
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Unified backing credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const medevidenceKey = "mev2_live_resolver_test_secret_1234567890";
+    const unified = issueUnifiedClientKey({
+      subjectId: "subj_dev",
+      label: "Desktop unified key",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      codexCredentialId: issued.record.id,
+      codexCredentialPrefix: issued.record.prefix,
+      codexKeyCiphertext: encryptSecret(issued.token, encryptionSecret),
+      medevidenceKeyCiphertext: encryptSecret(medevidenceKey, encryptionSecret),
+      medevidenceKeyPrefix: "mev2_live_resolver",
+      metadata: {
+        medevidence_base_url: "https://medevidence.example/"
+      },
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.insertUnifiedClientKey(unified.record);
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      logger: false
+    });
+
+    try {
+      const resolved = await app.inject({
+        method: "POST",
+        url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${unified.token}` }
+      });
+      expect(resolved.statusCode).toBe(200);
+      expect(resolved.json()).toMatchObject({
+        valid: true,
+        unified_key: {
+          prefix: unified.record.prefix,
+          label: "Desktop unified key",
+          expires_at: "2030-02-01T00:00:00.000Z"
+        },
+        subject: {
+          id: "subj_dev",
+          label: "Credential Subject"
+        },
+        codex_gateway: {
+          endpoint_base_url: "https://gateway.example/v1",
+          credential_validation_url: "https://gateway.example/gateway/credentials/current",
+          key_prefix: issued.record.prefix,
+          api_key: issued.token
+        },
+        medevidence: {
+          base_url: "https://medevidence.example",
+          key_prefix: "mev2_live_resolver",
+          api_key: medevidenceKey
+        }
+      });
+      expect(JSON.stringify(resolved.json())).not.toContain(unified.token);
+      expect(store.listAdminAuditEvents({ action: "unified-key-resolve" })).toEqual([
+        expect.objectContaining({
+          action: "unified-key-resolve",
+          targetUserId: "subj_dev",
+          targetCredentialId: unified.record.id,
+          targetCredentialPrefix: unified.record.prefix,
+          status: "ok",
+          errorMessage: null,
+          params: {
+            codex_credential_prefix: issued.record.prefix,
+            medevidence_key_prefix: "mev2_live_resolver"
+          }
+        })
+      ]);
+
+      const directGatewayUse = await app.inject({
+        method: "GET",
+        url: "/gateway/status",
+        headers: { authorization: `Bearer ${unified.token}` }
+      });
+      expect(directGatewayUse.statusCode).toBe(401);
+      expect(directGatewayUse.json().error.code).toBe("invalid_credential");
+
+      const gatewayCredentialOnResolve = await app.inject({
+        method: "POST",
+        url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${issued.token}` }
+      });
+      expect(gatewayCredentialOnResolve.statusCode).toBe(401);
+      expect(gatewayCredentialOnResolve.json().error.code).toBe("invalid_credential");
+
+      store.revokeAccessCredentialByPrefix(issued.record.prefix, new Date("2026-01-02T00:00:00Z"));
+      const revokedBackingCredential = await app.inject({
+        method: "POST",
+        url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${unified.token}` }
+      });
+      expect(revokedBackingCredential.statusCode).toBe(401);
+      expect(revokedBackingCredential.json().error.code).toBe("revoked_credential");
+    } finally {
+      await app.close();
+      if (previousSecret === undefined) {
+        delete process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+      } else {
+        process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = previousSecret;
+      }
+      if (previousPublicBaseUrl === undefined) {
+        delete process.env.GATEWAY_PUBLIC_BASE_URL;
+      } else {
+        process.env.GATEWAY_PUBLIC_BASE_URL = previousPublicBaseUrl;
+      }
+    }
+  });
+
+  it("serves billing admin plans, entitlement events, entitlements, and usage behind a separate token", async () => {
+    const { store, issued } = createCredentialBackedStore();
+    store.createPlan({
+      id: "plan_billing_v1",
+      displayName: "Billing Pro",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    store.insertRequestEvent({
+      requestId: "req_billing_usage",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-05-12T03:00:00Z"),
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 100,
+      completionTokens: 20,
+      totalTokens: 120,
+      cachedPromptTokens: 0,
+      estimatedTokens: null,
+      usageSource: "provider"
+    });
+    const billingHeaders = { authorization: "Bearer billing-admin-token-1234567890" };
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      logger: false
+    });
+
+    const ordinaryCredential = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${issued.token}` }
+    });
+    expect(ordinaryCredential.statusCode).toBe(401);
+    expect(ordinaryCredential.json().error.code).toBe("invalid_credential");
+
+    const plans = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: billingHeaders
+    });
+    expect(plans.statusCode).toBe(200);
+    expect(plans.headers["cache-control"]).toBe("no-store");
+    expect(plans.json().plans).toEqual([
+      expect.objectContaining({
+        id: "plan_billing_v1",
+        display_name: "Billing Pro",
+        feature_policy: expect.objectContaining({
+          capabilities: ["chat", "tools", "image_generation"]
+        })
+      })
+    ]);
+
+    const purchasePayload = {
+      event_type: "purchase",
+      apply_mode: "apply",
+      provider: "stripe",
+      external_order_id: "pay_123",
+      external_event_id: "evt_123",
+      subject_id: "subj_dev",
+      plan_id: "plan_billing_v1",
+      period_kind: "monthly",
+      period_start: "2026-05-11T00:00:00.000Z",
+      period_end: "2026-06-11T00:00:00.000Z",
+      amount_minor: 1999,
+      currency: "USD",
+      metadata: {
+        sku: "medcode_pro_monthly"
+      }
+    };
+    const purchase = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/entitlement-events",
+      headers: {
+        ...billingHeaders,
+        "Idempotency-Key": "stripe:pay_123:purchase"
+      },
+      payload: purchasePayload
+    });
+    const requestId = expectRequestIdHeader(purchase);
+    expect(purchase.statusCode).toBe(200);
+    expect(purchase.json()).toMatchObject({
+      applied: true,
+      idempotent_replay: false,
+      billing_event: {
+        provider: "stripe",
+        external_order_id: "pay_123",
+        event_type: "purchase",
+        apply_mode: "apply",
+        status: "applied"
+      },
+      plan: {
+        id: "plan_billing_v1",
+        display_name: "Billing Pro"
+      },
+      entitlement: {
+        plan_id: "plan_billing_v1",
+        period_kind: "monthly",
+        period_start: "2026-05-11T00:00:00.000Z",
+        period_end: "2026-06-11T00:00:00.000Z",
+        state: "active"
+      },
+      cancelled_entitlement_ids: []
+    });
+    expect(purchase.json().error).toBeUndefined();
+    expect(requestId).toMatch(/^req-/);
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/entitlement-events",
+      headers: {
+        ...billingHeaders,
+        "Idempotency-Key": "stripe:pay_123:purchase"
+      },
+      payload: purchasePayload
+    });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toMatchObject({
+      applied: true,
+      idempotent_replay: true
+    });
+    expect(replay.json().entitlement.id).toBe(purchase.json().entitlement.id);
+
+    const conflict = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/entitlement-events",
+      headers: {
+        ...billingHeaders,
+        "Idempotency-Key": "stripe:pay_123:purchase"
+      },
+      payload: {
+        ...purchasePayload,
+        amount_minor: 2999
+      }
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error.code).toBe("idempotency_conflict");
+
+    const event = await app.inject({
+      method: "GET",
+      url: `/gateway/admin/billing/v1/entitlement-events/${encodeURIComponent("stripe:pay_123:purchase")}`,
+      headers: billingHeaders
+    });
+    expect(event.statusCode).toBe(200);
+    expect(event.json().billing_event).toMatchObject({
+      idempotency_key: "stripe:pay_123:purchase",
+      status: "applied",
+      entitlement_id: purchase.json().entitlement.id
+    });
+
+    const entitlements = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/users/subj_dev/entitlements",
+      headers: billingHeaders
+    });
+    expect(entitlements.statusCode).toBe(200);
+    expect(entitlements.json().current).toMatchObject({
+      id: purchase.json().entitlement.id,
+      plan_id: "plan_billing_v1"
+    });
+
+    const usage = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/usage?subject_id=subj_dev&from=2026-05-01T00:00:00.000Z&to=2026-06-01T00:00:00.000Z&group_by=day",
+      headers: billingHeaders
+    });
+    expect(usage.statusCode).toBe(200);
+    expect(usage.json().rows).toEqual([
+      {
+        period_start: "2026-05-12T00:00:00.000Z",
+        request_count: 1,
+        success_count: 1,
+        error_count: 0,
+        prompt_tokens: 100,
+        completion_tokens: 20,
+        total_tokens: 120,
+        estimated_tokens: 0
+      }
+    ]);
+
+    await app.close();
+  });
+
+  it("creates billing subjects through v2 provisioning and returns an opaque key only once", async () => {
+    const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+    process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = "billing-subject-secret-1234567890";
+    const store = createSqliteStore({ path: ":memory:" });
+    const upstreamV2Client = new FakeUpstreamV2Client();
+    const billingHeaders = { authorization: "Bearer billing-admin-token-1234567890" };
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      upstreamV2Client,
+      logger: false
+    });
+    const payload = {
+      provider: "medevidence_billing",
+      external_user_id: "bu_abc123",
+      display_name: "Alice",
+      metadata: {
+        signup_source: "web"
+      }
+    };
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/subjects",
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:create_subject"
+        },
+        payload
+      });
+
+      expect(created.statusCode).toBe(200);
+      expect(created.json()).toMatchObject({
+        created: true,
+        idempotent_replay: false,
+        subject: {
+          provider: "medevidence_billing",
+          external_user_id: "bu_abc123",
+          display_name: "Alice",
+          scope_allowlist: ["code"],
+          state: "active"
+        },
+        credential: {
+          key_prefix: expect.stringMatching(/^cgu_live_[A-Za-z0-9]{16}$/),
+          state: "active"
+        }
+      });
+      expect(created.json().credential.key).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
+      expect(upstreamV2Client.calls).toHaveLength(1);
+      expect(upstreamV2Client.calls[0]).toMatchObject({
+        externalProvider: "medevidence_backend",
+        displayName: "Alice",
+        idempotencyKey: expect.stringMatching(/^medevidence:subj_[A-Za-z0-9_-]{24}:create_user$/)
+      });
+      expect(JSON.stringify(upstreamV2Client.calls[0])).not.toContain("scope_allowlist");
+
+      const replay = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/subjects",
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:create_subject"
+        },
+        payload
+      });
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toMatchObject({
+        created: false,
+        idempotent_replay: true,
+        subject: {
+          id: created.json().subject.id
+        }
+      });
+      expect(replay.json().credential).not.toHaveProperty("key");
+      expect(upstreamV2Client.calls).toHaveLength(1);
+
+      const byExternal = await app.inject({
+        method: "GET",
+        url: "/gateway/admin/billing/v1/subjects?provider=medevidence_billing&external_user_id=bu_abc123",
+        headers: billingHeaders
+      });
+      expect(byExternal.statusCode).toBe(200);
+      expect(byExternal.json()).toMatchObject({
+        subject: {
+          id: created.json().subject.id,
+          external_user_id: "bu_abc123"
+        },
+        credentials: [
+          expect.objectContaining({
+            key_prefix: created.json().credential.key_prefix
+          })
+        ]
+      });
+      expect(JSON.stringify(byExternal.json())).not.toContain(created.json().credential.key);
+
+      const duplicateExternal = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/subjects",
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:create_subject:second"
+        },
+        payload
+      });
+      expect(duplicateExternal.statusCode).toBe(409);
+      expect(duplicateExternal.json().error.code).toBe("subject_already_exists");
+      expect(upstreamV2Client.calls).toHaveLength(1);
+
+      const rotated = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/keys`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:rotate_key:req_1"
+        },
+        payload: {
+          reason: "user_lost_key"
+        }
+      });
+      expect(rotated.statusCode).toBe(200);
+      expect(rotated.json()).toMatchObject({
+        rotated: true,
+        idempotent_replay: false,
+        subject: {
+          id: created.json().subject.id,
+          state: "active"
+        },
+        credential: {
+          key_prefix: expect.stringMatching(/^cgu_live_[A-Za-z0-9]{16}$/),
+          state: "active"
+        },
+        revoked_credential_ids: [expect.any(String)],
+        revoked_unified_key_ids: [created.json().credential.id]
+      });
+      expect(rotated.json().credential.key).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
+      expect(rotated.json().credential.key).not.toBe(created.json().credential.key);
+
+      const rotateReplay = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/keys`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:rotate_key:req_1"
+        },
+        payload: {
+          reason: "user_lost_key"
+        }
+      });
+      expect(rotateReplay.statusCode).toBe(200);
+      expect(rotateReplay.json()).toMatchObject({
+        rotated: false,
+        idempotent_replay: true
+      });
+      expect(rotateReplay.json().credential).not.toHaveProperty("key");
+
+      const disabled = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/disable`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:disable_subject:evt_1"
+        },
+        payload: {
+          reason: "user_requested_deletion"
+        }
+      });
+      expect(disabled.statusCode).toBe(200);
+      expect(disabled.json()).toMatchObject({
+        disabled: true,
+        idempotent_replay: false,
+        subject: {
+          id: created.json().subject.id,
+          state: "disabled"
+        },
+        revoked_unified_key_ids: expect.arrayContaining([rotated.json().credential.id])
+      });
+      expect(upstreamV2Client.disableCalls).toHaveLength(1);
+      expect(upstreamV2Client.disableCalls[0]).toMatchObject({
+        externalUserId: created.json().subject.id,
+        idempotencyKey: `medevidence:${created.json().subject.id}:disable_user`
+      });
+
+      const disableReplay = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/disable`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key": "medevidence_billing:bu_abc123:disable_subject:evt_1"
+        },
+        payload: {
+          reason: "user_requested_deletion"
+        }
+      });
+      expect(disableReplay.statusCode).toBe(200);
+      expect(disableReplay.json()).toMatchObject({
+        disabled: false,
+        idempotent_replay: true,
+        subject: {
+          state: "disabled"
+        }
+      });
+      expect(upstreamV2Client.disableCalls).toHaveLength(1);
+    } finally {
+      await app.close();
+      if (previousSecret === undefined) {
+        delete process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+      } else {
+        process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = previousSecret;
+      }
+    }
+  });
+
+  it("sends a non-PII default display name to v2 when billing display name is omitted", async () => {
+    const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+    process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = "billing-subject-secret-1234567890";
+    const store = createSqliteStore({ path: ":memory:" });
+    const upstreamV2Client = new FakeUpstreamV2Client();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      upstreamV2Client,
+      logger: false
+    });
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/subjects",
+        headers: {
+          authorization: "Bearer billing-admin-token-1234567890",
+          "Idempotency-Key": "medevidence_billing:bu_no_name:create_subject"
+        },
+        payload: {
+          provider: "medevidence_billing",
+          external_user_id: "bu_no_name",
+          metadata: {
+            signup_source: "web"
+          }
+        }
+      });
+
+      expect(created.statusCode).toBe(200);
+      const subjectId = created.json().subject.id;
+      expect(created.json().subject.display_name).toBeNull();
+      expect(upstreamV2Client.calls).toHaveLength(1);
+      expect(upstreamV2Client.calls[0]).toMatchObject({
+        externalProvider: "medevidence_backend",
+        externalUserId: subjectId,
+        displayName: `internal:${subjectId}`
+      });
+    } finally {
+      await app.close();
+      if (previousSecret === undefined) {
+        delete process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+      } else {
+        process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = previousSecret;
+      }
+    }
+  });
+
+  it("rejects billing subject external_user_id values that cannot be parsed in v2 idempotency keys", async () => {
+    const { store } = createCredentialBackedStore();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      upstreamV2Client: new FakeUpstreamV2Client(),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/subjects",
+      headers: {
+        authorization: "Bearer billing-admin-token-1234567890",
+        "Idempotency-Key": "medevidence_billing:bu:bad:create_subject"
+      },
+      payload: {
+        provider: "medevidence_billing",
+        external_user_id: "bu:bad"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("invalid_external_user_id");
+
+    await app.close();
+  });
+
+  it("rejects sensitive billing metadata before creating an idempotency row", async () => {
+    const { store } = createCredentialBackedStore();
+    store.createPlan({
+      id: "plan_billing_sensitive_v1",
+      displayName: "Billing Sensitive",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/entitlement-events",
+      headers: {
+        authorization: "Bearer billing-admin-token-1234567890",
+        "Idempotency-Key": "stripe:pay_sensitive:purchase"
+      },
+      payload: {
+        event_type: "purchase",
+        provider: "stripe",
+        external_order_id: "pay_sensitive",
+        subject_id: "subj_dev",
+        plan_id: "plan_billing_sensitive_v1",
+        period_kind: "monthly",
+        period_start: "2026-05-11T00:00:00.000Z",
+        period_end: "2026-06-11T00:00:00.000Z",
+        metadata: {
+          customer_email: "user@example.com"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("invalid_request");
+    expect(store.listBillingEvents().events).toEqual([]);
 
     await app.close();
   });
@@ -467,6 +1391,13 @@ describe("gateway phase 1 routes", () => {
       expiresAt: new Date("2030-02-01T00:00:00Z"),
       now: new Date("2026-01-01T00:00:00Z")
     });
+    const smoke = issueAccessCredential({
+      subjectId: "openai-public-smoke-123",
+      label: "Public smoke event credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
     store.upsertSubject({
       id: "subj_zhang",
       label: "Zhang Sheng",
@@ -475,7 +1406,16 @@ describe("gateway phase 1 routes", () => {
       state: "active",
       createdAt: new Date("2026-01-01T00:00:00Z")
     });
+    store.upsertSubject({
+      id: "openai-public-smoke-123",
+      label: "public-openai-smoke",
+      name: "Public OpenAI Smoke",
+      phoneNumber: "+15550000000",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
     store.insertAccessCredential(second.record);
+    store.insertAccessCredential(smoke.record);
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
     const app = buildGateway({
       authMode: "credential",
@@ -503,6 +1443,9 @@ describe("gateway phase 1 routes", () => {
     expect(page.statusCode).toBe(200);
     expect(page.headers["content-type"]).toContain("text/html");
     expect(page.body).toContain("Gateway Client Messages");
+    expect(page.body).toContain('id="userSearch"');
+    expect(page.body).toContain('id="userList"');
+    expect(page.body).not.toContain('list="subjects"');
     expect(page.body).toContain("Admin token required");
     expect(unauthenticated.statusCode).toBe(401);
     expect(userCredential.statusCode).toBe(401);
@@ -529,6 +1472,17 @@ describe("gateway phase 1 routes", () => {
         text: "Second user detailed prompt"
       })
     });
+    await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers: { authorization: `Bearer ${smoke.token}` },
+      payload: clientMessagePayload({
+        event_id: "evt_admin_smoke_1",
+        session_id: "ses_admin_smoke_1",
+        message_id: "msg_admin_smoke_1",
+        text: "Smoke prompt should be hidden"
+      })
+    });
 
     const preview = await app.inject({
       method: "GET",
@@ -538,8 +1492,10 @@ describe("gateway phase 1 routes", () => {
     expect(preview.statusCode).toBe(200);
     expect(preview.json().messages).toHaveLength(2);
     expect(preview.json().messages[0].text).toBeUndefined();
+    expect(JSON.stringify(preview.json()).toLowerCase()).not.toContain("smoke");
     expect(JSON.stringify(preview.json())).not.toContain(issued.token);
     expect(JSON.stringify(preview.json())).not.toContain(second.token);
+    expect(JSON.stringify(preview.json())).not.toContain(smoke.token);
     expect(JSON.stringify(preview.json())).not.toContain("admin-messages-token-1234567890");
 
     const full = await app.inject({
@@ -560,6 +1516,16 @@ describe("gateway phase 1 routes", () => {
       },
       text: "Second user detailed prompt"
     });
+
+    const smokeQuery = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?user=smoke&include_text=1&limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(smokeQuery.statusCode).toBe(200);
+    expect(smokeQuery.json().messages).toEqual([]);
+    expect(JSON.stringify(smokeQuery.json().subjects).toLowerCase()).not.toContain("smoke");
+    expect(JSON.stringify(smokeQuery.json().messages).toLowerCase()).not.toContain("smoke");
 
     await app.close();
   });
@@ -1428,6 +2394,37 @@ describe("gateway phase 1 routes", () => {
         CODEX_HOME: "/var/lib/codex-gateway/codex-home"
       })
     ).toThrow("Production runtime requires GATEWAY_AUTH_MODE=credential");
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        GATEWAY_UPSTREAM_V2_BASE_URL: "https://v2.internal"
+      })
+    ).toThrow("GATEWAY_UPSTREAM_V2_BASE_URL and GATEWAY_UPSTREAM_V2_TOKEN together");
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        GATEWAY_BILLING_ADMIN_TOKEN: "billing-admin-token-1234567890"
+      })
+    ).toThrow("Production billing admin API requires GATEWAY_API_KEY_ENCRYPTION_SECRET");
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        GATEWAY_BILLING_ADMIN_TOKEN: "billing-admin-token-1234567890",
+        GATEWAY_API_KEY_ENCRYPTION_SECRET: "billing-subject-secret-1234567890"
+      })
+    ).toThrow("Production billing subject provisioning requires GATEWAY_UPSTREAM_V2_BASE_URL");
   });
 
   it("validates configured upstream reasoning effort", async () => {
@@ -4032,6 +5029,63 @@ function createCredentialBackedStore(rate?: RateLimitPolicy) {
     issued,
     headers: { authorization: `Bearer ${issued.token}` }
   };
+}
+
+function createImageEntitledStore() {
+  const store = createSqliteStore({ path: ":memory:" });
+  const issued = issueAccessCredential({
+    subjectId: "subj_dev",
+    label: "Image generation credential",
+    scope: "code",
+    expiresAt: new Date("2030-02-01T00:00:00Z"),
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+  store.upsertSubject({
+    id: "subj_dev",
+    label: "Credential Subject",
+    state: "active",
+    createdAt: new Date("2026-01-01T00:00:00Z")
+  });
+  store.insertAccessCredential(issued.record);
+  store.createPlan({
+    id: "plan_image_v1",
+    displayName: "Image Trial",
+    scopeAllowlist: ["code"],
+    policy: unrestrictedTokenPolicy(),
+    featurePolicy: imageFeaturePolicy(),
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+  store.grantEntitlement({
+    subjectId: "subj_dev",
+    planId: "plan_image_v1",
+    periodKind: "unlimited",
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+
+  return {
+    store,
+    issued,
+    headers: { authorization: `Bearer ${issued.token}` }
+  };
+}
+
+function unrestrictedTokenPolicy() {
+  return {
+    tokensPerMinute: null,
+    tokensPerDay: null,
+    tokensPerMonth: null,
+    maxPromptTokensPerRequest: null,
+    maxTotalTokensPerRequest: null,
+    reserveTokensPerRequest: 0,
+    missingUsageCharge: "none" as const
+  };
+}
+
+function imageFeaturePolicy() {
+  return validateFeaturePolicy({
+    capabilities: ["chat", "tools", "image_generation"] as const,
+    imageGeneration: defaultImageGenerationFeaturePolicy()
+  });
 }
 
 function clientMessagePayload(overrides: Record<string, unknown> = {}) {

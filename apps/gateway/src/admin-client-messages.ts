@@ -112,8 +112,14 @@ export function buildAdminClientMessagesPayload(input: {
   const limit = parseInteger(input.query.limit, 100, 1, 1000);
   const previewChars = parseInteger(input.query.preview_chars, 240, 40, 2000);
   const includeText = parseBoolean(input.query.include_text);
-  const subjects = input.credentialStore.listSubjects({ includeArchived: false });
-  const credentials = input.credentialStore.listAccessCredentials({ includeRevoked: false });
+  const allSubjects = input.credentialStore.listSubjects({ includeArchived: false });
+  const hiddenSubjectIds = new Set(
+    allSubjects.filter((subject) => isSmokeTestSubject(subject)).map((subject) => subject.id)
+  );
+  const subjects = allSubjects.filter((subject) => !hiddenSubjectIds.has(subject.id));
+  const credentials = input.credentialStore
+    .listAccessCredentials({ includeRevoked: false })
+    .filter((credential) => !hiddenSubjectIds.has(credential.subjectId));
   const subjectById = new Map(subjects.map((subject) => [subject.id, subject]));
   const credentialById = new Map(credentials.map((credential) => [credential.id, credential]));
   const credentialByPrefix = new Map(credentials.map((credential) => [credential.prefix, credential]));
@@ -133,12 +139,16 @@ export function buildAdminClientMessagesPayload(input: {
     ...(input.query.message_id ? { messageId: input.query.message_id } : {}),
     ...(since ? { since } : {}),
     ...(until ? { until } : {}),
-    limit: subjectFilter.kind === "multi" || input.query.q ? Math.max(limit, 1000) : limit
+    limit:
+      subjectFilter.kind === "multi" || input.query.q || hiddenSubjectIds.size > 0
+        ? Math.max(limit, 1000)
+        : limit
   });
   const search = normalizeSearch(input.query.q);
   const allowedSubjectIds =
     subjectFilter.kind === "multi" ? new Set(subjectFilter.subjectIds) : null;
   const messages = rawMessages
+    .filter((message) => !hiddenSubjectIds.has(message.subjectId))
     .filter((message) => !allowedSubjectIds || allowedSubjectIds.has(message.subjectId))
     .filter((message) =>
       search ? messageMatchesSearch(message, subjectById.get(message.subjectId), search) : true
@@ -296,6 +306,77 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       height: 16px;
       padding: 0;
     }
+    .combo {
+      position: relative;
+      min-width: 0;
+    }
+    .combo input {
+      width: 100%;
+      padding-right: 66px;
+    }
+    .combo-clear {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      height: 28px;
+      min-width: 54px;
+      padding: 0 8px;
+      border-color: var(--line-strong);
+      background: #f7f8fa;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .combo-clear:hover {
+      background: #edf1f6;
+      color: var(--text);
+    }
+    .combo-list {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgb(18 23 34 / 16%);
+    }
+    .combo-option {
+      width: 100%;
+      height: auto;
+      min-height: 44px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 0;
+      background: #fff;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+    .combo-option:hover,
+    .combo-option.active {
+      background: #eaf2ff;
+    }
+    .combo-name {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .combo-meta {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
     .meta {
       display: flex;
       flex-wrap: wrap;
@@ -386,8 +467,11 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
   <main>
     <section class="toolbar">
       <label>User
-        <input id="user" list="subjects" placeholder="name / phone / subject">
-        <datalist id="subjects"></datalist>
+        <div class="combo" id="userCombo">
+          <input id="userSearch" type="search" autocomplete="off" placeholder="All users">
+          <button id="userClear" class="combo-clear" type="button">Clear</button>
+          <div id="userList" class="combo-list" role="listbox" hidden></div>
+        </div>
       </label>
       <label>Search
         <input id="q" placeholder="message / session / request">
@@ -430,7 +514,10 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
     const authRequired = ${JSON.stringify(authRequired)};
     const els = {
       token: document.getElementById("token"),
-      user: document.getElementById("user"),
+      userCombo: document.getElementById("userCombo"),
+      userSearch: document.getElementById("userSearch"),
+      userClear: document.getElementById("userClear"),
+      userList: document.getElementById("userList"),
       q: document.getElementById("q"),
       hours: document.getElementById("hours"),
       limit: document.getElementById("limit"),
@@ -442,17 +529,60 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       count: document.getElementById("count"),
       generated: document.getElementById("generated"),
       notice: document.getElementById("notice"),
-      rows: document.getElementById("rows"),
-      subjects: document.getElementById("subjects")
+      rows: document.getElementById("rows")
+    };
+    const state = {
+      subjects: [],
+      selectedSubjectId: "",
+      activeUserIndex: -1
     };
     if (els.token) {
       els.token.value = sessionStorage.getItem("gatewayAdminMessagesToken") || "";
       els.token.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", els.token.value));
     }
     els.refresh.addEventListener("click", () => load());
-    for (const id of ["user", "q", "hours", "limit", "preview", "includeText"]) {
+    for (const id of ["q", "hours", "limit", "preview", "includeText"]) {
       els[id].addEventListener("change", () => load());
     }
+    els.userSearch.addEventListener("focus", () => openUserList());
+    els.userSearch.addEventListener("input", () => {
+      state.selectedSubjectId = "";
+      state.activeUserIndex = -1;
+      renderUserOptions();
+      openUserList();
+    });
+    els.userSearch.addEventListener("keydown", (event) => {
+      const options = currentUserOptions();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        state.activeUserIndex = Math.min(options.length - 1, state.activeUserIndex + 1);
+        renderUserOptions();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        state.activeUserIndex = Math.max(0, state.activeUserIndex - 1);
+        renderUserOptions();
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        if (state.activeUserIndex >= 0 && options[state.activeUserIndex]) {
+          selectUser(options[state.activeUserIndex]);
+        } else {
+          closeUserList();
+          load();
+        }
+      } else if (event.key === "Escape") {
+        closeUserList();
+      }
+    });
+    els.userClear.addEventListener("click", () => {
+      state.selectedSubjectId = "";
+      state.activeUserIndex = -1;
+      els.userSearch.value = "";
+      closeUserList();
+      load();
+    });
+    document.addEventListener("click", (event) => {
+      if (!els.userCombo.contains(event.target)) closeUserList();
+    });
     els.q.addEventListener("keydown", (event) => {
       if (event.key === "Enter") load();
     });
@@ -470,7 +600,11 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
         return;
       }
       const params = new URLSearchParams();
-      setParam(params, "user", els.user.value);
+      if (state.selectedSubjectId) {
+        params.set("subject_id", state.selectedSubjectId);
+      } else {
+        setParam(params, "user", els.userSearch.value);
+      }
       setParam(params, "q", els.q.value);
       setParam(params, "hours", els.hours.value);
       setParam(params, "limit", els.limit.value);
@@ -503,9 +637,11 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
     function render(payload) {
       els.count.textContent = String(payload.messages.length);
       els.generated.textContent = formatTime(payload.generated_at);
-      els.subjects.innerHTML = payload.subjects.map((subject) =>
-        "<option value=\\"" + escapeAttr(subject.name || subject.label || subject.id) + "\\"></option>"
-      ).join("");
+      state.subjects = Array.isArray(payload.subjects) ? payload.subjects : [];
+      if (state.selectedSubjectId && !state.subjects.some((subject) => subject.id === state.selectedSubjectId)) {
+        state.selectedSubjectId = "";
+      }
+      renderUserOptions();
       els.rows.innerHTML = payload.messages.length > 0
         ? payload.messages.map(renderRow).join("")
         : "<tr><td colspan=\\"5\\" class=\\"muted\\">No messages match the current filters.</td></tr>";
@@ -528,6 +664,78 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
         "<td class=\\"ids\\">" + ids + "</td>" +
         "<td class=\\"text\\"><div class=\\"prompt\\">" + escapeHtml(message.text || message.text_preview || "") + "</div></td>" +
       "</tr>";
+    }
+
+    function openUserList() {
+      renderUserOptions();
+      els.userList.hidden = false;
+    }
+
+    function closeUserList() {
+      els.userList.hidden = true;
+    }
+
+    function currentUserOptions() {
+      const search = normalizeText(els.userSearch.value);
+      const subjects = state.subjects.slice().sort((left, right) =>
+        subjectDisplay(left).localeCompare(subjectDisplay(right))
+      );
+      if (!search) return subjects.slice(0, 80);
+      return subjects.filter((subject) =>
+        [
+          subjectDisplay(subject),
+          subject.label,
+          subject.phone_number,
+          subject.id,
+          subject.state
+        ].filter(Boolean).some((value) => normalizeText(value).includes(search))
+      ).slice(0, 80);
+    }
+
+    function renderUserOptions() {
+      const options = currentUserOptions();
+      if (state.activeUserIndex >= options.length) {
+        state.activeUserIndex = options.length - 1;
+      }
+      els.userList.innerHTML = options.length > 0
+        ? options.map((subject, index) => renderUserOption(subject, index)).join("")
+        : "<div class=\\"combo-option muted\\">No matching users</div>";
+      for (const option of els.userList.querySelectorAll("[data-subject-id]")) {
+        option.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          const subject = state.subjects.find((item) => item.id === option.getAttribute("data-subject-id"));
+          if (subject) selectUser(subject);
+        });
+      }
+    }
+
+    function renderUserOption(subject, index) {
+      const active = index === state.activeUserIndex ? " active" : "";
+      const meta = [
+        subject.phone_number,
+        subject.label && subject.label !== subjectDisplay(subject) ? subject.label : "",
+        subject.id
+      ].filter(Boolean).join(" / ");
+      return "<button class=\\"combo-option" + active + "\\" type=\\"button\\" role=\\"option\\" data-subject-id=\\"" + escapeAttr(subject.id) + "\\">" +
+        "<span class=\\"combo-name\\">" + escapeHtml(subjectDisplay(subject)) + "</span>" +
+        "<span class=\\"combo-meta\\">" + escapeHtml(meta) + "</span>" +
+      "</button>";
+    }
+
+    function selectUser(subject) {
+      state.selectedSubjectId = subject.id;
+      state.activeUserIndex = -1;
+      els.userSearch.value = subjectDisplay(subject);
+      closeUserList();
+      load();
+    }
+
+    function subjectDisplay(subject) {
+      return subject.name || subject.label || subject.id || "-";
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim().toLowerCase();
     }
 
     function setParam(params, name, value) {
@@ -630,6 +838,12 @@ function publicSubject(subject: Subject) {
     phone_number: subject.phoneNumber ?? null,
     state: subject.state
   };
+}
+
+function isSmokeTestSubject(subject: Subject): boolean {
+  return [subject.id, subject.label, subject.name]
+    .filter(Boolean)
+    .some((value) => /\bsmoke\b|smoke[-_]/i.test(String(value)) || String(value).toLowerCase().includes("-smoke"));
 }
 
 function resolveSubjectFilter(input: {

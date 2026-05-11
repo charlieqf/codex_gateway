@@ -51,7 +51,10 @@ export function adminAuditRecord(
 export function sanitizeAuditErrorMessage(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   return message
+    .replace(/cmev1\.[A-Za-z0-9._~-]{16,}/g, "cmev1.<redacted>")
+    .replace(/cgu_live_[A-Za-z0-9]{64}/g, "cgu_live_<redacted>")
     .replace(/cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "cgw.<redacted>")
+    .replace(/mev2_live_[A-Za-z0-9_-]+/g, "mev2_live_<redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
 }
 

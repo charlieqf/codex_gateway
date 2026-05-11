@@ -4,9 +4,11 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   issueAccessCredential,
+  issueUnifiedClientKey,
   mergeEntitlementTokenPolicy,
   publicTokenPolicy,
   publicTokenUsage,
+  validateFeaturePolicy,
   validatePlanPolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
@@ -43,6 +45,7 @@ import { registerProvisionUserCommand } from "./commands/provision-user.js";
 import { resolveSubjectUserId } from "./commands/subject-options.js";
 import {
   encryptAccessCredentialToken,
+  encryptGatewaySecret,
   revealAccessCredentialToken
 } from "./crypto.js";
 import {
@@ -72,7 +75,8 @@ import {
   publicEntitlement,
   publicEntitlementAccess,
   publicPlan,
-  publicSubject
+  publicSubject,
+  publicUnifiedClientKey
 } from "./serializers.js";
 import { writeQuotaDashboard } from "./quota-dashboard.js";
 
@@ -253,6 +257,168 @@ program
     );
   });
 
+const unifiedKeyCommand = program
+  .command("unified-key")
+  .description("Manage Gateway-brokered client unified keys.");
+
+unifiedKeyCommand
+  .command("issue")
+  .description("Issue a cgu_live unified client key backed by Gateway and MedEvidence keys.")
+  .requiredOption("--user <id>", "user id")
+  .requiredOption("--codex-credential-prefix <prefix>", "existing Gateway API key prefix to include")
+  .option("--medevidence-key <plaintext>", "MedEvidence API key plaintext; prefer --medevidence-key-env")
+  .option("--medevidence-key-env <name>", "environment variable containing the MedEvidence API key")
+  .option("--medevidence-key-prefix <prefix>", "public MedEvidence key prefix for support lookup")
+  .option("--medevidence-base-url <url>", "MedEvidence service base URL to return from resolve")
+  .option("--label <label>", "unified key label", "Desktop unified key")
+  .option("--expires-days <days>", "days until unified key expiration", parsePositiveInteger)
+  .option("--expires-at <iso>", "absolute unified key expiration", parseDate)
+  .action((options: UnifiedKeyIssueOptions) => {
+    withAuditedStore(
+      {
+        action: "unified-key-issue",
+        targetUserId: options.user,
+        targetCredentialPrefix: options.codexCredentialPrefix,
+        params: {
+          codex_credential_prefix: options.codexCredentialPrefix,
+          label: options.label,
+          expires_days: options.expiresDays,
+          expires_at: options.expiresAt?.toISOString(),
+          medevidence_key_prefix: options.medevidenceKeyPrefix,
+          medevidence_base_url: normalizeOptionalText(options.medevidenceBaseUrl),
+          medevidence_key_source: options.medevidenceKeyEnv ? "env" : options.medevidenceKey ? "argument" : null
+        }
+      },
+      (store) => {
+        if (options.expiresDays !== undefined && options.expiresAt !== undefined) {
+          throw new Error("Use --expires-days or --expires-at, not both.");
+        }
+        const subject = store.getSubject(options.user);
+        if (!subject) {
+          throw new Error(`User not found: ${options.user}`);
+        }
+        if (subject.state !== "active") {
+          throw new Error(`User is not active: ${options.user}`);
+        }
+        const codexCredential = store.getAccessCredentialByPrefix(options.codexCredentialPrefix);
+        if (!codexCredential || codexCredential.subjectId !== options.user) {
+          throw new Error(
+            `Gateway credential prefix not found for user ${options.user}: ${options.codexCredentialPrefix}`
+          );
+        }
+        if (credentialStatus(codexCredential, subject, new Date()) !== "active") {
+          throw new Error(`Gateway credential is not active: ${options.codexCredentialPrefix}`);
+        }
+        const codexToken = revealAccessCredentialToken(codexCredential);
+        if (!codexToken) {
+          throw new Error(
+            `Gateway credential token is not recoverable; rotate the key first: ${options.codexCredentialPrefix}`
+          );
+        }
+        const medevidenceToken = resolveMedevidenceKeyPlaintext(options);
+        const expiresAt = options.expiresAt ?? addDays(new Date(), options.expiresDays ?? 56);
+        const issued = issueUnifiedClientKey({
+          subjectId: options.user,
+          label: options.label,
+          expiresAt,
+          codexCredentialId: codexCredential.id,
+          codexCredentialPrefix: codexCredential.prefix,
+          codexKeyCiphertext: encryptGatewaySecret(codexToken),
+          medevidenceKeyCiphertext: encryptGatewaySecret(medevidenceToken),
+          medevidenceKeyPrefix:
+            normalizeOptionalText(options.medevidenceKeyPrefix) ?? keyPrefix(medevidenceToken),
+          metadata: normalizeOptionalText(options.medevidenceBaseUrl)
+            ? { medevidence_base_url: normalizeOptionalText(options.medevidenceBaseUrl) }
+            : null
+        });
+        store.insertUnifiedClientKey(issued.record);
+        return {
+          output: {
+            unified_key: issued.token,
+            key: publicUnifiedClientKey(issued.record, subject),
+            resolve: {
+              method: "POST",
+              path: "/gateway/unified-keys/resolve"
+            }
+          },
+          audit: {
+            targetUserId: options.user,
+            targetCredentialId: issued.record.id,
+            targetCredentialPrefix: issued.record.prefix,
+            params: {
+              codex_credential_prefix: codexCredential.prefix,
+              medevidence_key_prefix: issued.record.medevidenceKeyPrefix,
+              expires_at: issued.record.expiresAt.toISOString()
+            }
+          }
+        };
+      }
+    );
+  });
+
+unifiedKeyCommand
+  .command("list")
+  .description("List unified client keys.")
+  .option("--user <id>", "filter by user id")
+  .option("--active-only", "hide revoked or expired keys")
+  .action((options: { user?: string; activeOnly?: boolean }) => {
+    withStore((store) => {
+      const now = new Date();
+      const subjects = subjectMap(store.listSubjects({ includeArchived: true }));
+      const keys = store
+        .listUnifiedClientKeys({
+          subjectId: options.user,
+          includeRevoked: options.activeOnly ? false : true
+        })
+        .filter((key) => !options.activeOnly || (!key.revokedAt && key.expiresAt.getTime() > now.getTime()));
+      printJson({
+        keys: keys.map((key) => publicUnifiedClientKey(key, subjects.get(key.subjectId) ?? null))
+      });
+    });
+  });
+
+unifiedKeyCommand
+  .command("show")
+  .argument("<prefix>")
+  .description("Show unified client key metadata by prefix.")
+  .action((prefix) => {
+    withStore((store) => {
+      const key = store.getUnifiedClientKeyByPrefix(prefix);
+      if (!key) {
+        throw new Error(`Unified key prefix not found: ${prefix}`);
+      }
+      printJson({
+        key: publicUnifiedClientKey(key, store.getSubject(key.subjectId))
+      });
+    });
+  });
+
+unifiedKeyCommand
+  .command("revoke")
+  .argument("<prefix>")
+  .description("Revoke a unified client key by prefix.")
+  .action((prefix) => {
+    withAuditedStore(
+      { action: "unified-key-revoke", targetCredentialPrefix: prefix },
+      (store) => {
+        const revoked = store.revokeUnifiedClientKeyByPrefix(prefix);
+        if (!revoked) {
+          throw new Error(`Unified key prefix not found: ${prefix}`);
+        }
+        return {
+          output: {
+            key: publicUnifiedClientKey(revoked, store.getSubject(revoked.subjectId))
+          },
+          audit: {
+            targetUserId: revoked.subjectId,
+            targetCredentialId: revoked.id,
+            targetCredentialPrefix: revoked.prefix
+          }
+        };
+      }
+    );
+  });
+
 program
   .command("list-users")
   .description("List users.")
@@ -278,6 +444,7 @@ planCommand
   .description("Create an immutable plan template.")
   .requiredOption("--id <id>", "plan id, e.g. plan_pro_v1")
   .requiredOption("--policy-file <path>", "JSON token policy file")
+  .option("--feature-policy-file <path>", "JSON feature policy file")
   .option("--display-name <name>", "public display name")
   .option("--scope <list>", "comma-separated scopes", parseScopeList, ["code"])
   .option("--priority-class <n>", "reserved for future scheduling", parseNonNegativeInteger, 5)
@@ -291,7 +458,8 @@ planCommand
           display_name: options.displayName,
           scope_allowlist: options.scope,
           priority_class: options.priorityClass,
-          team_pool_id: options.teamPoolId ?? null
+          team_pool_id: options.teamPoolId ?? null,
+          feature_policy_file: options.featurePolicyFile ?? null
         }
       },
       (store) => {
@@ -299,6 +467,9 @@ planCommand
           id: options.id,
           displayName: options.displayName ?? options.id,
           policy: readTokenPolicyFile(options.policyFile),
+          featurePolicy: options.featurePolicyFile
+            ? readFeaturePolicyFile(options.featurePolicyFile)
+            : undefined,
           scopeAllowlist: options.scope,
           priorityClass: options.priorityClass,
           teamPoolId: options.teamPoolId ?? null
@@ -1200,6 +1371,18 @@ interface UpdateKeyOptions {
   entitlementCheck?: boolean;
 }
 
+interface UnifiedKeyIssueOptions {
+  user: string;
+  codexCredentialPrefix: string;
+  medevidenceKey?: string;
+  medevidenceKeyEnv?: string;
+  medevidenceKeyPrefix?: string;
+  medevidenceBaseUrl?: string;
+  label: string;
+  expiresDays?: number;
+  expiresAt?: Date;
+}
+
 interface UpdateUserOptions {
   label?: string;
   name?: string;
@@ -1956,6 +2139,10 @@ function readTokenPolicyFile(filePath: string): TokenLimitPolicy {
   return validatePlanPolicy(parsed);
 }
 
+function readFeaturePolicyFile(filePath: string) {
+  return validateFeaturePolicy(JSON.parse(readFileSync(filePath, "utf8")));
+}
+
 function resolveTokenWindowPolicy(
   store: ReturnType<typeof createSqliteStore>,
   userId: string,
@@ -2067,6 +2254,31 @@ function normalizeOptionalText(value: string | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveMedevidenceKeyPlaintext(options: UnifiedKeyIssueOptions): string {
+  const fromArgument = normalizeOptionalText(options.medevidenceKey);
+  const envName = normalizeOptionalText(options.medevidenceKeyEnv);
+  if (fromArgument && envName) {
+    throw new Error("Use --medevidence-key or --medevidence-key-env, not both.");
+  }
+
+  const token = envName ? normalizeOptionalText(process.env[envName]) : fromArgument;
+  if (!token) {
+    throw new Error("Set --medevidence-key-env or --medevidence-key.");
+  }
+  if (/\s/.test(token)) {
+    throw new Error("MedEvidence key cannot contain whitespace.");
+  }
+  return token;
+}
+
+function keyPrefix(token: string): string | null {
+  const trimmed = token.trim();
+  if (trimmed.startsWith("mev2_live_")) {
+    return trimmed.slice(0, Math.min(trimmed.length, 24));
+  }
+  return null;
 }
 
 function addDays(date: Date, days: number): Date {

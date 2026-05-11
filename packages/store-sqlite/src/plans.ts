@@ -12,13 +12,14 @@ export function create(db: DatabaseSync, input: CreatePlanInput): Plan {
   const plan = normalizeCreatePlanInput(input);
   db.prepare(
     `INSERT INTO plans (
-      id, display_name, policy_json, scope_allowlist_json, priority_class,
+      id, display_name, policy_json, feature_policy_json, scope_allowlist_json, priority_class,
       team_pool_id, state, created_at, metadata_json
-    ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
   ).run(
     plan.id,
     plan.displayName,
     JSON.stringify(plan.policy),
+    JSON.stringify(plan.featurePolicy),
     JSON.stringify(plan.scopeAllowlist),
     plan.priorityClass,
     plan.teamPoolId,

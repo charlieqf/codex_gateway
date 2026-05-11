@@ -1,4 +1,9 @@
 import type { Scope } from "./types.js";
+import {
+  defaultFeaturePolicy,
+  validateFeaturePolicy,
+  type FeaturePolicy
+} from "./feature-policy.js";
 import { type TokenLimitPolicy, validateTokenPolicy } from "./token-budget.js";
 
 export type PlanState = "active" | "deprecated";
@@ -9,6 +14,7 @@ export interface Plan {
   id: string;
   displayName: string;
   policy: TokenLimitPolicy;
+  featurePolicy: FeaturePolicy;
   scopeAllowlist: Scope[];
   priorityClass: number;
   teamPoolId: string | null;
@@ -22,6 +28,7 @@ export interface Entitlement {
   subjectId: string;
   planId: string;
   policySnapshot: TokenLimitPolicy;
+  featurePolicySnapshot: FeaturePolicy;
   scopeAllowlist: Scope[];
   periodKind: PeriodKind;
   periodStart: Date;
@@ -38,6 +45,7 @@ export interface CreatePlanInput {
   id: string;
   displayName: string;
   policy: TokenLimitPolicy;
+  featurePolicy?: FeaturePolicy;
   scopeAllowlist: Scope[];
   priorityClass?: number;
   teamPoolId?: string | null;
@@ -104,6 +112,10 @@ export interface PlanEntitlementStore {
 
 export function validatePlanPolicy(policy: TokenLimitPolicy): TokenLimitPolicy {
   return validateTokenPolicy(policy);
+}
+
+export function validatePlanFeaturePolicy(policy: unknown): FeaturePolicy {
+  return validateFeaturePolicy(policy ?? defaultFeaturePolicy());
 }
 
 export function mergeEntitlementTokenPolicy(
