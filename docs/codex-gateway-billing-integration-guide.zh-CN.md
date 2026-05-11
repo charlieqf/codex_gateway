@@ -5,6 +5,8 @@
 
 本文给出 MedEvidence 提供给收费/充值团队的后台 API contract、事件语义、双方分工、上线节奏和待对齐问题。
 
+说明：本文描述 P0/P1 目标 contract。当前测试环境可实际联调的 endpoint、token 交付和已完成冒烟，以 `docs/codex-gateway-billing-p0-joint-test-handoff.zh-CN.md` 为准。
+
 - **P0** 实现"用户注册建账"和"支付成功后开通或变更模型访问权益"，覆盖 subject 开户、plan、entitlement、capability、token usage 对账。
 - **P1** 在 P0 基础上增加预付费余额账本、token / image 按 cost unit 扣减、退款冲正、余额过期，并将 image usage 接入对账。
 
@@ -95,7 +97,7 @@ Content-Type: application/json
 
 ### 3.3 限流
 
-Billing 路由有独立 webhook / 注册限流，超限返回 `429 rate_limited`。请收费团队启用指数退避，并支持 dead-letter queue。注册接口对单 IP / 单 `external_user_id` 还有更紧的速率限制，详见 §4.5。
+Billing 路由有独立后台调用限流，当前测试环境默认 `120 rpm / 10000 rpd / 8 concurrent`，超限返回 `429 rate_limited` 并带 `Retry-After`。请收费团队启用指数退避，并支持 dead-letter queue。注册专项限流会在 §4 subject 开户正式开放前单独确认。
 
 ### 3.4 contract 稳定性
 
@@ -289,7 +291,7 @@ Content-Type: application/json
 
 ### 4.6 注册限流与防滥用
 
-MedEvidence 后端对注册路径有独立限流：
+Subject 开户正式开放时，MedEvidence 后端会对注册路径启用独立限流。目标策略如下，最终数值以联调 handoff 为准：
 
 - **单 IP**：默认 60/小时（按调用方公网 IP 或 `X-Forwarded-For` 第一跳计算）。
 - **单 `(provider, external_user_id)`**：3 次/小时（防止收费侧 retry 风暴重复建账）。
@@ -468,7 +470,7 @@ Authorization: Bearer <token>
 `idempotency_key` 包含 `:` 等保留字符，path 形式必须 URL-encode。也可使用 query 形式：
 
 ```http
-GET /gateway/admin/billing/v1/entitlement-events?provider=stripe&external_order_id=pay_123&event_type=purchase
+GET /gateway/admin/billing/v1/entitlement-events?provider=stripe&external_order_id=pay_123
 ```
 
 ### 5.4 列出 billing event

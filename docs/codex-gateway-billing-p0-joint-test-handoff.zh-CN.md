@@ -10,6 +10,7 @@
 - Billing Admin 前缀：`/gateway/admin/billing/v1`
 - 认证：`Authorization: Bearer <billing-admin-token>`
 - Token 由 Gateway 运维侧通过安全渠道单独交付；不要写入代码库、日志、截图或工单正文。
+- 当前部署版本：`e1efe72`（2026-05-11）。本次发布由本地打包上传到 VM 后重建容器完成，不要求联调方从 Git 拉代码。
 
 普通 `cgw.*`、`cmev1.*`、`cgu_live_*` 业务 key 不能访问 Billing Admin API。
 
@@ -24,11 +25,13 @@
 - `GET /gateway/admin/billing/v1/users/{subject_id}/entitlements`
 - `GET /gateway/admin/billing/v1/usage?subject_id=...&from=...&to=...&group_by=day`
 
-暂未开放：
+暂不纳入本轮联调：
 
 - `/subjects` 注册、查询、禁用接口。
 - `/subjects/{subject_id}/keys` 发 key 接口。
 - P1 充值钱包：`credit-events`、`balance`、`ledger`。
+
+说明：`/subjects` 相关 route 已随 Gateway 部署，但当前测试环境还未配置 MedEvidence v2 provisioning 的 `base_url/token`，因此自动开户注册和 key 轮换不作为本轮收费团队联调范围；误调用可能返回 `503 service_unavailable`。本轮先联调已存在 `subject_id` 上的支付事件、entitlement 和 usage。
 
 因此当前 P0 联调前提是：`subject_id` 已由 Gateway 侧或现有注册流程创建。收费团队可以先联调“支付事件 -> entitlement 生效/暂停/恢复/取消 -> 查询权益和 usage”的链路。
 
@@ -94,3 +97,4 @@ Idempotency-Key: <provider>:<order-or-subscription-id>:<event-type>:<event-id>
 - 带 billing token 访问 `/plans` 返回 `plan_paid_monthly_v1`。
 - 临时 subject 完成 `purchase`、幂等 replay、`cancel`、entitlements 查询。
 - 临时 key 已撤销，临时用户已禁用。
+- Gateway 公网 OpenAI-compatible smoke、`/gateway/credentials/current`、strict tools smoke 均通过。
