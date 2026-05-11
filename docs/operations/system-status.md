@@ -81,6 +81,14 @@ Completed:
     `cooldown_until`; stateless chat retries at most once before client-visible
     business output; existing sessions never fail over.
   - `request_events.upstream_account_id` records the selected runtime account.
+- Live P4 two-account upstream Codex pool configuration:
+  - The controlled-trial gateway now sets
+    `GATEWAY_UPSTREAM_ACCOUNTS_JSON=/var/lib/codex-gateway/upstream-accounts.json`.
+  - The pool contains the existing `sub_openai_codex_dev` login state and a
+    second `codex-plus-1` login state, each with `maxConcurrent: 1`.
+  - Both `CODEX_HOME` directories passed real Codex SDK probes from inside the
+    running gateway container, and post-restart smoke events recorded successful
+    requests on both upstream account ids.
 - Local P4c upstream-account image binding implementation:
   - `upstream_accounts.image_api_key_env` is migrated and bootstrap-upserted as
     non-secret config metadata while preserving account runtime state.
@@ -91,6 +99,13 @@ Completed:
     independent image-side inflight, cooldown, key-invalid state, retry before
     response body write, and legacy single-key fallback only when no image
     binding is declared.
+- Live P4c per-account image binding configuration:
+  - `sub_openai_codex_dev` declares
+    `imageApiKeyEnv=MEDCODE_IMAGE_OPENAI_API_KEY`.
+  - `codex-plus-1` declares
+    `imageApiKeyEnv=MEDCODE_IMAGE_OPENAI_API_KEY_B`.
+  - Both image env names are logged and stored as non-secret metadata only; API
+    key values remain in the deployment env file and are not printed.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
@@ -104,10 +119,8 @@ Not completed:
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Systemd ownership/monitoring for the long-running container.
-- Production configuration of a real multi-account upstream pool and a real
-  two-account `codexHome` VM smoke remain pending. The deployed gateway code
-  supports P4/P4c, but the live runtime still uses the existing single-account
-  configuration until `GATEWAY_UPSTREAM_ACCOUNTS_JSON` is added deliberately.
+- Additional image-provider health automation remains pending; current image
+  validation is manual smoke plus request-event inspection.
 
 ## Verified Runtime
 
@@ -122,6 +135,33 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-12 the live controlled-trial gateway enabled P4c image binding for
+  both upstream accounts. The second image API key is configured as
+  `MEDCODE_IMAGE_OPENAI_API_KEY_B` and bound to `codex-plus-1`; after the
+  OpenAI project billing limit was corrected, a real
+  `/gateway/images/generations` smoke succeeded on `codex-plus-1` with
+  `request_events.upstream_account_id=codex-plus-1`. A follow-up image smoke on
+  `sub_openai_codex_dev` also succeeded. The gateway was recreated healthy and
+  still publishes only `127.0.0.1:18787->8787`.
+- 2026-05-12 public smoke after enabling both image bindings passed against
+  `https://gw.instmarket.com.au`: OpenAI-compatible health/auth/model/chat,
+  tool-result history, streaming SSE, and strict client-defined tools
+  required/named/none/follow-up flows. Temporary smoke API keys/users were
+  revoked and disabled by the scripts.
+- 2026-05-12 the live controlled-trial gateway was switched from the single
+  `CODEX_HOME` fallback to a real two-account upstream Codex pool. The existing
+  account id `sub_openai_codex_dev` was preserved for session compatibility,
+  `codex-plus-1` was added with
+  `/var/lib/codex-gateway/codex-home-plus`, both accounts passed SDK probes
+  inside the gateway container, and `upstream_accounts` shows both accounts
+  active. The gateway container was recreated healthy and still publishes only
+  `127.0.0.1:18787->8787`.
+- 2026-05-12 public smoke after enabling the two-account pool passed against
+  `https://gw.instmarket.com.au`: OpenAI-compatible health/auth/model/chat,
+  tool-result history, streaming SSE, and strict client-defined tools
+  required/named/none/follow-up flows. Temporary smoke API keys/users were
+  revoked and disabled by the scripts. Recent `request_events` show successful
+  post-restart traffic on both `sub_openai_codex_dev` and `codex-plus-1`.
 - 2026-05-12 commit `4e61f98` was pushed and deployed to the live controlled
   trial gateway using a clean release checkout
   `/home/qian/codex-gateway-release-4e61f98-20260511T230214Z`. VM `npm ci`,
