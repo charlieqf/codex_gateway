@@ -86,7 +86,8 @@ Known VM constraints from current testing:
 ## VM Project Paths
 
 Use only user-owned paths for native Node smoke tests and isolated development
-checks:
+checks. The historical checkout below may contain local operator/debug changes;
+do not reset it without an explicit cleanup task:
 
 ```bash
 cd "$HOME/codex-gateway-test"
@@ -102,6 +103,17 @@ Directory permissions:
 ```bash
 chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 ```
+
+The current live gateway is operated from a clean release checkout:
+
+```text
+/home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+```
+
+The directory name records the original runtime deployment commit and is
+historical; the checkout may be detached at a newer docs/scripts commit. Use
+this directory for `compose.azure.yml`, public smoke scripts, and env-file
+updates unless a newer release checkout has been created deliberately.
 
 These `$HOME/codex-gateway-state` paths are not the current production state for
 `gw.instmarket.com.au`. The live gateway runs in Docker Compose project
@@ -119,17 +131,75 @@ directory. For production admin CLI queries, run the CLI inside the running
 container with `sudo docker compose -p codex_gateway_test -f compose.azure.yml
 exec -T gateway ...`.
 
+## Production Upstream Account Pool
+
+The live controlled-trial gateway uses `GATEWAY_UPSTREAM_ACCOUNTS_JSON` and two
+server-side Codex login states in the Docker volume:
+
+```text
+/var/lib/codex-gateway/codex-home
+/var/lib/codex-gateway/codex-home-plus
+/var/lib/codex-gateway/upstream-accounts.json
+```
+
+`sub_openai_codex_dev` preserves the original account id for session
+compatibility. `codex-plus-1` is the second Plus account. Both accounts use
+`maxConcurrent: 1`.
+
+Device login for any additional account must use a distinct `CODEX_HOME` inside
+the gateway state volume and must not print or store device codes after use:
+
+```bash
+sudo docker exec -it codex_gateway_test-gateway-1 sh -lc '
+  export CODEX_HOME=/var/lib/codex-gateway/codex-home-plus
+  mkdir -p "$CODEX_HOME"
+  chmod 700 "$CODEX_HOME"
+  codex login --device-auth
+'
+```
+
+After login, verify the account non-interactively with the same `CODEX_HOME` and
+the packaged runtime's git-repo bypass:
+
+```bash
+sudo docker exec codex_gateway_test-gateway-1 sh -lc '
+  cd /app
+  npm run probe:codex -- \
+    --codex-home /var/lib/codex-gateway/codex-home-plus \
+    --run \
+    --timeout-ms 180000 \
+    --skip-git-repo-check
+'
+```
+
+## Production Image Binding
+
+The live P4c image binding uses env variable names in
+`upstream-accounts.json`, not secret values:
+
+```text
+sub_openai_codex_dev -> MEDCODE_IMAGE_OPENAI_API_KEY
+codex-plus-1         -> MEDCODE_IMAGE_OPENAI_API_KEY_B
+```
+
+The API key values live only in `config/gateway.container.env` and the running
+container environment. Never print or commit them. If an image key fails due to
+project billing, invalid key, or another persistent upstream issue, temporarily
+remove only that account's `imageApiKeyEnv` from
+`/var/lib/codex-gateway/upstream-accounts.json` and recreate the gateway
+container so image traffic does not route to the broken key.
+
 ## Safe VM Test Commands
 
 Build and unit tests:
 
 ```bash
-cd "$HOME/codex-gateway-test"
+cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
 git fetch origin main
-git reset --hard origin/main
+git checkout --detach origin/main
 export NODE_HOME="$HOME/.local/codex-gateway-node"
 export PATH="$NODE_HOME/bin:$PATH"
-npm install
+npm ci
 npm run build
 npm test
 ```
@@ -191,3 +261,14 @@ After any gateway smoke test:
 ss -ltnp 'sport = :18787' || true
 pgrep -af 'node apps/gateway/dist/index.js|codex exec|codex app-server' || true
 ```
+
+Public image smoke for a specific account:
+
+```bash
+cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+TARGET_ACCOUNT=codex-plus-1 bash scripts/public-image-plus-smoke.sh
+TARGET_ACCOUNT=sub_openai_codex_dev bash scripts/public-image-plus-smoke.sh
+```
+
+Run public smoke scripts sequentially. Running multiple scripts that issue or
+revoke temporary API keys at the same time can hit transient SQLite write locks.

@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-04-24
+Last updated: 2026-05-12
 
 ## Safety Rules That Worked
 
@@ -24,6 +24,13 @@ Last updated: 2026-04-24
 - In PowerShell, remote Bash variables such as `$HOME`, `$PATH`, and custom env vars can be expanded locally if the SSH command is double-quoted. For multi-step VM scripts, normalize line endings and transfer a base64-encoded script.
 - If the VM test checkout has harmless local lockfile drift from prior Linux `npm install` optional dependency metadata, do not use `git reset --hard`. Use `git merge --ff-only` when possible and `npm ci` to avoid further lockfile writes.
 - Docker build uses `npm ci` inside the Node container image. If VM-side `npm install` rewrites optional/peer lockfile metadata and Docker later reports missing lockfile entries, repair only the lockfile metadata with the matching container npm generation, verify `npm ci --dry-run`, and keep the checkout clean before rebuilding.
+- When the long-lived VM checkout is dirty, create or reuse a clean release
+  checkout instead of cleaning it in place. The current release checkout name
+  records the original runtime deployment commit and may be detached at a newer
+  docs/scripts commit.
+- Avoid quote-heavy one-line SSH commands from PowerShell when shell variables,
+  JSON, or heredocs are involved. Transfer a temporary script or pipe normalized
+  LF-only content to `bash -s`.
 
 ## Operator Vocabulary
 
@@ -43,6 +50,11 @@ Last updated: 2026-04-24
 - Device-code authorization must be enabled in ChatGPT security settings.
 - Keep the same `CODEX_HOME` for login, probes, gateway tests, and future service runs.
 - `CODEX_HOME/auth.json` was created with `600` permissions; parent directories should be `700`.
+- Each upstream Codex account must use a distinct `CODEX_HOME`. The live
+  account pool currently uses `/var/lib/codex-gateway/codex-home` and
+  `/var/lib/codex-gateway/codex-home-plus` inside the Docker volume.
+- The packaged runtime workdir `/app` is not a git checkout, so real Codex SDK
+  probes from the container need `--skip-git-repo-check`.
 
 ## Gateway Smoke Lessons
 
@@ -69,6 +81,24 @@ Last updated: 2026-04-24
 - The packaged runtime workdir `/app` is not a git checkout. Keep `CODEX_SKIP_GIT_REPO_CHECK=1` for the default container path, or change `CODEX_WORKDIR` to a mounted trusted git checkout before setting it back to `0`.
 - When running `docker compose exec -T` inside a remote heredoc/base64 script, redirect stdin from `/dev/null`; otherwise compose can consume the remaining script input.
 - After adding `GET /gateway/credentials/current`, validate API key UX without burning normal request limits by issuing a temporary key, calling the route once successfully, checking missing and wrong credentials return `401`, then revoking the key and disabling the smoke user.
+- Public smoke scripts that issue/revoke temporary API keys should run
+  sequentially. Running them in parallel can hit transient SQLite write locks
+  in admin audit/key writes.
+- For P4 account-pool changes, preserve the legacy account id
+  `sub_openai_codex_dev` so existing sessions remain sticky and continue to
+  resolve after enabling `GATEWAY_UPSTREAM_ACCOUNTS_JSON`.
+- For P4c image binding, store only env variable names in
+  `/var/lib/codex-gateway/upstream-accounts.json`. API key values belong in the
+  env file/container environment and must not be printed.
+- If an image key is routed successfully but OpenAI returns a persistent project
+  error such as `Billing hard limit has been reached`, temporarily remove that
+  account's `imageApiKeyEnv` and recreate the gateway so live image traffic does
+  not keep selecting the broken key. After billing/key correction, rebind and
+  verify with `scripts/public-image-plus-smoke.sh`.
+- `scripts/public-image-plus-smoke.sh` chooses a temporary credential whose HRW
+  affinity maps to the requested `TARGET_ACCOUNT`, grants a short image-capable
+  entitlement, calls `/gateway/images/generations`, verifies the response, and
+  checks `request_events.upstream_account_id`.
 
 ## Known Pitfalls
 
@@ -79,6 +109,9 @@ Last updated: 2026-04-24
 - Keep public edge services out of the default compose file. On the shared VM, `80/443` must require a separate maintenance task.
 - Docker is now installed on the shared VM, but the `qian` user was not added to the `docker` group. Continue using `sudo docker ...` for controlled operations unless access policy is explicitly changed.
 - Do not leave temporary device-login logs in `/tmp`; remove them after authorization because they can contain one-time device codes.
+- Do not leave temporary key-injection files or smoke scripts in `/tmp`; clean
+  them after use. They can contain one-time device codes, API keys, or
+  operationally sensitive commands.
 - Public internal users need a real public HTTPS entrypoint. On the current shared VM, keep the gateway container loopback-only and add only a dedicated Nginx hostname that proxies to `127.0.0.1:18787` during an approved maintenance window. Do not let Docker/Caddy bind public `80/443` on this host while existing Nginx owns the edge.
 - The approved public internal trial window for `gw.instmarket.com.au` kept Docker loopback-only, added a dedicated Nginx hostname, issued a Let's Encrypt certificate with certbot, and validated public credential auth. A temporary smoke key was revoked and the smoke users were disabled afterward.
 - The Codex Gateway Nginx vhost must never become the default `80/443`
@@ -90,11 +123,14 @@ Last updated: 2026-04-24
 
 ## Current Recommended Next Step
 
-Container loopback validation and public HTTPS routing are complete. The next safe work is to harden OpenAI-compatible trial behavior without changing host edge services:
+Container loopback validation, public HTTPS routing, two upstream Codex account
+pooling, and per-account image binding are complete. The next safe work is to
+operate the controlled trial without changing host edge services:
 
 1. Keep `/v1/chat/completions` as the primary compatibility target.
 2. Verify OpenAI-shaped `tool_calls`, tool-result history messages, streaming chunks, and usage fields after every gateway rebuild.
 3. Verify `GET /gateway/credentials/current` after every gateway rebuild so client login/settings pages can validate API keys without model calls.
-4. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
-5. Keep the gateway container loopback-only and keep Nginx as the only public edge.
-6. Before expanding beyond 10 controlled-trial users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, and scheduled retention.
+4. Verify both `codex-plus-1` and `sub_openai_codex_dev` image bindings after any image-key or billing change.
+5. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
+6. Keep the gateway container loopback-only and keep Nginx as the only public edge.
+7. Before expanding beyond 10 controlled-trial users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, scheduled retention, and image-provider health automation.
