@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-11
+Last updated: 2026-05-12
 
 ## Current Phase
 
@@ -104,10 +104,10 @@ Not completed:
 - Scope enforcement beyond conservative Codex adapter defaults.
 - Scheduled retention automation and materialized usage reports.
 - Systemd ownership/monitoring for the long-running container.
-- Production deployment of the multi-account upstream pool configuration and a
-  real two-account `codexHome` VM smoke remain pending. The current public VM
-  gateway still uses the existing deployed runtime configuration unless a
-  maintenance deployment changes it.
+- Production configuration of a real multi-account upstream pool and a real
+  two-account `codexHome` VM smoke remain pending. The deployed gateway code
+  supports P4/P4c, but the live runtime still uses the existing single-account
+  configuration until `GATEWAY_UPSTREAM_ACCOUNTS_JSON` is added deliberately.
 
 ## Verified Runtime
 
@@ -122,6 +122,20 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-12 commit `4e61f98` was pushed and deployed to the live controlled
+  trial gateway using a clean release checkout
+  `/home/qian/codex-gateway-release-4e61f98-20260511T230214Z`. VM `npm ci`,
+  `npm run build`, and `npm test` passed with 8 test files and 177 tests. The
+  live SQLite files were backed up inside the gateway state volume with suffix
+  `20260511T230252Z`, the Docker image was rebuilt, and the gateway container
+  was recreated healthy as `codex_gateway_test-gateway-1`, still publishing
+  only `127.0.0.1:18787->8787`.
+- 2026-05-12 public smoke after deployment passed against
+  `https://gw.instmarket.com.au`: health, unauthenticated `/v1/models`
+  rejection, wrong-model rejection, model listing, non-stream chat with usage,
+  tool-result history with usage, streaming SSE, strict client-defined tools
+  required/named/none/follow-up flows, and request-id headers. Temporary smoke
+  API keys/users were revoked and disabled by the scripts.
 - 2026-05-11 Local validation for P4 upstream account pool plus P4c
   account-bound image generation passed `npm run build` and `npm test` with 8
   test files and 177 tests.
