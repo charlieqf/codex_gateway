@@ -222,9 +222,11 @@ Most recent Azure VM validation:
   local `npm run build` and `npm test` passed with 117 tests, VM `npm run build`
   passed, and the rebuilt container is healthy on loopback and public health.
 - Current deployed source includes API key contact metadata/reveal support,
-  Phase 1 token usage recording, `gpt-5.5` with high reasoning effort, and the
-  request id / usage aggregation fix that prevents reused Fastify request ids
-  from pinning new usage to old `started_at` timestamps.
+  Phase 1 token usage recording, `gpt-5.5`, and the request id / usage
+  aggregation fix that prevents reused Fastify request ids from pinning new
+  usage to old `started_at` timestamps. The live gateway reasoning effort was
+  lowered from `high` to `medium` on 2026-05-12 after diagnosing long Desktop
+  Research agent turns with very large contexts/outputs.
 - Local Windows validation passed `npm run build` and `npm test` with 6 test files and 65 tests.
 - Azure VM checkout `/home/qian/codex-gateway-test` was updated from the current working tree; VM `npm run build` and `npm test` passed with 6 test files and 65 tests.
 - Docker image rebuild initially exposed VM-side `package-lock.json` platform drift caused by `npm install`; lockfile metadata was corrected with the same npm generation used by the container, `npm ci --dry-run` passed, and the gateway image rebuilt successfully.
