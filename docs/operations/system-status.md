@@ -34,6 +34,12 @@ Completed:
 - Admin CLI `issue`, `list`, `list-users`, `list-active-keys`, `update-user`, `update-key`, `disable-user`, `enable-user`, `revoke`, `rotate`, `reveal-key`, `reveal-keys`, `events`, `report-usage`, `audit`, `trial-check`, and `prune-events`.
 - Admin CLI read-only Desktop client event queries: `client-messages` and `client-diagnostics` across the main `gateway.db` identity store and `client-events.db`, including user/name lookup, credential prefix lookup, unified-key env lookup, prompt preview/full-text switch, and diagnostic metadata filters.
 - Admin CLI read-only MedEvidence tool audit export: `client-medevidence-tool-audit` reads `client_diagnostic_events.metadata_json`, joins matching `client_message_events`, supports recent-window filters, `entrypoint=gateway`, minimum question length, and JSON/JSONL/CSV output for mixed MedEvidence routing guard samples.
+- One-command Desktop E2E opaque key issuance through
+  `scripts/issue-desktop-e2e-opaque-key.ps1`. This uses the live Billing Admin
+  subject API, lets Gateway request the hidden MedEvidence v2 key, grants an
+  active plan entitlement, validates `cgu_live_*` resolve plus
+  `/gateway/credentials/current`, and writes the full key only to a local
+  handoff JSON.
 - Browser-based read-only client message inspection for operators:
   `GET /gateway/admin/client-messages` serves a static live-refresh UI and
   `GET /gateway/admin/client-messages.json` returns recent Desktop messages

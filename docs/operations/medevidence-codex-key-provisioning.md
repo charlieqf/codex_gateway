@@ -1,5 +1,33 @@
 # MedEvidence Codex Gateway Key Provisioning
 
+## Desktop E2E Opaque Key
+
+For Desktop automation that expects the new opaque broker credential, use the
+Gateway-owned billing/v2 provisioning path. This creates a billing subject,
+lets Gateway request the hidden MedEvidence v2 key, grants the configured plan,
+validates resolve/current-credential endpoints, and writes a local handoff JSON.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-opaque-key.ps1
+```
+
+Expected output is a safe JSON summary containing only the `cgu_live_*` prefix
+and the handoff path. The full key is written only to the handoff file under
+`C:\Users\rdpuser\medevidence_api_keys` by default.
+
+Use `-WhatIf` to check the derived provider, external user id, plan, and output
+location without issuing a key:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-opaque-key.ps1 -WhatIf
+```
+
+Do not use `scripts/provision-medevidence-codex-key.ps1` for this path. That
+legacy script starts from an already-issued MedEvidence v2 JSON file and writes
+`cmev1.*`; Desktop E2E opaque handoff should receive only `cgu_live_*`.
+
+## Legacy cmev1 JSON Provisioning
+
 Use `scripts/provision-medevidence-codex-key.ps1` after the MedEvidence v2 key
 file already exists locally. The script provisions or reuses the matching Codex
 Gateway user, API key, and plan entitlement, then writes a `codex_gateway`

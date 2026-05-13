@@ -35,6 +35,7 @@ Operational workflows now covered:
 - MedCode Windows `shell` tool-call smoke checklist.
 - Partner trial checklist for MedEvidence, OpenCode CLI, and OpenCode Desktop.
 - Public API key self-validation through `GET /gateway/credentials/current`, including client-facing guidance in `docs/client-api-key-validation-guide.md`.
+- Desktop E2E opaque `cgu_live_*` key issuance through `scripts/issue-desktop-e2e-opaque-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
 - MedEvidence v2 handoff JSON to Codex Gateway API key provisioning through `scripts/provision-medevidence-codex-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 - Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.
