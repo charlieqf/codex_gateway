@@ -994,6 +994,130 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("uses entitlement period boundaries for monthly token windows", async () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: null,
+      tokensPerMonth: 100,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 60,
+      missingUsageCharge: "reserve" as const
+    };
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Billing cycle credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_billing_cycle_v1",
+      displayName: "Billing Cycle",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const payload = {
+      event_type: "purchase",
+      apply_mode: "apply",
+      provider: "stripe",
+      external_order_id: "pay_billing_cycle",
+      subject_id: "subj_1",
+      plan_id: "plan_billing_cycle_v1",
+      period_kind: "monthly",
+      period_start: "2026-05-11T00:00:00.000Z",
+      period_end: "2026-06-11T00:00:00.000Z"
+    } as const;
+    const purchase = store.applyBillingEntitlementEvent({
+      idempotencyKey: "stripe:pay_billing_cycle:purchase",
+      eventType: "purchase",
+      applyMode: "apply",
+      provider: "stripe",
+      externalOrderId: "pay_billing_cycle",
+      subjectId: "subj_1",
+      planId: "plan_billing_cycle_v1",
+      periodKind: "monthly",
+      periodStart: new Date(payload.period_start),
+      periodEnd: new Date(payload.period_end),
+      payloadHash: billingPayloadHash(payload),
+      now: new Date("2026-05-11T00:00:00Z")
+    });
+    const entitlement = purchase.entitlement;
+    if (!entitlement) {
+      throw new Error("billing purchase did not create an entitlement");
+    }
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+
+    const first = await limiter.acquire({
+      requestId: "req_billing_cycle_1",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 0,
+      now: new Date("2026-05-31T23:59:00Z")
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      throw new Error("token acquire unexpectedly failed");
+    }
+    await limiter.finalize({
+      reservationId: first.reservationId,
+      usage: {
+        promptTokens: 20,
+        completionTokens: 40,
+        totalTokens: 60
+      },
+      now: new Date("2026-06-01T00:00:01Z")
+    });
+
+    const usage = await limiter.getCurrentUsage({
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      policy,
+      now: new Date("2026-06-01T00:00:02Z")
+    });
+    const second = await limiter.acquire({
+      requestId: "req_billing_cycle_2",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 0,
+      now: new Date("2026-06-01T00:00:00Z")
+    });
+
+    expect(usage.month).toMatchObject({
+      limit: 100,
+      used: 60,
+      remaining: 40,
+      windowStart: "2026-05-11T00:00:00.000Z",
+      windowEnd: "2026-06-11T00:00:00.000Z"
+    });
+    expect(second.ok).toBe(false);
+    if (second.ok) {
+      throw new Error("token acquire unexpectedly succeeded");
+    }
+    expect(second.limitKind).toBe("token_month");
+    expect(second.error.retryAfterSeconds).toBe(864000);
+
+    store.close();
+  });
+
   it("expires the current entitlement before activating a scheduled renewal", () => {
     const store = createSeededStore(":memory:");
     const policy = {

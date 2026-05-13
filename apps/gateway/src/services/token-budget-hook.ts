@@ -51,9 +51,12 @@ export async function beginTokenBudget(
   }
 
   let entitlementId: string | null = null;
+  let entitlementPeriodStart: Date | null = null;
+  let entitlementPeriodEnd: Date | null = null;
   let tokenPolicy = credential.rate?.token ?? null;
+  const now = new Date();
   try {
-    const access = options.entitlementStore?.entitlementAccessForSubject(subject.id);
+    const access = options.entitlementStore?.entitlementAccessForSubject(subject.id, now);
     if (access?.status === "active") {
       if (!access.entitlement.scopeAllowlist.includes(scope)) {
         return new GatewayError({
@@ -63,6 +66,8 @@ export async function beginTokenBudget(
         });
       }
       entitlementId = access.entitlement.id;
+      entitlementPeriodStart = access.entitlement.periodStart;
+      entitlementPeriodEnd = access.entitlement.periodEnd;
       tokenPolicy = mergeEntitlementTokenPolicy(
         access.entitlement.policySnapshot,
         credential.rate?.token ?? null
@@ -113,9 +118,12 @@ export async function beginTokenBudget(
         credentialId: credential.id,
         subjectId: subject.id,
         entitlementId,
+        entitlementPeriodStart,
+        entitlementPeriodEnd,
         scope,
         upstreamAccountId: upstreamAccount.id,
-        provider: upstreamAccount.provider
+        provider: upstreamAccount.provider,
+        now
       });
       markTokenReservation(request, softWrite.reservationId, "soft_write");
     } catch (err) {
@@ -137,11 +145,14 @@ export async function beginTokenBudget(
       credentialId: credential.id,
       subjectId: subject.id,
       entitlementId,
+      entitlementPeriodStart,
+      entitlementPeriodEnd,
       scope,
       upstreamAccountId: upstreamAccount.id,
       provider: upstreamAccount.provider,
       policy: tokenPolicy,
-      estimatedPromptTokens
+      estimatedPromptTokens,
+      now
     });
     if (!result.ok) {
       markGatewayError(request, result.error);

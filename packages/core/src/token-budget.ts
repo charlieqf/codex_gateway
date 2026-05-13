@@ -26,6 +26,8 @@ export interface AcquireInput {
   credentialId: string;
   subjectId: string;
   entitlementId?: string | null;
+  entitlementPeriodStart?: Date | null;
+  entitlementPeriodEnd?: Date | null;
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
@@ -58,6 +60,8 @@ export interface SoftWriteBeginInput {
   credentialId: string;
   subjectId: string;
   entitlementId?: string | null;
+  entitlementPeriodStart?: Date | null;
+  entitlementPeriodEnd?: Date | null;
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
@@ -87,6 +91,8 @@ export interface CleanupResult {
 export interface GetUsageInput {
   subjectId: string;
   entitlementId?: string | null;
+  entitlementPeriodStart?: Date | null;
+  entitlementPeriodEnd?: Date | null;
   policy: TokenLimitPolicy;
   now?: Date;
 }
@@ -104,6 +110,7 @@ export interface WindowSnapshot {
   reserved: number;
   remaining: number | null;
   windowStart: string;
+  windowEnd: string;
 }
 
 export interface TokenBudgetLimiter {

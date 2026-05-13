@@ -114,6 +114,8 @@ async function buildQuotaDashboardData(
           await limiter.getCurrentUsage({
             subjectId: subject.id,
             entitlementId: resolved.entitlement?.id ?? null,
+            entitlementPeriodStart: resolved.entitlement?.periodStart ?? null,
+            entitlementPeriodEnd: resolved.entitlement?.periodEnd ?? null,
             policy: resolved.policy,
             now
           })

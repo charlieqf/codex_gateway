@@ -1,6 +1,6 @@
 # MedEvidence 收费/充值 API 集成指南（外发版）
 
-日期：2026-05-11
+日期：2026-05-13
 适用：收费、充值团队后端开发与产品
 
 本文给出收费/充值团队接入 MedEvidence 后台 API 所需的接口 contract、事件语义、双方分工、联调顺序和错误处理建议。本文为外发版，只描述对接方需要使用和理解的能力，不包含 MedEvidence 内部实现细节。
@@ -70,6 +70,7 @@ Content-Type: application/json
 | 停用 subject | `<provider>:<subject_id>:disable_subject:<event_id>` |
 | 首次购买 | `<provider>:<checkout_id>:purchase` |
 | 续费 | `<provider>:<subscription_id>:renew:<period_start>` |
+| 升级 | `<provider>:<subscription_id>:upgrade:<event_id_or_timestamp>` |
 | 暂停 | `<provider>:<subscription_id>:pause:<event_id>` |
 | 恢复 | `<provider>:<subscription_id>:resume:<event_id>` |
 | 取消 | `<provider>:<subscription_id>:cancel:<event_id>` |
@@ -142,7 +143,7 @@ Content-Type: application/json
 | 字段 | 要求 | 说明 |
 | --- | --- | --- |
 | `provider` | 必填 | 收费系统或支付系统标识，例如 `medevidence_billing` |
-| `external_user_id` | 必填 | 收费系统稳定用户 ID；同 `(provider, external_user_id)` 只能开户注册一次 |
+| `external_user_id` | 必填 | 收费系统稳定用户 ID；同 `(provider, external_user_id)` 只能开户注册一次；字符集 `[A-Za-z0-9._-]`，长度 1..128 |
 | `display_name` | 可选 | 用户显示名，仅用于客服排障；不要传邮箱、手机号等敏感信息 |
 | `scope_allowlist` | 可选 | P0 默认 `["code"]` |
 | `metadata` | 可选 | 非敏感上下文字段，JSON 序列化后不超过 4KB |
@@ -280,6 +281,36 @@ Authorization: Bearer <billing-admin-token>
 
 收费侧 SKU 需要映射到 MedEvidence `plan_id`。下单时只传 `plan_id`，不要在请求里覆盖 policy。
 
+说明：上例中的 `plan_paid_monthly_v1` 是当前测试环境初始 plan 示例，不代表三档消费者月订阅的正式 SKU。三档上线后，收费侧 SKU 应映射到三档 `plan_id`；`plan_paid_monthly_v1` 的保留、停售或已有用户迁移策略由 MedEvidence 单独说明。
+
+### 5.1.1 三档月订阅套餐方案（审核稿）
+
+收费/充值团队计划采用按月订阅，初始建议映射为 3 个 MedEvidence plan。价格、SKU 展示、支付、发票、退款和升级差价由收费侧负责；MedEvidence 只以 `plan_id` 对应的 token policy 和 entitlement 状态判断模型访问权益。
+
+| 收费侧档位 | 建议 `plan_id` | 建议展示名 | 月价格 | 月 token 额度 |
+| --- | --- | --- | --- | --- |
+| 低档 | `plan_basic_monthly_v1` | MedCode Basic Monthly | 50 元/月 | 1,000,000 |
+| 中档 | `plan_standard_monthly_v1` | MedCode Standard Monthly | 100 元/月 | 2,000,000 |
+| 高档 | `plan_premium_monthly_v1` | MedCode Premium Monthly | 200 元/月 | 3,000,000 |
+
+价格审核备注：以上价格按当前讨论稿记录。高档按 200 元 / 3,000,000 tokens 计算，单价约 66.7 元 / 1,000,000 tokens，高于低档和中档的 50 元 / 1,000,000 tokens。请产品/收费团队在创建正式 plan 前确认这是有意的运营成本定价，还是额度或价格需要调整。
+
+`tokens_per_month` 是月额度主口径。对有 active entitlement 的用户，月额度窗口按该 entitlement 的 `period_start` / `period_end` 计算，不按 UTC 自然月重置；例如 `2026-05-11T00:00:00.000Z` 到 `2026-06-11T00:00:00.000Z` 是一个完整额度窗口。`tokens_per_minute` / `tokens_per_day` 仍按 UTC 自然分钟 / UTC 自然日计算，不绑定 entitlement 周期；它们属于风控保护参数。`max_prompt_tokens_per_request`、`max_total_tokens_per_request` 属于单请求保护参数，正式值由双方在上线前按套餐体验与上游能力确认。
+
+升级规则：
+
+- 只允许同一订阅周期内从低额度套餐升级到高额度套餐。
+- 升级后不清零已用量，只扩容总额度。
+- 示例：用户低档 1,000,000 tokens 已用 500,000 tokens，升级到中档 2,000,000 tokens 后，当前用量为 500,000 / 2,000,000，剩余额度 1,500,000。
+- 升级不自动退款或自动补差价。补差价、优惠、退款、失败回滚等支付策略由收费侧订单系统处理；MedEvidence 只在收到支付成功事件后变更 entitlement。
+- 升级后的 entitlement 建议保留原订阅周期的 `period_start` / `period_end`，不要重置周期；续费时再按新套餐创建下一个周期。
+
+实现状态说明：
+
+- 套餐查询、购买、续费、暂停、恢复、取消、usage 对账已属于 P0 contract。
+- 三档 plan 配置可以按上述 `plan_id` 增加。
+- “升级后保留已用量并扩容总额度”需要 MedEvidence 在替换 entitlement 时把当前周期已用 token 结转到新 entitlement 的 token 窗口。MedEvidence 侧 entitlement 周期 token window 已完成开发和本地自测；三档 plan 创建、测试环境部署和双方联调验证完成前，不作为已开放联调能力。
+
 ### 5.2 写入 entitlement event
 
 ```http
@@ -325,6 +356,9 @@ Content-Type: application/json
 | `period_kind` | `purchase` / `renew` 必填 | `monthly` / `one_off` / `unlimited` |
 | `period_start` | 可选 | 缺省为服务端当前时间 |
 | `period_end` | 按周期决定 | `monthly` / `one_off` 必填，`unlimited` 可为空 |
+| `replace_current` | 升级/替换时可选 | `true` 表示取消当前 active entitlement，并创建新套餐 entitlement |
+| `replace_scheduled` | 升级/替换时可选；如 subject 存在 scheduled entitlement 则必传 | `true` 表示同时取消未来 scheduled entitlement |
+| `replace_paused` | 升级/替换时可选 | `true` 表示替换时也取消 paused entitlement；仅在 `replace_current=true` 时使用 |
 | `entitlement_id` | 状态变更可选 | 显式指定目标 entitlement |
 | `reason` | 状态变更可选 | 审计备注 |
 | `amount_minor` / `currency` | 可选 | 仅用于审计，不参与权益判定 |
@@ -359,6 +393,49 @@ Content-Type: application/json
   "cancelled_entitlement_ids": []
 }
 ```
+
+升级扩容示例：
+
+说明：以下示例表示升级事件在 `2026-05-20T10:15:00Z` 发生，沿用原订阅 `sub_123` 在 `2026-05-11T00:00:00.000Z` 到 `2026-06-11T00:00:00.000Z` 的订阅周期。`external_order_id=upgrade_123` 是升级支付订单 ID，`sub_123` 是收费侧订阅 ID。
+
+```http
+POST /gateway/admin/billing/v1/entitlement-events
+Authorization: Bearer <billing-admin-token>
+Idempotency-Key: stripe:sub_123:upgrade:2026-05-20T10:15:00Z
+Content-Type: application/json
+```
+
+```json
+{
+  "event_type": "purchase",
+  "apply_mode": "apply",
+  "provider": "stripe",
+  "external_order_id": "upgrade_123",
+  "external_event_id": "evt_upgrade_123",
+  "subject_id": "subj_xxx",
+  "plan_id": "plan_standard_monthly_v1",
+  "period_kind": "monthly",
+  "period_start": "2026-05-11T00:00:00.000Z",
+  "period_end": "2026-06-11T00:00:00.000Z",
+  "replace_current": true,
+  "amount_minor": 5000,
+  "currency": "CNY",
+  "metadata": {
+    "sku": "medcode_standard_monthly",
+    "change_type": "upgrade",
+    "from_plan_id": "plan_basic_monthly_v1",
+    "to_plan_id": "plan_standard_monthly_v1"
+  }
+}
+```
+
+升级成功后，MedEvidence 返回新的 active entitlement，并在 `cancelled_entitlement_ids` 中返回被替换的旧 entitlement。目标上线版本会保证旧 entitlement 当前周期的 token usage 被结转到新 entitlement，因此客户端和收费侧看到的是“已用量不变、总额度变大”。
+
+升级结转触发口径（已完成本地开发自测，待测试环境部署和联调验证）：
+
+- MedEvidence 应在 `replace_current=true` 且新 `plan_id` 与被替换 entitlement 的 `plan_id` 不同的事件中执行 token usage 结转。
+- `metadata.change_type`、`metadata.from_plan_id`、`metadata.to_plan_id` 仅用于 audit、日志和跨团队排障，不作为 MedEvidence 行为触发条件。
+- 如当前 subject 已存在未来 scheduled entitlement，收费侧需要同时传 `replace_scheduled=true`；否则 MedEvidence 会返回 `409 invalid_entitlement_transition`，由收费侧人工确认后重试。
 
 ### 5.3 查询 billing event
 
@@ -409,6 +486,10 @@ Authorization: Bearer <billing-admin-token>
 - `cancel`：取消 entitlement。退款不会自动取消权益；如需停权请显式发 `cancel` 或 `pause`。
 - `notice` + `apply_mode=log_only`：仅记录外部事件，不改变权益。
 
+升级建议使用 `purchase` + `replace_current=true` 表达。收费侧必须在支付成功后发送升级事件，并保持同一订阅周期的 `period_start` / `period_end`。目标上线版本中，MedEvidence 侧负责把被替换 entitlement 当前周期已用 token 结转到新 entitlement 的额度窗口，形成“已用量不变、总额度扩容”的效果。
+
+降级（高档到低档）不在 P0 范围。如果在原周期内发起降级，MedEvidence 不保证 token usage 结转行为；降级建议在下一周期续费时通过新 `plan_id` 生效。
+
 ## 7. P0 错误码
 
 | HTTP | code | 含义 |
@@ -439,11 +520,13 @@ Authorization: Bearer <billing-admin-token>
 4. 用户映射：保存收费系统 `user_id` 与 MedEvidence `subject_id` 的映射。
 5. SKU 映射：收费侧 SKU 映射到 MedEvidence `plan_id`。
 6. 支付事件：支付成功、续费、暂停、恢复、取消都通过 entitlement event 写入。
-7. 周期计算：收费侧计算 `period_start` / `period_end`。
-8. 重试策略：2xx 和 `idempotent_replay=true` 按成功处理；409 冲突停止自动重试；429/5xx/网络失败指数退避。
-9. 退款策略：退款不会自动停权；如需停权请显式发送 `cancel` 或 `pause`。
-10. 注销：用户注销时调用 `POST /subjects/{subject_id}/disable`。
-11. 对账：保存 `x-request-id`、`billing_event.id`、`entitlement.id`、`subject.id`、`credential.key_prefix`。
+7. 升级事件：用户升级套餐且支付成功后，发送 `purchase` + `replace_current=true`，`plan_id` 为升级后的新套餐；metadata 中建议记录 `from_plan_id` / `to_plan_id` 供审计排障。
+8. 降级策略：降级不在 P0 范围；如需降级，建议收费侧在下一周期续费时切换 `plan_id`。
+9. 周期计算：收费侧计算 `period_start` / `period_end`；升级扩容建议沿用原订阅周期，不重置周期。
+10. 重试策略：2xx 和 `idempotent_replay=true` 按成功处理；409 冲突停止自动重试；429/5xx/网络失败指数退避。
+11. 退款策略：退款不会自动停权；如需停权请显式发送 `cancel` 或 `pause`。
+12. 注销：用户注销时调用 `POST /subjects/{subject_id}/disable`。
+13. 对账：保存 `x-request-id`、`billing_event.id`、`entitlement.id`、`subject.id`、`credential.key_prefix`。
 
 ## 9. P1 充值钱包预告
 

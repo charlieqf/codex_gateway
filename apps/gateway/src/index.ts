@@ -453,6 +453,8 @@ export function buildGateway(options: GatewayOptions = {}) {
               .getCurrentUsage({
                 subjectId: subject.id,
                 entitlementId: activeEntitlement?.id ?? null,
+                entitlementPeriodStart: activeEntitlement?.periodStart ?? null,
+                entitlementPeriodEnd: activeEntitlement?.periodEnd ?? null,
                 policy: tokenPolicy
               })
               .then(publicTokenUsage)

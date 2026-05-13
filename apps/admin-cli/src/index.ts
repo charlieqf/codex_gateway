@@ -1069,6 +1069,8 @@ program
       const usage = await limiter.getCurrentUsage({
         subjectId: userId,
         entitlementId: resolved.entitlementId,
+        entitlementPeriodStart: resolved.entitlement?.periodStart ?? null,
+        entitlementPeriodEnd: resolved.entitlement?.periodEnd ?? null,
         policy: resolved.policy
       });
       printJson({
@@ -2150,6 +2152,7 @@ function resolveTokenWindowPolicy(
 ): {
   credential: AccessCredentialRecord | null;
   entitlementId: string | null;
+  entitlement: { periodStart: Date; periodEnd: Date | null } | null;
   policy: TokenLimitPolicy;
 } {
   const access = store.entitlementAccessForSubject(userId);
@@ -2160,6 +2163,7 @@ function resolveTokenWindowPolicy(
     return {
       credential,
       entitlementId: access.entitlement.id,
+      entitlement: access.entitlement,
       policy: mergeEntitlementTokenPolicy(
         access.entitlement.policySnapshot,
         credential?.rate.token ?? null
@@ -2170,6 +2174,7 @@ function resolveTokenWindowPolicy(
   return {
     credential: tokenCredential,
     entitlementId: null,
+    entitlement: null,
     policy: tokenCredential.rate.token as TokenLimitPolicy
   };
 }

@@ -65,6 +65,12 @@ interface WindowBoundaries {
   minute: Date;
   day: Date;
   month: Date;
+  monthEnd: Date | null;
+}
+
+interface EntitlementPeriodWindow {
+  start: Date;
+  end: Date;
 }
 
 interface ReservationRow {
@@ -110,7 +116,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async acquire(input: AcquireInput): Promise<AcquireSuccess | LimitRejection> {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now);
+    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
     const entitlementId = input.entitlementId ?? null;
     const estimatedPromptTokens = nonNegativeInteger(input.estimatedPromptTokens);
     const estimatedTotalTokens = estimatedPromptTokens + policy.reserveTokensPerRequest;
@@ -145,6 +151,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         entitlementId,
         kind: "minute",
         windowStart: windows.minute,
+        windowEnd: windowEnd("minute", windows.minute),
         limit: policy.tokensPerMinute,
         reservedTokens,
         now
@@ -158,6 +165,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         entitlementId,
         kind: "day",
         windowStart: windows.day,
+        windowEnd: windowEnd("day", windows.day),
         limit: policy.tokensPerDay,
         reservedTokens,
         now
@@ -171,6 +179,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         entitlementId,
         kind: "month",
         windowStart: windows.month,
+        windowEnd: windows.monthEnd ?? windowEnd("month", windows.month),
         limit: policy.tokensPerMonth,
         reservedTokens,
         now
@@ -207,7 +216,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   async beginSoftWrite(input: SoftWriteBeginInput): Promise<{ reservationId: string }> {
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now);
+    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
     const entitlementId = input.entitlementId ?? null;
     const reservationId = `tr_${randomUUID().replaceAll("-", "")}`;
     const finalReservationId = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
@@ -286,7 +295,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async getCurrentUsage(input: GetUsageInput): Promise<TokenUsageSnapshot> {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now);
+    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
 
     return {
       source: input.entitlementId ? "entitlement" : "subject",
@@ -295,6 +304,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         input.entitlementId ?? null,
         "minute",
         windows.minute,
+        windowEnd("minute", windows.minute),
         policy.tokensPerMinute,
         now
       ),
@@ -303,6 +313,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         input.entitlementId ?? null,
         "day",
         windows.day,
+        windowEnd("day", windows.day),
         policy.tokensPerDay,
         now
       ),
@@ -311,6 +322,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         input.entitlementId ?? null,
         "month",
         windows.month,
+        windows.monthEnd ?? windowEnd("month", windows.month),
         policy.tokensPerMonth,
         now
       )
@@ -539,6 +551,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     entitlementId: string | null;
     kind: "minute" | "day" | "month";
     windowStart: Date;
+    windowEnd: Date;
     limit: number | null;
     reservedTokens: number;
     now: Date;
@@ -566,7 +579,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     return tokenRejection(
       limitKind,
       `Token ${input.kind} budget exceeded.`,
-      Math.max(1, Math.ceil((windowEnd(input.kind, input.windowStart).getTime() - input.now.getTime()) / 1000))
+      Math.max(1, Math.ceil((input.windowEnd.getTime() - input.now.getTime()) / 1000))
     );
   }
 
@@ -575,6 +588,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     entitlementId: string | null,
     kind: "minute" | "day" | "month",
     windowStart: Date,
+    windowEnd: Date,
     limit: number | null,
     now: Date
   ) {
@@ -585,7 +599,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       used,
       reserved,
       remaining: limit === null ? null : Math.max(0, limit - used - reserved),
-      windowStart: windowStart.toISOString()
+      windowStart: windowStart.toISOString(),
+      windowEnd: windowEnd.toISOString()
     };
   }
 
@@ -883,7 +898,28 @@ function reservationColumns(): string {
   ].join(", ");
 }
 
-function windowBoundaries(date: Date): WindowBoundaries {
+function entitlementPeriodWindow(input: {
+  entitlementId?: string | null;
+  entitlementPeriodStart?: Date | null;
+  entitlementPeriodEnd?: Date | null;
+}): EntitlementPeriodWindow | null {
+  if (!input.entitlementId || !input.entitlementPeriodStart || !input.entitlementPeriodEnd) {
+    return null;
+  }
+  // Fail fast on corrupted entitlement periods instead of silently resetting quota windows.
+  if (input.entitlementPeriodEnd.getTime() <= input.entitlementPeriodStart.getTime()) {
+    throw new Error("entitlementPeriodEnd must be after entitlementPeriodStart.");
+  }
+  return {
+    start: input.entitlementPeriodStart,
+    end: input.entitlementPeriodEnd
+  };
+}
+
+function windowBoundaries(
+  date: Date,
+  entitlementPeriod: EntitlementPeriodWindow | null = null
+): WindowBoundaries {
   return {
     minute: new Date(
       Date.UTC(
@@ -895,7 +931,8 @@ function windowBoundaries(date: Date): WindowBoundaries {
       )
     ),
     day: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())),
-    month: new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
+    month: entitlementPeriod?.start ?? new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)),
+    monthEnd: entitlementPeriod?.end ?? null
   };
 }
 

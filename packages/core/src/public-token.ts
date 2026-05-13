@@ -25,6 +25,7 @@ export function publicTokenWindow(input: WindowSnapshot) {
     used: input.used,
     reserved: input.reserved,
     remaining: input.remaining,
-    window_start: input.windowStart
+    window_start: input.windowStart,
+    window_end: input.windowEnd
   };
 }
