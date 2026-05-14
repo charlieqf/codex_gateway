@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-05-12
+Last updated: 2026-05-14
 
 ## Safety Rules That Worked
 
@@ -90,6 +90,11 @@ Last updated: 2026-05-12
 - For P4c image binding, store only env variable names in
   `/var/lib/codex-gateway/upstream-accounts.json`. API key values belong in the
   env file/container environment and must not be printed.
+- The second live upstream account is now `codex-pro-1`; it uses the same
+  `/var/lib/codex-gateway/codex-home-plus` login state and image env binding
+  that were formerly attached to `codex-plus-1`. When renaming account ids,
+  check for sticky `sessions.upstream_account_id` rows that still reference the
+  old id before recreating the Gateway container.
 - If an image key is routed successfully but OpenAI returns a persistent project
   error such as `Billing hard limit has been reached`, temporarily remove that
   account's `imageApiKeyEnv` and recreate the gateway so live image traffic does
@@ -130,7 +135,7 @@ operate the controlled trial without changing host edge services:
 1. Keep `/v1/chat/completions` as the primary compatibility target.
 2. Verify OpenAI-shaped `tool_calls`, tool-result history messages, streaming chunks, and usage fields after every gateway rebuild.
 3. Verify `GET /gateway/credentials/current` after every gateway rebuild so client login/settings pages can validate API keys without model calls.
-4. Verify both `codex-plus-1` and `sub_openai_codex_dev` image bindings after any image-key or billing change.
+4. Verify both `codex-pro-1` and `sub_openai_codex_dev` image bindings after any image-key or billing change.
 5. Check `trial-check`, `report-usage`, `events`, and `audit` daily during the trial.
 6. Keep the gateway container loopback-only and keep Nginx as the only public edge.
 7. Before expanding beyond 10 controlled-trial users, revisit persistent multi-process rate limiting, admin operator identity capture, backup automation, scheduled retention, and image-provider health automation.

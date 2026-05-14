@@ -143,8 +143,9 @@ server-side Codex login states in the Docker volume:
 ```
 
 `sub_openai_codex_dev` preserves the original account id for session
-compatibility. `codex-plus-1` is the second Plus account. Both accounts use
-`maxConcurrent: 1`.
+compatibility. `codex-pro-1` is the second Pro account and uses
+`/var/lib/codex-gateway/codex-home-plus`; it was named `codex-plus-1` before
+2026-05-14. Both accounts use `maxConcurrent: 1`.
 
 Device login for any additional account must use a distinct `CODEX_HOME` inside
 the gateway state volume and must not print or store device codes after use:
@@ -179,7 +180,7 @@ The live P4c image binding uses env variable names in
 
 ```text
 sub_openai_codex_dev -> MEDCODE_IMAGE_OPENAI_API_KEY
-codex-plus-1         -> MEDCODE_IMAGE_OPENAI_API_KEY_B
+codex-pro-1          -> MEDCODE_IMAGE_OPENAI_API_KEY_B
 ```
 
 The API key values live only in `config/gateway.container.env` and the running
@@ -266,7 +267,7 @@ Public image smoke for a specific account:
 
 ```bash
 cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
-TARGET_ACCOUNT=codex-plus-1 bash scripts/public-image-plus-smoke.sh
+TARGET_ACCOUNT=codex-pro-1 bash scripts/public-image-plus-smoke.sh
 TARGET_ACCOUNT=sub_openai_codex_dev bash scripts/public-image-plus-smoke.sh
 ```
 

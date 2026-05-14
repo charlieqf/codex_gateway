@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-12
+Last updated: 2026-05-14
 
 ## Current Phase
 
@@ -91,7 +91,7 @@ Completed:
   - The controlled-trial gateway now sets
     `GATEWAY_UPSTREAM_ACCOUNTS_JSON=/var/lib/codex-gateway/upstream-accounts.json`.
   - The pool contains the existing `sub_openai_codex_dev` login state and a
-    second `codex-plus-1` login state, each with `maxConcurrent: 1`.
+    second `codex-pro-1` login state, each with `maxConcurrent: 1`.
   - Both `CODEX_HOME` directories passed real Codex SDK probes from inside the
     running gateway container, and post-restart smoke events recorded successful
     requests on both upstream account ids.
@@ -108,7 +108,7 @@ Completed:
 - Live P4c per-account image binding configuration:
   - `sub_openai_codex_dev` declares
     `imageApiKeyEnv=MEDCODE_IMAGE_OPENAI_API_KEY`.
-  - `codex-plus-1` declares
+  - `codex-pro-1` declares
     `imageApiKeyEnv=MEDCODE_IMAGE_OPENAI_API_KEY_B`.
   - Both image env names are logged and stored as non-secret metadata only; API
     key values remain in the deployment env file and are not printed.
@@ -141,6 +141,19 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-05-14 the second upstream ChatGPT/Codex login was upgraded to Pro,
+  verified with a real Codex SDK probe from inside the running gateway
+  container using `/var/lib/codex-gateway/codex-home-plus`, and renamed in the
+  live pool from `codex-plus-1` to `codex-pro-1`. The live config backup is
+  `/var/lib/codex-gateway/upstream-accounts.json.pre-rename-codex-plus-1-to-codex-pro-1-20260514T101803Z`;
+  the live SQLite backup is
+  `/var/lib/codex-gateway/gateway.db.pre-rename-codex-plus-1-to-codex-pro-1-20260514T101803Z`.
+  No existing sessions referenced `codex-plus-1`, so no session rows needed
+  migration. The Gateway container was recreated healthy, public
+  `/gateway/health` returned `ready`, and a temporary-key route smoke succeeded
+  on `codex-pro-1` with request id
+  `req-4b426595-807a-4bb4-8a65-75172c6d8aba`; temporary credentials were
+  revoked/disabled.
 - 2026-05-12 the live controlled-trial gateway enabled P4c image binding for
   both upstream accounts. The second image API key is configured as
   `MEDCODE_IMAGE_OPENAI_API_KEY_B` and bound to `codex-plus-1`; after the

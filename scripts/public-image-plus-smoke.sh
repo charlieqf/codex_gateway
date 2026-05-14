@@ -6,7 +6,7 @@ COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_test}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.azure.yml}"
 GATEWAY_SERVICE="${GATEWAY_SERVICE:-gateway}"
 GATEWAY_DB="${GATEWAY_DB:-/var/lib/codex-gateway/gateway.db}"
-TARGET_ACCOUNT="${TARGET_ACCOUNT:-codex-plus-1}"
+TARGET_ACCOUNT="${TARGET_ACCOUNT:-codex-pro-1}"
 PLAN_ID="${PLAN_ID:-plan_paid_monthly_v1}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-240}"
 
@@ -53,7 +53,7 @@ choose_account() {
   node - "$credential_id" <<'NODE'
 const crypto = require("crypto");
 const credentialId = process.argv[2];
-const accounts = ["sub_openai_codex_dev", "codex-plus-1"];
+const accounts = ["sub_openai_codex_dev", "codex-pro-1"];
 let best = accounts[0];
 let bestScore = "";
 for (const account of accounts) {
