@@ -18,6 +18,10 @@ export function markGatewayError(request: FastifyRequest, error: GatewayError): 
   }
 }
 
+export function markClientAborted(request: FastifyRequest): void {
+  request.gatewayErrorCode = "client_aborted";
+}
+
 export function markRateLimited(request: FastifyRequest): void {
   request.gatewayErrorCode = "rate_limited";
   request.gatewayRateLimited = true;

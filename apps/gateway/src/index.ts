@@ -69,6 +69,7 @@ import {
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext } from "./http/context.js";
 import {
+  markClientAborted,
   markFirstByte,
   markGatewayError,
   markSession,
@@ -269,6 +270,11 @@ export function buildGateway(options: GatewayOptions = {}) {
   const accountPoolImageBindingDeclared = upstreamRouter.hasImageBindingDeclared();
   const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
+  const imageRequestTimeoutMs = parsePositiveIntegerEnv(
+    process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS,
+    180_000,
+    "MEDCODE_IMAGE_REQUEST_TIMEOUT_MS"
+  );
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
   const clientEventsStore =
     options.clientEventsStore === undefined
@@ -326,6 +332,18 @@ export function buildGateway(options: GatewayOptions = {}) {
     startObservation(request);
     reply.header("x-request-id", request.id);
     reply.raw.setHeader("x-request-id", request.id);
+    const recordClientAbort = () => {
+      markClientAborted(request);
+      releaseRateLimit(request);
+      recordObservation(request, observationStore, 499);
+    };
+    request.raw.once("aborted", recordClientAbort);
+    reply.raw.once("close", () => {
+      request.raw.off("aborted", recordClientAbort);
+      if (!reply.raw.writableEnded) {
+        recordClientAbort();
+      }
+    });
   });
 
   if (authMode === "dev") {
@@ -958,7 +976,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       if (accountPoolImageBindingDeclared) {
         return generateImageWithAccountPool(request, reply, upstreamRouter, {
           parsed,
-          upstreamModel
+          upstreamModel,
+          timeoutMs: imageRequestTimeoutMs
         });
       }
       if (!imageGenerationProvider) {
@@ -973,9 +992,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
-      const abortController = new AbortController();
-      const abort = () => abortController.abort(new Error("client_aborted"));
-      request.raw.once("aborted", abort);
+      const abort = createImageRequestAbort(request, reply, imageRequestTimeoutMs);
       try {
         if (upstreamPool.accountPoolConfigured) {
           request.gatewayObservedUpstreamAccount = {
@@ -983,10 +1000,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             provider: null
           };
         }
-        const result = await imageGenerationProvider.generate({
+        const result = await runImageGenerationWithAbort(imageGenerationProvider, abort, {
           request: parsed,
-          upstreamModel,
-          signal: abortController.signal
+          upstreamModel
         });
         markFirstByte(request);
         return buildImageGenerationResponse({
@@ -994,19 +1010,9 @@ export function buildGateway(options: GatewayOptions = {}) {
           result
         });
       } catch (err) {
-        return sendImageError(
-          request,
-          reply,
-          err instanceof GatewayError
-            ? err
-            : new GatewayError({
-                code: "upstream_unavailable",
-                message: "Image generation service is unavailable.",
-                httpStatus: 503
-              })
-        );
+        return sendImageError(request, reply, imageErrorFromUnknown(err));
       } finally {
-        request.raw.off("aborted", abort);
+        abort.cleanup();
       }
     }
   );
@@ -1776,60 +1782,56 @@ async function generateImageWithAccountPool(
   input: {
     parsed: ImageGenerationRequest;
     upstreamModel: string;
+    timeoutMs: number;
   }
 ) {
   const affinityKey = requestAffinityKey(request, router.softAffinity);
   const attemptedAccountIds = new Set<string>();
   let lastError: GatewayError | null = null;
+  const abort = createImageRequestAbort(request, reply, input.timeoutMs);
 
-  for (let attemptIndex = 0; attemptIndex < maxStatelessAttempts; attemptIndex += 1) {
-    const lease = router.beginImage({ affinityKey, excludeAccountIds: attemptedAccountIds });
-    if (lease instanceof GatewayError) {
-      return sendImageError(request, reply, lastError ?? lease);
-    }
-    attemptedAccountIds.add(lease.upstreamAccount.id);
-    applyImageSelection(request, lease);
+  try {
+    for (let attemptIndex = 0; attemptIndex < maxStatelessAttempts; attemptIndex += 1) {
+      const lease = router.beginImage({ affinityKey, excludeAccountIds: attemptedAccountIds });
+      if (lease instanceof GatewayError) {
+        return sendImageError(request, reply, lastError ?? lease);
+      }
+      attemptedAccountIds.add(lease.upstreamAccount.id);
+      applyImageSelection(request, lease);
 
-    const abortController = new AbortController();
-    const abort = () => abortController.abort(new Error("client_aborted"));
-    request.raw.once("aborted", abort);
-    try {
-      const result = await lease.imageProvider.generate({
-        request: input.parsed,
-        upstreamModel: input.upstreamModel,
-        signal: abortController.signal
-      });
-      router.recordImageOutcome(lease.upstreamAccount.id, "success");
-      markFirstByte(request);
-      return buildImageGenerationResponse({
-        request: input.parsed,
-        result
-      });
-    } catch (err) {
-      const error =
-        err instanceof GatewayError
-          ? err
-          : new GatewayError({
-              code: "upstream_unavailable",
-              message: "Image generation service is unavailable.",
-              httpStatus: 503
-            });
-      const outcome = imageOutcomeFromError(error);
-      if (outcome) {
-        router.recordImageOutcome(lease.upstreamAccount.id, outcome);
+      try {
+        const result = await runImageGenerationWithAbort(lease.imageProvider, abort, {
+          request: input.parsed,
+          upstreamModel: input.upstreamModel
+        });
+        router.recordImageOutcome(lease.upstreamAccount.id, "success");
+        markFirstByte(request);
+        return buildImageGenerationResponse({
+          request: input.parsed,
+          result
+        });
+      } catch (err) {
+        const error = imageErrorFromUnknown(err);
+        const outcome = imageOutcomeFromError(error);
+        if (outcome) {
+          router.recordImageOutcome(lease.upstreamAccount.id, outcome);
+        }
+        lastError = error;
+        if (
+          abort.clientAborted() ||
+          abort.timedOut() ||
+          !outcome ||
+          !isImageRetryableOutcome(outcome) ||
+          attemptIndex + 1 >= maxStatelessAttempts
+        ) {
+          return sendImageError(request, reply, error);
+        }
+      } finally {
+        lease.release();
       }
-      lastError = error;
-      if (
-        !outcome ||
-        !isImageRetryableOutcome(outcome) ||
-        attemptIndex + 1 >= maxStatelessAttempts
-      ) {
-        return sendImageError(request, reply, error);
-      }
-    } finally {
-      lease.release();
-      request.raw.off("aborted", abort);
     }
+  } finally {
+    abort.cleanup();
   }
 
   return sendImageError(
@@ -1842,6 +1844,104 @@ async function generateImageWithAccountPool(
         httpStatus: 503
       })
   );
+}
+
+interface ImageRequestAbort {
+  signal: AbortSignal;
+  promise: Promise<never>;
+  cleanup: () => void;
+  clientAborted: () => boolean;
+  timedOut: () => boolean;
+}
+
+function createImageRequestAbort(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  timeoutMs: number
+): ImageRequestAbort {
+  const controller = new AbortController();
+  let settled = false;
+  let rejectAbort!: (error: GatewayError) => void;
+  const promise = new Promise<never>((_resolve, reject) => {
+    rejectAbort = reject;
+  });
+
+  const abortWith = (reason: Error, error: GatewayError) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    controller.abort(reason);
+    rejectAbort(error);
+  };
+  const abortClient = () =>
+    abortWith(
+      new Error("client_aborted"),
+      new GatewayError({
+        code: "client_aborted",
+        message: "Client aborted image generation.",
+        httpStatus: 499
+      })
+    );
+  const timeout = setTimeout(
+    () =>
+      abortWith(
+        new Error("gateway_image_timeout"),
+        new GatewayError({
+          code: "upstream_timeout",
+          message: "Image generation timed out.",
+          httpStatus: 504
+        })
+      ),
+    timeoutMs
+  );
+
+  request.raw.once("aborted", abortClient);
+  reply.raw.once("close", abortClient);
+
+  return {
+    signal: controller.signal,
+    promise,
+    cleanup: () => {
+      settled = true;
+      clearTimeout(timeout);
+      request.raw.off("aborted", abortClient);
+      reply.raw.off("close", abortClient);
+    },
+    clientAborted: () => isAbortReason(controller.signal.reason, "client_aborted"),
+    timedOut: () => isAbortReason(controller.signal.reason, "gateway_image_timeout")
+  };
+}
+
+async function runImageGenerationWithAbort(
+  provider: ImageGenerationProvider,
+  abort: ImageRequestAbort,
+  input: {
+    request: ImageGenerationRequest;
+    upstreamModel: string;
+  }
+) {
+  return Promise.race([
+    provider.generate({
+      ...input,
+      signal: abort.signal
+    }),
+    abort.promise
+  ]);
+}
+
+function imageErrorFromUnknown(err: unknown): GatewayError {
+  return err instanceof GatewayError
+    ? err
+    : new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503
+      });
+}
+
+function isAbortReason(reason: unknown, message: string): boolean {
+  return reason instanceof Error && reason.message === message;
 }
 
 function applyImageSelection(request: FastifyRequest, selection: UpstreamImageLease): void {

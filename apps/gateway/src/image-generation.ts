@@ -266,6 +266,13 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
         throw err;
       }
       if (controller.signal.aborted) {
+        if (isClientAbortReason(controller.signal.reason)) {
+          throw new GatewayError({
+            code: "client_aborted",
+            message: "Client aborted image generation.",
+            httpStatus: 499
+          });
+        }
         throw new GatewayError({
           code: "upstream_timeout",
           message: "Image generation timed out.",
@@ -290,6 +297,10 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
   private get timeoutMs(): number {
     return this.options.timeoutMs ?? 180_000;
   }
+}
+
+function isClientAbortReason(reason: unknown): boolean {
+  return reason instanceof Error && reason.message === "client_aborted";
 }
 
 function parseMetadata(value: unknown): Record<string, string> | GatewayError {

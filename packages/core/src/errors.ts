@@ -29,6 +29,7 @@ export const gatewayErrorCodes = [
   "unsupported_quality",
   "unsupported_format",
   "content_policy_violation",
+  "client_aborted",
   "upstream_timeout",
   "upstream_unavailable",
   "tool_call_validation_failed",

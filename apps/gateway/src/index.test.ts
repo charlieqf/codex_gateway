@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -82,6 +84,43 @@ class FakeImageGenerationProvider implements ImageGenerationProvider {
         output_tokens: 7
       }
     };
+  }
+}
+
+class HangingImageGenerationProvider implements ImageGenerationProvider {
+  readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
+  readonly started: Promise<void>;
+  private resolveStarted!: () => void;
+
+  constructor() {
+    this.started = new Promise((resolve) => {
+      this.resolveStarted = resolve;
+    });
+  }
+
+  async generate(input: Parameters<ImageGenerationProvider["generate"]>[0]) {
+    this.calls.push(input);
+    this.resolveStarted();
+    return new Promise<never>((_resolve, reject) => {
+      const rejectForAbort = () => {
+        const clientAborted =
+          input.signal?.reason instanceof Error && input.signal.reason.message === "client_aborted";
+        reject(
+          new GatewayError({
+            code: clientAborted ? "client_aborted" : "upstream_timeout",
+            message: clientAborted
+              ? "Client aborted image generation."
+              : "Image generation timed out.",
+            httpStatus: clientAborted ? 499 : 504
+          })
+        );
+      };
+      if (input.signal?.aborted) {
+        rejectForAbort();
+        return;
+      }
+      input.signal?.addEventListener("abort", rejectForAbort, { once: true });
+    });
   }
 }
 
@@ -538,6 +577,121 @@ describe("gateway phase 1 routes", () => {
     ]);
 
     await app.close();
+  });
+
+  it("records image requests when the client disconnects before the upstream response", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const imageProvider = new HangingImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      imageGenerationProvider: imageProvider,
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+
+    try {
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address() as AddressInfo;
+      const request = http.request({
+        method: "POST",
+        host: "127.0.0.1",
+        port: address.port,
+        path: "/gateway/images/generations",
+        headers: {
+          ...headers,
+          "content-type": "application/json"
+        }
+      });
+      request.on("error", () => undefined);
+      request.end(
+        JSON.stringify({
+          model: "medcode-image-default",
+          prompt: "Create a diagram.",
+          size: "1024x1024"
+        })
+      );
+
+      await imageProvider.started;
+      request.destroy();
+
+      await eventually(() => {
+        expect(store.listRequestEvents({ limit: 1 })).toEqual([
+          expect.objectContaining({
+            status: "error",
+            errorCode: "client_aborted"
+          })
+        ]);
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns a 504 when the image request total timeout elapses", async () => {
+    const previousTimeout = process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS;
+    process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS = "20";
+    const accountIds = ["codex-pro-1", "codex-pro-2"];
+    const issued = issueCredentialForHrwAccount("codex-pro-1", accountIds);
+    const { store, headers } = createImageEntitledStore(issued);
+    const firstImageProvider = new HangingImageGenerationProvider();
+    const secondImageProvider = new HangingImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: firstImageProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-2", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_B"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: secondImageProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/gateway/images/generations",
+        headers,
+        payload: {
+          model: "medcode-image-default",
+          prompt: "Create a diagram.",
+          size: "1024x1024"
+        }
+      });
+
+      expect(response.statusCode).toBe(504);
+      expect(response.json().error.code).toBe("upstream_timeout");
+      expect(firstImageProvider.calls.length + secondImageProvider.calls.length).toBe(1);
+      expect(store.listRequestEvents({ limit: 1 })).toEqual([
+        expect.objectContaining({
+          status: "error",
+          errorCode: "upstream_timeout"
+        })
+      ]);
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS;
+      } else {
+        process.env.MEDCODE_IMAGE_REQUEST_TIMEOUT_MS = previousTimeout;
+      }
+      await app.close();
+    }
   });
 
   it("does not fall back to the legacy image provider when image binding is declared but unavailable", async () => {
@@ -6052,6 +6206,23 @@ function imageFeaturePolicy() {
     capabilities: ["chat", "tools", "image_generation"] as const,
     imageGeneration: defaultImageGenerationFeaturePolicy()
   });
+}
+
+async function eventually(assertion: () => void, timeoutMs = 1000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      assertion();
+      return;
+    } catch (err) {
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  if (lastError) {
+    throw lastError;
+  }
 }
 
 function clientMessagePayload(overrides: Record<string, unknown> = {}) {
