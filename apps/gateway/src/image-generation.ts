@@ -1,23 +1,30 @@
 import { randomUUID } from "node:crypto";
 import { GatewayError, isRecord, type FeaturePolicy } from "@codex-gateway/core";
+import sharp from "sharp";
 
 const supportedSizes = ["1024x1024", "1024x1536", "1536x1024", "auto"] as const;
 const supportedFormats = ["png", "jpeg", "webp"] as const;
-const supportedQualities = ["auto"] as const;
+const supportedQualities = ["low", "medium", "high", "auto"] as const;
 const defaultInternalModel = "medcode-image-default";
 const defaultUpstreamModel = "gpt-image-2";
-const defaultOutputFormat = "png";
+const defaultImageSize = "1024x1024";
+const defaultImageQuality = "low";
+const defaultOutputFormat = "jpeg";
+const supportedTargetSizes = ["1024x1024", "1080x1080", "1024x1536", "1536x1024"] as const;
 
 export type ImageGenerationSize = (typeof supportedSizes)[number];
 export type ImageGenerationOutputFormat = (typeof supportedFormats)[number];
 export type ImageGenerationQuality = (typeof supportedQualities)[number];
+export type ImageGenerationTargetSize = (typeof supportedTargetSizes)[number];
 
 export interface ImageGenerationRequest {
   prompt: string;
   model: string;
   size: ImageGenerationSize;
+  outputSize: ImageGenerationTargetSize;
   quality: ImageGenerationQuality;
   outputFormat: ImageGenerationOutputFormat;
+  outputCompression?: number;
   metadata: Record<string, string>;
 }
 
@@ -67,9 +74,6 @@ export function parseImageGenerationRequest(
   if (body.n !== undefined) {
     return imageInvalidRequest("n is not supported for image generation MVP.");
   }
-  if (body.output_compression !== undefined) {
-    return imageInvalidRequest("output_compression is not supported for image generation MVP.");
-  }
 
   if (typeof body.prompt !== "string" || body.prompt.trim().length === 0) {
     return imageInvalidRequest("prompt must be a non-empty string.");
@@ -90,16 +94,12 @@ export function parseImageGenerationRequest(
     });
   }
 
-  const size = body.size ?? "auto";
-  if (!supportedSizes.includes(size as ImageGenerationSize)) {
-    return new GatewayError({
-      code: "unsupported_size",
-      message: `Unsupported image size: ${String(size)}.`,
-      httpStatus: 400
-    });
+  const parsedSize = parseImageSize(body.size, body.prompt);
+  if (parsedSize instanceof GatewayError) {
+    return parsedSize;
   }
 
-  const quality = body.quality ?? "auto";
+  const quality = body.quality === undefined || body.quality === "auto" ? defaultImageQuality : body.quality;
   if (!supportedQualities.includes(quality as ImageGenerationQuality)) {
     return new GatewayError({
       code: "unsupported_quality",
@@ -117,6 +117,12 @@ export function parseImageGenerationRequest(
     });
   }
 
+  const imageOutputFormat = outputFormat as ImageGenerationOutputFormat;
+  const outputCompression = parseOutputCompression(body.output_compression, imageOutputFormat);
+  if (outputCompression instanceof GatewayError) {
+    return outputCompression;
+  }
+
   const metadata = parseMetadata(body.metadata);
   if (metadata instanceof GatewayError) {
     return metadata;
@@ -125,9 +131,11 @@ export function parseImageGenerationRequest(
   return {
     prompt: body.prompt,
     model,
-    size: size as ImageGenerationSize,
+    size: parsedSize.upstreamSize,
+    outputSize: parsedSize.outputSize,
     quality: quality as ImageGenerationQuality,
-    outputFormat: outputFormat as ImageGenerationOutputFormat,
+    outputFormat: imageOutputFormat,
+    ...(outputCompression === undefined ? {} : { outputCompression }),
     metadata
   };
 }
@@ -163,14 +171,14 @@ export function resolveImageUpstreamModel(
       httpStatus: 400
     });
   }
-  if (!imagePolicy.allowedQualities.includes(request.quality)) {
+  if (!isImageQualityAllowed(imagePolicy.allowedQualities, request.quality)) {
     return new GatewayError({
       code: "unsupported_quality",
       message: `Unsupported image quality: ${request.quality}.`,
       httpStatus: 400
     });
   }
-  if (!imagePolicy.allowedFormats.includes(request.outputFormat)) {
+  if (!isImageFormatAllowed(imagePolicy.allowedFormats, request.outputFormat)) {
     return new GatewayError({
       code: "unsupported_format",
       message: `Unsupported image output_format: ${request.outputFormat}.`,
@@ -178,6 +186,17 @@ export function resolveImageUpstreamModel(
     });
   }
   return modelMap[request.model] ?? defaultUpstreamModel;
+}
+
+function isImageQualityAllowed(allowed: string[], quality: ImageGenerationQuality): boolean {
+  return allowed.includes(quality) || (quality === defaultImageQuality && allowed.includes("auto"));
+}
+
+function isImageFormatAllowed(
+  allowed: string[],
+  outputFormat: ImageGenerationOutputFormat
+): boolean {
+  return allowed.includes(outputFormat) || (outputFormat === defaultOutputFormat && allowed.includes("png"));
 }
 
 export function buildImageGenerationResponse(input: {
@@ -195,6 +214,42 @@ export function buildImageGenerationResponse(input: {
       mime_type: item.mime_type ?? mimeTypeForFormat(input.request.outputFormat)
     })),
     ...(input.result.usage ? { usage: input.result.usage } : {})
+  };
+}
+
+export async function finalizeImageGenerationResult(input: {
+  request: ImageGenerationRequest;
+  result: ImageGenerationResult;
+}): Promise<ImageGenerationResult> {
+  const hasSvgOutput = input.result.data.some((item) => item.mime_type?.startsWith("image/svg+xml"));
+  if (input.request.outputSize === input.request.size && !hasSvgOutput) {
+    return input.result;
+  }
+
+  const { width, height } = sizeDimensions(input.request.outputSize);
+  const data = await Promise.all(
+    input.result.data.map(async (item) => {
+      try {
+        const resized = await encodeRasterImage({
+          source: Buffer.from(item.b64_json, "base64"),
+          width,
+          height,
+          format: input.request.outputFormat,
+          outputCompression: input.request.outputCompression
+        });
+        return {
+          b64_json: resized.toString("base64"),
+          mime_type: mimeTypeForFormat(input.request.outputFormat)
+        };
+      } catch {
+        throw upstreamShapeError();
+      }
+    })
+  );
+
+  return {
+    ...input.result,
+    data
   };
 }
 
@@ -252,7 +307,10 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
           prompt: input.request.prompt,
           size: input.request.size,
           quality: input.request.quality,
-          output_format: input.request.outputFormat
+          output_format: input.request.outputFormat,
+          ...(input.request.outputCompression === undefined
+            ? {}
+            : { output_compression: input.request.outputCompression })
         }),
         signal: controller.signal
       });
@@ -324,6 +382,68 @@ function parseMetadata(value: unknown): Record<string, string> | GatewayError {
   return metadata;
 }
 
+function parseImageSize(
+  value: unknown,
+  prompt: string
+): { upstreamSize: ImageGenerationSize; outputSize: ImageGenerationTargetSize } | GatewayError {
+  const promptWants1080 = promptRequests1080Square(prompt);
+  if (value === undefined || value === "auto") {
+    return {
+      upstreamSize: defaultImageSize,
+      outputSize: promptWants1080 ? "1080x1080" : defaultImageSize
+    };
+  }
+  const normalized = typeof value === "string" ? normalizeSizeText(value) : String(value);
+  if (normalized === "auto") {
+    return {
+      upstreamSize: defaultImageSize,
+      outputSize: promptWants1080 ? "1080x1080" : defaultImageSize
+    };
+  }
+  if (normalized === "1080x1080") {
+    return {
+      upstreamSize: defaultImageSize,
+      outputSize: "1080x1080"
+    };
+  }
+  if (!supportedSizes.includes(normalized as ImageGenerationSize)) {
+    return new GatewayError({
+      code: "unsupported_size",
+      message: `Unsupported image size: ${String(value)}.`,
+      httpStatus: 400
+    });
+  }
+  return {
+    upstreamSize: normalized as ImageGenerationSize,
+    outputSize:
+      promptWants1080 && normalized === defaultImageSize ? "1080x1080" : (normalized as ImageGenerationTargetSize)
+  };
+}
+
+function normalizeSizeText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s*[x×*]\s*/u, "x");
+}
+
+function promptRequests1080Square(prompt: string): boolean {
+  return /1080\s*(?:x|×|\*)\s*1080/iu.test(prompt) || /1080\s*(?:px|像素)?\s*(?:方图|正方形|square)/iu.test(prompt);
+}
+
+function parseOutputCompression(
+  value: unknown,
+  outputFormat: ImageGenerationOutputFormat
+): number | undefined | GatewayError {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (outputFormat === "png") {
+    return imageInvalidRequest("output_compression is only supported for jpeg and webp output.");
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 100) {
+    return imageInvalidRequest("output_compression must be an integer from 0 to 100.");
+  }
+  return value;
+}
+
 function imageInvalidRequest(message: string): GatewayError {
   return new GatewayError({
     code: "invalid_request",
@@ -340,6 +460,39 @@ function mimeTypeForFormat(format: ImageGenerationOutputFormat): string {
     return "image/webp";
   }
   return "image/png";
+}
+
+function sizeDimensions(size: ImageGenerationTargetSize): { width: number; height: number } {
+  const [width, height] = size.split("x").map((part) => Number.parseInt(part, 10));
+  return { width, height };
+}
+
+async function encodeRasterImage(input: {
+  source: Buffer;
+  width: number;
+  height: number;
+  format: ImageGenerationOutputFormat;
+  outputCompression?: number;
+}): Promise<Buffer> {
+  const image = sharp(input.source).resize(input.width, input.height, {
+    fit: "fill",
+    kernel: "lanczos3"
+  });
+  const quality = qualityFromCompression(input.outputCompression);
+  if (input.format === "jpeg") {
+    return image.jpeg({ ...(quality === undefined ? {} : { quality }) }).toBuffer();
+  }
+  if (input.format === "webp") {
+    return image.webp({ ...(quality === undefined ? {} : { quality }) }).toBuffer();
+  }
+  return image.png().toBuffer();
+}
+
+function qualityFromCompression(outputCompression: number | undefined): number | undefined {
+  if (outputCompression === undefined) {
+    return undefined;
+  }
+  return Math.min(100, Math.max(1, 100 - outputCompression));
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {

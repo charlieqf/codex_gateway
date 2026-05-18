@@ -141,7 +141,7 @@ image_status="$(
   -w "%{http_code}" \
   -H "Authorization: Bearer $selected_token" \
   -H "Content-Type: application/json" \
-  --data '{"model":"medcode-image-default","prompt":"Create a simple medical app test image: a blue circle on a white background, flat icon style.","size":"1024x1024","quality":"auto","output_format":"png","metadata":{"client":"p4c-plus-image-smoke"}}' \
+  --data '{"model":"medcode-image-default","prompt":"Create a simple medical app test image: a blue circle on a white background, flat icon style.","size":"1024x1024","quality":"low","output_format":"jpeg","metadata":{"client":"p4c-plus-image-smoke"}}' \
   "$BASE_URL/gateway/images/generations"
 )"
 
@@ -162,7 +162,7 @@ const fs = require("fs");
 const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 if (!String(x.id || "").startsWith("imgreq_")) process.exit(1);
 const item = x.data && x.data[0];
-if (!item || typeof item.b64_json !== "string" || item.b64_json.length < 100 || item.mime_type !== "image/png") {
+if (!item || typeof item.b64_json !== "string" || item.b64_json.length < 100 || item.mime_type !== "image/jpeg") {
   process.exit(1);
 }
 process.stdout.write("image_response=ok bytes_b64=" + item.b64_json.length + " usage=" + (x.usage ? "present" : "null") + "\n");

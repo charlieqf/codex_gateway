@@ -104,6 +104,7 @@ import {
 } from "./services/rate-limiter.js";
 import {
   buildImageGenerationResponse,
+  finalizeImageGenerationResult,
   maxPromptCharsFromEnv,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
@@ -1004,10 +1005,14 @@ export function buildGateway(options: GatewayOptions = {}) {
           request: parsed,
           upstreamModel
         });
+        const finalized = await finalizeImageGenerationResult({
+          request: parsed,
+          result
+        });
         markFirstByte(request);
         return buildImageGenerationResponse({
           request: parsed,
-          result
+          result: finalized
         });
       } catch (err) {
         return sendImageError(request, reply, imageErrorFromUnknown(err));
@@ -1804,11 +1809,15 @@ async function generateImageWithAccountPool(
           request: input.parsed,
           upstreamModel: input.upstreamModel
         });
+        const finalized = await finalizeImageGenerationResult({
+          request: input.parsed,
+          result
+        });
         router.recordImageOutcome(lease.upstreamAccount.id, "success");
         markFirstByte(request);
         return buildImageGenerationResponse({
           request: input.parsed,
-          result
+          result: finalized
         });
       } catch (err) {
         const error = imageErrorFromUnknown(err);

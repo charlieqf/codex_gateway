@@ -507,7 +507,7 @@ describe("gateway phase 1 routes", () => {
       data: [
         {
           b64_json: "ZmFrZS1pbWFnZQ==",
-          mime_type: "image/png"
+          mime_type: "image/jpeg"
         }
       ],
       usage: {
@@ -521,9 +521,10 @@ describe("gateway phase 1 routes", () => {
       upstreamModel: "gpt-image-2",
       request: {
         model: "medcode-image-default",
-        size: "auto",
-        quality: "auto",
-        outputFormat: "png"
+        size: "1024x1024",
+        outputSize: "1024x1024",
+        quality: "low",
+        outputFormat: "jpeg"
       }
     });
     expect(imageProvider.calls[0].request.metadata).toEqual({
