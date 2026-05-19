@@ -4,6 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   issueAccessCredential,
+  issueBillingAdminToken,
   issueUnifiedClientKey,
   mergeEntitlementTokenPolicy,
   publicTokenPolicy,
@@ -12,6 +13,8 @@ import {
   validatePlanPolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
+  type BillingAdminTokenKind,
+  type BillingAdminTokenState,
   type Entitlement,
   type EntitlementState,
   type PeriodKind,
@@ -51,6 +54,8 @@ import {
 import {
   parseAdminAuditAction,
   parseAdminAuditStatus,
+  parseBillingAdminTokenKind,
+  parseBillingAdminTokenState,
   parseCommaList,
   parseDate,
   parseDurationMs,
@@ -71,6 +76,7 @@ import {
   auditCredentialSnapshot,
   credentialStatus,
   publicAdminAuditEvent,
+  publicBillingAdminToken,
   publicCredential,
   publicEntitlement,
   publicEntitlementAccess,
@@ -413,6 +419,132 @@ unifiedKeyCommand
             targetUserId: revoked.subjectId,
             targetCredentialId: revoked.id,
             targetCredentialPrefix: revoked.prefix
+          }
+        };
+      }
+    );
+  });
+
+const billingTokenCommand = program
+  .command("billing-token")
+  .description("Manage billing admin Bearer tokens.");
+
+billingTokenCommand
+  .command("issue")
+  .description("Issue a one-time visible billing admin token.")
+  .requiredOption("--label <label>", "billing admin token label")
+  .option("--kind <kind>", "token kind: test or live", parseBillingAdminTokenKind, "test")
+  .option("--expires-days <days>", "days until token expiration", parsePositiveInteger)
+  .option("--expires-at <iso>", "absolute token expiration", parseDate)
+  .option("--metadata <json>", "non-secret JSON object stored with token metadata")
+  .action((options: BillingTokenIssueOptions) => {
+    withAuditedStore(
+      {
+        action: "billing-token-issue",
+        params: {
+          label: options.label,
+          kind: options.kind,
+          expires_days: options.expiresDays,
+          expires_at: options.expiresAt?.toISOString()
+        }
+      },
+      (store) => {
+        if (options.expiresDays !== undefined && options.expiresAt !== undefined) {
+          throw new Error("Use --expires-days or --expires-at, not both.");
+        }
+        const label = normalizeOptionalText(options.label);
+        if (!label) {
+          throw new Error("Token label must not be empty.");
+        }
+        const expiresAt = options.expiresAt ?? addDays(new Date(), options.expiresDays ?? 14);
+        const issued = issueBillingAdminToken({
+          label,
+          kind: options.kind,
+          expiresAt,
+          metadata: parseJsonObjectOption(options.metadata, "metadata")
+        });
+        store.insertBillingAdminToken(issued.record);
+        return {
+          output: {
+            token: issued.token,
+            billing_token: publicBillingAdminToken(issued.record)
+          },
+          audit: {
+            targetCredentialId: issued.record.id,
+            targetCredentialPrefix: issued.record.prefix,
+            params: {
+              label,
+              kind: issued.record.kind,
+              expires_at: issued.record.expiresAt.toISOString()
+            }
+          }
+        };
+      }
+    );
+  });
+
+billingTokenCommand
+  .command("list")
+  .description("List billing admin tokens.")
+  .option("--active-only", "hide revoked or expired tokens")
+  .option("--state <state>", "filter by state: active or revoked", parseBillingAdminTokenState)
+  .option("--limit <count>", "maximum tokens to return", parsePositiveInteger, 100)
+  .action((options: BillingTokenListOptions) => {
+    withStore((store) => {
+      const tokens = store.listBillingAdminTokens({
+        activeOnly: Boolean(options.activeOnly),
+        state: options.activeOnly ? undefined : options.state,
+        limit: options.limit
+      });
+      printJson({
+        billing_tokens: tokens.map((token) => publicBillingAdminToken(token))
+      });
+    });
+  });
+
+billingTokenCommand
+  .command("show")
+  .argument("<token-prefix>")
+  .description("Show billing admin token metadata by full public prefix.")
+  .action((prefix) => {
+    const normalizedPrefix = normalizeBillingAdminTokenPrefix(prefix);
+    withStore((store) => {
+      const token = store.getBillingAdminTokenByPrefix(normalizedPrefix);
+      if (!token) {
+        throw new Error(`Billing admin token prefix not found: ${normalizedPrefix}`);
+      }
+      printJson({
+        billing_token: publicBillingAdminToken(token)
+      });
+    });
+  });
+
+billingTokenCommand
+  .command("revoke")
+  .argument("<token-prefix>")
+  .description("Revoke a billing admin token by full public prefix.")
+  .option("--reason <reason>", "non-secret revocation reason")
+  .action((prefix, options: { reason?: string }) => {
+    const normalizedPrefix = normalizeBillingAdminTokenPrefix(prefix);
+    withAuditedStore(
+      {
+        action: "billing-token-revoke",
+        targetCredentialPrefix: normalizedPrefix,
+        params: { reason: normalizeOptionalText(options.reason) }
+      },
+      (store) => {
+        const revoked = store.revokeBillingAdminTokenByPrefix(normalizedPrefix);
+        if (!revoked) {
+          throw new Error(`Billing admin token prefix not found: ${normalizedPrefix}`);
+        }
+        return {
+          output: {
+            billing_token: publicBillingAdminToken(revoked)
+          },
+          audit: {
+            targetCredentialId: revoked.id,
+            targetCredentialPrefix: revoked.prefix,
+            params: { reason: normalizeOptionalText(options.reason) }
           }
         };
       }
@@ -1385,6 +1517,20 @@ interface UnifiedKeyIssueOptions {
   expiresAt?: Date;
 }
 
+interface BillingTokenIssueOptions {
+  label: string;
+  kind: BillingAdminTokenKind;
+  expiresDays?: number;
+  expiresAt?: Date;
+  metadata?: string;
+}
+
+interface BillingTokenListOptions {
+  activeOnly?: boolean;
+  state?: BillingAdminTokenState;
+  limit: number;
+}
+
 interface UpdateUserOptions {
   label?: string;
   name?: string;
@@ -2284,6 +2430,68 @@ function keyPrefix(token: string): string | null {
     return trimmed.slice(0, Math.min(trimmed.length, 24));
   }
   return null;
+}
+
+function parseJsonObjectOption(
+  value: string | undefined,
+  name: string
+): Record<string, unknown> | null {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(normalized);
+  } catch {
+    throw new Error(`${name} must be valid JSON.`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`${name} must be a JSON object.`);
+  }
+  const json = JSON.stringify(parsed);
+  if (json.length > 4_096) {
+    throw new Error(`${name} is too large.`);
+  }
+  if (/bat_(?:test|live)_[A-Za-z0-9._-]+/.test(json)) {
+    throw new Error(`${name} must not contain billing admin tokens.`);
+  }
+  const sensitivePath = findSensitiveJsonPath(parsed, []);
+  if (sensitivePath) {
+    throw new Error(`${name} contains sensitive field: ${sensitivePath}.`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function findSensitiveJsonPath(value: unknown, pathParts: string[]): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = findSensitiveJsonPath(value[index], [...pathParts, String(index)]);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    if (/token|secret|authorization|bearer|password|card|cvv|cvc|pan/i.test(key)) {
+      return [...pathParts, key].join(".");
+    }
+    const found = findSensitiveJsonPath(child, [...pathParts, key]);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+function normalizeBillingAdminTokenPrefix(value: string): string {
+  const trimmed = value.trim();
+  const separator = trimmed.indexOf(".");
+  return separator >= 0 ? trimmed.slice(0, separator) : trimmed;
 }
 
 function addDays(date: Date, days: number): Date {

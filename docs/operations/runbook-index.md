@@ -40,6 +40,7 @@ Operational workflows now covered:
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 - Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.
 - Registration/payment integration contract in `docs/implementation/registration-payment-integration-spec.md` for external signup, checkout, webhook, CRM, or billing teams that need to trigger gateway provisioning.
+- Billing Admin token hot-issue/revoke plan in `docs/implementation/billing-admin-token-management-plan.md`, to remove the current need to recreate the gateway container when issuing billing integration test tokens.
 - Desktop client message, diagnostic, and MedEvidence tool audit export ownership guidance plus read-only admin CLI examples in `docs/operations/client-message-query-support.zh-CN.md`.
 
 Operational workflows still pending:

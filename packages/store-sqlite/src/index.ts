@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import * as accessCredentials from "./access-credentials.js";
 import * as adminAudit from "./admin-audit.js";
+import * as billingAdminTokens from "./billing-admin-tokens.js";
 import * as billingEvents from "./billing-events.js";
 import * as billingSubjects from "./billing-subjects.js";
 import * as entitlementsStore from "./entitlements.js";
@@ -22,6 +23,7 @@ import {
   type AdminAuditEventRecord,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
+  type BillingAdminTokenRecord,
   type BillingSubjectDetails,
   type BillingEntitlementListResult,
   type BillingEventListResult,
@@ -41,6 +43,7 @@ import {
   type GrantEntitlementInput,
   type ListAccessCredentialsInput,
   type ListAdminAuditEventsInput,
+  type ListBillingAdminTokensInput,
   type ListBillingEntitlementsInput,
   type ListBillingEventsInput,
   type ListEntitlementsInput,
@@ -174,6 +177,34 @@ export class SqliteGatewayStore implements GatewayStore {
     now: Date = new Date()
   ): UnifiedClientKeyRecord | null {
     return unifiedClientKeys.revokeByPrefix(this.db, prefix, now);
+  }
+
+  insertBillingAdminToken(record: BillingAdminTokenRecord): BillingAdminTokenRecord {
+    return billingAdminTokens.insert(this.db, record);
+  }
+
+  getBillingAdminTokenByPrefix(prefix: string): BillingAdminTokenRecord | null {
+    return billingAdminTokens.getByPrefix(this.db, prefix);
+  }
+
+  listBillingAdminTokens(
+    input: ListBillingAdminTokensInput = {}
+  ): BillingAdminTokenRecord[] {
+    return billingAdminTokens.list(this.db, input);
+  }
+
+  revokeBillingAdminTokenByPrefix(
+    prefix: string,
+    now: Date = new Date()
+  ): BillingAdminTokenRecord | null {
+    return billingAdminTokens.revokeByPrefix(this.db, prefix, now);
+  }
+
+  updateBillingAdminTokenLastUsedAt(
+    prefix: string,
+    now: Date = new Date()
+  ): void {
+    billingAdminTokens.updateLastUsedAt(this.db, prefix, now);
   }
 
   createPlan(input: CreatePlanInput): Plan {

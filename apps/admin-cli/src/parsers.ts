@@ -2,6 +2,8 @@ import { InvalidArgumentError } from "commander";
 import type {
   AdminAuditAction,
   AdminAuditStatus,
+  BillingAdminTokenKind,
+  BillingAdminTokenState,
   EntitlementState,
   PeriodKind,
   PlanState,
@@ -17,6 +19,8 @@ const adminAuditActions = new Set<AdminAuditAction>([
   "unified-key-issue",
   "unified-key-resolve",
   "unified-key-revoke",
+  "billing-token-issue",
+  "billing-token-revoke",
   "provision-user",
   "update-key",
   "revoke",
@@ -40,6 +44,8 @@ const adminAuditActions = new Set<AdminAuditAction>([
 ]);
 
 const adminAuditStatuses = new Set<AdminAuditStatus>(["ok", "error"]);
+const billingAdminTokenKinds = new Set<BillingAdminTokenKind>(["test", "live"]);
+const billingAdminTokenStates = new Set<BillingAdminTokenState>(["active", "revoked"]);
 const entitlementStates = new Set<EntitlementState>([
   "scheduled",
   "active",
@@ -121,6 +127,14 @@ export function parseAdminAuditAction(value: string): AdminAuditAction {
 
 export function parseAdminAuditStatus(value: string): AdminAuditStatus {
   return parseSetValue(value, adminAuditStatuses, "status must be ok or error");
+}
+
+export function parseBillingAdminTokenKind(value: string): BillingAdminTokenKind {
+  return parseSetValue(value, billingAdminTokenKinds, "kind must be test or live");
+}
+
+export function parseBillingAdminTokenState(value: string): BillingAdminTokenState {
+  return parseSetValue(value, billingAdminTokenStates, "state must be active or revoked");
 }
 
 export function parsePositiveInteger(value: string): number {

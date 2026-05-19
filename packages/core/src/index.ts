@@ -1,5 +1,6 @@
 export * from "./credentials.js";
 export * from "./billing.js";
+export * from "./billing-admin-token.js";
 export * from "./errors.js";
 export * from "./feature-policy.js";
 export * from "./public-token.js";

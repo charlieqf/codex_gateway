@@ -496,6 +496,30 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    15,
+    `
+      CREATE TABLE IF NOT EXISTS billing_admin_tokens (
+        id TEXT PRIMARY KEY,
+        prefix TEXT NOT NULL UNIQUE,
+        hash TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('test', 'live')),
+        state TEXT NOT NULL CHECK (state IN ('active', 'revoked')),
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        created_at TEXT NOT NULL,
+        last_used_at TEXT,
+        metadata_json TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_billing_admin_tokens_state_expires
+        ON billing_admin_tokens(state, expires_at);
+    `,
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

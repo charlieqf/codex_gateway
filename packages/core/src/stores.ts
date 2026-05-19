@@ -3,6 +3,8 @@ import type {
   AdminAuditAction,
   AdminAuditEventRecord,
   AdminAuditStatus,
+  BillingAdminTokenRecord,
+  BillingAdminTokenState,
   ClientDiagnosticEventRecord,
   ClientMessageEventRecord,
   GatewaySession,
@@ -86,6 +88,20 @@ export interface UnifiedClientKeyStore {
   getUnifiedClientKeyByPrefix(prefix: string): UnifiedClientKeyRecord | null;
   listUnifiedClientKeys(input?: ListUnifiedClientKeysInput): UnifiedClientKeyRecord[];
   revokeUnifiedClientKeyByPrefix(prefix: string, now?: Date): UnifiedClientKeyRecord | null;
+}
+
+export interface ListBillingAdminTokensInput {
+  activeOnly?: boolean;
+  state?: BillingAdminTokenState;
+  limit?: number;
+}
+
+export interface BillingAdminTokenStore {
+  insertBillingAdminToken(record: BillingAdminTokenRecord): BillingAdminTokenRecord;
+  getBillingAdminTokenByPrefix(prefix: string): BillingAdminTokenRecord | null;
+  listBillingAdminTokens(input?: ListBillingAdminTokensInput): BillingAdminTokenRecord[];
+  revokeBillingAdminTokenByPrefix(prefix: string, now?: Date): BillingAdminTokenRecord | null;
+  updateBillingAdminTokenLastUsedAt(prefix: string, now?: Date): void;
 }
 
 export interface ListRequestEventsInput {

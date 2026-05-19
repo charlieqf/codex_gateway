@@ -4,6 +4,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
   type AdminAuditStore,
   type BillingAdminStore,
+  type BillingAdminTokenStore,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventStore,
   type CredentialAuthStore,
@@ -60,7 +61,9 @@ import {
 } from "./admin-client-messages.js";
 import {
   registerBillingAdminRoutes,
-  resolveBillingAdminAccess
+  resolveBillingAdminAccess,
+  resolveBillingAdminTokenMode,
+  type BillingAdminTokenMode
 } from "./billing-admin.js";
 import {
   resolveUpstreamV2Client,
@@ -169,6 +172,8 @@ export interface GatewayOptions {
   adminMessagesAuthMode?: AdminMessagesAuthMode;
   billingAdminToken?: string;
   billingAdminNextToken?: string;
+  billingAdminTokenMode?: BillingAdminTokenMode;
+  billingAdminTokenStore?: BillingAdminTokenStore;
   billingAdminStore?: BillingAdminStore;
   billingAdminRateLimiter?: CredentialRateLimiter;
   billingAdminRatePolicy?: RateLimitPolicy;
@@ -289,12 +294,17 @@ export function buildGateway(options: GatewayOptions = {}) {
     token: options.adminMessagesToken ?? process.env.GATEWAY_ADMIN_MESSAGES_TOKEN,
     authMode: options.adminMessagesAuthMode ?? process.env.GATEWAY_ADMIN_MESSAGES_AUTH
   });
+  const billingAdminStore =
+    options.billingAdminStore ?? (isBillingAdminStore(sessions) ? sessions : undefined);
+  const billingAdminTokenStore =
+    options.billingAdminTokenStore ?? (isBillingAdminTokenStore(sessions) ? sessions : undefined);
   const billingAdminAccess = resolveBillingAdminAccess({
     token: options.billingAdminToken ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN,
     nextToken: options.billingAdminNextToken ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN_NEXT
   });
-  const billingAdminStore =
-    options.billingAdminStore ?? (isBillingAdminStore(sessions) ? sessions : undefined);
+  const billingAdminTokenMode = resolveBillingAdminTokenMode(
+    options.billingAdminTokenMode ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN_MODE
+  );
   const billingAdminRateLimiter =
     options.billingAdminRateLimiter ?? new InMemoryCredentialRateLimiter();
   const billingAdminRatePolicy =
@@ -689,6 +699,8 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   registerBillingAdminRoutes(app, {
     access: billingAdminAccess,
+    tokenMode: billingAdminTokenMode,
+    tokenStore: billingAdminTokenStore,
     billingStore: billingAdminStore,
     planEntitlementStore,
     rateLimiter: billingAdminRateLimiter,
@@ -3036,6 +3048,19 @@ function isUnifiedClientKeyStore(
     typeof candidate.getUnifiedClientKeyByPrefix === "function" &&
     typeof candidate.listUnifiedClientKeys === "function" &&
     typeof candidate.revokeUnifiedClientKeyByPrefix === "function"
+  );
+}
+
+function isBillingAdminTokenStore(
+  store: GatewayStore
+): store is GatewayStore & BillingAdminTokenStore {
+  const candidate = store as Partial<BillingAdminTokenStore>;
+  return (
+    typeof candidate.insertBillingAdminToken === "function" &&
+    typeof candidate.getBillingAdminTokenByPrefix === "function" &&
+    typeof candidate.listBillingAdminTokens === "function" &&
+    typeof candidate.revokeBillingAdminTokenByPrefix === "function" &&
+    typeof candidate.updateBillingAdminTokenLastUsedAt === "function"
   );
 }
 

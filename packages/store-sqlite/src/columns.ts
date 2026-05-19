@@ -7,6 +7,9 @@ export const accessCredentialColumns =
 export const unifiedClientKeyColumns =
   "id, prefix, hash, subject_id, label, expires_at, revoked_at, codex_credential_id, codex_credential_prefix, codex_key_ciphertext, medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json";
 
+export const billingAdminTokenColumns =
+  "id, prefix, hash, label, kind, state, expires_at, revoked_at, created_at, last_used_at, metadata_json";
+
 export const planColumns =
   "id, display_name, policy_json, feature_policy_json, scope_allowlist_json, priority_class, team_pool_id, state, created_at, metadata_json";
 

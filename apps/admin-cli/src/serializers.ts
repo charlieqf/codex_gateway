@@ -1,6 +1,7 @@
 import type {
   AccessCredentialRecord,
   AdminAuditEventRecord,
+  BillingAdminTokenRecord,
   Entitlement,
   EntitlementAccessDecision,
   Plan,
@@ -90,6 +91,33 @@ export function publicUnifiedClientKey(record: UnifiedClientKeyRecord, subject?:
     created_at: record.createdAt.toISOString(),
     metadata: record.metadata,
     user: subject ? publicSubject(subject) : null
+  };
+}
+
+export function publicBillingAdminToken(
+  record: BillingAdminTokenRecord,
+  now: Date = new Date()
+) {
+  const status = record.state === "revoked"
+    ? "revoked"
+    : record.revokedAt
+      ? "revoked"
+      : record.expiresAt.getTime() <= now.getTime()
+        ? "expired"
+        : "active";
+  return {
+    id: record.id,
+    prefix: record.prefix,
+    label: record.label,
+    kind: record.kind,
+    state: record.state,
+    status,
+    is_currently_valid: status === "active",
+    expires_at: record.expiresAt.toISOString(),
+    revoked_at: record.revokedAt?.toISOString() ?? null,
+    created_at: record.createdAt.toISOString(),
+    last_used_at: record.lastUsedAt?.toISOString() ?? null,
+    metadata: record.metadata
   };
 }
 

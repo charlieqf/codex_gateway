@@ -59,6 +59,23 @@ export interface UnifiedClientKeyRecord {
   metadata: Record<string, unknown> | null;
 }
 
+export type BillingAdminTokenKind = "test" | "live";
+export type BillingAdminTokenState = "active" | "revoked";
+
+export interface BillingAdminTokenRecord {
+  id: string;
+  prefix: string;
+  hash: string;
+  label: string;
+  kind: BillingAdminTokenKind;
+  state: BillingAdminTokenState;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  metadata: Record<string, unknown> | null;
+}
+
 export interface UpstreamV2BindingRecord {
   subjectId: string;
   v2UserId: string;
@@ -84,6 +101,8 @@ export type AdminAuditAction =
   | "unified-key-issue"
   | "unified-key-resolve"
   | "unified-key-revoke"
+  | "billing-token-issue"
+  | "billing-token-revoke"
   | "provision-user"
   | "update-key"
   | "revoke"

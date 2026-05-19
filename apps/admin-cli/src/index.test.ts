@@ -22,18 +22,114 @@ describe("codex-gateway-admin user API key operations", () => {
   it("redacts cmev1 and underlying keys from audit errors", () => {
     const cguKey =
       "cgu_live_7KpQ2mN9vX4aRt6Bc8YwL3sD0fGhJkPq9UzEaVnTbR5xM1HdS7rZ2yA4C6mNp8Qz";
+    const billingToken = "bat_test_abcdEFGH12.secret_part_1234567890";
     const message = sanitizeAuditErrorMessage(
       new Error(
-        `failed ${cguKey} cmev1.cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456.mev2_live_secret mev2_live_secret`
+        `failed ${cguKey} ${billingToken} cmev1.cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456.mev2_live_secret mev2_live_secret`
       )
     );
 
     expect(message).toContain("cgu_live_<redacted>");
     expect(message).toContain("cmev1.<redacted>");
     expect(message).toContain("mev2_live_<redacted>");
+    expect(message).toContain("bat_<redacted>");
     expect(message).not.toContain(cguKey);
+    expect(message).not.toContain(billingToken);
     expect(message).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
     expect(message).not.toContain("mev2_live_secret");
+  });
+
+  it("issues, lists, shows, and revokes DB-backed billing admin tokens", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-billing-token-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+
+    const issued = runCli(dbPath, [
+      "billing-token",
+      "issue",
+      "--label",
+      "Payment joint test",
+      "--kind",
+      "test",
+      "--expires-at",
+      "2030-01-01T00:00:00Z",
+      "--metadata",
+      '{"team":"billing"}'
+    ]) as {
+      token: string;
+      billing_token: {
+        id: string;
+        prefix: string;
+        label: string;
+        kind: string;
+        status: string;
+        is_currently_valid: boolean;
+        metadata: Record<string, unknown>;
+      };
+    };
+
+    expect(issued.token).toMatch(/^bat_test_[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{16,}$/);
+    expect(issued.billing_token).toMatchObject({
+      prefix: issued.token.split(".")[0],
+      label: "Payment joint test",
+      kind: "test",
+      status: "active",
+      is_currently_valid: true,
+      metadata: { team: "billing" }
+    });
+
+    const listed = runCli(dbPath, ["billing-token", "list", "--active-only"]) as {
+      billing_tokens: Array<{ prefix: string; status: string }>;
+    };
+    expect(listed.billing_tokens).toEqual([
+      expect.objectContaining({
+        prefix: issued.billing_token.prefix,
+        status: "active"
+      })
+    ]);
+
+    const shown = runCli(dbPath, ["billing-token", "show", issued.billing_token.prefix]) as {
+      billing_token: { prefix: string; status: string };
+    };
+    expect(shown.billing_token).toMatchObject({
+      prefix: issued.billing_token.prefix,
+      status: "active"
+    });
+
+    const store = createSqliteStore({ path: dbPath });
+    try {
+      expect(JSON.stringify(store.getBillingAdminTokenByPrefix(issued.billing_token.prefix))).not.toContain(
+        issued.token
+      );
+    } finally {
+      store.close();
+    }
+
+    const revoked = runCli(dbPath, [
+      "billing-token",
+      "revoke",
+      issued.billing_token.prefix,
+      "--reason",
+      "joint test done"
+    ]) as { billing_token: { prefix: string; status: string; state: string } };
+    expect(revoked.billing_token).toMatchObject({
+      prefix: issued.billing_token.prefix,
+      state: "revoked",
+      status: "revoked"
+    });
+
+    const audit = runCli(dbPath, ["audit", "--action", "billing-token-issue", "--limit", "10"]) as {
+      events: Array<{ target_credential_prefix: string; params: Record<string, unknown> }>;
+    };
+    expect(audit.events[0]).toMatchObject({
+      target_credential_prefix: issued.billing_token.prefix,
+      params: {
+        label: "Payment joint test",
+        kind: "test",
+        expires_at: "2030-01-01T00:00:00.000Z"
+      }
+    });
+    expect(JSON.stringify(audit)).not.toContain(issued.token);
   });
 
   it("issues, lists, shows, and revokes Gateway-brokered unified client keys", () => {

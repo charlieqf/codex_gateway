@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   billingPayloadHash,
   encryptSecret,
+  extractBillingAdminTokenPrefix,
   GatewayError,
   issueAccessCredential,
   issueUnifiedClientKey,
@@ -12,6 +13,7 @@ import {
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
   type BillingAdminStore,
+  type BillingAdminTokenStore,
   type BillingApplyMode,
   type BillingEventRecord,
   type BillingSubjectDetails,
@@ -26,7 +28,8 @@ import {
   type PlanEntitlementStore,
   type RateLimitPolicy,
   type Scope,
-  type TokenLimitPolicy
+  type TokenLimitPolicy,
+  verifyBillingAdminToken
 } from "@codex-gateway/core";
 import type { CredentialRateLimiter } from "./services/rate-limiter.js";
 import type { UpstreamV2Client } from "./upstream-v2-client.js";
@@ -39,8 +42,12 @@ export interface BillingAdminAccess {
   nextToken: string | null;
 }
 
+export type BillingAdminTokenMode = "env" | "db" | "hybrid";
+
 export interface BillingAdminRouteOptions {
   access: BillingAdminAccess | null;
+  tokenMode?: BillingAdminTokenMode;
+  tokenStore?: BillingAdminTokenStore;
   billingStore?: BillingAdminStore;
   planEntitlementStore?: PlanEntitlementStore;
   rateLimiter?: CredentialRateLimiter;
@@ -95,6 +102,17 @@ export function resolveBillingAdminAccess(input: {
     token,
     nextToken: nextToken || null
   };
+}
+
+export function resolveBillingAdminTokenMode(value?: string): BillingAdminTokenMode {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) {
+    return "hybrid";
+  }
+  if (normalized === "env" || normalized === "db" || normalized === "hybrid") {
+    return normalized;
+  }
+  throw new Error("GATEWAY_BILLING_ADMIN_TOKEN_MODE must be env, db, or hybrid.");
 }
 
 export function registerBillingAdminRoutes(
@@ -593,10 +611,21 @@ function billingRoutePreflight(
   reply: FastifyReply,
   options: BillingAdminRouteOptions
 ): FastifyReply | null {
-  if (!options.access) {
+  if (!isBillingAdminAuthConfigured(options)) {
     return sendBillingError(request, reply, serviceUnavailable("Billing admin API is not configured."));
   }
-  const authError = authenticateBillingAdminRequest(request, options.access);
+  let authError: GatewayError | null;
+  try {
+    authError = authenticateBillingAdminRequest(request, options);
+  } catch (err) {
+    request.log.error(
+      {
+        error: sanitizeBillingAdminLogMessage(errorMessage(err))
+      },
+      "Billing admin token authentication store failed."
+    );
+    return sendBillingError(request, reply, serviceUnavailable("Billing admin token store failed."));
+  }
   if (authError) {
     return sendBillingError(request, reply, authError);
   }
@@ -619,7 +648,7 @@ function billingRoutePreflight(
 
 function authenticateBillingAdminRequest(
   request: FastifyRequest,
-  access: BillingAdminAccess
+  options: BillingAdminRouteOptions
 ): GatewayError | null {
   const authorization = request.headers.authorization;
   if (!authorization) {
@@ -630,18 +659,81 @@ function authenticateBillingAdminRequest(
     });
   }
   const [scheme, token] = authorization.split(/\s+/, 2);
-  if (
-    scheme?.toLowerCase() !== "bearer" ||
-    !token ||
-    (!safeEqual(token, access.token) && (!access.nextToken || !safeEqual(token, access.nextToken)))
-  ) {
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
     return new GatewayError({
       code: "invalid_credential",
       message: "Invalid billing admin token.",
       httpStatus: 401
     });
   }
-  return null;
+  const tokenMode = options.tokenMode ?? "hybrid";
+  if (tokenMode !== "env" && options.tokenStore) {
+    const prefix = extractBillingAdminTokenPrefix(token);
+    if (prefix) {
+      const record = options.tokenStore.getBillingAdminTokenByPrefix(prefix);
+      if (!record) {
+        return invalidBillingAdminToken();
+      }
+      const now = new Date();
+      const verificationError = verifyBillingAdminToken(token, record, now);
+      if (verificationError) {
+        return verificationError;
+      }
+      if (!record.lastUsedAt || now.getTime() - record.lastUsedAt.getTime() >= 60_000) {
+        try {
+          options.tokenStore.updateBillingAdminTokenLastUsedAt(prefix, now);
+        } catch (err) {
+          request.log.warn(
+            {
+              token_prefix: prefix,
+              error: sanitizeBillingAdminLogMessage(errorMessage(err))
+            },
+            "Billing admin token last_used_at update failed."
+          );
+        }
+      }
+      return null;
+    }
+  }
+
+  if (tokenMode !== "db" && options.access && billingAdminEnvTokenMatches(token, options.access)) {
+    return null;
+  }
+
+  return invalidBillingAdminToken();
+}
+
+function isBillingAdminAuthConfigured(options: BillingAdminRouteOptions): boolean {
+  const tokenMode = options.tokenMode ?? "hybrid";
+  if (tokenMode === "env") {
+    return Boolean(options.access);
+  }
+  if (tokenMode === "db") {
+    return Boolean(options.tokenStore);
+  }
+  return Boolean(options.access || options.tokenStore);
+}
+
+function billingAdminEnvTokenMatches(token: string, access: BillingAdminAccess): boolean {
+  return safeEqual(token, access.token) || Boolean(access.nextToken && safeEqual(token, access.nextToken));
+}
+
+function invalidBillingAdminToken(): GatewayError {
+  return new GatewayError({
+    code: "invalid_credential",
+    message: "Invalid billing admin token.",
+    httpStatus: 401
+  });
+}
+
+export function sanitizeBillingAdminLogMessage(message: string): string {
+  return message
+    .replace(/bat_(?:test|live)_[A-Za-z0-9._-]+/g, "bat_<redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 function parseBillingEntitlementEventRequest(

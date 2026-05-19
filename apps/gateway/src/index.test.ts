@@ -10,6 +10,7 @@ import {
   encryptSecret,
   GatewayError,
   issueAccessCredential,
+  issueBillingAdminToken,
   issueUnifiedClientKey,
   validateFeaturePolicy,
   type MessageInput,
@@ -1201,6 +1202,200 @@ describe("gateway phase 1 routes", () => {
         estimated_tokens: 0
       }
     ]);
+
+    await app.close();
+  });
+
+  it("authenticates billing admin routes with a DB token without an env token", async () => {
+    const { store } = createCredentialBackedStore();
+    store.createPlan({
+      id: "plan_billing_db_v1",
+      displayName: "Billing DB Token",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const billingToken = issueBillingAdminToken({
+      label: "Payment joint test",
+      kind: "test",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    store.insertBillingAdminToken(billingToken.record);
+
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminTokenMode: "db",
+      logger: false
+    });
+
+    const plans = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${billingToken.token}` }
+    });
+    expect(plans.statusCode).toBe(200);
+    expect(plans.json().plans).toEqual([
+      expect.objectContaining({
+        id: "plan_billing_db_v1",
+        display_name: "Billing DB Token"
+      })
+    ]);
+    const firstLastUsedAt = store
+      .getBillingAdminTokenByPrefix(billingToken.record.prefix)
+      ?.lastUsedAt?.toISOString();
+    expect(firstLastUsedAt).toBeTruthy();
+
+    const secondPlans = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${billingToken.token}` }
+    });
+    expect(secondPlans.statusCode).toBe(200);
+    expect(
+      store.getBillingAdminTokenByPrefix(billingToken.record.prefix)?.lastUsedAt?.toISOString()
+    ).toBe(firstLastUsedAt);
+
+    const envStyleToken = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: "Bearer billing-admin-token-1234567890" }
+    });
+    expect(envStyleToken.statusCode).toBe(401);
+
+    store.revokeBillingAdminTokenByPrefix(billingToken.record.prefix);
+    const revoked = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${billingToken.token}` }
+    });
+    expect(revoked.statusCode).toBe(401);
+
+    const expiredBillingToken = issueBillingAdminToken({
+      label: "Expired payment joint test",
+      kind: "test",
+      expiresAt: new Date("2020-01-01T00:00:00Z"),
+      now: new Date("2019-12-01T00:00:00Z")
+    });
+    store.insertBillingAdminToken(expiredBillingToken.record);
+    const expired = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${expiredBillingToken.token}` }
+    });
+    expect(expired.statusCode).toBe(401);
+    expect(expired.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
+  it("uses non-bat env billing admin tokens as fallback in hybrid and env modes", async () => {
+    for (const mode of ["hybrid", "env"] as const) {
+      const { store } = createCredentialBackedStore();
+      store.createPlan({
+        id: `plan_billing_env_fallback_${mode}_v1`,
+        displayName: "Billing Env Fallback",
+        scopeAllowlist: ["code"],
+        policy: unrestrictedTokenPolicy(),
+        featurePolicy: imageFeaturePolicy(),
+        now: new Date("2026-05-01T00:00:00Z")
+      });
+      store.getBillingAdminTokenByPrefix = () => {
+        throw new Error("DB lookup should be skipped for non-bat env token");
+      };
+      const app = buildGateway({
+        authMode: "credential",
+        provider: new FakeProvider(),
+        sessionStore: store,
+        billingAdminToken: "billing-admin-token-1234567890",
+        billingAdminTokenMode: mode,
+        logger: false
+      });
+      const plans = await app.inject({
+        method: "GET",
+        url: "/gateway/admin/billing/v1/plans",
+        headers: { authorization: "Bearer billing-admin-token-1234567890" }
+      });
+      expect(plans.statusCode).toBe(200);
+      expect(plans.json().plans[0]).toMatchObject({
+        id: `plan_billing_env_fallback_${mode}_v1`
+      });
+      await app.close();
+    }
+  });
+
+  it("does not fall back to env tokens for bat-shaped values in hybrid mode", async () => {
+    const { store } = createCredentialBackedStore();
+    store.createPlan({
+      id: "plan_billing_bat_env_v1",
+      displayName: "Billing Bat Env",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const batShapedEnvToken = "bat_test_envFallback1.secretPart1234567890";
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: batShapedEnvToken,
+      billingAdminTokenMode: "hybrid",
+      logger: false
+    });
+
+    const plans = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${batShapedEnvToken}` }
+    });
+    expect(plans.statusCode).toBe(401);
+    expect(plans.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
+  it("keeps DB billing admin auth successful when last_used_at tracking fails", async () => {
+    const { store } = createCredentialBackedStore();
+    store.createPlan({
+      id: "plan_billing_tracking_v1",
+      displayName: "Billing Tracking Failure",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const billingToken = issueBillingAdminToken({
+      label: "Payment tracking test",
+      kind: "test",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    store.insertBillingAdminToken(billingToken.record);
+    store.updateBillingAdminTokenLastUsedAt = () => {
+      throw new Error(`write failed for ${billingToken.token}`);
+    };
+
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminTokenMode: "db",
+      logger: false
+    });
+
+    const plans = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/plans",
+      headers: { authorization: `Bearer ${billingToken.token}` }
+    });
+    expect(plans.statusCode).toBe(200);
+    expect(plans.json().plans[0]).toMatchObject({
+      id: "plan_billing_tracking_v1"
+    });
 
     await app.close();
   });

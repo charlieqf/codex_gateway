@@ -55,6 +55,7 @@ export function sanitizeAuditErrorMessage(err: unknown): string {
     .replace(/cgu_live_[A-Za-z0-9]{64}/g, "cgu_live_<redacted>")
     .replace(/cgw\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "cgw.<redacted>")
     .replace(/mev2_live_[A-Za-z0-9_-]+/g, "mev2_live_<redacted>")
+    .replace(/bat_(?:test|live)_[A-Za-z0-9._-]+/g, "bat_<redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer <redacted>");
 }
 

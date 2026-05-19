@@ -3,6 +3,7 @@ import {
   validatePlanFeaturePolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
+  type BillingAdminTokenRecord,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventRecord,
   type Entitlement,
@@ -134,6 +135,36 @@ export function rowToUnifiedClientKey(row: unknown): UnifiedClientKeyRecord {
     medevidenceKeyCiphertext: value.medevidence_key_ciphertext,
     medevidenceKeyPrefix: value.medevidence_key_prefix,
     createdAt: new Date(value.created_at),
+    metadata: value.metadata_json ? (JSON.parse(value.metadata_json) as Record<string, unknown>) : null
+  };
+}
+
+export function rowToBillingAdminToken(row: unknown): BillingAdminTokenRecord {
+  const value = row as {
+    id: string;
+    prefix: string;
+    hash: string;
+    label: string;
+    kind: BillingAdminTokenRecord["kind"];
+    state: BillingAdminTokenRecord["state"];
+    expires_at: string;
+    revoked_at: string | null;
+    created_at: string;
+    last_used_at: string | null;
+    metadata_json: string | null;
+  };
+
+  return {
+    id: value.id,
+    prefix: value.prefix,
+    hash: value.hash,
+    label: value.label,
+    kind: value.kind,
+    state: value.state,
+    expiresAt: new Date(value.expires_at),
+    revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
+    createdAt: new Date(value.created_at),
+    lastUsedAt: value.last_used_at ? new Date(value.last_used_at) : null,
     metadata: value.metadata_json ? (JSON.parse(value.metadata_json) as Record<string, unknown>) : null
   };
 }
