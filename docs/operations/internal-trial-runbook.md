@@ -217,7 +217,16 @@ record for local development compatibility.
 
 ## Issue Access
 
+For MedEvidence/Desktop users who need the unified broker credential, issue an
+opaque `cgu_live_*` key through the billing/v2 path in
+`docs/operations/medevidence-codex-key-provisioning.md`. That path
+automatically requests the hidden MedEvidence v2 key and returns one client key
+for handoff.
+
 Create one API key per user. Prefer short expirations and explicit caps.
+Use this direct `issue` path only for raw Gateway `cgw.*` access, internal
+smoke users, or fallback operations where the user should not receive a
+`cgu_live_*` key.
 
 ```bash
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \

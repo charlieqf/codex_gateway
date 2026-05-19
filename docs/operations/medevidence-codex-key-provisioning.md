@@ -1,5 +1,118 @@
 # MedEvidence Codex Gateway Key Provisioning
 
+## Real User cgu_live Key
+
+For a real Desktop/MedEvidence user who should receive one opaque client
+credential, use the Gateway-owned billing/v2 path. This path creates the
+Gateway subject, automatically asks MedEvidence v2 to create the hidden v2 key,
+creates the backing Gateway key, wraps both runtime credentials as one
+`cgu_live_*` key, validates resolve/current-credential endpoints, and writes
+the full key only to a local handoff JSON.
+
+Do not hand-issue a MedEvidence v2 key first for this path. Do not send users
+the backing `cgw.*` key or the hidden `mev2_live_*` key.
+The `issue-desktop-e2e-opaque-key.ps1` script name is historical; until a
+dedicated real-user wrapper exists, it is also the standard real-user
+`cgu_live_*` issuing entrypoint.
+
+Current Wang Yun-equivalent trial defaults as of 2026-05-19:
+
+- plan: `plan_internal_high_quota_v1`
+- backing Gateway key expiration: `2026-07-01T00:00:00.000Z`
+- backing Gateway key rate: `10` requests/minute, `200` requests/day,
+  `4` concurrent requests
+- scope: `code`
+
+Preflight with a stable ASCII external user id:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-opaque-key.ps1 `
+  -Provider manual_trial `
+  -ExternalUserId <stable_ascii_user_id> `
+  -DisplayName "<real name>" `
+  -PlanId plan_internal_high_quota_v1 `
+  -WhatIf
+```
+
+Issue the opaque key:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-opaque-key.ps1 `
+  -Provider manual_trial `
+  -ExternalUserId <stable_ascii_user_id> `
+  -DisplayName "<real name>" `
+  -PlanId plan_internal_high_quota_v1 `
+  -EntitlementDays <days-to-trial-end>
+```
+
+The command prints only a safe summary with the `cgu_live_*` prefix, subject id,
+plan id, validation status, and handoff path. The full key is written only to
+the handoff JSON under `C:\Users\rdpuser\medevidence_api_keys` by default.
+
+Immediately normalize the backing Gateway key to the current real-user trial
+guardrails. First resolve the backing prefix without printing runtime keys:
+
+```powershell
+$handoffPath = "<handoff-json-path>"
+$handoff = Get-Content -LiteralPath $handoffPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$resolved = Invoke-RestMethod `
+  -Method Post `
+  -Uri "$($handoff.base_url)/gateway/unified-keys/resolve" `
+  -Headers @{ Authorization = "Bearer $($handoff.key)" } `
+  -ContentType "application/json" `
+  -Body "{}"
+
+$subjectId = $handoff.subject_id
+$gatewayPrefix = $resolved.codex_gateway.key_prefix
+```
+
+Then update the live Gateway metadata and backing key inside the container:
+
+```bash
+cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db \
+  update-user <subject-id> --label "<real name>" --name "<real name>" --phone "<phone>"
+
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db \
+  update-key <gateway-prefix> \
+  --label "medevidence-unified-<yyyymmdd>-<short-user-id>" \
+  --rpm 10 --rpd 200 --concurrent 4 \
+  --expires-at 2026-07-01T00:00:00.000Z
+```
+
+For non-ASCII names over Windows PowerShell/SSH, verify `list-active-keys`
+afterward. If the name appears as `??`, rerun `update-user` through an LF-only
+remote script or another UTF-8-safe path before handing off the key.
+
+Final verification:
+
+```powershell
+$current = Invoke-RestMethod `
+  -Method Get `
+  -Uri $handoff.credential_validation_url `
+  -Headers @{ Authorization = "Bearer $($resolved.codex_gateway.api_key)" }
+
+[pscustomobject]@{
+  key_prefix = $handoff.key_prefix
+  resolve_valid = $resolved.valid
+  subject_id = $resolved.subject.id
+  codex_gateway_prefix = $resolved.codex_gateway.key_prefix
+  medevidence_prefix = $resolved.medevidence.key_prefix
+  credential_valid = $current.valid
+  credential_prefix = $current.credential.prefix
+  entitlement_state = $current.entitlement.state
+  credential_expires_at = $current.credential.expires_at
+  rpm = $current.credential.rate.requestsPerMinute
+  rpd = $current.credential.rate.requestsPerDay
+  concurrent = $current.credential.rate.concurrentRequests
+} | ConvertTo-Json -Depth 8
+```
+
+Only share the `cgu_live_*` value through the agreed private channel. Do not
+paste full keys into chat, tickets, runbooks, or commit messages.
+
 ## Desktop E2E Opaque Key
 
 For Desktop automation that expects the new opaque broker credential, use the

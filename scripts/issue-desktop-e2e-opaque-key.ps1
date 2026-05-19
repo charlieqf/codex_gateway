@@ -117,7 +117,17 @@ function Invoke-BillingJson {
       return Invoke-RestMethod -Method Get -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSeconds
     }
     $json = if ($null -eq $Body) { "{}" } else { $Body | ConvertTo-Json -Depth 20 }
-    return Invoke-RestMethod -Method Post -Uri $Uri -Headers $Headers -Body $json -TimeoutSec $TimeoutSeconds
+    $postHeaders = $Headers.Clone()
+    if ($postHeaders.ContainsKey("Content-Type")) {
+      $postHeaders.Remove("Content-Type")
+    }
+    return Invoke-RestMethod `
+      -Method Post `
+      -Uri $Uri `
+      -Headers $postHeaders `
+      -ContentType "application/json; charset=utf-8" `
+      -Body ([Text.Encoding]::UTF8.GetBytes($json)) `
+      -TimeoutSec $TimeoutSeconds
   } catch {
     $message = $_.Exception.Message
     $response = $_.Exception.Response
