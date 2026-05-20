@@ -2106,6 +2106,139 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("serves a token-protected quota dashboard with recent usage aggregates", async () => {
+    const { store, issued, headers } = createCredentialBackedStore();
+    const now = new Date();
+    store.createPlan({
+      id: "plan_dashboard_v1",
+      displayName: "Dashboard Plan",
+      scopeAllowlist: ["code"],
+      policy: {
+        tokensPerMinute: 1000,
+        tokensPerDay: 10000,
+        tokensPerMonth: 100000,
+        maxPromptTokensPerRequest: 2000,
+        maxTotalTokensPerRequest: 4000,
+        reserveTokensPerRequest: 100,
+        missingUsageCharge: "estimate"
+      },
+      featurePolicy: imageFeaturePolicy(),
+      now
+    });
+    store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_dashboard_v1",
+      periodKind: "unlimited",
+      now
+    });
+    store.insertRequestEvent({
+      requestId: "req_quota_dashboard_ok",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      startedAt: now,
+      durationMs: 20,
+      firstByteMs: 8,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 70,
+      completionTokens: 30,
+      totalTokens: 100,
+      cachedPromptTokens: 0,
+      estimatedTokens: 0,
+      usageSource: "provider"
+    });
+    store.insertRequestEvent({
+      requestId: "req_quota_dashboard_limited",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      startedAt: now,
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "error",
+      errorCode: "rate_limited",
+      rateLimited: true,
+      promptTokens: 40,
+      completionTokens: 0,
+      totalTokens: 40,
+      cachedPromptTokens: 0,
+      estimatedTokens: 40,
+      usageSource: "estimate",
+      limitKind: "request_day"
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      adminMessagesToken: "admin-messages-token-1234567890",
+      logger: false
+    });
+
+    const page = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard"
+    });
+    const unauthenticated = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard.json"
+    });
+    const ordinaryCredential = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard.json",
+      headers
+    });
+    const data = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard.json?include_inactive=1",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+
+    expect(page.statusCode).toBe(200);
+    expect(page.headers["content-type"]).toContain("text/html");
+    expect(page.body).toContain("用户套餐与 Token 用量");
+    expect(page.body).toContain('id="token"');
+    expect(page.body).not.toContain("Credential Subject");
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(ordinaryCredential.statusCode).toBe(401);
+    expect(data.statusCode).toBe(200);
+    expect(data.json().users[0]).toMatchObject({
+      user: {
+        id: "subj_dev"
+      },
+      plan: {
+        id: "plan_dashboard_v1"
+      },
+      usage_today: {
+        requests: 2,
+        rate_limited: 1,
+        provider_total_tokens: 100,
+        estimated_tokens: 40
+      },
+      usage_7d: {
+        requests: 2,
+        rate_limited: 1,
+        provider_total_tokens: 100,
+        estimated_tokens: 40
+      },
+      primary_rate_limit: {
+        kind: "request_day",
+        count: 1
+      }
+    });
+    expect(JSON.stringify(data.json())).not.toContain(issued.token);
+    expect(JSON.stringify(data.json())).not.toContain("admin-messages-token-1234567890");
+
+    await app.close();
+  });
+
   it("writes client diagnostic events to the dedicated store without request observation", async () => {
     const { store, issued, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });

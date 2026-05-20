@@ -403,3 +403,14 @@ export {
 } from "./token-budget.js";
 
 export { createSqliteClientEventsStore, SqliteClientEventsStore } from "./client-events-store.js";
+export {
+  buildQuotaDashboardData,
+  renderQuotaDashboardHtml,
+  renderQuotaDashboardPage,
+  writeQuotaDashboard,
+  type DashboardData,
+  type PrimaryRateLimit,
+  type QuotaDashboardPageOptions,
+  type QuotaDashboardResult,
+  type UsageSummary
+} from "./quota-dashboard.js";

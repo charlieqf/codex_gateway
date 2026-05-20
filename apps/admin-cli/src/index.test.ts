@@ -1133,10 +1133,13 @@ describe("codex-gateway-admin user API key operations", () => {
       legacy_users: 0,
       users_without_quota: 0
     });
-    expect(html).toContain("用户 Plan / Quota Dashboard");
+    expect(html).toContain("用户套餐与 Token 用量");
     expect(html).toContain("Alice Zhang");
     expect(html).toContain("plan_pro_v1");
     expect(html).toContain("\"remaining\":1000");
+    expect(html).toContain("今日 provider tokens");
+    expect(html).toContain("近 7 天 provider tokens");
+    expect(html).toContain("主要限流");
     expect(html).not.toContain("test-api-key-encryption-secret");
   }, 20_000);
 

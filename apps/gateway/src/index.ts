@@ -35,9 +35,11 @@ import {
   type CodexProviderOptions
 } from "@codex-gateway/provider-codex";
 import {
+  buildQuotaDashboardData,
   createSqliteClientEventsStore,
   createSqliteStore,
   createSqliteTokenBudgetLimiter,
+  renderQuotaDashboardPage,
   SqliteGatewayStore
 } from "@codex-gateway/store-sqlite";
 import {
@@ -693,6 +695,56 @@ export function buildGateway(options: GatewayOptions = {}) {
           credentialStore,
           query: request.query
         })
+      );
+    }
+  );
+
+  app.get(
+    "/gateway/admin/quota-dashboard",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (_request, reply) => {
+      if (!adminMessagesAccess || !(sessions instanceof SqliteGatewayStore)) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+
+      return adminMessagesSecurityHeaders(reply)
+        .type("text/html; charset=utf-8")
+        .send(renderQuotaDashboardPage({ authRequired: adminMessagesAccess.mode === "token" }));
+    }
+  );
+
+  app.get<{ Querystring: { include_inactive?: string } }>(
+    "/gateway/admin/quota-dashboard.json",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (request, reply) => {
+      if (!adminMessagesAccess || !(sessions instanceof SqliteGatewayStore)) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+      if (
+        adminMessagesAccess.mode === "token" &&
+        (!adminMessagesAccess.token ||
+          !authenticateAdminMessagesRequest(request, adminMessagesAccess.token))
+      ) {
+        return sendAdminMessagesUnauthorized(adminMessagesSecurityHeaders(reply));
+      }
+
+      const includeInactive = ["1", "true", "yes"].includes(
+        String(request.query.include_inactive ?? "").trim().toLowerCase()
+      );
+      return adminMessagesSecurityHeaders(reply).send(
+        await buildQuotaDashboardData(sessions, { includeInactive })
       );
     }
   );

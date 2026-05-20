@@ -25,7 +25,11 @@ import {
   type SubjectState,
   type TokenLimitPolicy
 } from "@codex-gateway/core";
-import { createSqliteStore, createSqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
+import {
+  createSqliteStore,
+  createSqliteTokenBudgetLimiter,
+  writeQuotaDashboard
+} from "@codex-gateway/store-sqlite";
 import {
   type AuditedActionResult,
   type AuditInput,
@@ -84,7 +88,6 @@ import {
   publicSubject,
   publicUnifiedClientKey
 } from "./serializers.js";
-import { writeQuotaDashboard } from "./quota-dashboard.js";
 
 const defaultSubjectId = "subj_dev";
 const defaultSubjectLabel = "dev-subject";
