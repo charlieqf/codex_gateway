@@ -191,6 +191,7 @@ export async function buildQuotaDashboardData(
       warnings: dashboardWarnings(subject, access, activeCredentials, resolved.policy, tokenUsage)
     });
   }
+  users.sort(compareDashboardUsers);
 
   const summary = {
     users: users.length,
@@ -416,6 +417,19 @@ function primaryRateLimit(today: UsageSummary, sevenDay: UsageSummary): PrimaryR
   };
 }
 
+function compareDashboardUsers(left: DashboardUser, right: DashboardUser): number {
+  return (
+    right.usage_7d.provider_total_tokens - left.usage_7d.provider_total_tokens ||
+    right.usage_7d.estimated_tokens - left.usage_7d.estimated_tokens ||
+    right.usage_7d.requests - left.usage_7d.requests ||
+    subjectLabelForUser(left).localeCompare(subjectLabelForUser(right), "zh-CN")
+  );
+}
+
+function subjectLabelForUser(user: DashboardUser): string {
+  return user.user.name || user.user.label || user.user.id;
+}
+
 function topRateLimit(
   rateLimitedBy: Partial<Record<RateLimitKind, number>>
 ): { kind: RateLimitKind; count: number } | null {
@@ -505,6 +519,8 @@ function renderQuotaDashboardDocument(input: {
     * { box-sizing: border-box; }
     body {
       margin: 0;
+      max-width: 100vw;
+      overflow-x: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
@@ -616,7 +632,11 @@ function renderQuotaDashboardDocument(input: {
       min-height: 34px;
     }
     .segment button:last-child { border-right: 0; }
-    main { padding: 0 22px 24px; }
+    main {
+      max-width: 100vw;
+      overflow: hidden;
+      padding: 0 22px 24px;
+    }
     .notice {
       margin: 12px 0;
       padding: 10px 12px;
@@ -632,14 +652,17 @@ function renderQuotaDashboardDocument(input: {
     }
     .table-wrap {
       width: 100%;
+      max-width: 100%;
+      max-height: calc(100vh - 250px);
       overflow: auto;
+      scrollbar-gutter: stable both-edges;
       border: 1px solid var(--line);
       border-top: 0;
       background: var(--surface);
     }
     table {
-      width: 100%;
-      min-width: 1760px;
+      width: 1780px;
+      min-width: 1780px;
       border-collapse: collapse;
       table-layout: fixed;
     }
@@ -662,7 +685,24 @@ function renderQuotaDashboardDocument(input: {
     tr[data-severity="bad"] { background: #fff7f7; }
     tr[data-severity="warn"] { background: #fffaf0; }
     tbody tr:hover { background: #f7fbff; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .num {
+      text-align: center;
+      vertical-align: middle;
+      font-variant-numeric: tabular-nums;
+    }
+    .center { text-align: center; }
+    .table-wrap::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    .table-wrap::-webkit-scrollbar-track {
+      background: #edf1f6;
+    }
+    .table-wrap::-webkit-scrollbar-thumb {
+      background: #aeb8c7;
+      border: 2px solid #edf1f6;
+      border-radius: 999px;
+    }
     .subtle { color: var(--muted); font-size: 12px; }
     .badge {
       display: inline-flex;
@@ -751,14 +791,14 @@ function renderQuotaDashboardDocument(input: {
             <th style="width: 200px;">Plan / 权益</th>
             <th style="width: 145px;">API key</th>
             <th style="width: 370px;">当前额度窗口</th>
-            <th style="width: 120px;">请求限制</th>
-            <th style="width: 115px;">今日请求/限流</th>
-            <th style="width: 135px;">今日 provider tokens</th>
-            <th style="width: 100px;">今日估算</th>
-            <th style="width: 125px;">近 7 天请求/限流</th>
-            <th style="width: 145px;">近 7 天 provider tokens</th>
-            <th style="width: 110px;">近 7 天估算</th>
-            <th style="width: 150px;">主要限流</th>
+            <th class="center" style="width: 120px;">请求限制</th>
+            <th class="num" style="width: 115px;">今日请求/限流</th>
+            <th class="num" style="width: 135px;">今日 provider tokens</th>
+            <th class="num" style="width: 100px;">今日估算</th>
+            <th class="num" style="width: 125px;">近 7 天请求/限流</th>
+            <th class="num" style="width: 145px;">近 7 天 provider tokens</th>
+            <th class="num" style="width: 110px;">近 7 天估算</th>
+            <th class="center" style="width: 150px;">主要限流</th>
             <th>状态</th>
           </tr>
         </thead>
@@ -868,7 +908,9 @@ function renderQuotaDashboardDocument(input: {
     function renderRows() {
       if (!data) return;
       const term = searchEl.value.trim().toLowerCase();
-      const visible = data.users.filter((user) => matchesFilter(user, filter) && matchesSearch(user, term));
+      const visible = data.users
+        .filter((user) => matchesFilter(user, filter) && matchesSearch(user, term))
+        .sort(compareUsers);
       rowsEl.innerHTML = visible.map(renderUserRow).join("");
       emptyEl.hidden = visible.length > 0;
     }
@@ -895,6 +937,19 @@ function renderQuotaDashboardDocument(input: {
       }).toLowerCase().includes(term);
     }
 
+    function compareUsers(left, right) {
+      return (
+        right.usage_7d.provider_total_tokens - left.usage_7d.provider_total_tokens ||
+        right.usage_7d.estimated_tokens - left.usage_7d.estimated_tokens ||
+        right.usage_7d.requests - left.usage_7d.requests ||
+        subjectLabel(left).localeCompare(subjectLabel(right), "zh-CN")
+      );
+    }
+
+    function subjectLabel(user) {
+      return user.user.name || user.user.label || user.user.id;
+    }
+
     function renderUserRow(user) {
       const severity = user.usage_7d.rate_limited > 0 || hasExhaustedWindow(user.token_usage) || user.access_status === "expired"
         ? "bad"
@@ -904,7 +959,7 @@ function renderQuotaDashboardDocument(input: {
         '<td>' + renderPlan(user) + '</td>' +
         '<td>' + renderCredentials(user) + '</td>' +
         '<td>' + renderQuota(user) + '</td>' +
-        '<td>' + renderLimits(user) + '</td>' +
+        '<td class="center">' + renderLimits(user) + '</td>' +
         '<td class="num">' + requestPair(user.usage_today) + '</td>' +
         '<td class="num">' + formatNumber(user.usage_today.provider_total_tokens) + '</td>' +
         '<td class="num">' + formatNumber(user.usage_today.estimated_tokens) + '</td>' +

@@ -2109,6 +2109,22 @@ describe("gateway phase 1 routes", () => {
   it("serves a token-protected quota dashboard with recent usage aggregates", async () => {
     const { store, issued, headers } = createCredentialBackedStore();
     const now = new Date();
+    const highUsageCredential = issueAccessCredential({
+      subjectId: "subj_high",
+      label: "High usage credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now
+    });
+    store.upsertSubject({
+      id: "subj_high",
+      label: "A High Usage",
+      name: "A High Usage",
+      phoneNumber: "+15550001111",
+      state: "active",
+      createdAt: now
+    });
+    store.insertAccessCredential(highUsageCredential.record);
     store.createPlan({
       id: "plan_dashboard_v1",
       displayName: "Dashboard Plan",
@@ -2174,6 +2190,27 @@ describe("gateway phase 1 routes", () => {
       usageSource: "estimate",
       limitKind: "request_day"
     });
+    store.insertRequestEvent({
+      requestId: "req_quota_dashboard_high_usage",
+      credentialId: highUsageCredential.record.id,
+      subjectId: "subj_high",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      startedAt: now,
+      durationMs: 30,
+      firstByteMs: 9,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 450,
+      completionTokens: 50,
+      totalTokens: 500,
+      cachedPromptTokens: 0,
+      estimatedTokens: 0,
+      usageSource: "provider"
+    });
     const app = buildGateway({
       authMode: "credential",
       provider: new FakeProvider(),
@@ -2205,11 +2242,18 @@ describe("gateway phase 1 routes", () => {
     expect(page.headers["content-type"]).toContain("text/html");
     expect(page.body).toContain("用户套餐与 Token 用量");
     expect(page.body).toContain('id="token"');
+    expect(page.body).toContain("max-height: calc(100vh - 250px)");
+    expect(page.body).toContain("usage_7d.provider_total_tokens");
     expect(page.body).not.toContain("Credential Subject");
     expect(unauthenticated.statusCode).toBe(401);
     expect(ordinaryCredential.statusCode).toBe(401);
     expect(data.statusCode).toBe(200);
-    expect(data.json().users[0]).toMatchObject({
+    const payload = data.json();
+    expect(payload.users.map((user: { user: { id: string } }) => user.user.id).slice(0, 2)).toEqual([
+      "subj_high",
+      "subj_dev"
+    ]);
+    expect(payload.users.find((user: { user: { id: string } }) => user.user.id === "subj_dev")).toMatchObject({
       user: {
         id: "subj_dev"
       },
@@ -2233,8 +2277,14 @@ describe("gateway phase 1 routes", () => {
         count: 1
       }
     });
-    expect(JSON.stringify(data.json())).not.toContain(issued.token);
-    expect(JSON.stringify(data.json())).not.toContain("admin-messages-token-1234567890");
+    expect(payload.users.find((user: { user: { id: string } }) => user.user.id === "subj_high")).toMatchObject({
+      usage_7d: {
+        provider_total_tokens: 500
+      }
+    });
+    expect(JSON.stringify(payload)).not.toContain(issued.token);
+    expect(JSON.stringify(payload)).not.toContain(highUsageCredential.token);
+    expect(JSON.stringify(payload)).not.toContain("admin-messages-token-1234567890");
 
     await app.close();
   });
