@@ -838,7 +838,7 @@ function safeJson(value: unknown): string {
 }
 
 function openAIErrorType(error: GatewayError): string {
-  if (error.httpStatus === 400 || error.httpStatus === 404) {
+  if (error.httpStatus === 400 || error.httpStatus === 404 || error.httpStatus === 413) {
     return "invalid_request_error";
   }
   if (error.httpStatus === 401) {

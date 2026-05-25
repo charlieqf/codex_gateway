@@ -111,6 +111,13 @@ export function streamErrorToGatewayError(event: { code: string; message: string
       httpStatus: 503
     });
   }
+  if (event.code === "context_length_exceeded" || event.code === "context_too_large") {
+    return new GatewayError({
+      code: "context_length_exceeded",
+      message: event.message,
+      httpStatus: 413
+    });
+  }
   if (event.code === "invalid_request") {
     return new GatewayError({
       code: "invalid_request",

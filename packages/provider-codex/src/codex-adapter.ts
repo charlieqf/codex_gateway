@@ -182,6 +182,14 @@ export class CodexProviderAdapter implements ProviderAdapter {
     const message = err instanceof Error ? err.message : String(err);
     const lower = message.toLowerCase();
 
+    if (isContextWindowOverflow(lower)) {
+      return new GatewayError({
+        code: "context_length_exceeded",
+        message: "Current conversation is too long. Start a new conversation or clear earlier history before retrying.",
+        httpStatus: 413
+      });
+    }
+
     if (
       lower.includes("not logged in") ||
       lower.includes("login") ||
@@ -309,6 +317,18 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     return null;
   }
+}
+
+function isContextWindowOverflow(lowercaseMessage: string): boolean {
+  return (
+    lowercaseMessage.includes("ran out of room in the model's context window") ||
+    lowercaseMessage.includes("ran out of room in the models context window") ||
+    lowercaseMessage.includes("clear earlier history before retrying") ||
+    lowercaseMessage.includes("context length exceeded") ||
+    lowercaseMessage.includes("context_length_exceeded") ||
+    lowercaseMessage.includes("maximum context length") ||
+    lowercaseMessage.includes("context window") && lowercaseMessage.includes("too long")
+  );
 }
 
 function createProviderErrorDiagnostic(

@@ -232,6 +232,16 @@ describe("CodexProviderAdapter", () => {
     expect(normalize(new Error("HTTP 429 rate limit")).message).toBe(
       "MedCode service rate limit reached."
     );
+    expect(
+      normalize(
+        new Error(
+          "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
+        )
+      )
+    ).toMatchObject({
+      code: "context_length_exceeded",
+      message: "Current conversation is too long. Start a new conversation or clear earlier history before retrying."
+    });
     expect(normalize(new Error("connection reset")).code).toBe("service_unavailable");
     expect(normalize(new Error("connection reset")).message).toBe(
       "MedCode service is temporarily unavailable."
@@ -341,6 +351,44 @@ describe("CodexProviderAdapter", () => {
     expect(diagnostics[0].rawMessage).not.toContain("mev2_live_secret");
     expect(diagnostics[0].rawMessage).not.toContain("jsonSecret123");
     expect(diagnostics[0].rawMessage).not.toContain("pwSecret123");
+  });
+
+  it("reports context window overflows as structured provider errors", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "error",
+        message:
+          "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
+      } as ThreadEvent
+    ]);
+    const diagnostics: ProviderErrorDiagnostic[] = [];
+    const adapter = createAdapter(new FakeClient(thread));
+
+    const events = await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          onProviderError: (diagnostic) => diagnostics.push(diagnostic)
+        })
+      )
+    );
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        code: "context_length_exceeded",
+        message:
+          "Current conversation is too long. Start a new conversation or clear earlier history before retrying."
+      }
+    ]);
+    expect(diagnostics[0]).toMatchObject({
+      source: "stream.error",
+      code: "context_length_exceeded",
+      publicMessage:
+        "Current conversation is too long. Start a new conversation or clear earlier history before retrying.",
+      rawMessage:
+        "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
+    });
   });
 
   it("sanitizes item-level provider errors and stops the stream", async () => {
