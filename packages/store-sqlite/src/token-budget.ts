@@ -343,7 +343,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       for (const kind of kinds) {
         const windowStart = tokenWindowStart(kind, windows);
         this.deleteUsageWindow(input.subjectId, input.entitlementId ?? null, kind, windowStart);
-        expired += this.expireActiveReservations(
+        expired += this.finalizeActiveReservationsForReset(
           input.subjectId,
           input.entitlementId ?? null,
           kind,
@@ -801,7 +801,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       .run(subjectId, kind, windowStart.toISOString());
   }
 
-  private expireActiveReservations(
+  private finalizeActiveReservationsForReset(
     subjectId: string,
     entitlementId: string | null,
     kind: TokenWindowKind,
@@ -813,7 +813,15 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       ? this.db
           .prepare(
             `UPDATE token_reservations
-             SET expires_at = ?
+             SET expires_at = ?,
+                 finalized_at = ?,
+                 final_prompt_tokens = 0,
+                 final_completion_tokens = 0,
+                 final_total_tokens = 0,
+                 final_cached_prompt_tokens = 0,
+                 final_estimated_tokens = 0,
+                 final_usage_source = 'none',
+                 over_request_limit = 0
              WHERE entitlement_id = ?
                AND kind = 'reservation'
                AND finalized_at IS NULL
@@ -821,11 +829,25 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                AND expires_at > ?
                AND ${column} = ?`
           )
-          .run(now.toISOString(), entitlementId, now.toISOString(), windowStart.toISOString())
+          .run(
+            now.toISOString(),
+            now.toISOString(),
+            entitlementId,
+            now.toISOString(),
+            windowStart.toISOString()
+          )
       : this.db
           .prepare(
             `UPDATE token_reservations
-             SET expires_at = ?
+             SET expires_at = ?,
+                 finalized_at = ?,
+                 final_prompt_tokens = 0,
+                 final_completion_tokens = 0,
+                 final_total_tokens = 0,
+                 final_cached_prompt_tokens = 0,
+                 final_estimated_tokens = 0,
+                 final_usage_source = 'none',
+                 over_request_limit = 0
              WHERE subject_id = ?
                AND entitlement_id IS NULL
                AND kind = 'reservation'
@@ -834,7 +856,13 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                AND expires_at > ?
                AND ${column} = ?`
           )
-          .run(now.toISOString(), subjectId, now.toISOString(), windowStart.toISOString());
+          .run(
+            now.toISOString(),
+            now.toISOString(),
+            subjectId,
+            now.toISOString(),
+            windowStart.toISOString()
+          );
     return Number(result.changes ?? 0);
   }
 

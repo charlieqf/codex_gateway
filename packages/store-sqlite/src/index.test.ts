@@ -1087,6 +1087,33 @@ describe("SqliteGatewayStore", () => {
     expect(reset.after.day).toMatchObject({ used: 0, reserved: 0, remaining: 100 });
     expect(reset.after.month).toMatchObject({ used: 10, reserved: 0, remaining: 990 });
     expect(reset.expiredReservations).toBe(1);
+    if (!reserved.ok) {
+      throw new Error("reserved token acquire unexpectedly failed");
+    }
+
+    const lateFinalize = await limiter.finalize({
+      reservationId: reserved.reservationId,
+      usage: {
+        promptTokens: 20,
+        completionTokens: 40,
+        totalTokens: 60
+      },
+      now: new Date("2026-01-01T00:00:04Z")
+    });
+    const afterLateFinalizeUsage = await limiter.getCurrentUsage({
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      policy,
+      now: new Date("2026-01-01T00:00:04Z")
+    });
+    expect(lateFinalize).toMatchObject({
+      finalTotalTokens: 0,
+      finalUsageSource: "none"
+    });
+    expect(afterLateFinalizeUsage.day).toMatchObject({ used: 0, reserved: 0, remaining: 100 });
+    expect(afterLateFinalizeUsage.month).toMatchObject({ used: 10, reserved: 0, remaining: 990 });
 
     const afterReset = await limiter.acquire({
       requestId: "req_reset_after",
@@ -1100,7 +1127,7 @@ describe("SqliteGatewayStore", () => {
       provider: "openai-codex",
       policy,
       estimatedPromptTokens: 0,
-      now: new Date("2026-01-01T00:00:04Z")
+      now: new Date("2026-01-01T00:00:05Z")
     });
     expect(afterReset.ok).toBe(true);
 
