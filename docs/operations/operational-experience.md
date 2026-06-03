@@ -31,6 +31,10 @@ Last updated: 2026-05-14
 - Avoid quote-heavy one-line SSH commands from PowerShell when shell variables,
   JSON, or heredocs are involved. Transfer a temporary script or pipe normalized
   LF-only content to `bash -s`.
+- For live incident workflows, prefer an interactive SSH session into the VM and
+  run repo Bash scripts there. Windows PowerShell should only open SSH or run
+  simple one-line read-only commands; it should not be the business logic layer
+  for remote Bash/Docker commands.
 
 ## Operator Vocabulary
 
@@ -104,6 +108,15 @@ Last updated: 2026-05-14
   affinity maps to the requested `TARGET_ACCOUNT`, grants a short image-capable
   entitlement, calls `/gateway/images/generations`, verifies the response, and
   checks `request_events.upstream_account_id`.
+- `MedCode service is temporarily unavailable` is a symptom, not a root cause.
+  Always classify it through `request_events` and sanitized provider logs before
+  taking action. Refresh-token errors mean upstream Codex reauthentication;
+  context-window errors mean the user request/history is too large; rate-limit
+  errors mean retry/limit inspection; `missing_credential` usually means client
+  credential/probe traffic.
+- Upstream Codex reauthentication should use
+  `scripts/reauth-upstream-codex-account.sh` from the VM release checkout. Do
+  not hand-compose `docker exec sh -lc 'export CODEX_HOME=...'` login commands.
 
 ## Known Pitfalls
 

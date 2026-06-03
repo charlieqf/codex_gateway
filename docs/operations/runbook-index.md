@@ -16,6 +16,7 @@ Deployment and safety:
 6. [MedCode Windows Tool-Call Smoke](./medcode-windows-toolcall-smoke.md)
 7. [MedCode Partner Trial Test Plan](./medcode-partner-trial-test-plan.md)
 8. [Desktop User Message Query Support](./client-message-query-support.zh-CN.md)
+9. [MedCode Service Unavailable Runbook](./medcode-service-unavailable-runbook.md)
 
 Operational workflows now covered:
 
@@ -37,15 +38,18 @@ Operational workflows now covered:
 - Public API key self-validation through `GET /gateway/credentials/current`, including client-facing guidance in `docs/client-api-key-validation-guide.md`.
 - Real user and Desktop E2E opaque `cgu_live_*` key issuance through the Gateway-owned billing/v2 path, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
 - MedEvidence v2 handoff JSON to Codex Gateway API key provisioning through `scripts/provision-medevidence-codex-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
+- Upstream Codex account reauthentication through `scripts/reauth-upstream-codex-account.sh`, documented in `docs/operations/environment-access.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 - Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.
 - Registration/payment integration contract in `docs/implementation/registration-payment-integration-spec.md` for external signup, checkout, webhook, CRM, or billing teams that need to trigger gateway provisioning.
 - Billing Admin token hot-issue/revoke plan in `docs/implementation/billing-admin-token-management-plan.md`, to remove the current need to recreate the gateway container when issuing billing integration test tokens.
 - Desktop client message, diagnostic, and MedEvidence tool audit export ownership guidance plus read-only admin CLI examples in `docs/operations/client-message-query-support.zh-CN.md`.
+- `MedCode service is temporarily unavailable` triage, including event/log
+  classification and upstream Codex account reauthentication.
 
 Operational workflows still pending:
 
-- Fuller upstream Codex account administration.
+- Fuller upstream Codex account administration beyond reauthentication.
 - Admin operator identity capture.
 - Scheduled retention automation.
 - Materialized usage reports.

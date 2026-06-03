@@ -147,30 +147,28 @@ compatibility. `codex-pro-1` is the second Pro account and uses
 `/var/lib/codex-gateway/codex-home-plus`; it was named `codex-plus-1` before
 2026-05-14. Both accounts use `maxConcurrent: 1`.
 
-Device login for any additional account must use a distinct `CODEX_HOME` inside
-the gateway state volume and must not print or store device codes after use:
+Device login for a live upstream account must use the hardened reauth script
+from the release checkout. It sets only `CODEX_HOME`, never prints the
+container environment or `auth.json`, runs the SDK probe with the live model,
+and repairs the SQLite runtime row after a successful probe.
 
 ```bash
-sudo docker exec -it codex_gateway_test-gateway-1 sh -lc '
-  export CODEX_HOME=/var/lib/codex-gateway/codex-home-plus
-  mkdir -p "$CODEX_HOME"
-  chmod 700 "$CODEX_HOME"
-  codex login --device-auth
-'
+cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1
 ```
 
-After login, verify the account non-interactively with the same `CODEX_HOME` and
-the packaged runtime's git-repo bypass:
+If the account was already marked `reauth_required` inside the running gateway
+process, add `--recreate-gateway` so the process reloads the repaired SQLite
+state after the successful probe:
 
 ```bash
-sudo docker exec codex_gateway_test-gateway-1 sh -lc '
-  cd /app
-  npm run probe:codex -- \
-    --codex-home /var/lib/codex-gateway/codex-home-plus \
-    --run \
-    --timeout-ms 180000 \
-    --skip-git-repo-check
-'
+bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1 --recreate-gateway
+```
+
+Verify only, without starting a device login:
+
+```bash
+bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1 --verify-only
 ```
 
 ## Production Image Binding
