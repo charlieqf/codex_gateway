@@ -21,13 +21,14 @@ export { publicTokenPolicy, publicTokenUsage } from "@codex-gateway/core";
 
 export async function cleanupExpiredTokenReservations(
   limiter: TokenBudgetLimiter | undefined,
-  logger: TokenBudgetLogger
+  logger: TokenBudgetLogger,
+  now: Date = new Date()
 ): Promise<void> {
   if (!limiter) {
     return;
   }
   try {
-    await limiter.cleanupExpired();
+    await limiter.cleanupExpired(now);
   } catch (err) {
     logger.warn(
       { error: err instanceof Error ? err.message : String(err) },
@@ -43,6 +44,7 @@ export async function beginTokenBudget(
   options: {
     entitlementStore?: PlanEntitlementStore;
     requireEntitlement?: boolean;
+    now?: () => Date;
   } = {}
 ): Promise<GatewayError | null> {
   const { subject, upstreamAccount, scope, credential } = getGatewayContext(request);
@@ -54,7 +56,7 @@ export async function beginTokenBudget(
   let entitlementPeriodStart: Date | null = null;
   let entitlementPeriodEnd: Date | null = null;
   let tokenPolicy = credential.rate?.token ?? null;
-  const now = new Date();
+  const now = options.now?.() ?? new Date();
   try {
     const access = options.entitlementStore?.entitlementAccessForSubject(subject.id, now);
     if (access?.status === "active") {
@@ -181,25 +183,31 @@ export async function beginTokenBudget(
 
 export async function finalizeTokenBudget(
   request: FastifyRequest,
-  limiter: TokenBudgetLimiter | undefined
+  limiter: TokenBudgetLimiter | undefined,
+  options: {
+    now?: () => Date;
+  } = {}
 ): Promise<void> {
   if (!limiter || !request.gatewayTokenReservationId || !request.gatewayTokenReservationKind) {
     return;
   }
 
   const usage = request.gatewayTokenUsage as TokenUsage | undefined;
+  const now = options.now?.() ?? new Date();
   try {
     const result =
       request.gatewayTokenReservationKind === "soft_write"
         ? await limiter.finalizeSoftWrite({
             reservationId: request.gatewayTokenReservationId,
             requestId: request.id,
-            usage
+            usage,
+            now
           })
         : await limiter.finalize({
             reservationId: request.gatewayTokenReservationId,
             requestId: request.id,
-            usage
+            usage,
+            now
           });
     markTokenFinalizeResult(request, result);
   } catch (err) {

@@ -698,6 +698,30 @@ GET /gateway/admin/billing/v1/users/{subject_id}/entitlements?limit=50&cursor=..
 
 `history` 元素结构与 `current` 相同，按 `period_start DESC` 排序，分页。
 
+### 8.8.1 重置用户额度
+
+```http
+POST /gateway/admin/billing/v1/users/{subject_id}/quota-reset
+Content-Type: application/json
+```
+
+默认请求体 `{}` 等价于同时重置当前用户的 `request_day` 和 `token_day`：
+
+```json
+{
+  "request_windows": ["day"],
+  "token_windows": ["day"],
+  "credential_prefix": "optional cgw prefix",
+  "reason": "support ticket or billing adjustment id"
+}
+```
+
+- `request_windows` 支持 `minute` / `day`，重置运行中 Gateway 进程内的 per-credential 请求计数；不重置并发中的 `active` 计数。
+- `token_windows` 支持 `minute` / `day` / `month`，清当前 entitlement token window 的 quota counter；原始 request usage / billing events 保留用于对账。
+- 不传 `credential_prefix` 时会重置该 subject 当前 active credentials 的请求计数；token window 仍按当前 active entitlement 或 legacy credential token policy 计算。
+- 如只想重置其中一类，把另一类传空数组，例如 `{ "request_windows": [], "token_windows": ["month"] }`。
+- 成功写入 `admin_audit_events.action = "quota-reset"`；audit 只记录 subject、credential prefix、window 和 reason，不记录任何 token。
+
 ### 8.9 查询 usage 对账
 
 ```http

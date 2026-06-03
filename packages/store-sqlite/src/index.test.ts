@@ -994,6 +994,119 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("resets selected entitlement token windows and active reservations", async () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: 100,
+      tokensPerMonth: 1_000,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 80,
+      missingUsageCharge: "reserve" as const
+    };
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Reset token credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.createPlan({
+      id: "plan_reset_v1",
+      displayName: "Reset Plan",
+      policy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_reset_v1",
+      periodKind: "one_off",
+      periodStart: new Date("2026-01-01T00:00:00Z"),
+      periodEnd: new Date("2026-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+
+    const finalized = await limiter.acquire({
+      requestId: "req_reset_finalized",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 0,
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(finalized.ok).toBe(true);
+    if (!finalized.ok) {
+      throw new Error("token acquire unexpectedly failed");
+    }
+    await limiter.finalize({
+      reservationId: finalized.reservationId,
+      usage: {
+        promptTokens: 4,
+        completionTokens: 6,
+        totalTokens: 10
+      },
+      now: new Date("2026-01-01T00:00:01Z")
+    });
+
+    const reserved = await limiter.acquire({
+      requestId: "req_reset_reserved",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 0,
+      now: new Date("2026-01-01T00:00:02Z")
+    });
+    expect(reserved.ok).toBe(true);
+
+    const reset = await limiter.resetUsage({
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      policy,
+      windows: ["day"],
+      now: new Date("2026-01-01T00:00:03Z")
+    });
+    expect(reset.windows).toEqual(["day"]);
+    expect(reset.before.day).toMatchObject({ used: 10, reserved: 80, remaining: 10 });
+    expect(reset.after.day).toMatchObject({ used: 0, reserved: 0, remaining: 100 });
+    expect(reset.after.month).toMatchObject({ used: 10, reserved: 0, remaining: 990 });
+    expect(reset.expiredReservations).toBe(1);
+
+    const afterReset = await limiter.acquire({
+      requestId: "req_reset_after",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy,
+      estimatedPromptTokens: 0,
+      now: new Date("2026-01-01T00:00:04Z")
+    });
+    expect(afterReset.ok).toBe(true);
+
+    store.close();
+  });
+
   it("uses entitlement period boundaries for monthly token windows", async () => {
     const store = createSeededStore(":memory:");
     const policy = {

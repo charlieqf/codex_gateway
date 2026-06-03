@@ -1,6 +1,7 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  mergeEntitlementTokenPolicy,
   billingPayloadHash,
   encryptSecret,
   extractBillingAdminTokenPrefix,
@@ -12,6 +13,9 @@ import {
   validateBillingIdempotencyKey,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
+  type AccessCredentialRecord,
+  type AccessCredentialStore,
+  type AdminAuditStore,
   type BillingAdminStore,
   type BillingAdminTokenStore,
   type BillingApplyMode,
@@ -28,10 +32,17 @@ import {
   type PlanEntitlementStore,
   type RateLimitPolicy,
   type Scope,
+  type TokenBudgetLimiter,
   type TokenLimitPolicy,
+  type TokenUsageSnapshot,
+  type TokenWindowKind,
   verifyBillingAdminToken
 } from "@codex-gateway/core";
-import type { CredentialRateLimiter } from "./services/rate-limiter.js";
+import type {
+  CredentialRateLimiter,
+  RateLimitResetResult,
+  RateLimitResetWindow
+} from "./services/rate-limiter.js";
 import type { UpstreamV2Client } from "./upstream-v2-client.js";
 
 export const billingAdminTokenEnvName = "GATEWAY_BILLING_ADMIN_TOKEN";
@@ -50,10 +61,15 @@ export interface BillingAdminRouteOptions {
   tokenStore?: BillingAdminTokenStore;
   billingStore?: BillingAdminStore;
   planEntitlementStore?: PlanEntitlementStore;
+  credentialStore?: AccessCredentialStore;
+  adminAuditStore?: AdminAuditStore;
+  credentialRateLimiter?: CredentialRateLimiter;
+  tokenBudgetLimiter?: TokenBudgetLimiter;
   rateLimiter?: CredentialRateLimiter;
   ratePolicy?: RateLimitPolicy;
   upstreamV2Client?: UpstreamV2Client | null;
   apiKeyEncryptionSecret?: string | null;
+  now?: () => Date;
 }
 
 interface BillingEventQuery {
@@ -184,7 +200,7 @@ export function registerBillingAdminRoutes(
           idempotencyKey: v2IdempotencyKey
         });
 
-        const now = new Date();
+        const now = billingNow(options);
         const expiresAt = addDays(now, 365);
         const gatewayCredential = issueAccessCredential({
           subjectId,
@@ -335,7 +351,7 @@ export function registerBillingAdminRoutes(
           );
         }
 
-        const now = new Date();
+        const now = billingNow(options);
         const expiresAt = addDays(now, 365);
         const gatewayCredential = issueAccessCredential({
           subjectId: parsed.subjectId,
@@ -569,6 +585,59 @@ export function registerBillingAdminRoutes(
     }
   );
 
+  app.post<{ Params: { subjectId: string }; Body: unknown }>(
+    "/gateway/admin/billing/v1/users/:subjectId/quota-reset",
+    billingRouteOptions(),
+    async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) {
+        return authError;
+      }
+
+      const parsed = parseBillingQuotaResetRequest(request);
+      if (parsed instanceof GatewayError) {
+        return sendBillingError(request, reply, parsed);
+      }
+      if (!options.credentialStore) {
+        return sendBillingError(request, reply, serviceUnavailable("Credential store is not configured."));
+      }
+
+      const now = billingNow(options);
+      const credentials = resolveQuotaResetCredentials(
+        options.credentialStore,
+        parsed.subjectId,
+        parsed.credentialPrefix,
+        now
+      );
+      if (credentials instanceof GatewayError) {
+        recordBillingQuotaResetAudit(options, parsed, "error", credentials.message);
+        return sendBillingError(request, reply, credentials);
+      }
+
+      try {
+        const requestReset = resetRequestQuota(options, credentials, parsed.requestWindows);
+        const tokenReset = await resetTokenQuota(options, credentials[0], parsed.tokenWindows, now);
+        recordBillingQuotaResetAudit(options, parsed, "ok", null, {
+          credential_prefixes: credentials.map((credential) => credential.prefix),
+          request_windows: parsed.requestWindows,
+          token_windows: parsed.tokenWindows,
+          reason: parsed.reason
+        });
+        return billingSecurityHeaders(reply).send({
+          subject_id: parsed.subjectId,
+          credential_prefixes: credentials.map((credential) => credential.prefix),
+          request_reset: requestReset,
+          token_reset: tokenReset
+        });
+      } catch (err) {
+        const message = sanitizeBillingAdminLogMessage(errorMessage(err));
+        request.log.error({ error: message }, "Billing quota reset failed.");
+        recordBillingQuotaResetAudit(options, parsed, "error", message);
+        return sendBillingError(request, reply, toBillingGatewayError(err));
+      }
+    }
+  );
+
   app.get<{ Querystring: BillingUsageQuery }>(
     "/gateway/admin/billing/v1/usage",
     billingRouteOptions(),
@@ -674,7 +743,7 @@ function authenticateBillingAdminRequest(
       if (!record) {
         return invalidBillingAdminToken();
       }
-      const now = new Date();
+      const now = billingNow(options);
       const verificationError = verifyBillingAdminToken(token, record, now);
       if (verificationError) {
         return verificationError;
@@ -958,6 +1027,75 @@ function parseDisableSubjectRequest(
   };
 }
 
+function parseBillingQuotaResetRequest(
+  request: FastifyRequest<{ Params: { subjectId: string } }>
+):
+  | {
+      subjectId: string;
+      credentialPrefix: string | null;
+      requestWindows: RateLimitResetWindow[];
+      tokenWindows: TokenWindowKind[];
+      reason: string | null;
+    }
+  | GatewayError {
+  const body = objectBody(request.body ?? {});
+  if (body instanceof GatewayError) {
+    return body;
+  }
+  const requestWindows = parseWindowList(
+    body.request_windows,
+    ["minute", "day"],
+    ["day"],
+    "request_windows"
+  );
+  if (requestWindows instanceof GatewayError) {
+    return requestWindows;
+  }
+  const tokenWindows = parseWindowList(
+    body.token_windows,
+    ["minute", "day", "month"],
+    ["day"],
+    "token_windows"
+  );
+  if (tokenWindows instanceof GatewayError) {
+    return tokenWindows;
+  }
+  if (requestWindows.length === 0 && tokenWindows.length === 0) {
+    return invalidRequest("At least one request or token window must be selected.");
+  }
+  return {
+    subjectId: request.params.subjectId,
+    credentialPrefix: optionalString(body.credential_prefix),
+    requestWindows: requestWindows as RateLimitResetWindow[],
+    tokenWindows: tokenWindows as TokenWindowKind[],
+    reason: optionalString(body.reason)
+  };
+}
+
+function parseWindowList<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T[],
+  field: string
+): T[] | GatewayError {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  if (!Array.isArray(value)) {
+    return invalidRequest(`${field} must be an array.`);
+  }
+  const windows: T[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || !allowed.includes(item as T)) {
+      return invalidRequest(`${field} contains an unsupported window.`);
+    }
+    if (!windows.includes(item as T)) {
+      windows.push(item as T);
+    }
+  }
+  return windows;
+}
+
 function parseScopeAllowlist(value: unknown): Scope[] | GatewayError {
   if (value === undefined || value === null) {
     return ["code"];
@@ -1106,6 +1244,228 @@ function publicUsageResult(result: BillingUsageReportResult) {
   };
 }
 
+function resolveQuotaResetCredentials(
+  store: AccessCredentialStore,
+  subjectId: string,
+  credentialPrefix: string | null,
+  now: Date
+): AccessCredentialRecord[] | GatewayError {
+  if (credentialPrefix) {
+    const credential = store.getAccessCredentialByPrefix(credentialPrefix);
+    if (!credential || credential.subjectId !== subjectId || !isCredentialActive(credential, now)) {
+      return credentialNotFound();
+    }
+    return [credential];
+  }
+
+  const credentials = store
+    .listAccessCredentials({ subjectId, includeRevoked: false })
+    .filter((credential) => isCredentialActive(credential, now));
+  if (credentials.length === 0) {
+    return credentialNotFound();
+  }
+  return credentials;
+}
+
+function resetRequestQuota(
+  options: BillingAdminRouteOptions,
+  credentials: AccessCredentialRecord[],
+  windows: RateLimitResetWindow[]
+) {
+  if (windows.length === 0) {
+    return {
+      status: "skipped",
+      reason: "no_request_windows",
+      windows
+    };
+  }
+  if (!options.credentialRateLimiter?.reset) {
+    throw serviceUnavailable("Request quota reset is not configured.");
+  }
+
+  return {
+    status: "reset",
+    windows,
+    credentials: credentials.map((credential) => ({
+      credential_id: credential.id,
+      credential_prefix: credential.prefix,
+      reset: publicRateLimitResetResult(
+        options.credentialRateLimiter!.reset!({
+          credentialId: credential.id,
+          windows
+        })
+      )
+    }))
+  };
+}
+
+async function resetTokenQuota(
+  options: BillingAdminRouteOptions,
+  credential: AccessCredentialRecord,
+  windows: TokenWindowKind[],
+  now: Date
+) {
+  if (windows.length === 0) {
+    return {
+      status: "skipped",
+      reason: "no_token_windows",
+      windows
+    };
+  }
+  if (!options.tokenBudgetLimiter?.resetUsage) {
+    throw serviceUnavailable("Token quota reset is not configured.");
+  }
+
+  const context = tokenResetContext(options, credential, now);
+  if (!context) {
+    return {
+      status: "skipped",
+      reason: "no_token_policy",
+      windows
+    };
+  }
+
+  const result = await options.tokenBudgetLimiter.resetUsage({
+    subjectId: credential.subjectId,
+    entitlementId: context.entitlementId,
+    entitlementPeriodStart: context.entitlementPeriodStart,
+    entitlementPeriodEnd: context.entitlementPeriodEnd,
+    policy: context.policy,
+    windows,
+    now
+  });
+  return {
+    status: "reset",
+    source: result.before.source,
+    entitlement_id: context.entitlementId,
+    windows: result.windows,
+    expired_reservations: result.expiredReservations,
+    usage_before: publicTokenUsageSnapshot(result.before),
+    usage_after: publicTokenUsageSnapshot(result.after)
+  };
+}
+
+function tokenResetContext(
+  options: BillingAdminRouteOptions,
+  credential: AccessCredentialRecord,
+  now: Date
+): {
+  entitlementId: string | null;
+  entitlementPeriodStart: Date | null;
+  entitlementPeriodEnd: Date | null;
+  policy: TokenLimitPolicy;
+} | null {
+  const access = options.planEntitlementStore?.entitlementAccessForSubject(credential.subjectId, now);
+  if (access?.status === "active") {
+    return {
+      entitlementId: access.entitlement.id,
+      entitlementPeriodStart: access.entitlement.periodStart,
+      entitlementPeriodEnd: access.entitlement.periodEnd,
+      policy: mergeEntitlementTokenPolicy(
+        access.entitlement.policySnapshot,
+        credential.rate.token ?? null
+      )
+    };
+  }
+  if (credential.rate.token) {
+    return {
+      entitlementId: null,
+      entitlementPeriodStart: null,
+      entitlementPeriodEnd: null,
+      policy: credential.rate.token
+    };
+  }
+  return null;
+}
+
+function publicTokenUsageSnapshot(snapshot: TokenUsageSnapshot) {
+  return {
+    source: snapshot.source,
+    minute: publicWindowSnapshot(snapshot.minute),
+    day: publicWindowSnapshot(snapshot.day),
+    month: publicWindowSnapshot(snapshot.month)
+  };
+}
+
+function publicRateLimitResetResult(result: RateLimitResetResult) {
+  return {
+    found: result.found,
+    windows: result.windows,
+    before: result.before ? publicRateLimitResetSnapshot(result.before) : null,
+    after: result.after ? publicRateLimitResetSnapshot(result.after) : null
+  };
+}
+
+function publicRateLimitResetSnapshot(snapshot: RateLimitResetResult["before"]) {
+  if (!snapshot) {
+    return null;
+  }
+  return {
+    minute_window: snapshot.minuteWindow,
+    minute_count: snapshot.minuteCount,
+    day_window: snapshot.dayWindow,
+    day_count: snapshot.dayCount,
+    active: snapshot.active
+  };
+}
+
+function publicWindowSnapshot(snapshot: TokenUsageSnapshot["minute"]) {
+  return {
+    limit: snapshot.limit,
+    used: snapshot.used,
+    reserved: snapshot.reserved,
+    remaining: snapshot.remaining,
+    window_start: snapshot.windowStart,
+    window_end: snapshot.windowEnd
+  };
+}
+
+function recordBillingQuotaResetAudit(
+  options: BillingAdminRouteOptions,
+  parsed: {
+    subjectId: string;
+    credentialPrefix: string | null;
+    requestWindows: RateLimitResetWindow[];
+    tokenWindows: TokenWindowKind[];
+    reason: string | null;
+  },
+  status: "ok" | "error",
+  errorMessage: string | null,
+  params: Record<string, unknown> | null = null
+): void {
+  if (!options.adminAuditStore) {
+    return;
+  }
+  try {
+    options.adminAuditStore.insertAdminAuditEvent({
+      id: `audit_${randomUUID()}`,
+      action: "quota-reset",
+      targetUserId: parsed.subjectId,
+      targetCredentialId: null,
+      targetCredentialPrefix: parsed.credentialPrefix,
+      status,
+      params: params ?? {
+        credential_prefix: parsed.credentialPrefix,
+        request_windows: parsed.requestWindows,
+        token_windows: parsed.tokenWindows,
+        reason: parsed.reason
+      },
+      errorMessage,
+      createdAt: billingNow(options)
+    });
+  } catch {
+    // Do not fail the reset after quota state has already been changed.
+  }
+}
+
+function isCredentialActive(credential: AccessCredentialRecord, now: Date): boolean {
+  return !credential.revokedAt && credential.expiresAt.getTime() > now.getTime();
+}
+
+function billingNow(options: BillingAdminRouteOptions): Date {
+  return options.now?.() ?? new Date();
+}
+
 function publicCreateSubjectResult(result: CreateBillingSubjectResult, key: string | null) {
   const visibleCredential = result.unifiedClientKey;
   return {
@@ -1225,6 +1585,14 @@ function subjectNotFound(): GatewayError {
   return new GatewayError({
     code: "subject_not_found",
     message: "Subject does not exist.",
+    httpStatus: 404
+  });
+}
+
+function credentialNotFound(): GatewayError {
+  return new GatewayError({
+    code: "credential_not_found",
+    message: "Active credential does not exist for subject.",
     httpStatus: 404
   });
 }

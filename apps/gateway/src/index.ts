@@ -183,6 +183,7 @@ export interface GatewayOptions {
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
   imageGenerationProvider?: ImageGenerationProvider | null;
+  now?: () => Date;
   logger?: boolean;
 }
 
@@ -230,12 +231,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     genReqId: () => `req-${randomUUID()}`
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
+  const clock = options.now ?? (() => new Date());
   const subject = options.subject ?? defaultSubject();
   const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
   const upstreamPool = resolveUpstreamAccountPool(options, process.env, sessions, app.log);
   const upstreamRouter = new UpstreamAccountRouter(upstreamPool.runtimes, {
     softAffinity: upstreamPool.softAffinity,
     cooldown: upstreamPool.cooldown,
+    now: clock,
     onAccountUpdated: (account) => persistUpstreamAccountRuntimeState(sessions, account, app.log)
   });
   const defaultUpstream = upstreamRouter.defaultSelection();
@@ -258,7 +261,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     credentialStore
   });
   validateAuthModeForEnvironment(authMode, process.env.NODE_ENV);
-  const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter();
+  const rateLimiter = options.rateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
   const observationStore =
     options.observationStore ?? (isObservationStore(sessions) ? sessions : undefined);
   const tokenBudgetLimiter =
@@ -289,7 +292,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       ? createDefaultClientEventsStore()
       : options.clientEventsStore ?? undefined;
   const clientEventsRateLimiter =
-    options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter();
+    options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
   const clientEventsRatePolicy =
     options.clientEventsRatePolicy ?? resolveClientEventsRatePolicy(process.env);
   const adminMessagesAccess = resolveAdminMessagesAccess({
@@ -308,7 +311,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.billingAdminTokenMode ?? process.env.GATEWAY_BILLING_ADMIN_TOKEN_MODE
   );
   const billingAdminRateLimiter =
-    options.billingAdminRateLimiter ?? new InMemoryCredentialRateLimiter();
+    options.billingAdminRateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
   const billingAdminRatePolicy =
     options.billingAdminRatePolicy ?? resolveBillingAdminRatePolicy(process.env);
   const upstreamV2Client =
@@ -376,7 +379,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       credentialAuthHook(request, reply, {
         store: credentialStore,
         provider,
-        upstreamAccount
+        upstreamAccount,
+        now: clock
       })
     );
   } else {
@@ -396,7 +400,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (request.routeOptions.config?.public) {
       return;
     }
-    await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log);
+    await cleanupExpiredTokenReservations(tokenBudgetLimiter, request.log, clock());
   });
 
   app.addHook("onResponse", async (request, reply) => {
@@ -559,7 +563,8 @@ export function buildGateway(options: GatewayOptions = {}) {
 
       const result = authenticateUnifiedClientKeyBearer(request, {
         store: unifiedClientKeyStore,
-        subjectStore: credentialStore
+        subjectStore: credentialStore,
+        now: clock
       });
       if (result instanceof GatewayError) {
         return sendGatewayErrorResponse(request, reply, result);
@@ -608,7 +613,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       const backingCredentialError = validateBackingGatewayCredential({
         store: credentialStore,
         record: result.record,
-        codexApiKey
+        codexApiKey,
+        now: clock
       });
       if (backingCredentialError) {
         return sendGatewayErrorResponse(request, reply, backingCredentialError);
@@ -755,10 +761,15 @@ export function buildGateway(options: GatewayOptions = {}) {
     tokenStore: billingAdminTokenStore,
     billingStore: billingAdminStore,
     planEntitlementStore,
+    credentialStore,
+    adminAuditStore,
+    credentialRateLimiter: rateLimiter,
+    tokenBudgetLimiter,
     rateLimiter: billingAdminRateLimiter,
     ratePolicy: billingAdminRatePolicy,
     upstreamV2Client,
-    apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null
+    apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null,
+    now: clock
   });
 
   app.post<{ Body: unknown }>(
@@ -1128,7 +1139,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       request,
       tokenBudgetLimiter,
       request.gatewayEstimatedTokens,
-      { entitlementStore: planEntitlementStore, requireEntitlement }
+      { entitlementStore: planEntitlementStore, requireEntitlement, now: clock }
     );
     if (tokenBudgetError) {
       attempt.lease.release();
@@ -1293,7 +1304,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           sse.writeDone();
         }
       } finally {
-        await finalizeTokenBudget(request, tokenBudgetLimiter);
+        await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
         attempt.lease.release();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
@@ -1400,7 +1411,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         usage
       });
     } finally {
-      await finalizeTokenBudget(request, tokenBudgetLimiter);
+      await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
       attempt.lease.release();
     }
   });
@@ -1480,7 +1491,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         request,
         tokenBudgetLimiter,
         request.gatewayEstimatedTokens,
-        { entitlementStore: planEntitlementStore, requireEntitlement }
+        { entitlementStore: planEntitlementStore, requireEntitlement, now: clock }
       );
       if (tokenBudgetError) {
         lease.release();
@@ -1526,7 +1537,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           upstreamRouter.recordOutcome(lease.upstreamAccount.id, "success");
         }
       } finally {
-        await finalizeTokenBudget(request, tokenBudgetLimiter);
+        await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
         lease.release();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);

@@ -112,6 +112,7 @@ export type AdminAuditAction =
   | "disable-user"
   | "enable-user"
   | "prune-events"
+  | "quota-reset"
   | "token-overrun"
   | "token-reservation-expired"
   | "plan-create"

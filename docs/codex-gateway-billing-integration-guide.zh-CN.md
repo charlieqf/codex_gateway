@@ -520,6 +520,30 @@ Authorization: Bearer <token>
 - `current` 是当前最有效的 entitlement，不存在时为 `null`。
 - `history` 按 `period_start DESC` 排序，分页。
 
+### 5.5.1 重置用户额度
+
+```http
+POST /gateway/admin/billing/v1/users/{subject_id}/quota-reset
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+默认请求体 `{}` 会同时重置当前 active credential 的日请求额度和当前 entitlement 的日 token 额度：
+
+```json
+{
+  "request_windows": ["day"],
+  "token_windows": ["day"],
+  "credential_prefix": "optional cgw prefix",
+  "reason": "support ticket or billing adjustment id"
+}
+```
+
+- `request_windows`：`minute` / `day`，作用于 Gateway 进程内 request limiter；不会清正在运行请求的并发计数。
+- `token_windows`：`minute` / `day` / `month`，作用于 SQLite token quota window；不会删除 request usage 对账记录。
+- 只重置其中一类时，把另一类传空数组。
+- 该操作写入 `quota-reset` 审计事件。`reason` 不要放入 API key、billing token、手机号、地址等敏感信息。
+
 ### 5.6 查询 usage 对账
 
 ```http

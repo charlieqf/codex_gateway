@@ -27,6 +27,7 @@ import {
 } from "@codex-gateway/store-sqlite";
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
+import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
 import type {
   UpstreamV2Client,
   UpstreamV2CreateUserInput
@@ -1202,6 +1203,148 @@ describe("gateway phase 1 routes", () => {
         estimated_tokens: 0
       }
     ]);
+
+    await app.close();
+  });
+
+  it("resets request and token quota through billing admin", async () => {
+    const tokenPolicy = {
+      tokensPerMinute: null,
+      tokensPerDay: 100,
+      tokensPerMonth: 1_000,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    const { store, issued, headers } = createCredentialBackedStore({
+      requestsPerMinute: 100,
+      requestsPerDay: 1,
+      concurrentRequests: 1
+    });
+    const fixedNow = () => new Date("2026-05-21T12:00:00Z");
+    const rateLimiter = new InMemoryCredentialRateLimiter({
+      now: fixedNow
+    });
+    store.createPlan({
+      id: "plan_quota_reset_v1",
+      displayName: "Quota Reset",
+      scopeAllowlist: ["code"],
+      policy: tokenPolicy,
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_quota_reset_v1",
+      periodKind: "one_off",
+      periodStart: new Date("2026-05-01T00:00:00Z"),
+      periodEnd: new Date("2026-06-01T00:00:00Z"),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider([
+        { type: "message_delta", text: "ok" },
+        {
+          type: "completed",
+          providerSessionRef: "provider_thread_quota_reset",
+          usage: { promptTokens: 20, completionTokens: 40, totalTokens: 60 }
+        }
+      ]),
+      sessionStore: store,
+      rateLimiter,
+      billingAdminToken: "billing-admin-token-1234567890",
+      now: fixedNow,
+      logger: false
+    });
+    const chatPayload = {
+      model: "medcode",
+      messages: [{ role: "user", content: "hello" }]
+    };
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: chatPayload
+    });
+    expect(first.statusCode).toBe(200);
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: chatPayload
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error.code).toBe("rate_limited");
+
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const beforeResetUsage = await limiter.getCurrentUsage({
+      subjectId: "subj_dev",
+      entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart,
+      entitlementPeriodEnd: entitlement.periodEnd,
+      policy: tokenPolicy,
+      now: new Date("2026-05-21T12:00:00Z")
+    });
+    expect(beforeResetUsage.day.used).toBe(60);
+
+    const reset = await app.inject({
+      method: "POST",
+      url: "/gateway/admin/billing/v1/users/subj_dev/quota-reset",
+      headers: { authorization: "Bearer billing-admin-token-1234567890" },
+      payload: {
+        request_windows: ["day"],
+        token_windows: ["day"],
+        reason: "support reset"
+      }
+    });
+    expect(reset.statusCode).toBe(200);
+    expect(reset.json()).toMatchObject({
+      subject_id: "subj_dev",
+      credential_prefixes: [issued.record.prefix],
+      request_reset: {
+        status: "reset",
+        windows: ["day"]
+      },
+      token_reset: {
+        status: "reset",
+        source: "entitlement",
+        entitlement_id: entitlement.id,
+        windows: ["day"],
+        usage_before: {
+          day: {
+            used: 60
+          }
+        },
+        usage_after: {
+          day: {
+            used: 0
+          },
+          month: {
+            used: 60
+          }
+        }
+      }
+    });
+
+    const afterReset = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: chatPayload
+    });
+    expect(afterReset.statusCode).toBe(200);
+
+    expect(
+      store.listAdminAuditEvents({ action: "quota-reset", limit: 1 })[0]
+    ).toMatchObject({
+      action: "quota-reset",
+      targetUserId: "subj_dev",
+      status: "ok"
+    });
 
     await app.close();
   });

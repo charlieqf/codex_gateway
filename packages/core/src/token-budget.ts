@@ -97,6 +97,19 @@ export interface GetUsageInput {
   now?: Date;
 }
 
+export type TokenWindowKind = "minute" | "day" | "month";
+
+export interface ResetUsageInput extends GetUsageInput {
+  windows: TokenWindowKind[];
+}
+
+export interface ResetUsageResult {
+  windows: TokenWindowKind[];
+  before: TokenUsageSnapshot;
+  after: TokenUsageSnapshot;
+  expiredReservations: number;
+}
+
 export interface TokenUsageSnapshot {
   source: "entitlement" | "subject";
   minute: WindowSnapshot;
@@ -120,6 +133,7 @@ export interface TokenBudgetLimiter {
   finalizeSoftWrite(input: SoftWriteFinalizeInput): Promise<FinalizeResult>;
   cleanupExpired(now?: Date): Promise<CleanupResult>;
   getCurrentUsage(input: GetUsageInput): Promise<TokenUsageSnapshot>;
+  resetUsage(input: ResetUsageInput): Promise<ResetUsageResult>;
 }
 
 export function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy {

@@ -21,7 +21,7 @@ describe("InMemoryCredentialRateLimiter", () => {
     expect(rejection(limited).error.code).toBe("rate_limited");
     expect(rejection(limited).error.retryAfterSeconds).toBe(60);
 
-    now = new Date("2026-01-01T00:01:00Z");
+    now = new Date("2026-01-02T00:01:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy })).release();
   });
 
@@ -41,6 +41,44 @@ describe("InMemoryCredentialRateLimiter", () => {
 
     now = new Date("2026-01-02T00:00:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy })).release();
+  });
+
+  it("resets selected request windows without clearing active concurrency", () => {
+    let now = new Date("2026-01-01T00:00:00Z");
+    const limiter = new InMemoryCredentialRateLimiter({ now: () => now });
+    const limitedPolicy = {
+      requestsPerMinute: 2,
+      requestsPerDay: 1,
+      concurrentRequests: 1
+    };
+
+    const first = permit(limiter.acquire({ credentialId: "cred_1", policy: limitedPolicy }));
+    const concurrentLimited = limiter.acquire({ credentialId: "cred_1", policy: limitedPolicy });
+    expect(rejection(concurrentLimited).limitKind).toBe("concurrency");
+    first.release();
+
+    const dayLimited = limiter.acquire({ credentialId: "cred_1", policy: limitedPolicy });
+    expect(rejection(dayLimited).limitKind).toBe("request_day");
+
+    now = new Date("2026-01-01T00:00:30Z");
+    const reset = limiter.reset({
+      credentialId: "cred_1",
+      windows: ["day"]
+    });
+
+    expect(reset.found).toBe(true);
+    expect(reset.before).toMatchObject({ minuteCount: 1, dayCount: 1, active: 0 });
+    expect(reset.after).toMatchObject({ minuteCount: 1, dayCount: 0, active: 0 });
+    permit(limiter.acquire({ credentialId: "cred_1", policy: limitedPolicy })).release();
+
+    now = new Date("2026-01-02T00:01:00Z");
+    const active = permit(limiter.acquire({ credentialId: "cred_1", policy: limitedPolicy }));
+    const activeReset = limiter.reset({
+      credentialId: "cred_1",
+      windows: ["minute", "day"]
+    });
+    expect(activeReset.after).toMatchObject({ minuteCount: 0, dayCount: 0, active: 1 });
+    active.release();
   });
 
   it("limits concurrent requests until a permit is released", () => {

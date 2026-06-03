@@ -37,8 +37,8 @@
 
 - 三档月订阅：低档 50 元 / 1,000,000 tokens，中档 100 元 / 2,000,000 tokens，高档 200 元 / 3,000,000 tokens。
 - 升级扩容：同一订阅周期内升级套餐时不清零已用量，只扩容总额度。例如低档已用 500,000 tokens 后升级中档，升级后用量应显示为 500,000 / 2,000,000。
-- 该升级扩容语义需要 MedEvidence 在替换 entitlement 时把旧 entitlement 当前周期 token usage 结转到新 entitlement 的 token 窗口；MedEvidence 侧 entitlement 周期 token window 已完成开发和本地自测，完成测试环境部署和双方联调验证前，不作为已开放联调能力。
-- 升级扩容属于 P0 范围内的能力增强，基于现有 entitlement model，不依赖 P1 充值钱包；当前待补齐的是三档 plan 创建、测试环境部署验证和双方联调验证。
+- Entitlement 周期 token window 已在测试环境部署并完成 MedEvidence 侧线上自测：有 active entitlement 的用户，`tokens_per_month` 窗口按 `period_start` / `period_end` 计算，不按 UTC 自然月重置。
+- 升级扩容属于 P0 范围内的能力增强，基于现有 entitlement model，不依赖 P1 充值钱包；当前待补齐的是三档 plan 创建和双方联调验证。
 
 当前可以开始受控联调：
 
@@ -165,11 +165,12 @@ Content-Type: application/json
 }
 ```
 
-升级扩容建议沿用原订阅周期的 `period_start` / `period_end`，不要重置周期。收费侧在支付成功后发送升级事件；目标上线版本中，MedEvidence 侧负责把旧套餐当前周期已用 token 结转到新套餐额度窗口。
+升级扩容建议沿用原订阅周期的 `period_start` / `period_end`，不要重置周期。收费侧在支付成功后发送升级事件；三档升级端到端联调通过后，MedEvidence 侧应把旧套餐当前周期已用 token 结转到新套餐额度窗口。
 
-升级结转触发口径（已完成本地开发自测，待测试环境部署和联调验证）：
+升级结转触发口径：
 
 - MedEvidence 应在 `replace_current=true` 且新 `plan_id` 与被替换 entitlement 的 `plan_id` 不同的事件中执行 token usage 结转。
+- Entitlement 周期 token window 已部署，可保证同一 `period_start` / `period_end` 的月额度窗口不会在 UTC 自然月边界重置；三档升级端到端仍需等三档 plan 创建后联调验收。
 - `metadata.change_type`、`metadata.from_plan_id`、`metadata.to_plan_id` 仅用于 audit、日志和跨团队排障，不作为 MedEvidence 行为触发条件。
 - 如当前 subject 已存在未来 scheduled entitlement，收费侧需要同时传 `replace_scheduled=true`；否则 MedEvidence 会返回 `409 invalid_entitlement_transition`，由收费侧人工确认后重试。
 - 降级（高档到低档）不在 P0 范围；降级建议在下一周期续费时通过新 `plan_id` 生效。
@@ -186,15 +187,16 @@ Content-Type: application/json
 8. 发 `pause`、`resume` 或 `cancel`，确认状态流转。
 9. `GET /entitlement-events/{idempotency_key}`，按 key 对账。`idempotency_key` 放在 path 时需要 URL-encode。
 10. `GET /usage`，验证 usage 查询格式；没有流量时 rows 可以为空。
-11. 测试结束后调用 `POST /subjects/{subject_id}/disable` 清理测试 subject。
+11. 使用非 UTC 自然月周期做一次窗口验收，例如 `period_start=2026-05-11T00:00:00.000Z`、`period_end=2026-06-11T00:00:00.000Z`；MedEvidence 侧会以该周期作为 `tokens_per_month` 窗口，`tokens_per_minute` / `tokens_per_day` 仍按 UTC 自然分钟 / UTC 自然日计算。
+12. 测试结束后调用 `POST /subjects/{subject_id}/disable` 清理测试 subject。
 
 三档月订阅和升级扩容联调建议在上述基础链路通过后追加：
 
-12. `GET /plans`，确认 `plan_basic_monthly_v1`、`plan_standard_monthly_v1`、`plan_premium_monthly_v1` 已创建。
-13. 创建测试 subject，购买低档 `plan_basic_monthly_v1`。
-14. 产生或模拟同周期 token usage，例如 500,000 tokens。
-15. 发送升级事件：`purchase` + `replace_current=true`，新 `plan_id=plan_standard_monthly_v1`，周期沿用原 `period_start` / `period_end`。
-16. 查询 `GET /gateway/admin/billing/v1/users/{subject_id}/entitlements`，确认 `current.plan_id` 已切到新档；查询 `GET /gateway/admin/billing/v1/usage?subject_id=...&from=...&to=...&group_by=none`，确认周期内 token 用量仍为 500,000。升级后剩余额度应按新套餐月额度 2,000,000 减去已用 500,000 计算，即 1,500,000。
+13. `GET /plans`，确认 `plan_basic_monthly_v1`、`plan_standard_monthly_v1`、`plan_premium_monthly_v1` 已创建。
+14. 创建测试 subject，购买低档 `plan_basic_monthly_v1`。
+15. 产生或模拟同周期 token usage，例如 500,000 tokens。
+16. 发送升级事件：`purchase` + `replace_current=true`，新 `plan_id=plan_standard_monthly_v1`，周期沿用原 `period_start` / `period_end`。
+17. 查询 `GET /gateway/admin/billing/v1/users/{subject_id}/entitlements`，确认 `current.plan_id` 已切到新档；查询 `GET /gateway/admin/billing/v1/usage?subject_id=...&from=...&to=...&group_by=none`，确认周期内 token 用量仍为 500,000。升级后剩余额度应按新套餐月额度 2,000,000 减去已用 500,000 计算，即 1,500,000。
 
 ## 6. 已完成验证
 
@@ -207,9 +209,13 @@ Content-Type: application/json
 - Entitlement 链路通过：临时 subject 完成 `purchase`、幂等 replay、`cancel`、entitlements 查询。
 - 测试 subject 和测试 key 已清理。
 
-截至 2026-05-13，三档月订阅 plan 仍处于方案审核/创建前阶段；“升级扩容保留已用量”的 entitlement 周期 token window 已完成本地开发自测，但尚未作为测试环境已验证能力对外开放。
+2026-05-13 测试环境追加验证已完成：
 
-2026-05-13 本地开发自测已完成：entitlement 周期 token window 已支持跨 UTC 自然月不重置；例如 5 月 31 日产生的同一 entitlement 周期 usage，会在 6 月 1 日继续计入 `2026-05-11` 到 `2026-06-11` 的额度窗口。该能力仍需完成测试环境部署和双方联调验证后再开放给收费/充值团队联调。
+- Entitlement 周期 token window 已部署到测试环境并完成 MedEvidence 侧线上自测。
+- 非 UTC 自然月周期已验证：`period_start=2026-05-11T04:05:43.000Z`、`period_end=2026-06-11T04:05:43.000Z` 时，月额度窗口按 entitlement 周期返回；同一响应中的 day window 仍为 UTC 自然日，minute window 仍为 UTC 自然分钟。
+- 公网 OpenAI-compatible smoke 通过：health、认证、模型列表、chat、tool history、stream 和临时 key 清理均通过。
+
+截至 2026-05-13，三档月订阅 plan 仍处于方案审核/创建前阶段；三档升级扩容端到端仍需等三档 plan 创建后由双方联调验收。
 
 ## 7. 对接方注意事项
 

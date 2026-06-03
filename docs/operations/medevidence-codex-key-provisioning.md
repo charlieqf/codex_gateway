@@ -11,26 +11,68 @@ the full key only to a local handoff JSON.
 
 Do not hand-issue a MedEvidence v2 key first for this path. Do not send users
 the backing `cgw.*` key or the hidden `mev2_live_*` key.
-The `issue-desktop-e2e-opaque-key.ps1` script name is historical; until a
-dedicated real-user wrapper exists, it is also the standard real-user
-`cgu_live_*` issuing entrypoint.
+Use `scripts\issue-real-user-cgu-key.py` for real users. The older
+`issue-desktop-e2e-opaque-key.ps1` script name is historical and is retained
+below only as a lower-level fallback.
 
-Current Wang Yun-equivalent trial defaults as of 2026-05-19:
+Current Wang Yun-equivalent trial defaults as of 2026-05-21:
 
-- plan: `plan_internal_high_quota_v1`
+- plan: `plan_internal_high_quota_image_v1`
+- capabilities: `chat`, `tools`, `image_generation`
 - backing Gateway key expiration: `2026-07-01T00:00:00.000Z`
 - backing Gateway key rate: `10` requests/minute, `200` requests/day,
   `4` concurrent requests
 - scope: `code`
 
-Preflight with a stable ASCII external user id:
+Recommended one-command path:
+
+```powershell
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>"
+```
+
+Codex/operator shortcut for a typical request like
+"给新用户 张三 13800138000 发key":
+
+```powershell
+python scripts\issue-real-user-cgu-key.py --name "张三" --phone 13800138000
+```
+
+Preflight without issuing a key:
+
+```powershell
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --what-if
+```
+
+The Python script defaults `external_user_id` to `phone_<digits>`, grants
+`plan_internal_high_quota_image_v1`, sets the backing Gateway key to
+`10` rpm, `200` rpd, `4` concurrent requests, expires that backing key at
+`2026-07-01T00:00:00.000Z`, validates resolve/current-credential endpoints,
+updates the stored name/phone metadata, and writes the full `cgu_live_*` key
+only to a local handoff JSON under
+`C:\Users\rdpuser\medevidence_api_keys`.
+
+After a successful run, share only the safe summary in chat: `key_prefix`,
+`subject_id`, `capabilities`, and `handoff_path`. Deliver the full key only
+through the approved private channel using the handoff JSON.
+
+The script reads the Billing Admin token from `GATEWAY_BILLING_ADMIN_TOKEN` if
+set; otherwise it reads the current container env over SSH. It must not print
+the Billing Admin token, backing `cgw.*` key, hidden `mev2_live_*` key, or full
+`cgu_live_*` key to the console. Console output is prefix-only.
+
+For image generation, clients should call `/gateway/images/generations` with
+`model: "medcode-image-default"` or omit `model` to use the default. Do not ask
+clients to send `gpt-image-2` as the public model name.
+
+Legacy PowerShell path, retained for reference. Preflight with a stable ASCII
+external user id:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-opaque-key.ps1 `
   -Provider manual_trial `
   -ExternalUserId <stable_ascii_user_id> `
   -DisplayName "<real name>" `
-  -PlanId plan_internal_high_quota_v1 `
+  -PlanId plan_internal_high_quota_image_v1 `
   -WhatIf
 ```
 
@@ -41,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-op
   -Provider manual_trial `
   -ExternalUserId <stable_ascii_user_id> `
   -DisplayName "<real name>" `
-  -PlanId plan_internal_high_quota_v1 `
+  -PlanId plan_internal_high_quota_image_v1 `
   -EntitlementDays <days-to-trial-end>
 ```
 

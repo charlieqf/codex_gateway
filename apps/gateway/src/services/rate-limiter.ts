@@ -9,8 +9,32 @@ export interface RateLimitPermit {
   release(): void;
 }
 
+export type RateLimitResetWindow = "minute" | "day";
+
+export interface RateLimitResetInput {
+  credentialId: string;
+  windows: RateLimitResetWindow[];
+}
+
+export interface RateLimitResetSnapshot {
+  minuteCount: number;
+  dayCount: number;
+  active: number;
+  minuteWindow: number;
+  dayWindow: string;
+}
+
+export interface RateLimitResetResult {
+  credentialId: string;
+  windows: RateLimitResetWindow[];
+  found: boolean;
+  before: RateLimitResetSnapshot | null;
+  after: RateLimitResetSnapshot | null;
+}
+
 export interface CredentialRateLimiter {
   acquire(input: RateLimitInput): RateLimitPermit | LimitRejection;
+  reset?(input: RateLimitResetInput): RateLimitResetResult;
 }
 
 interface RateLimiterOptions {
@@ -92,6 +116,40 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     };
   }
 
+  reset(input: RateLimitResetInput): RateLimitResetResult {
+    const now = this.now();
+    const state = this.states.get(input.credentialId);
+    const windows = normalizeResetWindows(input.windows);
+    if (!state) {
+      return {
+        credentialId: input.credentialId,
+        windows,
+        found: false,
+        before: null,
+        after: null
+      };
+    }
+
+    const before = resetSnapshot(state);
+    if (windows.includes("minute")) {
+      state.minuteWindow = Math.floor(now.getTime() / 60_000);
+      state.minuteCount = 0;
+    }
+    if (windows.includes("day")) {
+      state.dayWindow = utcDayWindow(now);
+      state.dayCount = 0;
+    }
+    state.lastSeenMs = now.getTime();
+
+    return {
+      credentialId: input.credentialId,
+      windows,
+      found: true,
+      before,
+      after: resetSnapshot(state)
+    };
+  }
+
   private state(credentialId: string, now: Date): CredentialRateState {
     const existing = this.states.get(credentialId);
     if (existing) {
@@ -121,6 +179,20 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       this.states.delete(credentialId);
     }
   }
+}
+
+function normalizeResetWindows(windows: RateLimitResetWindow[]): RateLimitResetWindow[] {
+  return Array.from(new Set(windows));
+}
+
+function resetSnapshot(state: CredentialRateState): RateLimitResetSnapshot {
+  return {
+    minuteWindow: state.minuteWindow,
+    minuteCount: state.minuteCount,
+    dayWindow: state.dayWindow,
+    dayCount: state.dayCount,
+    active: state.active
+  };
 }
 
 function rateLimited(

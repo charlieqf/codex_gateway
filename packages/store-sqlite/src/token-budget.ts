@@ -13,11 +13,14 @@ import {
   type LimitKind,
   type LimitRejection,
   type ProviderKind,
+  type ResetUsageInput,
+  type ResetUsageResult,
   type Scope,
   type SoftWriteBeginInput,
   type SoftWriteFinalizeInput,
   type TokenBudgetLimiter,
   type TokenLimitPolicy,
+  type TokenWindowKind,
   type TokenUsage,
   type TokenUsageSnapshot
 } from "@codex-gateway/core";
@@ -326,6 +329,37 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         policy.tokensPerMonth,
         now
       )
+    };
+  }
+
+  async resetUsage(input: ResetUsageInput): Promise<ResetUsageResult> {
+    validateTokenPolicy(input.policy);
+    const now = input.now ?? new Date();
+    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const kinds = normalizeTokenWindowKinds(input.windows);
+    const before = await this.getCurrentUsage({ ...input, now });
+    const expiredReservations = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
+      let expired = 0;
+      for (const kind of kinds) {
+        const windowStart = tokenWindowStart(kind, windows);
+        this.deleteUsageWindow(input.subjectId, input.entitlementId ?? null, kind, windowStart);
+        expired += this.expireActiveReservations(
+          input.subjectId,
+          input.entitlementId ?? null,
+          kind,
+          windowStart,
+          now
+        );
+      }
+      return expired;
+    });
+    const after = await this.getCurrentUsage({ ...input, now });
+
+    return {
+      windows: kinds,
+      before,
+      after,
+      expiredReservations
     };
   }
 
@@ -739,6 +773,71 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       );
   }
 
+  private deleteUsageWindow(
+    subjectId: string,
+    entitlementId: string | null,
+    kind: TokenWindowKind,
+    windowStart: Date
+  ): void {
+    if (entitlementId) {
+      this.db
+        .prepare(
+          `DELETE FROM entitlement_token_windows
+           WHERE entitlement_id = ?
+             AND window_kind = ?
+             AND window_start = ?`
+        )
+        .run(entitlementId, kind, windowStart.toISOString());
+      return;
+    }
+
+    this.db
+      .prepare(
+        `DELETE FROM token_windows
+         WHERE subject_id = ?
+           AND window_kind = ?
+           AND window_start = ?`
+      )
+      .run(subjectId, kind, windowStart.toISOString());
+  }
+
+  private expireActiveReservations(
+    subjectId: string,
+    entitlementId: string | null,
+    kind: TokenWindowKind,
+    windowStart: Date,
+    now: Date
+  ): number {
+    const column = `${kind}_window_start`;
+    const result = entitlementId
+      ? this.db
+          .prepare(
+            `UPDATE token_reservations
+             SET expires_at = ?
+             WHERE entitlement_id = ?
+               AND kind = 'reservation'
+               AND finalized_at IS NULL
+               AND expires_at IS NOT NULL
+               AND expires_at > ?
+               AND ${column} = ?`
+          )
+          .run(now.toISOString(), entitlementId, now.toISOString(), windowStart.toISOString())
+      : this.db
+          .prepare(
+            `UPDATE token_reservations
+             SET expires_at = ?
+             WHERE subject_id = ?
+               AND entitlement_id IS NULL
+               AND kind = 'reservation'
+               AND finalized_at IS NULL
+               AND expires_at IS NOT NULL
+               AND expires_at > ?
+               AND ${column} = ?`
+          )
+          .run(now.toISOString(), subjectId, now.toISOString(), windowStart.toISOString());
+    return Number(result.changes ?? 0);
+  }
+
   private insertAuditBestEffort(
     action: "token-overrun" | "token-reservation-expired",
     params: Record<string, unknown>
@@ -946,6 +1045,20 @@ function windowEnd(kind: "minute" | "day" | "month", start: Date): Date {
     );
   }
   return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+}
+
+function normalizeTokenWindowKinds(windows: TokenWindowKind[]): TokenWindowKind[] {
+  return Array.from(new Set(windows));
+}
+
+function tokenWindowStart(kind: TokenWindowKind, windows: WindowBoundaries): Date {
+  if (kind === "minute") {
+    return windows.minute;
+  }
+  if (kind === "day") {
+    return windows.day;
+  }
+  return windows.month;
 }
 
 function iso(value: Date | string): string {

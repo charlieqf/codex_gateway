@@ -309,7 +309,8 @@ Authorization: Bearer <billing-admin-token>
 
 - 套餐查询、购买、续费、暂停、恢复、取消、usage 对账已属于 P0 contract。
 - 三档 plan 配置可以按上述 `plan_id` 增加。
-- “升级后保留已用量并扩容总额度”需要 MedEvidence 在替换 entitlement 时把当前周期已用 token 结转到新 entitlement 的 token 窗口。MedEvidence 侧 entitlement 周期 token window 已完成开发和本地自测；三档 plan 创建、测试环境部署和双方联调验证完成前，不作为已开放联调能力。
+- Entitlement 周期 token window 已在测试环境部署并完成 MedEvidence 侧线上自测：有 active entitlement 的用户，`tokens_per_month` 按 `period_start` / `period_end` 作为月额度窗口，不按 UTC 自然月重置。
+- “升级后保留已用量并扩容总额度”依赖上述 entitlement 周期窗口；三档 plan 创建和双方联调验证完成前，不作为三档升级端到端已开放能力。
 
 ### 5.2 写入 entitlement event
 
@@ -429,11 +430,12 @@ Content-Type: application/json
 }
 ```
 
-升级成功后，MedEvidence 返回新的 active entitlement，并在 `cancelled_entitlement_ids` 中返回被替换的旧 entitlement。目标上线版本会保证旧 entitlement 当前周期的 token usage 被结转到新 entitlement，因此客户端和收费侧看到的是“已用量不变、总额度变大”。
+升级成功后，MedEvidence 返回新的 active entitlement，并在 `cancelled_entitlement_ids` 中返回被替换的旧 entitlement。Entitlement 周期 token window 已在测试环境部署；三档升级端到端联调通过后，客户端和收费侧应看到“已用量不变、总额度变大”。
 
-升级结转触发口径（已完成本地开发自测，待测试环境部署和联调验证）：
+升级结转触发口径：
 
 - MedEvidence 应在 `replace_current=true` 且新 `plan_id` 与被替换 entitlement 的 `plan_id` 不同的事件中执行 token usage 结转。
+- 新 entitlement 应沿用原订阅周期的 `period_start` / `period_end`，这样 `tokens_per_month` 会继续落在同一 entitlement 周期窗口内，而不是在 UTC 自然月边界重置。
 - `metadata.change_type`、`metadata.from_plan_id`、`metadata.to_plan_id` 仅用于 audit、日志和跨团队排障，不作为 MedEvidence 行为触发条件。
 - 如当前 subject 已存在未来 scheduled entitlement，收费侧需要同时传 `replace_scheduled=true`；否则 MedEvidence 会返回 `409 invalid_entitlement_transition`，由收费侧人工确认后重试。
 
@@ -486,7 +488,7 @@ Authorization: Bearer <billing-admin-token>
 - `cancel`：取消 entitlement。退款不会自动取消权益；如需停权请显式发 `cancel` 或 `pause`。
 - `notice` + `apply_mode=log_only`：仅记录外部事件，不改变权益。
 
-升级建议使用 `purchase` + `replace_current=true` 表达。收费侧必须在支付成功后发送升级事件，并保持同一订阅周期的 `period_start` / `period_end`。目标上线版本中，MedEvidence 侧负责把被替换 entitlement 当前周期已用 token 结转到新 entitlement 的额度窗口，形成“已用量不变、总额度扩容”的效果。
+升级建议使用 `purchase` + `replace_current=true` 表达。收费侧必须在支付成功后发送升级事件，并保持同一订阅周期的 `period_start` / `period_end`。三档升级端到端联调通过后，MedEvidence 侧应把被替换 entitlement 当前周期已用 token 结转到新 entitlement 的额度窗口，形成“已用量不变、总额度扩容”的效果。
 
 降级（高档到低档）不在 P0 范围。如果在原周期内发起降级，MedEvidence 不保证 token usage 结转行为；降级建议在下一周期续费时通过新 `plan_id` 生效。
 
