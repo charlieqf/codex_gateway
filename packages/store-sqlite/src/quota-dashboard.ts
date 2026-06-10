@@ -985,6 +985,17 @@ function renderQuotaDashboardDocument(input: {
     <div class="header-controls">${controls}</div>
   </header>
   <section class="summary" aria-label="summary" id="summary"></section>
+  <section class="toolbar" aria-label="filters">
+    <input id="search" type="search" placeholder="过滤用户、姓名、手机号、plan、API key prefix">
+    <div class="segment" role="group" aria-label="status filters">
+      <button type="button" class="active" data-filter="all">全部</button>
+      <button type="button" data-filter="active">活跃权益</button>
+      <button type="button" data-filter="legacy">未绑定套餐</button>
+      <button type="button" data-filter="warning">需要处理</button>
+      <button type="button" data-filter="limited">近 7 天限流</button>
+      <button type="button" data-filter="exhausted">额度用尽</button>
+    </div>
+  </section>
   <section class="daily-chart" aria-label="daily token usage">
     <div class="chart-header">
       <div>
@@ -999,17 +1010,6 @@ function renderQuotaDashboardDocument(input: {
     <div class="chart-body">
       <div class="chart-stats" id="chartStats"></div>
       <div class="chart-bars" id="dailyTokenChart"></div>
-    </div>
-  </section>
-  <section class="toolbar" aria-label="filters">
-    <input id="search" type="search" placeholder="搜索用户、姓名、手机号、plan、API key prefix">
-    <div class="segment" role="group" aria-label="status filters">
-      <button type="button" class="active" data-filter="all">全部</button>
-      <button type="button" data-filter="active">活跃权益</button>
-      <button type="button" data-filter="legacy">未绑定套餐</button>
-      <button type="button" data-filter="warning">需要处理</button>
-      <button type="button" data-filter="limited">近 7 天限流</button>
-      <button type="button" data-filter="exhausted">额度用尽</button>
     </div>
   </section>
   <main>

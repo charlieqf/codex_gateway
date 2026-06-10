@@ -2386,6 +2386,8 @@ describe("gateway phase 1 routes", () => {
     expect(page.body).toContain("用户套餐与 Token 用量");
     expect(page.body).toContain('id="token"');
     expect(page.body).toContain('id="dailyTokenChart"');
+    expect(page.body).toContain('placeholder="过滤用户、姓名、手机号、plan、API key prefix"');
+    expect(page.body.indexOf('id="search"')).toBeLessThan(page.body.indexOf('id="dailyTokenChart"'));
     expect(page.body).toContain("daily_token_usage");
     expect(page.body).toContain("renderDailyTokenChart");
     expect(page.body).toContain("max-height: calc(100vh - 250px)");

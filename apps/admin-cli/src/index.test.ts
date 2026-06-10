@@ -1139,6 +1139,8 @@ describe("codex-gateway-admin user API key operations", () => {
     expect(html).toContain("\"remaining\":1000");
     expect(html).toContain("dailyTokenChart");
     expect(html).toContain("daily_token_usage");
+    expect(html).toContain("过滤用户、姓名、手机号、plan、API key prefix");
+    expect(html.indexOf('id="search"')).toBeLessThan(html.indexOf('id="dailyTokenChart"'));
     expect(html).toContain("今日 provider tokens");
     expect(html).toContain("近 7 天 provider tokens");
     expect(html).toContain("主要限流");
