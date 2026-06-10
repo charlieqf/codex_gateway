@@ -2385,6 +2385,9 @@ describe("gateway phase 1 routes", () => {
     expect(page.headers["content-type"]).toContain("text/html");
     expect(page.body).toContain("用户套餐与 Token 用量");
     expect(page.body).toContain('id="token"');
+    expect(page.body).toContain('id="dailyTokenChart"');
+    expect(page.body).toContain("daily_token_usage");
+    expect(page.body).toContain("renderDailyTokenChart");
     expect(page.body).toContain("max-height: calc(100vh - 250px)");
     expect(page.body).toContain("usage_7d.provider_total_tokens");
     expect(page.body).not.toContain("Credential Subject");
@@ -2425,6 +2428,30 @@ describe("gateway phase 1 routes", () => {
         provider_total_tokens: 500
       }
     });
+    expect(payload.daily_token_window).toMatchObject({
+      days: 30
+    });
+    expect(payload.summary.daily_token_usage).toHaveLength(30);
+    expect(
+      payload.summary.daily_token_usage.every((row: { date: string }) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(row.date)
+      )
+    ).toBe(true);
+    expect(
+      payload.summary.daily_token_usage.reduce(
+        (sum: number, row: { total_tokens: number }) => sum + row.total_tokens,
+        0
+      )
+    ).toBe(640);
+    expect(
+      payload.users
+        .find((user: { user: { id: string } }) => user.user.id === "subj_dev")
+        .daily_token_usage.reduce(
+          (sum: number, row: { provider_total_tokens: number; estimated_tokens: number }) =>
+            sum + row.provider_total_tokens + row.estimated_tokens,
+          0
+        )
+    ).toBe(140);
     expect(JSON.stringify(payload)).not.toContain(issued.token);
     expect(JSON.stringify(payload)).not.toContain(highUsageCredential.token);
     expect(JSON.stringify(payload)).not.toContain("admin-messages-token-1234567890");

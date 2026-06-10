@@ -66,6 +66,16 @@ export interface PrimaryRateLimit {
   label: string;
 }
 
+export interface DailyTokenUsage {
+  date: string;
+  since: string;
+  until: string;
+  requests: number;
+  provider_total_tokens: number;
+  estimated_tokens: number;
+  total_tokens: number;
+}
+
 interface DashboardUser {
   user: ReturnType<typeof publicSubject>;
   credentials: Array<ReturnType<typeof publicCredential>>;
@@ -80,6 +90,7 @@ interface DashboardUser {
   token_usage: PublicTokenUsage | null;
   usage_today: UsageSummary;
   usage_7d: UsageSummary;
+  daily_token_usage: DailyTokenUsage[];
   primary_rate_limit: PrimaryRateLimit;
   internal_reserve_tokens_per_request: number | null;
   internal_missing_usage_charge: TokenLimitPolicy["missingUsageCharge"] | null;
@@ -98,6 +109,11 @@ export interface DashboardData {
     since: string;
     until: string;
   };
+  daily_token_window: {
+    since: string;
+    until: string;
+    days: number;
+  };
   summary: {
     users: number;
     active_entitlements: number;
@@ -107,9 +123,13 @@ export interface DashboardData {
     exhausted_users: number;
     today: UsageSummary;
     seven_day: UsageSummary;
+    daily_token_usage: DailyTokenUsage[];
   };
   users: DashboardUser[];
 }
+
+const dailyTokenUsageDays = 30;
+const dayMs = 24 * 60 * 60 * 1000;
 
 export async function writeQuotaDashboard(
   store: SqliteGatewayStore,
@@ -135,6 +155,7 @@ export async function buildQuotaDashboardData(
   const now = options.now ?? new Date();
   const todayStart = startOfBeijingDayUtc(now);
   const sevenDayStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const dailyTokenDayStarts = beijingDayStarts(todayStart, dailyTokenUsageDays);
   const subjects = store
     .listSubjects({ includeArchived: true })
     .filter((subject) => options.includeInactive || subject.state === "active")
@@ -170,6 +191,7 @@ export async function buildQuotaDashboardData(
     const sevenDayUsage = summarizeUsageRows(
       store.reportRequestUsage({ subjectId: subject.id, since: sevenDayStart, until: now })
     );
+    const dailyTokenUsage = buildDailyTokenUsage(store, subject.id, dailyTokenDayStarts, now);
 
     users.push({
       user: publicSubject(subject),
@@ -185,6 +207,7 @@ export async function buildQuotaDashboardData(
       token_usage: tokenUsage,
       usage_today: todayUsage,
       usage_7d: sevenDayUsage,
+      daily_token_usage: dailyTokenUsage,
       primary_rate_limit: primaryRateLimit(todayUsage, sevenDayUsage),
       internal_reserve_tokens_per_request: resolved.policy?.reserveTokensPerRequest ?? null,
       internal_missing_usage_charge: resolved.policy?.missingUsageCharge ?? null,
@@ -203,7 +226,12 @@ export async function buildQuotaDashboardData(
     users_without_quota: users.filter((user) => !user.effective_token).length,
     exhausted_users: users.filter((user) => hasExhaustedWindow(user.token_usage)).length,
     today: sumUsage(users.map((user) => user.usage_today)),
-    seven_day: sumUsage(users.map((user) => user.usage_7d))
+    seven_day: sumUsage(users.map((user) => user.usage_7d)),
+    daily_token_usage: sumDailyTokenUsage(
+      users.map((user) => user.daily_token_usage),
+      dailyTokenDayStarts,
+      now
+    )
   };
 
   return {
@@ -217,6 +245,11 @@ export async function buildQuotaDashboardData(
     seven_day_window: {
       since: sevenDayStart.toISOString(),
       until: now.toISOString()
+    },
+    daily_token_window: {
+      since: dailyTokenDayStarts[0]?.toISOString() ?? todayStart.toISOString(),
+      until: now.toISOString(),
+      days: dailyTokenDayStarts.length
     },
     summary,
     users
@@ -380,6 +413,73 @@ function sumUsage(items: UsageSummary[]): UsageSummary {
   return summary;
 }
 
+function buildDailyTokenUsage(
+  store: SqliteGatewayStore,
+  subjectId: string,
+  dayStarts: Date[],
+  now: Date
+): DailyTokenUsage[] {
+  return dayStarts.map((dayStart) => {
+    const until = dailyWindowEnd(dayStart, now);
+    const usage =
+      until.getTime() > dayStart.getTime()
+        ? summarizeUsageRows(
+            store.reportRequestUsage({
+              subjectId,
+              since: dayStart,
+              until
+            })
+          )
+        : emptyUsageSummary();
+    return dailyTokenUsageFromSummary(dayStart, until, usage);
+  });
+}
+
+function sumDailyTokenUsage(
+  userRows: DailyTokenUsage[][],
+  dayStarts: Date[],
+  now: Date
+): DailyTokenUsage[] {
+  const totals = new Map<string, DailyTokenUsage>();
+  for (const dayStart of dayStarts) {
+    const until = dailyWindowEnd(dayStart, now);
+    const row = dailyTokenUsageFromSummary(dayStart, until, emptyUsageSummary());
+    totals.set(row.date, row);
+  }
+
+  for (const rows of userRows) {
+    for (const row of rows) {
+      const total = totals.get(row.date);
+      if (!total) {
+        continue;
+      }
+      total.requests += row.requests;
+      total.provider_total_tokens += row.provider_total_tokens;
+      total.estimated_tokens += row.estimated_tokens;
+      total.total_tokens += row.total_tokens;
+    }
+  }
+  return Array.from(totals.values());
+}
+
+function dailyTokenUsageFromSummary(
+  dayStart: Date,
+  until: Date,
+  usage: UsageSummary
+): DailyTokenUsage {
+  const providerTotalTokens = usage.provider_total_tokens;
+  const estimatedTokens = usage.estimated_tokens;
+  return {
+    date: beijingDateKey(dayStart),
+    since: dayStart.toISOString(),
+    until: until.toISOString(),
+    requests: usage.requests,
+    provider_total_tokens: providerTotalTokens,
+    estimated_tokens: estimatedTokens,
+    total_tokens: providerTotalTokens + estimatedTokens
+  };
+}
+
 function emptyUsageSummary(): UsageSummary {
   return {
     requests: 0,
@@ -463,6 +563,21 @@ function startOfBeijingDayUtc(now: Date): Date {
   return new Date(
     Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - offsetMs
   );
+}
+
+function beijingDayStarts(todayStart: Date, days: number): Date[] {
+  return Array.from({ length: days }, (_value, index) =>
+    new Date(todayStart.getTime() - (days - 1 - index) * dayMs)
+  );
+}
+
+function dailyWindowEnd(dayStart: Date, now: Date): Date {
+  return new Date(Math.min(dayStart.getTime() + dayMs, now.getTime()));
+}
+
+function beijingDateKey(dayStart: Date): string {
+  const offsetMs = 8 * 60 * 60 * 1000;
+  return new Date(dayStart.getTime() + offsetMs).toISOString().slice(0, 10);
 }
 
 export function renderQuotaDashboardHtml(data: DashboardData): string {
@@ -608,6 +723,104 @@ function renderQuotaDashboardDocument(input: {
     }
     .metric .label { color: var(--muted); font-size: 12px; font-weight: 600; }
     .metric .value { margin-top: 5px; font-size: 22px; font-weight: 700; letter-spacing: 0; }
+    .daily-chart {
+      margin: 12px 22px 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .chart-meta {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .legend .provider { background: var(--accent); }
+    .legend .estimated { background: #d97706; }
+    .chart-body { padding: 12px 14px 14px; }
+    .chart-stats {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart-bars {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(58px, 1fr);
+      gap: 8px;
+      min-height: 214px;
+      overflow-x: auto;
+      padding: 2px 2px 0;
+      scrollbar-gutter: stable;
+    }
+    .chart-day {
+      min-width: 58px;
+      display: grid;
+      grid-template-rows: 166px 42px;
+      gap: 6px;
+    }
+    .chart-slot {
+      align-self: end;
+      height: 166px;
+      display: flex;
+      align-items: end;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(to top, transparent 0, transparent calc(25% - 1px), #eef2f7 25%, transparent calc(25% + 1px)),
+        linear-gradient(to top, transparent 0, transparent calc(50% - 1px), #eef2f7 50%, transparent calc(50% + 1px)),
+        linear-gradient(to top, transparent 0, transparent calc(75% - 1px), #eef2f7 75%, transparent calc(75% + 1px));
+    }
+    .chart-bar {
+      width: 100%;
+      min-height: 0;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(to top, var(--accent) 0 var(--provider-share), #d97706 var(--provider-share) 100%);
+    }
+    .chart-date {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.15;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: normal;
+    }
     .toolbar {
       display: flex;
       align-items: center;
@@ -750,6 +963,8 @@ function renderQuotaDashboardDocument(input: {
       header { align-items: stretch; flex-direction: column; }
       .header-controls { justify-content: flex-start; }
       header, .toolbar, main { padding-left: 14px; padding-right: 14px; }
+      .daily-chart { margin-left: 14px; margin-right: 14px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
       .summary { grid-template-columns: repeat(2, minmax(128px, 1fr)); }
       .segment { width: 100%; overflow-x: auto; }
       .segment button { white-space: nowrap; }
@@ -770,6 +985,22 @@ function renderQuotaDashboardDocument(input: {
     <div class="header-controls">${controls}</div>
   </header>
   <section class="summary" aria-label="summary" id="summary"></section>
+  <section class="daily-chart" aria-label="daily token usage">
+    <div class="chart-header">
+      <div>
+        <h2>每日 token 用量</h2>
+        <div class="chart-meta" id="chartSubtitle">-</div>
+      </div>
+      <div class="legend" aria-label="token usage legend">
+        <span><i class="provider"></i>provider tokens</span>
+        <span><i class="estimated"></i>estimated tokens</span>
+      </div>
+    </div>
+    <div class="chart-body">
+      <div class="chart-stats" id="chartStats"></div>
+      <div class="chart-bars" id="dailyTokenChart"></div>
+    </div>
+  </section>
   <section class="toolbar" aria-label="filters">
     <input id="search" type="search" placeholder="搜索用户、姓名、手机号、plan、API key prefix">
     <div class="segment" role="group" aria-label="status filters">
@@ -819,6 +1050,9 @@ function renderQuotaDashboardDocument(input: {
     const includeInactiveEl = document.getElementById("includeInactive");
     const refreshEl = document.getElementById("refresh");
     const noticeEl = document.getElementById("notice");
+    const chartEl = document.getElementById("dailyTokenChart");
+    const chartStatsEl = document.getElementById("chartStats");
+    const chartSubtitleEl = document.getElementById("chartSubtitle");
     let filter = "all";
     let data = embeddedData;
 
@@ -828,13 +1062,13 @@ function renderQuotaDashboardDocument(input: {
     }
     if (includeInactiveEl) includeInactiveEl.addEventListener("change", () => load());
     if (refreshEl) refreshEl.addEventListener("click", () => load());
-    searchEl.addEventListener("input", renderRows);
+    searchEl.addEventListener("input", renderFilteredView);
     document.querySelectorAll("button[data-filter]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("button[data-filter]").forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
         filter = button.dataset.filter;
-        renderRows();
+        renderFilteredView();
       });
     });
 
@@ -842,6 +1076,9 @@ function renderQuotaDashboardDocument(input: {
       renderDashboard();
     } else {
       document.getElementById("summary").innerHTML = "";
+      if (chartSubtitleEl) chartSubtitleEl.textContent = "-";
+      if (chartStatsEl) chartStatsEl.textContent = "";
+      if (chartEl) chartEl.innerHTML = '<div class="empty">等待数据</div>';
       rowsEl.innerHTML = '<tr><td colspan="13" class="subtle">输入 admin token 后刷新</td></tr>';
       if (!authRequired || tokenEl?.value) load();
     }
@@ -886,7 +1123,7 @@ function renderQuotaDashboardDocument(input: {
       document.getElementById("scopeNote").textContent = data.include_inactive ? "范围：包含停用/归档用户" : "范围：仅活跃用户";
       document.getElementById("windowNote").textContent = "统计窗口：今日按北京时间，近 7 天为滚动 7 天";
       renderSummary();
-      renderRows();
+      renderFilteredView();
     }
 
     function renderSummary() {
@@ -905,12 +1142,92 @@ function renderQuotaDashboardDocument(input: {
       ).join("");
     }
 
-    function renderRows() {
-      if (!data) return;
+    function renderFilteredView() {
+      renderDailyTokenChart();
+      renderRows();
+    }
+
+    function filteredUsers() {
       const term = searchEl.value.trim().toLowerCase();
-      const visible = data.users
+      return data.users
         .filter((user) => matchesFilter(user, filter) && matchesSearch(user, term))
         .sort(compareUsers);
+    }
+
+    function renderDailyTokenChart() {
+      if (!data || !chartEl) return;
+      const visible = filteredUsers();
+      const rows = aggregateDailyTokenUsage(visible);
+      const maxTotal = Math.max(0, ...rows.map((row) => Number(row.total_tokens) || 0));
+      const totalTokens = rows.reduce((sum, row) => sum + (Number(row.total_tokens) || 0), 0);
+      const providerTokens = rows.reduce((sum, row) => sum + (Number(row.provider_total_tokens) || 0), 0);
+      const estimatedTokens = rows.reduce((sum, row) => sum + (Number(row.estimated_tokens) || 0), 0);
+
+      if (chartSubtitleEl) {
+        const window = data.daily_token_window;
+        chartSubtitleEl.textContent = window
+          ? formatDateOnly(window.since) + " - " + formatDateOnly(window.until)
+          : "";
+      }
+      if (chartStatsEl) {
+        chartStatsEl.innerHTML =
+          '<span>用户 ' + formatNumber(visible.length) + ' / ' + formatNumber(data.users.length) + '</span>' +
+          '<span>total ' + formatNumber(totalTokens) + '</span>' +
+          '<span>provider ' + formatNumber(providerTokens) + '</span>' +
+          '<span>estimated ' + formatNumber(estimatedTokens) + '</span>';
+      }
+      if (rows.length === 0) {
+        chartEl.innerHTML = '<div class="empty">暂无每日 token 用量</div>';
+        return;
+      }
+
+      chartEl.innerHTML = rows.map((row) => {
+        const total = Number(row.total_tokens) || 0;
+        const height = maxTotal > 0 && total > 0 ? Math.max(2, Math.round(total / maxTotal * 100)) : 0;
+        const providerShare = total > 0
+          ? Math.max(0, Math.min(100, Math.round((Number(row.provider_total_tokens) || 0) / total * 100)))
+          : 100;
+        const title = row.date +
+          " total " + formatNumber(total) +
+          " provider " + formatNumber(row.provider_total_tokens) +
+          " estimated " + formatNumber(row.estimated_tokens);
+        return '<div class="chart-day">' +
+          '<div class="chart-slot">' +
+            '<div class="chart-bar" title="' + escapeHtml(title) + '" aria-label="' + escapeHtml(title) + '" style="height:' + height + '%; --provider-share:' + providerShare + '%"></div>' +
+          '</div>' +
+          '<div class="chart-date">' + escapeHtml(row.date) + '</div>' +
+        '</div>';
+      }).join("");
+    }
+
+    function aggregateDailyTokenUsage(users) {
+      const template = Array.isArray(data.summary?.daily_token_usage) ? data.summary.daily_token_usage : [];
+      const rows = template.map((row) => ({
+        date: row.date,
+        since: row.since,
+        until: row.until,
+        requests: 0,
+        provider_total_tokens: 0,
+        estimated_tokens: 0,
+        total_tokens: 0
+      }));
+      const byDate = new Map(rows.map((row) => [row.date, row]));
+      for (const user of users) {
+        for (const row of user.daily_token_usage || []) {
+          const total = byDate.get(row.date);
+          if (!total) continue;
+          total.requests += Number(row.requests) || 0;
+          total.provider_total_tokens += Number(row.provider_total_tokens) || 0;
+          total.estimated_tokens += Number(row.estimated_tokens) || 0;
+          total.total_tokens += Number(row.total_tokens) || 0;
+        }
+      }
+      return rows;
+    }
+
+    function renderRows() {
+      if (!data) return;
+      const visible = filteredUsers();
       rowsEl.innerHTML = visible.map(renderUserRow).join("");
       emptyEl.hidden = visible.length > 0;
     }
@@ -1103,6 +1420,11 @@ function renderQuotaDashboardDocument(input: {
     function formatDateTime(value) {
       if (!value) return "n/a";
       return new Date(value).toLocaleString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" });
+    }
+
+    function formatDateOnly(value) {
+      if (!value) return "n/a";
+      return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
     }
 
     function credentialStatusLabel(value) {
