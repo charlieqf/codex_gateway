@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { GatewayError } from "@codex-gateway/core";
 import {
   finalizeImageGenerationResult,
+  isImageBillingLimitError,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
   resolveImageUpstreamModel,
@@ -94,6 +95,43 @@ describe("OpenAIImageGenerationProvider", () => {
       output_format: "jpeg",
       output_compression: 40
     });
+  });
+
+  it("maps OpenAI billing hard limit errors as billing-limit upstream failures", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "invalid_request_error",
+            message: "Billing hard limit has been reached."
+          }
+        }),
+        { status: 400 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new OpenAIImageGenerationProvider({
+      apiKey: "sk-test",
+      timeoutMs: 30_000
+    });
+
+    try {
+      await provider.generate({
+        request,
+        upstreamModel: "gpt-image-2"
+      });
+      throw new Error("expected provider.generate to fail");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GatewayError);
+      const error = err as GatewayError;
+      expect(error).toMatchObject({
+        code: "upstream_unavailable",
+        httpStatus: 503,
+        upstreamStatus: 400,
+        message: "Billing hard limit has been reached."
+      });
+      expect(isImageBillingLimitError(error)).toBe(true);
+    }
   });
 });
 describe("parseImageGenerationRequest", () => {

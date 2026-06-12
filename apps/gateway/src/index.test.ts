@@ -800,6 +800,62 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("uses the billing fallback image provider with gpt-image-1.5 after billing hard limit", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const primaryImageProvider = new FakeImageGenerationProvider(
+      new GatewayError({
+        code: "upstream_unavailable",
+        message: "Billing hard limit has been reached.",
+        httpStatus: 503,
+        upstreamStatus: 400
+      })
+    );
+    const fallbackImageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: primaryImageProvider,
+          maxConcurrent: 1
+        }
+      ],
+      imageGenerationBillingFallbackProvider: fallbackImageProvider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(primaryImageProvider.calls).toHaveLength(1);
+    expect(primaryImageProvider.calls[0].upstreamModel).toBe("gpt-image-2");
+    expect(fallbackImageProvider.calls).toHaveLength(1);
+    expect(fallbackImageProvider.calls[0].upstreamModel).toBe("gpt-image-1.5");
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "image-billing-fallback",
+        status: "ok"
+      })
+    ]);
+
+    await app.close();
+  });
+
   it("rejects image generation without image_generation capability using the client error shape", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({
@@ -1049,6 +1105,7 @@ describe("gateway phase 1 routes", () => {
       provider: new FakeProvider(),
       sessionStore: store,
       billingAdminToken: "billing-admin-token-1234567890",
+      now: () => new Date("2026-05-20T00:00:00Z"),
       logger: false
     });
 
@@ -1087,7 +1144,7 @@ describe("gateway phase 1 routes", () => {
       plan_id: "plan_billing_v1",
       period_kind: "monthly",
       period_start: "2026-05-11T00:00:00.000Z",
-      period_end: "2026-06-11T00:00:00.000Z",
+      period_end: "2030-06-11T00:00:00.000Z",
       amount_minor: 1999,
       currency: "USD",
       metadata: {
@@ -1123,7 +1180,7 @@ describe("gateway phase 1 routes", () => {
         plan_id: "plan_billing_v1",
         period_kind: "monthly",
         period_start: "2026-05-11T00:00:00.000Z",
-        period_end: "2026-06-11T00:00:00.000Z",
+        period_end: "2030-06-11T00:00:00.000Z",
         state: "active"
       },
       cancelled_entitlement_ids: []

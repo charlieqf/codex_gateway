@@ -110,6 +110,7 @@ import {
 import {
   buildImageGenerationResponse,
   finalizeImageGenerationResult,
+  isImageBillingLimitError,
   maxPromptCharsFromEnv,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
@@ -183,6 +184,8 @@ export interface GatewayOptions {
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
   imageGenerationProvider?: ImageGenerationProvider | null;
+  imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
+  imageGenerationBillingFallbackModel?: string;
   now?: () => Date;
   logger?: boolean;
 }
@@ -224,6 +227,13 @@ interface StatelessUpstreamAttempt {
 }
 
 const maxStatelessAttempts = 2;
+const defaultImageBillingFallbackModel = "gpt-image-1.5";
+const imageBillingFallbackAccountId = "image-billing-fallback";
+
+interface ImageGenerationBillingFallback {
+  provider: ImageGenerationProvider;
+  upstreamModel: string;
+}
 
 export function buildGateway(options: GatewayOptions = {}) {
   const app = Fastify({
@@ -278,6 +288,16 @@ export function buildGateway(options: GatewayOptions = {}) {
         ? undefined
         : createDefaultImageGenerationProvider(process.env)
       : options.imageGenerationProvider ?? undefined;
+  const imageGenerationBillingFallback =
+    options.imageGenerationBillingFallbackProvider === undefined
+      ? createDefaultImageGenerationBillingFallback(process.env)
+      : options.imageGenerationBillingFallbackProvider
+        ? {
+            provider: options.imageGenerationBillingFallbackProvider,
+            upstreamModel:
+              options.imageGenerationBillingFallbackModel ?? defaultImageBillingFallbackModel
+          }
+        : undefined;
   const accountPoolImageBindingDeclared = upstreamRouter.hasImageBindingDeclared();
   const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
@@ -1053,7 +1073,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         return generateImageWithAccountPool(request, reply, upstreamRouter, {
           parsed,
           upstreamModel,
-          timeoutMs: imageRequestTimeoutMs
+          timeoutMs: imageRequestTimeoutMs,
+          billingFallback: imageGenerationBillingFallback
         });
       }
       if (!imageGenerationProvider) {
@@ -1090,7 +1111,18 @@ export function buildGateway(options: GatewayOptions = {}) {
           result: finalized
         });
       } catch (err) {
-        return sendImageError(request, reply, imageErrorFromUnknown(err));
+        const error = imageErrorFromUnknown(err);
+        if (isImageBillingLimitError(error) && imageGenerationBillingFallback) {
+          try {
+            return await generateImageWithBillingFallback(request, abort, {
+              parsed,
+              billingFallback: imageGenerationBillingFallback
+            });
+          } catch (fallbackErr) {
+            return sendImageError(request, reply, imageErrorFromUnknown(fallbackErr));
+          }
+        }
+        return sendImageError(request, reply, error);
       } finally {
         abort.cleanup();
       }
@@ -1863,6 +1895,7 @@ async function generateImageWithAccountPool(
     parsed: ImageGenerationRequest;
     upstreamModel: string;
     timeoutMs: number;
+    billingFallback?: ImageGenerationBillingFallback;
   }
 ) {
   const affinityKey = requestAffinityKey(request, router.softAffinity);
@@ -1901,6 +1934,16 @@ async function generateImageWithAccountPool(
           router.recordImageOutcome(lease.upstreamAccount.id, outcome);
         }
         lastError = error;
+        if (isImageBillingLimitError(error) && input.billingFallback) {
+          try {
+            return await generateImageWithBillingFallback(request, abort, {
+              parsed: input.parsed,
+              billingFallback: input.billingFallback
+            });
+          } catch (fallbackErr) {
+            return sendImageError(request, reply, imageErrorFromUnknown(fallbackErr));
+          }
+        }
         if (
           abort.clientAborted() ||
           abort.timedOut() ||
@@ -2014,6 +2057,33 @@ async function runImageGenerationWithAbort(
   ]);
 }
 
+async function generateImageWithBillingFallback(
+  request: FastifyRequest,
+  abort: ImageRequestAbort,
+  input: {
+    parsed: ImageGenerationRequest;
+    billingFallback: ImageGenerationBillingFallback;
+  }
+) {
+  request.gatewayObservedUpstreamAccount = {
+    id: imageBillingFallbackAccountId,
+    provider: null
+  };
+  const result = await runImageGenerationWithAbort(input.billingFallback.provider, abort, {
+    request: input.parsed,
+    upstreamModel: input.billingFallback.upstreamModel
+  });
+  const finalized = await finalizeImageGenerationResult({
+    request: input.parsed,
+    result
+  });
+  markFirstByte(request);
+  return buildImageGenerationResponse({
+    request: input.parsed,
+    result: finalized
+  });
+}
+
 function imageErrorFromUnknown(err: unknown): GatewayError {
   return err instanceof GatewayError
     ? err
@@ -2043,6 +2113,9 @@ function applyImageSelection(request: FastifyRequest, selection: UpstreamImageLe
 function imageOutcomeFromError(error: GatewayError): ImageProviderOutcome | null {
   if (error.upstreamStatus === 401 || error.upstreamStatus === 403) {
     return "key_invalid";
+  }
+  if (isImageBillingLimitError(error)) {
+    return "service_error";
   }
   if (error.code === "rate_limited") {
     return "rate_limited";
@@ -2735,6 +2808,40 @@ function createDefaultImageGenerationProvider(
       "MEDCODE_IMAGE_TIMEOUT_MS"
     )
   });
+}
+
+function createDefaultImageGenerationBillingFallback(
+  env: NodeJS.ProcessEnv
+): ImageGenerationBillingFallback | undefined {
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
+    return undefined;
+  }
+  const apiKey = env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    return undefined;
+  }
+  return {
+    provider: new OpenAIImageGenerationProvider({
+      apiKey,
+      baseUrl:
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_BASE_URL ??
+        env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+      timeoutMs: parsePositiveIntegerEnv(
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ?? env.MEDCODE_IMAGE_TIMEOUT_MS,
+        180_000,
+        "MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS"
+      )
+    }),
+    upstreamModel: parseImageBillingFallbackModel(env.MEDCODE_IMAGE_BILLING_FALLBACK_MODEL)
+  };
+}
+
+function parseImageBillingFallbackModel(value: string | undefined): string {
+  const model = value?.trim() || defaultImageBillingFallbackModel;
+  if (!model) {
+    throw new Error("MEDCODE_IMAGE_BILLING_FALLBACK_MODEL must be a non-empty string.");
+  }
+  return model;
 }
 
 function createImageProviderForAccount(

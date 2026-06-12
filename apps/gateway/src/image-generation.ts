@@ -188,6 +188,14 @@ export function resolveImageUpstreamModel(
   return modelMap[request.model] ?? defaultUpstreamModel;
 }
 
+export function isImageBillingLimitError(error: GatewayError): boolean {
+  return (
+    error.upstreamStatus === 400 &&
+    (error.code === "invalid_request" || error.code === "upstream_unavailable") &&
+    isBillingLimitText(error.message)
+  );
+}
+
 function isImageQualityAllowed(allowed: string[], quality: ImageGenerationQuality): boolean {
   return allowed.includes(quality) || (quality === defaultImageQuality && allowed.includes("auto"));
 }
@@ -557,6 +565,14 @@ function normalizeOpenAIImageError(status: number, payload: unknown): GatewayErr
       upstreamStatus: status
     });
   }
+  if (status === 400 && isBillingLimitText(`${rawCode} ${rawMessage}`)) {
+    return new GatewayError({
+      code: "upstream_unavailable",
+      message: normalizedMessage ?? "Image generation billing limit reached.",
+      httpStatus: 503,
+      upstreamStatus: status
+    });
+  }
   if (status === 400 && /policy|safety|moderation/i.test(`${rawCode} ${rawMessage}`)) {
     return new GatewayError({
       code: "content_policy_violation",
@@ -587,4 +603,14 @@ function publicUpstreamErrorMessage(message: string): string | null {
     return null;
   }
   return trimmed.length > 300 ? `${trimmed.slice(0, 300)}...` : trimmed;
+}
+
+function isBillingLimitText(value: string): boolean {
+  const lower = value.toLowerCase();
+  return (
+    lower.includes("billing hard limit") ||
+    lower.includes("hard limit has been reached") ||
+    lower.includes("insufficient_quota") ||
+    (lower.includes("billing") && lower.includes("limit"))
+  );
 }
