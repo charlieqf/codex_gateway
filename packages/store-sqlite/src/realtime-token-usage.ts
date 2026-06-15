@@ -17,6 +17,7 @@ export interface RealtimeTokenUsageOptions {
   windowSeconds?: number;
   bucketSeconds?: number;
   limit?: number;
+  includeAuthNoise?: boolean;
 }
 
 export interface RealtimeTokenUsagePageOptions {
@@ -111,6 +112,15 @@ const defaultRequestLimit = 100;
 const maxRequestLimit = 500;
 const maxClientMessageLookup = 1_000;
 const messageLookupSkewMs = 60_000;
+const authNoiseErrorCodes = new Set(["missing_credential", "invalid_credential"]);
+const chartTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Shanghai",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+  hourCycle: "h23"
+});
 
 export async function buildRealtimeTokenUsageData(
   store: SqliteGatewayStore,
@@ -125,21 +135,29 @@ export async function buildRealtimeTokenUsageData(
   );
   const bucketSeconds = clampInteger(options.bucketSeconds, defaultBucketSeconds, 2, 5 * 60);
   const limit = clampInteger(options.limit, defaultRequestLimit, 1, maxRequestLimit);
-  const since = new Date(now.getTime() - windowSeconds * 1000);
-  const events = listRealtimeRequestEvents(store, since, now, limit);
+  const includeAuthNoise = options.includeAuthNoise ?? false;
+  const eventLimit = includeAuthNoise
+    ? limit
+    : Math.min(maxRequestLimit, Math.max(limit * 3, limit + 50));
+  const since = alignedWindowStart(now, windowSeconds, bucketSeconds);
+  const events = listRealtimeRequestEvents(store, since, now, eventLimit);
   const messagesByRequestId = await clientMessagesByRequestId(options.clientEventsStore, since, now);
   const subjectsById = new Map(store.listSubjects({ includeArchived: true }).map((item) => [item.id, item]));
   const credentialsById = new Map(
     store.listAccessCredentials({ includeRevoked: true }).map((item) => [item.id, item])
   );
 
-  const requests = events.map((event) =>
+  const allRequests = events.map((event) =>
     publicRealtimeRequest(event, {
       subject: event.subjectId ? subjectsById.get(event.subjectId) ?? null : null,
       credential: event.credentialId ? credentialsById.get(event.credentialId) ?? null : null,
       message: messagesByRequestId.get(event.requestId) ?? null
     })
   );
+  const requests = (includeAuthNoise
+    ? allRequests
+    : allRequests.filter((request) => !isAuthNoiseRequest(request))
+  ).slice(0, limit);
   const summary = summarizeRequests(requests);
 
   return {
@@ -350,23 +368,8 @@ export function renderRealtimeTokenUsagePage(
     }
     .axis { stroke: #cbd5e1; stroke-width: 1; }
     .grid { stroke: #e5eaf2; stroke-width: 1; }
-    .line-total {
-      fill: none;
-      stroke: var(--accent);
-      stroke-width: 2.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-    .line-estimated {
-      fill: none;
-      stroke: var(--estimated);
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-dasharray: 5 5;
-    }
-    .dot-total { fill: var(--accent); }
-    .dot-estimated { fill: var(--estimated); }
+    .bar-total { fill: var(--accent); opacity: 0.88; }
+    .bar-estimated { fill: var(--estimated); opacity: 0.86; }
     .axis-label {
       fill: var(--muted);
       font-size: 11px;
@@ -475,6 +478,7 @@ export function renderRealtimeTokenUsagePage(
           <option value="3600">60 分钟</option>
         </select>
       </label>
+      <label class="check"><input id="includeAuthNoise" type="checkbox">显示认证噪音</label>
       <label class="check"><input id="autoRefresh" type="checkbox" checked>2s 自动刷新</label>
       <button id="refresh" class="primary" type="button">刷新</button>
     </div>
@@ -482,7 +486,7 @@ export function renderRealtimeTokenUsagePage(
   <section class="summary" aria-label="summary" id="summary"></section>
   <main>
     <div class="notice" id="notice" hidden></div>
-    <section class="panel" aria-label="token usage line chart">
+    <section class="panel" aria-label="token usage bucket chart">
       <div class="panel-header">
         <div>
           <h2>Token 用量趋势</h2>
@@ -494,7 +498,7 @@ export function renderRealtimeTokenUsagePage(
         </div>
       </div>
       <div class="chart-wrap" id="chartWrap">
-        <svg id="tokenLineChart" viewBox="0 0 760 250" role="img" aria-label="token usage line chart"></svg>
+        <svg id="tokenBucketChart" viewBox="0 0 760 250" role="img" aria-label="token usage bucket chart"></svg>
       </div>
     </section>
     <section class="panel" aria-label="realtime request list">
@@ -533,8 +537,9 @@ export function renderRealtimeTokenUsagePage(
     const noticeEl = document.getElementById("notice");
     const summaryEl = document.getElementById("summary");
     const rowsEl = document.getElementById("rows");
-    const chartEl = document.getElementById("tokenLineChart");
+    const chartEl = document.getElementById("tokenBucketChart");
     const requestCountEl = document.getElementById("requestCount");
+    const includeAuthNoiseEl = document.getElementById("includeAuthNoise");
     let data = null;
     let loading = false;
     let timer = null;
@@ -544,6 +549,7 @@ export function renderRealtimeTokenUsagePage(
       tokenEl.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", tokenEl.value));
     }
     windowEl.addEventListener("change", () => load());
+    includeAuthNoiseEl.addEventListener("change", () => load());
     autoEl.addEventListener("change", resetTimer);
     refreshEl.addEventListener("click", () => load());
     document.addEventListener("visibilitychange", resetTimer);
@@ -573,6 +579,7 @@ export function renderRealtimeTokenUsagePage(
       params.set("window_seconds", windowEl.value);
       params.set("bucket_seconds", String(bucketSecondsForWindow(Number(windowEl.value))));
       params.set("limit", "120");
+      if (includeAuthNoiseEl.checked) params.set("include_auth_noise", "1");
       loading = true;
       refreshEl.disabled = true;
       refreshEl.textContent = "加载中";
@@ -602,7 +609,7 @@ export function renderRealtimeTokenUsagePage(
       document.getElementById("privacyMeta").textContent = "脱敏：用户别名，消息指纹/长度";
       document.getElementById("chartSubtitle").textContent = formatDateTime(data.window.since) + " - " + formatDateTime(data.window.until);
       renderSummary();
-      renderChart();
+      renderBucketChart();
       renderRows();
     }
 
@@ -622,7 +629,7 @@ export function renderRealtimeTokenUsagePage(
       ).join("");
     }
 
-    function renderChart() {
+    function renderBucketChart() {
       const series = data.series || [];
       const width = 760;
       const height = 250;
@@ -632,9 +639,8 @@ export function renderRealtimeTokenUsagePage(
       const bottom = 35;
       const plotWidth = width - left - right;
       const plotHeight = height - top - bottom;
-      const maxValue = Math.max(1, ...series.map((point) => Math.max(Number(point.total_tokens) || 0, Number(point.estimated_tokens) || 0)));
-      const totalPoints = pointsFor(series, "total_tokens", maxValue, left, top, plotWidth, plotHeight);
-      const estimatedPoints = pointsFor(series, "estimated_tokens", maxValue, left, top, plotWidth, plotHeight);
+      const maxValue = niceChartMax(Math.max(1, ...series.map((point) => Math.max(Number(point.total_tokens) || 0, Number(point.estimated_tokens) || 0))));
+      const bars = barsFor(series, maxValue, left, top, plotWidth, plotHeight);
       const gridValues = [0, 0.25, 0.5, 0.75, 1];
       const grid = gridValues.map((ratio) => {
         const y = top + plotHeight - ratio * plotHeight;
@@ -647,39 +653,47 @@ export function renderRealtimeTokenUsagePage(
         grid +
         '<line class="axis" x1="' + left + '" y1="' + (top + plotHeight) + '" x2="' + (width - right) + '" y2="' + (top + plotHeight) + '"></line>' +
         '<line class="axis" x1="' + left + '" y1="' + top + '" x2="' + left + '" y2="' + (top + plotHeight) + '"></line>' +
-        '<polyline class="line-total" points="' + totalPoints + '"></polyline>' +
-        '<polyline class="line-estimated" points="' + estimatedPoints + '"></polyline>' +
-        dotsFor(series, "total_tokens", "dot-total", maxValue, left, top, plotWidth, plotHeight) +
-        dotsFor(series, "estimated_tokens", "dot-estimated", maxValue, left, top, plotWidth, plotHeight) +
+        bars +
         xLabels;
     }
 
-    function pointsFor(series, key, maxValue, left, top, plotWidth, plotHeight) {
+    function barsFor(series, maxValue, left, top, plotWidth, plotHeight) {
       if (series.length === 0) return "";
+      const slotWidth = plotWidth / series.length;
+      const gap = Math.min(3, Math.max(1, slotWidth * 0.08));
+      const barWidth = Math.max(3, Math.min(16, (slotWidth - gap * 3) / 2));
       return series.map((point, index) => {
-        const x = left + (series.length === 1 ? plotWidth : index / (series.length - 1) * plotWidth);
-        const y = top + plotHeight - ((Number(point[key]) || 0) / maxValue) * plotHeight;
-        return x.toFixed(1) + "," + y.toFixed(1);
+        const slotStart = left + index * slotWidth;
+        const groupWidth = barWidth * 2 + gap;
+        const x = slotStart + Math.max(0, (slotWidth - groupWidth) / 2);
+        return barFor(point, "total_tokens", "bar-total", x, barWidth, maxValue, top, plotHeight) +
+          barFor(point, "estimated_tokens", "bar-estimated", x + barWidth + gap, barWidth, maxValue, top, plotHeight);
       }).join(" ");
     }
 
-    function dotsFor(series, key, className, maxValue, left, top, plotWidth, plotHeight) {
-      if (series.length > 80) return "";
-      return series.map((point, index) => {
-        const x = left + (series.length === 1 ? plotWidth : index / (series.length - 1) * plotWidth);
-        const y = top + plotHeight - ((Number(point[key]) || 0) / maxValue) * plotHeight;
-        const title = point.label + " " + key + " " + formatNumber(point[key]);
-        return '<circle class="' + className + '" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.8"><title>' + escapeHtml(title) + '</title></circle>';
-      }).join("");
+    function barFor(point, key, className, x, width, maxValue, top, plotHeight) {
+      const value = Number(point[key]) || 0;
+      const height = value > 0 ? Math.max(1, value / maxValue * plotHeight) : 0;
+      const y = top + plotHeight - height;
+      const title = point.label + " " + key + " " + formatNumber(value);
+      return '<rect class="' + className + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + width.toFixed(1) + '" height="' + height.toFixed(1) + '"><title>' + escapeHtml(title) + '</title></rect>';
     }
 
     function xAxisLabels(series, left, top, plotWidth, plotHeight) {
       if (series.length === 0) return "";
       const indexes = Array.from(new Set([0, Math.floor(series.length / 2), series.length - 1]));
       return indexes.map((index) => {
-        const x = left + (series.length === 1 ? plotWidth : index / (series.length - 1) * plotWidth);
+        const x = left + (index + 0.5) * (plotWidth / series.length);
         return '<text class="axis-label" text-anchor="middle" x="' + x.toFixed(1) + '" y="' + (top + plotHeight + 24) + '">' + escapeHtml(series[index].label) + '</text>';
       }).join("");
+    }
+
+    function niceChartMax(value) {
+      const safeValue = Math.max(1, Number(value) || 1);
+      const magnitude = Math.pow(10, Math.floor(Math.log10(safeValue)));
+      const normalized = safeValue / magnitude;
+      const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+      return nice * magnitude;
     }
 
     function renderRows() {
@@ -916,6 +930,15 @@ function summarizeRequests(
   );
 }
 
+function isAuthNoiseRequest(request: RealtimeTokenUsageRequest): boolean {
+  return (
+    request.status === "error" &&
+    authNoiseErrorCodes.has(request.error_code ?? "") &&
+    request.token_usage.total_tokens === 0 &&
+    request.token_usage.estimated_tokens === 0
+  );
+}
+
 function buildSeries(
   requests: RealtimeTokenUsageRequest[],
   since: Date,
@@ -923,14 +946,14 @@ function buildSeries(
   bucketSeconds: number
 ): RealtimeTokenUsageSeriesPoint[] {
   const bucketMs = bucketSeconds * 1000;
-  const bucketCount = Math.max(1, Math.ceil((until.getTime() - since.getTime()) / bucketMs));
+  const bucketCount = Math.max(1, Math.floor((until.getTime() - since.getTime()) / bucketMs) + 1);
   const buckets = Array.from({ length: bucketCount }, (_value, index) => {
     const bucketStart = new Date(since.getTime() + index * bucketMs);
     const bucketEnd = new Date(Math.min(bucketStart.getTime() + bucketMs, until.getTime()));
     return {
       bucket_start: bucketStart.toISOString(),
       bucket_end: bucketEnd.toISOString(),
-      label: bucketStart.toISOString().slice(11, 19),
+      label: chartTimeFormatter.format(bucketStart),
       requests: 0,
       total_tokens: 0,
       provider_total_tokens: 0,
@@ -952,6 +975,12 @@ function buildSeries(
   }
 
   return buckets;
+}
+
+function alignedWindowStart(now: Date, windowSeconds: number, bucketSeconds: number): Date {
+  const bucketMs = bucketSeconds * 1000;
+  const activeBucketStartMs = Math.floor(now.getTime() / bucketMs) * bucketMs;
+  return new Date(activeBucketStartMs - windowSeconds * 1000);
 }
 
 function nonNegativeInteger(value: number | null | undefined): number {

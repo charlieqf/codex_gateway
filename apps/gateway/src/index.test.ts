@@ -2411,6 +2411,27 @@ describe("gateway phase 1 routes", () => {
       estimatedTokens: 0,
       usageSource: "provider"
     });
+    store.insertRequestEvent({
+      requestId: "req_quota_dashboard_auth_noise",
+      credentialId: null,
+      subjectId: null,
+      scope: null,
+      sessionId: null,
+      upstreamAccountId: null,
+      provider: null,
+      startedAt: now,
+      durationMs: 1,
+      firstByteMs: null,
+      status: "error",
+      errorCode: "missing_credential",
+      rateLimited: false,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      cachedPromptTokens: 0,
+      estimatedTokens: 0,
+      usageSource: "none"
+    });
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
     clientEventsStore.insertClientMessageEvent({
       id: "cme_quota_dashboard_high_usage",
@@ -2476,6 +2497,11 @@ describe("gateway phase 1 routes", () => {
     const realtimeData = await app.inject({
       method: "GET",
       url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    const realtimeDataWithAuthNoise = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=10&include_auth_noise=1",
       headers: { authorization: "Bearer admin-messages-token-1234567890" }
     });
 
@@ -2559,19 +2585,53 @@ describe("gateway phase 1 routes", () => {
     expect(realtimePage.statusCode).toBe(200);
     expect(realtimePage.headers["content-type"]).toContain("text/html");
     expect(realtimePage.body).toContain("实时 Token 用量监控");
-    expect(realtimePage.body).toContain('id="tokenLineChart"');
+    expect(realtimePage.body).toContain('id="tokenBucketChart"');
+    expect(realtimePage.body).toContain('id="includeAuthNoise"');
+    expect(realtimePage.body).toContain("include_auth_noise");
+    expect(realtimePage.body).toContain("renderBucketChart");
+    expect(realtimePage.body).not.toContain("<polyline");
     expect(realtimePage.body).toContain("setInterval");
     expect(realtimeUnauthenticated.statusCode).toBe(401);
     expect(realtimeOrdinaryCredential.statusCode).toBe(401);
     expect(realtimeData.statusCode).toBe(200);
+    expect(realtimeDataWithAuthNoise.statusCode).toBe(200);
     const realtimePayload = realtimeData.json();
+    const realtimePayloadWithAuthNoise = realtimeDataWithAuthNoise.json();
     expect(realtimePayload.summary).toMatchObject({
       requests: 3,
       total_tokens: 640,
       provider_total_tokens: 600,
       estimated_tokens: 40
     });
+    expect(realtimePayloadWithAuthNoise.summary.requests).toBe(4);
+    expect(
+      realtimePayloadWithAuthNoise.requests.some(
+        (request: { request_id: string }) => request.request_id === "req_quota_dashboard_auth_noise"
+      )
+    ).toBe(true);
+    expect(
+      realtimePayload.requests.some(
+        (request: { request_id: string }) => request.request_id === "req_quota_dashboard_auth_noise"
+      )
+    ).toBe(false);
     expect(realtimePayload.series.length).toBeGreaterThan(0);
+    const firstRealtimeSeriesPoint = realtimePayload.series[0] as {
+      bucket_start: string;
+      label: string;
+    };
+    const realtimeBucketMs = realtimePayload.window.bucket_seconds * 1000;
+    expect(new Date(firstRealtimeSeriesPoint.bucket_start).getTime() % realtimeBucketMs).toBe(0);
+    expect(firstRealtimeSeriesPoint.label).toBe(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Shanghai",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        hourCycle: "h23"
+      }).format(new Date(firstRealtimeSeriesPoint.bucket_start))
+    );
+    expect(firstRealtimeSeriesPoint.label).not.toBe(firstRealtimeSeriesPoint.bucket_start.slice(11, 19));
     expect(realtimePayload.privacy).toMatchObject({
       raw_message_text_included: false,
       raw_user_fields_included: false

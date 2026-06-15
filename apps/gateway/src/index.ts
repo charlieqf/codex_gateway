@@ -804,6 +804,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       window_seconds?: string;
       bucket_seconds?: string;
       limit?: string;
+      include_auth_noise?: string;
     };
   }>(
     "/gateway/admin/quota-dashboard/realtime-token-usage.json",
@@ -831,7 +832,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           clientEventsStore,
           windowSeconds: parseOptionalPositiveInteger(request.query.window_seconds),
           bucketSeconds: parseOptionalPositiveInteger(request.query.bucket_seconds),
-          limit: parseOptionalPositiveInteger(request.query.limit)
+          limit: parseOptionalPositiveInteger(request.query.limit),
+          includeAuthNoise: parseOptionalBoolean(request.query.include_auth_noise)
         })
       );
     }
@@ -2529,6 +2531,10 @@ function parseOptionalPositiveInteger(value: string | undefined): number | undef
     return undefined;
   }
   return parsed;
+}
+
+function parseOptionalBoolean(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
 }
 
 function publicProviderDetail(
