@@ -36,9 +36,11 @@ import {
 } from "@codex-gateway/provider-codex";
 import {
   buildQuotaDashboardData,
+  buildRealtimeTokenUsageData,
   createSqliteClientEventsStore,
   createSqliteStore,
   createSqliteTokenBudgetLimiter,
+  renderRealtimeTokenUsagePage,
   renderQuotaDashboardPage,
   SqliteGatewayStore
 } from "@codex-gateway/store-sqlite";
@@ -771,6 +773,66 @@ export function buildGateway(options: GatewayOptions = {}) {
       );
       return adminMessagesSecurityHeaders(reply).send(
         await buildQuotaDashboardData(sessions, { includeInactive })
+      );
+    }
+  );
+
+  app.get(
+    "/gateway/admin/quota-dashboard/realtime-token-usage",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (_request, reply) => {
+      if (!adminMessagesAccess || !(sessions instanceof SqliteGatewayStore)) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+
+      return adminMessagesSecurityHeaders(reply)
+        .type("text/html; charset=utf-8")
+        .send(
+          renderRealtimeTokenUsagePage({ authRequired: adminMessagesAccess.mode === "token" })
+        );
+    }
+  );
+
+  app.get<{
+    Querystring: {
+      window_seconds?: string;
+      bucket_seconds?: string;
+      limit?: string;
+    };
+  }>(
+    "/gateway/admin/quota-dashboard/realtime-token-usage.json",
+    {
+      config: {
+        public: true,
+        skipRateLimit: true,
+        skipObservation: true
+      }
+    },
+    async (request, reply) => {
+      if (!adminMessagesAccess || !(sessions instanceof SqliteGatewayStore)) {
+        return sendAdminMessagesUnavailable(adminMessagesSecurityHeaders(reply));
+      }
+      if (
+        adminMessagesAccess.mode === "token" &&
+        (!adminMessagesAccess.token ||
+          !authenticateAdminMessagesRequest(request, adminMessagesAccess.token))
+      ) {
+        return sendAdminMessagesUnauthorized(adminMessagesSecurityHeaders(reply));
+      }
+
+      return adminMessagesSecurityHeaders(reply).send(
+        await buildRealtimeTokenUsageData(sessions, {
+          clientEventsStore,
+          windowSeconds: parseOptionalPositiveInteger(request.query.window_seconds),
+          bucketSeconds: parseOptionalPositiveInteger(request.query.bucket_seconds),
+          limit: parseOptionalPositiveInteger(request.query.limit)
+        })
       );
     }
   );
@@ -2457,6 +2519,14 @@ function parsePositiveIntegerEnv(
   const parsed = Number.parseInt(value, 10);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    return undefined;
   }
   return parsed;
 }

@@ -2411,10 +2411,33 @@ describe("gateway phase 1 routes", () => {
       estimatedTokens: 0,
       usageSource: "provider"
     });
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    clientEventsStore.insertClientMessageEvent({
+      id: "cme_quota_dashboard_high_usage",
+      eventId: "evt_quota_dashboard_high_usage",
+      requestId: "req_quota_dashboard_high_usage",
+      credentialId: highUsageCredential.record.id,
+      subjectId: "subj_high",
+      scope: "code",
+      sessionId: "ses_high",
+      messageId: "msg_high",
+      agent: "research",
+      providerId: "medcode",
+      modelId: "medcode",
+      engine: "agent",
+      text: "Patient Alice +15550001111 asks for the latest lupus evidence.",
+      textSha256: "a".repeat(64),
+      attachmentsJson: "[]",
+      appName: "medevidence-desktop",
+      appVersion: "1.4.6",
+      createdAt: now,
+      receivedAt: now
+    });
     const app = buildGateway({
       authMode: "credential",
       provider: new FakeProvider(),
       sessionStore: store,
+      clientEventsStore,
       adminMessagesToken: "admin-messages-token-1234567890",
       logger: false
     });
@@ -2437,12 +2460,31 @@ describe("gateway phase 1 routes", () => {
       url: "/gateway/admin/quota-dashboard.json?include_inactive=1",
       headers: { authorization: "Bearer admin-messages-token-1234567890" }
     });
+    const realtimePage = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage"
+    });
+    const realtimeUnauthenticated = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage.json"
+    });
+    const realtimeOrdinaryCredential = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage.json",
+      headers
+    });
+    const realtimeData = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
 
     expect(page.statusCode).toBe(200);
     expect(page.headers["content-type"]).toContain("text/html");
     expect(page.body).toContain("用户套餐与 Token 用量");
     expect(page.body).toContain('id="token"');
     expect(page.body).toContain('id="dailyTokenChart"');
+    expect(page.body).toContain("/gateway/admin/quota-dashboard/realtime-token-usage");
     expect(page.body).toContain('placeholder="过滤用户、姓名、手机号、plan、API key prefix"');
     expect(page.body.indexOf('id="search"')).toBeLessThan(page.body.indexOf('id="dailyTokenChart"'));
     expect(page.body).toContain("daily_token_usage");
@@ -2514,6 +2556,58 @@ describe("gateway phase 1 routes", () => {
     expect(JSON.stringify(payload)).not.toContain(issued.token);
     expect(JSON.stringify(payload)).not.toContain(highUsageCredential.token);
     expect(JSON.stringify(payload)).not.toContain("admin-messages-token-1234567890");
+    expect(realtimePage.statusCode).toBe(200);
+    expect(realtimePage.headers["content-type"]).toContain("text/html");
+    expect(realtimePage.body).toContain("实时 Token 用量监控");
+    expect(realtimePage.body).toContain('id="tokenLineChart"');
+    expect(realtimePage.body).toContain("setInterval");
+    expect(realtimeUnauthenticated.statusCode).toBe(401);
+    expect(realtimeOrdinaryCredential.statusCode).toBe(401);
+    expect(realtimeData.statusCode).toBe(200);
+    const realtimePayload = realtimeData.json();
+    expect(realtimePayload.summary).toMatchObject({
+      requests: 3,
+      total_tokens: 640,
+      provider_total_tokens: 600,
+      estimated_tokens: 40
+    });
+    expect(realtimePayload.series.length).toBeGreaterThan(0);
+    expect(realtimePayload.privacy).toMatchObject({
+      raw_message_text_included: false,
+      raw_user_fields_included: false
+    });
+    const realtimeHighUsage = realtimePayload.requests.find(
+      (request: { request_id: string }) => request.request_id === "req_quota_dashboard_high_usage"
+    );
+    expect(realtimeHighUsage).toMatchObject({
+      user: {
+        alias: expect.stringMatching(/^user-[a-f0-9]{8}$/)
+      },
+      credential: {
+        alias: expect.stringMatching(/^key-[a-f0-9]{8}$/)
+      },
+      message: {
+        available: true,
+        alias: expect.stringMatching(/^msg-[a-f0-9]{8}$/),
+        char_count: 62,
+        attachments_count: 0
+      },
+      token_usage: {
+        prompt_tokens: 450,
+        completion_tokens: 50,
+        total_tokens: 500,
+        provider_total_tokens: 500
+      }
+    });
+    expect(realtimeHighUsage.message.preview).toContain("消息指纹");
+    const realtimeJson = JSON.stringify(realtimePayload);
+    expect(realtimeJson).not.toContain("Patient Alice");
+    expect(realtimeJson).not.toContain("+15550001111");
+    expect(realtimeJson).not.toContain("A High Usage");
+    expect(realtimeJson).not.toContain("Credential Subject");
+    expect(realtimeJson).not.toContain(issued.token);
+    expect(realtimeJson).not.toContain(highUsageCredential.token);
+    expect(realtimeJson).not.toContain("admin-messages-token-1234567890");
 
     await app.close();
   });

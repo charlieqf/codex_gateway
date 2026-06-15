@@ -414,3 +414,13 @@ export {
   type QuotaDashboardResult,
   type UsageSummary
 } from "./quota-dashboard.js";
+
+export {
+  buildRealtimeTokenUsageData,
+  renderRealtimeTokenUsagePage,
+  type RealtimeTokenUsageData,
+  type RealtimeTokenUsageOptions,
+  type RealtimeTokenUsagePageOptions,
+  type RealtimeTokenUsageRequest,
+  type RealtimeTokenUsageSeriesPoint
+} from "./realtime-token-usage.js";

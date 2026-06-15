@@ -603,7 +603,8 @@ function renderQuotaDashboardDocument(input: {
 }): string {
   const json = JSON.stringify(input.embeddedData).replaceAll("<", "\\u003c");
   const controls = input.dataEndpoint
-    ? `<label class="token-control"${input.authRequired ? "" : " hidden"}>Admin token
+    ? `<a class="nav-link" href="/gateway/admin/quota-dashboard/realtime-token-usage">实时 token 监控</a>
+      <label class="token-control"${input.authRequired ? "" : " hidden"}>Admin token
         <input id="token" type="password" autocomplete="off" placeholder="输入 admin token">
       </label>
       <label class="check"><input id="includeInactive" type="checkbox" checked>包含停用/归档用户</label>
@@ -691,7 +692,7 @@ function renderQuotaDashboardDocument(input: {
       font-weight: 500;
     }
     .check input { width: 15px; height: 15px; }
-    button {
+    button, .nav-link {
       min-height: 34px;
       padding: 7px 10px;
       border: 1px solid var(--line);
@@ -701,6 +702,11 @@ function renderQuotaDashboardDocument(input: {
       cursor: pointer;
       font: inherit;
       letter-spacing: 0;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
     }
     button.primary, button.active {
       border-color: var(--accent);
