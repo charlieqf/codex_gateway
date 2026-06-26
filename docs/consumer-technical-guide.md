@@ -36,13 +36,14 @@ baseURL: https://gw.instmarket.com.au/v1
 model: medcode
 ```
 
-`model` 必须是 `medcode`。传入其他 model id 会返回 `404` 和
+当前默认/兼容 model 是 `medcode`。客户端应调用 `GET /v1/models` 获取当前
+Gateway 已启用的 public model id；如果请求的 model id 未启用，会返回 `404` 和
 `error.code: "model_not_found"`。
 
 当前已支持：
 
 - `GET /v1/models`
-- `GET /v1/models/medcode`
+- `GET /v1/models/{id}`，当前默认 id 是 `medcode`
 - `POST /v1/chat/completions`
 - `messages[]` 输入，支持 `system`、`developer`、`user`、`assistant`、`tool` role
 - `stream: false` 的 `chat.completion` JSON 响应
@@ -51,7 +52,13 @@ model: medcode
 - 下一次请求可以按 OpenAI 约定携带 assistant `tool_calls` 和 `{ role: "tool", tool_call_id, content }` 工具结果历史
 - 当前 Codex 上游正常完成时，`usage` 会按 OpenAI 字段名返回 `prompt_tokens`、`completion_tokens`、`total_tokens`，并可能包含 `prompt_tokens_details.cached_tokens`
 
-`/v1/models` 返回的模型 ID 是 `medcode`。模型对象额外包含几个非 OpenAI 标准字段，便于 OpenCode / ai-sdk 这类客户端配置 UI 限额：
+`/v1/models` 默认至少返回 `medcode`。Gateway 后续启用更多 public model 后，
+客户端也应只使用该接口返回的 id。模型对象额外包含几个非 OpenAI 标准字段，
+便于 OpenCode / ai-sdk 这类客户端配置 UI 限额：
+
+如果 `/gateway/credentials/current` 返回 `entitlement.feature_policy.medcode_models.allowed`，
+客户端可按该列表禁用无权限模型；如果该字段缺失，按旧 key 兼容语义 fail-open，
+使用 `/v1/models` 当前返回的 MedCode public models。
 
 ```json
 {
@@ -469,9 +476,11 @@ await sendMessage(sessionId, "Give me one concise coding tip.", (text) => {
 | 401 | `revoked_credential` | API key 已吊销，需要换新 key |
 | 401 | `expired_credential` | API key 已过期，需要换新 key |
 | 404 | `session_not_found` | session 不存在，或不属于当前 API key 的用户 |
+| 403 | `plan_capability_required` | 当前 API key/套餐不能使用请求的 public model 或能力 |
 | 429 | `rate_limited` | 按 `retry_after_seconds` 延迟后重试；如需显示额度用尽，再调用 `/gateway/credentials/current` 读取 `token_usage` |
 | 503 | `provider_reauth_required` | MedCode 服务需要管理员处理授权状态，联系服务管理员 |
 | 503 | `subscription_unavailable` | MedCode 服务暂不可用，联系服务管理员 |
+| 503 | `upstream_unavailable` | 上游模型暂不可用，可稍后重试并通知管理员 |
 | 503 | `service_unavailable` | 服务暂不可用，可稍后重试并通知管理员 |
 
 完整错误码集合：
@@ -485,10 +494,12 @@ invalid_request
 model_not_found
 rate_limited
 forbidden_scope
+plan_capability_required
 session_not_found
 tool_call_validation_failed
 subscription_unavailable
 provider_reauth_required
+upstream_unavailable
 service_unavailable
 ```
 
@@ -537,7 +548,7 @@ Authorization: Bearer <api-key>
 ## 当前限制
 
 - 当前只提供 OpenAI Chat Completions 兼容 beta，不是完整 OpenAI API 兼容实现。
-- 当前公开模型列表只包含 `medcode`。
+- 当前默认/兼容 public model 是 `medcode`；更多模型只在 Gateway 启用后通过 `/v1/models` 暴露。
 - 当前没有消息恢复流接口；断线后可以继续使用同一个 session 发送下一条消息，但不能从断点恢复同一次 SSE 输出。
 - 当前限流是单进程内存限流，不是分布式限流。
 - 当前 MedCode 后端模型服务可能需要管理员维护授权状态。需要管理员处理时，接入方会看到 `provider_reauth_required` 或 `service_unavailable`。

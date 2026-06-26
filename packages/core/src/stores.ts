@@ -125,6 +125,9 @@ export interface RequestUsageReportRow {
   scope: Scope | null;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
+  publicModelId: string | null;
+  upstreamRuntime: string | null;
+  upstreamModel: string | null;
   entitlementId?: string | null;
   requests: number;
   ok: number;

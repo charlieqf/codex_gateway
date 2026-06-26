@@ -1,0 +1,382 @@
+import {
+  GatewayError,
+  type MessageInput,
+  type ProviderAdapter,
+  type ProviderErrorDiagnostic,
+  type ProviderHealth,
+  type StreamEvent,
+  type TokenUsage,
+  type UpstreamAccount
+} from "@codex-gateway/core";
+import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
+
+export interface OpenAICompatibleProviderOptions {
+  providerKind: "openrouter";
+  baseUrl: string;
+  apiKey: string;
+  apiKeyEnv: string;
+  upstreamModel: string;
+  reasoning?: Record<string, unknown>;
+  timeoutMs: number;
+  siteUrl?: string;
+  appTitle?: string;
+  fetchImpl?: typeof fetch;
+}
+
+export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
+  readonly kind: string;
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(private readonly options: OpenAICompatibleProviderOptions) {
+    this.kind = options.providerKind;
+    this.fetchImpl = options.fetchImpl ?? fetch;
+  }
+
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
+    return {
+      state: this.options.apiKey ? "healthy" : "unhealthy",
+      checkedAt: new Date(),
+      detail: this.options.apiKey
+        ? `${this.options.providerKind} API key is configured.`
+        : `${this.options.apiKeyEnv} is missing.`
+    };
+  }
+
+  async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    const abort = createAbortSignal(input.signal, this.options.timeoutMs);
+    try {
+      const response = await this.fetchImpl(chatCompletionsUrl(this.options.baseUrl), {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(this.requestBody(input.message)),
+        signal: abort.signal
+      });
+
+      if (!response.ok) {
+        const normalized = await this.errorFromResponse(response, input);
+        yield {
+          type: "error",
+          code: normalized.code,
+          message: normalized.message
+        };
+        return;
+      }
+
+      if (!response.body) {
+        yield {
+          type: "error",
+          code: "upstream_unavailable",
+          message: "MedCode service is temporarily unavailable."
+        };
+        return;
+      }
+
+      let usage: TokenUsage | undefined;
+      for await (const chunk of parseOpenAISse(response.body)) {
+        const event = mapOpenAIStreamChunk(chunk);
+        if (event.event) {
+          yield event.event;
+        }
+        if (event.usage) {
+          usage = event.usage;
+        }
+      }
+
+      yield {
+        type: "completed",
+        ...(usage ? { usage } : {})
+      };
+    } catch (err) {
+      const normalized = this.normalizeAndReport(err, "exception", input);
+      yield {
+        type: "error",
+        code: normalized.code,
+        message: normalized.message
+      };
+    } finally {
+      abort.cleanup();
+    }
+  }
+
+  private requestBody(prompt: string): Record<string, unknown> {
+    return {
+      model: this.options.upstreamModel,
+      messages: [
+        {
+          role: "system",
+          content: buildOpenRouterIdentityGuardPrompt()
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      stream: true,
+      stream_options: {
+        include_usage: true
+      },
+      reasoning: this.options.reasoning ?? { effort: "none" }
+    };
+  }
+
+  private headers(): HeadersInit {
+    return {
+      authorization: `Bearer ${this.options.apiKey}`,
+      "content-type": "application/json",
+      ...(this.options.siteUrl ? { "HTTP-Referer": this.options.siteUrl } : {}),
+      ...(this.options.appTitle ? { "X-OpenRouter-Title": this.options.appTitle } : {})
+    };
+  }
+
+  private async errorFromResponse(
+    response: Response,
+    input: MessageInput
+  ): Promise<GatewayError> {
+    const body = await response.text().catch(() => "");
+    return this.normalizeAndReport(
+      new UpstreamHttpError(response.status, body || response.statusText),
+      "http_response",
+      input
+    );
+  }
+
+  private normalizeAndReport(err: unknown, source: string, input: MessageInput): GatewayError {
+    const normalized = this.normalize(err);
+    if (input.onProviderError) {
+      try {
+        input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
+      } catch {
+        // Diagnostic hooks must not mask provider errors.
+      }
+    }
+    return normalized;
+  }
+
+  private normalize(err: unknown): GatewayError {
+    if (err instanceof GatewayError) {
+      return err;
+    }
+    if (err instanceof UpstreamHttpError) {
+      if (err.status === 429) {
+        return new GatewayError({
+          code: "rate_limited",
+          message: "MedCode service rate limit reached.",
+          httpStatus: 429,
+          retryAfterSeconds: 60,
+          upstreamStatus: err.status
+        });
+      }
+      if (err.status === 400) {
+        return new GatewayError({
+          code: "invalid_request",
+          message: "MedCode upstream rejected the request.",
+          httpStatus: 400,
+          upstreamStatus: err.status
+        });
+      }
+      if (err.status === 408 || err.status === 504) {
+        return new GatewayError({
+          code: "upstream_timeout",
+          message: "MedCode service timed out.",
+          httpStatus: 504,
+          upstreamStatus: err.status
+        });
+      }
+      return new GatewayError({
+        code: "upstream_unavailable",
+        message: "MedCode service is temporarily unavailable.",
+        httpStatus: err.status >= 500 ? 503 : 502,
+        upstreamStatus: err.status
+      });
+    }
+
+    if (isAbortError(err)) {
+      return new GatewayError({
+        code: "upstream_timeout",
+        message: "MedCode service timed out.",
+        httpStatus: 504
+      });
+    }
+
+    return new GatewayError({
+      code: "upstream_unavailable",
+      message: "MedCode service is temporarily unavailable.",
+      httpStatus: 503
+    });
+  }
+}
+
+interface ParsedOpenAIChunk {
+  event?: StreamEvent;
+  usage?: TokenUsage;
+}
+
+async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<unknown> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) {
+          continue;
+        }
+        const data = trimmed.slice("data:".length).trim();
+        if (!data || data === "[DONE]") {
+          continue;
+        }
+        yield JSON.parse(data) as unknown;
+      }
+    }
+    const tail = buffer.trim();
+    if (tail.startsWith("data:")) {
+      const data = tail.slice("data:".length).trim();
+      if (data && data !== "[DONE]") {
+        yield JSON.parse(data) as unknown;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function mapOpenAIStreamChunk(chunk: unknown): ParsedOpenAIChunk {
+  if (!isRecord(chunk)) {
+    return {};
+  }
+  const usage = mapUsage(chunk.usage);
+  const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
+  const choice = choices[0];
+  if (!isRecord(choice) || !isRecord(choice.delta)) {
+    return usage ? { usage } : {};
+  }
+  const content = choice.delta.content;
+  return {
+    ...(typeof content === "string" && content.length > 0
+      ? { event: { type: "message_delta" as const, text: content } }
+      : {}),
+    ...(usage ? { usage } : {})
+  };
+}
+
+function mapUsage(value: unknown): TokenUsage | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const promptTokens = tokenCount(value.prompt_tokens);
+  const completionTokens = tokenCount(value.completion_tokens);
+  const totalTokens = tokenCount(value.total_tokens);
+  const promptDetails = isRecord(value.prompt_tokens_details)
+    ? value.prompt_tokens_details
+    : null;
+  const completionDetails = isRecord(value.completion_tokens_details)
+    ? value.completion_tokens_details
+    : null;
+  const cachedPromptTokens = tokenCount(promptDetails?.cached_tokens);
+  const reasoningTokens = tokenCount(completionDetails?.reasoning_tokens);
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: totalTokens || promptTokens + completionTokens,
+    ...(cachedPromptTokens > 0 ? { cachedPromptTokens } : {}),
+    ...(completionDetails && "reasoning_tokens" in completionDetails
+      ? { reasoningTokens }
+      : {})
+  };
+}
+
+function createAbortSignal(
+  inputSignal: AbortSignal | undefined,
+  timeoutMs: number
+): { signal: AbortSignal; cleanup(): void } {
+  const controller = new AbortController();
+  const abortFromInput = () => controller.abort(inputSignal?.reason);
+  if (inputSignal?.aborted) {
+    abortFromInput();
+  } else {
+    inputSignal?.addEventListener("abort", abortFromInput, { once: true });
+  }
+  const timeout = setTimeout(() => {
+    controller.abort(new Error("upstream_timeout"));
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      inputSignal?.removeEventListener("abort", abortFromInput);
+    }
+  };
+}
+
+function chatCompletionsUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
+class UpstreamHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "UpstreamHttpError";
+  }
+}
+
+function createProviderErrorDiagnostic(
+  err: unknown,
+  source: string,
+  normalized: GatewayError
+): ProviderErrorDiagnostic {
+  return {
+    source,
+    code: normalized.code,
+    publicMessage: normalized.message,
+    rawMessage: sanitizeProviderErrorText(errorMessage(err)),
+    ...(err instanceof UpstreamHttpError ? { rawStatus: err.status } : {})
+  };
+}
+
+function tokenCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.trunc(value);
+}
+
+function isAbortError(err: unknown): boolean {
+  if (err instanceof Error && err.message === "upstream_timeout") {
+    return true;
+  }
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}
+
+function sanitizeProviderErrorText(value: string): string {
+  const redacted = value
+    .replace(/\bbearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, "Bearer <redacted>")
+    .replace(
+      /\b(authorization|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|cookie|set-cookie|password)\s*[:=]\s*["']?[^"',\s;}]+/gi,
+      "$1=<redacted>"
+    )
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "sk-<redacted>");
+  return redacted.length > 2048 ? `${redacted.slice(0, 2048)}...[truncated]` : redacted;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

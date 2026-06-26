@@ -42,6 +42,9 @@ export interface OpenAIChatUsage {
   prompt_tokens_details?: {
     cached_tokens: number;
   };
+  completion_tokens_details?: {
+    reasoning_tokens: number;
+  };
 }
 
 export interface ChatCompletionMessage {
@@ -445,6 +448,9 @@ export function openAIUsageFromTokenUsage(usage: TokenUsage | undefined): OpenAI
     total_tokens: usage.totalTokens,
     ...(usage.cachedPromptTokens !== undefined
       ? { prompt_tokens_details: { cached_tokens: usage.cachedPromptTokens } }
+      : {}),
+    ...(usage.reasoningTokens !== undefined
+      ? { completion_tokens_details: { reasoning_tokens: usage.reasoningTokens } }
       : {})
   };
 }

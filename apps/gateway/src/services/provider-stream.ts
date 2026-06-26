@@ -125,6 +125,20 @@ export function streamErrorToGatewayError(event: { code: string; message: string
       httpStatus: 400
     });
   }
+  if (event.code === "upstream_timeout") {
+    return new GatewayError({
+      code: "upstream_timeout",
+      message: event.message,
+      httpStatus: 504
+    });
+  }
+  if (event.code === "upstream_unavailable") {
+    return new GatewayError({
+      code: "upstream_unavailable",
+      message: event.message,
+      httpStatus: 503
+    });
+  }
   return new GatewayError({
     code: "service_unavailable",
     message: event.message,

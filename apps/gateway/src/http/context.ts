@@ -63,6 +63,9 @@ declare module "fastify" {
       id: string | null;
       provider: ProviderKind | null;
     };
+    gatewayPublicModelId?: string | null;
+    gatewayUpstreamRuntime?: string | null;
+    gatewayUpstreamModel?: string | null;
   }
 }
 

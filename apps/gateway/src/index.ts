@@ -153,6 +153,18 @@ import {
   publicTokenPolicy,
   publicTokenUsage
 } from "./services/token-budget-hook.js";
+import {
+  createChatRuntimeDispatcher,
+  type ChatRuntimeContext
+} from "./services/chat-runtime-dispatcher.js";
+import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
+import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
+import {
+  modelNotFoundError,
+  openAIModelObject,
+  resolvePublicModelRegistry,
+  type PublicModelConfig
+} from "./services/public-model-registry.js";
 
 export type GatewayAuthMode = "dev" | "credential";
 
@@ -219,15 +231,6 @@ interface ResolvedUpstreamAccountPool {
   accountPoolConfigured: boolean;
 }
 
-interface StatelessUpstreamAttempt {
-  lease: UpstreamAccountLease;
-  subject: Subject;
-  upstreamAccount: UpstreamAccount;
-  provider: ProviderAdapter;
-  scope: Scope;
-  session: GatewaySession;
-}
-
 const maxStatelessAttempts = 2;
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
 const imageBillingFallbackAccountId = "image-billing-fallback";
@@ -264,8 +267,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.adminAuditStore ?? (isAdminAuditStore(sessions) ? sessions : undefined);
   const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env, app.log);
   const publicGatewayBaseUrl = normalizeBaseUrl(process.env.GATEWAY_PUBLIC_BASE_URL);
-  const openAIModelId = process.env.MEDCODE_PUBLIC_MODEL_ID ?? "medcode";
-  const openAIModelLimits = resolveOpenAIModelLimits(process.env);
+  const publicModelRegistry = resolvePublicModelRegistry(process.env, app.log);
+  const openRouterAdapters = createOpenRouterAdapters(publicModelRegistry.models, process.env, app.log);
+  const chatRuntimeDispatcher = createChatRuntimeDispatcher({
+    codexRouter: upstreamRouter,
+    openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null
+  });
+  const openRouterAvailable = openRouterAdapters.size > 0;
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
     configured: configuredAuthMode,
@@ -1195,50 +1203,104 @@ export function buildGateway(options: GatewayOptions = {}) {
 
   app.get("/v1/models", async () => ({
     object: "list",
-    data: [openAIModelObject(openAIModelId, openAIModelLimits)]
+    data: publicModelRegistry
+      .listAvailable({ openRouterAvailable })
+      .map((model) => openAIModelObject(model))
   }));
 
   app.get<{ Params: { id: string } }>("/v1/models/:id", async (request, reply) => {
-    if (request.params.id !== openAIModelId) {
+    const model = publicModelRegistry.get(request.params.id);
+    if (
+      !model ||
+      !publicModelRegistry.isAvailable(model, { openRouterAvailable })
+    ) {
       return sendOpenAIError(request, reply, modelNotFoundError(request.params.id));
     }
 
-    return openAIModelObject(openAIModelId, openAIModelLimits);
+    return openAIModelObject(model);
   });
 
   app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
-    const parsed = parseChatCompletionRequest(request.body, openAIModelId);
+    const parsed = parseChatCompletionRequest(request.body, publicModelRegistry.defaultModelId);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
-    if (parsed.model !== openAIModelId) {
+    const publicModel = publicModelRegistry.get(parsed.model);
+    request.gatewayPublicModelId = parsed.model;
+    if (
+      !publicModel ||
+      !publicModelRegistry.isAvailable(publicModel, { openRouterAvailable })
+    ) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
       return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
+    }
+
+    let entitlementAccess;
+    try {
+      const { subject, scope, credential } = getGatewayContext(request);
+      entitlementAccess = resolveEntitlementAccessForChat({
+        context: { subject, scope, credential },
+        entitlementStore: planEntitlementStore,
+        publicModelId: publicModel.id,
+        requireEntitlement,
+        now: clock()
+      });
+    } catch (err) {
+      request.log.error(
+        {
+          request_id: request.id,
+          error: err instanceof Error ? err.message : String(err)
+        },
+        "Plan entitlement check failed."
+      );
+      entitlementAccess = new GatewayError({
+        code: "service_unavailable",
+        message: "Plan entitlement service is unavailable.",
+        httpStatus: 503
+      });
+    }
+    if (entitlementAccess instanceof GatewayError) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+      return sendOpenAIError(request, reply, entitlementAccess);
     }
 
     const affinityKey = requestAffinityKey(request, upstreamRouter.softAffinity);
     const attemptedAccountIds = new Set<string>();
     let statelessAttempts = 1;
-    let attempt = beginStatelessUpstreamAttempt(request, upstreamRouter, { affinityKey });
+    const { subject, scope } = getGatewayContext(request);
+    let attempt = chatRuntimeDispatcher.begin({
+      model: publicModel,
+      subject,
+      scope,
+      affinityKey,
+      createSession: createStatelessSession
+    });
     if (attempt instanceof GatewayError) {
       return sendOpenAIError(request, reply, attempt);
     }
-    const shape = createChatCompletionShape(openAIModelId);
+    applyChatRuntimeContext(request, attempt);
+    const shape = createChatCompletionShape(publicModel.id);
     const strictClientTools = hasStrictClientTools(parsed);
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed);
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
-      chatCompletionEstimateExtras(parsed, strictClientTools)
+      chatCompletionEstimateExtras(parsed, strictClientTools, publicModel)
     );
     const tokenBudgetError = await beginTokenBudget(
       request,
       tokenBudgetLimiter,
       request.gatewayEstimatedTokens,
-      { entitlementStore: planEntitlementStore, requireEntitlement, now: clock }
+      {
+        entitlementStore: planEntitlementStore,
+        requireEntitlement,
+        resolvedAccess: entitlementAccess,
+        now: clock
+      }
     );
     if (tokenBudgetError) {
-      attempt.lease.release();
+      attempt.release();
       return sendOpenAIError(request, reply, tokenBudgetError);
     }
 
@@ -1263,8 +1325,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           const onProviderError = createProviderErrorLogger(request);
           writeInitialChunk();
           const strictResult = await runStrictClientTools({
-            provider: attempt.provider,
-            upstreamAccount: attempt.upstreamAccount,
+            provider: attempt.adapter,
+            upstreamAccount: attempt.adapterInputUpstreamAccount,
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
@@ -1276,14 +1338,14 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderError
           });
           if (strictResult instanceof GatewayError) {
-            if (!recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, strictResult)) {
-              upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+            if (!attempt.recordError(strictResult)) {
+              attempt.recordSuccess();
             }
             request.gatewayErrorCode = strictResult.code;
             sse.writeData(openAIErrorPayload(strictResult));
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
-            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+            attempt.recordSuccess();
             hasToolCalls = true;
             usage = strictResult.usage;
             markOpenAITokenUsage(request, usage);
@@ -1299,7 +1361,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
-            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+            attempt.recordSuccess();
             usage = strictResult.usage;
             markOpenAITokenUsage(request, usage);
             const chunk = streamEventToChatCompletionChunk({
@@ -1313,8 +1375,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           while (true) {
             const onProviderError = createProviderErrorLogger(request);
             let retrying = false;
-            for await (const event of attempt.provider.message({
-              upstreamAccount: attempt.upstreamAccount,
+            for await (const event of attempt.adapter.message({
+              upstreamAccount: attempt.adapterInputUpstreamAccount,
               subject: attempt.subject,
               scope: attempt.scope,
               session: attempt.session,
@@ -1332,21 +1394,22 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
               if (event.type === "error") {
                 const error = streamErrorToGatewayError(event);
-                recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, error);
+                attempt.recordError(error);
                 if (
                   !initialChunkSent &&
                   statelessAttempts < maxStatelessAttempts &&
-                  isStatelessRetryableProviderError(error)
+                  isStatelessRetryableProviderError(error) &&
+                  attempt.beginRetry
                 ) {
-                  attemptedAccountIds.add(attempt.upstreamAccount.id);
-                  attempt.lease.release();
-                  const nextAttempt = beginStatelessUpstreamAttempt(request, upstreamRouter, {
-                    affinityKey,
+                  attemptedAccountIds.add(attempt.runtimeInstanceId);
+                  attempt.release();
+                  const nextAttempt = attempt.beginRetry({
                     excludeAccountIds: attemptedAccountIds
                   });
                   if (!(nextAttempt instanceof GatewayError)) {
                     statelessAttempts += 1;
                     attempt = nextAttempt;
+                    applyChatRuntimeContext(request, attempt);
                     retrying = true;
                     break;
                   }
@@ -1387,7 +1450,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               continue;
             }
             if (!failed) {
-              upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+              attempt.recordSuccess();
             }
             break;
           }
@@ -1401,7 +1464,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         }
       } finally {
         await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
-        attempt.lease.release();
+        attempt.release();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         sse.end();
@@ -1417,8 +1480,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       if (strictClientTools) {
         const onProviderError = createProviderErrorLogger(request);
         const strictResult = await runStrictClientTools({
-          provider: attempt.provider,
-          upstreamAccount: attempt.upstreamAccount,
+          provider: attempt.adapter,
+          upstreamAccount: attempt.adapterInputUpstreamAccount,
           subject: attempt.subject,
           scope: attempt.scope,
           session: attempt.session,
@@ -1429,12 +1492,12 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderError
         });
         if (strictResult instanceof GatewayError) {
-          if (!recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, strictResult)) {
-            upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+          if (!attempt.recordError(strictResult)) {
+            attempt.recordSuccess();
           }
           return sendOpenAIError(request, reply, strictResult);
         }
-        upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+        attempt.recordSuccess();
         markFirstByte(request);
         content = strictResult.content;
         toolCalls.push(...strictResult.toolCalls);
@@ -1445,8 +1508,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         while (true) {
           const onProviderError = createProviderErrorLogger(request);
           const attemptResult = await collectProviderMessage({
-            provider: attempt.provider,
-            upstreamAccount: attempt.upstreamAccount,
+            provider: attempt.adapter,
+            upstreamAccount: attempt.adapterInputUpstreamAccount,
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
@@ -1456,27 +1519,28 @@ export function buildGateway(options: GatewayOptions = {}) {
             suppressTextAfterToolCall: true
           });
           if (attemptResult instanceof GatewayError) {
-            recordUpstreamErrorOutcome(upstreamRouter, attempt.lease, attemptResult);
+            attempt.recordError(attemptResult);
             if (
               statelessAttempts < maxStatelessAttempts &&
-              isStatelessRetryableProviderError(attemptResult)
+              isStatelessRetryableProviderError(attemptResult) &&
+              attempt.beginRetry
             ) {
-              attemptedAccountIds.add(attempt.upstreamAccount.id);
-              attempt.lease.release();
-              const nextAttempt = beginStatelessUpstreamAttempt(request, upstreamRouter, {
-                affinityKey,
+              attemptedAccountIds.add(attempt.runtimeInstanceId);
+              attempt.release();
+              const nextAttempt = attempt.beginRetry({
                 excludeAccountIds: attemptedAccountIds
               });
               if (!(nextAttempt instanceof GatewayError)) {
                 statelessAttempts += 1;
                 attempt = nextAttempt;
+                applyChatRuntimeContext(request, attempt);
                 continue;
               }
             }
             return sendOpenAIError(request, reply, attemptResult);
           }
           collected = attemptResult;
-          upstreamRouter.recordOutcome(attempt.upstreamAccount.id, "success");
+          attempt.recordSuccess();
           break;
         }
         if (!collected) {
@@ -1508,7 +1572,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       });
     } finally {
       await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
-      attempt.lease.release();
+      attempt.release();
     }
   });
 
@@ -1887,6 +1951,9 @@ function markOpenAITokenUsage(
     totalTokens: usage.total_tokens,
     ...(usage.prompt_tokens_details?.cached_tokens !== undefined
       ? { cachedPromptTokens: usage.prompt_tokens_details.cached_tokens }
+      : {}),
+    ...(usage.completion_tokens_details?.reasoning_tokens !== undefined
+      ? { reasoningTokens: usage.completion_tokens_details.reasoning_tokens }
       : {})
   });
 }
@@ -1904,11 +1971,17 @@ function addOpenAIUsage(
   const cachedTokens =
     (first.prompt_tokens_details?.cached_tokens ?? 0) +
     (second.prompt_tokens_details?.cached_tokens ?? 0);
+  const reasoningTokens =
+    (first.completion_tokens_details?.reasoning_tokens ?? 0) +
+    (second.completion_tokens_details?.reasoning_tokens ?? 0);
   return {
     prompt_tokens: first.prompt_tokens + second.prompt_tokens,
     completion_tokens: first.completion_tokens + second.completion_tokens,
     total_tokens: first.total_tokens + second.total_tokens,
-    ...(cachedTokens > 0 ? { prompt_tokens_details: { cached_tokens: cachedTokens } } : {})
+    ...(cachedTokens > 0 ? { prompt_tokens_details: { cached_tokens: cachedTokens } } : {}),
+    ...(first.completion_tokens_details || second.completion_tokens_details
+      ? { completion_tokens_details: { reasoning_tokens: reasoningTokens } }
+      : {})
   };
 }
 
@@ -2354,24 +2427,6 @@ function metadataString(metadata: Record<string, unknown> | null, key: string): 
   return typeof value === "string" ? value : null;
 }
 
-interface OpenAIModelLimits {
-  contextWindow: number;
-  maxContextWindow: number;
-  maxOutputTokens: number;
-}
-
-function openAIModelObject(model: string, limits: OpenAIModelLimits) {
-  return {
-    id: model,
-    object: "model",
-    created: 0,
-    owned_by: "medcode",
-    context_window: limits.contextWindow,
-    max_context_window: limits.maxContextWindow,
-    max_output_tokens: limits.maxOutputTokens
-  };
-}
-
 function createChatCompletionShape(model: string): ChatCompletionShape {
   return {
     id: `chatcmpl_${randomUUID().replaceAll("-", "")}`,
@@ -2382,14 +2437,26 @@ function createChatCompletionShape(model: string): ChatCompletionShape {
 
 function chatCompletionEstimateExtras(
   request: ChatCompletionRequest,
-  strictClientTools: boolean
+  strictClientTools: boolean,
+  publicModel: PublicModelConfig
 ): string {
+  const runtimeExtra =
+    publicModel.runtime === "openrouter"
+      ? "OpenRouter identity guard is added as an internal system message."
+      : "";
   if (strictClientTools) {
-    return "";
+    return runtimeExtra;
   }
-  return JSON.stringify({
+  const base = {
     tools: request.tools ?? null,
     tool_choice: request.toolChoice
+  };
+  if (!runtimeExtra) {
+    return JSON.stringify(base);
+  }
+  return JSON.stringify({
+    ...base,
+    runtime_extra: runtimeExtra
   });
 }
 
@@ -2405,14 +2472,6 @@ function createStatelessSession(subjectId: string, upstreamAccountId: string): G
     createdAt: now,
     updatedAt: now
   };
-}
-
-function modelNotFoundError(model: string): GatewayError {
-  return new GatewayError({
-    code: "model_not_found",
-    message: `Model '${model}' does not exist.`,
-    httpStatus: 404
-  });
 }
 
 function defaultSubject(): Subject {
@@ -2487,26 +2546,6 @@ function resolvePublicMetadata(
     providerDisplayName,
     upstreamAccountLabel,
     phase: input?.phase ?? env.GATEWAY_PUBLIC_PHASE ?? "controlled-trial"
-  };
-}
-
-function resolveOpenAIModelLimits(env: NodeJS.ProcessEnv): OpenAIModelLimits {
-  return {
-    contextWindow: parsePositiveIntegerEnv(
-      env.MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW,
-      400_000,
-      "MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW"
-    ),
-    maxContextWindow: parsePositiveIntegerEnv(
-      env.MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW,
-      400_000,
-      "MEDCODE_PUBLIC_MODEL_MAX_CONTEXT_WINDOW"
-    ),
-    maxOutputTokens: parsePositiveIntegerEnv(
-      env.MEDCODE_PUBLIC_MODEL_MAX_OUTPUT_TOKENS,
-      128_000,
-      "MEDCODE_PUBLIC_MODEL_MAX_OUTPUT_TOKENS"
-    )
   };
 }
 
@@ -3095,6 +3134,53 @@ function createCodexProvider(env: NodeJS.ProcessEnv, codexHome: string): Provide
   });
 }
 
+function createOpenRouterAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): Map<string, ProviderAdapter> {
+  const adapters = new Map<string, ProviderAdapter>();
+  const apiKeyEnv = env.MEDCODE_OPENROUTER_API_KEY_ENV?.trim() || "MEDCODE_OPENROUTER_API_KEY";
+  const apiKey = env[apiKeyEnv]?.trim();
+  const enabledOpenRouterModels = models.filter(
+    (model) => model.enabled && model.runtime === "openrouter"
+  );
+  if (!apiKey) {
+    if (enabledOpenRouterModels.length > 0) {
+      logger?.warn(
+        {
+          api_key_env: apiKeyEnv,
+          public_model_ids: enabledOpenRouterModels.map((model) => model.id)
+        },
+        "OpenRouter public models are configured but the API key env is missing; those models will not be exposed."
+      );
+    }
+    return adapters;
+  }
+
+  for (const model of enabledOpenRouterModels) {
+    adapters.set(
+      model.id,
+      new OpenAICompatibleProviderAdapter({
+        providerKind: "openrouter",
+        baseUrl: env.MEDCODE_OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+        apiKey,
+        apiKeyEnv,
+        upstreamModel: model.upstreamModel,
+        reasoning: model.reasoning ?? { effort: "none" },
+        siteUrl: env.MEDCODE_OPENROUTER_SITE_URL,
+        appTitle: env.MEDCODE_OPENROUTER_APP_TITLE ?? "MedCode",
+        timeoutMs: parsePositiveIntegerEnv(
+          env.MEDCODE_OPENROUTER_TIMEOUT_MS,
+          180_000,
+          "MEDCODE_OPENROUTER_TIMEOUT_MS"
+        )
+      })
+    );
+  }
+  return adapters;
+}
+
 function assertUpstreamPoolAvailable(
   router: UpstreamAccountRouter,
   env: NodeJS.ProcessEnv
@@ -3120,30 +3206,20 @@ function applyUpstreamSelection(
   };
 }
 
-function beginStatelessUpstreamAttempt(
+function applyChatRuntimeContext(
   request: FastifyRequest,
-  router: UpstreamAccountRouter,
-  input: {
-    affinityKey: string | null;
-    excludeAccountIds?: Iterable<string>;
-  }
-): StatelessUpstreamAttempt | GatewayError {
-  const lease = router.beginStateless(input);
-  if (lease instanceof GatewayError) {
-    return lease;
-  }
-  applyUpstreamSelection(request, lease);
-  const { subject, upstreamAccount, provider, scope } = getGatewayContext(request);
-  const session = createStatelessSession(subject.id, upstreamAccount.id);
-  markSession(request, session.id);
-  return {
-    lease,
-    subject,
-    upstreamAccount,
-    provider,
-    scope,
-    session
+  runtime: ChatRuntimeContext
+): void {
+  const context = getGatewayContext(request);
+  request.gatewayContext = {
+    ...context,
+    upstreamAccount: runtime.adapterInputUpstreamAccount,
+    provider: runtime.adapter
   };
+  request.gatewayPublicModelId = runtime.publicModelId;
+  request.gatewayUpstreamRuntime = runtime.runtime;
+  request.gatewayUpstreamModel = runtime.upstreamModel;
+  markSession(request, runtime.session.id);
 }
 
 function requestAffinityKey(

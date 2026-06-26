@@ -28,11 +28,12 @@ export function insert(
   db.prepare(
     `INSERT INTO request_events (
       request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider,
+      public_model_id, upstream_runtime, upstream_model,
       started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
       prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
       estimated_tokens, usage_source, limit_kind, reservation_id, over_request_limit,
       identity_guard_hit
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -40,6 +41,9 @@ export function insert(
       session_id = excluded.session_id,
       upstream_account_id = excluded.upstream_account_id,
       provider = excluded.provider,
+      public_model_id = excluded.public_model_id,
+      upstream_runtime = excluded.upstream_runtime,
+      upstream_model = excluded.upstream_model,
       started_at = excluded.started_at,
       duration_ms = excluded.duration_ms,
       first_byte_ms = excluded.first_byte_ms,
@@ -64,6 +68,9 @@ export function insert(
     record.sessionId,
     record.upstreamAccountId,
     record.provider,
+    record.publicModelId ?? null,
+    record.upstreamRuntime ?? null,
+    record.upstreamModel ?? null,
     record.startedAt.toISOString(),
     record.durationMs,
     record.firstByteMs,
@@ -158,6 +165,9 @@ export function reportUsage(
          request_events.scope AS scope,
          request_events.upstream_account_id AS upstream_account_id,
          request_events.provider AS provider,
+         request_events.public_model_id AS public_model_id,
+         request_events.upstream_runtime AS upstream_runtime,
+         request_events.upstream_model AS upstream_model,
          ${entitlementSelect}
          COUNT(*) AS requests,
          SUM(CASE WHEN request_events.status = 'ok' THEN 1 ELSE 0 END) AS ok,
@@ -189,7 +199,10 @@ export function reportUsage(
          request_events.subject_id,
          request_events.scope,
          request_events.upstream_account_id,
-         request_events.provider
+         request_events.provider,
+         request_events.public_model_id,
+         request_events.upstream_runtime,
+         request_events.upstream_model
          ${entitlementGroup}
        ORDER BY date DESC, requests DESC, credential_id, subject_id`
     )
@@ -211,6 +224,9 @@ export function reportUsage(
         scope: row.scope,
         upstreamAccountId: row.upstream_account_id,
         provider: row.provider,
+        publicModelId: row.public_model_id,
+        upstreamRuntime: row.upstream_runtime,
+        upstreamModel: row.upstream_model,
         entitlementId: row.entitlement_id
       });
     report.promptTokens += row.prompt_tokens;
@@ -258,18 +274,21 @@ function tokenUsageRows(
   input: RequestUsageReportInput
 ): TokenUsageAggregateRow[] {
   const rows: TokenUsageAggregateRow[] = [];
-  const reservationClauses = ["finalized_at IS NOT NULL", "created_at >= ?"];
+  const reservationClauses = [
+    "token_reservations.finalized_at IS NOT NULL",
+    "token_reservations.created_at >= ?"
+  ];
   const reservationParams: string[] = [input.since.toISOString()];
   if (input.until) {
-    reservationClauses.push("created_at < ?");
+    reservationClauses.push("token_reservations.created_at < ?");
     reservationParams.push(input.until.toISOString());
   }
   if (input.credentialId) {
-    reservationClauses.push("credential_id = ?");
+    reservationClauses.push("token_reservations.credential_id = ?");
     reservationParams.push(input.credentialId);
   }
   if (input.subjectId) {
-    reservationClauses.push("subject_id = ?");
+    reservationClauses.push("token_reservations.subject_id = ?");
     reservationParams.push(input.subjectId);
   }
 
@@ -278,11 +297,14 @@ function tokenUsageRows(
       .prepare(
         `SELECT
            substr(day_window_start, 1, 10) AS date,
-           credential_id,
-           subject_id,
-           scope,
-           upstream_account_id,
-           provider,
+           token_reservations.credential_id,
+           token_reservations.subject_id,
+           token_reservations.scope,
+           token_reservations.upstream_account_id,
+           token_reservations.provider,
+           request_events.public_model_id,
+           request_events.upstream_runtime,
+           request_events.upstream_model,
            ${input.groupBy === "entitlement" ? "entitlement_id" : "NULL"} AS entitlement_id,
            COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
            COALESCE(SUM(final_completion_tokens), 0) AS completion_tokens,
@@ -290,14 +312,18 @@ function tokenUsageRows(
            COALESCE(SUM(final_cached_prompt_tokens), 0) AS cached_prompt_tokens,
            COALESCE(SUM(final_estimated_tokens), 0) AS estimated_tokens
          FROM token_reservations
+         LEFT JOIN request_events ON request_events.request_id = token_reservations.request_id
          WHERE ${reservationClauses.join(" AND ")}
          GROUP BY
            substr(day_window_start, 1, 10),
-           credential_id,
-           subject_id,
-           scope,
-           upstream_account_id,
-           provider
+           token_reservations.credential_id,
+           token_reservations.subject_id,
+           token_reservations.scope,
+           token_reservations.upstream_account_id,
+           token_reservations.provider,
+           request_events.public_model_id,
+           request_events.upstream_runtime,
+           request_events.upstream_model
            ${input.groupBy === "entitlement" ? ", entitlement_id" : ""}`
       )
       .all(...reservationParams) as unknown as TokenUsageAggregateRow[])
@@ -332,6 +358,9 @@ function tokenUsageRows(
            scope,
            upstream_account_id,
            provider,
+           public_model_id,
+           upstream_runtime,
+           upstream_model,
            NULL AS entitlement_id,
            COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
            COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
@@ -346,7 +375,10 @@ function tokenUsageRows(
            subject_id,
            scope,
            upstream_account_id,
-           provider`
+           provider,
+           public_model_id,
+           upstream_runtime,
+           upstream_model`
       )
       .all(...legacyParams) as unknown as TokenUsageAggregateRow[])
   );

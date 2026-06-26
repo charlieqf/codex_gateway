@@ -7,6 +7,9 @@ export interface TokenUsageAggregateRow {
   scope: RequestUsageReportRow["scope"];
   upstream_account_id: string | null;
   provider: RequestUsageReportRow["provider"];
+  public_model_id: string | null;
+  upstream_runtime: string | null;
+  upstream_model: string | null;
   entitlement_id: string | null;
   prompt_tokens: number;
   completion_tokens: number;
@@ -38,9 +41,12 @@ export function emptyRequestUsageReportRow(input: {
   credentialId: string | null;
   subjectId: string | null;
   scope: RequestUsageReportRow["scope"];
-  upstreamAccountId: string | null;
-  provider: RequestUsageReportRow["provider"];
-  entitlementId?: string | null;
+    upstreamAccountId: string | null;
+    provider: RequestUsageReportRow["provider"];
+    publicModelId?: string | null;
+    upstreamRuntime?: string | null;
+    upstreamModel?: string | null;
+    entitlementId?: string | null;
 }): RequestUsageReportRow {
   return {
     date: input.date,
@@ -49,6 +55,9 @@ export function emptyRequestUsageReportRow(input: {
     scope: input.scope,
     upstreamAccountId: input.upstreamAccountId,
     provider: input.provider,
+    publicModelId: input.publicModelId ?? null,
+    upstreamRuntime: input.upstreamRuntime ?? null,
+    upstreamModel: input.upstreamModel ?? null,
     entitlementId: input.entitlementId ?? null,
     requests: 0,
     ok: 0,
@@ -75,7 +84,10 @@ export function requestUsageReportKey(row: RequestUsageReportRow): string {
     row.entitlementId ?? "",
     row.scope ?? "",
     row.upstreamAccountId ?? "",
-    row.provider ?? ""
+    row.provider ?? "",
+    row.publicModelId ?? "",
+    row.upstreamRuntime ?? "",
+    row.upstreamModel ?? ""
   ].join("\u0000");
 }
 
@@ -87,7 +99,10 @@ export function tokenUsageAggregateKey(row: TokenUsageAggregateRow): string {
     row.entitlement_id ?? "",
     row.scope ?? "",
     row.upstream_account_id ?? "",
-    row.provider ?? ""
+    row.provider ?? "",
+    row.public_model_id ?? "",
+    row.upstream_runtime ?? "",
+    row.upstream_model ?? ""
   ].join("\u0000");
 }
 

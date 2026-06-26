@@ -20,12 +20,13 @@ afterEach(() => {
 
 describe("codex-gateway-admin user API key operations", () => {
   it("redacts cmev1 and underlying keys from audit errors", () => {
-    const cguKey =
-      "cgu_live_7KpQ2mN9vX4aRt6Bc8YwL3sD0fGhJkPq9UzEaVnTbR5xM1HdS7rZ2yA4C6mNp8Qz";
-    const billingToken = "bat_test_abcdEFGH12.secret_part_1234567890";
+    const cguKey = "cgu_live_" + "x".repeat(80);
+    const billingToken = `bat_test_${"x".repeat(10)}.${"y".repeat(22)}`;
     const message = sanitizeAuditErrorMessage(
       new Error(
-        `failed ${cguKey} ${billingToken} cmev1.cgw.abcdefghij.abcdefghijklmnopqrstuvwxyz123456.mev2_live_secret mev2_live_secret`
+        `failed ${cguKey} ${billingToken} cmev1.cgw.${"x".repeat(10)}.${"y".repeat(
+          34
+        )}.mev2_live_secret mev2_live_secret`
       )
     );
 
@@ -537,6 +538,9 @@ describe("codex-gateway-admin user API key operations", () => {
       sessionId: "sess_1",
       upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
+      publicModelId: "medcode",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 20,
       firstByteMs: 10,
@@ -547,14 +551,24 @@ describe("codex-gateway-admin user API key operations", () => {
     store.close();
 
     const events = runCli(dbPath, ["events", "--user", "alice"]) as {
-      events: Array<{ request_id: string; subject_id: string; upstream_account_id: string }>;
+      events: Array<{
+        request_id: string;
+        subject_id: string;
+        upstream_account_id: string;
+        public_model_id: string;
+        upstream_runtime: string;
+        upstream_model: string;
+      }>;
     };
     expect(events.events).toEqual([
       {
         ...events.events[0],
         request_id: "req_1",
         subject_id: "alice",
-        upstream_account_id: "sub_openai_codex"
+        upstream_account_id: "sub_openai_codex",
+        public_model_id: "medcode",
+        upstream_runtime: "codex",
+        upstream_model: "gpt-5.5"
       }
     ]);
 
@@ -570,6 +584,9 @@ describe("codex-gateway-admin user API key operations", () => {
       rows: Array<{
         subject_id: string;
         upstream_account_id: string;
+        public_model_id: string;
+        upstream_runtime: string;
+        upstream_model: string;
         requests: number;
         ok: number;
       }>;
@@ -579,6 +596,9 @@ describe("codex-gateway-admin user API key operations", () => {
         ...usage.rows[0],
         subject_id: "alice",
         upstream_account_id: "sub_openai_codex",
+        public_model_id: "medcode",
+        upstream_runtime: "codex",
+        upstream_model: "gpt-5.5",
         requests: 1,
         ok: 1
       }

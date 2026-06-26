@@ -502,6 +502,9 @@ describe("SqliteGatewayStore", () => {
       sessionId: "sess_1",
       upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
+      publicModelId: "medcode",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
       firstByteMs: 10,
@@ -525,6 +528,9 @@ describe("SqliteGatewayStore", () => {
         sessionId: "sess_1",
         upstreamAccountId: "sub_openai_codex",
         provider: "openai-codex",
+        publicModelId: "medcode",
+        upstreamRuntime: "codex",
+        upstreamModel: "gpt-5.5",
         durationMs: 25,
         firstByteMs: 10,
         status: "error",
@@ -551,6 +557,9 @@ describe("SqliteGatewayStore", () => {
       sessionId: "sess_1",
       upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex" as const,
+      publicModelId: "medcode",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
       firstByteMs: 10,
@@ -592,6 +601,9 @@ describe("SqliteGatewayStore", () => {
     ).toMatchObject([
       {
         date: "2026-01-02",
+        publicModelId: "medcode",
+        upstreamRuntime: "codex",
+        upstreamModel: "gpt-5.5",
         totalTokens: 23
       }
     ]);
@@ -737,6 +749,9 @@ describe("SqliteGatewayStore", () => {
         scope: "code",
         upstreamAccountId: "sub_openai_codex",
         provider: "openai-codex",
+        publicModelId: null,
+        upstreamRuntime: null,
+        upstreamModel: null,
         entitlementId: null,
         requests: 2,
         ok: 1,

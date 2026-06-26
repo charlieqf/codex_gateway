@@ -13,15 +13,21 @@ export interface ImageGenerationFeaturePolicy {
   allowedFormats: string[];
 }
 
+export interface MedCodeModelsFeaturePolicy {
+  allowed: string[];
+}
+
 export interface FeaturePolicy {
   capabilities: GatewayCapability[];
   imageGeneration: ImageGenerationFeaturePolicy | null;
+  medcodeModels?: MedCodeModelsFeaturePolicy | null;
 }
 
 export function defaultFeaturePolicy(): FeaturePolicy {
   return {
     capabilities: ["chat", "tools"],
-    imageGeneration: null
+    imageGeneration: null,
+    medcodeModels: null
   };
 }
 
@@ -49,6 +55,9 @@ export function validateFeaturePolicy(input: unknown): FeaturePolicy {
         ? defaultImageGenerationFeaturePolicy()
         : null
       : parseImageGenerationFeaturePolicy(imagePolicyInput);
+  const medcodeModelsInput = input.medcodeModels ?? input.medcode_models;
+  const medcodeModels =
+    medcodeModelsInput === undefined ? null : parseMedCodeModelsFeaturePolicy(medcodeModelsInput);
 
   if (imageGeneration && !capabilities.includes("image_generation")) {
     throw new Error("Feature policy imageGeneration requires capability image_generation.");
@@ -56,7 +65,8 @@ export function validateFeaturePolicy(input: unknown): FeaturePolicy {
 
   return {
     capabilities,
-    imageGeneration
+    imageGeneration,
+    medcodeModels
   };
 }
 
@@ -74,8 +84,19 @@ export function publicFeaturePolicy(policy: FeaturePolicy) {
             allowed_formats: policy.imageGeneration.allowedFormats
           }
         }
+      : {}),
+    ...(policy.medcodeModels
+      ? {
+          medcode_models: {
+            allowed: effectivePublicMedCodeModels(policy.medcodeModels.allowed)
+          }
+        }
       : {})
   };
+}
+
+function effectivePublicMedCodeModels(allowed: string[]): string[] {
+  return allowed.includes("medcode") ? allowed : [...allowed, "medcode"];
 }
 
 function parseCapabilities(value: unknown): GatewayCapability[] {
@@ -142,6 +163,15 @@ function parseImageGenerationFeaturePolicy(input: unknown): ImageGenerationFeatu
   };
 }
 
+function parseMedCodeModelsFeaturePolicy(input: unknown): MedCodeModelsFeaturePolicy {
+  if (!isRecord(input)) {
+    throw new Error("Feature policy medcodeModels must be a JSON object.");
+  }
+  return {
+    allowed: parseStringList(input.allowed ?? input.allowed_models, [], "medcodeModels.allowed")
+  };
+}
+
 function parseBoolean(value: unknown, name: string): boolean {
   if (typeof value !== "boolean") {
     throw new Error(`Feature policy ${name} must be a boolean.`);
@@ -161,6 +191,9 @@ function parseString(value: unknown, fallback: string, name: string): string {
 
 function parseStringList(value: unknown, fallback: string[], name: string): string[] {
   if (value === undefined) {
+    if (fallback.length === 0) {
+      throw new Error(`Feature policy ${name} must be a non-empty string array.`);
+    }
     return fallback;
   }
   if (!Array.isArray(value) || value.length === 0) {

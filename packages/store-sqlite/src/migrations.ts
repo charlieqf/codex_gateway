@@ -520,6 +520,30 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     `,
     logger
   );
+
+  applyMigration(
+    db,
+    16,
+    () => {
+      if (!columnExists(db, "request_events", "public_model_id")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN public_model_id TEXT");
+      }
+      if (!columnExists(db, "request_events", "upstream_runtime")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN upstream_runtime TEXT");
+      }
+      if (!columnExists(db, "request_events", "upstream_model")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN upstream_model TEXT");
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_request_events_public_model_started
+          ON request_events(public_model_id, started_at);
+
+        CREATE INDEX IF NOT EXISTS idx_request_events_runtime_started
+          ON request_events(upstream_runtime, started_at);
+      `);
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

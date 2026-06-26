@@ -85,6 +85,9 @@ export interface RealtimeTokenUsageRequest {
   scope: string | null;
   provider: string | null;
   upstream_account_id: string | null;
+  public_model_id: string | null;
+  upstream_runtime: string | null;
+  upstream_model: string | null;
   session_alias: string | null;
   status: RequestEventRecord["status"];
   error_code: string | null;
@@ -834,6 +837,9 @@ function publicRealtimeRequest(
     scope: event.scope,
     provider: event.provider,
     upstream_account_id: event.upstreamAccountId,
+    public_model_id: event.publicModelId ?? null,
+    upstream_runtime: event.upstreamRuntime ?? null,
+    upstream_model: event.upstreamModel ?? null,
     session_alias: event.sessionId ? stableAlias("session", event.sessionId) : null,
     status: event.status,
     error_code: event.errorCode,

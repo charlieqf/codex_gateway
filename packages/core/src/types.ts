@@ -1,5 +1,6 @@
 export type ProviderKind =
   | "openai-codex"
+  | "openrouter"
   | "openai-api"
   | "anthropic"
   | "kimi"
@@ -147,6 +148,9 @@ export interface RequestEventRecord {
   sessionId: string | null;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
+  publicModelId?: string | null;
+  upstreamRuntime?: string | null;
+  upstreamModel?: string | null;
   startedAt: Date;
   durationMs: number | null;
   firstByteMs: number | null;
@@ -254,6 +258,7 @@ export interface TokenUsage {
   completionTokens: number;
   totalTokens: number;
   cachedPromptTokens?: number;
+  reasoningTokens?: number;
 }
 
 export type StreamEvent =

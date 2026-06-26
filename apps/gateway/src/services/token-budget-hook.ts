@@ -1,7 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import {
   GatewayError,
-  mergeEntitlementTokenPolicy,
   publicTokenPolicy,
   type PlanEntitlementStore,
   type TokenBudgetLimiter,
@@ -16,6 +15,10 @@ import {
   markTokenFinalizeResult,
   markTokenReservation
 } from "../http/observation.js";
+import {
+  resolveEntitlementAccessForChat,
+  type ResolvedEntitlementAccess
+} from "./entitlement-access.js";
 
 export { publicTokenPolicy, publicTokenUsage } from "@codex-gateway/core";
 
@@ -44,6 +47,7 @@ export async function beginTokenBudget(
   options: {
     entitlementStore?: PlanEntitlementStore;
     requireEntitlement?: boolean;
+    resolvedAccess?: ResolvedEntitlementAccess;
     now?: () => Date;
   } = {}
 ): Promise<GatewayError | null> {
@@ -58,40 +62,26 @@ export async function beginTokenBudget(
   let tokenPolicy = credential.rate?.token ?? null;
   const now = options.now?.() ?? new Date();
   try {
-    const access = options.entitlementStore?.entitlementAccessForSubject(subject.id, now);
-    if (access?.status === "active") {
-      if (!access.entitlement.scopeAllowlist.includes(scope)) {
-        return new GatewayError({
-          code: "forbidden_scope",
-          message: "Credential scope is not allowed by the active plan.",
-          httpStatus: 403
-        });
+    if (options.resolvedAccess) {
+      entitlementId = options.resolvedAccess.entitlementId;
+      entitlementPeriodStart = options.resolvedAccess.entitlementPeriodStart;
+      entitlementPeriodEnd = options.resolvedAccess.entitlementPeriodEnd;
+      tokenPolicy = options.resolvedAccess.tokenPolicy;
+    } else {
+      const access = resolveEntitlementAccessForChat({
+        context: { subject, scope, credential },
+        entitlementStore: options.entitlementStore,
+        publicModelId: "medcode",
+        requireEntitlement: options.requireEntitlement,
+        now
+      });
+      if (access instanceof GatewayError) {
+        return access;
       }
-      entitlementId = access.entitlement.id;
-      entitlementPeriodStart = access.entitlement.periodStart;
-      entitlementPeriodEnd = access.entitlement.periodEnd;
-      tokenPolicy = mergeEntitlementTokenPolicy(
-        access.entitlement.policySnapshot,
-        credential.rate?.token ?? null
-      );
-    } else if (access?.status === "expired") {
-      return new GatewayError({
-        code: "plan_expired",
-        message: "Plan entitlement has expired.",
-        httpStatus: 402
-      });
-    } else if (access?.status === "inactive") {
-      return new GatewayError({
-        code: "plan_inactive",
-        message: "Plan entitlement is inactive.",
-        httpStatus: 402
-      });
-    } else if (access?.status === "legacy" && options.requireEntitlement) {
-      return new GatewayError({
-        code: "plan_inactive",
-        message: "Plan entitlement is required.",
-        httpStatus: 402
-      });
+      entitlementId = access.entitlementId;
+      entitlementPeriodStart = access.entitlementPeriodStart;
+      entitlementPeriodEnd = access.entitlementPeriodEnd;
+      tokenPolicy = access.tokenPolicy;
     }
   } catch (err) {
     request.log.error(

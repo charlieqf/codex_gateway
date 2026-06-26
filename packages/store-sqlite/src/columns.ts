@@ -23,4 +23,4 @@ export const sessionColumns =
   "id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at";
 
 export const requestEventColumns =
-  "request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider, started_at, duration_ms, first_byte_ms, status, error_code, rate_limited, prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens, estimated_tokens, usage_source, limit_kind, reservation_id, over_request_limit, identity_guard_hit";
+  "request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider, public_model_id, upstream_runtime, upstream_model, started_at, duration_ms, first_byte_ms, status, error_code, rate_limited, prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens, estimated_tokens, usage_source, limit_kind, reservation_id, over_request_limit, identity_guard_hit";

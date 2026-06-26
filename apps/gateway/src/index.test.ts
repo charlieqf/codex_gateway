@@ -1537,7 +1537,7 @@ describe("gateway phase 1 routes", () => {
       featurePolicy: imageFeaturePolicy(),
       now: new Date("2026-05-01T00:00:00Z")
     });
-    const batShapedEnvToken = "bat_test_envFallback1.secretPart1234567890";
+    const batShapedEnvToken = `bat_test_${"x".repeat(12)}.${"y".repeat(20)}`;
     const app = buildGateway({
       authMode: "credential",
       provider: new FakeProvider(),
@@ -3130,7 +3130,7 @@ describe("gateway phase 1 routes", () => {
       headers,
       payload: clientDiagnosticPayload({
         event_id: "diag_error_1",
-        error_message: "Authorization: Bearer should-not-store-token"
+        error_message: `Authorization: Bearer ${"x".repeat(22)}`
       })
     });
     const sensitiveMetadataValue = await app.inject({
@@ -3592,6 +3592,100 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("exposes enabled public model registry limits without changing the default medcode limit", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const app = buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(),
+          logger: false
+        });
+
+        const response = await app.inject({
+          method: "GET",
+          url: "/v1/models",
+          headers: { authorization: "Bearer secret" }
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json().data).toEqual([
+          expect.objectContaining({
+            id: "medcode",
+            context_window: 400000,
+            max_context_window: 400000,
+            max_output_tokens: 128000
+          }),
+          expect.objectContaining({
+            id: "pro",
+            context_window: 200000,
+            max_context_window: 200000,
+            max_output_tokens: 128000
+          }),
+          expect.objectContaining({
+            id: "standard",
+            context_window: 200000,
+            max_context_window: 200000,
+            max_output_tokens: 128000
+          })
+        ]);
+
+        await app.close();
+      }
+    );
+  });
+
+  it("keeps medcode prompt bytes unchanged when OpenRouter models are configured", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "ok" },
+          { type: "completed", providerSessionRef: "provider_thread_1" }
+        ]);
+        const app = buildGateway({
+          accessToken: "secret",
+          provider,
+          logger: false
+        });
+
+        const response = await app.inject({
+          method: "POST",
+          url: "/v1/chat/completions",
+          headers: { authorization: "Bearer secret" },
+          payload: {
+            model: "medcode",
+            messages: [{ role: "user", content: "Say ok." }]
+          }
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(provider.messages).toHaveLength(1);
+        expect(provider.messages[0].message).toBe(
+          [
+            "Continue the following conversation as the assistant.",
+            "Preserve the user's intent and answer directly.",
+            "",
+            "<conversation>",
+            "[user]",
+            "Say ok.",
+            "</conversation>"
+          ].join("\n")
+        );
+        expect(provider.messages[0].message).not.toContain("OpenRouter");
+        expect(provider.messages[0].message).not.toContain("You are MedCode");
+
+        await app.close();
+      }
+    );
+  });
+
   it("rejects unknown OpenAI chat completion models", async () => {
     const provider = new FakeProvider();
     const app = buildGateway({
@@ -3622,6 +3716,400 @@ describe("gateway phase 1 routes", () => {
     expect(provider.messages).toHaveLength(0);
 
     await app.close();
+  });
+
+  it("does not let medcode_models reject legacy model=medcode calls", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const { store, headers } = createModelEntitledStore(["standard"]);
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "max-ok" },
+          { type: "completed", providerSessionRef: "provider_thread_1" }
+        ]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider,
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        const medcode = await app.inject({
+          method: "POST",
+          url: "/v1/chat/completions",
+          headers,
+          payload: {
+            model: "medcode",
+            messages: [{ role: "user", content: "Say ok." }]
+          }
+        });
+        const pro = await app.inject({
+          method: "POST",
+          url: "/v1/chat/completions",
+          headers,
+          payload: {
+            model: "pro",
+            messages: [{ role: "user", content: "Say ok." }]
+          }
+        });
+
+        expect(medcode.statusCode).toBe(200);
+        expect(medcode.json().choices[0].message.content).toBe("max-ok");
+        expect(pro.statusCode).toBe(403);
+        expect(pro.json().error.code).toBe("plan_capability_required");
+        expect(provider.messages).toHaveLength(1);
+
+        await app.close();
+      }
+    );
+  });
+
+  it("allows all enabled public models when an old entitlement snapshot lacks medcode_models", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "legacy-openrouter-ok" } }],
+          usage: {
+            prompt_tokens: 7,
+            completion_tokens: 2,
+            total_tokens: 9,
+            completion_tokens_details: { reasoning_tokens: 0 }
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(null);
+          const provider = new FakeProvider([
+            { type: "message_delta", text: "legacy-codex-ok" },
+            { type: "completed", providerSessionRef: "provider_thread_1" }
+          ]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider,
+            sessionStore: store,
+            logger: false
+          });
+
+          try {
+            const medcode = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "medcode",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const standard = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "standard",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const pro = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(medcode.statusCode).toBe(200);
+            expect(standard.statusCode).toBe(200);
+            expect(pro.statusCode).toBe(200);
+            expect(medcode.json().choices[0].message.content).toBe("legacy-codex-ok");
+            expect(standard.json().choices[0].message.content).toBe("legacy-openrouter-ok");
+            expect(pro.json().choices[0].message.content).toBe("legacy-openrouter-ok");
+            expect(provider.messages).toHaveLength(1);
+            expect(captured.map((body) => body.model)).toEqual([
+              "deepseek/deepseek-v4-pro",
+              "z-ai/glm-5.2"
+            ]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("allows OpenRouter public models for issued legacy keys without entitlement history", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "legacy-key-openrouter-ok" } }],
+          usage: {
+            prompt_tokens: 7,
+            completion_tokens: 2,
+            total_tokens: 9,
+            completion_tokens_details: { reasoning_tokens: 0 }
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const store = createSqliteStore({ path: ":memory:" });
+          const issued = issueAccessCredential({
+            subjectId: "subj_dev",
+            label: "Legacy credential",
+            scope: "code",
+            expiresAt: new Date("2030-02-01T00:00:00Z"),
+            now: new Date("2026-01-01T00:00:00Z")
+          });
+          store.upsertSubject({
+            id: "subj_dev",
+            label: "Legacy Subject",
+            state: "active",
+            createdAt: new Date("2026-01-01T00:00:00Z")
+          });
+          store.insertAccessCredential(issued.record);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            logger: false
+          });
+
+          try {
+            const pro = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: { authorization: `Bearer ${issued.token}` },
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(pro.statusCode).toBe(200);
+            expect(pro.json().choices[0].message.content).toBe("legacy-key-openrouter-ok");
+            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5.2"]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("routes OpenRouter public models through independent adapter instances", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "or-ok" } }],
+          usage: {
+            prompt_tokens: 7,
+            completion_tokens: 2,
+            total_tokens: 9,
+            completion_tokens_details: { reasoning_tokens: 0 }
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["standard", "pro"]);
+          const codexProvider = new FakeProvider();
+          const codexAccount = testUpstreamAccount("codex-pro-1");
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            upstreamAccounts: [
+              {
+                upstreamAccount: codexAccount,
+                provider: codexProvider,
+                maxConcurrent: 1
+              }
+            ],
+            logger: false
+          });
+
+          try {
+            const standard = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "standard",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const pro = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(standard.statusCode).toBe(200);
+            expect(pro.statusCode).toBe(200);
+            expect(codexProvider.messages).toHaveLength(0);
+            expect(captured.map((body) => body.model)).toEqual([
+              "deepseek/deepseek-v4-pro",
+              "z-ai/glm-5.2"
+            ]);
+            expect(
+              captured.every(
+                (body) => body.reasoning && (body.reasoning as { effort: string }).effort === "none"
+              )
+            ).toBe(true);
+            expect(standard.json().usage).toMatchObject({
+              completion_tokens_details: { reasoning_tokens: 0 }
+            });
+            expect(store.getUpstreamAccount("openrouter-main")).toBeNull();
+            expect(store.getUpstreamAccount("codex-pro-1")).toMatchObject({
+              state: "active",
+              cooldownUntil: null
+            });
+            expect(store.listRequestEvents({ limit: 5 })).toEqual([
+              expect.objectContaining({
+                publicModelId: "pro",
+                upstreamRuntime: "openrouter",
+                upstreamModel: "z-ai/glm-5.2",
+                upstreamAccountId: "openrouter-main",
+                provider: "openrouter",
+                status: "ok"
+              }),
+              expect.objectContaining({
+                publicModelId: "standard",
+                upstreamRuntime: "openrouter",
+                upstreamModel: "deepseek/deepseek-v4-pro",
+                upstreamAccountId: "openrouter-main",
+                provider: "openrouter",
+                status: "ok"
+              })
+            ]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("does not convert OpenRouter auth failures into Codex reauth or cooldown", async () => {
+    const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      response.writeHead(401, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "invalid api key" } }));
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["standard"]);
+          const codexProvider = new FakeProvider();
+          const codexAccount = testUpstreamAccount("codex-pro-1");
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            upstreamAccounts: [
+              {
+                upstreamAccount: codexAccount,
+                provider: codexProvider,
+                maxConcurrent: 1
+              }
+            ],
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "standard",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(response.statusCode).toBe(503);
+            expect(response.json().error.code).toBe("upstream_unavailable");
+            expect(codexProvider.messages).toHaveLength(0);
+            expect(codexAccount).toMatchObject({
+              state: "active",
+              cooldownUntil: null
+            });
+            expect(store.listRequestEvents({ limit: 1 })).toEqual([
+              expect.objectContaining({
+                publicModelId: "standard",
+                upstreamRuntime: "openrouter",
+                upstreamModel: "deepseek/deepseek-v4-pro",
+                upstreamAccountId: "openrouter-main",
+                provider: "openrouter",
+                status: "error",
+                errorCode: "upstream_unavailable"
+              })
+            ]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
   });
 
   it("creates non-streaming OpenAI chat completions from messages", async () => {
@@ -6135,11 +6623,127 @@ describe("gateway phase 1 routes", () => {
       expect.objectContaining({
         requestId,
         credentialId: issued.record.id,
+        publicModelId: "medcode",
+        upstreamRuntime: "codex",
+        upstreamModel: "gpt-5.5",
         promptTokens: 10,
         completionTokens: 2,
         totalTokens: 12,
         cachedPromptTokens: 4,
         estimatedTokens: null,
+        usageSource: "provider"
+      })
+    ]);
+
+    await app.close();
+  });
+
+  it("keeps legacy medcode streaming and strict tools on Codex runtime with observations", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_dev",
+      label: "Legacy medcode compatibility token",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: "subj_dev",
+      label: "Credential Subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [
+            {
+              name: "medevidence",
+              arguments: { question: "What evidence supports aspirin after MI?" }
+            }
+          ]
+        })
+      },
+      {
+        type: "completed",
+        providerSessionRef: "provider_thread_1",
+        usage: {
+          promptTokens: 20,
+          completionTokens: 3,
+          totalTokens: 23
+        }
+      }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${issued.token}` };
+
+    const streamed = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const strict = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Answer with evidence." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: "required"
+      }
+    });
+
+    expect(streamed.statusCode).toBe(200);
+    expect(streamed.payload).toContain("data: [DONE]");
+    expect(strict.statusCode).toBe(200);
+    expect(strict.json().choices[0].finish_reason).toBe("tool_calls");
+    expect(provider.messages).toHaveLength(2);
+    expect(provider.messages.every((message) => message.upstreamAccount.provider === "openai-codex")).toBe(true);
+    expect(store.listRequestEvents({ credentialId: issued.record.id })).toEqual([
+      expect.objectContaining({
+        publicModelId: "medcode",
+        upstreamRuntime: "codex",
+        upstreamModel: "gpt-5.5",
+        provider: "openai-codex",
+        status: "ok",
+        totalTokens: 23,
+        usageSource: "provider"
+      }),
+      expect.objectContaining({
+        publicModelId: "medcode",
+        upstreamRuntime: "codex",
+        upstreamModel: "gpt-5.5",
+        provider: "openai-codex",
+        status: "ok",
+        totalTokens: 23,
         usageSource: "provider"
       })
     ]);
@@ -6968,6 +7572,142 @@ function imageFeaturePolicy() {
     capabilities: ["chat", "tools", "image_generation"] as const,
     imageGeneration: defaultImageGenerationFeaturePolicy()
   });
+}
+
+function createModelEntitledStore(allowedModels: string[] | null) {
+  const store = createSqliteStore({ path: ":memory:" });
+  const issued = issueAccessCredential({
+    subjectId: "subj_dev",
+    label: "Model entitlement credential",
+    scope: "code",
+    expiresAt: new Date("2030-02-01T00:00:00Z"),
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+  store.upsertSubject({
+    id: "subj_dev",
+    label: "Credential Subject",
+    state: "active",
+    createdAt: new Date("2026-01-01T00:00:00Z")
+  });
+  store.insertAccessCredential(issued.record);
+  store.createPlan({
+    id: `plan_models_${allowedModels?.join("_") || "legacy"}_v1`,
+    displayName: "Model Trial",
+    scopeAllowlist: ["code"],
+    policy: unrestrictedTokenPolicy(),
+    featurePolicy: validateFeaturePolicy({
+      capabilities: ["chat", "tools"],
+      ...(allowedModels
+        ? {
+            medcode_models: {
+              allowed: allowedModels
+            }
+          }
+        : {})
+    }),
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+  store.grantEntitlement({
+    subjectId: "subj_dev",
+    planId: `plan_models_${allowedModels?.join("_") || "legacy"}_v1`,
+    periodKind: "unlimited",
+    now: new Date("2026-01-01T00:00:00Z")
+  });
+
+  return {
+    store,
+    issued,
+    headers: { authorization: `Bearer ${issued.token}` }
+  };
+}
+
+function publicModelRegistryFixture() {
+  return {
+    medcode: {
+      displayName: "Max",
+      runtime: "codex",
+      upstreamModel: "gpt-5.5",
+      contextWindow: 400000,
+      upstreamContextWindow: 400000,
+      maxOutputTokens: 128000,
+      enabled: true
+    },
+    pro: {
+      displayName: "Pro",
+      runtime: "openrouter",
+      upstreamModel: "z-ai/glm-5.2",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "none" },
+      enabled: true
+    },
+    standard: {
+      displayName: "Standard",
+      runtime: "openrouter",
+      upstreamModel: "deepseek/deepseek-v4-pro",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "none" },
+      enabled: true
+    }
+  };
+}
+
+async function withTemporaryEnv(
+  values: Record<string, string | undefined>,
+  fn: () => Promise<void>
+): Promise<void> {
+  const previous = new Map<string, string | undefined>();
+  for (const key of Object.keys(values)) {
+    previous.set(key, process.env[key]);
+    const value = values[key];
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+  try {
+    await fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+async function startOpenAICompatibleSseServer(
+  handler: (
+    request: http.IncomingMessage,
+    body: string,
+    response: http.ServerResponse
+  ) => Promise<void> | void
+): Promise<{ baseUrl: string; close(): Promise<void> }> {
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      void handler(request, body, response);
+    });
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address() as AddressInfo;
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      })
+  };
 }
 
 async function eventually(assertion: () => void, timeoutMs = 1000): Promise<void> {

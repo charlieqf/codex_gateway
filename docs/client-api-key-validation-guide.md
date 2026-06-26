@@ -85,7 +85,7 @@ curl -sS https://gw.instmarket.com.au/gateway/credentials/current \
 3. 如果返回 `200`，保存 API key，并在界面展示 `credential.prefix`、过期时间和限额信息。
 4. 如果返回 `401`，不要保存 API key，提示用户检查 key 是否正确、是否过期、是否已被吊销。
 5. 如果返回 `429`、`5xx` 或网络错误，不要判断 key 一定无效，提示用户稍后重试或联系管理员。
-6. 后续模型调用使用 `https://gw.instmarket.com.au/v1` 和模型 ID `medcode`。
+6. 后续模型调用使用 `https://gw.instmarket.com.au/v1`。当前默认/兼容模型 ID 是 `medcode`；如 Gateway 启用更多 public model，客户端应以 `GET /v1/models` 返回的 id 为准。
 
 ## TypeScript 示例
 
@@ -175,10 +175,14 @@ console.log(completion.choices[0]?.message?.content);
 当前兼容入口是 OpenAI Chat Completions beta：
 
 - `GET /v1/models`
-- `GET /v1/models/medcode`
+- `GET /v1/models/{id}`，当前默认 id 是 `medcode`
 - `POST /v1/chat/completions`
 
-模型 ID 必须是 `medcode`。其他模型 ID 会返回 `404` 和 `model_not_found`。
+当前默认/兼容模型 ID 是 `medcode`。请求未启用的模型 ID 会返回 `404` 和
+`model_not_found`。客户端不要硬编码可用模型集合，应读取 `/v1/models`。
+如果 `/gateway/credentials/current` 返回 `entitlement.feature_policy.medcode_models.allowed`，
+客户端可按该列表做 UX 禁用；如果该字段缺失，按旧 key 兼容语义 fail-open，使用
+`/v1/models` 当前返回的 MedCode public models。
 
 ## 排查信息
 

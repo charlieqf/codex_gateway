@@ -244,6 +244,9 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     session_id: string | null;
     upstream_account_id: string | null;
     provider: RequestEventRecord["provider"];
+    public_model_id: string | null;
+    upstream_runtime: string | null;
+    upstream_model: string | null;
     started_at: string;
     duration_ms: number | null;
     first_byte_ms: number | null;
@@ -270,6 +273,9 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     sessionId: value.session_id,
     upstreamAccountId: value.upstream_account_id,
     provider: value.provider,
+    publicModelId: value.public_model_id,
+    upstreamRuntime: value.upstream_runtime,
+    upstreamModel: value.upstream_model,
     startedAt: new Date(value.started_at),
     durationMs: value.duration_ms,
     firstByteMs: value.first_byte_ms,
@@ -429,6 +435,9 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     scope: RequestUsageReportRow["scope"];
     upstream_account_id: string | null;
     provider: RequestUsageReportRow["provider"];
+    public_model_id: string | null;
+    upstream_runtime: string | null;
+    upstream_model: string | null;
     entitlement_id: string | null;
     requests: number;
     ok: number;
@@ -460,6 +469,9 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     scope: value.scope,
     upstreamAccountId: value.upstream_account_id,
     provider: value.provider,
+    publicModelId: value.public_model_id,
+    upstreamRuntime: value.upstream_runtime,
+    upstreamModel: value.upstream_model,
     entitlementId: value.entitlement_id,
     requests: value.requests,
     ok: value.ok,

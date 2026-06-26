@@ -131,6 +131,9 @@ export function recordObservation(
       observedUpstreamAccount !== undefined
         ? observedUpstreamAccount.provider
         : upstreamAccount?.provider ?? null,
+    publicModelId: request.gatewayPublicModelId ?? null,
+    upstreamRuntime: request.gatewayUpstreamRuntime ?? null,
+    upstreamModel: request.gatewayUpstreamModel ?? null,
     startedAt,
     durationMs: completedAt.getTime() - startedAt.getTime(),
     firstByteMs: firstByteMs(request, completedAt),
