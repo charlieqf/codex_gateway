@@ -3718,54 +3718,80 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("does not let medcode_models reject legacy model=medcode calls", async () => {
-    await withTemporaryEnv(
-      {
-        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
-        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
-      },
-      async () => {
-        const { store, headers } = createModelEntitledStore(["standard"]);
-        const provider = new FakeProvider([
-          { type: "message_delta", text: "max-ok" },
-          { type: "completed", providerSessionRef: "provider_thread_1" }
-        ]);
-        const app = buildGateway({
-          authMode: "credential",
-          provider,
-          sessionStore: store,
-          observationStore: store,
-          logger: false
-        });
-
-        const medcode = await app.inject({
-          method: "POST",
-          url: "/v1/chat/completions",
-          headers,
-          payload: {
-            model: "medcode",
-            messages: [{ role: "user", content: "Say ok." }]
+  it("does not let medcode_models restrict any enabled public chat model", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "or-ok" } }],
+          usage: {
+            prompt_tokens: 7,
+            completion_tokens: 2,
+            total_tokens: 9,
+            completion_tokens_details: { reasoning_tokens: 0 }
           }
-        });
-        const pro = await app.inject({
-          method: "POST",
-          url: "/v1/chat/completions",
-          headers,
-          payload: {
-            model: "pro",
-            messages: [{ role: "user", content: "Say ok." }]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["standard"]);
+          const provider = new FakeProvider([
+            { type: "message_delta", text: "max-ok" },
+            { type: "completed", providerSessionRef: "provider_thread_1" }
+          ]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider,
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const medcode = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "medcode",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const pro = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(medcode.statusCode).toBe(200);
+            expect(pro.statusCode).toBe(200);
+            expect(medcode.json().choices[0].message.content).toBe("max-ok");
+            expect(pro.json().choices[0].message.content).toBe("or-ok");
+            expect(provider.messages).toHaveLength(1);
+            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5.2"]);
+          } finally {
+            await app.close();
           }
-        });
-
-        expect(medcode.statusCode).toBe(200);
-        expect(medcode.json().choices[0].message.content).toBe("max-ok");
-        expect(pro.statusCode).toBe(403);
-        expect(pro.json().error.code).toBe("plan_capability_required");
-        expect(provider.messages).toHaveLength(1);
-
-        await app.close();
-      }
-    );
+        }
+      );
+    } finally {
+      await server.close();
+    }
   });
 
   it("allows all enabled public models when an old entitlement snapshot lacks medcode_models", async () => {

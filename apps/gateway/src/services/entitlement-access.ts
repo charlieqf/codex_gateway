@@ -28,7 +28,6 @@ export interface ResolvedEntitlementAccess {
 export interface ResolveEntitlementAccessInput {
   context: CredentialAccessContext;
   entitlementStore?: PlanEntitlementStore;
-  publicModelId: string;
   requireEntitlement?: boolean;
   now?: Date;
 }
@@ -56,13 +55,6 @@ export function resolveEntitlementAccessForChat(
       return new GatewayError({
         code: "forbidden_scope",
         message: "Credential scope is not allowed by the active plan.",
-        httpStatus: 403
-      });
-    }
-    if (!isPublicModelAllowed(access.entitlement.featurePolicySnapshot, input.publicModelId)) {
-      return new GatewayError({
-        code: "plan_capability_required",
-        message: "This credential is not entitled for the requested MedCode model.",
         httpStatus: 403
       });
     }
@@ -106,21 +98,4 @@ export function resolveEntitlementAccessForChat(
     entitlementPeriodEnd: null,
     tokenPolicy: context.credential.rate?.token ?? null
   };
-}
-
-export function isPublicModelAllowed(
-  policy: { medcodeModels?: { allowed: string[] } | null },
-  publicModelId: string
-): boolean {
-  // Backward compatibility hard gate: v1 medcode keeps its historical default
-  // behavior and is not rejected by the new per-model allow-list. Legacy
-  // entitlements without the new field fail open for currently enabled public
-  // models so already-issued keys automatically get newly added MedCode models.
-  if (publicModelId === "medcode") {
-    return true;
-  }
-  if (!policy.medcodeModels) {
-    return true;
-  }
-  return policy.medcodeModels?.allowed.includes(publicModelId) === true;
 }

@@ -180,9 +180,9 @@ console.log(completion.choices[0]?.message?.content);
 
 当前默认/兼容模型 ID 是 `medcode`。请求未启用的模型 ID 会返回 `404` 和
 `model_not_found`。客户端不要硬编码可用模型集合，应读取 `/v1/models`。
-如果 `/gateway/credentials/current` 返回 `entitlement.feature_policy.medcode_models.allowed`，
-客户端可按该列表做 UX 禁用；如果该字段缺失，按旧 key 兼容语义 fail-open，使用
-`/v1/models` 当前返回的 MedCode public models。
+模型可用性以 `/v1/models` 当前返回的 MedCode public models 为准。当前 Gateway
+不按 key 做 per-model 授权，客户端不需要用 `feature_policy.medcode_models` 禁用
+Max / Pro / Standard。
 
 ## 排查信息
 

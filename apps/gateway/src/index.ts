@@ -1241,7 +1241,6 @@ export function buildGateway(options: GatewayOptions = {}) {
       entitlementAccess = resolveEntitlementAccessForChat({
         context: { subject, scope, credential },
         entitlementStore: planEntitlementStore,
-        publicModelId: publicModel.id,
         requireEntitlement,
         now: clock()
       });

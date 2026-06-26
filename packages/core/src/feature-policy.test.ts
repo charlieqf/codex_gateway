@@ -32,7 +32,7 @@ describe("feature policy", () => {
     });
   });
 
-  it("includes medcode in public medcode_models output for v1 compatibility", () => {
+  it("includes all public chat models in medcode_models output for compatibility", () => {
     const policy = validateFeaturePolicy({
       capabilities: ["chat", "tools"],
       medcode_models: {
@@ -43,7 +43,7 @@ describe("feature policy", () => {
     expect(policy.medcodeModels).toEqual({ allowed: ["standard"] });
     expect(publicFeaturePolicy(policy)).toMatchObject({
       medcode_models: {
-        allowed: ["standard", "medcode"]
+        allowed: ["standard", "medcode", "pro"]
       }
     });
   });

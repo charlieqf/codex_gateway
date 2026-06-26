@@ -96,7 +96,13 @@ export function publicFeaturePolicy(policy: FeaturePolicy) {
 }
 
 function effectivePublicMedCodeModels(allowed: string[]): string[] {
-  return allowed.includes("medcode") ? allowed : [...allowed, "medcode"];
+  const result = [...allowed];
+  for (const model of ["medcode", "pro", "standard"]) {
+    if (!result.includes(model)) {
+      result.push(model);
+    }
+  }
+  return result;
 }
 
 function parseCapabilities(value: unknown): GatewayCapability[] {

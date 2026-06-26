@@ -71,7 +71,6 @@ export async function beginTokenBudget(
       const access = resolveEntitlementAccessForChat({
         context: { subject, scope, credential },
         entitlementStore: options.entitlementStore,
-        publicModelId: "medcode",
         requireEntitlement: options.requireEntitlement,
         now
       });
