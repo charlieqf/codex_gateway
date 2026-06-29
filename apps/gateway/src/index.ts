@@ -1327,6 +1327,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           const strictResult = await runStrictClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
+            upstreamModel: attempt.upstreamModel,
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
@@ -1377,6 +1378,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           const nativeResult = await runNativeClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
+            upstreamModel: attempt.upstreamModel,
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
@@ -1534,6 +1536,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         const strictResult = await runStrictClientTools({
           provider: attempt.adapter,
           upstreamAccount: attempt.adapterInputUpstreamAccount,
+          upstreamModel: attempt.upstreamModel,
           subject: attempt.subject,
           scope: attempt.scope,
           session: attempt.session,
@@ -1560,6 +1563,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         const nativeResult = await runNativeClientTools({
           provider: attempt.adapter,
           upstreamAccount: attempt.adapterInputUpstreamAccount,
+          upstreamModel: attempt.upstreamModel,
           subject: attempt.subject,
           scope: attempt.scope,
           session: attempt.session,
@@ -1792,6 +1796,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 interface StrictClientToolsInput {
   provider: ProviderAdapter;
   upstreamAccount: UpstreamAccount;
+  upstreamModel: string;
   subject: Subject;
   scope: Scope;
   session: GatewaySession;
@@ -1822,7 +1827,7 @@ interface StrictToolCollection {
 async function runNativeClientTools(
   input: StrictClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
-  const firstToolChoice = initialNativeToolChoice(input.request);
+  const firstToolChoice = initialNativeToolChoice(input.request, input.upstreamModel);
   if (firstToolChoice !== input.request.toolChoice) {
     input.log?.info(
       {
@@ -1848,20 +1853,27 @@ async function runNativeClientTools(
   if (firstResult instanceof GatewayError) {
     return firstResult;
   }
-  if (!shouldRetryNativeAutoToolCall(input.request, firstToolChoice, firstResult)) {
+  const retryPlan = nativeAutoToolRetryPlan(
+    input.request,
+    input.upstreamModel,
+    firstToolChoice,
+    firstResult,
+    input.prompt
+  );
+  if (!retryPlan) {
     return firstResult;
   }
 
   input.log?.info(
     {
       request_id: input.requestId,
-      native_tools_retry: "auto_ack_to_required",
+      native_tools_retry: retryPlan.kind,
       first_output_chars: firstResult.content.length
     },
-    "Native client-defined tools auto response did not call a tool; retrying with required tool_choice."
+    "Native client-defined tools auto response did not call a tool; retrying tool call request."
   );
 
-  const second = await collectNativeClientTools(input, "required");
+  const second = await collectNativeClientTools(input, retryPlan.toolChoice, retryPlan.prompt);
   if (second instanceof GatewayError) {
     return second;
   }
@@ -1871,7 +1883,7 @@ async function runNativeClientTools(
     input,
     second,
     addOpenAIUsage(firstUsage, secondUsage),
-    "required"
+    retryPlan.toolChoice
   );
   if (secondResult instanceof GatewayError) {
     return secondResult;
@@ -1881,7 +1893,8 @@ async function runNativeClientTools(
 
 async function collectNativeClientTools(
   input: StrictClientToolsInput,
-  toolChoice: ChatCompletionRequest["toolChoice"]
+  toolChoice: ChatCompletionRequest["toolChoice"],
+  prompt = input.prompt
 ): Promise<CollectedProviderMessage | GatewayError> {
   return collectProviderMessage({
     provider: input.provider,
@@ -1889,7 +1902,7 @@ async function collectNativeClientTools(
     subject: input.subject,
     scope: input.scope,
     session: input.session,
-    message: input.prompt,
+    message: prompt,
     clientTools: input.request.tools,
     clientToolChoice: toolChoice,
     signal: input.signal,
@@ -1921,33 +1934,78 @@ function nativeCollectionToResult(
   return strictDecisionToResult(parsed, usage);
 }
 
-function shouldRetryNativeAutoToolCall(
+interface NativeAutoToolRetryPlan {
+  kind: "auto_ack_to_required" | "auto_ack_to_auto";
+  toolChoice: ChatCompletionRequest["toolChoice"];
+  prompt: string;
+}
+
+function nativeAutoToolRetryPlan(
   request: ChatCompletionRequest,
+  upstreamModel: string,
   attemptedToolChoice: ChatCompletionRequest["toolChoice"],
-  result: StrictClientToolsResult
-): boolean {
-  return (
+  result: StrictClientToolsResult,
+  prompt: string
+): NativeAutoToolRetryPlan | null {
+  const shouldRetry =
     request.toolChoice === "auto" &&
     attemptedToolChoice === "auto" &&
     result.toolCalls.length === 0 &&
-    looksLikeToolUseAcknowledgement(result.content)
-  );
+    looksLikeToolUseAcknowledgement(result.content);
+  if (!shouldRetry) {
+    return null;
+  }
+  if (usesAutoOnlyNativeTools(upstreamModel)) {
+    return {
+      kind: "auto_ack_to_auto",
+      toolChoice: "auto",
+      prompt: nativeToolAcknowledgementRetryPrompt(prompt)
+    };
+  }
+  return {
+    kind: "auto_ack_to_required",
+    toolChoice: "required",
+    prompt
+  };
 }
 
 function initialNativeToolChoice(
-  request: ChatCompletionRequest
+  request: ChatCompletionRequest,
+  upstreamModel: string
 ): ChatCompletionRequest["toolChoice"] {
-  return shouldRequireNativeToolForFileGeneration(request) ? "required" : request.toolChoice;
+  return shouldRequireNativeToolForFileGeneration(request, upstreamModel)
+    ? "required"
+    : request.toolChoice;
 }
 
-function shouldRequireNativeToolForFileGeneration(request: ChatCompletionRequest): boolean {
+function shouldRequireNativeToolForFileGeneration(
+  request: ChatCompletionRequest,
+  upstreamModel: string
+): boolean {
   if (request.toolChoice !== "auto" || !request.tools?.length) {
+    return false;
+  }
+  if (usesAutoOnlyNativeTools(upstreamModel)) {
     return false;
   }
   if (!request.tools.some((tool) => looksLikeFileOrCodeTool(tool))) {
     return false;
   }
   return looksLikeFileGenerationTask(request);
+}
+
+const modelsWithAutoOnlyNativeTools = new Set(["z-ai/glm-5-turbo"]);
+
+function usesAutoOnlyNativeTools(upstreamModel: string): boolean {
+  return modelsWithAutoOnlyNativeTools.has(upstreamModel.toLowerCase());
+}
+
+function nativeToolAcknowledgementRetryPrompt(prompt: string): string {
+  return [
+    prompt,
+    "",
+    "The previous assistant output only acknowledged the task. Complete the user's requested task now by calling one of the client-declared tools. Do not send another acknowledgement or plain-text description."
+  ].join("\n");
 }
 
 function looksLikeFileOrCodeTool(tool: NonNullable<ChatCompletionRequest["tools"]>[number]): boolean {

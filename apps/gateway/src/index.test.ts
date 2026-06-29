@@ -3838,7 +3838,7 @@ describe("gateway phase 1 routes", () => {
             expect(max.json().choices[0].message.content).toBe("max-ok");
             expect(pro.json().choices[0].message.content).toBe("or-ok");
             expect(provider.messages).toHaveLength(1);
-            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5.2"]);
+            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5-turbo"]);
           } finally {
             await app.close();
           }
@@ -3926,7 +3926,7 @@ describe("gateway phase 1 routes", () => {
             expect(provider.messages).toHaveLength(1);
             expect(captured.map((body) => body.model)).toEqual([
               "deepseek/deepseek-v4-pro",
-              "z-ai/glm-5.2"
+              "z-ai/glm-5-turbo"
             ]);
           } finally {
             await app.close();
@@ -4000,7 +4000,7 @@ describe("gateway phase 1 routes", () => {
 
             expect(pro.statusCode).toBe(200);
             expect(pro.json().choices[0].message.content).toBe("legacy-key-openrouter-ok");
-            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5.2"]);
+            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5-turbo"]);
           } finally {
             await app.close();
           }
@@ -4080,7 +4080,7 @@ describe("gateway phase 1 routes", () => {
             expect(codexProvider.messages).toHaveLength(0);
             expect(captured.map((body) => body.model)).toEqual([
               "deepseek/deepseek-v4-pro",
-              "z-ai/glm-5.2"
+              "z-ai/glm-5-turbo"
             ]);
             expect(
               captured.every(
@@ -4099,7 +4099,7 @@ describe("gateway phase 1 routes", () => {
               expect.objectContaining({
                 publicModelId: "pro",
                 upstreamRuntime: "openrouter",
-                upstreamModel: "z-ai/glm-5.2",
+                upstreamModel: "z-ai/glm-5-turbo",
                 upstreamAccountId: "openrouter-main",
                 provider: "openrouter",
                 status: "ok"
@@ -4123,7 +4123,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it("uses native OpenRouter tools for Pro and Standard instead of strict JSON prompts", async () => {
+  it("uses native OpenRouter tools for Pro without strict JSON prompts", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
       captured.push(JSON.parse(body) as Record<string, unknown>);
@@ -4234,14 +4234,14 @@ describe("gateway phase 1 routes", () => {
             });
             expect(captured).toHaveLength(1);
             expect(captured[0]).toMatchObject({
-              model: "z-ai/glm-5.2",
+              model: "z-ai/glm-5-turbo",
               tools: [
                 {
                   type: "function",
                   function: { name: "write_file" }
                 }
               ],
-              tool_choice: "required"
+              tool_choice: "auto"
             });
             const messages = captured[0].messages as Array<{ role: string; content: string }>;
             expect(messages[1].content).toContain("callable tools through the API");
@@ -4251,6 +4251,240 @@ describe("gateway phase 1 routes", () => {
               upstreamRuntime: "openrouter",
               status: "ok"
             });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("forces native OpenRouter file tools to required for Standard", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_standard_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["standard"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "standard",
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "Create an interactive statistics t-test HTML file with animation, links, and navigation."
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls"
+            });
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "deepseek/deepseek-v4-pro",
+              tool_choice: "required"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("retries Pro native tool acknowledgements with auto because GLM turbo rejects required", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      if (captured.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "I will create the HTML file." } }],
+            usage: {
+              prompt_tokens: 40,
+              completion_tokens: 7,
+              total_tokens: 47
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_pro_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 45,
+            completion_tokens: 8,
+            total_tokens: 53
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "Create an interactive statistics t-test HTML file with animation, links, and navigation."
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls",
+              message: {
+                tool_calls: [
+                  {
+                    id: "call_pro_file",
+                    function: { name: "write_file" }
+                  }
+                ]
+              }
+            });
+            expect(captured.map((body) => body.model)).toEqual([
+              "z-ai/glm-5-turbo",
+              "z-ai/glm-5-turbo"
+            ]);
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "auto"]);
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain(
+              "The previous assistant output only acknowledged the task."
+            );
           } finally {
             await app.close();
           }
@@ -4319,7 +4553,7 @@ describe("gateway phase 1 routes", () => {
           MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
         },
         async () => {
-          const { store, headers } = createModelEntitledStore(["pro"]);
+          const { store, headers } = createModelEntitledStore(["standard"]);
           const app = buildGateway({
             authMode: "credential",
             provider: new FakeProvider(),
@@ -4334,7 +4568,7 @@ describe("gateway phase 1 routes", () => {
               url: "/v1/chat/completions",
               headers,
               payload: {
-                model: "pro",
+                model: "standard",
                 stream: true,
                 messages: [
                   {
@@ -8173,7 +8407,7 @@ function publicModelRegistryFixture() {
     pro: {
       displayName: "Pro",
       runtime: "openrouter",
-      upstreamModel: "z-ai/glm-5.2",
+      upstreamModel: "z-ai/glm-5-turbo",
       contextWindow: 200000,
       upstreamContextWindow: 1048576,
       reasoning: { effort: "none" },
