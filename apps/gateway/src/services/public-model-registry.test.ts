@@ -39,8 +39,9 @@ describe("public model registry", () => {
     writeFileSync(
       registryPath,
       JSON.stringify({
-        medcode: {
+        max: {
           displayName: "Max",
+          aliases: ["medcode"],
           runtime: "codex",
           upstreamModel: "gpt-5.5",
           contextWindow: 400000,
@@ -68,12 +69,13 @@ describe("public model registry", () => {
       })
     });
 
-    expect(registry.models.map((model) => model.id)).toEqual(["medcode", "standard"]);
+    expect(registry.models.map((model) => model.id)).toEqual(["max", "standard"]);
+    expect(registry.get("medcode")?.id).toBe("max");
     expect(registry.listAvailable({ openRouterAvailable: false }).map((model) => model.id)).toEqual([
-      "medcode"
+      "max"
     ]);
     expect(registry.listAvailable({ openRouterAvailable: true }).map((model) => model.id)).toEqual([
-      "medcode",
+      "max",
       "standard"
     ]);
     expect(openAIModelObject(registry.get("standard")!)).toMatchObject({
@@ -82,5 +84,23 @@ describe("public model registry", () => {
       max_context_window: 200000,
       max_output_tokens: 128000
     });
+  });
+
+  it("rejects aliases that collide with public model ids", () => {
+    expect(() =>
+      resolvePublicModelRegistry({
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          max: {
+            aliases: ["standard"],
+            runtime: "codex",
+            upstreamModel: "gpt-5.5"
+          },
+          standard: {
+            runtime: "openrouter",
+            upstreamModel: "deepseek/deepseek-v4-pro"
+          }
+        })
+      })
+    ).toThrow("Duplicate public model id or alias 'standard'");
   });
 });

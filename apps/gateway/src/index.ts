@@ -1217,7 +1217,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, modelNotFoundError(request.params.id));
     }
 
-    return openAIModelObject(model);
+    return openAIModelObject(model, request.params.id);
   });
 
   app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
@@ -1278,7 +1278,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, attempt);
     }
     applyChatRuntimeContext(request, attempt);
-    const shape = createChatCompletionShape(publicModel.id);
+    const shape = createChatCompletionShape(parsed.model);
     const nativeClientTools = hasNativeClientTools(parsed, publicModel);
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     const prompt = strictClientTools

@@ -5,6 +5,7 @@ export type ChatRuntimeKind = "codex" | "openrouter";
 
 export interface PublicModelConfig {
   id: string;
+  aliases: string[];
   displayName: string;
   runtime: ChatRuntimeKind;
   upstreamModel: string;
@@ -46,16 +47,20 @@ export function resolvePublicModelRegistry(
   const models = Object.entries(parsed).map(([id, value]) =>
     parsePublicModelConfig(id, value, defaultModel)
   );
-  if (!models.some((model) => model.id === defaultModel.id)) {
+  const defaultRegistryModel = models.find(
+    (model) => model.id === defaultModel.id || model.aliases.includes(defaultModel.id)
+  );
+  if (!defaultRegistryModel) {
     models.unshift(defaultModel);
   }
 
-  return createRegistry(models, defaultModel.id);
+  return createRegistry(models, defaultRegistryModel?.id ?? defaultModel.id);
 }
 
-export function openAIModelObject(model: PublicModelConfig) {
+export function openAIModelObject(model: PublicModelConfig, id?: string | number) {
+  const objectId = typeof id === "string" ? id : model.id;
   return {
-    id: model.id,
+    id: objectId,
     object: "model",
     created: 0,
     owned_by: "medcode",
@@ -77,9 +82,18 @@ function createRegistry(models: PublicModelConfig[], defaultModelId: string): Pu
   const byId = new Map<string, PublicModelConfig>();
   for (const model of models) {
     if (byId.has(model.id)) {
-      throw new Error(`Duplicate public model id '${model.id}'.`);
+      throw new Error(`Duplicate public model id or alias '${model.id}'.`);
     }
     byId.set(model.id, model);
+    for (const alias of model.aliases) {
+      if (alias === model.id) {
+        throw new Error(`Public model '${model.id}' alias must not match its id.`);
+      }
+      if (byId.has(alias)) {
+        throw new Error(`Duplicate public model id or alias '${alias}'.`);
+      }
+      byId.set(alias, model);
+    }
   }
   return {
     defaultModelId,
@@ -148,6 +162,7 @@ function defaultPublicModel(env: NodeJS.ProcessEnv): PublicModelConfig {
       128_000,
       "MEDCODE_PUBLIC_MODEL_MAX_OUTPUT_TOKENS"
     ),
+    aliases: [],
     enabled: true
   };
 }
@@ -164,8 +179,9 @@ function parsePublicModelConfig(
     throw new Error(`Public model '${id}' must be a JSON object.`);
   }
 
+  const aliases = parseAliases(value.aliases ?? value.alias, id);
   const runtime = parseRuntime(value.runtime, id);
-  const isDefault = id === defaultModel.id;
+  const isDefault = id === defaultModel.id || aliases.includes(defaultModel.id);
   const fallbackContext = isDefault ? defaultModel.contextWindow : 200_000;
   const fallbackUpstreamContext = isDefault ? defaultModel.upstreamContextWindow : 1_048_576;
   const upstreamModel =
@@ -195,6 +211,7 @@ function parsePublicModelConfig(
 
   return {
     id,
+    aliases,
     displayName:
       parseOptionalString(value.displayName ?? value.display_name) ?? (isDefault ? "Max" : id),
     runtime,
@@ -213,6 +230,25 @@ function parsePublicModelConfig(
 }
 
 const publicModelIdPattern = /^[a-z][a-z0-9._-]{0,63}$/;
+
+function parseAliases(value: unknown, id: string): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Public model '${id}' aliases must be an array.`);
+  }
+  const aliases: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || !publicModelIdPattern.test(item)) {
+      throw new Error(`Public model '${id}' aliases must contain valid model ids.`);
+    }
+    if (!aliases.includes(item)) {
+      aliases.push(item);
+    }
+  }
+  return aliases;
+}
 
 function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
   if (value === "codex" || value === "openrouter") {

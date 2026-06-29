@@ -3592,7 +3592,7 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("exposes enabled public model registry limits without changing the default medcode limit", async () => {
+  it("exposes enabled public model registry limits with max/pro/standard names", async () => {
     await withTemporaryEnv(
       {
         MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
@@ -3614,7 +3614,7 @@ describe("gateway phase 1 routes", () => {
         expect(response.statusCode).toBe(200);
         expect(response.json().data).toEqual([
           expect.objectContaining({
-            id: "medcode",
+            id: "max",
             context_window: 400000,
             max_context_window: 400000,
             max_output_tokens: 128000
@@ -3638,7 +3638,7 @@ describe("gateway phase 1 routes", () => {
     );
   });
 
-  it("keeps medcode prompt bytes unchanged when OpenRouter models are configured", async () => {
+  it("keeps legacy medcode alias prompt bytes unchanged when OpenRouter models are configured", async () => {
     await withTemporaryEnv(
       {
         MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
@@ -3682,6 +3682,61 @@ describe("gateway phase 1 routes", () => {
         expect(provider.messages[0].message).not.toContain("You are MedCode");
 
         await app.close();
+      }
+    );
+  });
+
+  it("keeps legacy medcode alias available while advertising max", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "alias-ok" },
+          { type: "completed", providerSessionRef: "provider_thread_1" }
+        ]);
+        const app = buildGateway({
+          accessToken: "secret",
+          provider,
+          logger: false
+        });
+
+        try {
+          const listed = await app.inject({
+            method: "GET",
+            url: "/v1/models",
+            headers: { authorization: "Bearer secret" }
+          });
+          const legacyModel = await app.inject({
+            method: "GET",
+            url: "/v1/models/medcode",
+            headers: { authorization: "Bearer secret" }
+          });
+          const legacyChat = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers: { authorization: "Bearer secret" },
+            payload: {
+              model: "medcode",
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+
+          expect(listed.json().data.map((model: { id: string }) => model.id)).toEqual([
+            "max",
+            "pro",
+            "standard"
+          ]);
+          expect(legacyModel.statusCode).toBe(200);
+          expect(legacyModel.json()).toMatchObject({ id: "medcode" });
+          expect(legacyChat.statusCode).toBe(200);
+          expect(legacyChat.json()).toMatchObject({ model: "medcode" });
+          expect(legacyChat.json().choices[0].message.content).toBe("alias-ok");
+        } finally {
+          await app.close();
+        }
       }
     );
   });
@@ -3759,12 +3814,12 @@ describe("gateway phase 1 routes", () => {
           });
 
           try {
-            const medcode = await app.inject({
+            const max = await app.inject({
               method: "POST",
               url: "/v1/chat/completions",
               headers,
               payload: {
-                model: "medcode",
+                model: "max",
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
@@ -3778,9 +3833,9 @@ describe("gateway phase 1 routes", () => {
               }
             });
 
-            expect(medcode.statusCode).toBe(200);
+            expect(max.statusCode).toBe(200);
             expect(pro.statusCode).toBe(200);
-            expect(medcode.json().choices[0].message.content).toBe("max-ok");
+            expect(max.json().choices[0].message.content).toBe("max-ok");
             expect(pro.json().choices[0].message.content).toBe("or-ok");
             expect(provider.messages).toHaveLength(1);
             expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5.2"]);
@@ -3834,12 +3889,12 @@ describe("gateway phase 1 routes", () => {
           });
 
           try {
-            const medcode = await app.inject({
+            const max = await app.inject({
               method: "POST",
               url: "/v1/chat/completions",
               headers,
               payload: {
-                model: "medcode",
+                model: "max",
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
@@ -3862,10 +3917,10 @@ describe("gateway phase 1 routes", () => {
               }
             });
 
-            expect(medcode.statusCode).toBe(200);
+            expect(max.statusCode).toBe(200);
             expect(standard.statusCode).toBe(200);
             expect(pro.statusCode).toBe(200);
-            expect(medcode.json().choices[0].message.content).toBe("legacy-codex-ok");
+            expect(max.json().choices[0].message.content).toBe("legacy-codex-ok");
             expect(standard.json().choices[0].message.content).toBe("legacy-openrouter-ok");
             expect(pro.json().choices[0].message.content).toBe("legacy-openrouter-ok");
             expect(provider.messages).toHaveLength(1);
@@ -8106,8 +8161,9 @@ function createModelEntitledStore(allowedModels: string[] | null) {
 
 function publicModelRegistryFixture() {
   return {
-    medcode: {
+    max: {
       displayName: "Max",
+      aliases: ["medcode"],
       runtime: "codex",
       upstreamModel: "gpt-5.5",
       contextWindow: 400000,
