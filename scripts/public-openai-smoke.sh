@@ -144,18 +144,41 @@ curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" \
   -o "$tmp_dir/models.json" \
   -H "Authorization: Bearer $token" \
   "$BASE_URL/v1/models"
-assert_json "$tmp_dir/models.json" 'const m = x.data?.[0]; if (m?.id !== "medcode" || m?.context_window !== 400000 || m?.max_context_window !== 400000 || m?.max_output_tokens !== 128000) process.exit(1);'
+assert_json "$tmp_dir/models.json" '
+const ids = (x.data || []).map((model) => model.id).sort();
+for (const required of ["max", "pro", "standard"]) {
+  if (!ids.includes(required)) {
+    console.error(`missing model ${required}; ids=${ids.join(",")}`);
+    process.exit(1);
+  }
+}
+if (ids.includes("medcode")) {
+  console.error(`legacy alias should not be listed; ids=${ids.join(",")}`);
+  process.exit(1);
+}
+const max = x.data.find((model) => model.id === "max");
+if (max?.context_window !== 400000 || max?.max_context_window !== 400000 || max?.max_output_tokens !== 128000) process.exit(1);
+'
 models_request_id="$(require_request_id "models" "$tmp_dir/models.headers")"
 echo "models=ok ${models_request_id}"
+
+curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" \
+  -D "$tmp_dir/legacy-model.headers" \
+  -o "$tmp_dir/legacy-model.json" \
+  -H "Authorization: Bearer $token" \
+  "$BASE_URL/v1/models/medcode"
+assert_json "$tmp_dir/legacy-model.json" 'if (x.id !== "medcode") process.exit(1);'
+legacy_model_request_id="$(require_request_id "legacy_model" "$tmp_dir/legacy-model.headers")"
+echo "legacy_model=ok ${legacy_model_request_id}"
 
 curl -fsS --max-time "$MODEL_TIMEOUT_SECONDS" \
   -D "$tmp_dir/chat.headers" \
   -o "$tmp_dir/chat.json" \
   -H "Authorization: Bearer $token" \
   -H "Content-Type: application/json" \
-  --data '{"model":"medcode","messages":[{"role":"user","content":"Reply with exactly: medcode-chat-ok"}]}' \
+  --data '{"model":"max","messages":[{"role":"user","content":"Reply with exactly: max-chat-ok"}]}' \
   "$BASE_URL/v1/chat/completions"
-assert_json "$tmp_dir/chat.json" 'const c = x.choices?.[0]?.message?.content?.trim(); if (c !== "medcode-chat-ok") { console.error(c); process.exit(1); }'
+assert_json "$tmp_dir/chat.json" 'const c = x.choices?.[0]?.message?.content?.trim(); if (c !== "max-chat-ok") { console.error(c); process.exit(1); }'
 chat_request_id="$(require_request_id "chat" "$tmp_dir/chat.headers")"
 chat_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/chat.json")"
 echo "chat=ok usage=$chat_usage ${chat_request_id}"
@@ -165,9 +188,9 @@ curl -fsS --max-time "$MODEL_TIMEOUT_SECONDS" \
   -o "$tmp_dir/tool-history.json" \
   -H "Authorization: Bearer $token" \
   -H "Content-Type: application/json" \
-  --data '{"model":"medcode","messages":[{"role":"user","content":"List files."},{"role":"assistant","content":null,"tool_calls":[{"id":"call_smoke","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]},{"role":"tool","tool_call_id":"call_smoke","content":"package.json\nsrc"},{"role":"user","content":"Reply with exactly: medcode-tool-history-ok"}]}' \
+  --data '{"model":"max","messages":[{"role":"user","content":"List files."},{"role":"assistant","content":null,"tool_calls":[{"id":"call_smoke","type":"function","function":{"name":"bash","arguments":"{\"command\":\"ls\"}"}}]},{"role":"tool","tool_call_id":"call_smoke","content":"package.json\nsrc"},{"role":"user","content":"Reply with exactly: max-tool-history-ok"}]}' \
   "$BASE_URL/v1/chat/completions"
-assert_json "$tmp_dir/tool-history.json" 'const c = x.choices?.[0]?.message?.content?.trim(); if (c !== "medcode-tool-history-ok") { console.error(c); process.exit(1); }'
+assert_json "$tmp_dir/tool-history.json" 'const c = x.choices?.[0]?.message?.content?.trim(); if (c !== "max-tool-history-ok") { console.error(c); process.exit(1); }'
 tool_request_id="$(require_request_id "tool_history" "$tmp_dir/tool-history.headers")"
 tool_usage="$(node -e 'const fs = require("fs"); const x = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(x.usage ? "present" : "null");' "$tmp_dir/tool-history.json")"
 echo "tool_history=ok usage=$tool_usage ${tool_request_id}"
@@ -177,7 +200,7 @@ curl -N -sS --max-time "$MODEL_TIMEOUT_SECONDS" \
   -o "$tmp_dir/stream.sse" \
   -H "Authorization: Bearer $token" \
   -H "Content-Type: application/json" \
-  --data '{"model":"medcode","stream":true,"messages":[{"role":"user","content":"Reply with exactly: medcode-stream-ok"}]}' \
+  --data '{"model":"max","stream":true,"messages":[{"role":"user","content":"Reply with exactly: max-stream-ok"}]}' \
   "$BASE_URL/v1/chat/completions"
 node -e '
 const fs = require("fs");
@@ -195,7 +218,7 @@ for (const frame of frames) {
   const x = JSON.parse(data);
   text += x.choices?.[0]?.delta?.content ?? "";
 }
-if (text.trim() !== "medcode-stream-ok" || !done) {
+if (text.trim() !== "max-stream-ok" || !done) {
   console.error(text);
   process.exit(1);
 }
