@@ -3428,7 +3428,7 @@ function createOpenRouterAdapters(
         appTitle: env.MEDCODE_OPENROUTER_APP_TITLE ?? "MedCode",
         timeoutMs: parsePositiveIntegerEnv(
           env.MEDCODE_OPENROUTER_TIMEOUT_MS,
-          180_000,
+          300_000,
           "MEDCODE_OPENROUTER_TIMEOUT_MS"
         )
       })
