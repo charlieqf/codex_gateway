@@ -4241,7 +4241,7 @@ describe("gateway phase 1 routes", () => {
                   function: { name: "write_file" }
                 }
               ],
-              tool_choice: "auto"
+              tool_choice: "required"
             });
             const messages = captured[0].messages as Array<{ role: string; content: string }>;
             expect(messages[1].content).toContain("callable tools through the API");
@@ -4261,7 +4261,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it("retries native OpenRouter auto tools once when the model only acknowledges an action", async () => {
+  it("retries native OpenRouter auto tools once when a non-file task only acknowledges an action", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
       captured.push(JSON.parse(body) as Record<string, unknown>);
@@ -4292,8 +4292,8 @@ describe("gateway phase 1 routes", () => {
                     id: "call_required_file",
                     type: "function",
                     function: {
-                      name: "write_file",
-                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                      name: "record_action",
+                      arguments: '{"action":"create_html"}'
                     }
                   }
                 ]
@@ -4347,14 +4347,13 @@ describe("gateway phase 1 routes", () => {
                   {
                     type: "function",
                     function: {
-                      name: "write_file",
+                      name: "record_action",
                       parameters: {
                         type: "object",
                         properties: {
-                          path: { type: "string" },
-                          content: { type: "string" }
+                          action: { type: "string" }
                         },
-                        required: ["path", "content"],
+                        required: ["action"],
                         additionalProperties: false
                       }
                     }
@@ -4376,8 +4375,8 @@ describe("gateway phase 1 routes", () => {
                         id: "call_required_file",
                         type: "function",
                         function: {
-                          name: "write_file",
-                          arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                          name: "record_action",
+                          arguments: '{"action":"create_html"}'
                         }
                       }
                     ]

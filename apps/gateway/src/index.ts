@@ -1822,7 +1822,18 @@ interface StrictToolCollection {
 async function runNativeClientTools(
   input: StrictClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
-  const first = await collectNativeClientTools(input, input.request.toolChoice);
+  const firstToolChoice = initialNativeToolChoice(input.request);
+  if (firstToolChoice !== input.request.toolChoice) {
+    input.log?.info(
+      {
+        request_id: input.requestId,
+        native_tools_initial_tool_choice: "auto_to_required"
+      },
+      "Native client-defined tools request looks like a file generation task; using required tool_choice."
+    );
+  }
+
+  const first = await collectNativeClientTools(input, firstToolChoice);
   if (first instanceof GatewayError) {
     return first;
   }
@@ -1832,12 +1843,12 @@ async function runNativeClientTools(
     input,
     first,
     firstUsage,
-    input.request.toolChoice
+    firstToolChoice
   );
   if (firstResult instanceof GatewayError) {
     return firstResult;
   }
-  if (!shouldRetryNativeAutoToolCall(input.request, firstResult)) {
+  if (!shouldRetryNativeAutoToolCall(input.request, firstToolChoice, firstResult)) {
     return firstResult;
   }
 
@@ -1912,13 +1923,51 @@ function nativeCollectionToResult(
 
 function shouldRetryNativeAutoToolCall(
   request: ChatCompletionRequest,
+  attemptedToolChoice: ChatCompletionRequest["toolChoice"],
   result: StrictClientToolsResult
 ): boolean {
   return (
     request.toolChoice === "auto" &&
+    attemptedToolChoice === "auto" &&
     result.toolCalls.length === 0 &&
     looksLikeToolUseAcknowledgement(result.content)
   );
+}
+
+function initialNativeToolChoice(
+  request: ChatCompletionRequest
+): ChatCompletionRequest["toolChoice"] {
+  return shouldRequireNativeToolForFileGeneration(request) ? "required" : request.toolChoice;
+}
+
+function shouldRequireNativeToolForFileGeneration(request: ChatCompletionRequest): boolean {
+  if (request.toolChoice !== "auto" || !request.tools?.length) {
+    return false;
+  }
+  if (!request.tools.some((tool) => looksLikeFileOrCodeTool(tool))) {
+    return false;
+  }
+  return looksLikeFileGenerationTask(request);
+}
+
+function looksLikeFileOrCodeTool(tool: NonNullable<ChatCompletionRequest["tools"]>[number]): boolean {
+  const name = tool.function.name.toLowerCase();
+  const description = tool.function.description?.toLowerCase() ?? "";
+  return /(^|[_-])(write|edit|create|save|patch|apply|replace)([_-]|$)/.test(name) ||
+    /\b(file|fs|workspace|code)\b/.test(name) ||
+    /\b(write|edit|create|save|patch|replace).{0,40}\b(file|workspace|code)\b/.test(description);
+}
+
+function looksLikeFileGenerationTask(request: ChatCompletionRequest): boolean {
+  const text = request.messages
+    .map((message) => (typeof message.content === "string" ? message.content : ""))
+    .join("\n")
+    .toLowerCase();
+  if (!text.trim()) {
+    return false;
+  }
+  return /(<html|html|javascript|css|代码|页面|文件|成品|互动|动画|超链接|跳转|\bcode\b|\bfile\b|\bpage\b|\bapp\b|\bcomponent\b)/i.test(text) &&
+    /(写|创建|生成|做|给我|build|create|generate|write|make)/i.test(text);
 }
 
 function looksLikeToolUseAcknowledgement(content: string): boolean {
