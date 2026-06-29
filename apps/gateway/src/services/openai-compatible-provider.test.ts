@@ -91,6 +91,133 @@ describe("OpenAICompatibleProviderAdapter", () => {
       await server.close();
     }
   });
+
+  it("passes native tools to OpenRouter and maps streaming tool calls", async () => {
+    const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
+    const server = await startSseServer(async (request, body, response) => {
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      response.writeHead(200, {
+        "content-type": "text/event-stream"
+      });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_native_1",
+                    type: "function",
+                    function: { name: "bash", arguments: '{"command"' }
+                  }
+                ]
+              }
+            }
+          ]
+        })}\n\n`
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    function: { arguments: ':"ls"}' }
+                  }
+                ]
+              }
+            }
+          ]
+        })}\n\n`
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "tool_calls" }],
+          usage: {
+            prompt_tokens: 20,
+            completion_tokens: 4,
+            total_tokens: 24
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "openrouter",
+        apiKey: "sk-test-redacted",
+        apiKeyEnv: "MEDCODE_OPENROUTER_API_KEY",
+        baseUrl: server.baseUrl,
+        upstreamModel: "z-ai/glm-5.2",
+        timeoutMs: 5_000
+      });
+
+      const result = await collectProviderMessage({
+        provider,
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "create a file",
+        clientTools: [
+          {
+            type: "function",
+            function: {
+              name: "bash",
+              parameters: {
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        clientToolChoice: "required"
+      });
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({
+        content: "",
+        toolCalls: [
+          {
+            id: "call_native_1",
+            name: "bash",
+            arguments: { command: "ls" },
+            argumentsJson: '{"command":"ls"}'
+          }
+        ],
+        usage: {
+          promptTokens: 20,
+          completionTokens: 4,
+          totalTokens: 24
+        }
+      });
+      expect(captured).toHaveLength(1);
+      expect(captured[0].body).toMatchObject({
+        model: "z-ai/glm-5.2",
+        stream: true,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "bash"
+            }
+          }
+        ],
+        tool_choice: "required"
+      });
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 async function startSseServer(

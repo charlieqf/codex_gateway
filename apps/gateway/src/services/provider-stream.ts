@@ -5,6 +5,8 @@ import {
   type ProviderErrorDiagnostic,
   type Scope,
   type Subject,
+  type ClientToolChoice,
+  type ClientToolDefinition,
   type TokenUsage,
   type UpstreamAccount
 } from "@codex-gateway/core";
@@ -13,6 +15,7 @@ export interface ProviderToolCall {
   id: string;
   name: string;
   arguments?: unknown;
+  argumentsJson?: string;
 }
 
 export interface CollectedProviderMessage {
@@ -29,6 +32,8 @@ export interface CollectProviderMessageInput {
   scope: Scope;
   session: GatewaySession;
   message: string;
+  clientTools?: ClientToolDefinition[];
+  clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   suppressToolCalls?: boolean;
@@ -50,6 +55,8 @@ export async function collectProviderMessage(
     scope: input.scope,
     session: input.session,
     message: input.message,
+    clientTools: input.clientTools,
+    clientToolChoice: input.clientToolChoice,
     signal: input.signal,
     onProviderError: input.onProviderError
   })) {
@@ -69,7 +76,8 @@ export async function collectProviderMessage(
       result.toolCalls.push({
         id: event.callId,
         name: event.name,
-        arguments: event.arguments
+        arguments: event.arguments,
+        argumentsJson: event.argumentsJson
       });
       continue;
     }

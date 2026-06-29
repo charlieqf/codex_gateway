@@ -263,9 +263,35 @@ export interface TokenUsage {
 
 export type StreamEvent =
   | { type: "message_delta"; text: string }
-  | { type: "tool_call"; name: string; callId: string; arguments?: unknown }
+  | {
+      type: "tool_call";
+      name: string;
+      callId: string;
+      arguments?: unknown;
+      argumentsJson?: string;
+    }
   | { type: "completed"; providerSessionRef?: string; usage?: TokenUsage }
   | { type: "error"; code: string; message: string };
+
+export interface ClientToolDefinition {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+export type ClientToolChoice =
+  | "auto"
+  | "none"
+  | "required"
+  | {
+      type: "function";
+      function: {
+        name: string;
+      };
+    };
 
 export interface ProviderErrorDiagnostic {
   source: string;
@@ -289,6 +315,8 @@ export interface MessageInput {
   subject: Subject;
   scope: Scope;
   message: string;
+  clientTools?: ClientToolDefinition[];
+  clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }

@@ -1279,10 +1279,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
     applyChatRuntimeContext(request, attempt);
     const shape = createChatCompletionShape(publicModel.id);
-    const strictClientTools = hasStrictClientTools(parsed);
+    const nativeClientTools = hasNativeClientTools(parsed, publicModel);
+    const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
-      : chatMessagesToPrompt(parsed);
+      : chatMessagesToPrompt(parsed, { includeToolsContext: !nativeClientTools });
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
       chatCompletionEstimateExtras(parsed, strictClientTools, publicModel)
@@ -1370,6 +1371,56 @@ export function buildGateway(options: GatewayOptions = {}) {
             });
             chunk && sse.writeData(chunk);
           }
+        } else if (nativeClientTools) {
+          const onProviderError = createProviderErrorLogger(request);
+          writeInitialChunk();
+          const nativeResult = await runNativeClientTools({
+            provider: attempt.adapter,
+            upstreamAccount: attempt.adapterInputUpstreamAccount,
+            subject: attempt.subject,
+            scope: attempt.scope,
+            session: attempt.session,
+            request: parsed,
+            prompt,
+            signal: sse.signal,
+            requestId: request.id,
+            log: request.log,
+            onProviderError
+          });
+          if (nativeResult instanceof GatewayError) {
+            if (!attempt.recordError(nativeResult)) {
+              attempt.recordSuccess();
+            }
+            request.gatewayErrorCode = nativeResult.code;
+            sse.writeData(openAIErrorPayload(nativeResult));
+            failed = true;
+          } else if (nativeResult.toolCalls.length > 0) {
+            attempt.recordSuccess();
+            hasToolCalls = true;
+            usage = nativeResult.usage;
+            markOpenAITokenUsage(request, usage);
+            for (const toolCall of nativeResult.toolCalls) {
+              const chunk = streamEventToChatCompletionChunk({
+                shape,
+                event: openAIToolCallToStreamEvent(toolCall),
+                toolCallIndex
+              });
+              toolCallIndex += 1;
+              if (chunk && !sse.writeData(chunk)) {
+                break;
+              }
+            }
+          } else {
+            attempt.recordSuccess();
+            usage = nativeResult.usage;
+            markOpenAITokenUsage(request, usage);
+            const chunk = streamEventToChatCompletionChunk({
+              shape,
+              event: { type: "message_delta", text: nativeResult.content },
+              toolCallIndex
+            });
+            chunk && sse.writeData(chunk);
+          }
         } else {
           while (true) {
             const onProviderError = createProviderErrorLogger(request);
@@ -1380,6 +1431,8 @@ export function buildGateway(options: GatewayOptions = {}) {
               scope: attempt.scope,
               session: attempt.session,
               message: prompt,
+              clientTools: nativeClientTools ? parsed.tools : undefined,
+              clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
               signal: sse.signal,
               onProviderError
             })) {
@@ -1502,6 +1555,32 @@ export function buildGateway(options: GatewayOptions = {}) {
         toolCalls.push(...strictResult.toolCalls);
         usage = strictResult.usage;
         markOpenAITokenUsage(request, usage);
+      } else if (nativeClientTools) {
+        const onProviderError = createProviderErrorLogger(request);
+        const nativeResult = await runNativeClientTools({
+          provider: attempt.adapter,
+          upstreamAccount: attempt.adapterInputUpstreamAccount,
+          subject: attempt.subject,
+          scope: attempt.scope,
+          session: attempt.session,
+          request: parsed,
+          prompt,
+          requestId: request.id,
+          log: request.log,
+          onProviderError
+        });
+        if (nativeResult instanceof GatewayError) {
+          if (!attempt.recordError(nativeResult)) {
+            attempt.recordSuccess();
+          }
+          return sendOpenAIError(request, reply, nativeResult);
+        }
+        attempt.recordSuccess();
+        markFirstByte(request);
+        content = nativeResult.content;
+        toolCalls.push(...nativeResult.toolCalls);
+        usage = nativeResult.usage;
+        markOpenAITokenUsage(request, usage);
       } else {
         let collected: CollectedProviderMessage | null = null;
         while (true) {
@@ -1513,6 +1592,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             scope: attempt.scope,
             session: attempt.session,
             message: prompt,
+            clientTools: nativeClientTools ? parsed.tools : undefined,
+            clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
             onProviderError,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true
@@ -1738,6 +1819,125 @@ interface StrictToolCollection {
   parsed: StrictToolDecision | GatewayError;
 }
 
+async function runNativeClientTools(
+  input: StrictClientToolsInput
+): Promise<StrictClientToolsResult | GatewayError> {
+  const first = await collectNativeClientTools(input, input.request.toolChoice);
+  if (first instanceof GatewayError) {
+    return first;
+  }
+
+  const firstUsage = openAIUsageFromTokenUsage(first.usage);
+  const firstResult = nativeCollectionToResult(
+    input,
+    first,
+    firstUsage,
+    input.request.toolChoice
+  );
+  if (firstResult instanceof GatewayError) {
+    return firstResult;
+  }
+  if (!shouldRetryNativeAutoToolCall(input.request, firstResult)) {
+    return firstResult;
+  }
+
+  input.log?.info(
+    {
+      request_id: input.requestId,
+      native_tools_retry: "auto_ack_to_required",
+      first_output_chars: firstResult.content.length
+    },
+    "Native client-defined tools auto response did not call a tool; retrying with required tool_choice."
+  );
+
+  const second = await collectNativeClientTools(input, "required");
+  if (second instanceof GatewayError) {
+    return second;
+  }
+
+  const secondUsage = openAIUsageFromTokenUsage(second.usage);
+  const secondResult = nativeCollectionToResult(
+    input,
+    second,
+    addOpenAIUsage(firstUsage, secondUsage),
+    "required"
+  );
+  if (secondResult instanceof GatewayError) {
+    return secondResult;
+  }
+  return secondResult.toolCalls.length > 0 ? secondResult : firstResult;
+}
+
+async function collectNativeClientTools(
+  input: StrictClientToolsInput,
+  toolChoice: ChatCompletionRequest["toolChoice"]
+): Promise<CollectedProviderMessage | GatewayError> {
+  return collectProviderMessage({
+    provider: input.provider,
+    upstreamAccount: input.upstreamAccount,
+    subject: input.subject,
+    scope: input.scope,
+    session: input.session,
+    message: input.prompt,
+    clientTools: input.request.tools,
+    clientToolChoice: toolChoice,
+    signal: input.signal,
+    onProviderError: input.onProviderError,
+    suppressTextAfterToolCall: true
+  });
+}
+
+function nativeCollectionToResult(
+  input: StrictClientToolsInput,
+  collected: CollectedProviderMessage,
+  usage: OpenAIChatUsage | null,
+  toolChoice: ChatCompletionRequest["toolChoice"]
+): StrictClientToolsResult | GatewayError {
+  const toolCalls = collected.toolCalls.map(providerToolCallToOpenAI);
+  const parsed = parseStrictToolDecision({
+    text: JSON.stringify(
+      toolCalls.length > 0
+        ? { type: "tool_calls", tool_calls: toolCalls }
+        : { type: "message", content: collected.content }
+    ),
+    tools: input.request.tools ?? [],
+    toolChoice,
+    createToolCallId
+  });
+  if (parsed instanceof GatewayError) {
+    return parsed;
+  }
+  return strictDecisionToResult(parsed, usage);
+}
+
+function shouldRetryNativeAutoToolCall(
+  request: ChatCompletionRequest,
+  result: StrictClientToolsResult
+): boolean {
+  return (
+    request.toolChoice === "auto" &&
+    result.toolCalls.length === 0 &&
+    looksLikeToolUseAcknowledgement(result.content)
+  );
+}
+
+function looksLikeToolUseAcknowledgement(content: string): boolean {
+  const normalized = content.trim().toLowerCase();
+  if (!normalized || normalized.length > 180) {
+    return false;
+  }
+
+  return [
+    /^i(?:'| a)m\s+(?:going\s+to\s+)?(?:create|write|build|generate|make)\b/,
+    /^i\s+will\s+(?:create|write|build|generate|make)\b/,
+    /^i(?:'| wi)ll\s+(?:create|write|build|generate|make)\b/,
+    /^let\s+me\s+(?:create|write|build|generate|make)\b/,
+    /^sure[,.\s]+i(?:'| wi)ll\s+(?:create|write|build|generate|make)\b/,
+    /^ok(?:ay)?[,.\s]+i(?:'| wi)ll\s+(?:create|write|build|generate|make)\b/,
+    /^(?:\u6211\u6765|\u6211\u73b0\u5728|\u597d\u7684[,\uFF0C]?\u6211\u6765)/
+  ].some((pattern) => pattern.test(normalized));
+}
+
 async function runStrictClientTools(
   input: StrictClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
@@ -1921,7 +2121,8 @@ function openAIToolCallToStreamEvent(toolCall: OpenAIChatToolCall) {
     type: "tool_call" as const,
     callId: toolCall.id,
     name: toolCall.function.name,
-    arguments: parsedArguments
+    arguments: parsedArguments,
+    argumentsJson: toolCall.function.arguments
   };
 }
 
@@ -1931,7 +2132,7 @@ function providerToolCallToOpenAI(toolCall: ProviderToolCall): OpenAIChatToolCal
     type: "function",
     function: {
       name: toolCall.name,
-      arguments: JSON.stringify(toolCall.arguments ?? {})
+      arguments: toolCall.argumentsJson ?? JSON.stringify(toolCall.arguments ?? {})
     }
   };
 }
@@ -2457,6 +2658,13 @@ function chatCompletionEstimateExtras(
     ...base,
     runtime_extra: runtimeExtra
   });
+}
+
+function hasNativeClientTools(
+  request: ChatCompletionRequest,
+  publicModel: PublicModelConfig
+): boolean {
+  return publicModel.runtime === "openrouter" && hasStrictClientTools(request);
 }
 
 function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {

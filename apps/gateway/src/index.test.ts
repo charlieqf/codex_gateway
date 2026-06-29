@@ -4068,6 +4068,463 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("uses native OpenRouter tools for Pro and Standard instead of strict JSON prompts", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_native_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 50,
+            completion_tokens: 8,
+            total_tokens: 58
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "Create an interactive statistics t-test HTML file with animation, links, and navigation."
+                  }
+                ],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              message: {
+                role: "assistant",
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_native_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            });
+            expect(response.json().usage).toMatchObject({
+              prompt_tokens: 50,
+              completion_tokens: 8,
+              total_tokens: 58
+            });
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              tools: [
+                {
+                  type: "function",
+                  function: { name: "write_file" }
+                }
+              ],
+              tool_choice: "auto"
+            });
+            const messages = captured[0].messages as Array<{ role: string; content: string }>;
+            expect(messages[1].content).toContain("callable tools through the API");
+            expect(messages[1].content).not.toContain("strict client-defined tools mode");
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              publicModelId: "pro",
+              upstreamRuntime: "openrouter",
+              status: "ok"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("retries native OpenRouter auto tools once when the model only acknowledges an action", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      if (captured.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "I will create the HTML file." } }],
+            usage: {
+              prompt_tokens: 40,
+              completion_tokens: 7,
+              total_tokens: 47
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_required_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 41,
+            completion_tokens: 8,
+            total_tokens: 49
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                stream: true,
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "Create an interactive statistics t-test HTML file with animation, links, and navigation."
+                  }
+                ],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.payload).not.toContain("I will create the HTML file.");
+            const frames = parseOpenAISseData(response.payload);
+            expect(frames[1]).toMatchObject({
+              choices: [
+                {
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: "call_required_file",
+                        type: "function",
+                        function: {
+                          name: "write_file",
+                          arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            });
+            expect(frames[2]).toMatchObject({
+              choices: [{ delta: {}, finish_reason: "tool_calls" }],
+              usage: {
+                prompt_tokens: 81,
+                completion_tokens: 15,
+                total_tokens: 96
+              }
+            });
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "required"]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects undeclared native OpenRouter tool calls", async () => {
+    const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_bad_tool",
+                    type: "function",
+                    function: {
+                      name: "shell",
+                      arguments: '{"command":"ls"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Create a file." }],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "tool_call_validation_failed"
+            });
+            expect(response.json().error.message).toContain("was not declared");
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects native OpenRouter tool arguments that fail the declared schema", async () => {
+    const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_bad_args",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":123,"content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Create a file." }],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "tool_call_validation_failed"
+            });
+            expect(response.json().error.message).toContain("must be string");
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("does not convert OpenRouter auth failures into Codex reauth or cooldown", async () => {
     const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
       response.writeHead(401, { "content-type": "application/json" });

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   GatewayError,
   type MessageInput,
@@ -48,7 +49,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       const response = await this.fetchImpl(chatCompletionsUrl(this.options.baseUrl), {
         method: "POST",
         headers: this.headers(),
-        body: JSON.stringify(this.requestBody(input.message)),
+        body: JSON.stringify(this.requestBody(input)),
         signal: abort.signal
       });
 
@@ -72,13 +73,21 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       }
 
       let usage: TokenUsage | undefined;
+      const nativeToolCalls = nativeToolCallsEnabled(input)
+        ? new NativeToolCallAccumulator()
+        : null;
       for await (const chunk of parseOpenAISse(response.body)) {
-        const event = mapOpenAIStreamChunk(chunk);
-        if (event.event) {
-          yield event.event;
+        const event = mapOpenAIStreamChunk(chunk, nativeToolCalls);
+        for (const mappedEvent of event.events) {
+          yield mappedEvent;
         }
         if (event.usage) {
           usage = event.usage;
+        }
+      }
+      if (nativeToolCalls) {
+        for (const event of nativeToolCalls.drain()) {
+          yield event;
         }
       }
 
@@ -98,7 +107,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     }
   }
 
-  private requestBody(prompt: string): Record<string, unknown> {
+  private requestBody(input: MessageInput): Record<string, unknown> {
     return {
       model: this.options.upstreamModel,
       messages: [
@@ -108,14 +117,20 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         },
         {
           role: "user",
-          content: prompt
+          content: input.message
         }
       ],
       stream: true,
       stream_options: {
         include_usage: true
       },
-      reasoning: this.options.reasoning ?? { effort: "none" }
+      reasoning: this.options.reasoning ?? { effort: "none" },
+      ...(nativeToolCallsEnabled(input)
+        ? {
+            tools: input.clientTools,
+            tool_choice: input.clientToolChoice ?? "auto"
+          }
+        : {})
     };
   }
 
@@ -207,7 +222,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 }
 
 interface ParsedOpenAIChunk {
-  event?: StreamEvent;
+  events: StreamEvent[];
   usage?: TokenUsage;
 }
 
@@ -248,23 +263,125 @@ async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<
   }
 }
 
-function mapOpenAIStreamChunk(chunk: unknown): ParsedOpenAIChunk {
+function mapOpenAIStreamChunk(
+  chunk: unknown,
+  nativeToolCalls: NativeToolCallAccumulator | null = null
+): ParsedOpenAIChunk {
   if (!isRecord(chunk)) {
-    return {};
+    return { events: [] };
   }
   const usage = mapUsage(chunk.usage);
   const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
   const choice = choices[0];
-  if (!isRecord(choice) || !isRecord(choice.delta)) {
-    return usage ? { usage } : {};
+  if (!isRecord(choice)) {
+    return usage ? { events: [], usage } : { events: [] };
   }
-  const content = choice.delta.content;
+
+  const events: StreamEvent[] = [];
+  const delta = choice.delta;
+  if (isRecord(delta)) {
+    const content = delta.content;
+    if (typeof content === "string" && content.length > 0) {
+      events.push({ type: "message_delta", text: content });
+    }
+    nativeToolCalls?.append(delta.tool_calls);
+  }
+
+  if (nativeToolCalls && choice.finish_reason === "tool_calls") {
+    events.push(...nativeToolCalls.drain());
+  }
+
   return {
-    ...(typeof content === "string" && content.length > 0
-      ? { event: { type: "message_delta" as const, text: content } }
-      : {}),
+    events,
     ...(usage ? { usage } : {})
   };
+}
+
+interface PendingNativeToolCall {
+  index: number;
+  id: string | null;
+  name: string;
+  argumentsJson: string;
+}
+
+class NativeToolCallAccumulator {
+  private readonly pending = new Map<number, PendingNativeToolCall>();
+
+  append(value: unknown): void {
+    if (!Array.isArray(value)) {
+      return;
+    }
+    for (const [fallbackIndex, item] of value.entries()) {
+      if (!isRecord(item)) {
+        continue;
+      }
+      const index =
+        typeof item.index === "number" && Number.isInteger(item.index)
+          ? item.index
+          : fallbackIndex;
+      const current =
+        this.pending.get(index) ??
+        ({
+          index,
+          id: null,
+          name: "",
+          argumentsJson: ""
+        } satisfies PendingNativeToolCall);
+
+      if (typeof item.id === "string" && item.id.length > 0) {
+        current.id = item.id;
+      }
+
+      if (isRecord(item.function)) {
+        if (typeof item.function.name === "string" && item.function.name.length > 0) {
+          current.name += item.function.name;
+        }
+        if (typeof item.function.arguments === "string") {
+          current.argumentsJson += item.function.arguments;
+        }
+      }
+
+      this.pending.set(index, current);
+    }
+  }
+
+  drain(): StreamEvent[] {
+    if (this.pending.size === 0) {
+      return [];
+    }
+
+    const events = [...this.pending.values()]
+      .sort((a, b) => a.index - b.index)
+      .filter((item) => item.name.length > 0)
+      .map((item) => {
+        const argumentsJson = item.argumentsJson || "{}";
+        return {
+          type: "tool_call" as const,
+          callId: item.id ?? `call_${randomUUID().replaceAll("-", "")}`,
+          name: item.name,
+          arguments: parseToolArguments(argumentsJson),
+          argumentsJson
+        };
+      });
+    this.pending.clear();
+    return events;
+  }
+}
+
+function parseToolArguments(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function nativeToolCallsEnabled(input: MessageInput): boolean {
+  return (
+    input.clientTools !== undefined &&
+    input.clientTools.length > 0 &&
+    input.clientToolChoice !== "none"
+  );
 }
 
 function mapUsage(value: unknown): TokenUsage | undefined {

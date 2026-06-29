@@ -173,7 +173,11 @@ export function parseChatCompletionRequest(
   };
 }
 
-export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
+export function chatMessagesToPrompt(
+  request: ChatCompletionRequest,
+  options: { includeToolsContext?: boolean } = {}
+): string {
+  const includeToolsContext = options.includeToolsContext ?? true;
   const lines = [
     "Continue the following conversation as the assistant.",
     "Preserve the user's intent and answer directly.",
@@ -186,10 +190,16 @@ export function chatMessagesToPrompt(request: ChatCompletionRequest): string {
 
   if (request.tools !== undefined && request.toolChoice !== "none") {
     lines.push("");
-    lines.push(
-      "The client supplied OpenAI-style tool definitions. Treat them as application context. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
-    );
-    lines.push(safeJson(request.tools));
+    if (includeToolsContext) {
+      lines.push(
+        "The client supplied OpenAI-style tool definitions. Treat them as application context. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
+      );
+      lines.push(safeJson(request.tools));
+    } else {
+      lines.push(
+        "The client supplied callable tools through the API. When the task requires creating, editing, inspecting, or running code or files, call the appropriate tool instead of only describing the action. If tool results are present in the conversation, use them as observations and do not invent missing tool output."
+      );
+    }
   } else if (request.toolChoice === "none") {
     lines.push("");
     lines.push("The client set tool_choice=none. Do not call tools; answer directly.");
@@ -399,7 +409,7 @@ export function streamEventToChatCompletionChunk(input: {
           type: "function",
           function: {
             name: input.event.name,
-            arguments: safeJson(input.event.arguments ?? {})
+            arguments: input.event.argumentsJson ?? safeJson(input.event.arguments ?? {})
           }
         }
       ]
