@@ -6,7 +6,7 @@ COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_test}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.azure.yml}"
 GATEWAY_SERVICE="${GATEWAY_SERVICE:-gateway}"
 GATEWAY_DB="${GATEWAY_DB:-/var/lib/codex-gateway/gateway.db}"
-MODEL_TIMEOUT_SECONDS="${MODEL_TIMEOUT_SECONDS:-300}"
+MODEL_TIMEOUT_SECONDS="${MODEL_TIMEOUT_SECONDS:-600}"
 SMOKE_MODELS="${SMOKE_MODELS:-specialist expert pro standard}"
 
 if ! command -v node >/dev/null 2>&1 && [ -x "$HOME/.local/codex-gateway-node/bin/node" ]; then
