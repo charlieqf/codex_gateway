@@ -114,6 +114,10 @@ export async function beginTokenBudget(
         scope,
         upstreamAccountId: upstreamAccount.id,
         provider: upstreamAccount.provider,
+        publicModelId: request.gatewayPublicModelId ?? null,
+        upstreamRuntime: request.gatewayUpstreamRuntime ?? null,
+        upstreamModel: request.gatewayUpstreamModel ?? null,
+        reasoningEffort: request.gatewayReasoningEffort ?? null,
         now
       });
       markTokenReservation(request, softWrite.reservationId, "soft_write");
@@ -141,6 +145,10 @@ export async function beginTokenBudget(
       scope,
       upstreamAccountId: upstreamAccount.id,
       provider: upstreamAccount.provider,
+      publicModelId: request.gatewayPublicModelId ?? null,
+      upstreamRuntime: request.gatewayUpstreamRuntime ?? null,
+      upstreamModel: request.gatewayUpstreamModel ?? null,
+      reasoningEffort: request.gatewayReasoningEffort ?? null,
       policy: tokenPolicy,
       estimatedPromptTokens,
       now

@@ -12,6 +12,7 @@ import {
   compareRequestUsageRows,
   emptyRequestUsageReportRow,
   mergeTokenUsageRows,
+  normalizeAndAggregateRequestUsageRows,
   requestUsageReportKey,
   tokenUsageAggregateKey,
   type TokenUsageAggregateRow
@@ -28,12 +29,17 @@ export function insert(
   db.prepare(
     `INSERT INTO request_events (
       request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider,
-      public_model_id, upstream_runtime, upstream_model,
+      public_model_id, upstream_runtime, upstream_model, reasoning_effort, reasoning_tokens,
+      client_turn_id, turn_code, client_session_id, client_message_id, client_app_version,
+      tool_choice, upstream_finish_reason, upstream_request_id, upstream_http_status,
+      upstream_content_chars, upstream_tool_call_count, upstream_tool_names_json,
+      upstream_raw_response_hash, upstream_raw_response_chars, upstream_empty_stop,
+      upstream_attempt_count, upstream_attempts_json,
       started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
       prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
       estimated_tokens, usage_source, limit_kind, reservation_id, over_request_limit,
       identity_guard_hit
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (${Array.from({ length: 45 }, () => "?").join(", ")})
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -44,6 +50,25 @@ export function insert(
       public_model_id = excluded.public_model_id,
       upstream_runtime = excluded.upstream_runtime,
       upstream_model = excluded.upstream_model,
+      reasoning_effort = excluded.reasoning_effort,
+      reasoning_tokens = excluded.reasoning_tokens,
+      client_turn_id = excluded.client_turn_id,
+      turn_code = excluded.turn_code,
+      client_session_id = excluded.client_session_id,
+      client_message_id = excluded.client_message_id,
+      client_app_version = excluded.client_app_version,
+      tool_choice = excluded.tool_choice,
+      upstream_finish_reason = excluded.upstream_finish_reason,
+      upstream_request_id = excluded.upstream_request_id,
+      upstream_http_status = excluded.upstream_http_status,
+      upstream_content_chars = excluded.upstream_content_chars,
+      upstream_tool_call_count = excluded.upstream_tool_call_count,
+      upstream_tool_names_json = excluded.upstream_tool_names_json,
+      upstream_raw_response_hash = excluded.upstream_raw_response_hash,
+      upstream_raw_response_chars = excluded.upstream_raw_response_chars,
+      upstream_empty_stop = excluded.upstream_empty_stop,
+      upstream_attempt_count = excluded.upstream_attempt_count,
+      upstream_attempts_json = excluded.upstream_attempts_json,
       started_at = excluded.started_at,
       duration_ms = excluded.duration_ms,
       first_byte_ms = excluded.first_byte_ms,
@@ -71,6 +96,29 @@ export function insert(
     record.publicModelId ?? null,
     record.upstreamRuntime ?? null,
     record.upstreamModel ?? null,
+    record.reasoningEffort ?? null,
+    record.reasoningTokens ?? null,
+    record.clientTurnId ?? null,
+    record.turnCode ?? null,
+    record.clientSessionId ?? null,
+    record.clientMessageId ?? null,
+    record.clientAppVersion ?? null,
+    record.toolChoice ?? null,
+    record.upstreamFinishReason ?? null,
+    record.upstreamRequestId ?? null,
+    record.upstreamHttpStatus ?? null,
+    record.upstreamContentChars ?? null,
+    record.upstreamToolCallCount ?? null,
+    record.upstreamToolNames ? JSON.stringify(record.upstreamToolNames) : null,
+    record.upstreamRawResponseHash ?? null,
+    record.upstreamRawResponseChars ?? null,
+    record.upstreamEmptyStop === null || record.upstreamEmptyStop === undefined
+      ? null
+      : record.upstreamEmptyStop
+        ? 1
+        : 0,
+    record.upstreamAttemptCount ?? record.upstreamAttempts?.length ?? null,
+    record.upstreamAttempts ? JSON.stringify(record.upstreamAttempts) : null,
     record.startedAt.toISOString(),
     record.durationMs,
     record.firstByteMs,
@@ -97,34 +145,42 @@ export function list(
   input: ListRequestEventsInput = {}
 ): RequestEventRecord[] {
   const limit = input.limit ?? 100;
-  const rows = input.credentialId
-    ? db
-        .prepare(
-          `SELECT ${requestEventColumns}
-           FROM request_events
-           WHERE credential_id = ?
-           ORDER BY started_at DESC
-           LIMIT ?`
-        )
-        .all(input.credentialId, limit)
-    : input.subjectId
-      ? db
-          .prepare(
-            `SELECT ${requestEventColumns}
-             FROM request_events
-             WHERE subject_id = ?
-             ORDER BY started_at DESC
-             LIMIT ?`
-          )
-          .all(input.subjectId, limit)
-      : db
-          .prepare(
-            `SELECT ${requestEventColumns}
-             FROM request_events
-             ORDER BY started_at DESC
-             LIMIT ?`
-          )
-          .all(limit);
+  const clauses: string[] = [];
+  const params: Array<string | number> = [];
+  if (input.credentialId) {
+    clauses.push("credential_id = ?");
+    params.push(input.credentialId);
+  }
+  if (input.subjectId) {
+    clauses.push("subject_id = ?");
+    params.push(input.subjectId);
+  }
+  if (input.clientTurnId) {
+    clauses.push("client_turn_id = ?");
+    params.push(input.clientTurnId);
+  }
+  if (input.turnCode) {
+    clauses.push("turn_code = ?");
+    params.push(input.turnCode);
+  }
+  if (input.since) {
+    clauses.push("started_at >= ?");
+    params.push(input.since.toISOString());
+  }
+  if (input.until) {
+    clauses.push("started_at < ?");
+    params.push(input.until.toISOString());
+  }
+  const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+  const rows = db
+    .prepare(
+      `SELECT ${requestEventColumns}
+       FROM request_events
+       ${where}
+       ORDER BY started_at DESC
+       LIMIT ?`
+    )
+    .all(...params, limit);
 
   return rows.map(rowToRequestEvent);
 }
@@ -133,7 +189,8 @@ export function reportUsage(
   db: DatabaseSync,
   input: RequestUsageReportInput
 ): RequestUsageReportRow[] {
-  const groupByEntitlement = input.groupBy === "entitlement";
+  const groupByEntitlement =
+    input.groupBy === "entitlement" || input.groupBy === "entitlement-model";
   const clauses = ["request_events.started_at >= ?"];
   const params: string[] = [input.since.toISOString()];
   if (input.until) {
@@ -168,6 +225,7 @@ export function reportUsage(
          request_events.public_model_id AS public_model_id,
          request_events.upstream_runtime AS upstream_runtime,
          request_events.upstream_model AS upstream_model,
+         request_events.reasoning_effort AS reasoning_effort,
          ${entitlementSelect}
          COUNT(*) AS requests,
          SUM(CASE WHEN request_events.status = 'ok' THEN 1 ELSE 0 END) AS ok,
@@ -180,6 +238,8 @@ export function reportUsage(
          0 AS total_tokens,
          0 AS cached_prompt_tokens,
          0 AS estimated_tokens,
+         0 AS reasoning_tokens,
+         0 AS usage_missing,
          SUM(CASE WHEN request_events.limit_kind = 'request_minute' THEN 1 ELSE 0 END) AS request_minute,
          SUM(CASE WHEN request_events.limit_kind = 'request_day' THEN 1 ELSE 0 END) AS request_day,
          SUM(CASE WHEN request_events.limit_kind = 'concurrency' THEN 1 ELSE 0 END) AS concurrency,
@@ -202,7 +262,8 @@ export function reportUsage(
          request_events.provider,
          request_events.public_model_id,
          request_events.upstream_runtime,
-         request_events.upstream_model
+         request_events.upstream_model,
+         request_events.reasoning_effort
          ${entitlementGroup}
        ORDER BY date DESC, requests DESC, credential_id, subject_id`
     )
@@ -227,6 +288,7 @@ export function reportUsage(
         publicModelId: row.public_model_id,
         upstreamRuntime: row.upstream_runtime,
         upstreamModel: row.upstream_model,
+        reasoningEffort: row.reasoning_effort,
         entitlementId: row.entitlement_id
       });
     report.promptTokens += row.prompt_tokens;
@@ -234,10 +296,15 @@ export function reportUsage(
     report.totalTokens += row.total_tokens;
     report.cachedPromptTokens += row.cached_prompt_tokens;
     report.estimatedTokens += row.estimated_tokens;
+    report.reasoningTokens += row.reasoning_tokens;
+    report.usageMissing += row.usage_missing;
     merged.set(requestUsageReportKey(report), report);
   }
 
-  return Array.from(merged.values()).sort(compareRequestUsageRows);
+  return normalizeAndAggregateRequestUsageRows(
+    Array.from(merged.values()).sort(compareRequestUsageRows),
+    input
+  );
 }
 
 export function prune(
@@ -274,6 +341,8 @@ function tokenUsageRows(
   input: RequestUsageReportInput
 ): TokenUsageAggregateRow[] {
   const rows: TokenUsageAggregateRow[] = [];
+  const groupByEntitlement =
+    input.groupBy === "entitlement" || input.groupBy === "entitlement-model";
   const reservationClauses = [
     "token_reservations.finalized_at IS NOT NULL",
     "token_reservations.created_at >= ?"
@@ -302,15 +371,18 @@ function tokenUsageRows(
            token_reservations.scope,
            token_reservations.upstream_account_id,
            token_reservations.provider,
-           request_events.public_model_id,
-           request_events.upstream_runtime,
-           request_events.upstream_model,
-           ${input.groupBy === "entitlement" ? "entitlement_id" : "NULL"} AS entitlement_id,
+           COALESCE(token_reservations.public_model_id, request_events.public_model_id) AS public_model_id,
+           COALESCE(token_reservations.upstream_runtime, request_events.upstream_runtime) AS upstream_runtime,
+           COALESCE(token_reservations.upstream_model, request_events.upstream_model) AS upstream_model,
+           COALESCE(token_reservations.reasoning_effort, request_events.reasoning_effort) AS reasoning_effort,
+           ${groupByEntitlement ? "entitlement_id" : "NULL"} AS entitlement_id,
            COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
            COALESCE(SUM(final_completion_tokens), 0) AS completion_tokens,
            COALESCE(SUM(final_total_tokens), 0) AS total_tokens,
            COALESCE(SUM(final_cached_prompt_tokens), 0) AS cached_prompt_tokens,
-           COALESCE(SUM(final_estimated_tokens), 0) AS estimated_tokens
+           COALESCE(SUM(final_estimated_tokens), 0) AS estimated_tokens,
+           COALESCE(SUM(final_reasoning_tokens), 0) AS reasoning_tokens,
+           SUM(CASE WHEN final_usage_source IS NOT NULL AND final_usage_source NOT IN ('provider', 'soft_write') THEN 1 ELSE 0 END) AS usage_missing
          FROM token_reservations
          LEFT JOIN request_events ON request_events.request_id = token_reservations.request_id
          WHERE ${reservationClauses.join(" AND ")}
@@ -321,10 +393,11 @@ function tokenUsageRows(
            token_reservations.scope,
            token_reservations.upstream_account_id,
            token_reservations.provider,
-           request_events.public_model_id,
-           request_events.upstream_runtime,
-           request_events.upstream_model
-           ${input.groupBy === "entitlement" ? ", entitlement_id" : ""}`
+           COALESCE(token_reservations.public_model_id, request_events.public_model_id),
+           COALESCE(token_reservations.upstream_runtime, request_events.upstream_runtime),
+           COALESCE(token_reservations.upstream_model, request_events.upstream_model),
+           COALESCE(token_reservations.reasoning_effort, request_events.reasoning_effort)
+           ${groupByEntitlement ? ", entitlement_id" : ""}`
       )
       .all(...reservationParams) as unknown as TokenUsageAggregateRow[])
   );
@@ -361,12 +434,15 @@ function tokenUsageRows(
            public_model_id,
            upstream_runtime,
            upstream_model,
+           reasoning_effort,
            NULL AS entitlement_id,
            COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
            COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
            COALESCE(SUM(total_tokens), 0) AS total_tokens,
            COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
-           COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens
+           COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens,
+           COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
+           SUM(CASE WHEN usage_source IS NOT NULL AND usage_source != 'provider' THEN 1 ELSE 0 END) AS usage_missing
          FROM request_events
          WHERE ${legacyClauses.join(" AND ")}
          GROUP BY
@@ -378,7 +454,8 @@ function tokenUsageRows(
            provider,
            public_model_id,
            upstream_runtime,
-           upstream_model`
+           upstream_model,
+           reasoning_effort`
       )
       .all(...legacyParams) as unknown as TokenUsageAggregateRow[])
   );

@@ -84,11 +84,18 @@ export function parseEntitlementState(value: string): EntitlementState {
   );
 }
 
-export function parseReportGroupBy(value: string): "entitlement" {
-  if (value === "entitlement") {
+export function parseReportGroupBy(
+  value: string
+): "entitlement" | "model" | "user-model" | "entitlement-model" {
+  if (
+    value === "entitlement" ||
+    value === "model" ||
+    value === "user-model" ||
+    value === "entitlement-model"
+  ) {
     return value;
   }
-  throw new InvalidArgumentError("group-by must be entitlement");
+  throw new InvalidArgumentError("group-by must be entitlement, model, user-model, or entitlement-model");
 }
 
 export function parseDurationMs(value: string): number {

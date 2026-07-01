@@ -1086,6 +1086,9 @@ describe("gateway phase 1 routes", () => {
       sessionId: null,
       upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
+      publicModelId: "medcode",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: new Date("2026-05-12T03:00:00Z"),
       durationMs: 10,
       firstByteMs: 5,
@@ -1116,6 +1119,20 @@ describe("gateway phase 1 routes", () => {
     });
     expect(ordinaryCredential.statusCode).toBe(401);
     expect(ordinaryCredential.json().error.code).toBe("invalid_credential");
+
+    const usagePage = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/usage-ui"
+    });
+    expect(usagePage.statusCode).toBe(200);
+    expect(usagePage.headers["content-type"]).toContain("text/html");
+    expect(usagePage.headers["cache-control"]).toBe("no-store");
+    expect(usagePage.headers["content-security-policy"]).toContain("connect-src 'self'");
+    expect(usagePage.body).toContain("Billing Usage");
+    expect(usagePage.body).toContain("gatewayBillingAdminToken");
+    expect(usagePage.body).toContain("/gateway/admin/billing/v1/usage?");
+    expect(usagePage.body).toContain('"id":"max","displayName":"Max"');
+    expect(usagePage.body).not.toContain('"id":"medcode","displayName":"Max"');
 
     const plans = await app.inject({
       method: "GET",
@@ -1251,6 +1268,27 @@ describe("gateway phase 1 routes", () => {
     expect(usage.json().rows).toEqual([
       {
         period_start: "2026-05-12T00:00:00.000Z",
+        request_count: 1,
+        success_count: 1,
+        error_count: 0,
+        prompt_tokens: 100,
+        completion_tokens: 20,
+        total_tokens: 120,
+        estimated_tokens: 0
+      }
+    ]);
+
+    const usageByModel = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/billing/v1/usage?subject_id=subj_dev&from=2026-05-01T00:00:00.000Z&to=2026-06-01T00:00:00.000Z&group_by=model&public_model_id=max",
+      headers: billingHeaders
+    });
+    expect(usageByModel.statusCode).toBe(200);
+    expect(usageByModel.json().rows).toEqual([
+      {
+        period_start: null,
+        public_model_id: "max",
+        model_display_name: "Max",
         request_count: 1,
         success_count: 1,
         error_count: 0,
@@ -3084,6 +3122,92 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("preserves P0 client diagnostic metadata shape while still rejecting secrets", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      clientEventsStore,
+      logger: false
+    });
+
+    const metadata = {
+      client_turn_id: "msg_turn_123",
+      turn_code: "T:7K3P2",
+      public_model_id: "pro",
+      request_shape: {
+        request: {
+          body: {
+            messages_count: 3,
+            tool_count: 1
+          },
+          prompt: {
+            chars: 842
+          }
+        }
+      },
+      stream_terminal: {
+        response: {
+          finish_reason: "stop",
+          content_chars: 0
+        },
+        data: {
+          chunk_count: 2
+        }
+      },
+      tool_schema_validation: {
+        request: {
+          body: {
+            valid: true
+          }
+        }
+      }
+    };
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_p0_metadata_1",
+        category: "provider_stream",
+        action: "terminal",
+        status: "ok",
+        metadata
+      })
+    });
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/diagnostics",
+      headers,
+      payload: clientDiagnosticPayload({
+        event_id: "diag_p0_secret_1",
+        category: "provider_stream",
+        action: "terminal",
+        status: "ok",
+        metadata: {
+          request_shape: {
+            request: {
+              api_key: "should-not-store"
+            }
+          }
+        }
+      })
+    });
+
+    expect(accepted.statusCode).toBe(201);
+    const stored = clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_p0_metadata_1");
+    expect(JSON.parse(stored?.metadataJson ?? "{}")).toEqual(metadata);
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json().error.message).toContain(
+      "metadata.request_shape.request.api_key is not allowed"
+    );
+    expect(clientEventsStore.getClientDiagnosticEvent("subj_dev", "diag_p0_secret_1")).toBeNull();
+
+    await app.close();
+  });
+
   it("validates client diagnostic metadata before storage", async () => {
     const { store, headers } = createCredentialBackedStore();
     const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
@@ -3592,7 +3716,7 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("exposes enabled public model registry limits with max/pro/standard names", async () => {
+  it("exposes enabled public model registry limits with max/expert/pro/standard names", async () => {
     await withTemporaryEnv(
       {
         MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
@@ -3617,6 +3741,12 @@ describe("gateway phase 1 routes", () => {
             id: "max",
             context_window: 400000,
             max_context_window: 400000,
+            max_output_tokens: 128000
+          }),
+          expect.objectContaining({
+            id: "expert",
+            context_window: 200000,
+            max_context_window: 200000,
             max_output_tokens: 128000
           }),
           expect.objectContaining({
@@ -3726,6 +3856,7 @@ describe("gateway phase 1 routes", () => {
 
           expect(listed.json().data.map((model: { id: string }) => model.id)).toEqual([
             "max",
+            "expert",
             "pro",
             "standard"
           ]);
@@ -3832,13 +3963,27 @@ describe("gateway phase 1 routes", () => {
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
+            const expert = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
 
             expect(max.statusCode).toBe(200);
             expect(pro.statusCode).toBe(200);
+            expect(expert.statusCode).toBe(200);
             expect(max.json().choices[0].message.content).toBe("max-ok");
             expect(pro.json().choices[0].message.content).toBe("or-ok");
+            expect(expert.json().choices[0].message.content).toBe("or-ok");
             expect(provider.messages).toHaveLength(1);
-            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5-turbo"]);
+            expect(captured.map((body) => body.model)).toEqual([
+              "z-ai/glm-5-turbo",
+              "z-ai/glm-5.2"
+            ]);
           } finally {
             await app.close();
           }
@@ -3907,6 +4052,15 @@ describe("gateway phase 1 routes", () => {
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
+            const expert = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
             const pro = await app.inject({
               method: "POST",
               url: "/v1/chat/completions",
@@ -3919,13 +4073,16 @@ describe("gateway phase 1 routes", () => {
 
             expect(max.statusCode).toBe(200);
             expect(standard.statusCode).toBe(200);
+            expect(expert.statusCode).toBe(200);
             expect(pro.statusCode).toBe(200);
             expect(max.json().choices[0].message.content).toBe("legacy-codex-ok");
             expect(standard.json().choices[0].message.content).toBe("legacy-openrouter-ok");
+            expect(expert.json().choices[0].message.content).toBe("legacy-openrouter-ok");
             expect(pro.json().choices[0].message.content).toBe("legacy-openrouter-ok");
             expect(provider.messages).toHaveLength(1);
             expect(captured.map((body) => body.model)).toEqual([
               "deepseek/deepseek-v4-pro",
+              "z-ai/glm-5.2",
               "z-ai/glm-5-turbo"
             ]);
           } finally {
@@ -3997,10 +4154,24 @@ describe("gateway phase 1 routes", () => {
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
+            const expert = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: { authorization: `Bearer ${issued.token}` },
+              payload: {
+                model: "expert",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
 
             expect(pro.statusCode).toBe(200);
+            expect(expert.statusCode).toBe(200);
             expect(pro.json().choices[0].message.content).toBe("legacy-key-openrouter-ok");
-            expect(captured.map((body) => body.model)).toEqual(["z-ai/glm-5-turbo"]);
+            expect(expert.json().choices[0].message.content).toBe("legacy-key-openrouter-ok");
+            expect(captured.map((body) => body.model)).toEqual([
+              "z-ai/glm-5-turbo",
+              "z-ai/glm-5.2"
+            ]);
           } finally {
             await app.close();
           }
@@ -4038,7 +4209,7 @@ describe("gateway phase 1 routes", () => {
           MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
         },
         async () => {
-          const { store, headers } = createModelEntitledStore(["standard", "pro"]);
+          const { store, headers } = createModelEntitledStore(["standard", "expert", "pro"]);
           const codexProvider = new FakeProvider();
           const codexAccount = testUpstreamAccount("codex-pro-1");
           const app = buildGateway({
@@ -4074,19 +4245,30 @@ describe("gateway phase 1 routes", () => {
                 messages: [{ role: "user", content: "Say ok." }]
               }
             });
+            const expert = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
 
             expect(standard.statusCode).toBe(200);
             expect(pro.statusCode).toBe(200);
+            expect(expert.statusCode).toBe(200);
             expect(codexProvider.messages).toHaveLength(0);
             expect(captured.map((body) => body.model)).toEqual([
               "deepseek/deepseek-v4-pro",
-              "z-ai/glm-5-turbo"
+              "z-ai/glm-5-turbo",
+              "z-ai/glm-5.2"
             ]);
-            expect(
-              captured.every(
-                (body) => body.reasoning && (body.reasoning as { effort: string }).effort === "none"
-              )
-            ).toBe(true);
+            expect(captured.map((body) => body.reasoning)).toEqual([
+              { effort: "none" },
+              { effort: "none" },
+              { effort: "high" }
+            ]);
             expect(standard.json().usage).toMatchObject({
               completion_tokens_details: { reasoning_tokens: 0 }
             });
@@ -4096,6 +4278,14 @@ describe("gateway phase 1 routes", () => {
               cooldownUntil: null
             });
             expect(store.listRequestEvents({ limit: 5 })).toEqual([
+              expect.objectContaining({
+                publicModelId: "expert",
+                upstreamRuntime: "openrouter",
+                upstreamModel: "z-ai/glm-5.2",
+                upstreamAccountId: "openrouter-main",
+                provider: "openrouter",
+                status: "ok"
+              }),
               expect.objectContaining({
                 publicModelId: "pro",
                 upstreamRuntime: "openrouter",
@@ -4113,6 +4303,130 @@ describe("gateway phase 1 routes", () => {
                 status: "ok"
               })
             ]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("records client turn headers for model requests without forwarding them upstream", async () => {
+    const capturedHeaders: http.IncomingHttpHeaders[] = [];
+    const server = await startOpenAICompatibleSseServer(async (request, _body, response) => {
+      capturedHeaders.push(request.headers);
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-request-id": "up_req_turn_1"
+      });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "turn-ok" }, finish_reason: null }]
+        })}\n\n`
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "stop" }],
+          usage: {
+            prompt_tokens: 7,
+            completion_tokens: 2,
+            total_tokens: 9,
+            completion_tokens_details: { reasoning_tokens: 0 }
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: {
+                ...headers,
+                "x-medcode-client-turn-id": "msg_turn_123",
+                "x-medcode-client-turn-code": "T:7K3P2",
+                "x-medcode-client-session-id": "ses_turn_123",
+                "x-medcode-client-message-id": "msg_turn_123",
+                "x-medcode-client-app-version": "1.9.0"
+              },
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(capturedHeaders).toHaveLength(1);
+            expect(capturedHeaders[0]["x-medcode-client-turn-id"]).toBeUndefined();
+            expect(capturedHeaders[0]["x-medcode-client-turn-code"]).toBeUndefined();
+
+            expect(store.listRequestEvents({ turnCode: "T:7K3P2" })).toEqual([
+              expect.objectContaining({
+                clientTurnId: "msg_turn_123",
+                turnCode: "T:7K3P2",
+                clientSessionId: "ses_turn_123",
+                clientMessageId: "msg_turn_123",
+                clientAppVersion: "1.9.0",
+                publicModelId: "pro",
+                upstreamRuntime: "openrouter",
+                upstreamModel: "z-ai/glm-5-turbo",
+                reasoningEffort: "none",
+                toolChoice: "auto",
+                upstreamFinishReason: "stop",
+                upstreamRequestId: "up_req_turn_1",
+                upstreamHttpStatus: 200,
+                upstreamContentChars: "turn-ok".length,
+                upstreamToolCallCount: 0,
+                upstreamToolNames: [],
+                upstreamRawResponseChars: expect.any(Number),
+                upstreamEmptyStop: false,
+                upstreamAttemptCount: 1,
+                upstreamAttempts: [
+                  expect.objectContaining({
+                    index: 1,
+                    kind: "primary",
+                    toolChoice: "auto",
+                    provider: "openrouter",
+                    upstreamRuntime: "openrouter",
+                    upstreamModel: "z-ai/glm-5-turbo",
+                    upstreamAccountId: "openrouter-main",
+                    finishReason: "stop",
+                    upstreamRequestId: "up_req_turn_1",
+                    upstreamHttpStatus: 200,
+                    errorCode: null,
+                    contentChars: "turn-ok".length,
+                    toolCallCount: 0,
+                    toolNames: [],
+                    emptyStop: false
+                  })
+                ],
+                status: "ok",
+                totalTokens: 9,
+                reasoningTokens: 0
+              })
+            ]);
+            const event = store.listRequestEvents({ turnCode: "T:7K3P2" })[0];
+            expect(event?.upstreamRawResponseHash).toMatch(/^[a-f0-9]{64}$/);
           } finally {
             await app.close();
           }
@@ -4362,6 +4676,260 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("forces native OpenRouter file tools to required for Expert with high reasoning", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_expert_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"t-test.html","content":"<html></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "Create an interactive statistics t-test HTML file with animation, links, and navigation."
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls"
+            });
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              reasoning: { effort: "high" },
+              tool_choice: "required"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("retries Expert native tool validation failures with auto while enforcing required", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      if (captured.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: "call_bad_question",
+                      type: "function",
+                      function: {
+                        name: "question",
+                        arguments: "{}"
+                      }
+                    }
+                  ]
+                },
+                finish_reason: "tool_calls"
+              }
+            ],
+            usage: {
+              prompt_tokens: 40,
+              completion_tokens: 6,
+              total_tokens: 46
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_good_question",
+                    type: "function",
+                    function: {
+                      name: "question",
+                      arguments: '{"questions":["confirm the export format"]}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 45,
+            completion_tokens: 8,
+            total_tokens: 53
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [{ role: "user", content: "Ask a clarification before exporting." }],
+                tool_choice: "required",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "question",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          questions: {
+                            type: "array",
+                            items: { type: "string" }
+                          }
+                        },
+                        required: ["questions"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls",
+              message: {
+                tool_calls: [
+                  {
+                    id: "call_good_question",
+                    function: { name: "question" }
+                  }
+                ]
+              }
+            });
+            expect(response.json().usage).toMatchObject({
+              prompt_tokens: 85,
+              completion_tokens: 14,
+              total_tokens: 99
+            });
+            expect(captured.map((body) => body.tool_choice)).toEqual(["required", "auto"]);
+            expect(captured[1].model).toBe("z-ai/glm-5.2");
+            expect(captured[1].reasoning).toEqual({ effort: "high" });
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain("The previous assistant tool response was rejected");
+            expect(retryMessages[1].content).toContain("questions");
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              publicModelId: "expert",
+              status: "ok"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("retries Pro native tool acknowledgements with auto because GLM turbo rejects required", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
@@ -4485,6 +5053,143 @@ describe("gateway phase 1 routes", () => {
             expect(retryMessages[1].content).toContain(
               "The previous assistant output only acknowledged the task."
             );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("retries Pro native file tasks when the model returns an empty stop", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      if (captured.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: {},
+                finish_reason: "stop"
+              }
+            ],
+            usage: {
+              prompt_tokens: 40,
+              completion_tokens: 0,
+              total_tokens: 40
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_pro_patch",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"web.html","content":"<html class=\\"fixed-layout\\"></html>"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 44,
+            completion_tokens: 9,
+            total_tokens: 53
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [
+                  {
+                    role: "user",
+                    content:
+                      "更改web.html的布局，现在左侧导航栏会遮蔽页面的内容，导致导航栏遮盖部分无法看到"
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls",
+              message: {
+                tool_calls: [
+                  {
+                    id: "call_pro_patch",
+                    function: { name: "write_file" }
+                  }
+                ]
+              }
+            });
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "auto"]);
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain("The previous assistant output was empty");
+            expect(response.json().usage).toMatchObject({
+              prompt_tokens: 84,
+              completion_tokens: 9,
+              total_tokens: 93
+            });
           } finally {
             await app.close();
           }
@@ -8402,6 +9107,15 @@ function publicModelRegistryFixture() {
       contextWindow: 400000,
       upstreamContextWindow: 400000,
       maxOutputTokens: 128000,
+      enabled: true
+    },
+    expert: {
+      displayName: "Expert",
+      runtime: "openrouter",
+      upstreamModel: "z-ai/glm-5.2",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "high" },
       enabled: true
     },
     pro: {

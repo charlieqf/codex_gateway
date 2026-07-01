@@ -1,6 +1,13 @@
 import type { GatewayError } from "./errors.js";
 import type { ProviderKind, Scope, TokenUsage } from "./types.js";
 
+export interface ModelUsageAttribution {
+  publicModelId?: string | null;
+  upstreamRuntime?: string | null;
+  upstreamModel?: string | null;
+  reasoningEffort?: string | null;
+}
+
 export interface TokenLimitPolicy {
   tokensPerMinute: number | null;
   tokensPerDay: number | null;
@@ -31,6 +38,10 @@ export interface AcquireInput {
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
+  publicModelId?: string | null;
+  upstreamRuntime?: string | null;
+  upstreamModel?: string | null;
+  reasoningEffort?: string | null;
   policy: TokenLimitPolicy;
   estimatedPromptTokens: number;
   estimatedTotalTokens?: number | null;
@@ -65,6 +76,10 @@ export interface SoftWriteBeginInput {
   scope: Scope;
   upstreamAccountId: string | null;
   provider: ProviderKind | null;
+  publicModelId?: string | null;
+  upstreamRuntime?: string | null;
+  upstreamModel?: string | null;
+  reasoningEffort?: string | null;
   now?: Date;
 }
 

@@ -151,6 +151,25 @@ export interface RequestEventRecord {
   publicModelId?: string | null;
   upstreamRuntime?: string | null;
   upstreamModel?: string | null;
+  reasoningEffort?: string | null;
+  reasoningTokens?: number | null;
+  clientTurnId?: string | null;
+  turnCode?: string | null;
+  clientSessionId?: string | null;
+  clientMessageId?: string | null;
+  clientAppVersion?: string | null;
+  toolChoice?: string | null;
+  upstreamFinishReason?: string | null;
+  upstreamRequestId?: string | null;
+  upstreamHttpStatus?: number | null;
+  upstreamContentChars?: number | null;
+  upstreamToolCallCount?: number | null;
+  upstreamToolNames?: string[] | null;
+  upstreamRawResponseHash?: string | null;
+  upstreamRawResponseChars?: number | null;
+  upstreamEmptyStop?: boolean | null;
+  upstreamAttemptCount?: number | null;
+  upstreamAttempts?: UpstreamAttemptSummary[] | null;
   startedAt: Date;
   durationMs: number | null;
   firstByteMs: number | null;
@@ -170,6 +189,26 @@ export interface RequestEventRecord {
 }
 
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
+
+export interface UpstreamAttemptSummary {
+  index: number;
+  kind: string | null;
+  toolChoice: string | null;
+  provider: ProviderKind | null;
+  upstreamRuntime: string | null;
+  upstreamModel: string | null;
+  upstreamAccountId: string | null;
+  finishReason: string | null;
+  upstreamRequestId: string | null;
+  upstreamHttpStatus: number | null;
+  errorCode: string | null;
+  contentChars: number;
+  toolCallCount: number;
+  toolNames: string[];
+  rawResponseHash: string | null;
+  rawResponseChars: number | null;
+  emptyStop: boolean | null;
+}
 
 export interface ClientMessageEventRecord {
   id: string;
@@ -261,6 +300,14 @@ export interface TokenUsage {
   reasoningTokens?: number;
 }
 
+export interface ProviderResponseSummary {
+  finishReason?: string | null;
+  upstreamRequestId?: string | null;
+  upstreamHttpStatus?: number | null;
+  rawResponseHash?: string | null;
+  rawResponseChars?: number | null;
+}
+
 export type StreamEvent =
   | { type: "message_delta"; text: string }
   | {
@@ -270,7 +317,12 @@ export type StreamEvent =
       arguments?: unknown;
       argumentsJson?: string;
     }
-  | { type: "completed"; providerSessionRef?: string; usage?: TokenUsage }
+  | {
+      type: "completed";
+      providerSessionRef?: string;
+      usage?: TokenUsage;
+      responseSummary?: ProviderResponseSummary;
+    }
   | { type: "error"; code: string; message: string };
 
 export interface ClientToolDefinition {

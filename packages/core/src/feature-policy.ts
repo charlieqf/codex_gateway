@@ -97,7 +97,7 @@ export function publicFeaturePolicy(policy: FeaturePolicy) {
 
 function effectivePublicMedCodeModels(allowed: string[]): string[] {
   const result = [...allowed];
-  for (const model of ["medcode", "pro", "standard"]) {
+  for (const model of ["medcode", "expert", "pro", "standard"]) {
     if (!result.includes(model)) {
       result.push(model);
     }

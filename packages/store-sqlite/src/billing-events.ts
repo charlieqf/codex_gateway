@@ -177,16 +177,25 @@ export function reportUsage(
   const dailyRows = requestEvents.reportUsage(db, {
     subjectId: input.subjectId,
     since: input.from,
-    until: input.to
+    until: input.to,
+    groupBy: input.groupBy === "model" ? "model" : undefined,
+    publicModelId: input.publicModelId,
+    publicModelAliases: input.publicModelAliases
   });
   const grouped = new Map<string, BillingUsageReportRow>();
   for (const row of dailyRows) {
     const periodStart = usagePeriodStart(row.date, input.groupBy);
-    const key = periodStart?.toISOString() ?? "none";
+    const includeModel = input.groupBy === "model" || Boolean(input.publicModelId);
+    const publicModelId = includeModel ? row.publicModelId ?? null : undefined;
+    const key =
+      input.groupBy === "model"
+        ? `model:${publicModelId ?? ""}`
+        : `${periodStart?.toISOString() ?? "none"}:${publicModelId ?? ""}`;
     const existing =
       grouped.get(key) ??
       {
         periodStart,
+        ...(includeModel ? { publicModelId } : {}),
         requestCount: 0,
         successCount: 0,
         errorCount: 0,
@@ -856,7 +865,7 @@ function rowToBillingEvent(row: unknown): BillingEventRecord {
 }
 
 function usagePeriodStart(date: string, groupBy: BillingUsageReportInput["groupBy"]): Date | null {
-  if (groupBy === "none") {
+  if (groupBy === "none" || groupBy === "model") {
     return null;
   }
   if (groupBy === "month") {

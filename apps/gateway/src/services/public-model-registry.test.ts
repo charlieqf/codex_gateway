@@ -47,6 +47,15 @@ describe("public model registry", () => {
           contextWindow: 400000,
           maxOutputTokens: 128000
         },
+        expert: {
+          displayName: "Expert",
+          runtime: "openrouter",
+          upstreamModel: "z-ai/glm-5.2",
+          contextWindow: 200000,
+          upstreamContextWindow: 1048576,
+          enabled: true,
+          reasoning: { effort: "high" }
+        },
         standard: {
           displayName: "Standard",
           runtime: "openrouter",
@@ -69,15 +78,17 @@ describe("public model registry", () => {
       })
     });
 
-    expect(registry.models.map((model) => model.id)).toEqual(["max", "standard"]);
+    expect(registry.models.map((model) => model.id)).toEqual(["max", "expert", "standard"]);
     expect(registry.get("medcode")?.id).toBe("max");
     expect(registry.listAvailable({ openRouterAvailable: false }).map((model) => model.id)).toEqual([
       "max"
     ]);
     expect(registry.listAvailable({ openRouterAvailable: true }).map((model) => model.id)).toEqual([
       "max",
+      "expert",
       "standard"
     ]);
+    expect(registry.get("expert")?.reasoning).toEqual({ effort: "high" });
     expect(openAIModelObject(registry.get("standard")!)).toMatchObject({
       id: "standard",
       context_window: 200000,

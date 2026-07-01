@@ -1,6 +1,7 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  defaultPublicModelAliasGroups,
   mergeEntitlementTokenPolicy,
   billingPayloadHash,
   encryptSecret,
@@ -30,6 +31,7 @@ import {
   type PeriodKind,
   type Plan,
   type PlanEntitlementStore,
+  type PublicModelAliasGroup,
   type RateLimitPolicy,
   type Scope,
   type TokenBudgetLimiter,
@@ -69,7 +71,12 @@ export interface BillingAdminRouteOptions {
   ratePolicy?: RateLimitPolicy;
   upstreamV2Client?: UpstreamV2Client | null;
   apiKeyEncryptionSecret?: string | null;
+  publicModels?: BillingPublicModel[];
   now?: () => Date;
+}
+
+export interface BillingPublicModel extends PublicModelAliasGroup {
+  displayName: string;
 }
 
 interface BillingEventQuery {
@@ -85,6 +92,7 @@ interface BillingUsageQuery {
   from?: string;
   to?: string;
   group_by?: string;
+  public_model_id?: string;
   limit?: string;
   cursor?: string;
 }
@@ -655,12 +663,36 @@ export function registerBillingAdminRoutes(
         return sendBillingError(request, reply, parsed);
       }
       try {
+        const publicModels = billingPublicModels(options.publicModels);
         return billingSecurityHeaders(reply).send(
-          publicUsageResult(options.billingStore.reportBillingUsage(parsed))
+          publicUsageResult(
+            options.billingStore.reportBillingUsage({
+              ...parsed,
+              publicModelAliases: publicModels
+            }),
+            publicModels
+          )
         );
       } catch (err) {
         return sendBillingError(request, reply, toBillingGatewayError(err));
       }
+    }
+  );
+
+  app.get(
+    "/gateway/admin/billing/v1/usage-ui",
+    billingRouteOptions(),
+    async (request, reply) => {
+      if (!isBillingAdminAuthConfigured(options) || !options.billingStore) {
+        return sendBillingError(
+          request,
+          reply,
+          serviceUnavailable("Billing usage UI is not configured.")
+        );
+      }
+      return billingPageSecurityHeaders(reply)
+        .type("text/html; charset=utf-8")
+        .send(renderBillingUsagePage({ publicModels: billingPublicModels(options.publicModels) }));
     }
   );
 }
@@ -1122,6 +1154,7 @@ function parseUsageQuery(
   from: Date;
   to: Date;
   groupBy: BillingUsageGroupBy;
+  publicModelId?: string;
   limit?: number;
   cursor?: string;
 } | GatewayError {
@@ -1144,14 +1177,15 @@ function parseUsageQuery(
     return invalidRequest("usage query range cannot exceed 90 days.");
   }
   const groupBy = (query.group_by ?? "day") as BillingUsageGroupBy;
-  if (groupBy !== "day" && groupBy !== "month" && groupBy !== "none") {
-    return invalidRequest("group_by must be day, month, or none.");
+  if (groupBy !== "day" && groupBy !== "month" && groupBy !== "none" && groupBy !== "model") {
+    return invalidRequest("group_by must be day, month, none, or model.");
   }
   return {
     subjectId,
     from,
     to,
     groupBy,
+    publicModelId: optionalString(query.public_model_id) ?? undefined,
     limit: parseLimit(query.limit, 90),
     cursor: optionalString(query.cursor) ?? undefined
   };
@@ -1224,7 +1258,10 @@ function publicEntitlement(entitlement: Entitlement) {
   };
 }
 
-function publicUsageResult(result: BillingUsageReportResult) {
+function publicUsageResult(
+  result: BillingUsageReportResult,
+  publicModels: BillingPublicModel[] | undefined
+) {
   return {
     subject_id: result.subjectId,
     from: result.from.toISOString(),
@@ -1232,6 +1269,12 @@ function publicUsageResult(result: BillingUsageReportResult) {
     group_by: result.groupBy,
     rows: result.rows.map((row) => ({
       period_start: row.periodStart?.toISOString() ?? null,
+      ...(row.publicModelId !== undefined
+        ? {
+            public_model_id: row.publicModelId,
+            model_display_name: modelDisplayName(row.publicModelId, publicModels)
+          }
+        : {}),
       request_count: row.requestCount,
       success_count: row.successCount,
       error_count: row.errorCount,
@@ -1242,6 +1285,662 @@ function publicUsageResult(result: BillingUsageReportResult) {
     })),
     next_cursor: result.nextCursor
   };
+}
+
+function billingPublicModels(publicModels: BillingPublicModel[] | undefined): BillingPublicModel[] {
+  const merged = new Map<string, BillingPublicModel>();
+  for (const group of defaultPublicModelAliasGroups) {
+    merged.set(group.id, {
+      id: group.id,
+      aliases: [...(group.aliases ?? [])],
+      displayName: group.id === "max" ? "Max" : group.id
+    });
+  }
+  for (const model of publicModels ?? []) {
+    const aliasTarget = Array.from(merged.values()).find((candidate) =>
+      candidate.aliases?.includes(model.id)
+    );
+    if (aliasTarget && aliasTarget.id !== model.id) {
+      merged.set(aliasTarget.id, {
+        ...aliasTarget,
+        aliases: Array.from(new Set([...(aliasTarget.aliases ?? []), model.id, ...(model.aliases ?? [])]))
+      });
+      continue;
+    }
+    merged.set(model.id, model);
+  }
+  return Array.from(merged.values());
+}
+
+function renderBillingUsagePage(input: { publicModels: BillingPublicModel[] }): string {
+  const models = input.publicModels.map((model) => ({
+    id: model.id,
+    displayName: model.displayName
+  }));
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Billing Usage</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d9dee7;
+      --line-strong: #aeb8c8;
+      --text: #141821;
+      --muted: #5b6574;
+      --accent: #1459b8;
+      --accent-dark: #0e438c;
+      --ok: #067647;
+      --bad: #b42318;
+      --warn-bg: #fff6df;
+      --warn-line: #edc967;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    main {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 16px 22px 30px;
+    }
+    .token {
+      display: grid;
+      grid-template-columns: auto minmax(260px, 360px);
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.3fr) 150px 150px 150px minmax(150px, 190px) 96px auto;
+      gap: 10px;
+      align-items: end;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    label {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    input, select, button {
+      height: 36px;
+      min-width: 0;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    input, select { padding: 0 10px; width: 100%; }
+    button {
+      padding: 0 14px;
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { background: var(--accent-dark); }
+    button:disabled {
+      cursor: progress;
+      opacity: 0.72;
+    }
+    .quick {
+      display: flex;
+      gap: 6px;
+      align-items: end;
+      height: 36px;
+    }
+    .quick button {
+      width: 42px;
+      padding: 0;
+      border-color: var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .quick button:hover { background: #eef3fa; }
+    .custom-model { display: none; }
+    .custom-model.visible { display: grid; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px 2px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .meta strong { color: var(--text); }
+    .status-ok { color: var(--ok); }
+    .status-bad { color: var(--bad); }
+    .notice {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--warn-line);
+      border-radius: 6px;
+      background: var(--warn-bg);
+      color: #684b00;
+      font-size: 14px;
+    }
+    .notice.bad {
+      border-color: #efb5ae;
+      background: #fff1ef;
+      color: var(--bad);
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 1px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--line);
+    }
+    .metric {
+      min-height: 76px;
+      padding: 12px;
+      background: var(--panel);
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      overflow-wrap: anywhere;
+      font-size: 22px;
+      line-height: 1.1;
+      font-weight: 750;
+    }
+    .chart {
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+    .chart-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 120px;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .chart-row:last-child { border-bottom: 0; }
+    .bar-track {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e8edf4;
+    }
+    .bar {
+      height: 100%;
+      min-width: 2px;
+      background: linear-gradient(90deg, #1459b8, #2d7d56);
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    table {
+      width: 100%;
+      min-width: 1080px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: right;
+      font-size: 13px;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f0f3f7;
+      color: #3c4655;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+    tbody tr:hover { background: #f7fbff; }
+    .period { width: 170px; }
+    .model { width: 170px; }
+    .number {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .muted { color: var(--muted); }
+    .hidden { display: none; }
+    @media (max-width: 1120px) {
+      header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .token {
+        grid-template-columns: 1fr;
+      }
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      main { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Billing Usage</h1>
+    <label class="token">Billing token
+      <input id="token" type="password" autocomplete="off" placeholder="Paste billing admin token">
+    </label>
+  </header>
+  <main>
+    <section class="toolbar">
+      <label>Subject ID
+        <input id="subjectId" autocomplete="off" placeholder="subj_...">
+      </label>
+      <label>From
+        <input id="from" type="date">
+      </label>
+      <label>To
+        <input id="to" type="date">
+      </label>
+      <label>Group
+        <select id="groupBy">
+          <option value="model">model</option>
+          <option value="day">day</option>
+          <option value="month">month</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+      <label>Model
+        <select id="model"></select>
+      </label>
+      <label id="customModelWrap" class="custom-model">Custom
+        <input id="customModel" autocomplete="off" placeholder="model id">
+      </label>
+      <div class="quick" aria-label="range shortcuts">
+        <button type="button" data-range="7">7d</button>
+        <button type="button" data-range="30">30d</button>
+        <button type="button" data-range="90">90d</button>
+      </div>
+      <button id="refresh" type="button">Refresh</button>
+    </section>
+    <div class="meta">
+      <span>Status: <strong id="status">idle</strong></span>
+      <span>Rows: <strong id="rowCount">0</strong></span>
+      <span>Generated: <strong id="generated">-</strong></span>
+    </div>
+    <div class="notice" id="notice" hidden></div>
+    <section class="summary" id="summary"></section>
+    <section class="chart hidden" id="chart"></section>
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="period">Period</th>
+            <th class="model">Model</th>
+            <th>Requests</th>
+            <th>Success</th>
+            <th>Errors</th>
+            <th>Prompt</th>
+            <th>Completion</th>
+            <th>Total</th>
+            <th>Estimated</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+  </main>
+  <script>
+    const knownModels = ${JSON.stringify(models)};
+    const els = {
+      token: document.getElementById("token"),
+      subjectId: document.getElementById("subjectId"),
+      from: document.getElementById("from"),
+      to: document.getElementById("to"),
+      groupBy: document.getElementById("groupBy"),
+      model: document.getElementById("model"),
+      customModelWrap: document.getElementById("customModelWrap"),
+      customModel: document.getElementById("customModel"),
+      refresh: document.getElementById("refresh"),
+      status: document.getElementById("status"),
+      rowCount: document.getElementById("rowCount"),
+      generated: document.getElementById("generated"),
+      notice: document.getElementById("notice"),
+      summary: document.getElementById("summary"),
+      chart: document.getElementById("chart"),
+      rows: document.getElementById("rows")
+    };
+    const numberFormat = new Intl.NumberFormat();
+    init();
+
+    function init() {
+      els.token.value = sessionStorage.getItem("gatewayBillingAdminToken") || "";
+      els.subjectId.value = localStorage.getItem("gatewayBillingSubjectId") || "";
+      els.token.addEventListener("input", () => sessionStorage.setItem("gatewayBillingAdminToken", els.token.value));
+      els.subjectId.addEventListener("input", () => localStorage.setItem("gatewayBillingSubjectId", els.subjectId.value));
+      initDates(30);
+      renderModelOptions();
+      els.model.addEventListener("change", () => {
+        els.customModelWrap.classList.toggle("visible", els.model.value === "__custom__");
+        if (els.model.value !== "__custom__") load();
+      });
+      els.customModel.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") load();
+      });
+      for (const button of document.querySelectorAll("[data-range]")) {
+        button.addEventListener("click", () => {
+          initDates(Number(button.getAttribute("data-range")));
+          load();
+        });
+      }
+      for (const control of [els.from, els.to, els.groupBy]) {
+        control.addEventListener("change", () => load());
+      }
+      els.refresh.addEventListener("click", () => load());
+      if (els.token.value && els.subjectId.value) {
+        load();
+      } else {
+        renderEmpty();
+      }
+    }
+
+    function renderModelOptions() {
+      const options = [{ id: "", displayName: "All models" }, ...knownModels, { id: "__custom__", displayName: "Custom" }];
+      els.model.innerHTML = options.map((model) =>
+        "<option value=\\"" + escapeAttr(model.id) + "\\">" + escapeHtml(model.displayName + (model.id && model.id !== model.displayName ? " (" + model.id + ")" : "")) + "</option>"
+      ).join("");
+    }
+
+    async function load() {
+      const token = els.token.value.trim();
+      const subjectId = els.subjectId.value.trim();
+      if (!token) {
+        setStatus("missing token", false);
+        showNotice("Billing admin token required.", false);
+        els.token.focus();
+        renderEmpty();
+        return;
+      }
+      if (!subjectId) {
+        setStatus("missing subject", false);
+        showNotice("Subject ID required.", false);
+        els.subjectId.focus();
+        renderEmpty();
+        return;
+      }
+      const params = new URLSearchParams();
+      params.set("subject_id", subjectId);
+      params.set("from", dateInputToIso(els.from.value));
+      params.set("to", dateInputToIso(els.to.value));
+      params.set("group_by", els.groupBy.value);
+      const model = selectedModelId();
+      if (model) params.set("public_model_id", model);
+
+      setStatus("loading", true);
+      showNotice("", true);
+      els.refresh.disabled = true;
+      els.refresh.textContent = "Loading";
+      try {
+        const response = await fetch("/gateway/admin/billing/v1/usage?" + params.toString(), {
+          headers: { authorization: "Bearer " + token },
+          cache: "no-store"
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error && payload.error.message ? payload.error.message : "request failed");
+        }
+        renderUsage(payload);
+        setStatus("ok", true);
+      } catch (error) {
+        setStatus(error.message || String(error), false);
+        showNotice(error.message || String(error), false);
+      } finally {
+        els.refresh.disabled = false;
+        els.refresh.textContent = "Refresh";
+      }
+    }
+
+    function renderUsage(payload) {
+      const rows = Array.isArray(payload.rows) ? payload.rows : [];
+      els.rowCount.textContent = String(rows.length);
+      els.generated.textContent = formatDateTime(new Date());
+      renderSummary(rows);
+      renderChart(rows, payload.group_by);
+      els.rows.innerHTML = rows.length
+        ? rows.map(renderRow).join("")
+        : "<tr><td colspan=\\"9\\" class=\\"muted\\">No usage rows match the current filters.</td></tr>";
+    }
+
+    function renderSummary(rows) {
+      const totals = rows.reduce((acc, row) => {
+        acc.requests += num(row.request_count);
+        acc.success += num(row.success_count);
+        acc.errors += num(row.error_count);
+        acc.prompt += num(row.prompt_tokens);
+        acc.completion += num(row.completion_tokens);
+        acc.total += num(row.total_tokens);
+        acc.estimated += num(row.estimated_tokens);
+        return acc;
+      }, { requests: 0, success: 0, errors: 0, prompt: 0, completion: 0, total: 0, estimated: 0 });
+      const metrics = [
+        ["Requests", totals.requests],
+        ["Success", totals.success],
+        ["Errors", totals.errors],
+        ["Prompt", totals.prompt],
+        ["Completion", totals.completion],
+        ["Total tokens", totals.total],
+        ["Estimated", totals.estimated]
+      ];
+      els.summary.innerHTML = metrics.map(([label, value]) =>
+        "<div class=\\"metric\\"><span>" + escapeHtml(label) + "</span><strong>" + formatNumber(value) + "</strong></div>"
+      ).join("");
+    }
+
+    function renderChart(rows, groupBy) {
+      if (!rows.length) {
+        els.chart.classList.add("hidden");
+        els.chart.innerHTML = "";
+        return;
+      }
+      const max = Math.max(...rows.map((row) => num(row.total_tokens)), 1);
+      els.chart.classList.remove("hidden");
+      els.chart.innerHTML = rows.slice(0, 20).map((row) => {
+        const value = num(row.total_tokens);
+        const pct = Math.max(1, Math.round((value / max) * 100));
+        const label = groupBy === "model"
+          ? modelLabel(row)
+          : periodLabel(row.period_start) + (row.public_model_id ? " / " + modelLabel(row) : "");
+        return "<div class=\\"chart-row\\">" +
+          "<div>" + escapeHtml(label) + "</div>" +
+          "<div class=\\"bar-track\\"><div class=\\"bar\\" style=\\"width:" + pct + "%\\"></div></div>" +
+          "<div class=\\"number\\">" + formatNumber(value) + "</div>" +
+        "</div>";
+      }).join("");
+    }
+
+    function renderRow(row) {
+      return "<tr>" +
+        "<td>" + escapeHtml(periodLabel(row.period_start)) + "</td>" +
+        "<td>" + escapeHtml(modelLabel(row)) + "</td>" +
+        numberCell(row.request_count) +
+        numberCell(row.success_count) +
+        numberCell(row.error_count) +
+        numberCell(row.prompt_tokens) +
+        numberCell(row.completion_tokens) +
+        numberCell(row.total_tokens) +
+        numberCell(row.estimated_tokens) +
+      "</tr>";
+    }
+
+    function renderEmpty() {
+      els.rowCount.textContent = "0";
+      els.generated.textContent = "-";
+      renderSummary([]);
+      els.chart.classList.add("hidden");
+      els.chart.innerHTML = "";
+      els.rows.innerHTML = "<tr><td colspan=\\"9\\" class=\\"muted\\">No usage loaded.</td></tr>";
+    }
+
+    function numberCell(value) {
+      return "<td class=\\"number\\">" + formatNumber(value) + "</td>";
+    }
+
+    function selectedModelId() {
+      if (els.model.value === "__custom__") {
+        return els.customModel.value.trim();
+      }
+      return els.model.value;
+    }
+
+    function initDates(days) {
+      const to = new Date();
+      to.setUTCDate(to.getUTCDate() + 1);
+      const from = new Date(to);
+      from.setUTCDate(from.getUTCDate() - days);
+      els.from.value = toDateInput(from);
+      els.to.value = toDateInput(to);
+    }
+
+    function toDateInput(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function dateInputToIso(value) {
+      return value + "T00:00:00.000Z";
+    }
+
+    function modelLabel(row) {
+      if (row.model_display_name && row.public_model_id && row.model_display_name !== row.public_model_id) {
+        return row.model_display_name + " (" + row.public_model_id + ")";
+      }
+      return row.public_model_id || "-";
+    }
+
+    function periodLabel(value) {
+      return value ? value.slice(0, 10) : "Total";
+    }
+
+    function num(value) {
+      return Number.isFinite(Number(value)) ? Number(value) : 0;
+    }
+
+    function formatNumber(value) {
+      return numberFormat.format(num(value));
+    }
+
+    function formatDateTime(value) {
+      return new Intl.DateTimeFormat(undefined, {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).format(value);
+    }
+
+    function setStatus(text, ok) {
+      els.status.textContent = text;
+      els.status.className = ok ? "status-ok" : "status-bad";
+    }
+
+    function showNotice(text, ok) {
+      if (!text) {
+        els.notice.hidden = true;
+        els.notice.textContent = "";
+        return;
+      }
+      els.notice.hidden = false;
+      els.notice.className = ok ? "notice" : "notice bad";
+      els.notice.textContent = text;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/\\n/g, " ");
+    }
+  </script>
+</body>
+</html>`;
+}
+
+function modelDisplayName(
+  publicModelId: string | null | undefined,
+  publicModels: BillingPublicModel[] | undefined
+): string | null {
+  if (!publicModelId) {
+    return publicModelId ?? null;
+  }
+  const model = publicModels?.find((candidate) => candidate.id === publicModelId);
+  return model?.displayName ?? publicModelId;
 }
 
 function resolveQuotaResetCredentials(
@@ -1549,6 +2248,21 @@ function billingSecurityHeaders(reply: FastifyReply): FastifyReply {
     .header("cache-control", "no-store")
     .header("x-robots-tag", "noindex, nofollow")
     .header("x-content-type-options", "nosniff");
+}
+
+function billingPageSecurityHeaders(reply: FastifyReply): FastifyReply {
+  return billingSecurityHeaders(reply).header(
+    "content-security-policy",
+    [
+      "default-src 'none'",
+      "style-src 'unsafe-inline'",
+      "script-src 'unsafe-inline'",
+      "connect-src 'self'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      "frame-ancestors 'none'"
+    ].join("; ")
+  );
 }
 
 function sendBillingError(

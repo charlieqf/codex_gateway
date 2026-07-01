@@ -18,6 +18,7 @@ import type {
   UpstreamAccount
 } from "./types.js";
 import type { BillingAdminStore } from "./billing.js";
+import type { PublicModelAliasGroup } from "./public-model-usage.js";
 import type { LimitKind } from "./token-budget.js";
 import type { PlanEntitlementStore } from "./plan-entitlement.js";
 
@@ -107,6 +108,10 @@ export interface BillingAdminTokenStore {
 export interface ListRequestEventsInput {
   credentialId?: string;
   subjectId?: string;
+  clientTurnId?: string;
+  turnCode?: string;
+  since?: Date;
+  until?: Date;
   limit?: number;
 }
 
@@ -115,7 +120,11 @@ export interface RequestUsageReportInput {
   until?: Date;
   credentialId?: string;
   subjectId?: string;
-  groupBy?: "default" | "entitlement";
+  publicModelId?: string;
+  upstreamRuntime?: string;
+  provider?: ProviderKind;
+  groupBy?: "default" | "entitlement" | "model" | "user-model" | "entitlement-model";
+  publicModelAliases?: PublicModelAliasGroup[];
 }
 
 export interface RequestUsageReportRow {
@@ -128,6 +137,7 @@ export interface RequestUsageReportRow {
   publicModelId: string | null;
   upstreamRuntime: string | null;
   upstreamModel: string | null;
+  reasoningEffort?: string | null;
   entitlementId?: string | null;
   requests: number;
   ok: number;
@@ -140,6 +150,8 @@ export interface RequestUsageReportRow {
   totalTokens: number;
   cachedPromptTokens: number;
   estimatedTokens: number;
+  reasoningTokens: number;
+  usageMissing: number;
   rateLimitedBy: Partial<Record<LimitKind, number>>;
   overRequestLimit: number;
   identityGuardHit: number;

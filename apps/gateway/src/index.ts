@@ -122,9 +122,15 @@ import {
   type ImageGenerationProvider
 } from "./image-generation.js";
 import {
+  attachProviderStreamSummary,
+  combineProviderStreamSummaries,
   collectProviderMessage,
+  providerStreamSummaryFromError,
+  ProviderStreamSummaryCollector,
   streamErrorToGatewayError,
   type CollectedProviderMessage,
+  type ProviderStreamAttemptContext,
+  type ProviderStreamSummary,
   type ProviderToolCall
 } from "./services/provider-stream.js";
 import { InMemorySessionStore } from "./services/session-store.js";
@@ -861,6 +867,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     ratePolicy: billingAdminRatePolicy,
     upstreamV2Client,
     apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null,
+    publicModels: publicModelRegistry.models.map((model) => ({
+      id: model.id,
+      aliases: model.aliases,
+      displayName: model.displayName
+    })),
     now: clock
   });
 
@@ -1225,6 +1236,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
+    applyClientTurnHeaders(request);
     const publicModel = publicModelRegistry.get(parsed.model);
     request.gatewayPublicModelId = parsed.model;
     if (
@@ -1281,6 +1293,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     const shape = createChatCompletionShape(parsed.model);
     const nativeClientTools = hasNativeClientTools(parsed, publicModel);
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
+    request.gatewayToolChoice = serializeToolChoice(
+      nativeClientTools ? initialNativeToolChoice(parsed, attempt.upstreamModel) : parsed.toolChoice
+    );
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed, { includeToolsContext: !nativeClientTools });
@@ -1327,6 +1342,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           const strictResult = await runStrictClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
+            upstreamRuntime: attempt.runtime,
             upstreamModel: attempt.upstreamModel,
             subject: attempt.subject,
             scope: attempt.scope,
@@ -1342,6 +1358,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (!attempt.recordError(strictResult)) {
               attempt.recordSuccess();
             }
+            markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
             request.gatewayErrorCode = strictResult.code;
             sse.writeData(openAIErrorPayload(strictResult));
             failed = true;
@@ -1349,6 +1366,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attempt.recordSuccess();
             hasToolCalls = true;
             usage = strictResult.usage;
+            markProviderStreamSummary(request, strictResult.providerSummary);
             markOpenAITokenUsage(request, usage);
             for (const toolCall of strictResult.toolCalls) {
               const chunk = streamEventToChatCompletionChunk({
@@ -1364,6 +1382,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           } else {
             attempt.recordSuccess();
             usage = strictResult.usage;
+            markProviderStreamSummary(request, strictResult.providerSummary);
             markOpenAITokenUsage(request, usage);
             const chunk = streamEventToChatCompletionChunk({
               shape,
@@ -1378,6 +1397,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           const nativeResult = await runNativeClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
+            upstreamRuntime: attempt.runtime,
             upstreamModel: attempt.upstreamModel,
             subject: attempt.subject,
             scope: attempt.scope,
@@ -1393,6 +1413,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (!attempt.recordError(nativeResult)) {
               attempt.recordSuccess();
             }
+            markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
             sse.writeData(openAIErrorPayload(nativeResult));
             failed = true;
@@ -1400,6 +1421,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attempt.recordSuccess();
             hasToolCalls = true;
             usage = nativeResult.usage;
+            markProviderStreamSummary(request, nativeResult.providerSummary);
             markOpenAITokenUsage(request, usage);
             for (const toolCall of nativeResult.toolCalls) {
               const chunk = streamEventToChatCompletionChunk({
@@ -1415,6 +1437,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           } else {
             attempt.recordSuccess();
             usage = nativeResult.usage;
+            markProviderStreamSummary(request, nativeResult.providerSummary);
             markOpenAITokenUsage(request, usage);
             const chunk = streamEventToChatCompletionChunk({
               shape,
@@ -1424,8 +1447,11 @@ export function buildGateway(options: GatewayOptions = {}) {
             chunk && sse.writeData(chunk);
           }
         } else {
+          const providerSummaries: ProviderStreamSummary[] = [];
           while (true) {
             const onProviderError = createProviderErrorLogger(request);
+            const providerSummary = new ProviderStreamSummaryCollector();
+            const attemptKind = statelessAttempts > 1 ? "stateless_retry" : "primary";
             let retrying = false;
             for await (const event of attempt.adapter.message({
               upstreamAccount: attempt.adapterInputUpstreamAccount,
@@ -1438,6 +1464,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               signal: sse.signal,
               onProviderError
             })) {
+              providerSummary.record(event);
               if (sse.isClosed()) {
                 break;
               }
@@ -1448,6 +1475,10 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
               if (event.type === "error") {
                 const error = streamErrorToGatewayError(event);
+                const errorSummary = providerSummary.snapshot(
+                  chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
+                );
+                providerSummaries.push(errorSummary);
                 attempt.recordError(error);
                 if (
                   !initialChunkSent &&
@@ -1470,6 +1501,10 @@ export function buildGateway(options: GatewayOptions = {}) {
                 }
                 writeInitialChunk();
                 request.gatewayErrorCode = error.code;
+                markProviderStreamSummary(
+                  request,
+                  combineProviderStreamSummaries(providerSummaries) ?? errorSummary
+                );
                 sse.writeData(openAIErrorPayload(error));
                 failed = true;
                 break;
@@ -1505,6 +1540,14 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             if (!failed) {
               attempt.recordSuccess();
+              const successSummary = providerSummary.snapshot(
+                chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
+              );
+              providerSummaries.push(successSummary);
+              markProviderStreamSummary(
+                request,
+                combineProviderStreamSummaries(providerSummaries) ?? successSummary
+              );
             }
             break;
           }
@@ -1536,6 +1579,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         const strictResult = await runStrictClientTools({
           provider: attempt.adapter,
           upstreamAccount: attempt.adapterInputUpstreamAccount,
+          upstreamRuntime: attempt.runtime,
           upstreamModel: attempt.upstreamModel,
           subject: attempt.subject,
           scope: attempt.scope,
@@ -1550,6 +1594,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           if (!attempt.recordError(strictResult)) {
             attempt.recordSuccess();
           }
+          markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
           return sendOpenAIError(request, reply, strictResult);
         }
         attempt.recordSuccess();
@@ -1557,12 +1602,14 @@ export function buildGateway(options: GatewayOptions = {}) {
         content = strictResult.content;
         toolCalls.push(...strictResult.toolCalls);
         usage = strictResult.usage;
+        markProviderStreamSummary(request, strictResult.providerSummary);
         markOpenAITokenUsage(request, usage);
       } else if (nativeClientTools) {
         const onProviderError = createProviderErrorLogger(request);
         const nativeResult = await runNativeClientTools({
           provider: attempt.adapter,
           upstreamAccount: attempt.adapterInputUpstreamAccount,
+          upstreamRuntime: attempt.runtime,
           upstreamModel: attempt.upstreamModel,
           subject: attempt.subject,
           scope: attempt.scope,
@@ -1577,6 +1624,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           if (!attempt.recordError(nativeResult)) {
             attempt.recordSuccess();
           }
+          markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
           return sendOpenAIError(request, reply, nativeResult);
         }
         attempt.recordSuccess();
@@ -1584,9 +1632,11 @@ export function buildGateway(options: GatewayOptions = {}) {
         content = nativeResult.content;
         toolCalls.push(...nativeResult.toolCalls);
         usage = nativeResult.usage;
+        markProviderStreamSummary(request, nativeResult.providerSummary);
         markOpenAITokenUsage(request, usage);
       } else {
         let collected: CollectedProviderMessage | null = null;
+        const providerSummaries: ProviderStreamSummary[] = [];
         while (true) {
           const onProviderError = createProviderErrorLogger(request);
           const attemptResult = await collectProviderMessage({
@@ -1598,11 +1648,19 @@ export function buildGateway(options: GatewayOptions = {}) {
             message: prompt,
             clientTools: nativeClientTools ? parsed.tools : undefined,
             clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
+            attemptKind: statelessAttempts > 1 ? "stateless_retry" : "primary",
+            attemptToolChoice: serializeToolChoice(parsed.toolChoice),
+            upstreamRuntime: attempt.runtime,
+            upstreamModel: attempt.upstreamModel,
             onProviderError,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true
           });
           if (attemptResult instanceof GatewayError) {
+            const providerSummary = providerStreamSummaryFromError(attemptResult);
+            if (providerSummary) {
+              providerSummaries.push(providerSummary);
+            }
             attempt.recordError(attemptResult);
             if (
               statelessAttempts < maxStatelessAttempts &&
@@ -1621,9 +1679,14 @@ export function buildGateway(options: GatewayOptions = {}) {
                 continue;
               }
             }
+            markProviderStreamSummary(
+              request,
+              combineProviderStreamSummaries(providerSummaries) ?? providerSummary
+            );
             return sendOpenAIError(request, reply, attemptResult);
           }
           collected = attemptResult;
+          providerSummaries.push(collected.providerSummary);
           attempt.recordSuccess();
           break;
         }
@@ -1644,6 +1707,10 @@ export function buildGateway(options: GatewayOptions = {}) {
         content = collected.content;
         toolCalls.push(...collected.toolCalls.map(providerToolCallToOpenAI));
         usage = openAIUsageFromTokenUsage(collected.usage);
+        markProviderStreamSummary(
+          request,
+          combineProviderStreamSummaries(providerSummaries) ?? collected.providerSummary
+        );
         markTokenUsage(request, collected.usage);
       }
 
@@ -1796,6 +1863,7 @@ export function buildGateway(options: GatewayOptions = {}) {
 interface StrictClientToolsInput {
   provider: ProviderAdapter;
   upstreamAccount: UpstreamAccount;
+  upstreamRuntime: string;
   upstreamModel: string;
   subject: Subject;
   scope: Scope;
@@ -1812,6 +1880,7 @@ interface StrictClientToolsResult {
   content: string;
   toolCalls: OpenAIChatToolCall[];
   usage: OpenAIChatUsage | null;
+  providerSummary: ProviderStreamSummary | null;
 }
 
 interface StrictClientToolsLogger {
@@ -1838,7 +1907,7 @@ async function runNativeClientTools(
     );
   }
 
-  const first = await collectNativeClientTools(input, firstToolChoice);
+  const first = await collectNativeClientTools(input, firstToolChoice, input.prompt, "native_initial");
   if (first instanceof GatewayError) {
     return first;
   }
@@ -1851,7 +1920,49 @@ async function runNativeClientTools(
     firstToolChoice
   );
   if (firstResult instanceof GatewayError) {
-    return firstResult;
+    const retryPlan = nativeValidationRetryPlan(
+      input.request,
+      input.upstreamModel,
+      firstToolChoice,
+      firstResult,
+      input.prompt
+    );
+    if (!retryPlan) {
+      return firstResult;
+    }
+
+    input.log?.info(
+      {
+        request_id: input.requestId,
+        native_tools_retry: retryPlan.kind,
+        validation_error: firstResult.message,
+        retry_tool_choice: retryPlan.toolChoice
+      },
+      "Native client-defined tool output failed validation; retrying tool call request."
+    );
+
+    const second = await collectNativeClientTools(
+      input,
+      retryPlan.toolChoice,
+      retryPlan.prompt,
+      retryPlan.kind
+    );
+    if (second instanceof GatewayError) {
+      return second;
+    }
+
+    const secondResult = nativeCollectionToResult(
+      input,
+      second,
+      addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(second.usage)),
+      retryPlan.validationToolChoice,
+      combineProviderStreamSummaries([first.providerSummary, second.providerSummary]) ??
+        second.providerSummary
+    );
+    if (secondResult instanceof GatewayError) {
+      return secondResult;
+    }
+    return secondResult;
   }
   const retryPlan = nativeAutoToolRetryPlan(
     input.request,
@@ -1873,7 +1984,12 @@ async function runNativeClientTools(
     "Native client-defined tools auto response did not call a tool; retrying tool call request."
   );
 
-  const second = await collectNativeClientTools(input, retryPlan.toolChoice, retryPlan.prompt);
+  const second = await collectNativeClientTools(
+    input,
+    retryPlan.toolChoice,
+    retryPlan.prompt,
+    retryPlan.kind
+  );
   if (second instanceof GatewayError) {
     return second;
   }
@@ -1883,7 +1999,9 @@ async function runNativeClientTools(
     input,
     second,
     addOpenAIUsage(firstUsage, secondUsage),
-    retryPlan.toolChoice
+    retryPlan.toolChoice,
+    combineProviderStreamSummaries([first.providerSummary, second.providerSummary]) ??
+      second.providerSummary
   );
   if (secondResult instanceof GatewayError) {
     return secondResult;
@@ -1894,7 +2012,8 @@ async function runNativeClientTools(
 async function collectNativeClientTools(
   input: StrictClientToolsInput,
   toolChoice: ChatCompletionRequest["toolChoice"],
-  prompt = input.prompt
+  prompt = input.prompt,
+  attemptKind = "native"
 ): Promise<CollectedProviderMessage | GatewayError> {
   return collectProviderMessage({
     provider: input.provider,
@@ -1905,6 +2024,10 @@ async function collectNativeClientTools(
     message: prompt,
     clientTools: input.request.tools,
     clientToolChoice: toolChoice,
+    attemptKind,
+    attemptToolChoice: serializeToolChoice(toolChoice),
+    upstreamRuntime: input.upstreamRuntime,
+    upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
     suppressTextAfterToolCall: true
@@ -1915,7 +2038,8 @@ function nativeCollectionToResult(
   input: StrictClientToolsInput,
   collected: CollectedProviderMessage,
   usage: OpenAIChatUsage | null,
-  toolChoice: ChatCompletionRequest["toolChoice"]
+  toolChoice: ChatCompletionRequest["toolChoice"],
+  providerSummary: ProviderStreamSummary | null = collected.providerSummary
 ): StrictClientToolsResult | GatewayError {
   const toolCalls = collected.toolCalls.map(providerToolCallToOpenAI);
   const parsed = parseStrictToolDecision({
@@ -1929,14 +2053,23 @@ function nativeCollectionToResult(
     createToolCallId
   });
   if (parsed instanceof GatewayError) {
-    return parsed;
+    return providerSummary
+      ? attachProviderStreamSummary(parsed, providerSummary)
+      : parsed;
   }
-  return strictDecisionToResult(parsed, usage);
+  return strictDecisionToResult(parsed, usage, providerSummary);
 }
 
 interface NativeAutoToolRetryPlan {
-  kind: "auto_ack_to_required" | "auto_ack_to_auto";
+  kind: "auto_ack_to_required" | "auto_ack_to_auto" | "auto_empty_to_auto";
   toolChoice: ChatCompletionRequest["toolChoice"];
+  prompt: string;
+}
+
+interface NativeValidationRetryPlan {
+  kind: "validation_failed_to_same" | "validation_failed_to_auto";
+  toolChoice: ChatCompletionRequest["toolChoice"];
+  validationToolChoice: ChatCompletionRequest["toolChoice"];
   prompt: string;
 }
 
@@ -1950,11 +2083,23 @@ function nativeAutoToolRetryPlan(
   const shouldRetry =
     request.toolChoice === "auto" &&
     attemptedToolChoice === "auto" &&
-    result.toolCalls.length === 0 &&
-    looksLikeToolUseAcknowledgement(result.content);
+    result.toolCalls.length === 0;
   if (!shouldRetry) {
     return null;
   }
+
+  if (looksLikeSilentNativeToolNoop(request, result.content)) {
+    return {
+      kind: "auto_empty_to_auto",
+      toolChoice: "auto",
+      prompt: nativeToolEmptyRetryPrompt(prompt)
+    };
+  }
+
+  if (!looksLikeToolUseAcknowledgement(result.content)) {
+    return null;
+  }
+
   if (usesAutoOnlyNativeTools(upstreamModel)) {
     return {
       kind: "auto_ack_to_auto",
@@ -1966,6 +2111,30 @@ function nativeAutoToolRetryPlan(
     kind: "auto_ack_to_required",
     toolChoice: "required",
     prompt
+  };
+}
+
+function nativeValidationRetryPlan(
+  request: ChatCompletionRequest,
+  upstreamModel: string,
+  attemptedToolChoice: ChatCompletionRequest["toolChoice"],
+  error: GatewayError,
+  prompt: string
+): NativeValidationRetryPlan | null {
+  if (error.code !== "tool_call_validation_failed") {
+    return null;
+  }
+
+  const retryToolChoice = usesAutoRetryNativeTools(upstreamModel)
+    ? "auto"
+    : attemptedToolChoice;
+  return {
+    kind: retryToolChoice === attemptedToolChoice
+      ? "validation_failed_to_same"
+      : "validation_failed_to_auto",
+    toolChoice: retryToolChoice,
+    validationToolChoice: attemptedToolChoice,
+    prompt: nativeToolValidationRetryPrompt(prompt, error.message, attemptedToolChoice, request)
   };
 }
 
@@ -1994,10 +2163,23 @@ function shouldRequireNativeToolForFileGeneration(
   return looksLikeFileGenerationTask(request);
 }
 
+function looksLikeSilentNativeToolNoop(request: ChatCompletionRequest, content: string): boolean {
+  return (
+    content.trim().length === 0 &&
+    request.tools?.some((tool) => looksLikeFileOrCodeTool(tool)) === true &&
+    looksLikeFileGenerationTask(request)
+  );
+}
+
 const modelsWithAutoOnlyNativeTools = new Set(["z-ai/glm-5-turbo"]);
+const modelsWithAutoRetryNativeTools = new Set(["z-ai/glm-5.2", "z-ai/glm-5-turbo"]);
 
 function usesAutoOnlyNativeTools(upstreamModel: string): boolean {
   return modelsWithAutoOnlyNativeTools.has(upstreamModel.toLowerCase());
+}
+
+function usesAutoRetryNativeTools(upstreamModel: string): boolean {
+  return modelsWithAutoRetryNativeTools.has(upstreamModel.toLowerCase());
 }
 
 function nativeToolAcknowledgementRetryPrompt(prompt: string): string {
@@ -2006,6 +2188,53 @@ function nativeToolAcknowledgementRetryPrompt(prompt: string): string {
     "",
     "The previous assistant output only acknowledged the task. Complete the user's requested task now by calling one of the client-declared tools. Do not send another acknowledgement or plain-text description."
   ].join("\n");
+}
+
+function nativeToolEmptyRetryPrompt(prompt: string): string {
+  return [
+    prompt,
+    "",
+    "The previous assistant output was empty and did not call any client-declared tool.",
+    "Complete the user's requested file or artifact task now by calling one of the client-declared tools.",
+    "Do not return an empty message or a plain-text acknowledgement."
+  ].join("\n");
+}
+
+function nativeToolValidationRetryPrompt(
+  prompt: string,
+  validationError: string,
+  validationToolChoice: ChatCompletionRequest["toolChoice"],
+  request: ChatCompletionRequest
+): string {
+  return [
+    prompt,
+    "",
+    "The previous assistant tool response was rejected by the gateway.",
+    nativeToolValidationRetryInstruction(validationToolChoice, request),
+    "Use only client-declared tool names and make the arguments satisfy the selected tool's JSON Schema.",
+    "Do not answer in plain text when a tool call is required.",
+    "",
+    "<validation_error>",
+    validationError,
+    "</validation_error>"
+  ].join("\n");
+}
+
+function nativeToolValidationRetryInstruction(
+  toolChoice: ChatCompletionRequest["toolChoice"],
+  request: ChatCompletionRequest
+): string {
+  if (toolChoice === "required") {
+    return "Call at least one client-declared tool now.";
+  }
+  const forcedToolName = typeof toolChoice === "object" ? toolChoice.function.name : null;
+  if (forcedToolName) {
+    return `Call the client-declared tool named ${forcedToolName} now.`;
+  }
+  if (request.tools?.some((tool) => looksLikeFileOrCodeTool(tool)) && looksLikeFileGenerationTask(request)) {
+    return "Complete the requested file or artifact task by calling a valid client-declared tool now.";
+  }
+  return "If you call a tool, call a valid client-declared tool with schema-valid arguments.";
 }
 
 function looksLikeFileOrCodeTool(tool: NonNullable<ChatCompletionRequest["tools"]>[number]): boolean {
@@ -2025,7 +2254,7 @@ function looksLikeFileGenerationTask(request: ChatCompletionRequest): boolean {
     return false;
   }
   return /(<html|html|javascript|css|代码|页面|文件|成品|互动|动画|超链接|跳转|\bcode\b|\bfile\b|\bpage\b|\bapp\b|\bcomponent\b)/i.test(text) &&
-    /(写|创建|生成|做|给我|build|create|generate|write|make)/i.test(text);
+    /(写|创建|生成|做|给我|\u66f4\u6539|\u4fee\u6539|\u8c03\u6574|\u4fee\u590d|build|create|generate|write|make|update|change|edit|fix)/i.test(text);
 }
 
 function looksLikeToolUseAcknowledgement(content: string): boolean {
@@ -2048,7 +2277,7 @@ function looksLikeToolUseAcknowledgement(content: string): boolean {
 async function runStrictClientTools(
   input: StrictClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
-  const first = await collectStrictToolDecision(input, input.prompt);
+  const first = await collectStrictToolDecision(input, input.prompt, "strict_initial");
   if (first instanceof GatewayError) {
     return first;
   }
@@ -2056,7 +2285,7 @@ async function runStrictClientTools(
   const firstUsage = openAIUsageFromTokenUsage(first.collected.usage);
   const parsed = first.parsed;
   if (!(parsed instanceof GatewayError)) {
-    return strictDecisionToResult(parsed, firstUsage);
+      return strictDecisionToResult(parsed, firstUsage, first.collected.providerSummary);
   }
 
   input.log?.warn(
@@ -2074,9 +2303,16 @@ async function runStrictClientTools(
     invalidOutput: first.collected.content,
     validationError: parsed.message
   });
-  const repaired = await collectStrictToolDecision(input, repairPrompt);
+  const repaired = await collectStrictToolDecision(input, repairPrompt, "strict_repair");
   if (repaired instanceof GatewayError) {
-    return repaired;
+    const repairedSummary = providerStreamSummaryFromError(repaired);
+    return repairedSummary
+      ? attachProviderStreamSummary(
+          repaired,
+          combineProviderStreamSummaries([first.collected.providerSummary, repairedSummary]) ??
+            repairedSummary
+        )
+      : repaired;
   }
 
   const repairedParsed = repaired.parsed;
@@ -2102,7 +2338,11 @@ async function runStrictClientTools(
       );
       return strictDecisionToResult(
         { type: "message", content: first.collected.content },
-        addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage))
+        addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage)),
+        combineProviderStreamSummaries([
+          first.collected.providerSummary,
+          repaired.collected.providerSummary
+        ])
       );
     }
 
@@ -2115,7 +2355,13 @@ async function runStrictClientTools(
       },
       "Strict client-defined tool output repair failed validation."
     );
-    return repairedParsed;
+    return attachProviderStreamSummary(
+      repairedParsed,
+      combineProviderStreamSummaries([
+        first.collected.providerSummary,
+        repaired.collected.providerSummary
+      ]) ?? repaired.collected.providerSummary
+    );
   }
 
   input.log?.info(
@@ -2128,7 +2374,11 @@ async function runStrictClientTools(
 
   return strictDecisionToResult(
     repairedParsed,
-    addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage))
+    addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage)),
+    combineProviderStreamSummaries([
+      first.collected.providerSummary,
+      repaired.collected.providerSummary
+    ])
   );
 }
 
@@ -2165,7 +2415,8 @@ function looksLikeStrictToolOutputAttempt(output: string): boolean {
 
 async function collectStrictToolDecision(
   input: StrictClientToolsInput,
-  prompt: string
+  prompt: string,
+  attemptKind: string
 ): Promise<StrictToolCollection | GatewayError> {
   const collected = await collectProviderMessage({
     provider: input.provider,
@@ -2174,6 +2425,10 @@ async function collectStrictToolDecision(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    attemptKind,
+    attemptToolChoice: serializeToolChoice(input.request.toolChoice),
+    upstreamRuntime: input.upstreamRuntime,
+    upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
     suppressToolCalls: true
@@ -2195,20 +2450,23 @@ async function collectStrictToolDecision(
 
 function strictDecisionToResult(
   decision: StrictToolDecision,
-  usage: OpenAIChatUsage | null
+  usage: OpenAIChatUsage | null,
+  providerSummary: ProviderStreamSummary | null = null
 ): StrictClientToolsResult {
   if (decision.type === "message") {
     return {
       content: decision.content,
       toolCalls: [],
-      usage
+      usage,
+      providerSummary
     };
   }
 
   return {
     content: "",
     toolCalls: decision.toolCalls,
-    usage
+    usage,
+    providerSummary
   };
 }
 
@@ -2590,6 +2848,9 @@ function isImageRetryableOutcome(outcome: ImageProviderOutcome): boolean {
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
   markGatewayError(request, error);
+  if (error.upstreamStatus !== undefined) {
+    request.gatewayUpstreamHttpStatus = error.upstreamStatus;
+  }
   reply.code(error.httpStatus);
   return openAIErrorPayload(error);
 }
@@ -3137,6 +3398,9 @@ function createProviderErrorLogger(
   request: FastifyRequest
 ): (diagnostic: ProviderErrorDiagnostic) => void {
   return (diagnostic) => {
+    if (diagnostic.rawStatus !== undefined) {
+      request.gatewayUpstreamHttpStatus = diagnostic.rawStatus;
+    }
     request.log.warn(
       {
         request_id: request.id,
@@ -3154,6 +3418,73 @@ function createProviderErrorLogger(
       "Provider returned sanitized error."
     );
   };
+}
+
+function applyClientTurnHeaders(request: FastifyRequest): void {
+  request.gatewayClientTurnId = readSingleHeader(request, "x-medcode-client-turn-id", 128);
+  request.gatewayTurnCode = readSingleHeader(request, "x-medcode-client-turn-code", 64);
+  request.gatewayClientSessionId = readSingleHeader(request, "x-medcode-client-session-id", 128);
+  request.gatewayClientMessageId = readSingleHeader(request, "x-medcode-client-message-id", 128);
+  request.gatewayClientAppVersion = readSingleHeader(request, "x-medcode-client-app-version", 64);
+}
+
+function readSingleHeader(
+  request: FastifyRequest,
+  name: string,
+  maxLength: number
+): string | null {
+  const raw = request.headers[name];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) {
+    return null;
+  }
+  return trimmed;
+}
+
+function serializeToolChoice(toolChoice: ChatCompletionRequest["toolChoice"]): string {
+  if (typeof toolChoice === "string") {
+    return toolChoice;
+  }
+  return `function:${toolChoice.function.name}`;
+}
+
+function chatRuntimeAttemptContext(
+  runtime: ChatRuntimeContext,
+  kind: string,
+  toolChoice: ChatCompletionRequest["toolChoice"]
+): ProviderStreamAttemptContext {
+  return {
+    kind,
+    toolChoice: serializeToolChoice(toolChoice),
+    provider: runtime.providerKind,
+    upstreamRuntime: runtime.runtime,
+    upstreamModel: runtime.upstreamModel,
+    upstreamAccountId: runtime.attributionAccount.id
+  };
+}
+
+function markProviderStreamSummary(
+  request: FastifyRequest,
+  summary: ProviderStreamSummary | null
+): void {
+  if (!summary) {
+    return;
+  }
+  request.gatewayUpstreamFinishReason = summary.finishReason;
+  request.gatewayUpstreamRequestId = summary.upstreamRequestId;
+  request.gatewayUpstreamHttpStatus = summary.upstreamHttpStatus;
+  request.gatewayUpstreamContentChars = summary.contentChars;
+  request.gatewayUpstreamToolCallCount = summary.toolCallCount;
+  request.gatewayUpstreamToolNames = summary.toolNames;
+  request.gatewayUpstreamRawResponseHash = summary.rawResponseHash;
+  request.gatewayUpstreamRawResponseChars = summary.rawResponseChars;
+  request.gatewayUpstreamEmptyStop = summary.emptyStop;
+  request.gatewayUpstreamAttemptCount = summary.attempts.length;
+  request.gatewayUpstreamAttempts = summary.attempts;
 }
 
 function clientDiagnosticEventsMatch(
@@ -3533,6 +3864,7 @@ function applyChatRuntimeContext(
   request.gatewayPublicModelId = runtime.publicModelId;
   request.gatewayUpstreamRuntime = runtime.runtime;
   request.gatewayUpstreamModel = runtime.upstreamModel;
+  request.gatewayReasoningEffort = runtime.reasoningEffort;
   markSession(request, runtime.session.id);
 }
 

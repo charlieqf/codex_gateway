@@ -22,6 +22,7 @@ export interface ChatRuntimeContext {
   runtimeInstanceId: string;
   providerKind: UpstreamAccount["provider"];
   upstreamModel: string;
+  reasoningEffort: string | null;
   limits: {
     contextWindow: number;
     maxOutputTokens: number;
@@ -79,6 +80,7 @@ export function createChatRuntimeDispatcher(
         runtimeInstanceId: openRouterAccount.id,
         providerKind: "openrouter",
         upstreamModel: beginInput.model.upstreamModel,
+        reasoningEffort: reasoningEffortForModel(beginInput.model),
         limits: {
           contextWindow: beginInput.model.contextWindow,
           maxOutputTokens: beginInput.model.maxOutputTokens
@@ -136,6 +138,7 @@ function codexContextFromLease(
     runtimeInstanceId: lease.upstreamAccount.id,
     providerKind: lease.upstreamAccount.provider,
     upstreamModel: input.model.upstreamModel,
+    reasoningEffort: reasoningEffortForModel(input.model),
     limits: {
       contextWindow: input.model.contextWindow,
       maxOutputTokens: input.model.maxOutputTokens
@@ -203,4 +206,9 @@ function defaultOpenRouterVirtualAccount(): UpstreamAccount {
     lastUsedAt: null,
     cooldownUntil: null
   };
+}
+
+function reasoningEffortForModel(model: PublicModelConfig): string | null {
+  const effort = model.reasoning?.effort;
+  return typeof effort === "string" && effort.length > 0 ? effort : null;
 }

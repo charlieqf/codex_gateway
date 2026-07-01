@@ -7,7 +7,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-compose.azure.yml}"
 GATEWAY_SERVICE="${GATEWAY_SERVICE:-gateway}"
 GATEWAY_DB="${GATEWAY_DB:-/var/lib/codex-gateway/gateway.db}"
 MODEL_TIMEOUT_SECONDS="${MODEL_TIMEOUT_SECONDS:-300}"
-SMOKE_MODELS="${SMOKE_MODELS:-pro standard}"
+SMOKE_MODELS="${SMOKE_MODELS:-expert pro standard}"
 
 if ! command -v node >/dev/null 2>&1 && [ -x "$HOME/.local/codex-gateway-node/bin/node" ]; then
   export PATH="$HOME/.local/codex-gateway-node/bin:$PATH"
@@ -90,7 +90,7 @@ node - "$tmp_dir/models.json" <<'NODE'
 const fs = require("node:fs");
 const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const ids = payload.data.map((model) => model.id).sort();
-for (const required of ["max", "pro", "standard"]) {
+for (const required of ["max", "expert", "pro", "standard"]) {
   if (!ids.includes(required)) {
     console.error(`models_missing=${required} ids=${ids.join(",")}`);
     process.exit(1);

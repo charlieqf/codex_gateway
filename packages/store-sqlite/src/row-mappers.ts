@@ -17,6 +17,7 @@ import {
   type RequestUsageReportRow,
   type Subject,
   type TokenLimitPolicy,
+  type UpstreamAttemptSummary,
   type UnifiedClientKeyRecord
 } from "@codex-gateway/core";
 import { parseScopeAllowlist } from "./entitlement-rules.js";
@@ -247,6 +248,25 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     public_model_id: string | null;
     upstream_runtime: string | null;
     upstream_model: string | null;
+    reasoning_effort: string | null;
+    reasoning_tokens: number | null;
+    client_turn_id: string | null;
+    turn_code: string | null;
+    client_session_id: string | null;
+    client_message_id: string | null;
+    client_app_version: string | null;
+    tool_choice: string | null;
+    upstream_finish_reason: string | null;
+    upstream_request_id: string | null;
+    upstream_http_status: number | null;
+    upstream_content_chars: number | null;
+    upstream_tool_call_count: number | null;
+    upstream_tool_names_json: string | null;
+    upstream_raw_response_hash: string | null;
+    upstream_raw_response_chars: number | null;
+    upstream_empty_stop: number | null;
+    upstream_attempt_count: number | null;
+    upstream_attempts_json: string | null;
     started_at: string;
     duration_ms: number | null;
     first_byte_ms: number | null;
@@ -276,6 +296,26 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     publicModelId: value.public_model_id,
     upstreamRuntime: value.upstream_runtime,
     upstreamModel: value.upstream_model,
+    reasoningEffort: value.reasoning_effort,
+    reasoningTokens: value.reasoning_tokens,
+    clientTurnId: value.client_turn_id,
+    turnCode: value.turn_code,
+    clientSessionId: value.client_session_id,
+    clientMessageId: value.client_message_id,
+    clientAppVersion: value.client_app_version,
+    toolChoice: value.tool_choice,
+    upstreamFinishReason: value.upstream_finish_reason,
+    upstreamRequestId: value.upstream_request_id,
+    upstreamHttpStatus: value.upstream_http_status,
+    upstreamContentChars: value.upstream_content_chars,
+    upstreamToolCallCount: value.upstream_tool_call_count,
+    upstreamToolNames: parseStringArray(value.upstream_tool_names_json),
+    upstreamRawResponseHash: value.upstream_raw_response_hash,
+    upstreamRawResponseChars: value.upstream_raw_response_chars,
+    upstreamEmptyStop:
+      value.upstream_empty_stop === null ? null : value.upstream_empty_stop === 1,
+    upstreamAttemptCount: value.upstream_attempt_count,
+    upstreamAttempts: parseUpstreamAttempts(value.upstream_attempts_json),
     startedAt: new Date(value.started_at),
     durationMs: value.duration_ms,
     firstByteMs: value.first_byte_ms,
@@ -438,6 +478,7 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     public_model_id: string | null;
     upstream_runtime: string | null;
     upstream_model: string | null;
+    reasoning_effort: string | null;
     entitlement_id: string | null;
     requests: number;
     ok: number;
@@ -450,6 +491,8 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     total_tokens: number;
     cached_prompt_tokens: number;
     estimated_tokens: number;
+    reasoning_tokens: number;
+    usage_missing: number;
     request_minute: number;
     request_day: number;
     concurrency: number;
@@ -472,6 +515,7 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     publicModelId: value.public_model_id,
     upstreamRuntime: value.upstream_runtime,
     upstreamModel: value.upstream_model,
+    reasoningEffort: value.reasoning_effort,
     entitlementId: value.entitlement_id,
     requests: value.requests,
     ok: value.ok,
@@ -484,6 +528,8 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     totalTokens: value.total_tokens,
     cachedPromptTokens: value.cached_prompt_tokens,
     estimatedTokens: value.estimated_tokens,
+    reasoningTokens: value.reasoning_tokens,
+    usageMissing: value.usage_missing,
     rateLimitedBy: {
       request_minute: value.request_minute,
       request_day: value.request_day,
@@ -497,4 +543,54 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     overRequestLimit: value.over_request_limit,
     identityGuardHit: value.identity_guard_hit
   };
+}
+
+function parseStringArray(value: string | null): string[] | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseUpstreamAttempts(value: string | null): UpstreamAttemptSummary[] | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    const attempts = parsed.filter(isUpstreamAttemptSummary);
+    return attempts.length > 0 ? attempts : null;
+  } catch {
+    return null;
+  }
+}
+
+function isUpstreamAttemptSummary(value: unknown): value is UpstreamAttemptSummary {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const attempt = value as Partial<UpstreamAttemptSummary>;
+  return (
+    typeof attempt.index === "number" &&
+    Number.isInteger(attempt.index) &&
+    attempt.index > 0 &&
+    (attempt.kind === null || typeof attempt.kind === "string" || attempt.kind === undefined) &&
+    (attempt.toolChoice === null ||
+      typeof attempt.toolChoice === "string" ||
+      attempt.toolChoice === undefined) &&
+    (attempt.toolNames === undefined ||
+      (Array.isArray(attempt.toolNames) &&
+        attempt.toolNames.every((name) => typeof name === "string")))
+  );
 }

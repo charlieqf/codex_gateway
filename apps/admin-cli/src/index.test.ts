@@ -131,7 +131,7 @@ describe("codex-gateway-admin user API key operations", () => {
       }
     });
     expect(JSON.stringify(audit)).not.toContain(issued.token);
-  });
+  }, 20_000);
 
   it("issues, lists, shows, and revokes Gateway-brokered unified client keys", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-unified-"));
@@ -585,10 +585,14 @@ describe("codex-gateway-admin user API key operations", () => {
         subject_id: string;
         upstream_account_id: string;
         public_model_id: string;
+        model_display_name: string;
         upstream_runtime: string;
         upstream_model: string;
+        reasoning_effort: string | null;
         requests: number;
         ok: number;
+        reasoning_tokens: number;
+        usage_missing: number;
       }>;
     };
     expect(usage.rows).toEqual([
@@ -596,11 +600,15 @@ describe("codex-gateway-admin user API key operations", () => {
         ...usage.rows[0],
         subject_id: "alice",
         upstream_account_id: "sub_openai_codex",
-        public_model_id: "medcode",
+        public_model_id: "max",
+        model_display_name: "Max",
         upstream_runtime: "codex",
         upstream_model: "gpt-5.5",
+        reasoning_effort: null,
         requests: 1,
-        ok: 1
+        ok: 1,
+        reasoning_tokens: 0,
+        usage_missing: 0
       }
     ]);
 
@@ -1755,6 +1763,9 @@ describe("codex-gateway-admin user API key operations", () => {
       errorMessage: null,
       metadataJson: JSON.stringify({
         request_id: "me_req_1",
+        gateway_request_id: "req_model_turn_1",
+        client_turn_id: "msg_duheng_1",
+        turn_code: "T:7K3P2",
         article_id: "article_1",
         tool_name: "medevidence",
         entrypoint: "gateway",
@@ -1778,6 +1789,84 @@ describe("codex-gateway-admin user API key operations", () => {
       receivedAt: new Date("2026-05-07T03:32:01Z")
     });
     clientEvents.close();
+
+    const gatewayStore = createSqliteStore({ path: dbPath });
+    gatewayStore.insertRequestEvent({
+      requestId: "req_model_turn_1",
+      credentialId: issued.credential.id,
+      subjectId: "duheng",
+      scope: "code",
+      sessionId: "sess_gateway_turn_1",
+      upstreamAccountId: "openrouter-main",
+      provider: "openrouter",
+      publicModelId: "pro",
+      upstreamRuntime: "openrouter",
+      upstreamModel: "z-ai/glm-5-turbo",
+      reasoningEffort: "none",
+      clientTurnId: "msg_duheng_1",
+      turnCode: "T:7K3P2",
+      clientSessionId: "ses_duheng_1",
+      clientMessageId: "msg_duheng_1",
+      clientAppVersion: "1.9.0",
+      toolChoice: "auto",
+      upstreamFinishReason: "stop",
+      upstreamRequestId: "up_req_1",
+      upstreamHttpStatus: 200,
+      upstreamContentChars: 0,
+      upstreamToolCallCount: 0,
+      upstreamToolNames: [],
+      upstreamRawResponseHash: "b".repeat(64),
+      upstreamRawResponseChars: 96,
+      upstreamEmptyStop: true,
+      upstreamAttemptCount: 2,
+      upstreamAttempts: [
+        {
+          index: 1,
+          kind: "native_initial",
+          toolChoice: "required",
+          provider: "openrouter",
+          upstreamRuntime: "openrouter",
+          upstreamModel: "z-ai/glm-5-turbo",
+          upstreamAccountId: "openrouter-main",
+          finishReason: "tool_calls",
+          upstreamRequestId: "up_req_1a",
+          upstreamHttpStatus: 200,
+          errorCode: null,
+          contentChars: 0,
+          toolCallCount: 1,
+          toolNames: ["write_file"],
+          rawResponseHash: "c".repeat(64),
+          rawResponseChars: 48,
+          emptyStop: false
+        },
+        {
+          index: 2,
+          kind: "validation_failed_to_auto",
+          toolChoice: "auto",
+          provider: "openrouter",
+          upstreamRuntime: "openrouter",
+          upstreamModel: "z-ai/glm-5-turbo",
+          upstreamAccountId: "openrouter-main",
+          finishReason: "stop",
+          upstreamRequestId: "up_req_1",
+          upstreamHttpStatus: 200,
+          errorCode: null,
+          contentChars: 0,
+          toolCallCount: 0,
+          toolNames: [],
+          rawResponseHash: "d".repeat(64),
+          rawResponseChars: 48,
+          emptyStop: true
+        }
+      ],
+      startedAt: new Date("2026-05-07T03:32:03Z"),
+      durationMs: 1200,
+      firstByteMs: 900,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false
+    });
+    gatewayStore.close();
 
     const unifiedKey = `cmev1.${issued.token}.mev2_live_test_secret`;
     const rawMessages = runCliRaw(
@@ -1858,9 +1947,62 @@ describe("codex-gateway-admin user API key operations", () => {
         category: "tool",
         action: "medevidence",
         metadata_request_id: "me_req_1",
+        metadata_client_turn_id: "msg_duheng_1",
+        metadata_turn_code: "T:7K3P2",
+        metadata_gateway_request_id: "req_model_turn_1",
         metadata_article_id: "article_1",
         metadata: expect.objectContaining({ tool_name: "medevidence" })
       })
+    ]);
+
+    const clientTurn = runCli(dbPath, [
+      "--client-events-db",
+      clientEventsDbPath,
+      "client-turn",
+      "T:7K3P2",
+      "--at",
+      "2026-05-07 11:32",
+      "--window-minutes",
+      "10",
+      "--timezone",
+      "Asia/Shanghai",
+      "--include-metadata"
+    ]) as {
+      client_diagnostics: Array<{ metadata_turn_code: string; metadata_gateway_request_id: string }>;
+      gateway_requests: Array<{
+        request_id: string;
+        public_model_id: string;
+        resolved_upstream_model: string;
+        reasoning_effort: string;
+        upstream_empty_stop: boolean;
+        upstream_attempt_count: number;
+        upstream_attempts: Array<{ kind: string; toolChoice: string }>;
+      }>;
+      timeline: Array<{ source: string; request_id: string }>;
+    };
+    expect(clientTurn.client_diagnostics).toEqual([
+      expect.objectContaining({
+        metadata_turn_code: "T:7K3P2",
+        metadata_gateway_request_id: "req_model_turn_1"
+      })
+    ]);
+    expect(clientTurn.gateway_requests).toEqual([
+      expect.objectContaining({
+        request_id: "req_model_turn_1",
+        public_model_id: "pro",
+        resolved_upstream_model: "z-ai/glm-5-turbo",
+        reasoning_effort: "none",
+        upstream_empty_stop: true,
+        upstream_attempt_count: 2,
+        upstream_attempts: [
+          expect.objectContaining({ kind: "native_initial", toolChoice: "required" }),
+          expect.objectContaining({ kind: "validation_failed_to_auto", toolChoice: "auto" })
+        ]
+      })
+    ]);
+    expect(clientTurn.timeline.map((row) => row.source)).toEqual([
+      "client_diagnostic",
+      "gateway_request"
     ]);
 
     const auditJsonl = runCliRaw(dbPath, [

@@ -11,6 +11,7 @@ import type {
   UnifiedClientKeyRecord,
   UpstreamV2BindingRecord
 } from "./types.js";
+import type { PublicModelAliasGroup } from "./public-model-usage.js";
 
 export const billingEventTypes = [
   "purchase",
@@ -24,7 +25,7 @@ export const billingEventTypes = [
 export type BillingEventType = (typeof billingEventTypes)[number];
 export type BillingApplyMode = "apply" | "log_only";
 export type BillingEventStatus = "applied" | "failed" | "ignored";
-export type BillingUsageGroupBy = "day" | "month" | "none";
+export type BillingUsageGroupBy = "day" | "month" | "none" | "model";
 export type BillingSubjectLifecycleEventType =
   | "create_subject"
   | "rotate_key"
@@ -119,12 +120,15 @@ export interface BillingUsageReportInput {
   from: Date;
   to: Date;
   groupBy: BillingUsageGroupBy;
+  publicModelId?: string;
+  publicModelAliases?: PublicModelAliasGroup[];
   limit?: number;
   cursor?: string;
 }
 
 export interface BillingUsageReportRow {
   periodStart: Date | null;
+  publicModelId?: string | null;
   requestCount: number;
   successCount: number;
   errorCount: number;

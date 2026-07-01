@@ -11,7 +11,8 @@ import {
   type ClientDiagnosticEventStatus,
   type ClientMessageEventRecord,
   type Scope,
-  type Subject
+  type Subject,
+  type UpstreamAttemptSummary
 } from "@codex-gateway/core";
 
 import { parseDate, parseNonNegativeInteger, parsePositiveInteger } from "../parsers.js";
@@ -52,6 +53,15 @@ interface ClientDiagnosticQueryOptions extends ClientEventIdentityOptions {
   timezone: string;
 }
 
+interface ClientTurnQueryOptions extends ClientEventIdentityOptions {
+  at?: string;
+  windowMinutes: number;
+  limit: number;
+  json?: boolean;
+  includeMetadata?: boolean;
+  timezone: string;
+}
+
 type ClientMedevidenceToolAuditFormat = "json" | "jsonl" | "csv";
 
 interface ClientMedevidenceToolAuditOptions extends ClientEventIdentityOptions {
@@ -89,6 +99,43 @@ interface ResolvedIdentity {
 
 type ClientMessageRow = ClientMessageEventRecord;
 type ClientDiagnosticRow = ClientDiagnosticEventRecord;
+
+interface GatewayRequestEventRow {
+  requestId: string;
+  credentialId: string | null;
+  subjectId: string | null;
+  scope: Scope | null;
+  sessionId: string | null;
+  upstreamAccountId: string | null;
+  provider: string | null;
+  publicModelId: string | null;
+  upstreamRuntime: string | null;
+  upstreamModel: string | null;
+  reasoningEffort: string | null;
+  clientTurnId: string | null;
+  turnCode: string | null;
+  clientSessionId: string | null;
+  clientMessageId: string | null;
+  clientAppVersion: string | null;
+  toolChoice: string | null;
+  upstreamFinishReason: string | null;
+  upstreamRequestId: string | null;
+  upstreamHttpStatus: number | null;
+  upstreamContentChars: number | null;
+  upstreamToolCallCount: number | null;
+  upstreamToolNames: string[] | null;
+  upstreamRawResponseHash: string | null;
+  upstreamRawResponseChars: number | null;
+  upstreamEmptyStop: boolean | null;
+  upstreamAttemptCount: number | null;
+  upstreamAttempts: UpstreamAttemptSummary[] | null;
+  startedAt: Date;
+  durationMs: number | null;
+  firstByteMs: number | null;
+  status: string;
+  errorCode: string | null;
+  rateLimited: boolean;
+}
 
 export function registerClientEventQueryCommands(
   program: Command,
@@ -165,6 +212,68 @@ export function registerClientEventQueryCommands(
               includeMetadata: Boolean(options.includeMetadata)
             })
           )
+        });
+      });
+    });
+
+  program
+    .command("client-turn")
+    .description("Join Desktop diagnostic events and Gateway request events by turn_code or client_turn_id.")
+    .argument("<turn>", "turn_code such as T:7K3P2, or a client_turn_id/message_id")
+    .option("--user <display-name-or-subject-id>", "filter by user id, label, or stored name")
+    .option("--subject-id <id>", "filter by subject id")
+    .option("--credential-prefix <prefix>", "filter by API key prefix")
+    .option("--unified-key-env <env-name>", "read a cmev1 unified key from an environment variable")
+    .option("--at <time>", "center of lookup window; ISO, or YYYY-MM-DD HH:mm interpreted in --timezone")
+    .option("--window-minutes <n>", "minutes on each side of --at", parsePositiveInteger, 15)
+    .option("--limit <n>", "maximum diagnostics and request rows to return per section", parsePositiveInteger, 50)
+    .option("--json", "emit JSON output; accepted for runbook compatibility")
+    .option("--include-metadata", "include parsed diagnostic metadata JSON")
+    .option("--timezone <iana-zone>", "IANA timezone for local timestamp fields and timezone-less --at", "UTC")
+    .action((turn: string, options: ClientTurnQueryOptions) => {
+      withClientEventQuery(deps, (context) => {
+        assertTimezone(options.timezone);
+        const identity = resolveIdentity(context.gateway, options);
+        const at = options.at ? parseClientTurnAt(options.at, options.timezone) : undefined;
+        const window = clientTurnWindow(at, options, context.now);
+        const gatewayRequests = queryClientTurnGatewayRequests(
+          context.gateway,
+          turn,
+          options,
+          identity,
+          window
+        );
+        const diagnostics = queryClientTurnDiagnostics(
+          context.clientEvents,
+          turn,
+          options,
+          identity,
+          window,
+          gatewayRequests.map((row) => row.requestId)
+        );
+        deps.printJson({
+          query: {
+            turn,
+            normalized_turn_code: normalizedTurnCode(turn),
+            at: at?.toISOString() ?? null,
+            window_minutes: options.windowMinutes,
+            since: window.since.toISOString(),
+            until: window.until.toISOString(),
+            timezone: options.timezone
+          },
+          subject: identity.subject ? publicSubject(identity.subject) : null,
+          credential: identity.credential
+            ? publicCredential(identity.credential, identity.subject, context.now)
+            : null,
+          client_diagnostics: diagnostics.map((row) =>
+            publicClientDiagnostic(row, context, options.timezone, {
+              includeMetadata: Boolean(options.includeMetadata)
+            })
+          ),
+          gateway_requests: gatewayRequests.map((row) =>
+            publicGatewayRequestEvent(row, context, options.timezone)
+          ),
+          timeline: clientTurnTimeline(diagnostics, gatewayRequests, options.timezone)
         });
       });
     });
@@ -446,6 +555,101 @@ function queryClientDiagnostics(
     .map(rowToClientDiagnostic);
 }
 
+function queryClientTurnDiagnostics(
+  db: DatabaseSync,
+  turn: string,
+  options: ClientTurnQueryOptions,
+  identity: ResolvedIdentity,
+  window: { since: Date; until: Date },
+  gatewayRequestIds: string[]
+): ClientDiagnosticRow[] {
+  const query = buildBaseClientEventQuery("client_diagnostic_events", options, identity);
+  const candidates = turnCandidates(turn);
+  const gatewayIds = gatewayRequestIds.length > 0 ? gatewayRequestIds : ["__none__"];
+  query.where.push(
+    `(json_extract(metadata_json, '$.turn_code') IN (${placeholders(candidates.turnCodes.length)})
+      OR json_extract(metadata_json, '$.client_turn_id') IN (${placeholders(candidates.ids.length)})
+      OR message_id IN (${placeholders(candidates.ids.length)})
+      OR json_extract(metadata_json, '$.gateway_request_id') IN (${placeholders(gatewayIds.length)}))`
+  );
+  query.params.push(
+    ...candidates.turnCodes,
+    ...candidates.ids,
+    ...candidates.ids,
+    ...gatewayIds
+  );
+  query.where.push("received_at >= ?");
+  query.params.push(window.since.toISOString());
+  query.where.push("received_at < ?");
+  query.params.push(window.until.toISOString());
+  query.params.push(options.limit);
+
+  return db
+    .prepare(
+      `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
+              message_id, tool_call_id, provider_id, model_id, category, action,
+              status, method, path, mono_ms, duration_ms, http_status, error_code,
+              error_message, metadata_json, app_name, app_version, created_at,
+              received_at
+       FROM client_diagnostic_events
+       ${whereSql(query.where)}
+       ORDER BY received_at ASC
+       LIMIT ?`
+    )
+    .all(...query.params)
+    .map(rowToClientDiagnostic);
+}
+
+function queryClientTurnGatewayRequests(
+  db: DatabaseSync,
+  turn: string,
+  options: ClientTurnQueryOptions,
+  identity: ResolvedIdentity,
+  window: { since: Date; until: Date }
+): GatewayRequestEventRow[] {
+  const candidates = turnCandidates(turn);
+  const where: string[] = [];
+  const params: Array<string | number> = [];
+  if (identity.subject) {
+    where.push("subject_id = ?");
+    params.push(identity.subject.id);
+  }
+  if (identity.credential) {
+    where.push("credential_id = ?");
+    params.push(identity.credential.id);
+  }
+  where.push(
+    `(turn_code IN (${placeholders(candidates.turnCodes.length)})
+      OR client_turn_id IN (${placeholders(candidates.ids.length)})
+      OR client_message_id IN (${placeholders(candidates.ids.length)}))`
+  );
+  params.push(...candidates.turnCodes, ...candidates.ids, ...candidates.ids);
+  where.push("started_at >= ?");
+  params.push(window.since.toISOString());
+  where.push("started_at < ?");
+  params.push(window.until.toISOString());
+  params.push(options.limit);
+
+  return db
+    .prepare(
+      `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
+              provider, public_model_id, upstream_runtime, upstream_model, reasoning_effort,
+              client_turn_id, turn_code, client_session_id, client_message_id,
+              client_app_version, tool_choice, upstream_finish_reason, upstream_request_id,
+              upstream_http_status, upstream_content_chars, upstream_tool_call_count,
+              upstream_tool_names_json, upstream_raw_response_hash,
+              upstream_raw_response_chars, upstream_empty_stop, upstream_attempt_count,
+              upstream_attempts_json, started_at, duration_ms, first_byte_ms, status,
+              error_code, rate_limited
+       FROM request_events
+       ${whereSql(where)}
+       ORDER BY started_at ASC
+       LIMIT ?`
+    )
+    .all(...params)
+    .map(rowToGatewayRequestEvent);
+}
+
 function queryClientMedevidenceToolAudit(
   context: QueryContext,
   options: ClientMedevidenceToolAuditOptions,
@@ -611,6 +815,9 @@ function publicClientDiagnostic(
     error_message: row.errorMessage,
     metadata_request_id: metadataField(metadata, "request_id"),
     metadata_article_id: metadataField(metadata, "article_id"),
+    metadata_client_turn_id: metadataField(metadata, "client_turn_id"),
+    metadata_turn_code: metadataField(metadata, "turn_code"),
+    metadata_gateway_request_id: metadataField(metadata, "gateway_request_id"),
     app_name: row.appName,
     app_version: row.appVersion,
     created_at: row.createdAt.toISOString(),
@@ -623,6 +830,97 @@ function publicClientDiagnostic(
     output.metadata = metadata;
   }
   return output;
+}
+
+function publicGatewayRequestEvent(
+  row: GatewayRequestEventRow,
+  context: QueryContext,
+  timezone: string
+): Record<string, unknown> {
+  const subject = row.subjectId ? getSubject(context.gateway, row.subjectId) : null;
+  const credential = row.credentialId ? getCredentialById(context.gateway, row.credentialId) : null;
+  return {
+    request_id: row.requestId,
+    credential_id: row.credentialId,
+    credential_prefix: credential?.prefix ?? null,
+    credential_status: credential ? credentialStatus(credential, subject, context.now) : null,
+    subject_id: row.subjectId,
+    user: subject ? publicSubject(subject) : null,
+    scope: row.scope,
+    session_id: row.sessionId,
+    client_turn_id: row.clientTurnId,
+    turn_code: row.turnCode,
+    client_session_id: row.clientSessionId,
+    client_message_id: row.clientMessageId,
+    client_app_version: row.clientAppVersion,
+    public_model_id: row.publicModelId,
+    resolved_upstream_model: row.upstreamModel,
+    upstream_runtime: row.upstreamRuntime,
+    upstream_account_id: row.upstreamAccountId,
+    provider: row.provider,
+    reasoning_effort: row.reasoningEffort,
+    tool_choice: row.toolChoice,
+    upstream_finish_reason: row.upstreamFinishReason,
+    upstream_request_id: row.upstreamRequestId,
+    upstream_http_status: row.upstreamHttpStatus,
+    upstream_content_chars: row.upstreamContentChars,
+    upstream_tool_call_count: row.upstreamToolCallCount,
+    upstream_tool_names: row.upstreamToolNames,
+    upstream_raw_response_hash: row.upstreamRawResponseHash,
+    upstream_raw_response_chars: row.upstreamRawResponseChars,
+    upstream_empty_stop: row.upstreamEmptyStop,
+    upstream_attempt_count: row.upstreamAttemptCount,
+    upstream_attempts: row.upstreamAttempts,
+    started_at: row.startedAt.toISOString(),
+    started_at_local: formatInTimezone(row.startedAt, timezone),
+    duration_ms: row.durationMs,
+    first_byte_ms: row.firstByteMs,
+    status: row.status,
+    error_code: row.errorCode,
+    rate_limited: row.rateLimited,
+    timezone
+  };
+}
+
+function clientTurnTimeline(
+  diagnostics: ClientDiagnosticRow[],
+  gatewayRequests: GatewayRequestEventRow[],
+  timezone: string
+): Array<Record<string, unknown>> {
+  return [
+    ...diagnostics.map((row) => ({
+      source: "client_diagnostic",
+      at: row.createdAt,
+      received_at: row.receivedAt.toISOString(),
+      label: `${row.category}.${row.action}`,
+      status: row.status,
+      event_id: row.eventId,
+      request_id: row.requestId,
+      session_id: row.sessionId,
+      message_id: row.messageId,
+      error_code: row.errorCode
+    })),
+    ...gatewayRequests.map((row) => ({
+      source: "gateway_request",
+      at: row.startedAt,
+      label: "model.request",
+      status: row.status,
+      request_id: row.requestId,
+      session_id: row.sessionId,
+      public_model_id: row.publicModelId,
+      resolved_upstream_model: row.upstreamModel,
+      reasoning_effort: row.reasoningEffort,
+      finish_reason: row.upstreamFinishReason,
+      tool_call_count: row.upstreamToolCallCount,
+      error_code: row.errorCode
+    }))
+  ]
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .map(({ at, ...row }) => ({
+      ...row,
+      at: at.toISOString(),
+      at_local: formatInTimezone(at, timezone)
+    }));
 }
 
 function findMatchingClientMessage(
@@ -952,6 +1250,82 @@ function rowToClientDiagnostic(row: unknown): ClientDiagnosticRow {
   };
 }
 
+function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
+  const value = row as {
+    request_id: string;
+    credential_id: string | null;
+    subject_id: string | null;
+    scope: Scope | null;
+    session_id: string | null;
+    upstream_account_id: string | null;
+    provider: string | null;
+    public_model_id: string | null;
+    upstream_runtime: string | null;
+    upstream_model: string | null;
+    reasoning_effort: string | null;
+    client_turn_id: string | null;
+    turn_code: string | null;
+    client_session_id: string | null;
+    client_message_id: string | null;
+    client_app_version: string | null;
+    tool_choice: string | null;
+    upstream_finish_reason: string | null;
+    upstream_request_id: string | null;
+    upstream_http_status: number | null;
+    upstream_content_chars: number | null;
+    upstream_tool_call_count: number | null;
+    upstream_tool_names_json: string | null;
+    upstream_raw_response_hash: string | null;
+    upstream_raw_response_chars: number | null;
+    upstream_empty_stop: number | null;
+    upstream_attempt_count: number | null;
+    upstream_attempts_json: string | null;
+    started_at: string;
+    duration_ms: number | null;
+    first_byte_ms: number | null;
+    status: string;
+    error_code: string | null;
+    rate_limited: number;
+  };
+  return {
+    requestId: value.request_id,
+    credentialId: value.credential_id,
+    subjectId: value.subject_id,
+    scope: value.scope,
+    sessionId: value.session_id,
+    upstreamAccountId: value.upstream_account_id,
+    provider: value.provider,
+    publicModelId: value.public_model_id,
+    upstreamRuntime: value.upstream_runtime,
+    upstreamModel: value.upstream_model,
+    reasoningEffort: value.reasoning_effort,
+    clientTurnId: value.client_turn_id,
+    turnCode: value.turn_code,
+    clientSessionId: value.client_session_id,
+    clientMessageId: value.client_message_id,
+    clientAppVersion: value.client_app_version,
+    toolChoice: value.tool_choice,
+    upstreamFinishReason: value.upstream_finish_reason,
+    upstreamRequestId: value.upstream_request_id,
+    upstreamHttpStatus: value.upstream_http_status,
+    upstreamContentChars: value.upstream_content_chars,
+    upstreamToolCallCount: value.upstream_tool_call_count,
+    upstreamToolNames: parseStringArray(value.upstream_tool_names_json),
+    upstreamRawResponseHash: value.upstream_raw_response_hash,
+    upstreamRawResponseChars: value.upstream_raw_response_chars,
+    upstreamEmptyStop:
+      value.upstream_empty_stop === null ? null : value.upstream_empty_stop === 1,
+    upstreamAttemptCount: value.upstream_attempt_count,
+    upstreamAttempts: parseUpstreamAttempts(value.upstream_attempts_json),
+    startedAt: new Date(value.started_at),
+    durationMs: value.duration_ms,
+    firstByteMs: value.first_byte_ms,
+    status: value.status,
+    errorCode: value.error_code,
+    rateLimited: value.rate_limited === 1
+  };
+}
+
 function previewText(text: string, maxChars: number): string {
   if (text.length <= maxChars) {
     return text;
@@ -1002,6 +1376,192 @@ function metadataField(metadata: unknown, field: string): string | null {
   }
   const value = (metadata as Record<string, unknown>)[field];
   return typeof value === "string" ? value : null;
+}
+
+function clientTurnWindow(
+  at: Date | undefined,
+  options: ClientTurnQueryOptions,
+  now: Date
+): { since: Date; until: Date } {
+  const center = at ?? now;
+  const halfWindowMs = options.windowMinutes * 60 * 1000;
+  return {
+    since: new Date(center.getTime() - halfWindowMs),
+    until: new Date(center.getTime() + halfWindowMs)
+  };
+}
+
+function turnCandidates(turn: string): { turnCodes: string[]; ids: string[] } {
+  const trimmed = turn.trim();
+  if (!trimmed) {
+    throw new Error("turn must not be blank.");
+  }
+  const code = normalizedTurnCode(trimmed);
+  return {
+    turnCodes: [...new Set([trimmed, code].filter(Boolean))],
+    ids: [...new Set([trimmed, trimmed.startsWith("T:") ? trimmed.slice(2) : trimmed])]
+  };
+}
+
+function normalizedTurnCode(turn: string): string {
+  const trimmed = turn.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  return trimmed.startsWith("T:") ? trimmed : `T:${trimmed}`;
+}
+
+function placeholders(count: number): string {
+  return Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
+}
+
+function parseClientTurnAt(value: string, timezone: string): Date {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("--at must not be blank.");
+  }
+  if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(trimmed)) {
+    const date = new Date(trimmed);
+    if (Number.isFinite(date.getTime())) {
+      return date;
+    }
+  }
+  const local = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+  );
+  if (!local) {
+    const date = new Date(trimmed);
+    if (Number.isFinite(date.getTime())) {
+      return date;
+    }
+    throw new Error("--at must be ISO datetime or YYYY-MM-DD HH:mm.");
+  }
+  const [, year, month, day, hour, minute, second] = local;
+  return zonedDateTimeToUtc(
+    {
+      year: Number(year),
+      month: Number(month),
+      day: Number(day),
+      hour: Number(hour),
+      minute: Number(minute),
+      second: second ? Number(second) : 0
+    },
+    timezone
+  );
+}
+
+function zonedDateTimeToUtc(
+  value: { year: number; month: number; day: number; hour: number; minute: number; second: number },
+  timezone: string
+): Date {
+  let utcMs = Date.UTC(
+    value.year,
+    value.month - 1,
+    value.day,
+    value.hour,
+    value.minute,
+    value.second
+  );
+  for (let i = 0; i < 3; i += 1) {
+    const parts = zonedParts(new Date(utcMs), timezone);
+    const asUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second
+    );
+    const desired = Date.UTC(
+      value.year,
+      value.month - 1,
+      value.day,
+      value.hour,
+      value.minute,
+      value.second
+    );
+    const diff = desired - asUtc;
+    if (diff === 0) {
+      break;
+    }
+    utcMs += diff;
+  }
+  return new Date(utcMs);
+}
+
+function zonedParts(date: Date, timezone: string): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(value.year),
+    month: Number(value.month),
+    day: Number(value.day),
+    hour: Number(value.hour),
+    minute: Number(value.minute),
+    second: Number(value.second)
+  };
+}
+
+function parseStringArray(value: string | null): string[] | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === "string")) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseUpstreamAttempts(value: string | null): UpstreamAttemptSummary[] | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    const attempts = parsed.filter(isUpstreamAttemptSummary);
+    return attempts.length > 0 ? attempts : null;
+  } catch {
+    return null;
+  }
+}
+
+function isUpstreamAttemptSummary(value: unknown): value is UpstreamAttemptSummary {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const attempt = value as Partial<UpstreamAttemptSummary>;
+  return (
+    typeof attempt.index === "number" &&
+    Number.isInteger(attempt.index) &&
+    attempt.index > 0 &&
+    (attempt.toolNames === undefined ||
+      (Array.isArray(attempt.toolNames) &&
+        attempt.toolNames.every((name) => typeof name === "string")))
+  );
 }
 
 function writeMedevidenceToolAuditExport(

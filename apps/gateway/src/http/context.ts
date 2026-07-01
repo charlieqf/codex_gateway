@@ -9,7 +9,8 @@ import type {
   Scope,
   Subject,
   UpstreamAccount,
-  TokenUsage
+  TokenUsage,
+  UpstreamAttemptSummary
 } from "@codex-gateway/core";
 
 export interface GatewayRequestContext {
@@ -66,6 +67,24 @@ declare module "fastify" {
     gatewayPublicModelId?: string | null;
     gatewayUpstreamRuntime?: string | null;
     gatewayUpstreamModel?: string | null;
+    gatewayReasoningEffort?: string | null;
+    gatewayClientTurnId?: string | null;
+    gatewayTurnCode?: string | null;
+    gatewayClientSessionId?: string | null;
+    gatewayClientMessageId?: string | null;
+    gatewayClientAppVersion?: string | null;
+    gatewayToolChoice?: string | null;
+    gatewayUpstreamFinishReason?: string | null;
+    gatewayUpstreamRequestId?: string | null;
+    gatewayUpstreamHttpStatus?: number | null;
+    gatewayUpstreamContentChars?: number | null;
+    gatewayUpstreamToolCallCount?: number | null;
+    gatewayUpstreamToolNames?: string[] | null;
+    gatewayUpstreamRawResponseHash?: string | null;
+    gatewayUpstreamRawResponseChars?: number | null;
+    gatewayUpstreamEmptyStop?: boolean | null;
+    gatewayUpstreamAttemptCount?: number | null;
+    gatewayUpstreamAttempts?: UpstreamAttemptSummary[] | null;
   }
 }
 

@@ -6,17 +6,17 @@ describe("feature policy", () => {
     const policy = validateFeaturePolicy({
       capabilities: ["chat", "tools"],
       medcode_models: {
-        allowed: ["standard", "pro", "medcode"]
+        allowed: ["standard", "expert", "pro", "medcode"]
       }
     });
 
     expect(policy.medcodeModels).toEqual({
-      allowed: ["standard", "pro", "medcode"]
+      allowed: ["standard", "expert", "pro", "medcode"]
     });
     expect(publicFeaturePolicy(policy)).toEqual({
       capabilities: ["chat", "tools"],
       medcode_models: {
-        allowed: ["standard", "pro", "medcode"]
+        allowed: ["standard", "expert", "pro", "medcode"]
       }
     });
   });
@@ -43,7 +43,7 @@ describe("feature policy", () => {
     expect(policy.medcodeModels).toEqual({ allowed: ["standard"] });
     expect(publicFeaturePolicy(policy)).toMatchObject({
       medcode_models: {
-        allowed: ["standard", "medcode", "pro"]
+        allowed: ["standard", "medcode", "expert", "pro"]
       }
     });
   });

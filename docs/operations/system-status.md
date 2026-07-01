@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-05-14
+Last updated: 2026-06-30
 
 ## Current Phase
 
@@ -141,6 +141,21 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-06-30 the live controlled-trial gateway registry was updated in
+  `config/gateway.container.env` to publish four public models:
+  `max -> gpt-5.5`, `expert -> z-ai/glm-5.2` with
+  `reasoning.effort=high`, `pro -> z-ai/glm-5-turbo` with
+  `reasoning.effort=none`, and
+  `standard -> deepseek/deepseek-v4-pro` with `reasoning.effort=none`.
+  The pre-change env-file backup is
+  `config/gateway.container.env.pre-expert-20260630T025233Z`. The gateway
+  container was recreated healthy and remained loopback-only at
+  `127.0.0.1:18787->8787`. Public OpenAI-compatible smoke passed. Native tools
+  smoke confirmed `/v1/models` returns `expert,max,pro,standard`; `expert`,
+  `pro`, and `standard` each returned a `write_file` tool call. One initial
+  `pro` native-tools run hit the 300s client timeout and was recorded as
+  `client_aborted`; a focused rerun of `pro` with a 600s smoke timeout passed.
+  Temporary smoke credentials had no active keys remaining after cleanup.
 - 2026-05-14 the second upstream ChatGPT/Codex login was upgraded to Pro,
   verified with a real Codex SDK probe from inside the running gateway
   container using `/var/lib/codex-gateway/codex-home-plus`, and renamed in the

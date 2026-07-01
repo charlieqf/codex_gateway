@@ -161,6 +161,10 @@ describe("SqliteGatewayStore", () => {
       expect(tableExists(db, "entitlement_token_windows")).toBe(true);
       expect(tableExists(db, "billing_events")).toBe(true);
       expect(columnNames(db, "token_reservations")).toContain("entitlement_id");
+      expect(columnNames(db, "request_events")).toContain("reasoning_effort");
+      expect(columnNames(db, "request_events")).toContain("reasoning_tokens");
+      expect(columnNames(db, "token_reservations")).toContain("public_model_id");
+      expect(columnNames(db, "token_reservations")).toContain("final_reasoning_tokens");
     } finally {
       db.close();
     }
@@ -505,6 +509,64 @@ describe("SqliteGatewayStore", () => {
       publicModelId: "medcode",
       upstreamRuntime: "codex",
       upstreamModel: "gpt-5.5",
+      reasoningEffort: "high",
+      reasoningTokens: 3,
+      clientTurnId: "msg_turn_1",
+      turnCode: "T:7K3P2",
+      clientSessionId: "ses_client_1",
+      clientMessageId: "msg_turn_1",
+      clientAppVersion: "1.9.0",
+      toolChoice: "auto",
+      upstreamFinishReason: "stop",
+      upstreamRequestId: "up_req_1",
+      upstreamHttpStatus: 200,
+      upstreamContentChars: 0,
+      upstreamToolCallCount: 0,
+      upstreamToolNames: [],
+      upstreamRawResponseHash: "a".repeat(64),
+      upstreamRawResponseChars: 128,
+      upstreamEmptyStop: true,
+      upstreamAttemptCount: 2,
+      upstreamAttempts: [
+        {
+          index: 1,
+          kind: "native_initial",
+          toolChoice: "required",
+          provider: "openrouter",
+          upstreamRuntime: "openrouter",
+          upstreamModel: "z-ai/glm-5-turbo",
+          upstreamAccountId: "openrouter-main",
+          finishReason: "tool_calls",
+          upstreamRequestId: "up_req_1a",
+          upstreamHttpStatus: 200,
+          errorCode: null,
+          contentChars: 0,
+          toolCallCount: 1,
+          toolNames: ["write_file"],
+          rawResponseHash: "b".repeat(64),
+          rawResponseChars: 64,
+          emptyStop: false
+        },
+        {
+          index: 2,
+          kind: "validation_failed_to_auto",
+          toolChoice: "auto",
+          provider: "openrouter",
+          upstreamRuntime: "openrouter",
+          upstreamModel: "z-ai/glm-5-turbo",
+          upstreamAccountId: "openrouter-main",
+          finishReason: "stop",
+          upstreamRequestId: "up_req_1b",
+          upstreamHttpStatus: 200,
+          errorCode: null,
+          contentChars: 0,
+          toolCallCount: 0,
+          toolNames: [],
+          rawResponseHash: "c".repeat(64),
+          rawResponseChars: 64,
+          emptyStop: true
+        }
+      ],
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
       firstByteMs: 10,
@@ -531,6 +593,39 @@ describe("SqliteGatewayStore", () => {
         publicModelId: "medcode",
         upstreamRuntime: "codex",
         upstreamModel: "gpt-5.5",
+        reasoningEffort: "high",
+        reasoningTokens: 3,
+        clientTurnId: "msg_turn_1",
+        turnCode: "T:7K3P2",
+        clientSessionId: "ses_client_1",
+        clientMessageId: "msg_turn_1",
+        clientAppVersion: "1.9.0",
+        toolChoice: "auto",
+        upstreamFinishReason: "stop",
+        upstreamRequestId: "up_req_1",
+        upstreamHttpStatus: 200,
+        upstreamContentChars: 0,
+        upstreamToolCallCount: 0,
+        upstreamToolNames: [],
+        upstreamRawResponseHash: "a".repeat(64),
+        upstreamRawResponseChars: 128,
+        upstreamEmptyStop: true,
+        upstreamAttemptCount: 2,
+        upstreamAttempts: [
+          expect.objectContaining({
+            index: 1,
+            kind: "native_initial",
+            toolChoice: "required",
+            toolCallCount: 1,
+            toolNames: ["write_file"]
+          }),
+          expect.objectContaining({
+            index: 2,
+            kind: "validation_failed_to_auto",
+            toolChoice: "auto",
+            emptyStop: true
+          })
+        ],
         durationMs: 25,
         firstByteMs: 10,
         status: "error",
@@ -544,6 +639,7 @@ describe("SqliteGatewayStore", () => {
         usageSource: "provider"
       }
     ]);
+    expect(store.listRequestEvents({ turnCode: "T:7K3P2" })).toHaveLength(1);
     store.close();
   });
 
@@ -601,12 +697,86 @@ describe("SqliteGatewayStore", () => {
     ).toMatchObject([
       {
         date: "2026-01-02",
-        publicModelId: "medcode",
+        publicModelId: "max",
         upstreamRuntime: "codex",
         upstreamModel: "gpt-5.5",
         totalTokens: 23
       }
     ]);
+    store.close();
+  });
+
+  it("folds legacy public model aliases when reporting usage by model", () => {
+    const store = createSeededStore(":memory:");
+    const base = {
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code" as const,
+      sessionId: "sess_1",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex" as const,
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      durationMs: 20,
+      firstByteMs: 10,
+      status: "ok" as const,
+      errorCode: null,
+      rateLimited: false,
+      cachedPromptTokens: 0,
+      estimatedTokens: null,
+      usageSource: "provider" as const
+    };
+    store.insertRequestEvent({
+      ...base,
+      requestId: "req_model_legacy",
+      publicModelId: "medcode",
+      reasoningEffort: "high",
+      reasoningTokens: 2,
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      promptTokens: 10,
+      completionTokens: 2,
+      totalTokens: 12
+    });
+    store.insertRequestEvent({
+      ...base,
+      requestId: "req_model_canonical",
+      publicModelId: "max",
+      reasoningEffort: "high",
+      reasoningTokens: 1,
+      startedAt: new Date("2026-01-01T00:01:00Z"),
+      promptTokens: 7,
+      completionTokens: 1,
+      totalTokens: 8
+    });
+
+    const input = {
+      since: new Date("2026-01-01T00:00:00Z"),
+      until: new Date("2026-01-02T00:00:00Z"),
+      groupBy: "model" as const
+    };
+    const rows = store.reportRequestUsage(input);
+    const aliasFilteredRows = store.reportRequestUsage({
+      ...input,
+      publicModelId: "medcode"
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      date: "total",
+      credentialId: null,
+      subjectId: null,
+      publicModelId: "max",
+      upstreamRuntime: null,
+      upstreamModel: null,
+      reasoningEffort: null,
+      requests: 2,
+      ok: 2,
+      promptTokens: 17,
+      completionTokens: 3,
+      totalTokens: 20,
+      reasoningTokens: 3
+    });
+    expect(aliasFilteredRows).toMatchObject(rows);
     store.close();
   });
 
@@ -752,6 +922,7 @@ describe("SqliteGatewayStore", () => {
         publicModelId: null,
         upstreamRuntime: null,
         upstreamModel: null,
+        reasoningEffort: null,
         entitlementId: null,
         requests: 2,
         ok: 1,
@@ -764,6 +935,8 @@ describe("SqliteGatewayStore", () => {
         totalTokens: 12,
         cachedPromptTokens: 4,
         estimatedTokens: 0,
+        reasoningTokens: 0,
+        usageMissing: 0,
         rateLimitedBy: {
           request_minute: 0,
           request_day: 0,
@@ -1575,6 +1748,10 @@ describe("SqliteGatewayStore", () => {
       scope: "code",
       upstreamAccountId: "sub_openai_codex",
       provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      reasoningEffort: "high",
       now: new Date("2026-01-01T00:00:00Z")
     });
     const cleanup = await limiter.cleanupExpired(new Date("2026-01-01T02:00:00Z"));
@@ -1592,9 +1769,100 @@ describe("SqliteGatewayStore", () => {
       id: softWrite.reservationId,
       kind: "soft_write",
       finalUsageSource: "none",
-      finalTotalTokens: 0
+      finalTotalTokens: 0,
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      reasoningEffort: "high"
     });
     expect(reservation.finalizedAt).not.toBeNull();
+
+    store.close();
+  });
+
+  it("persists soft-write model attribution and reasoning token usage", async () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Soft-write credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const softWrite = await limiter.beginSoftWrite({
+      requestId: "req_soft_usage",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      reasoningEffort: "high",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    await limiter.finalizeSoftWrite({
+      reservationId: softWrite.reservationId,
+      usage: {
+        promptTokens: 10,
+        completionTokens: 2,
+        totalTokens: 12,
+        cachedPromptTokens: 1,
+        reasoningTokens: 4
+      },
+      now: new Date("2026-01-01T00:00:01Z")
+    });
+    store.insertRequestEvent({
+      requestId: "req_soft_usage",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      reasoningEffort: "high",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 10,
+      firstByteMs: 5,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      reservationId: softWrite.reservationId
+    });
+
+    const reservation = limiter.listReservations({
+      subjectId: "subj_1",
+      includeFinalized: true,
+      limit: 1
+    })[0];
+    const report = store.reportRequestUsage({
+      since: new Date("2026-01-01T00:00:00Z"),
+      until: new Date("2026-01-02T00:00:00Z"),
+      groupBy: "model"
+    })[0];
+
+    expect(reservation).toMatchObject({
+      id: softWrite.reservationId,
+      kind: "soft_write",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      reasoningEffort: "high",
+      finalReasoningTokens: 4
+    });
+    expect(report).toMatchObject({
+      date: "total",
+      publicModelId: "max",
+      requests: 1,
+      totalTokens: 12,
+      reasoningTokens: 4
+    });
 
     store.close();
   });

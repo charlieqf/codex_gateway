@@ -6,6 +6,7 @@ import {
   issueAccessCredential,
   issueBillingAdminToken,
   issueUnifiedClientKey,
+  defaultPublicModelAliasGroups,
   mergeEntitlementTokenPolicy,
   publicTokenPolicy,
   publicTokenUsage,
@@ -1114,6 +1115,24 @@ program
           public_model_id: event.publicModelId ?? null,
           upstream_runtime: event.upstreamRuntime ?? null,
           upstream_model: event.upstreamModel ?? null,
+          reasoning_effort: event.reasoningEffort ?? null,
+          client_turn_id: event.clientTurnId ?? null,
+          turn_code: event.turnCode ?? null,
+          client_session_id: event.clientSessionId ?? null,
+          client_message_id: event.clientMessageId ?? null,
+          client_app_version: event.clientAppVersion ?? null,
+          tool_choice: event.toolChoice ?? null,
+          upstream_finish_reason: event.upstreamFinishReason ?? null,
+          upstream_request_id: event.upstreamRequestId ?? null,
+          upstream_http_status: event.upstreamHttpStatus ?? null,
+          upstream_content_chars: event.upstreamContentChars ?? null,
+          upstream_tool_call_count: event.upstreamToolCallCount ?? null,
+          upstream_tool_names: event.upstreamToolNames ?? null,
+          upstream_raw_response_hash: event.upstreamRawResponseHash ?? null,
+          upstream_raw_response_chars: event.upstreamRawResponseChars ?? null,
+          upstream_empty_stop: event.upstreamEmptyStop ?? null,
+          upstream_attempt_count: event.upstreamAttemptCount ?? null,
+          upstream_attempts: event.upstreamAttempts ?? null,
           started_at: event.startedAt.toISOString(),
           duration_ms: event.durationMs,
           first_byte_ms: event.firstByteMs,
@@ -1141,10 +1160,17 @@ program
   .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--credential-id <id>", "filter by credential id")
   .option("--subject-id <id>", "filter by subject id")
+  .option("--model <public_model_id>", "filter by public model id; aliases such as medcode are folded into max")
+  .option("--runtime <runtime>", "filter by upstream runtime such as codex or openrouter")
+  .option("--provider <provider>", "filter by provider kind")
   .option("--days <days>", "days to report when --since is omitted", parsePositiveInteger, 7)
   .option("--since <iso>", "inclusive ISO start time", parseDate)
   .option("--until <iso>", "exclusive ISO end time", parseDate)
-  .option("--group-by <dimension>", "optional grouping dimension: entitlement", parseReportGroupBy)
+  .option(
+    "--group-by <dimension>",
+    "optional grouping dimension: entitlement, model, user-model, or entitlement-model",
+    parseReportGroupBy
+  )
   .action((options) => {
     withStore((store) => {
       const subjectId = resolveUserId(options);
@@ -1156,9 +1182,13 @@ program
       const rows = store.reportRequestUsage({
         credentialId: options.credentialId,
         subjectId,
+        publicModelId: options.model,
+        upstreamRuntime: options.runtime,
+        provider: options.provider,
         since,
         until,
-        groupBy: options.groupBy
+        groupBy: options.groupBy,
+        publicModelAliases: defaultPublicModelAliasGroups
       });
       printJson({
         since: since.toISOString(),
@@ -1171,8 +1201,10 @@ program
           upstream_account_id: row.upstreamAccountId,
           provider: row.provider,
           public_model_id: row.publicModelId,
+          model_display_name: modelDisplayName(row.publicModelId),
           upstream_runtime: row.upstreamRuntime,
           upstream_model: row.upstreamModel,
+          reasoning_effort: row.reasoningEffort ?? null,
           entitlement_id: row.entitlementId ?? null,
           requests: row.requests,
           ok: row.ok,
@@ -1185,6 +1217,8 @@ program
           total_tokens: row.totalTokens,
           cached_prompt_tokens: row.cachedPromptTokens,
           estimated_tokens: row.estimatedTokens,
+          reasoning_tokens: row.reasoningTokens,
+          usage_missing: row.usageMissing,
           rate_limited_by: row.rateLimitedBy,
           over_request_limit: row.overRequestLimit,
           identity_guard_hit: row.identityGuardHit
@@ -1273,6 +1307,10 @@ program
           scope: reservation.scope,
           upstream_account_id: reservation.upstreamAccountId,
           provider: reservation.provider,
+          public_model_id: reservation.publicModelId,
+          upstream_runtime: reservation.upstreamRuntime,
+          upstream_model: reservation.upstreamModel,
+          reasoning_effort: reservation.reasoningEffort,
           created_at: reservation.createdAt.toISOString(),
           expires_at: reservation.expiresAt?.toISOString() ?? null,
           finalized_at: reservation.finalizedAt?.toISOString() ?? null,
@@ -1284,6 +1322,7 @@ program
           final_total_tokens: reservation.finalTotalTokens,
           final_cached_prompt_tokens: reservation.finalCachedPromptTokens,
           final_estimated_tokens: reservation.finalEstimatedTokens,
+          final_reasoning_tokens: reservation.finalReasoningTokens,
           final_usage_source: reservation.finalUsageSource,
           charge_policy_snapshot: reservation.chargePolicySnapshot,
           over_request_limit: reservation.overRequestLimit
@@ -2505,6 +2544,19 @@ function normalizeBillingAdminTokenPrefix(value: string): string {
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function modelDisplayName(publicModelId: string | null): string | null {
+  if (!publicModelId) {
+    return null;
+  }
+  const known: Record<string, string> = {
+    max: "Max",
+    expert: "Expert",
+    pro: "Pro",
+    standard: "Standard"
+  };
+  return known[publicModelId] ?? publicModelId;
 }
 
 function addHours(date: Date, hours: number): Date {

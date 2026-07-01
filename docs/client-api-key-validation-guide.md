@@ -182,7 +182,7 @@ console.log(completion.choices[0]?.message?.content);
 `model_not_found`。客户端不要硬编码可用模型集合，应读取 `/v1/models`。
 模型可用性以 `/v1/models` 当前返回的 MedCode public models 为准。当前 Gateway
 不按 key 做 per-model 授权，客户端不需要用 `feature_policy.medcode_models` 禁用
-Max / Pro / Standard。
+Max / Expert / Pro / Standard。
 
 ## 排查信息
 

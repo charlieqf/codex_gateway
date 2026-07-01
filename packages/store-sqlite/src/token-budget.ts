@@ -59,8 +59,13 @@ export interface TokenReservationListRow {
   finalTotalTokens: number;
   finalCachedPromptTokens: number;
   finalEstimatedTokens: number;
+  finalReasoningTokens: number;
   finalUsageSource: FinalizeResult["finalUsageSource"] | null;
   chargePolicySnapshot: TokenLimitPolicy["missingUsageCharge"];
+  publicModelId: string | null;
+  upstreamRuntime: string | null;
+  upstreamModel: string | null;
+  reasoningEffort: string | null;
   overRequestLimit: boolean;
 }
 
@@ -97,8 +102,13 @@ interface ReservationRow {
   final_total_tokens: number;
   final_cached_prompt_tokens: number;
   final_estimated_tokens: number;
+  final_reasoning_tokens: number | null;
   final_usage_source: FinalizeResult["finalUsageSource"] | null;
   charge_policy_snapshot: TokenLimitPolicy["missingUsageCharge"];
+  public_model_id: string | null;
+  upstream_runtime: string | null;
+  upstream_model: string | null;
+  reasoning_effort: string | null;
   minute_window_start: string;
   day_window_start: string;
   month_window_start: string;
@@ -201,6 +211,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         scope: input.scope,
         upstreamAccountId: input.upstreamAccountId,
         provider: input.provider,
+        publicModelId: input.publicModelId ?? null,
+        upstreamRuntime: input.upstreamRuntime ?? null,
+        upstreamModel: input.upstreamModel ?? null,
+        reasoningEffort: input.reasoningEffort ?? null,
         now,
         expiresAt,
         estimatedPromptTokens,
@@ -237,6 +251,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         scope: input.scope,
         upstreamAccountId: input.upstreamAccountId,
         provider: input.provider,
+        publicModelId: input.publicModelId ?? null,
+        upstreamRuntime: input.upstreamRuntime ?? null,
+        upstreamModel: input.upstreamModel ?? null,
+        reasoningEffort: input.reasoningEffort ?? null,
         now,
         expiresAt: null,
         estimatedPromptTokens: 0,
@@ -405,8 +423,13 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       finalTotalTokens: row.final_total_tokens,
       finalCachedPromptTokens: row.final_cached_prompt_tokens,
       finalEstimatedTokens: row.final_estimated_tokens,
+      finalReasoningTokens: row.final_reasoning_tokens ?? 0,
       finalUsageSource: row.final_usage_source,
       chargePolicySnapshot: row.charge_policy_snapshot,
+      publicModelId: row.public_model_id,
+      upstreamRuntime: row.upstream_runtime,
+      upstreamModel: row.upstream_model,
+      reasoningEffort: row.reasoning_effort,
       overRequestLimit: row.over_request_limit === 1
     }));
   }
@@ -441,6 +464,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                final_total_tokens = ?,
                final_cached_prompt_tokens = ?,
                final_estimated_tokens = ?,
+               final_reasoning_tokens = ?,
                final_usage_source = ?,
                over_request_limit = ?
            WHERE id = ?
@@ -453,6 +477,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           final.totalTokens,
           final.cachedPromptTokens,
           final.estimatedTokens,
+          final.reasoningTokens,
           final.source,
           overRequestLimit ? 1 : 0,
           row.id
@@ -512,6 +537,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     scope: Scope;
     upstreamAccountId: string | null;
     provider: ProviderKind | null;
+    publicModelId: string | null;
+    upstreamRuntime: string | null;
+    upstreamModel: string | null;
+    reasoningEffort: string | null;
     now: Date;
     expiresAt: Date | null;
     estimatedPromptTokens: number;
@@ -527,11 +556,12 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       .prepare(
         `INSERT INTO token_reservations (
           id, request_id, kind, credential_id, subject_id, entitlement_id, scope, upstream_account_id, provider,
+          public_model_id, upstream_runtime, upstream_model, reasoning_effort,
           created_at, expires_at, estimated_prompt_tokens, estimated_total_tokens,
           reserved_tokens, charge_policy_snapshot, max_prompt_tokens_per_request,
           max_total_tokens_per_request, minute_window_start, day_window_start, month_window_start,
           policy_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.id,
@@ -543,6 +573,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         input.scope,
         input.upstreamAccountId,
         input.provider,
+        input.publicModelId,
+        input.upstreamRuntime,
+        input.upstreamModel,
+        input.reasoningEffort,
         input.now.toISOString(),
         input.expiresAt?.toISOString() ?? null,
         input.estimatedPromptTokens,
@@ -820,6 +854,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                  final_total_tokens = 0,
                  final_cached_prompt_tokens = 0,
                  final_estimated_tokens = 0,
+                 final_reasoning_tokens = 0,
                  final_usage_source = 'none',
                  over_request_limit = 0
              WHERE entitlement_id = ?
@@ -846,6 +881,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                  final_total_tokens = 0,
                  final_cached_prompt_tokens = 0,
                  final_estimated_tokens = 0,
+                 final_reasoning_tokens = 0,
                  final_usage_source = 'none',
                  over_request_limit = 0
              WHERE subject_id = ?
@@ -911,6 +947,7 @@ interface FinalUsage {
   totalTokens: number;
   cachedPromptTokens: number;
   estimatedTokens: number;
+  reasoningTokens: number;
   source: FinalizeResult["finalUsageSource"];
 }
 
@@ -922,6 +959,7 @@ function finalUsageForRow(row: ReservationRow, usage: TokenUsage | undefined): F
       totalTokens: nonNegativeInteger(usage.totalTokens),
       cachedPromptTokens: nonNegativeInteger(usage.cachedPromptTokens ?? 0),
       estimatedTokens: 0,
+      reasoningTokens: nonNegativeInteger(usage.reasoningTokens ?? 0),
       source: row.kind === "soft_write" ? "soft_write" : "provider"
     };
   }
@@ -933,6 +971,7 @@ function finalUsageForRow(row: ReservationRow, usage: TokenUsage | undefined): F
       totalTokens: 0,
       cachedPromptTokens: 0,
       estimatedTokens: 0,
+      reasoningTokens: 0,
       source: "none"
     };
   }
@@ -944,6 +983,7 @@ function finalUsageForRow(row: ReservationRow, usage: TokenUsage | undefined): F
       totalTokens: row.estimated_total_tokens,
       cachedPromptTokens: 0,
       estimatedTokens: row.estimated_total_tokens,
+      reasoningTokens: 0,
       source: "estimate"
     };
   }
@@ -954,6 +994,7 @@ function finalUsageForRow(row: ReservationRow, usage: TokenUsage | undefined): F
     totalTokens: row.reserved_tokens,
     cachedPromptTokens: 0,
     estimatedTokens: row.estimated_total_tokens,
+    reasoningTokens: 0,
     source: "reserve"
   };
 }
@@ -1014,8 +1055,13 @@ function reservationColumns(): string {
     "final_total_tokens",
     "final_cached_prompt_tokens",
     "final_estimated_tokens",
+    "final_reasoning_tokens",
     "final_usage_source",
     "charge_policy_snapshot",
+    "public_model_id",
+    "upstream_runtime",
+    "upstream_model",
+    "reasoning_effort",
     "minute_window_start",
     "day_window_start",
     "month_window_start",

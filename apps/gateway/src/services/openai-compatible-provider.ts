@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   GatewayError,
   type MessageInput,
@@ -73,16 +73,24 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       }
 
       let usage: TokenUsage | undefined;
+      let finishReason: string | null = null;
+      const rawResponseHash = createHash("sha256");
+      let rawResponseChars = 0;
       const nativeToolCalls = nativeToolCallsEnabled(input)
         ? new NativeToolCallAccumulator()
         : null;
       for await (const chunk of parseOpenAISse(response.body)) {
-        const event = mapOpenAIStreamChunk(chunk, nativeToolCalls);
+        rawResponseHash.update(chunk.rawData, "utf8");
+        rawResponseChars += chunk.rawData.length;
+        const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
         for (const mappedEvent of event.events) {
           yield mappedEvent;
         }
         if (event.usage) {
           usage = event.usage;
+        }
+        if (event.finishReason !== null) {
+          finishReason = event.finishReason;
         }
       }
       if (nativeToolCalls) {
@@ -93,7 +101,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
       yield {
         type: "completed",
-        ...(usage ? { usage } : {})
+        ...(usage ? { usage } : {}),
+        responseSummary: {
+          finishReason,
+          upstreamRequestId: upstreamRequestId(response.headers),
+          upstreamHttpStatus: response.status,
+          rawResponseHash: rawResponseHash.digest("hex"),
+          rawResponseChars
+        }
       };
     } catch (err) {
       const normalized = this.normalizeAndReport(err, "exception", input);
@@ -224,9 +239,15 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 interface ParsedOpenAIChunk {
   events: StreamEvent[];
   usage?: TokenUsage;
+  finishReason: string | null;
 }
 
-async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<unknown> {
+interface ParsedOpenAISseData {
+  value: unknown;
+  rawData: string;
+}
+
+async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<ParsedOpenAISseData> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -248,14 +269,20 @@ async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<
         if (!data || data === "[DONE]") {
           continue;
         }
-        yield JSON.parse(data) as unknown;
+        yield {
+          value: JSON.parse(data) as unknown,
+          rawData: data
+        };
       }
     }
     const tail = buffer.trim();
     if (tail.startsWith("data:")) {
       const data = tail.slice("data:".length).trim();
       if (data && data !== "[DONE]") {
-        yield JSON.parse(data) as unknown;
+        yield {
+          value: JSON.parse(data) as unknown,
+          rawData: data
+        };
       }
     }
   } finally {
@@ -268,13 +295,13 @@ function mapOpenAIStreamChunk(
   nativeToolCalls: NativeToolCallAccumulator | null = null
 ): ParsedOpenAIChunk {
   if (!isRecord(chunk)) {
-    return { events: [] };
+    return { events: [], finishReason: null };
   }
   const usage = mapUsage(chunk.usage);
   const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
   const choice = choices[0];
   if (!isRecord(choice)) {
-    return usage ? { events: [], usage } : { events: [] };
+    return usage ? { events: [], usage, finishReason: null } : { events: [], finishReason: null };
   }
 
   const events: StreamEvent[] = [];
@@ -293,7 +320,8 @@ function mapOpenAIStreamChunk(
 
   return {
     events,
-    ...(usage ? { usage } : {})
+    ...(usage ? { usage } : {}),
+    finishReason: typeof choice.finish_reason === "string" ? choice.finish_reason : null
   };
 }
 
@@ -436,6 +464,16 @@ function createAbortSignal(
 
 function chatCompletionsUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
+function upstreamRequestId(headers: Headers): string | null {
+  return (
+    headers.get("x-request-id") ??
+    headers.get("x-openrouter-request-id") ??
+    headers.get("openai-request-id") ??
+    headers.get("x-zai-request-id") ??
+    headers.get("x-ds-request-id")
+  );
 }
 
 class UpstreamHttpError extends Error {

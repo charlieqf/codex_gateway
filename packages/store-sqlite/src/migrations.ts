@@ -544,6 +544,103 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    17,
+    () => {
+      if (!columnExists(db, "request_events", "reasoning_effort")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN reasoning_effort TEXT");
+      }
+      if (!columnExists(db, "request_events", "reasoning_tokens")) {
+        db.exec("ALTER TABLE request_events ADD COLUMN reasoning_tokens INTEGER");
+      }
+      if (!columnExists(db, "token_reservations", "public_model_id")) {
+        db.exec("ALTER TABLE token_reservations ADD COLUMN public_model_id TEXT");
+      }
+      if (!columnExists(db, "token_reservations", "upstream_runtime")) {
+        db.exec("ALTER TABLE token_reservations ADD COLUMN upstream_runtime TEXT");
+      }
+      if (!columnExists(db, "token_reservations", "upstream_model")) {
+        db.exec("ALTER TABLE token_reservations ADD COLUMN upstream_model TEXT");
+      }
+      if (!columnExists(db, "token_reservations", "reasoning_effort")) {
+        db.exec("ALTER TABLE token_reservations ADD COLUMN reasoning_effort TEXT");
+      }
+      if (!columnExists(db, "token_reservations", "final_reasoning_tokens")) {
+        db.exec("ALTER TABLE token_reservations ADD COLUMN final_reasoning_tokens INTEGER");
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_token_reservations_public_model_created
+          ON token_reservations(public_model_id, created_at);
+
+        CREATE INDEX IF NOT EXISTS idx_token_reservations_runtime_created
+          ON token_reservations(upstream_runtime, created_at);
+      `);
+    },
+    logger
+  );
+
+  applyMigration(
+    db,
+    18,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["client_turn_id", "TEXT"],
+        ["turn_code", "TEXT"],
+        ["client_session_id", "TEXT"],
+        ["client_message_id", "TEXT"],
+        ["client_app_version", "TEXT"],
+        ["tool_choice", "TEXT"],
+        ["upstream_finish_reason", "TEXT"],
+        ["upstream_request_id", "TEXT"],
+        ["upstream_http_status", "INTEGER"],
+        ["upstream_content_chars", "INTEGER"],
+        ["upstream_tool_call_count", "INTEGER"],
+        ["upstream_tool_names_json", "TEXT"],
+        ["upstream_raw_response_hash", "TEXT"],
+        ["upstream_raw_response_chars", "INTEGER"],
+        ["upstream_empty_stop", "INTEGER"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "request_events", column)) {
+          db.exec(`ALTER TABLE request_events ADD COLUMN ${column} ${type}`);
+        }
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_request_events_client_turn_started
+          ON request_events(client_turn_id, started_at DESC)
+          WHERE client_turn_id IS NOT NULL;
+
+        CREATE INDEX IF NOT EXISTS idx_request_events_turn_code_started
+          ON request_events(turn_code, started_at DESC)
+          WHERE turn_code IS NOT NULL;
+
+        CREATE INDEX IF NOT EXISTS idx_request_events_client_message_started
+          ON request_events(client_message_id, started_at DESC)
+          WHERE client_message_id IS NOT NULL;
+      `);
+    },
+    logger
+  );
+
+  applyMigration(
+    db,
+    19,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["upstream_attempt_count", "INTEGER"],
+        ["upstream_attempts_json", "TEXT"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "request_events", column)) {
+          db.exec(`ALTER TABLE request_events ADD COLUMN ${column} ${type}`);
+        }
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {
@@ -674,6 +771,24 @@ export function migrateClientEventsSchema(db: DatabaseSync): void {
           WHERE tool_call_id IS NOT NULL;
       `);
     }
+  );
+
+  applyMigration(
+    db,
+    4,
+    `
+      CREATE INDEX IF NOT EXISTS idx_client_diag_metadata_client_turn
+        ON client_diagnostic_events(json_extract(metadata_json, '$.client_turn_id'), received_at DESC)
+        WHERE json_extract(metadata_json, '$.client_turn_id') IS NOT NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_client_diag_metadata_turn_code
+        ON client_diagnostic_events(json_extract(metadata_json, '$.turn_code'), received_at DESC)
+        WHERE json_extract(metadata_json, '$.turn_code') IS NOT NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_client_diag_metadata_gateway_request
+        ON client_diagnostic_events(json_extract(metadata_json, '$.gateway_request_id'), received_at DESC)
+        WHERE json_extract(metadata_json, '$.gateway_request_id') IS NOT NULL;
+    `
   );
 }
 

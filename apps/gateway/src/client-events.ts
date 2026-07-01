@@ -88,6 +88,20 @@ const forbiddenDiagnosticKeys = new Set([
   "x-api-key",
   "xapikey"
 ]);
+const p0DiagnosticMetadataRoots = new Set([
+  "request_shape",
+  "stream_terminal",
+  "tool_schema_validation"
+]);
+const p0DiagnosticStructuralKeys = new Set([
+  "body",
+  "content",
+  "data",
+  "prompt",
+  "request",
+  "response",
+  "text"
+]);
 const diagnosticCategories = new Set([
   "http",
   "sse",
@@ -629,7 +643,7 @@ function findForbiddenMetadataKey(value: unknown, prefix = ""): string | null {
   }
   for (const [key, item] of Object.entries(value)) {
     const next = prefix ? `${prefix}.${key}` : key;
-    if (isForbiddenDiagnosticKey(key)) {
+    if (isForbiddenDiagnosticKey(key) && !isAllowedP0StructuralMetadataKey(next, key)) {
       return next;
     }
     if (typeof item === "string" && containsSensitiveDiagnosticText(item)) {
@@ -641,6 +655,14 @@ function findForbiddenMetadataKey(value: unknown, prefix = ""): string | null {
     }
   }
   return null;
+}
+
+function isAllowedP0StructuralMetadataKey(path: string, key: string): boolean {
+  if (!p0DiagnosticStructuralKeys.has(key.toLowerCase())) {
+    return false;
+  }
+  const root = path.split(".", 1)[0];
+  return p0DiagnosticMetadataRoots.has(root);
 }
 
 function isForbiddenDiagnosticKey(key: string): boolean {
