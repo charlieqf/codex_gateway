@@ -50,7 +50,7 @@ param(
   [string]$UnifiedKeyMode = "cmev1",
 
   [string]$PlanId = "plan_internal_high_quota_v1",
-  [string]$PeriodEnd = "2026-07-01T00:00:00.000Z",
+  [string]$PeriodEnd = (Get-Date).ToUniversalTime().AddDays(92).ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'"),
   [ValidateSet("code", "medical")]
   [string]$Scope = "code",
   [int]$RequestsPerMinute = 10,
@@ -67,6 +67,22 @@ param(
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
+
+$MinimumRealUserValidityDays = 90
+$minimumPeriodEnd = (Get-Date).ToUniversalTime().AddDays($MinimumRealUserValidityDays)
+try {
+  $periodEndUtc = ([DateTimeOffset]::Parse(
+    $PeriodEnd,
+    [Globalization.CultureInfo]::InvariantCulture,
+    [Globalization.DateTimeStyles]::AssumeUniversal -bor [Globalization.DateTimeStyles]::AdjustToUniversal
+  )).UtcDateTime
+} catch {
+  throw "PeriodEnd must be an ISO timestamp, e.g. 2026-10-01T00:00:00.000Z."
+}
+if ($periodEndUtc -lt $minimumPeriodEnd) {
+  throw "PeriodEnd must be at least $MinimumRealUserValidityDays days in the future (minimum $($minimumPeriodEnd.ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'")))."
+}
+$PeriodEnd = $periodEndUtc.ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'")
 
 function Read-JsonPreservingRoot {
   param([Parameter(Mandatory = $true)][string]$Path)

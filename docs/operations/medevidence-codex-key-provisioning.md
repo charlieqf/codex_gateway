@@ -15,11 +15,14 @@ Use `scripts\issue-real-user-cgu-key.py` for real users. The older
 `issue-desktop-e2e-opaque-key.ps1` script name is historical and is retained
 below only as a lower-level fallback.
 
-Current Wang Yun-equivalent trial defaults as of 2026-05-21:
+Current real-user trial defaults as of 2026-07-01:
 
 - plan: `plan_internal_high_quota_image_v1`
 - capabilities: `chat`, `tools`, `image_generation`
-- backing Gateway key expiration: `2026-07-01T00:00:00.000Z`
+- backing Gateway key expiration: defaults to now + 92 days; operator-provided
+  `--key-expires-at` values under 90 days are rejected
+- entitlement end: defaults to now + 92 days; operator-provided
+  `--entitlement-end` values under 90 days are rejected
 - backing Gateway key rate: `10` requests/minute, `200` requests/day,
   `4` concurrent requests
 - scope: `code`
@@ -45,10 +48,10 @@ python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>"
 
 The Python script defaults `external_user_id` to `phone_<digits>`, grants
 `plan_internal_high_quota_image_v1`, sets the backing Gateway key to
-`10` rpm, `200` rpd, `4` concurrent requests, expires that backing key at
-`2026-07-01T00:00:00.000Z`, validates resolve/current-credential endpoints,
-updates the stored name/phone metadata, and writes the full `cgu_live_*` key
-only to a local handoff JSON under
+`10` rpm, `200` rpd, `4` concurrent requests, expires that backing key and
+the entitlement at least 90 days in the future, validates
+resolve/current-credential endpoints, updates the stored name/phone metadata,
+and writes the full `cgu_live_*` key only to a local handoff JSON under
 `C:\Users\rdpuser\medevidence_api_keys`.
 
 After a successful run, share only the safe summary in chat: `key_prefix`,
@@ -121,7 +124,7 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   update-key <gateway-prefix> \
   --label "medevidence-unified-<yyyymmdd>-<short-user-id>" \
   --rpm 10 --rpd 200 --concurrent 4 \
-  --expires-at 2026-07-01T00:00:00.000Z
+  --expires-at <iso-at-least-90-days-from-now>
 ```
 
 For non-ASCII names over Windows PowerShell/SSH, verify `list-active-keys`
@@ -188,11 +191,11 @@ file already exists locally. The script provisions or reuses the matching Codex
 Gateway user, API key, and plan entitlement, then writes a `codex_gateway`
 section and a top-level `unified_key` back into the same JSON file.
 
-Default production trial settings match Wang Yun's current access:
+Default legacy cmev1 provisioning settings:
 
 - plan: `plan_internal_high_quota_v1`
-- key expiration: `2026-07-01T00:00:00.000Z`
-- entitlement end: `2026-07-01T00:00:00.000Z`
+- key expiration: defaults to now + 92 days
+- entitlement end: defaults to now + 92 days; values under 90 days are rejected
 - rate: `10` requests/minute, `200` requests/day, `4` concurrent requests
 
 Dry-run the derived user id and label:
