@@ -4274,7 +4274,7 @@ describe("gateway phase 1 routes", () => {
             expect(captured.map((body) => body.reasoning)).toEqual([
               { effort: "none" },
               { effort: "none" },
-              { effort: "high" }
+              { effort: "medium" }
             ]);
             expect(standard.json().usage).toMatchObject({
               completion_tokens_details: { reasoning_tokens: 0 }
@@ -4829,7 +4829,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it("forces native OpenRouter file tools to required for Expert with high reasoning", async () => {
+  it("forces native OpenRouter file tools to required for Expert with medium reasoning", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
       captured.push(JSON.parse(body) as Record<string, unknown>);
@@ -4918,7 +4918,7 @@ describe("gateway phase 1 routes", () => {
             expect(captured).toHaveLength(1);
             expect(captured[0]).toMatchObject({
               model: "z-ai/glm-5.2",
-              reasoning: { effort: "high" },
+              reasoning: { effort: "medium" },
               tool_choice: "required"
             });
           } finally {
@@ -5065,12 +5065,175 @@ describe("gateway phase 1 routes", () => {
             });
             expect(captured.map((body) => body.tool_choice)).toEqual(["required", "auto"]);
             expect(captured[1].model).toBe("z-ai/glm-5.2");
-            expect(captured[1].reasoning).toEqual({ effort: "high" });
+            expect(captured[1].reasoning).toEqual({ effort: "medium" });
             const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
             expect(retryMessages[1].content).toContain("The previous assistant tool response was rejected");
             expect(retryMessages[1].content).toContain("questions");
             expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
               publicModelId: "expert",
+              status: "ok"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("retries Specialist Qianfan native tool validation failures with auto while enforcing required", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-bce-request-id": `qianfan_req_${captured.length}`
+      });
+      if (captured.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: "call_bad_question",
+                      type: "function",
+                      function: {
+                        name: "question",
+                        arguments: "{}"
+                      }
+                    }
+                  ]
+                },
+                finish_reason: "tool_calls"
+              }
+            ],
+            usage: {
+              prompt_tokens: 40,
+              completion_tokens: 6,
+              total_tokens: 46
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_good_question",
+                    type: "function",
+                    function: {
+                      name: "question",
+                      arguments: '{"questions":["confirm the export format"]}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 45,
+            completion_tokens: 8,
+            total_tokens: 53
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+          MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["specialist"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "specialist",
+                messages: [{ role: "user", content: "Ask a clarification before exporting." }],
+                tool_choice: "required",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "question",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          questions: {
+                            type: "array",
+                            items: { type: "string" }
+                          }
+                        },
+                        required: ["questions"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "tool_calls",
+              message: {
+                tool_calls: [
+                  {
+                    id: "call_good_question",
+                    function: { name: "question" }
+                  }
+                ]
+              }
+            });
+            expect(response.json().usage).toMatchObject({
+              prompt_tokens: 85,
+              completion_tokens: 14,
+              total_tokens: 99
+            });
+            expect(captured.map((body) => body.tool_choice)).toEqual(["required", "auto"]);
+            expect(captured[0]).toMatchObject({
+              model: "glm-5.2",
+              reasoning: { effort: "medium" }
+            });
+            expect(captured[1]).toMatchObject({
+              model: "glm-5.2",
+              reasoning: { effort: "medium" }
+            });
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain("The previous assistant tool response was rejected");
+            expect(retryMessages[1].content).toContain("questions");
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              publicModelId: "specialist",
+              upstreamRuntime: "qianfan",
+              upstreamModel: "glm-5.2",
               status: "ok"
             });
           } finally {
@@ -9277,7 +9440,7 @@ function publicModelRegistryFixture() {
       upstreamModel: "z-ai/glm-5.2",
       contextWindow: 200000,
       upstreamContextWindow: 1048576,
-      reasoning: { effort: "high" },
+      reasoning: { effort: "medium" },
       enabled: true
     },
     pro: {

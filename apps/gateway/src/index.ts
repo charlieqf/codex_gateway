@@ -2175,15 +2175,19 @@ function looksLikeSilentNativeToolNoop(request: ChatCompletionRequest, content: 
   );
 }
 
-const modelsWithAutoOnlyNativeTools = new Set(["z-ai/glm-5-turbo"]);
-const modelsWithAutoRetryNativeTools = new Set(["z-ai/glm-5.2", "z-ai/glm-5-turbo"]);
+const modelsWithAutoOnlyNativeTools = new Set(["glm-5-turbo"]);
+const modelsWithAutoRetryNativeTools = new Set(["glm-5.2", "glm-5-turbo"]);
 
 function usesAutoOnlyNativeTools(upstreamModel: string): boolean {
-  return modelsWithAutoOnlyNativeTools.has(upstreamModel.toLowerCase());
+  return modelsWithAutoOnlyNativeTools.has(normalizedNativeToolModelName(upstreamModel));
 }
 
 function usesAutoRetryNativeTools(upstreamModel: string): boolean {
-  return modelsWithAutoRetryNativeTools.has(upstreamModel.toLowerCase());
+  return modelsWithAutoRetryNativeTools.has(normalizedNativeToolModelName(upstreamModel));
+}
+
+function normalizedNativeToolModelName(upstreamModel: string): string {
+  return upstreamModel.toLowerCase().split("/").pop() ?? upstreamModel.toLowerCase();
 }
 
 function nativeToolAcknowledgementRetryPrompt(prompt: string): string {
@@ -3036,7 +3040,8 @@ function hasNativeClientTools(
   request: ChatCompletionRequest,
   publicModel: PublicModelConfig
 ): boolean {
-  return publicModel.runtime === "openrouter" && hasStrictClientTools(request);
+  return (publicModel.runtime === "openrouter" || publicModel.runtime === "qianfan") &&
+    hasStrictClientTools(request);
 }
 
 function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {
