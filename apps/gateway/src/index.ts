@@ -275,11 +275,15 @@ export function buildGateway(options: GatewayOptions = {}) {
   const publicGatewayBaseUrl = normalizeBaseUrl(process.env.GATEWAY_PUBLIC_BASE_URL);
   const publicModelRegistry = resolvePublicModelRegistry(process.env, app.log);
   const openRouterAdapters = createOpenRouterAdapters(publicModelRegistry.models, process.env, app.log);
+  const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
   const chatRuntimeDispatcher = createChatRuntimeDispatcher({
     codexRouter: upstreamRouter,
-    openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null
+    openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null,
+    qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
+  const qianfanAvailable = qianfanAdapters.size > 0;
+  const publicModelAvailability = { openRouterAvailable, qianfanAvailable };
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
     configured: configuredAuthMode,
@@ -1215,7 +1219,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.get("/v1/models", async () => ({
     object: "list",
     data: publicModelRegistry
-      .listAvailable({ openRouterAvailable })
+      .listAvailable(publicModelAvailability)
       .map((model) => openAIModelObject(model))
   }));
 
@@ -1223,7 +1227,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const model = publicModelRegistry.get(request.params.id);
     if (
       !model ||
-      !publicModelRegistry.isAvailable(model, { openRouterAvailable })
+      !publicModelRegistry.isAvailable(model, publicModelAvailability)
     ) {
       return sendOpenAIError(request, reply, modelNotFoundError(request.params.id));
     }
@@ -1241,7 +1245,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     request.gatewayPublicModelId = parsed.model;
     if (
       !publicModel ||
-      !publicModelRegistry.isAvailable(publicModel, { openRouterAvailable })
+      !publicModelRegistry.isAvailable(publicModel, publicModelAvailability)
     ) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
       return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
@@ -3784,42 +3788,94 @@ function createOpenRouterAdapters(
   env: NodeJS.ProcessEnv,
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
 ): Map<string, ProviderAdapter> {
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "openrouter",
+    providerKind: "openrouter",
+    displayName: "OpenRouter",
+    apiKeyEnvName: env.MEDCODE_OPENROUTER_API_KEY_ENV?.trim() || "MEDCODE_OPENROUTER_API_KEY",
+    baseUrl: env.MEDCODE_OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_OPENROUTER_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_OPENROUTER_TIMEOUT_MS"
+    ),
+    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    siteUrl: env.MEDCODE_OPENROUTER_SITE_URL,
+    appTitle: env.MEDCODE_OPENROUTER_APP_TITLE ?? "MedCode"
+  });
+}
+
+function createQianfanAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): Map<string, ProviderAdapter> {
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "qianfan",
+    providerKind: "qianfan",
+    displayName: "Qianfan",
+    apiKeyEnvName: env.MEDCODE_QIANFAN_API_KEY_ENV?.trim() || "MEDCODE_QIANFAN_API_KEY",
+    baseUrl: env.MEDCODE_QIANFAN_BASE_URL ?? "https://qianfan.baidubce.com/v2/tokenplan/team",
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_QIANFAN_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_QIANFAN_TIMEOUT_MS"
+    ),
+    reasoningForModel: (model) => model.reasoning
+  });
+}
+
+function createOpenAICompatibleAdapters(input: {
+  models: PublicModelConfig[];
+  env: NodeJS.ProcessEnv;
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void };
+  runtime: "openrouter" | "qianfan";
+  providerKind: "openrouter" | "qianfan";
+  displayName: string;
+  apiKeyEnvName: string;
+  baseUrl: string;
+  timeoutMs: number;
+  reasoningForModel: (model: PublicModelConfig) => Record<string, unknown> | undefined;
+  siteUrl?: string;
+  appTitle?: string;
+}): Map<string, ProviderAdapter> {
   const adapters = new Map<string, ProviderAdapter>();
-  const apiKeyEnv = env.MEDCODE_OPENROUTER_API_KEY_ENV?.trim() || "MEDCODE_OPENROUTER_API_KEY";
-  const apiKey = env[apiKeyEnv]?.trim();
-  const enabledOpenRouterModels = models.filter(
-    (model) => model.enabled && model.runtime === "openrouter"
+  const apiKey = input.env[input.apiKeyEnvName]?.trim();
+  const enabledModels = input.models.filter(
+    (model) => model.enabled && model.runtime === input.runtime
   );
   if (!apiKey) {
-    if (enabledOpenRouterModels.length > 0) {
-      logger?.warn(
+    if (enabledModels.length > 0) {
+      input.logger?.warn(
         {
-          api_key_env: apiKeyEnv,
-          public_model_ids: enabledOpenRouterModels.map((model) => model.id)
+          api_key_env: input.apiKeyEnvName,
+          public_model_ids: enabledModels.map((model) => model.id)
         },
-        "OpenRouter public models are configured but the API key env is missing; those models will not be exposed."
+        `${input.displayName} public models are configured but the API key env is missing; those models will not be exposed.`
       );
     }
     return adapters;
   }
 
-  for (const model of enabledOpenRouterModels) {
+  for (const model of enabledModels) {
     adapters.set(
       model.id,
       new OpenAICompatibleProviderAdapter({
-        providerKind: "openrouter",
-        baseUrl: env.MEDCODE_OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+        providerKind: input.providerKind,
+        baseUrl: input.baseUrl,
         apiKey,
-        apiKeyEnv,
+        apiKeyEnv: input.apiKeyEnvName,
         upstreamModel: model.upstreamModel,
-        reasoning: model.reasoning ?? { effort: "none" },
-        siteUrl: env.MEDCODE_OPENROUTER_SITE_URL,
-        appTitle: env.MEDCODE_OPENROUTER_APP_TITLE ?? "MedCode",
-        timeoutMs: parsePositiveIntegerEnv(
-          env.MEDCODE_OPENROUTER_TIMEOUT_MS,
-          300_000,
-          "MEDCODE_OPENROUTER_TIMEOUT_MS"
-        )
+        reasoning: input.reasoningForModel(model),
+        siteUrl: input.siteUrl,
+        appTitle: input.appTitle,
+        timeoutMs: input.timeoutMs
       })
     );
   }

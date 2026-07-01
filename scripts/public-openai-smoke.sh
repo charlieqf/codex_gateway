@@ -146,7 +146,7 @@ curl -fsS --max-time "$HTTP_TIMEOUT_SECONDS" \
   "$BASE_URL/v1/models"
 assert_json "$tmp_dir/models.json" '
 const ids = (x.data || []).map((model) => model.id).sort();
-for (const required of ["max", "expert", "pro", "standard"]) {
+for (const required of ["max", "specialist", "expert", "pro", "standard"]) {
   if (!ids.includes(required)) {
     console.error(`missing model ${required}; ids=${ids.join(",")}`);
     process.exit(1);
@@ -158,7 +158,7 @@ if (ids.includes("medcode")) {
 }
 const max = x.data.find((model) => model.id === "max");
 if (max?.context_window !== 400000 || max?.max_context_window !== 400000 || max?.max_output_tokens !== 128000) process.exit(1);
-for (const modelId of ["expert", "pro", "standard"]) {
+for (const modelId of ["specialist", "expert", "pro", "standard"]) {
   const model = x.data.find((item) => item.id === modelId);
   if (model?.context_window !== 200000 || model?.max_context_window !== 200000 || model?.max_output_tokens !== 128000) process.exit(1);
 }

@@ -12,7 +12,7 @@ import {
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
 
 export interface OpenAICompatibleProviderOptions {
-  providerKind: "openrouter";
+  providerKind: "openrouter" | "qianfan";
   baseUrl: string;
   apiKey: string;
   apiKeyEnv: string;
@@ -139,7 +139,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       stream_options: {
         include_usage: true
       },
-      reasoning: this.options.reasoning ?? { effort: "none" },
+      ...(this.options.reasoning ? { reasoning: this.options.reasoning } : {}),
       ...(nativeToolCallsEnabled(input)
         ? {
             tools: input.clientTools,
@@ -153,8 +153,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     return {
       authorization: `Bearer ${this.options.apiKey}`,
       "content-type": "application/json",
-      ...(this.options.siteUrl ? { "HTTP-Referer": this.options.siteUrl } : {}),
-      ...(this.options.appTitle ? { "X-OpenRouter-Title": this.options.appTitle } : {})
+      ...(this.options.providerKind === "openrouter" && this.options.siteUrl
+        ? { "HTTP-Referer": this.options.siteUrl }
+        : {}),
+      ...(this.options.providerKind === "openrouter" && this.options.appTitle
+        ? { "X-OpenRouter-Title": this.options.appTitle }
+        : {})
     };
   }
 
@@ -470,6 +474,7 @@ function upstreamRequestId(headers: Headers): string | null {
   return (
     headers.get("x-request-id") ??
     headers.get("x-openrouter-request-id") ??
+    headers.get("x-bce-request-id") ??
     headers.get("openai-request-id") ??
     headers.get("x-zai-request-id") ??
     headers.get("x-ds-request-id")
@@ -524,6 +529,7 @@ function errorMessage(err: unknown): string {
 function sanitizeProviderErrorText(value: string): string {
   const redacted = value
     .replace(/\bbearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, "Bearer <redacted>")
+    .replace(/\bbce-v3\/[A-Za-z0-9_-]+\/[A-Za-z0-9]+\b/g, "bce-v3/<redacted>")
     .replace(
       /\b(authorization|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|id[-_ ]?token|cookie|set-cookie|password)\s*[:=]\s*["']?[^"',\s;}]+/gi,
       "$1=<redacted>"

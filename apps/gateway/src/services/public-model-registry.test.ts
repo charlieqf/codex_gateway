@@ -114,4 +114,38 @@ describe("public model registry", () => {
       })
     ).toThrow("Duplicate public model id or alias 'standard'");
   });
+
+  it("exposes qianfan models only when the qianfan runtime is configured", () => {
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        max: {
+          aliases: ["medcode"],
+          runtime: "codex",
+          upstreamModel: "gpt-5.5"
+        },
+        expert: {
+          runtime: "qianfan",
+          upstreamModel: "glm-5.2",
+          reasoning: { effort: "medium" }
+        },
+        pro: {
+          runtime: "openrouter",
+          upstreamModel: "z-ai/glm-5-turbo"
+        }
+      })
+    });
+
+    expect(
+      registry
+        .listAvailable({ openRouterAvailable: true, qianfanAvailable: false })
+        .map((model) => model.id)
+    ).toEqual(["max", "pro"]);
+    expect(
+      registry
+        .listAvailable({ openRouterAvailable: false, qianfanAvailable: true })
+        .map((model) => model.id)
+    ).toEqual(["max", "expert"]);
+    expect(registry.get("expert")?.runtime).toBe("qianfan");
+    expect(registry.get("expert")?.reasoning).toEqual({ effort: "medium" });
+  });
 });

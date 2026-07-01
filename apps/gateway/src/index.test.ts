@@ -3716,10 +3716,11 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("exposes enabled public model registry limits with max/expert/pro/standard names", async () => {
+  it("exposes enabled public model registry limits with max/specialist/expert/pro/standard names", async () => {
     await withTemporaryEnv(
       {
         MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
         MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
       },
       async () => {
@@ -3741,6 +3742,12 @@ describe("gateway phase 1 routes", () => {
             id: "max",
             context_window: 400000,
             max_context_window: 400000,
+            max_output_tokens: 128000
+          }),
+          expect.objectContaining({
+            id: "specialist",
+            context_window: 200000,
+            max_context_window: 200000,
             max_output_tokens: 128000
           }),
           expect.objectContaining({
@@ -4310,6 +4317,152 @@ describe("gateway phase 1 routes", () => {
       );
     } finally {
       await server.close();
+    }
+  });
+
+  it("routes Qianfan public models independently from OpenRouter models", async () => {
+    const openRouterCaptured: Array<Record<string, unknown>> = [];
+    const qianfanCaptured: Array<{
+      headers: http.IncomingHttpHeaders;
+      body: Record<string, unknown>;
+    }> = [];
+    const openRouterServer = await startOpenAICompatibleSseServer(
+      async (_request, body, response) => {
+        openRouterCaptured.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "or-ok" } }],
+            usage: {
+              prompt_tokens: 7,
+              completion_tokens: 2,
+              total_tokens: 9,
+              completion_tokens_details: { reasoning_tokens: 0 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+    const qianfanServer = await startOpenAICompatibleSseServer(
+      async (request, body, response) => {
+        qianfanCaptured.push({
+          headers: request.headers,
+          body: JSON.parse(body) as Record<string, unknown>
+        });
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "x-bce-request-id": "qianfan_req_1"
+        });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "qf-ok" } }],
+            usage: {
+              prompt_tokens: 11,
+              completion_tokens: 3,
+              total_tokens: 14,
+              completion_tokens_details: { reasoning_tokens: 1 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+
+    try {
+      const registry = publicModelRegistryFixture();
+
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: openRouterServer.baseUrl,
+          MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+          MEDCODE_QIANFAN_BASE_URL: qianfanServer.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry)
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["specialist", "pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const listed = await app.inject({
+              method: "GET",
+              url: "/v1/models",
+              headers
+            });
+            const specialist = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "specialist",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const pro = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(listed.statusCode).toBe(200);
+            expect(listed.json().data.map((model: { id: string }) => model.id)).toEqual([
+              "max",
+              "specialist",
+              "expert",
+              "pro",
+              "standard"
+            ]);
+            expect(specialist.statusCode).toBe(200);
+            expect(pro.statusCode).toBe(200);
+            expect(specialist.json().choices[0].message.content).toBe("qf-ok");
+            expect(pro.json().choices[0].message.content).toBe("or-ok");
+            expect(qianfanCaptured).toHaveLength(1);
+            expect(openRouterCaptured).toHaveLength(1);
+            expect(qianfanCaptured[0].body).toMatchObject({
+              model: "glm-5.2",
+              reasoning: { effort: "medium" }
+            });
+            expect(qianfanCaptured[0].headers["x-openrouter-title"]).toBeUndefined();
+            expect(qianfanCaptured[0].headers["http-referer"]).toBeUndefined();
+            expect(openRouterCaptured[0].model).toBe("z-ai/glm-5-turbo");
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "pro",
+                  upstreamRuntime: "openrouter",
+                  upstreamModel: "z-ai/glm-5-turbo",
+                  upstreamAccountId: "openrouter-main",
+                  provider: "openrouter",
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "specialist",
+                  upstreamRuntime: "qianfan",
+                  upstreamModel: "glm-5.2",
+                  upstreamAccountId: "qianfan-main",
+                  provider: "qianfan",
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await openRouterServer.close();
+      await qianfanServer.close();
     }
   });
 
@@ -9107,6 +9260,15 @@ function publicModelRegistryFixture() {
       contextWindow: 400000,
       upstreamContextWindow: 400000,
       maxOutputTokens: 128000,
+      enabled: true
+    },
+    specialist: {
+      displayName: "Specialist",
+      runtime: "qianfan",
+      upstreamModel: "glm-5.2",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "medium" },
       enabled: true
     },
     expert: {

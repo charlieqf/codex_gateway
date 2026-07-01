@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { GatewayError, isRecord } from "@codex-gateway/core";
 
-export type ChatRuntimeKind = "codex" | "openrouter";
+export type ChatRuntimeKind = "codex" | "openrouter" | "qianfan";
 
 export interface PublicModelConfig {
   id: string;
@@ -21,8 +21,13 @@ export interface PublicModelRegistry {
   defaultModelId: string;
   models: PublicModelConfig[];
   get(id: string): PublicModelConfig | null;
-  listAvailable(input: { openRouterAvailable: boolean }): PublicModelConfig[];
-  isAvailable(model: PublicModelConfig, input: { openRouterAvailable: boolean }): boolean;
+  listAvailable(input: PublicModelAvailability): PublicModelConfig[];
+  isAvailable(model: PublicModelConfig, input: PublicModelAvailability): boolean;
+}
+
+export interface PublicModelAvailability {
+  openRouterAvailable: boolean;
+  qianfanAvailable?: boolean;
 }
 
 export interface PublicModelRegistryLogger {
@@ -104,11 +109,17 @@ function createRegistry(models: PublicModelConfig[], defaultModelId: string): Pu
   };
 }
 
-function isModelAvailable(
-  model: PublicModelConfig,
-  input: { openRouterAvailable: boolean }
-): boolean {
-  return model.enabled && (model.runtime !== "openrouter" || input.openRouterAvailable);
+function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailability): boolean {
+  if (!model.enabled) {
+    return false;
+  }
+  if (model.runtime === "openrouter") {
+    return input.openRouterAvailable;
+  }
+  if (model.runtime === "qianfan") {
+    return input.qianfanAvailable === true;
+  }
+  return true;
 }
 
 function readRegistryJson(
@@ -251,10 +262,10 @@ function parseAliases(value: unknown, id: string): string[] {
 }
 
 function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
-  if (value === "codex" || value === "openrouter") {
+  if (value === "codex" || value === "openrouter" || value === "qianfan") {
     return value;
   }
-  throw new Error(`Public model '${id}' runtime must be codex or openrouter.`);
+  throw new Error(`Public model '${id}' runtime must be codex, openrouter, or qianfan.`);
 }
 
 function parseBoolean(value: unknown, id: string): boolean {

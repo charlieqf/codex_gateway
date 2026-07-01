@@ -14,7 +14,7 @@ import {
   type UpstreamSoftAffinity
 } from "./upstream-account-router.js";
 
-export type UpstreamRuntimeKind = "codex" | "openrouter";
+export type UpstreamRuntimeKind = "codex" | "openrouter" | "qianfan";
 
 export interface ChatRuntimeContext {
   publicModelId: string;
@@ -52,20 +52,26 @@ export interface ChatRuntimeDispatcher {
 export interface ChatRuntimeDispatcherInput {
   codexRouter: UpstreamAccountRouter;
   openRouterAdapterForModel: (model: PublicModelConfig) => ProviderAdapter | null;
+  qianfanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   openRouterAccount?: UpstreamAccount;
+  qianfanAccount?: UpstreamAccount;
 }
 
 export function createChatRuntimeDispatcher(
   input: ChatRuntimeDispatcherInput
 ): ChatRuntimeDispatcher {
   const openRouterAccount = input.openRouterAccount ?? defaultOpenRouterVirtualAccount();
+  const qianfanAccount = input.qianfanAccount ?? defaultQianfanVirtualAccount();
   return {
     begin: (beginInput) => {
       if (beginInput.model.runtime === "codex") {
         return beginCodexRuntime(input.codexRouter, beginInput);
       }
 
-      const adapter = input.openRouterAdapterForModel(beginInput.model);
+      const adapter =
+        beginInput.model.runtime === "openrouter"
+          ? input.openRouterAdapterForModel(beginInput.model)
+          : (input.qianfanAdapterForModel?.(beginInput.model) ?? null);
       if (!adapter) {
         return new GatewayError({
           code: "model_not_found",
@@ -73,12 +79,14 @@ export function createChatRuntimeDispatcher(
           httpStatus: 404
         });
       }
-      const session = beginInput.createSession(beginInput.subject.id, openRouterAccount.id);
+      const virtualAccount =
+        beginInput.model.runtime === "openrouter" ? openRouterAccount : qianfanAccount;
+      const session = beginInput.createSession(beginInput.subject.id, virtualAccount.id);
       return {
         publicModelId: beginInput.model.id,
-        runtime: "openrouter",
-        runtimeInstanceId: openRouterAccount.id,
-        providerKind: "openrouter",
+        runtime: beginInput.model.runtime,
+        runtimeInstanceId: virtualAccount.id,
+        providerKind: virtualAccount.provider,
         upstreamModel: beginInput.model.upstreamModel,
         reasoningEffort: reasoningEffortForModel(beginInput.model),
         limits: {
@@ -86,8 +94,8 @@ export function createChatRuntimeDispatcher(
           maxOutputTokens: beginInput.model.maxOutputTokens
         },
         adapter,
-        adapterInputUpstreamAccount: openRouterAccount,
-        attributionAccount: openRouterAccount,
+        adapterInputUpstreamAccount: virtualAccount,
+        attributionAccount: virtualAccount,
         subject: beginInput.subject,
         scope: beginInput.scope,
         session,
@@ -202,6 +210,18 @@ function defaultOpenRouterVirtualAccount(): UpstreamAccount {
     provider: "openrouter",
     label: "OpenRouter Main",
     credentialRef: "ENV:MEDCODE_OPENROUTER_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultQianfanVirtualAccount(): UpstreamAccount {
+  return {
+    id: "qianfan-main",
+    provider: "qianfan",
+    label: "Qianfan Main",
+    credentialRef: "ENV:MEDCODE_QIANFAN_API_KEY",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null
