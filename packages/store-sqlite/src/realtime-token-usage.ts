@@ -46,6 +46,7 @@ export interface RealtimeTokenUsageData {
     completion_tokens: number;
     cached_prompt_tokens: number;
   };
+  models: RealtimeTokenUsageModelSummary[];
   privacy: {
     user_identifiers: "stable_hash_alias";
     messages: "hash_and_length_only";
@@ -60,6 +61,33 @@ export interface RealtimeTokenUsageSeriesPoint {
   bucket_start: string;
   bucket_end: string;
   label: string;
+  requests: number;
+  total_tokens: number;
+  provider_total_tokens: number;
+  estimated_tokens: number;
+  models: RealtimeTokenUsageSeriesModelPoint[];
+}
+
+export interface RealtimeTokenUsageModelSummary {
+  public_model_id: string;
+  model_display_name: string;
+  upstream_runtime: string | null;
+  upstream_model: string | null;
+  requests: number;
+  ok: number;
+  errors: number;
+  rate_limited: number;
+  total_tokens: number;
+  provider_total_tokens: number;
+  estimated_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cached_prompt_tokens: number;
+  share_total_tokens: number;
+}
+
+export interface RealtimeTokenUsageSeriesModelPoint {
+  public_model_id: string;
   requests: number;
   total_tokens: number;
   provider_total_tokens: number;
@@ -116,6 +144,15 @@ const maxRequestLimit = 500;
 const maxClientMessageLookup = 1_000;
 const messageLookupSkewMs = 60_000;
 const authNoiseErrorCodes = new Set(["missing_credential", "invalid_credential"]);
+const defaultPublicModelIds = ["max", "specialist", "expert", "pro", "standard"];
+const publicModelDisplayNames: Record<string, string> = {
+  max: "Max",
+  specialist: "Specialist",
+  expert: "Expert",
+  pro: "Pro",
+  standard: "Standard",
+  unknown: "Unknown"
+};
 const chartTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Asia/Shanghai",
   hour: "2-digit",
@@ -144,6 +181,7 @@ export async function buildRealtimeTokenUsageData(
     : Math.min(maxRequestLimit, Math.max(limit * 3, limit + 50));
   const since = alignedWindowStart(now, windowSeconds, bucketSeconds);
   const events = listRealtimeRequestEvents(store, since, now, eventLimit);
+  const statEvents = listRealtimeRequestEvents(store, since, now);
   const messagesByRequestId = await clientMessagesByRequestId(options.clientEventsStore, since, now);
   const subjectsById = new Map(store.listSubjects({ includeArchived: true }).map((item) => [item.id, item]));
   const credentialsById = new Map(
@@ -161,7 +199,18 @@ export async function buildRealtimeTokenUsageData(
     ? allRequests
     : allRequests.filter((request) => !isAuthNoiseRequest(request))
   ).slice(0, limit);
-  const summary = summarizeRequests(requests);
+  const allStatRequests = statEvents.map((event) =>
+    publicRealtimeRequest(event, {
+      subject: null,
+      credential: null,
+      message: null
+    })
+  );
+  const statRequests = includeAuthNoise
+    ? allStatRequests
+    : allStatRequests.filter((request) => !isAuthNoiseRequest(request));
+  const summary = summarizeRequests(statRequests);
+  const models = summarizeModels(statRequests);
 
   return {
     generated_at: now.toISOString(),
@@ -173,13 +222,14 @@ export async function buildRealtimeTokenUsageData(
       bucket_seconds: bucketSeconds
     },
     summary,
+    models,
     privacy: {
       user_identifiers: "stable_hash_alias",
       messages: "hash_and_length_only",
       raw_message_text_included: false,
       raw_user_fields_included: false
     },
-    series: buildSeries(requests, since, now, bucketSeconds),
+    series: buildSeries(statRequests, since, now, bucketSeconds, models.map((model) => model.public_model_id)),
     requests
   };
 }
@@ -359,6 +409,54 @@ export function renderRealtimeTokenUsagePage(
     }
     .legend .total { background: var(--accent); }
     .legend .estimated { background: var(--estimated); }
+    .legend .model-dot { background: var(--accent); }
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+    .model-card {
+      display: grid;
+      gap: 7px;
+      min-height: 126px;
+      padding: 12px;
+      border: 0;
+      border-left: 4px solid var(--accent);
+      border-radius: 0;
+      background: var(--surface);
+      text-align: left;
+      cursor: pointer;
+      white-space: normal;
+      align-items: stretch;
+      justify-content: stretch;
+      min-width: 0;
+    }
+    .model-card * { min-width: 0; }
+    .model-card:hover { background: #f7fbff; }
+    .model-card.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .model-card .title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+      color: var(--text);
+      font-weight: 700;
+    }
+    .model-card .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .model-card .stats strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+      letter-spacing: 0;
+    }
     .chart-wrap {
       height: 292px;
       padding: 12px 14px 10px;
@@ -394,8 +492,8 @@ export function renderRealtimeTokenUsagePage(
       scrollbar-gutter: stable both-edges;
     }
     table {
-      width: 1320px;
-      min-width: 1320px;
+      width: 1455px;
+      min-width: 1455px;
       border-collapse: collapse;
       table-layout: fixed;
     }
@@ -453,6 +551,7 @@ export function renderRealtimeTokenUsagePage(
       .controls { justify-content: flex-start; }
       header, main { padding-left: 14px; padding-right: 14px; }
       .summary { grid-template-columns: repeat(2, minmax(128px, 1fr)); }
+      .model-grid { grid-template-columns: repeat(2, minmax(128px, 1fr)); }
       .panel-header { align-items: flex-start; flex-direction: column; }
       input[type="password"] { width: min(100%, 320px); }
       .table-wrap { max-height: calc(100vh - 520px); }
@@ -481,6 +580,11 @@ export function renderRealtimeTokenUsagePage(
           <option value="3600">60 分钟</option>
         </select>
       </label>
+      <label class="field">Model
+        <select id="modelFilter">
+          <option value="all" selected>All models</option>
+        </select>
+      </label>
       <label class="check"><input id="includeAuthNoise" type="checkbox">显示认证噪音</label>
       <label class="check"><input id="autoRefresh" type="checkbox" checked>2s 自动刷新</label>
       <button id="refresh" class="primary" type="button">刷新</button>
@@ -489,13 +593,22 @@ export function renderRealtimeTokenUsagePage(
   <section class="summary" aria-label="summary" id="summary"></section>
   <main>
     <div class="notice" id="notice" hidden></div>
+    <section class="panel" aria-label="model traffic summary">
+      <div class="panel-header">
+        <div>
+          <h2>Model traffic</h2>
+          <div class="subtle" id="modelSubtitle">Public model breakdown for the current window</div>
+        </div>
+      </div>
+      <div class="model-grid" id="modelSummary"></div>
+    </section>
     <section class="panel" aria-label="token usage bucket chart">
       <div class="panel-header">
         <div>
           <h2>Token 用量趋势</h2>
           <div class="subtle" id="chartSubtitle">-</div>
         </div>
-        <div class="legend" aria-label="token usage legend">
+        <div class="legend" aria-label="token usage legend" id="chartLegend">
           <span><i class="total"></i>total tokens</span>
           <span><i class="estimated"></i>estimated tokens</span>
         </div>
@@ -516,6 +629,7 @@ export function renderRealtimeTokenUsagePage(
               <th style="width: 150px;">时间</th>
               <th style="width: 130px;">用户</th>
               <th style="width: 235px;">消息</th>
+              <th style="width: 135px;">Model</th>
               <th class="num" style="width: 90px;">Total</th>
               <th class="num" style="width: 90px;">Prompt</th>
               <th class="num" style="width: 95px;">Completion</th>
@@ -535,12 +649,15 @@ export function renderRealtimeTokenUsagePage(
     const dataEndpoint = ${JSON.stringify(dataEndpoint)};
     const tokenEl = document.getElementById("token");
     const windowEl = document.getElementById("windowSeconds");
+    const modelFilterEl = document.getElementById("modelFilter");
     const autoEl = document.getElementById("autoRefresh");
     const refreshEl = document.getElementById("refresh");
     const noticeEl = document.getElementById("notice");
     const summaryEl = document.getElementById("summary");
     const rowsEl = document.getElementById("rows");
     const chartEl = document.getElementById("tokenBucketChart");
+    const chartLegendEl = document.getElementById("chartLegend");
+    const modelSummaryEl = document.getElementById("modelSummary");
     const requestCountEl = document.getElementById("requestCount");
     const includeAuthNoiseEl = document.getElementById("includeAuthNoise");
     let data = null;
@@ -552,12 +669,15 @@ export function renderRealtimeTokenUsagePage(
       tokenEl.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", tokenEl.value));
     }
     windowEl.addEventListener("change", () => load());
+    modelFilterEl.addEventListener("change", () => {
+      if (data) render();
+    });
     includeAuthNoiseEl.addEventListener("change", () => load());
     autoEl.addEventListener("change", resetTimer);
     refreshEl.addEventListener("click", () => load());
     document.addEventListener("visibilitychange", resetTimer);
 
-    rowsEl.innerHTML = '<tr><td colspan="10" class="subtle">等待数据</td></tr>';
+    rowsEl.innerHTML = '<tr><td colspan="11" class="subtle">等待数据</td></tr>';
     load();
     resetTimer();
 
@@ -611,9 +731,22 @@ export function renderRealtimeTokenUsagePage(
       document.getElementById("windowMeta").textContent = "窗口：" + Math.round(data.window.seconds / 60) + " 分钟，bucket " + data.window.bucket_seconds + "s";
       document.getElementById("privacyMeta").textContent = "脱敏：用户别名，消息指纹/长度";
       document.getElementById("chartSubtitle").textContent = formatDateTime(data.window.since) + " - " + formatDateTime(data.window.until);
+      renderModelOptions();
       renderSummary();
+      renderModelSummary();
       renderBucketChart();
       renderRows();
+    }
+
+    function renderModelOptions() {
+      const selected = modelFilterEl.value || "all";
+      const models = data.models || [];
+      modelFilterEl.innerHTML = '<option value="all">All models</option>' + models.map((model) =>
+        '<option value="' + escapeHtml(model.public_model_id) + '">' + escapeHtml(model.model_display_name) + '</option>'
+      ).join("");
+      modelFilterEl.value = selected === "all" || models.some((model) => model.public_model_id === selected)
+        ? selected
+        : "all";
     }
 
     function renderSummary() {
@@ -632,8 +765,38 @@ export function renderRealtimeTokenUsagePage(
       ).join("");
     }
 
+    function renderModelSummary() {
+      const selectedModel = modelFilterEl.value || "all";
+      const models = data.models || [];
+      modelSummaryEl.innerHTML = models.map((model) => {
+        const selectedClass = selectedModel === model.public_model_id ? " selected" : "";
+        const color = modelColor(model.public_model_id);
+        const share = Math.round((Number(model.share_total_tokens) || 0) * 1000) / 10;
+        return '<button type="button" class="model-card' + selectedClass + '" data-model="' + escapeHtml(model.public_model_id) + '" style="border-left-color:' + color + '">' +
+          '<div class="title"><span>' + escapeHtml(model.model_display_name) + '</span><span class="mono">' + escapeHtml(model.public_model_id) + '</span></div>' +
+          '<div class="subtle">' + escapeHtml(model.upstream_runtime || "-") + (model.upstream_model ? " / " + escapeHtml(model.upstream_model) : "") + '</div>' +
+          '<div class="stats">' +
+            '<span><strong>' + formatNumber(model.requests) + '</strong>requests</span>' +
+            '<span><strong>' + formatNumber(model.total_tokens) + '</strong>total tokens</span>' +
+            '<span><strong>' + formatNumber(model.provider_total_tokens) + '</strong>provider</span>' +
+            '<span><strong>' + formatNumber(model.estimated_tokens) + '</strong>estimated</span>' +
+            '<span><strong>' + formatNumber(model.rate_limited) + '</strong>rate limited</span>' +
+            '<span><strong>' + share.toLocaleString("en-US") + '%</strong>share</span>' +
+          '</div>' +
+        '</button>';
+      }).join("");
+      modelSummaryEl.querySelectorAll("[data-model]").forEach((button) => {
+        button.addEventListener("click", () => {
+          modelFilterEl.value = button.getAttribute("data-model") || "all";
+          render();
+        });
+      });
+    }
+
     function renderBucketChart() {
       const series = data.series || [];
+      const selectedModel = modelFilterEl.value || "all";
+      const selectedModelSummary = modelSummary(selectedModel);
       const width = 760;
       const height = 250;
       const left = 54;
@@ -642,8 +805,18 @@ export function renderRealtimeTokenUsagePage(
       const bottom = 35;
       const plotWidth = width - left - right;
       const plotHeight = height - top - bottom;
-      const maxValue = niceChartMax(Math.max(1, ...series.map((point) => Math.max(Number(point.total_tokens) || 0, Number(point.estimated_tokens) || 0))));
-      const bars = barsFor(series, maxValue, left, top, plotWidth, plotHeight);
+      const modelIds = chartModelIds();
+      const maxValue = niceChartMax(Math.max(1, ...series.map((point) =>
+        selectedModel === "all"
+          ? Number(point.total_tokens) || 0
+          : Math.max(
+              Number(seriesModel(point, selectedModel)?.total_tokens) || 0,
+              Number(seriesModel(point, selectedModel)?.estimated_tokens) || 0
+            )
+      )));
+      const bars = selectedModel === "all"
+        ? stackedModelBarsFor(series, modelIds, maxValue, left, top, plotWidth, plotHeight)
+        : selectedModelBarsFor(series, selectedModel, maxValue, left, top, plotWidth, plotHeight);
       const gridValues = [0, 0.25, 0.5, 0.75, 1];
       const grid = gridValues.map((ratio) => {
         const y = top + plotHeight - ratio * plotHeight;
@@ -658,9 +831,31 @@ export function renderRealtimeTokenUsagePage(
         '<line class="axis" x1="' + left + '" y1="' + top + '" x2="' + left + '" y2="' + (top + plotHeight) + '"></line>' +
         bars +
         xLabels;
+      chartLegendEl.innerHTML = selectedModel === "all"
+        ? modelIds.map((modelId) => '<span><i class="model-dot" style="background:' + modelColor(modelId) + '"></i>' + escapeHtml(modelLabel(modelId)) + '</span>').join("")
+        : '<span><i class="model-dot" style="background:' + modelColor(selectedModel) + '"></i>' + escapeHtml(selectedModelSummary?.model_display_name || selectedModel) + ' total tokens</span><span><i class="estimated"></i>estimated tokens</span>';
     }
 
-    function barsFor(series, maxValue, left, top, plotWidth, plotHeight) {
+    function stackedModelBarsFor(series, modelIds, maxValue, left, top, plotWidth, plotHeight) {
+      if (series.length === 0) return "";
+      const slotWidth = plotWidth / series.length;
+      const barWidth = Math.max(3, Math.min(18, slotWidth * 0.62));
+      return series.map((point, index) => {
+        const slotStart = left + index * slotWidth;
+        const x = slotStart + Math.max(0, (slotWidth - barWidth) / 2);
+        let y = top + plotHeight;
+        return modelIds.map((modelId) => {
+          const value = Number(seriesModel(point, modelId)?.total_tokens) || 0;
+          if (value <= 0) return "";
+          const height = Math.max(1, value / maxValue * plotHeight);
+          y -= height;
+          const title = point.label + " " + modelLabel(modelId) + " total_tokens " + formatNumber(value);
+          return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + height.toFixed(1) + '" fill="' + modelColor(modelId) + '"><title>' + escapeHtml(title) + '</title></rect>';
+        }).join("");
+      }).join(" ");
+    }
+
+    function selectedModelBarsFor(series, modelId, maxValue, left, top, plotWidth, plotHeight) {
       if (series.length === 0) return "";
       const slotWidth = plotWidth / series.length;
       const gap = Math.min(3, Math.max(1, slotWidth * 0.08));
@@ -669,17 +864,45 @@ export function renderRealtimeTokenUsagePage(
         const slotStart = left + index * slotWidth;
         const groupWidth = barWidth * 2 + gap;
         const x = slotStart + Math.max(0, (slotWidth - groupWidth) / 2);
-        return barFor(point, "total_tokens", "bar-total", x, barWidth, maxValue, top, plotHeight) +
-          barFor(point, "estimated_tokens", "bar-estimated", x + barWidth + gap, barWidth, maxValue, top, plotHeight);
+        const model = seriesModel(point, modelId);
+        return barForValue(point, modelId, "total_tokens", Number(model?.total_tokens) || 0, modelColor(modelId), x, barWidth, maxValue, top, plotHeight) +
+          barForValue(point, modelId, "estimated_tokens", Number(model?.estimated_tokens) || 0, "#d97706", x + barWidth + gap, barWidth, maxValue, top, plotHeight);
       }).join(" ");
     }
 
-    function barFor(point, key, className, x, width, maxValue, top, plotHeight) {
-      const value = Number(point[key]) || 0;
+    function barForValue(point, modelId, key, value, color, x, width, maxValue, top, plotHeight) {
       const height = value > 0 ? Math.max(1, value / maxValue * plotHeight) : 0;
       const y = top + plotHeight - height;
-      const title = point.label + " " + key + " " + formatNumber(value);
-      return '<rect class="' + className + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + width.toFixed(1) + '" height="' + height.toFixed(1) + '"><title>' + escapeHtml(title) + '</title></rect>';
+      const title = point.label + " " + modelLabel(modelId) + " " + key + " " + formatNumber(value);
+      return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + width.toFixed(1) + '" height="' + height.toFixed(1) + '" fill="' + color + '"><title>' + escapeHtml(title) + '</title></rect>';
+    }
+
+    function chartModelIds() {
+      return (data.models || []).map((model) => model.public_model_id);
+    }
+
+    function modelSummary(modelId) {
+      return (data.models || []).find((model) => model.public_model_id === modelId) || null;
+    }
+
+    function seriesModel(point, modelId) {
+      return (point.models || []).find((model) => model.public_model_id === modelId) || null;
+    }
+
+    function modelLabel(modelId) {
+      return modelSummary(modelId)?.model_display_name || modelId || "-";
+    }
+
+    function modelColor(modelId) {
+      const colors = {
+        max: "#2563eb",
+        specialist: "#059669",
+        expert: "#7c3aed",
+        pro: "#d97706",
+        standard: "#dc2626",
+        unknown: "#64748b"
+      };
+      return colors[modelId] || "#475569";
     }
 
     function xAxisLabels(series, left, top, plotWidth, plotHeight) {
@@ -700,11 +923,14 @@ export function renderRealtimeTokenUsagePage(
     }
 
     function renderRows() {
-      const requests = data.requests || [];
+      const selectedModel = modelFilterEl.value || "all";
+      const requests = selectedModel === "all"
+        ? data.requests || []
+        : (data.requests || []).filter((request) => request.public_model_id === selectedModel);
       requestCountEl.textContent = "显示 " + formatNumber(requests.length) + " 条";
       rowsEl.innerHTML = requests.length > 0
         ? requests.map(renderRow).join("")
-        : '<tr><td colspan="10" class="empty">暂无实时请求</td></tr>';
+        : '<tr><td colspan="11" class="empty">暂无实时请求</td></tr>';
     }
 
     function renderRow(row) {
@@ -714,6 +940,7 @@ export function renderRealtimeTokenUsagePage(
         '<td>' + escapeHtml(formatDateTime(row.started_at)) + '<div class="subtle">' + escapeHtml(row.provider || "") + '</div></td>' +
         '<td><strong>' + escapeHtml(row.user.alias) + '</strong><div class="subtle mono">' + escapeHtml(row.credential.alias) + '</div></td>' +
         '<td><strong>' + escapeHtml(row.message.alias) + '</strong><div class="subtle">' + escapeHtml(row.message.preview) + '</div></td>' +
+        '<td><strong>' + escapeHtml(modelLabel(row.public_model_id)) + '</strong><div class="subtle mono">' + escapeHtml(row.public_model_id || "-") + '</div><div class="subtle">' + escapeHtml(row.upstream_runtime || "") + '</div></td>' +
         '<td class="num">' + formatNumber(usage.total_tokens) + '</td>' +
         '<td class="num">' + formatNumber(usage.prompt_tokens) + '</td>' +
         '<td class="num">' + formatNumber(usage.completion_tokens) + '</td>' +
@@ -776,17 +1003,20 @@ function listRealtimeRequestEvents(
   store: SqliteGatewayStore,
   since: Date,
   until: Date,
-  limit: number
+  limit?: number
 ): RequestEventRecord[] {
+  const params: Array<string | number> = [since.toISOString(), until.toISOString()];
+  if (limit !== undefined) {
+    params.push(limit);
+  }
   return store.database
     .prepare(
       `SELECT ${requestEventColumns}
        FROM request_events
        WHERE started_at >= ? AND started_at <= ?
-       ORDER BY started_at DESC
-       LIMIT ?`
+       ORDER BY started_at DESC${limit === undefined ? "" : " LIMIT ?"}`
     )
-    .all(since.toISOString(), until.toISOString(), limit)
+    .all(...params)
     .map(rowToRequestEvent);
 }
 
@@ -837,7 +1067,7 @@ function publicRealtimeRequest(
     scope: event.scope,
     provider: event.provider,
     upstream_account_id: event.upstreamAccountId,
-    public_model_id: event.publicModelId ?? null,
+    public_model_id: canonicalPublicModelId(event.publicModelId),
     upstream_runtime: event.upstreamRuntime ?? null,
     upstream_model: event.upstreamModel ?? null,
     session_alias: event.sessionId ? stableAlias("session", event.sessionId) : null,
@@ -936,6 +1166,89 @@ function summarizeRequests(
   );
 }
 
+function summarizeModels(requests: RealtimeTokenUsageRequest[]): RealtimeTokenUsageModelSummary[] {
+  const byModel = new Map<string, RealtimeTokenUsageModelSummary>();
+  for (const modelId of defaultPublicModelIds) {
+    byModel.set(modelId, emptyModelSummary(modelId));
+  }
+
+  for (const request of requests) {
+    const modelId = modelIdForAggregation(request.public_model_id);
+    let summary = byModel.get(modelId);
+    if (!summary) {
+      summary = emptyModelSummary(modelId);
+      byModel.set(modelId, summary);
+    }
+    addRequestToModelSummary(summary, request);
+  }
+
+  const totalTokens = Array.from(byModel.values()).reduce(
+    (sum, model) => sum + model.total_tokens,
+    0
+  );
+  for (const summary of byModel.values()) {
+    summary.share_total_tokens =
+      totalTokens > 0 ? Number((summary.total_tokens / totalTokens).toFixed(6)) : 0;
+  }
+
+  const modelOrder = new Map(defaultPublicModelIds.map((id, index) => [id, index]));
+  return Array.from(byModel.values()).sort((left, right) => {
+    const leftOrder = modelOrder.get(left.public_model_id);
+    const rightOrder = modelOrder.get(right.public_model_id);
+    if (leftOrder !== undefined || rightOrder !== undefined) {
+      return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
+    }
+    return right.total_tokens - left.total_tokens || left.public_model_id.localeCompare(right.public_model_id);
+  });
+}
+
+function addRequestToModelSummary(
+  summary: RealtimeTokenUsageModelSummary,
+  request: RealtimeTokenUsageRequest
+): void {
+  summary.requests += 1;
+  if (request.status === "ok") {
+    summary.ok += 1;
+  } else {
+    summary.errors += 1;
+  }
+  if (request.rate_limited) {
+    summary.rate_limited += 1;
+  }
+  summary.total_tokens += request.token_usage.total_tokens;
+  summary.provider_total_tokens += request.token_usage.provider_total_tokens;
+  summary.estimated_tokens += request.token_usage.estimated_tokens;
+  summary.prompt_tokens += request.token_usage.prompt_tokens;
+  summary.completion_tokens += request.token_usage.completion_tokens;
+  summary.cached_prompt_tokens += request.token_usage.cached_prompt_tokens;
+  if (!summary.upstream_runtime && request.upstream_runtime) {
+    summary.upstream_runtime = request.upstream_runtime;
+  }
+  if (!summary.upstream_model && request.upstream_model) {
+    summary.upstream_model = request.upstream_model;
+  }
+}
+
+function emptyModelSummary(modelId: string): RealtimeTokenUsageModelSummary {
+  return {
+    public_model_id: modelId,
+    model_display_name: publicModelDisplayNames[modelId] ?? modelId,
+    upstream_runtime: null,
+    upstream_model: null,
+    requests: 0,
+    ok: 0,
+    errors: 0,
+    rate_limited: 0,
+    total_tokens: 0,
+    provider_total_tokens: 0,
+    estimated_tokens: 0,
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    cached_prompt_tokens: 0,
+    share_total_tokens: 0
+  };
+}
+
 function isAuthNoiseRequest(request: RealtimeTokenUsageRequest): boolean {
   return (
     request.status === "error" &&
@@ -949,7 +1262,8 @@ function buildSeries(
   requests: RealtimeTokenUsageRequest[],
   since: Date,
   until: Date,
-  bucketSeconds: number
+  bucketSeconds: number,
+  modelIds: string[]
 ): RealtimeTokenUsageSeriesPoint[] {
   const bucketMs = bucketSeconds * 1000;
   const bucketCount = Math.max(1, Math.floor((until.getTime() - since.getTime()) / bucketMs) + 1);
@@ -963,7 +1277,8 @@ function buildSeries(
       requests: 0,
       total_tokens: 0,
       provider_total_tokens: 0,
-      estimated_tokens: 0
+      estimated_tokens: 0,
+      models: modelIds.map(emptySeriesModelPoint)
     };
   });
 
@@ -978,9 +1293,41 @@ function buildSeries(
     bucket.total_tokens += request.token_usage.total_tokens;
     bucket.provider_total_tokens += request.token_usage.provider_total_tokens;
     bucket.estimated_tokens += request.token_usage.estimated_tokens;
+    const modelId = modelIdForAggregation(request.public_model_id);
+    let model = bucket.models.find((item) => item.public_model_id === modelId);
+    if (!model) {
+      model = emptySeriesModelPoint(modelId);
+      bucket.models.push(model);
+    }
+    model.requests += 1;
+    model.total_tokens += request.token_usage.total_tokens;
+    model.provider_total_tokens += request.token_usage.provider_total_tokens;
+    model.estimated_tokens += request.token_usage.estimated_tokens;
   }
 
   return buckets;
+}
+
+function emptySeriesModelPoint(modelId: string): RealtimeTokenUsageSeriesModelPoint {
+  return {
+    public_model_id: modelId,
+    requests: 0,
+    total_tokens: 0,
+    provider_total_tokens: 0,
+    estimated_tokens: 0
+  };
+}
+
+function modelIdForAggregation(modelId: string | null | undefined): string {
+  return canonicalPublicModelId(modelId) ?? "unknown";
+}
+
+function canonicalPublicModelId(modelId: string | null | undefined): string | null {
+  const normalized = modelId?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return normalized === "medcode" ? "max" : normalized;
 }
 
 function alignedWindowStart(now: Date, windowSeconds: number, bucketSeconds: number): Date {

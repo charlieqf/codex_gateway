@@ -2393,6 +2393,9 @@ describe("gateway phase 1 routes", () => {
       sessionId: null,
       upstreamAccountId: "sub_openai_codex_dev",
       provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: now,
       durationMs: 20,
       firstByteMs: 8,
@@ -2414,6 +2417,9 @@ describe("gateway phase 1 routes", () => {
       sessionId: null,
       upstreamAccountId: "sub_openai_codex_dev",
       provider: "openai-codex",
+      publicModelId: "medcode",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
       startedAt: now,
       durationMs: 10,
       firstByteMs: 5,
@@ -2436,6 +2442,9 @@ describe("gateway phase 1 routes", () => {
       sessionId: null,
       upstreamAccountId: "sub_openai_codex_dev",
       provider: "openai-codex",
+      publicModelId: "specialist",
+      upstreamRuntime: "qianfan",
+      upstreamModel: "glm-5.2",
       startedAt: now,
       durationMs: 30,
       firstByteMs: 9,
@@ -2537,6 +2546,11 @@ describe("gateway phase 1 routes", () => {
       url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=10",
       headers: { authorization: "Bearer admin-messages-token-1234567890" }
     });
+    const realtimeLimitedData = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=2",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
     const realtimeDataWithAuthNoise = await app.inject({
       method: "GET",
       url: "/gateway/admin/quota-dashboard/realtime-token-usage.json?window_seconds=3600&bucket_seconds=60&limit=10&include_auth_noise=1",
@@ -2624,6 +2638,9 @@ describe("gateway phase 1 routes", () => {
     expect(realtimePage.headers["content-type"]).toContain("text/html");
     expect(realtimePage.body).toContain("实时 Token 用量监控");
     expect(realtimePage.body).toContain('id="tokenBucketChart"');
+    expect(realtimePage.body).toContain('id="modelFilter"');
+    expect(realtimePage.body).toContain('id="modelSummary"');
+    expect(realtimePage.body).toContain("Model traffic");
     expect(realtimePage.body).toContain('id="includeAuthNoise"');
     expect(realtimePage.body).toContain("include_auth_noise");
     expect(realtimePage.body).toContain("renderBucketChart");
@@ -2632,14 +2649,65 @@ describe("gateway phase 1 routes", () => {
     expect(realtimeUnauthenticated.statusCode).toBe(401);
     expect(realtimeOrdinaryCredential.statusCode).toBe(401);
     expect(realtimeData.statusCode).toBe(200);
+    expect(realtimeLimitedData.statusCode).toBe(200);
     expect(realtimeDataWithAuthNoise.statusCode).toBe(200);
     const realtimePayload = realtimeData.json();
+    const realtimeLimitedPayload = realtimeLimitedData.json();
     const realtimePayloadWithAuthNoise = realtimeDataWithAuthNoise.json();
     expect(realtimePayload.summary).toMatchObject({
       requests: 3,
       total_tokens: 640,
       provider_total_tokens: 600,
       estimated_tokens: 40
+    });
+    expect(realtimeLimitedPayload.requests).toHaveLength(2);
+    expect(realtimeLimitedPayload.summary.requests).toBe(3);
+    expect(
+      realtimeLimitedPayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "specialist"
+      )
+    ).toMatchObject({
+      requests: 1,
+      total_tokens: 500
+    });
+    expect(realtimePayload.models.map((model: { public_model_id: string }) => model.public_model_id)).toEqual([
+      "max",
+      "specialist",
+      "expert",
+      "pro",
+      "standard"
+    ]);
+    expect(
+      realtimePayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "max"
+      )
+    ).toMatchObject({
+      model_display_name: "Max",
+      upstream_runtime: "codex",
+      upstream_model: "gpt-5.5",
+      requests: 2,
+      total_tokens: 140,
+      provider_total_tokens: 100,
+      estimated_tokens: 40
+    });
+    expect(
+      realtimePayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "specialist"
+      )
+    ).toMatchObject({
+      model_display_name: "Specialist",
+      upstream_runtime: "qianfan",
+      upstream_model: "glm-5.2",
+      requests: 1,
+      total_tokens: 500
+    });
+    expect(
+      realtimePayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "expert"
+      )
+    ).toMatchObject({
+      requests: 0,
+      total_tokens: 0
     });
     expect(realtimePayloadWithAuthNoise.summary.requests).toBe(4);
     expect(
@@ -2653,6 +2721,14 @@ describe("gateway phase 1 routes", () => {
       )
     ).toBe(false);
     expect(realtimePayload.series.length).toBeGreaterThan(0);
+    expect(
+      realtimePayload.series
+        .flatMap((point: { models: Array<{ public_model_id: string; total_tokens: number }> }) =>
+          point.models
+        )
+        .filter((model: { public_model_id: string }) => model.public_model_id === "max")
+        .reduce((sum: number, model: { total_tokens: number }) => sum + model.total_tokens, 0)
+    ).toBe(140);
     const firstRealtimeSeriesPoint = realtimePayload.series[0] as {
       bucket_start: string;
       label: string;
@@ -2690,6 +2766,9 @@ describe("gateway phase 1 routes", () => {
         char_count: 62,
         attachments_count: 0
       },
+      public_model_id: "specialist",
+      upstream_runtime: "qianfan",
+      upstream_model: "glm-5.2",
       token_usage: {
         prompt_tokens: 450,
         completion_tokens: 50,
