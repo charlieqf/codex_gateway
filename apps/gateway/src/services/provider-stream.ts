@@ -235,6 +235,12 @@ export async function collectProviderMessage(
   }
 
   result.providerSummary = collector.snapshot(providerAttemptContext(input));
+  const truncatedWithoutOutputError = providerTruncatedWithoutOutputError(
+    result.providerSummary
+  );
+  if (truncatedWithoutOutputError) {
+    return truncatedWithoutOutputError;
+  }
   return result;
 }
 
@@ -357,6 +363,34 @@ export function attachProviderStreamSummary(
     configurable: true
   });
   return error;
+}
+
+export function providerTruncatedWithoutOutputError(
+  summary: ProviderStreamSummary
+): GatewayError | null {
+  if (
+    summary.finishReason !== "length" ||
+    summary.contentChars > 0 ||
+    summary.toolCallCount > 0
+  ) {
+    return null;
+  }
+
+  const error = new GatewayError({
+    code: "context_length_exceeded",
+    message:
+      "The model reached its output limit before producing visible content. Start a new conversation, reduce earlier context, or switch to Max before retrying.",
+    httpStatus: 413
+  });
+
+  return attachProviderStreamSummary(error, {
+    ...summary,
+    errorCode: error.code,
+    attempts: summary.attempts.map((attempt) => ({
+      ...attempt,
+      errorCode: attempt.errorCode ?? error.code
+    }))
+  });
 }
 
 export function providerStreamSummaryFromError(error: GatewayError): ProviderStreamSummary | null {

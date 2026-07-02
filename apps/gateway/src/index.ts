@@ -126,6 +126,7 @@ import {
   combineProviderStreamSummaries,
   collectProviderMessage,
   providerStreamSummaryFromError,
+  providerTruncatedWithoutOutputError,
   ProviderStreamSummaryCollector,
   streamErrorToGatewayError,
   type CollectedProviderMessage,
@@ -1567,11 +1568,28 @@ export function buildGateway(options: GatewayOptions = {}) {
               continue;
             }
             if (!failed) {
-              attempt.recordSuccess();
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
+              const truncatedWithoutOutputError =
+                providerTruncatedWithoutOutputError(successSummary);
+              if (truncatedWithoutOutputError) {
+                const errorSummary =
+                  providerStreamSummaryFromError(truncatedWithoutOutputError) ?? successSummary;
+                providerSummaries.push(errorSummary);
+                attempt.recordError(truncatedWithoutOutputError);
+                request.gatewayErrorCode = truncatedWithoutOutputError.code;
+                markProviderStreamSummary(
+                  request,
+                  combineProviderStreamSummaries(providerSummaries) ?? errorSummary
+                );
+                writeInitialChunk();
+                sse.writeData(openAIErrorPayload(truncatedWithoutOutputError));
+                failed = true;
+                break;
+              }
               providerSummaries.push(successSummary);
+              attempt.recordSuccess();
               markProviderStreamSummary(
                 request,
                 combineProviderStreamSummaries(providerSummaries) ?? successSummary
