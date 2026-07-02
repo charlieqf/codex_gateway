@@ -1,7 +1,27 @@
 import { readFileSync } from "node:fs";
 import { GatewayError, isRecord } from "@codex-gateway/core";
 
-export type ChatRuntimeKind = "codex" | "openrouter" | "qianfan" | "aliyun" | "tencent";
+export type OpenAICompatibleRuntimeKind = "openrouter" | "qianfan" | "aliyun" | "tencent";
+export type ChatRuntimeKind = "codex" | OpenAICompatibleRuntimeKind | "pool";
+export type PublicModelPoolStickyKey = "client_session" | "credential" | "subject";
+
+export interface PublicModelPoolMemberConfig {
+  id: string;
+  runtime: OpenAICompatibleRuntimeKind;
+  upstreamModel: string;
+  maxConcurrent?: number;
+  reasoning?: Record<string, unknown>;
+  enabled: boolean;
+}
+
+export interface PublicModelPoolConfig {
+  selection: {
+    strategy: "hrw_sticky";
+    stickyKeyOrder: PublicModelPoolStickyKey[];
+  };
+  requireAllMembers: boolean;
+  members: PublicModelPoolMemberConfig[];
+}
 
 export interface PublicModelConfig {
   id: string;
@@ -9,6 +29,7 @@ export interface PublicModelConfig {
   displayName: string;
   runtime: ChatRuntimeKind;
   upstreamModel: string;
+  pool?: PublicModelPoolConfig;
   contextWindow: number;
   maxContextWindow: number;
   upstreamContextWindow: number;
@@ -30,6 +51,7 @@ export interface PublicModelAvailability {
   qianfanAvailable?: boolean;
   aliyunAvailable?: boolean;
   tencentAvailable?: boolean;
+  poolMemberAdapterKeys?: ReadonlySet<string>;
 }
 
 export interface PublicModelRegistryLogger {
@@ -85,6 +107,13 @@ export function modelNotFoundError(model: string): GatewayError {
   });
 }
 
+export function publicModelPoolMemberAdapterKey(
+  runtime: OpenAICompatibleRuntimeKind,
+  id: string
+): string {
+  return `${runtime}:${id}`;
+}
+
 function createRegistry(models: PublicModelConfig[], defaultModelId: string): PublicModelRegistry {
   const byId = new Map<string, PublicModelConfig>();
   for (const model of models) {
@@ -114,6 +143,20 @@ function createRegistry(models: PublicModelConfig[], defaultModelId: string): Pu
 function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailability): boolean {
   if (!model.enabled) {
     return false;
+  }
+  if (model.runtime === "pool") {
+    const enabledMembers = model.pool?.members.filter((member) => member.enabled) ?? [];
+    if (enabledMembers.length === 0) {
+      return false;
+    }
+    const availableMemberKeys = input.poolMemberAdapterKeys ?? new Set<string>();
+    return model.pool?.requireAllMembers
+      ? enabledMembers.every((member) =>
+          availableMemberKeys.has(publicModelPoolMemberAdapterKey(member.runtime, member.id))
+        )
+      : enabledMembers.some((member) =>
+          availableMemberKeys.has(publicModelPoolMemberAdapterKey(member.runtime, member.id))
+        );
   }
   if (model.runtime === "openrouter") {
     return input.openRouterAvailable;
@@ -203,8 +246,10 @@ function parsePublicModelConfig(
   const isDefault = id === defaultModel.id || aliases.includes(defaultModel.id);
   const fallbackContext = isDefault ? defaultModel.contextWindow : 200_000;
   const fallbackUpstreamContext = isDefault ? defaultModel.upstreamContextWindow : 1_048_576;
+  const pool = runtime === "pool" ? parsePoolConfig(value.pool, id) : undefined;
   const upstreamModel =
     parseOptionalString(value.upstreamModel ?? value.upstream_model) ??
+    (runtime === "pool" ? pool?.members[0]?.upstreamModel : null) ??
     (isDefault ? defaultModel.upstreamModel : null);
   if (!upstreamModel) {
     throw new Error(`Public model '${id}' requires upstreamModel.`);
@@ -227,6 +272,9 @@ function parsePublicModelConfig(
   const fallbackOutput = isDefault
     ? defaultModel.maxOutputTokens
     : Math.min(defaultModel.maxOutputTokens, contextWindow);
+  const reasoning = isRecord(value.reasoning)
+    ? value.reasoning
+    : defaultReasoningForRuntime(runtime);
 
   return {
     id,
@@ -243,8 +291,12 @@ function parsePublicModelConfig(
       fallbackOutput,
       `public model '${id}' maxOutputTokens`
     ),
-    enabled: value.enabled === undefined ? true : parseBoolean(value.enabled, id),
-    ...(isRecord(value.reasoning) ? { reasoning: value.reasoning } : {})
+    enabled:
+      value.enabled === undefined
+        ? true
+        : parseBoolean(value.enabled, `Public model '${id}' enabled`),
+    ...(pool ? { pool } : {}),
+    ...(reasoning ? { reasoning } : {})
   };
 }
 
@@ -275,18 +327,150 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
     value === "openrouter" ||
     value === "qianfan" ||
     value === "aliyun" ||
-    value === "tencent"
+    value === "tencent" ||
+    value === "pool"
   ) {
     return value;
   }
   throw new Error(
-    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, or tencent.`
+    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, or pool.`
   );
 }
 
-function parseBoolean(value: unknown, id: string): boolean {
+function defaultReasoningForRuntime(runtime: ChatRuntimeKind): Record<string, unknown> | undefined {
+  return runtime === "pool" ? { effort: "medium" } : undefined;
+}
+
+function parsePoolConfig(value: unknown, id: string): PublicModelPoolConfig {
+  if (!isRecord(value)) {
+    throw new Error(`Public model '${id}' pool must be a JSON object.`);
+  }
+  const rawMembers = value.members;
+  if (!Array.isArray(rawMembers) || rawMembers.length === 0) {
+    throw new Error(`Public model '${id}' pool.members must be a non-empty array.`);
+  }
+  const seen = new Set<string>();
+  const members = rawMembers.map((member, index) => parsePoolMember(member, id, index, seen));
+  return {
+    selection: parsePoolSelection(value.selection, id),
+    requireAllMembers:
+      value.requireAllMembers === undefined
+        ? true
+        : parseBoolean(value.requireAllMembers, `public model '${id}' pool.requireAllMembers`),
+    members
+  };
+}
+
+function parsePoolSelection(value: unknown, id: string): PublicModelPoolConfig["selection"] {
+  if (value === undefined) {
+    return {
+      strategy: "hrw_sticky",
+      stickyKeyOrder: ["client_session", "credential", "subject"]
+    };
+  }
+  if (!isRecord(value)) {
+    throw new Error(`Public model '${id}' pool.selection must be a JSON object.`);
+  }
+  if (value.strategy !== undefined && value.strategy !== "hrw_sticky") {
+    throw new Error(`Public model '${id}' pool.selection.strategy must be hrw_sticky.`);
+  }
+  return {
+    strategy: "hrw_sticky",
+    stickyKeyOrder: parseStickyKeyOrder(value.stickyKeyOrder, id)
+  };
+}
+
+function parseStickyKeyOrder(value: unknown, id: string): PublicModelPoolStickyKey[] {
+  if (value === undefined) {
+    return ["client_session", "credential", "subject"];
+  }
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Public model '${id}' pool.selection.stickyKeyOrder must be a non-empty array.`);
+  }
+  const order: PublicModelPoolStickyKey[] = [];
+  for (const item of value) {
+    if (item !== "client_session" && item !== "credential" && item !== "subject") {
+      throw new Error(
+        `Public model '${id}' pool.selection.stickyKeyOrder entries must be client_session, credential, or subject.`
+      );
+    }
+    if (!order.includes(item)) {
+      order.push(item);
+    }
+  }
+  return order;
+}
+
+function parsePoolMember(
+  value: unknown,
+  modelId: string,
+  index: number,
+  seen: Set<string>
+): PublicModelPoolMemberConfig {
+  if (!isRecord(value)) {
+    throw new Error(`Public model '${modelId}' pool.members[${index}] must be a JSON object.`);
+  }
+  if ("weight" in value) {
+    throw new Error(`Public model '${modelId}' pool.members[${index}].weight is not supported.`);
+  }
+  const id = parsePoolMemberId(value.id, modelId, index);
+  if (seen.has(id)) {
+    throw new Error(`Duplicate pool member id '${id}' for public model '${modelId}'.`);
+  }
+  seen.add(id);
+  const upstreamModel = parseOptionalString(value.upstreamModel ?? value.upstream_model);
+  if (!upstreamModel) {
+    throw new Error(
+      `public model '${modelId}' pool.members[${index}].upstreamModel must be a non-empty string.`
+    );
+  }
+  return {
+    id,
+    runtime: parsePoolMemberRuntime(value.runtime, modelId, index),
+    upstreamModel,
+    ...(value.maxConcurrent === undefined
+      ? {}
+      : {
+          maxConcurrent: parsePositiveInteger(
+            value.maxConcurrent,
+            1,
+            `public model '${modelId}' pool.members[${index}].maxConcurrent`
+          )
+        }),
+    ...(isRecord(value.reasoning) ? { reasoning: value.reasoning } : {}),
+    enabled:
+      value.enabled === undefined
+        ? true
+        : parseBoolean(
+            value.enabled,
+            `public model '${modelId}' pool.members[${index}].enabled`
+          )
+  };
+}
+
+function parsePoolMemberId(value: unknown, modelId: string, index: number): string {
+  if (typeof value !== "string" || !publicModelIdPattern.test(value)) {
+    throw new Error(`Public model '${modelId}' pool.members[${index}].id must be a valid id.`);
+  }
+  return value;
+}
+
+function parsePoolMemberRuntime(
+  value: unknown,
+  modelId: string,
+  index: number
+): OpenAICompatibleRuntimeKind {
+  if (value === "openrouter" || value === "qianfan" || value === "aliyun" || value === "tencent") {
+    return value;
+  }
+  throw new Error(
+    `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, or tencent.`
+  );
+}
+
+function parseBoolean(value: unknown, name: string): boolean {
   if (typeof value !== "boolean") {
-    throw new Error(`Public model '${id}' enabled must be a boolean.`);
+    throw new Error(`${name} must be a boolean.`);
   }
   return value;
 }

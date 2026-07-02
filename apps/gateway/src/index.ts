@@ -162,6 +162,7 @@ import {
 } from "./services/token-budget-hook.js";
 import {
   createChatRuntimeDispatcher,
+  publicModelPoolAffinityKey,
   type ChatRuntimeContext
 } from "./services/chat-runtime-dispatcher.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
@@ -169,8 +170,11 @@ import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-pr
 import {
   modelNotFoundError,
   openAIModelObject,
+  publicModelPoolMemberAdapterKey,
   resolvePublicModelRegistry,
-  type PublicModelConfig
+  type OpenAICompatibleRuntimeKind,
+  type PublicModelConfig,
+  type PublicModelPoolMemberConfig
 } from "./services/public-model-registry.js";
 
 export type GatewayAuthMode = "dev" | "credential";
@@ -238,6 +242,17 @@ interface ResolvedUpstreamAccountPool {
   accountPoolConfigured: boolean;
 }
 
+type PublicModelPoolRouters = Map<string, UpstreamAccountRouter>;
+type OpenAICompatibleAdapterMap = Map<string, ProviderAdapter>;
+
+interface OpenAICompatibleAdapterTarget {
+  id: string;
+  publicModelId: string;
+  runtime: OpenAICompatibleRuntimeKind;
+  upstreamModel: string;
+  reasoning?: Record<string, unknown>;
+}
+
 const maxStatelessAttempts = 2;
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
 const imageBillingFallbackAccountId = "image-billing-fallback";
@@ -279,12 +294,23 @@ export function buildGateway(options: GatewayOptions = {}) {
   const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
   const aliyunAdapters = createAliyunAdapters(publicModelRegistry.models, process.env, app.log);
   const tencentAdapters = createTencentAdapters(publicModelRegistry.models, process.env, app.log);
+  const publicModelPoolRouters = createPublicModelPoolRouters(
+    publicModelRegistry.models,
+    {
+      openrouter: openRouterAdapters,
+      qianfan: qianfanAdapters,
+      aliyun: aliyunAdapters,
+      tencent: tencentAdapters
+    },
+    clock
+  );
   const chatRuntimeDispatcher = createChatRuntimeDispatcher({
     codexRouter: upstreamRouter,
     openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null,
     qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null,
     aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
-    tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null
+    tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null,
+    poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
   const qianfanAvailable = qianfanAdapters.size > 0;
@@ -294,7 +320,13 @@ export function buildGateway(options: GatewayOptions = {}) {
     openRouterAvailable,
     qianfanAvailable,
     aliyunAvailable,
-    tencentAvailable
+    tencentAvailable,
+    poolMemberAdapterKeys: poolMemberAdapterKeys({
+      openrouter: openRouterAdapters,
+      qianfan: qianfanAdapters,
+      aliyun: aliyunAdapters,
+      tencent: tencentAdapters
+    })
   };
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
@@ -1300,13 +1332,14 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, entitlementAccess);
     }
 
-    const affinityKey = requestAffinityKey(request, upstreamRouter.softAffinity);
+    const affinityKey = chatRuntimeAffinityKey(request, publicModel, upstreamRouter.softAffinity);
     const attemptedAccountIds = new Set<string>();
     let statelessAttempts = 1;
     const { subject, scope } = getGatewayContext(request);
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
       reasoningEffort,
+      reasoningEffortSource: parsed.reasoningEffort === undefined ? "default" : "request",
       subject,
       scope,
       affinityKey,
@@ -1327,7 +1360,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       : chatMessagesToPrompt(parsed, { includeToolsContext: !nativeClientTools });
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
-      chatCompletionEstimateExtras(parsed, strictClientTools, publicModel)
+      chatCompletionEstimateExtras(parsed, strictClientTools, attempt.runtime)
     );
     const tokenBudgetError = await beginTokenBudget(
       request,
@@ -3062,10 +3095,10 @@ function createChatCompletionShape(model: string): ChatCompletionShape {
 function chatCompletionEstimateExtras(
   request: ChatCompletionRequest,
   strictClientTools: boolean,
-  publicModel: PublicModelConfig
+  runtime: ChatRuntimeContext["runtime"]
 ): string {
   const runtimeExtra =
-    publicModel.runtime === "openrouter"
+    runtimeAddsOpenAICompatibleIdentityGuard(runtime)
       ? "OpenRouter identity guard is added as an internal system message."
       : "";
   if (strictClientTools) {
@@ -3088,7 +3121,7 @@ function hasNativeClientTools(
   request: ChatCompletionRequest,
   publicModel: PublicModelConfig
 ): boolean {
-  return isOpenAICompatibleRuntime(publicModel.runtime) && hasStrictClientTools(request);
+  return usesOpenAICompatiblePublicRuntime(publicModel.runtime) && hasStrictClientTools(request);
 }
 
 function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boolean {
@@ -3098,6 +3131,16 @@ function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boole
     runtime === "aliyun" ||
     runtime === "tencent"
   );
+}
+
+function usesOpenAICompatiblePublicRuntime(runtime: PublicModelConfig["runtime"]): boolean {
+  return isOpenAICompatibleRuntime(runtime) || runtime === "pool";
+}
+
+function runtimeAddsOpenAICompatibleIdentityGuard(
+  runtime: ChatRuntimeContext["runtime"]
+): boolean {
+  return runtime === "openrouter";
 }
 
 function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {
@@ -3528,7 +3571,7 @@ function chatRuntimeAttemptContext(
     provider: runtime.providerKind,
     upstreamRuntime: runtime.runtime,
     upstreamModel: runtime.upstreamModel,
-    upstreamAccountId: runtime.attributionAccount.id
+    upstreamAccountId: runtime.adapterInputUpstreamAccount.id
   };
 }
 
@@ -3848,7 +3891,7 @@ function createOpenRouterAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
-): Map<string, ProviderAdapter> {
+): OpenAICompatibleAdapterMap {
   return createOpenAICompatibleAdapters({
     models,
     env,
@@ -3863,7 +3906,7 @@ function createOpenRouterAdapters(
       300_000,
       "MEDCODE_OPENROUTER_TIMEOUT_MS"
     ),
-    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
     siteUrl: env.MEDCODE_OPENROUTER_SITE_URL,
     appTitle: env.MEDCODE_OPENROUTER_APP_TITLE ?? "MedCode"
   });
@@ -3873,7 +3916,7 @@ function createQianfanAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
-): Map<string, ProviderAdapter> {
+): OpenAICompatibleAdapterMap {
   return createOpenAICompatibleAdapters({
     models,
     env,
@@ -3888,7 +3931,7 @@ function createQianfanAdapters(
       300_000,
       "MEDCODE_QIANFAN_TIMEOUT_MS"
     ),
-    reasoningForModel: (model) => model.reasoning
+    reasoningForTarget: (target) => target.reasoning
   });
 }
 
@@ -3896,7 +3939,7 @@ function createAliyunAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
-): Map<string, ProviderAdapter> {
+): OpenAICompatibleAdapterMap {
   return createOpenAICompatibleAdapters({
     models,
     env,
@@ -3917,7 +3960,7 @@ function createAliyunAdapters(
       300_000,
       "MEDCODE_ALIYUN_TOKEN_PLAN_TIMEOUT_MS"
     ),
-    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
     reasoningParameterStyle: "effort_field"
   });
 }
@@ -3926,7 +3969,7 @@ function createTencentAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
-): Map<string, ProviderAdapter> {
+): OpenAICompatibleAdapterMap {
   return createOpenAICompatibleAdapters({
     models,
     env,
@@ -3944,7 +3987,7 @@ function createTencentAdapters(
       300_000,
       "MEDCODE_TENCENT_TOKENHUB_TIMEOUT_MS"
     ),
-    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
     reasoningParameterStyle: "effort_field"
   });
 }
@@ -3959,22 +4002,22 @@ function createOpenAICompatibleAdapters(input: {
   apiKeyEnvName: string;
   baseUrl: string;
   timeoutMs: number;
-  reasoningForModel: (model: PublicModelConfig) => Record<string, unknown> | undefined;
+  reasoningForTarget: (target: OpenAICompatibleAdapterTarget) => Record<string, unknown> | undefined;
   reasoningParameterStyle?: "object" | "effort_field";
   siteUrl?: string;
   appTitle?: string;
-}): Map<string, ProviderAdapter> {
-  const adapters = new Map<string, ProviderAdapter>();
+}): OpenAICompatibleAdapterMap {
+  const adapters: OpenAICompatibleAdapterMap = new Map();
   const apiKey = input.env[input.apiKeyEnvName]?.trim();
-  const enabledModels = input.models.filter(
-    (model) => model.enabled && model.runtime === input.runtime
-  );
+  const enabledTargets = openAICompatibleAdapterTargets(input.models, input.runtime);
+  assertUniqueOpenAICompatibleAdapterTargetIds(enabledTargets);
   if (!apiKey) {
-    if (enabledModels.length > 0) {
+    if (enabledTargets.length > 0) {
       input.logger?.warn(
         {
           api_key_env: input.apiKeyEnvName,
-          public_model_ids: enabledModels.map((model) => model.id)
+          public_model_ids: uniqueValues(enabledTargets.map((target) => target.publicModelId)),
+          adapter_ids: enabledTargets.map((target) => target.id)
         },
         `${input.displayName} public models are configured but the API key env is missing; those models will not be exposed.`
       );
@@ -3982,16 +4025,16 @@ function createOpenAICompatibleAdapters(input: {
     return adapters;
   }
 
-  for (const model of enabledModels) {
+  for (const target of enabledTargets) {
     adapters.set(
-      model.id,
+      target.id,
       new OpenAICompatibleProviderAdapter({
         providerKind: input.providerKind,
         baseUrl: input.baseUrl,
         apiKey,
         apiKeyEnv: input.apiKeyEnvName,
-        upstreamModel: model.upstreamModel,
-        reasoning: input.reasoningForModel(model),
+        upstreamModel: target.upstreamModel,
+        reasoning: input.reasoningForTarget(target),
         reasoningParameterStyle: input.reasoningParameterStyle,
         siteUrl: input.siteUrl,
         appTitle: input.appTitle,
@@ -4000,6 +4043,130 @@ function createOpenAICompatibleAdapters(input: {
     );
   }
   return adapters;
+}
+
+function openAICompatibleAdapterTargets(
+  models: PublicModelConfig[],
+  runtime: OpenAICompatibleRuntimeKind
+): OpenAICompatibleAdapterTarget[] {
+  const targets: OpenAICompatibleAdapterTarget[] = [];
+  for (const model of models) {
+    if (!model.enabled) {
+      continue;
+    }
+    if (model.runtime === runtime) {
+      targets.push({
+        id: model.id,
+        publicModelId: model.id,
+        runtime,
+        upstreamModel: model.upstreamModel,
+        ...(model.reasoning ? { reasoning: model.reasoning } : {})
+      });
+      continue;
+    }
+    if (model.runtime !== "pool" || !model.pool) {
+      continue;
+    }
+    for (const member of model.pool.members) {
+      if (!member.enabled || member.runtime !== runtime) {
+        continue;
+      }
+      const reasoning = member.reasoning ?? model.reasoning;
+      targets.push({
+        id: member.id,
+        publicModelId: model.id,
+        runtime,
+        upstreamModel: member.upstreamModel,
+        ...(reasoning ? { reasoning } : {})
+      });
+    }
+  }
+  return targets;
+}
+
+function assertUniqueOpenAICompatibleAdapterTargetIds(
+  targets: OpenAICompatibleAdapterTarget[]
+): void {
+  const seen = new Set<string>();
+  for (const target of targets) {
+    if (seen.has(target.id)) {
+      throw new Error(`Duplicate OpenAI-compatible adapter id '${target.id}'.`);
+    }
+    seen.add(target.id);
+  }
+}
+
+function createPublicModelPoolRouters(
+  models: PublicModelConfig[],
+  adaptersByRuntime: Record<OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap>,
+  now: () => Date
+): PublicModelPoolRouters {
+  const routers: PublicModelPoolRouters = new Map();
+  for (const model of models) {
+    if (!model.enabled || model.runtime !== "pool" || !model.pool) {
+      continue;
+    }
+    const runtimes: UpstreamAccountRuntimeInput[] = [];
+    for (const member of model.pool.members) {
+      if (!member.enabled) {
+        continue;
+      }
+      const adapter = adaptersByRuntime[member.runtime].get(member.id);
+      if (!adapter) {
+        continue;
+      }
+      runtimes.push({
+        upstreamAccount: poolMemberUpstreamAccount(model, member),
+        provider: adapter,
+        enabled: true,
+        maxConcurrent: member.maxConcurrent ?? null
+      });
+    }
+    if (runtimes.length > 0) {
+      routers.set(
+        model.id,
+        new UpstreamAccountRouter(runtimes, {
+          softAffinity: "credential",
+          cooldown: defaultUpstreamCooldown(),
+          now
+        })
+      );
+    }
+  }
+  return routers;
+}
+
+function poolMemberUpstreamAccount(
+  model: PublicModelConfig,
+  member: PublicModelPoolMemberConfig
+): UpstreamAccount {
+  return {
+    id: member.id,
+    provider: member.runtime,
+    label: `${model.displayName} ${member.runtime}`,
+    credentialRef: `PUBLIC_MODEL_POOL:${model.id}:${member.id}`,
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function poolMemberAdapterKeys(
+  adaptersByRuntime: Record<OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap>
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const [runtime, adapterMap] of Object.entries(adaptersByRuntime) as Array<
+    [OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap]
+  >) {
+    for (const id of adapterMap.keys()) {
+      ids.add(publicModelPoolMemberAdapterKey(runtime, id));
+    }
+  }
+  return ids;
+}
+
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function assertUpstreamPoolAvailable(
@@ -4042,6 +4209,22 @@ function applyChatRuntimeContext(
   request.gatewayUpstreamModel = runtime.upstreamModel;
   request.gatewayReasoningEffort = runtime.reasoningEffort;
   markSession(request, runtime.session.id);
+}
+
+function chatRuntimeAffinityKey(
+  request: FastifyRequest,
+  publicModel: PublicModelConfig,
+  codexSoftAffinity: UpstreamSoftAffinity
+): string | null {
+  if (publicModel.runtime !== "pool") {
+    return requestAffinityKey(request, codexSoftAffinity);
+  }
+  const { credential, subject } = getGatewayContext(request);
+  return publicModelPoolAffinityKey(publicModel, {
+    client_session: request.gatewayClientSessionId ?? null,
+    credential: credential.id,
+    subject: subject.id
+  });
 }
 
 function requestAffinityKey(
@@ -4121,7 +4304,7 @@ function parseModelReasoningEffort(
 
 const maxRequestReasoningEfforts = ["minimal", "low", "medium", "high", "xhigh"] as const;
 const standardRequestReasoningEfforts = ["none", "low", "medium", "high"] as const;
-const standardReasoningModelIds = new Set([
+const legacyStandardReasoningModelIds = new Set([
   "specialist",
   "expert",
   "advisor",
@@ -4170,7 +4353,10 @@ function supportedReasoningEffortsForModel(
   if (isMaxReasoningModel(model)) {
     return { values: maxRequestReasoningEfforts };
   }
-  if (standardReasoningModelIds.has(model.id)) {
+  if (
+    legacyStandardReasoningModelIds.has(model.id) ||
+    usesOpenAICompatiblePublicRuntime(model.runtime)
+  ) {
     return { values: standardRequestReasoningEfforts };
   }
   return null;

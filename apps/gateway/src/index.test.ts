@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -27,7 +26,18 @@ import {
 } from "@codex-gateway/store-sqlite";
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
+import { chatMessagesToPrompt, type ChatCompletionRequest } from "./openai-compat.js";
 import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import { estimatePromptTokens } from "./services/token-budget-hook.js";
+import {
+  goldencodeMemberIds,
+  goldencodePoolConfig,
+  goldencodeRuntimeForMember,
+  goldencodeUpstreamModelForMember,
+  hrwAccountForKey,
+  sessionIdForGoldencodeMember,
+  type GoldencodeRuntime
+} from "./test-support.js";
 import type {
   UpstreamV2Client,
   UpstreamV2CreateUserInput
@@ -4104,6 +4114,90 @@ describe("gateway phase 1 routes", () => {
     );
   });
 
+  it("keeps legacy Codex reasoning ids without enabling arbitrary Codex reasoning blocks", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          specialist: {
+            displayName: "Specialist",
+            runtime: "codex",
+            upstreamModel: "gpt-5.5",
+            contextWindow: 200000,
+            upstreamContextWindow: 400000,
+            maxOutputTokens: 128000,
+            enabled: true
+          },
+          customcodex: {
+            displayName: "Custom Codex",
+            runtime: "codex",
+            upstreamModel: "gpt-5.5",
+            contextWindow: 200000,
+            upstreamContextWindow: 400000,
+            maxOutputTokens: 128000,
+            reasoning: { effort: "medium" },
+            enabled: true
+          }
+        })
+      },
+      async () => {
+        const { store, headers } = createModelEntitledStore(["specialist", "customcodex"]);
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "specialist-ok" },
+          {
+            type: "completed",
+            providerSessionRef: "provider_thread_1",
+            usage: {
+              promptTokens: 2,
+              completionTokens: 1,
+              totalTokens: 3
+            }
+          }
+        ]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider,
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        try {
+          const legacy = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "specialist",
+              reasoning_effort: "high",
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+          const arbitrary = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "customcodex",
+              reasoning_effort: "high",
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+
+          expect(legacy.statusCode).toBe(200);
+          expect(legacy.json().choices[0].message.content).toBe("specialist-ok");
+          expect(provider.messages).toHaveLength(1);
+          expect(provider.messages[0].reasoningEffort).toBe("high");
+          expect(arbitrary.statusCode).toBe(400);
+          expect(arbitrary.json().error.message).toBe(
+            "reasoning_effort is not supported for model 'customcodex'."
+          );
+        } finally {
+          await app.close();
+        }
+      }
+    );
+  });
+
   it("does not let medcode_models restrict any enabled public chat model", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
@@ -4969,6 +5063,386 @@ describe("gateway phase 1 routes", () => {
     } finally {
       await aliyunServer.close();
       await tencentServer.close();
+    }
+  });
+
+  it("exposes GoldenCode as an eighth model when every required pool member has an adapter", async () => {
+    const goldencode = await startGoldencodeRuntimeServers();
+
+    try {
+      await withTemporaryEnv(
+        {
+          ...goldencode.env,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryWithGoldenCodeFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(null);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+          const sessionId = "golden-session-1";
+          const expectedMemberId = hrwAccountForKey(
+            `client_session:${sessionId}`,
+            goldencodeMemberIds()
+          );
+          const expectedRuntime = goldencodeRuntimeForMember(expectedMemberId);
+          const expectedUpstreamModel = goldencodeUpstreamModelForMember(expectedMemberId);
+
+          try {
+            const listed = await app.inject({
+              method: "GET",
+              url: "/v1/models",
+              headers
+            });
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: {
+                ...headers,
+                "x-medcode-client-session-id": sessionId
+              },
+              payload: {
+                model: "goldencode",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const unsupported = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "goldencode",
+                reasoning_effort: "xhigh",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(listed.statusCode).toBe(200);
+            expect(listed.json().data.map((model: { id: string }) => model.id)).toEqual([
+              "max",
+              "specialist",
+              "expert",
+              "pro",
+              "standard",
+              "advisor",
+              "consultant",
+              "goldencode"
+            ]);
+            expect(response.statusCode).toBe(200);
+            expect(response.json()).toMatchObject({
+              model: "goldencode",
+              choices: [
+                {
+                  message: {
+                    role: "assistant",
+                    content: `${expectedRuntime}-goldencode-ok`
+                  }
+                }
+              ]
+            });
+            expect(unsupported.statusCode).toBe(400);
+            expect(unsupported.json().error.message).toContain(
+              "Supported values: none, low, medium, high"
+            );
+
+            const captured = goldencode.captured[expectedRuntime];
+            expect(captured).toHaveLength(1);
+            expect(captured[0].body.model).toBe(expectedUpstreamModel);
+            if (expectedRuntime === "aliyun" || expectedRuntime === "tencent") {
+              expect(captured[0].body.reasoning_effort).toBe("medium");
+              expect(captured[0].body).not.toHaveProperty("reasoning");
+            } else {
+              expect(captured[0].body.reasoning).toEqual({ effort: "medium" });
+              expect(captured[0].body).not.toHaveProperty("reasoning_effort");
+            }
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  upstreamRuntime: expectedRuntime,
+                  upstreamModel: expectedUpstreamModel,
+                  upstreamAccountId: expectedMemberId,
+                  provider: expectedRuntime,
+                  reasoningEffort: "medium",
+                  clientSessionId: sessionId,
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await goldencode.close();
+    }
+  });
+
+  it("does not expose GoldenCode when a required pool member adapter is missing", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+        MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+        MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
+        MEDCODE_OPENROUTER_API_KEY: undefined,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryWithGoldenCodeFixture())
+      },
+      async () => {
+        const app = buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(),
+          logger: false
+        });
+
+        try {
+          const listed = await app.inject({
+            method: "GET",
+            url: "/v1/models",
+            headers: { authorization: "Bearer secret" }
+          });
+          const goldencode = await app.inject({
+            method: "GET",
+            url: "/v1/models/goldencode",
+            headers: { authorization: "Bearer secret" }
+          });
+
+          expect(listed.statusCode).toBe(200);
+          expect(listed.json().data.map((model: { id: string }) => model.id)).not.toContain(
+            "goldencode"
+          );
+          expect(goldencode.statusCode).toBe(404);
+        } finally {
+          await app.close();
+        }
+      }
+    );
+  });
+
+  it("uses pool member reasoning as the GoldenCode default unless the request overrides it", async () => {
+    const goldencode = await startGoldencodeRuntimeServers();
+    const registry = publicModelRegistryWithGoldenCodeFixture();
+    const qianfan = registry.goldencode.pool.members.find(
+      (member) => member.id === "goldencode-qianfan"
+    );
+    if (!qianfan) {
+      throw new Error("expected qianfan pool member");
+    }
+    qianfan.reasoning = { effort: "high" };
+
+    try {
+      await withTemporaryEnv(
+        {
+          ...goldencode.env,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry)
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(null);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+          const sessionId = sessionIdForGoldencodeMember("goldencode-qianfan");
+
+          try {
+            const defaulted = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: {
+                ...headers,
+                "x-medcode-client-session-id": sessionId
+              },
+              payload: {
+                model: "goldencode",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const explicit = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: {
+                ...headers,
+                "x-medcode-client-session-id": sessionId
+              },
+              payload: {
+                model: "goldencode",
+                reasoning_effort: "low",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(defaulted.statusCode).toBe(200);
+            expect(explicit.statusCode).toBe(200);
+            expect(goldencode.captured.qianfan).toHaveLength(2);
+            expect(goldencode.captured.qianfan[0].body.reasoning).toEqual({
+              effort: "high"
+            });
+            expect(goldencode.captured.qianfan[1].body.reasoning).toEqual({
+              effort: "low"
+            });
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  upstreamRuntime: "qianfan",
+                  upstreamAccountId: "goldencode-qianfan",
+                  reasoningEffort: "high",
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  upstreamRuntime: "qianfan",
+                  upstreamAccountId: "goldencode-qianfan",
+                  reasoningEffort: "low",
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await goldencode.close();
+    }
+  });
+
+  it("rejects duplicate OpenAI-compatible pool adapter ids before checking API keys", async () => {
+    const duplicatePoolMember = {
+      id: "shared-openrouter",
+      runtime: "openrouter",
+      upstreamModel: "z-ai/glm-5.2"
+    };
+    const poolModel = (displayName: string) => ({
+      displayName,
+      runtime: "pool",
+      contextWindow: 200000,
+      maxContextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      maxOutputTokens: 128000,
+      reasoning: { effort: "medium" },
+      enabled: true,
+      pool: {
+        selection: {
+          strategy: "hrw_sticky",
+          stickyKeyOrder: ["client_session", "credential", "subject"]
+        },
+        requireAllMembers: true,
+        members: [duplicatePoolMember]
+      }
+    });
+
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: undefined,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          ...publicModelRegistryFixture(),
+          duplicatepoola: poolModel("Duplicate Pool A"),
+          duplicatepoolb: poolModel("Duplicate Pool B")
+        })
+      },
+      async () => {
+        expect(() =>
+          buildGateway({
+            accessToken: "secret",
+            provider: new FakeProvider(),
+            logger: false
+          })
+        ).toThrow("Duplicate OpenAI-compatible adapter id 'shared-openrouter'.");
+      }
+    );
+  });
+
+  it("includes the OpenRouter identity guard in GoldenCode token estimates", async () => {
+    const goldencode = await startGoldencodeRuntimeServers();
+
+    try {
+      await withTemporaryEnv(
+        {
+          ...goldencode.env,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryWithGoldenCodeFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(null);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+          const sessionId = sessionIdForGoldencodeMember("goldencode-openrouter");
+          const chatRequest: ChatCompletionRequest = {
+            model: "goldencode",
+            messages: [{ role: "user", content: "Say ok." }],
+            stream: false,
+            toolChoice: "auto"
+          };
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: {
+                ...headers,
+                "x-medcode-client-session-id": sessionId
+              },
+              payload: {
+                model: chatRequest.model,
+                messages: chatRequest.messages
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(goldencode.captured.openrouter).toHaveLength(1);
+
+            const prompt = chatMessagesToPrompt(chatRequest);
+            const estimateWithoutRuntimeExtra = estimatePromptTokens(
+              prompt,
+              JSON.stringify({ tools: null, tool_choice: "auto" })
+            );
+            const estimateWithRuntimeExtra = estimatePromptTokens(
+              prompt,
+              JSON.stringify({
+                tools: null,
+                tool_choice: "auto",
+                runtime_extra: "OpenRouter identity guard is added as an internal system message."
+              })
+            );
+            const reservations = createSqliteTokenBudgetLimiter({
+              db: store.database
+            }).listReservations({
+              subjectId: "subj_dev",
+              includeFinalized: true
+            });
+
+            expect(reservations).toHaveLength(1);
+            expect(reservations[0]).toMatchObject({
+              publicModelId: "goldencode",
+              upstreamAccountId: "goldencode-openrouter",
+              upstreamRuntime: "openrouter",
+              upstreamModel: "z-ai/glm-5.2",
+              reasoningEffort: "medium",
+              estimatedPromptTokens: estimateWithRuntimeExtra
+            });
+            expect(reservations[0].estimatedPromptTokens).toBeGreaterThan(
+              estimateWithoutRuntimeExtra
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await goldencode.close();
     }
   });
 
@@ -9765,16 +10239,6 @@ function testUpstreamAccount(id: string, overrides: Partial<UpstreamAccount> = {
   };
 }
 
-function hrwAccountForKey(affinityKey: string, accountIds: string[]): string {
-  return accountIds.reduce((best, accountId) =>
-    hrwScore(affinityKey, accountId) > hrwScore(affinityKey, best) ? accountId : best
-  );
-}
-
-function hrwScore(affinityKey: string, accountId: string): string {
-  return createHash("sha256").update(affinityKey).update("\0").update(accountId).digest("hex");
-}
-
 function issueCredentialForHrwAccount(accountId: string, accountIds: string[]) {
   for (let i = 0; i < 200; i += 1) {
     const issued = issueAccessCredential({
@@ -9968,6 +10432,119 @@ function publicModelRegistryFixture() {
       enabled: true
     }
   };
+}
+
+interface CapturedOpenAICompatibleRequest {
+  headers: http.IncomingHttpHeaders;
+  body: Record<string, unknown>;
+}
+
+function publicModelRegistryWithGoldenCodeFixture() {
+  return {
+    ...publicModelRegistryFixture(),
+    advisor: {
+      displayName: "Advisor",
+      runtime: "aliyun",
+      upstreamModel: "glm-5.2",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "none" },
+      enabled: true
+    },
+    consultant: {
+      displayName: "Consultant",
+      runtime: "tencent",
+      upstreamModel: "glm-5.2",
+      contextWindow: 200000,
+      upstreamContextWindow: 1048576,
+      reasoning: { effort: "none" },
+      enabled: true
+    },
+    goldencode: goldencodePoolConfig()
+  };
+}
+
+async function startGoldencodeRuntimeServers(): Promise<{
+  captured: Record<GoldencodeRuntime, CapturedOpenAICompatibleRequest[]>;
+  env: Record<string, string>;
+  close(): Promise<void>;
+}> {
+  const captured: Record<GoldencodeRuntime, CapturedOpenAICompatibleRequest[]> = {
+    qianfan: [],
+    tencent: [],
+    aliyun: [],
+    openrouter: []
+  };
+  const qianfan = await startOpenAICompatibleCaptureServer(
+    "qianfan-goldencode-ok",
+    captured.qianfan,
+    { "x-bce-request-id": "qianfan_req_goldencode" }
+  );
+  const tencent = await startOpenAICompatibleCaptureServer(
+    "tencent-goldencode-ok",
+    captured.tencent,
+    { "x-request-id": "tencent_req_goldencode" }
+  );
+  const aliyun = await startOpenAICompatibleCaptureServer(
+    "aliyun-goldencode-ok",
+    captured.aliyun,
+    { "x-ds-request-id": "aliyun_req_goldencode" }
+  );
+  const openrouter = await startOpenAICompatibleCaptureServer(
+    "openrouter-goldencode-ok",
+    captured.openrouter,
+    { "x-openrouter-request-id": "openrouter_req_goldencode" }
+  );
+  return {
+    captured,
+    env: {
+      MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+      MEDCODE_QIANFAN_BASE_URL: qianfan.baseUrl,
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+      MEDCODE_TENCENT_TOKENHUB_BASE_URL: tencent.baseUrl,
+      MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
+      MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL: aliyun.baseUrl,
+      MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+      MEDCODE_OPENROUTER_BASE_URL: openrouter.baseUrl
+    },
+    close: async () => {
+      await Promise.all([qianfan.close(), tencent.close(), aliyun.close(), openrouter.close()]);
+    }
+  };
+}
+
+async function startOpenAICompatibleCaptureServer(
+  content: string,
+  captured: CapturedOpenAICompatibleRequest[],
+  headers: Record<string, string> = {}
+): Promise<{ baseUrl: string; close(): Promise<void> }> {
+  return startOpenAICompatibleSseServer(async (request, body, response) => {
+    captured.push({
+      headers: request.headers,
+      body: JSON.parse(body) as Record<string, unknown>
+    });
+    response.writeHead(200, {
+      "content-type": "text/event-stream",
+      ...headers
+    });
+    response.write(
+      `data: ${JSON.stringify({
+        choices: [{ delta: { content } }]
+      })}\n\n`
+    );
+    response.write(
+      `data: ${JSON.stringify({
+        choices: [],
+        usage: {
+          prompt_tokens: 7,
+          completion_tokens: 2,
+          total_tokens: 9,
+          completion_tokens_details: { reasoning_tokens: 1 }
+        }
+      })}\n\n`
+    );
+    response.end("data: [DONE]\n\n");
+  });
 }
 
 async function withTemporaryEnv(

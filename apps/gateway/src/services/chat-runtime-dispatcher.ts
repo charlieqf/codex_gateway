@@ -6,7 +6,12 @@ import {
   type Subject,
   type UpstreamAccount
 } from "@codex-gateway/core";
-import type { PublicModelConfig } from "./public-model-registry.js";
+import type {
+  OpenAICompatibleRuntimeKind,
+  PublicModelConfig,
+  PublicModelPoolMemberConfig,
+  PublicModelPoolStickyKey
+} from "./public-model-registry.js";
 import {
   type UpstreamAccountLease,
   type UpstreamAccountOutcome,
@@ -15,7 +20,7 @@ import {
 } from "./upstream-account-router.js";
 
 export type UpstreamRuntimeKind = "codex" | "openrouter" | "qianfan" | "aliyun" | "tencent";
-type ExternalRuntimeKind = Exclude<UpstreamRuntimeKind, "codex">;
+type ExternalRuntimeKind = OpenAICompatibleRuntimeKind;
 
 export interface ChatRuntimeContext {
   publicModelId: string;
@@ -30,7 +35,6 @@ export interface ChatRuntimeContext {
   };
   adapter: ProviderAdapter;
   adapterInputUpstreamAccount: UpstreamAccount;
-  attributionAccount: UpstreamAccount;
   subject: Subject;
   scope: Scope;
   session: GatewaySession;
@@ -41,15 +45,20 @@ export interface ChatRuntimeContext {
 }
 
 export interface ChatRuntimeDispatcher {
-  begin(input: {
-    model: PublicModelConfig;
-    reasoningEffort: string | null;
-    subject: Subject;
-    scope: Scope;
-    affinityKey: string | null;
-    createSession: (subjectId: string, upstreamAccountId: string) => GatewaySession;
-  }): ChatRuntimeContext | GatewayError;
+  begin(input: RuntimeBeginInput): ChatRuntimeContext | GatewayError;
 }
+
+interface RuntimeBeginInput {
+  model: PublicModelConfig;
+  reasoningEffort: string | null;
+  reasoningEffortSource: "default" | "request";
+  subject: Subject;
+  scope: Scope;
+  affinityKey: string | null;
+  createSession: (subjectId: string, upstreamAccountId: string) => GatewaySession;
+}
+
+export type PublicModelPoolAffinityValues = Record<PublicModelPoolStickyKey, string | null>;
 
 export interface ChatRuntimeDispatcherInput {
   codexRouter: UpstreamAccountRouter;
@@ -57,6 +66,7 @@ export interface ChatRuntimeDispatcherInput {
   qianfanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
   aliyunAccount?: UpstreamAccount;
@@ -95,6 +105,9 @@ export function createChatRuntimeDispatcher(
       if (beginInput.model.runtime === "codex") {
         return beginCodexRuntime(input.codexRouter, beginInput);
       }
+      if (beginInput.model.runtime === "pool") {
+        return beginPoolRuntime(input.poolRouterForModel?.(beginInput.model) ?? null, beginInput);
+      }
 
       const externalRuntime = externalRuntimes[beginInput.model.runtime];
       const adapter = externalRuntime.adapterForModel(beginInput.model);
@@ -120,7 +133,6 @@ export function createChatRuntimeDispatcher(
         },
         adapter,
         adapterInputUpstreamAccount: virtualAccount,
-        attributionAccount: virtualAccount,
         subject: beginInput.subject,
         scope: beginInput.scope,
         session,
@@ -132,16 +144,50 @@ export function createChatRuntimeDispatcher(
   };
 }
 
+function beginPoolRuntime(
+  router: UpstreamAccountRouter | null,
+  input: RuntimeBeginInput,
+  excludeAccountIds?: Iterable<string>
+): ChatRuntimeContext | GatewayError {
+  if (!router || !input.model.pool) {
+    return new GatewayError({
+      code: "model_not_found",
+      message: `Model '${input.model.id}' does not exist.`,
+      httpStatus: 404
+    });
+  }
+  const lease = router.beginStateless({
+    affinityKey: input.affinityKey,
+    excludeAccountIds
+  });
+  if (lease instanceof GatewayError) {
+    return lease;
+  }
+  const member = input.model.pool.members.find(
+    (candidate) => candidate.id === lease.upstreamAccount.id
+  );
+  if (!member) {
+    lease.release();
+    return new GatewayError({
+      code: "upstream_unavailable",
+      message: "MedCode service is temporarily unavailable.",
+      httpStatus: 503
+    });
+  }
+  return contextFromLease({
+    router,
+    lease,
+    input,
+    runtime: member.runtime,
+    upstreamModel: member.upstreamModel,
+    reasoningEffort: poolMemberReasoningEffort(input, member),
+    beginRetry: (retryInput) => beginPoolRuntime(router, input, retryInput.excludeAccountIds)
+  });
+}
+
 function beginCodexRuntime(
   router: UpstreamAccountRouter,
-  input: {
-    model: PublicModelConfig;
-    reasoningEffort: string | null;
-    subject: Subject;
-    scope: Scope;
-    affinityKey: string | null;
-    createSession: (subjectId: string, upstreamAccountId: string) => GatewaySession;
-  },
+  input: RuntimeBeginInput,
   excludeAccountIds?: Iterable<string>
 ): ChatRuntimeContext | GatewayError {
   const lease = router.beginStateless({
@@ -151,38 +197,44 @@ function beginCodexRuntime(
   if (lease instanceof GatewayError) {
     return lease;
   }
-  return codexContextFromLease(router, lease, input);
-}
-
-function codexContextFromLease(
-  router: UpstreamAccountRouter,
-  lease: UpstreamAccountLease,
-  input: {
-    model: PublicModelConfig;
-    reasoningEffort: string | null;
-    subject: Subject;
-    scope: Scope;
-    affinityKey: string | null;
-    createSession: (subjectId: string, upstreamAccountId: string) => GatewaySession;
-  }
-): ChatRuntimeContext {
-  const session = input.createSession(input.subject.id, lease.upstreamAccount.id);
-  return {
-    publicModelId: input.model.id,
+  return contextFromLease({
+    router,
+    lease,
+    input,
     runtime: "codex",
-    runtimeInstanceId: lease.upstreamAccount.id,
-    providerKind: lease.upstreamAccount.provider,
     upstreamModel: input.model.upstreamModel,
     reasoningEffort: input.reasoningEffort,
+    beginRetry: (retryInput) => beginCodexRuntime(router, input, retryInput.excludeAccountIds)
+  });
+}
+
+function contextFromLease(input: {
+  router: UpstreamAccountRouter;
+  lease: UpstreamAccountLease;
+  input: RuntimeBeginInput;
+  runtime: UpstreamRuntimeKind;
+  upstreamModel: string;
+  reasoningEffort: string | null;
+  beginRetry(input: { excludeAccountIds: Iterable<string> }): ChatRuntimeContext | GatewayError;
+}): ChatRuntimeContext {
+  const { router, lease } = input;
+  const beginInput = input.input;
+  const session = beginInput.createSession(beginInput.subject.id, lease.upstreamAccount.id);
+  return {
+    publicModelId: beginInput.model.id,
+    runtime: input.runtime,
+    runtimeInstanceId: lease.upstreamAccount.id,
+    providerKind: lease.upstreamAccount.provider,
+    upstreamModel: input.upstreamModel,
+    reasoningEffort: input.reasoningEffort,
     limits: {
-      contextWindow: input.model.contextWindow,
-      maxOutputTokens: input.model.maxOutputTokens
+      contextWindow: beginInput.model.contextWindow,
+      maxOutputTokens: beginInput.model.maxOutputTokens
     },
     adapter: lease.provider,
     adapterInputUpstreamAccount: lease.upstreamAccount,
-    attributionAccount: lease.upstreamAccount,
-    subject: input.subject,
-    scope: input.scope,
+    subject: beginInput.subject,
+    scope: beginInput.scope,
     session,
     release: () => lease.release(),
     recordSuccess: () => {
@@ -196,9 +248,24 @@ function codexContextFromLease(
       router.recordOutcome(lease.upstreamAccount.id, outcome);
       return true;
     },
-    beginRetry: (retryInput) =>
-      beginCodexRuntime(router, input, retryInput.excludeAccountIds)
+    beginRetry: input.beginRetry
   };
+}
+
+export function publicModelPoolAffinityKey(
+  model: PublicModelConfig,
+  values: PublicModelPoolAffinityValues
+): string | null {
+  if (model.runtime !== "pool") {
+    return null;
+  }
+  for (const key of model.pool?.selection.stickyKeyOrder ?? []) {
+    const value = values[key]?.trim();
+    if (value) {
+      return `${key}:${value}`;
+    }
+  }
+  return null;
 }
 
 export function requestAffinityKey(
@@ -212,6 +279,21 @@ export function requestAffinityKey(
     return null;
   }
   return mode === "credential" ? input.credentialId : input.subjectId;
+}
+
+function poolMemberReasoningEffort(
+  input: RuntimeBeginInput,
+  member: PublicModelPoolMemberConfig
+): string | null {
+  if (input.reasoningEffortSource === "request") {
+    return input.reasoningEffort;
+  }
+  return reasoningEffortFromConfig(member.reasoning) ?? input.reasoningEffort;
+}
+
+function reasoningEffortFromConfig(reasoning: Record<string, unknown> | undefined): string | null {
+  const effort = reasoning?.effort;
+  return typeof effort === "string" && effort.length > 0 ? effort : null;
 }
 
 function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome | null {
