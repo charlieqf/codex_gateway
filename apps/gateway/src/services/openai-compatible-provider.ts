@@ -141,7 +141,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       stream_options: {
         include_usage: true
       },
-      ...this.reasoningPayload(),
+      ...this.reasoningPayload(input),
       ...(nativeToolCallsEnabled(input)
         ? {
             tools: input.clientTools,
@@ -151,17 +151,28 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     };
   }
 
-  private reasoningPayload(): Record<string, unknown> {
-    if (!this.options.reasoning) {
+  private reasoningPayload(input: MessageInput): Record<string, unknown> {
+    const reasoning = this.reasoningForInput(input);
+    if (!reasoning) {
       return {};
     }
     if (this.options.reasoningParameterStyle !== "effort_field") {
-      return { reasoning: this.options.reasoning };
+      return { reasoning };
     }
-    const effort = this.options.reasoning.effort;
+    const effort = reasoning.effort;
     return typeof effort === "string" && effort.length > 0
       ? { reasoning_effort: effort }
       : {};
+  }
+
+  private reasoningForInput(input: MessageInput): Record<string, unknown> | undefined {
+    if (input.reasoningEffort) {
+      return {
+        ...(this.options.reasoning ?? {}),
+        effort: input.reasoningEffort
+      };
+    }
+    return this.options.reasoning;
   }
 
   private headers(): HeadersInit {

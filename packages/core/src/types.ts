@@ -370,6 +370,7 @@ export interface MessageInput {
   subject: Subject;
   scope: Scope;
   message: string;
+  reasoningEffort?: string | null;
   clientTools?: ClientToolDefinition[];
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;

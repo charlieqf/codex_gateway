@@ -4010,6 +4010,100 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("applies request-level reasoning_effort to Max and rejects unsupported values", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const { store, headers } = createModelEntitledStore(["max"]);
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "max-ok" },
+          {
+            type: "completed",
+            providerSessionRef: "provider_thread_1",
+            usage: {
+              promptTokens: 2,
+              completionTokens: 1,
+              totalTokens: 3
+            }
+          }
+        ]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider,
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        try {
+          const accepted = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "max",
+              reasoning_effort: "xhigh",
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+          const unsupported = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "max",
+              reasoning_effort: "none",
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+          const invalidType = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "max",
+              reasoning_effort: 1,
+              messages: [{ role: "user", content: "Say ok." }]
+            }
+          });
+
+          expect(accepted.statusCode).toBe(200);
+          expect(accepted.json().choices[0].message.content).toBe("max-ok");
+          expect(provider.messages).toHaveLength(1);
+          expect(provider.messages[0].reasoningEffort).toBe("xhigh");
+          expect(unsupported.statusCode).toBe(400);
+          expect(unsupported.json().error).toMatchObject({
+            code: "invalid_request",
+            type: "invalid_request_error"
+          });
+          expect(unsupported.json().error.message).toContain(
+            "Supported values: minimal, low, medium, high, xhigh"
+          );
+          expect(invalidType.statusCode).toBe(400);
+          expect(invalidType.json().error).toMatchObject({
+            code: "invalid_request",
+            type: "invalid_request_error"
+          });
+          expect(store.listRequestEvents({ limit: 5 })).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                publicModelId: "max",
+                upstreamRuntime: "codex",
+                upstreamModel: "gpt-5.5",
+                reasoningEffort: "xhigh",
+                status: "ok"
+              })
+            ])
+          );
+        } finally {
+          await app.close();
+        }
+      }
+    );
+  });
+
   it("does not let medcode_models restrict any enabled public chat model", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
@@ -4550,6 +4644,149 @@ describe("gateway phase 1 routes", () => {
                   upstreamModel: "glm-5.2",
                   upstreamAccountId: "qianfan-main",
                   provider: "qianfan",
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await openRouterServer.close();
+      await qianfanServer.close();
+    }
+  });
+
+  it("converts request-level reasoning_effort for OpenRouter and Qianfan models", async () => {
+    const openRouterCaptured: Array<Record<string, unknown>> = [];
+    const qianfanCaptured: Array<Record<string, unknown>> = [];
+    const openRouterServer = await startOpenAICompatibleSseServer(
+      async (_request, body, response) => {
+        openRouterCaptured.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "or-variant-ok" } }],
+            usage: {
+              prompt_tokens: 7,
+              completion_tokens: 2,
+              total_tokens: 9,
+              completion_tokens_details: { reasoning_tokens: 0 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+    const qianfanServer = await startOpenAICompatibleSseServer(
+      async (_request, body, response) => {
+        qianfanCaptured.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "qf-variant-ok" } }],
+            usage: {
+              prompt_tokens: 11,
+              completion_tokens: 3,
+              total_tokens: 14,
+              completion_tokens_details: { reasoning_tokens: 1 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: openRouterServer.baseUrl,
+          MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+          MEDCODE_QIANFAN_BASE_URL: qianfanServer.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore([
+            "specialist",
+            "expert",
+            "standard"
+          ]);
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const specialist = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "specialist",
+                reasoning_effort: "high",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const expert = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                reasoning_effort: "low",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const unsupported = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "standard",
+                reasoning_effort: "xhigh",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(specialist.statusCode).toBe(200);
+            expect(expert.statusCode).toBe(200);
+            expect(unsupported.statusCode).toBe(400);
+            expect(unsupported.json().error).toMatchObject({
+              code: "invalid_request",
+              type: "invalid_request_error"
+            });
+            expect(unsupported.json().error.message).toContain(
+              "Supported values: none, low, medium, high"
+            );
+            expect(qianfanCaptured).toHaveLength(1);
+            expect(openRouterCaptured).toHaveLength(1);
+            expect(qianfanCaptured[0]).toMatchObject({
+              model: "glm-5.2",
+              reasoning: { effort: "high" }
+            });
+            expect(qianfanCaptured[0]).not.toHaveProperty("reasoning_effort");
+            expect(openRouterCaptured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              reasoning: { effort: "low" }
+            });
+            expect(openRouterCaptured[0]).not.toHaveProperty("reasoning_effort");
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "specialist",
+                  upstreamRuntime: "qianfan",
+                  reasoningEffort: "high",
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "expert",
+                  upstreamRuntime: "openrouter",
+                  reasoningEffort: "low",
                   status: "ok"
                 })
               ])

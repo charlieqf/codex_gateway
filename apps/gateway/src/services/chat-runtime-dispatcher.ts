@@ -43,6 +43,7 @@ export interface ChatRuntimeContext {
 export interface ChatRuntimeDispatcher {
   begin(input: {
     model: PublicModelConfig;
+    reasoningEffort: string | null;
     subject: Subject;
     scope: Scope;
     affinityKey: string | null;
@@ -112,7 +113,7 @@ export function createChatRuntimeDispatcher(
         runtimeInstanceId: virtualAccount.id,
         providerKind: virtualAccount.provider,
         upstreamModel: beginInput.model.upstreamModel,
-        reasoningEffort: reasoningEffortForModel(beginInput.model),
+        reasoningEffort: beginInput.reasoningEffort,
         limits: {
           contextWindow: beginInput.model.contextWindow,
           maxOutputTokens: beginInput.model.maxOutputTokens
@@ -135,6 +136,7 @@ function beginCodexRuntime(
   router: UpstreamAccountRouter,
   input: {
     model: PublicModelConfig;
+    reasoningEffort: string | null;
     subject: Subject;
     scope: Scope;
     affinityKey: string | null;
@@ -157,6 +159,7 @@ function codexContextFromLease(
   lease: UpstreamAccountLease,
   input: {
     model: PublicModelConfig;
+    reasoningEffort: string | null;
     subject: Subject;
     scope: Scope;
     affinityKey: string | null;
@@ -170,7 +173,7 @@ function codexContextFromLease(
     runtimeInstanceId: lease.upstreamAccount.id,
     providerKind: lease.upstreamAccount.provider,
     upstreamModel: input.model.upstreamModel,
-    reasoningEffort: reasoningEffortForModel(input.model),
+    reasoningEffort: input.reasoningEffort,
     limits: {
       contextWindow: input.model.contextWindow,
       maxOutputTokens: input.model.maxOutputTokens
@@ -274,9 +277,4 @@ function defaultTencentVirtualAccount(): UpstreamAccount {
     lastUsedAt: null,
     cooldownUntil: null
   };
-}
-
-function reasoningEffortForModel(model: PublicModelConfig): string | null {
-  const effort = model.reasoning?.effort;
-  return typeof effort === "string" && effort.length > 0 ? effort : null;
 }

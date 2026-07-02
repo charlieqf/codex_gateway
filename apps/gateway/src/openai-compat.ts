@@ -59,6 +59,7 @@ export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
   stream: boolean;
+  reasoningEffort?: string;
   tools?: OpenAIChatToolDefinition[];
   toolChoice: ChatCompletionToolChoice;
 }
@@ -150,6 +151,14 @@ export function parseChatCompletionRequest(
 
   const model = typeof body.model === "string" && body.model.length > 0 ? body.model : defaultModel;
 
+  let reasoningEffort: string | undefined;
+  if (body.reasoning_effort !== undefined) {
+    if (typeof body.reasoning_effort !== "string" || body.reasoning_effort.trim().length === 0) {
+      return invalidRequest("reasoning_effort must be a non-empty string when provided.");
+    }
+    reasoningEffort = body.reasoning_effort.trim();
+  }
+
   let tools: OpenAIChatToolDefinition[] | undefined;
   if (body.tools !== undefined) {
     const parsedTools = parseToolDefinitions(body.tools);
@@ -168,6 +177,7 @@ export function parseChatCompletionRequest(
     model,
     messages,
     stream,
+    ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
     tools,
     toolChoice
   };

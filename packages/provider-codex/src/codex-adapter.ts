@@ -72,8 +72,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const client = this.createClient();
     const thread = input.session.providerSessionRef
-      ? client.resumeThread(input.session.providerSessionRef, this.threadOptions(input.scope))
-      : client.startThread(this.threadOptions(input.scope));
+      ? client.resumeThread(
+          input.session.providerSessionRef,
+          this.threadOptions(input.scope, input.reasoningEffort)
+        )
+      : client.startThread(this.threadOptions(input.scope, input.reasoningEffort));
     const agentTextByItemId = new Map<string, string>();
     const emittedToolCalls = new Set<string>();
     let providerSessionRef = input.session.providerSessionRef ?? thread.id;
@@ -239,10 +242,16 @@ export class CodexProviderAdapter implements ProviderAdapter {
     });
   }
 
-  private threadOptions(scope: "medical" | "code"): ThreadOptions {
+  private threadOptions(
+    scope: "medical" | "code",
+    reasoningEffort?: string | null
+  ): ThreadOptions {
     return {
       model: this.options.model,
-      modelReasoningEffort: this.options.modelReasoningEffort,
+      modelReasoningEffort: modelReasoningEffortForRequest(
+        reasoningEffort,
+        this.options.modelReasoningEffort
+      ),
       workingDirectory: this.options.workingDirectory ?? process.cwd(),
       skipGitRepoCheck: this.options.skipGitRepoCheck,
       sandboxMode: this.options.sandboxMode ?? "read-only",
@@ -317,6 +326,23 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
     return null;
   }
+}
+
+function modelReasoningEffortForRequest(
+  reasoningEffort: string | null | undefined,
+  fallback: ModelReasoningEffort | undefined
+): ModelReasoningEffort | undefined {
+  return isModelReasoningEffort(reasoningEffort) ? reasoningEffort : fallback;
+}
+
+function isModelReasoningEffort(value: string | null | undefined): value is ModelReasoningEffort {
+  return (
+    value === "minimal" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+  );
 }
 
 function isContextWindowOverflow(lowercaseMessage: string): boolean {

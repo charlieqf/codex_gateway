@@ -218,6 +218,107 @@ describe("OpenAICompatibleProviderAdapter", () => {
       await server.close();
     }
   });
+
+  it("lets request-level reasoning effort override object-style provider reasoning", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "ok" } }],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "qianfan",
+        apiKey: "provider-test-key",
+        apiKeyEnv: "MEDCODE_QIANFAN_API_KEY",
+        baseUrl: server.baseUrl,
+        upstreamModel: "glm-5.2",
+        reasoning: { effort: "medium" },
+        timeoutMs: 5_000
+      });
+
+      await collectProviderMessage({
+        provider,
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "prompt",
+        reasoningEffort: "high"
+      });
+
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toMatchObject({
+        model: "glm-5.2",
+        reasoning: { effort: "high" }
+      });
+      expect(captured[0]).not.toHaveProperty("reasoning_effort");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("lets request-level reasoning effort override effort-field provider reasoning", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "ok" } }],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "aliyun",
+        apiKey: "provider-test-key",
+        apiKeyEnv: "MEDCODE_ALIYUN_DASHSCOPE_API_KEY",
+        baseUrl: server.baseUrl,
+        upstreamModel: "glm-5.2",
+        reasoning: { effort: "none" },
+        reasoningParameterStyle: "effort_field",
+        timeoutMs: 5_000
+      });
+
+      await collectProviderMessage({
+        provider,
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "prompt",
+        reasoningEffort: "low"
+      });
+
+      expect(captured).toHaveLength(1);
+      expect(captured[0]).toMatchObject({
+        model: "glm-5.2",
+        reasoning_effort: "low"
+      });
+      expect(captured[0]).not.toHaveProperty("reasoning");
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 async function startSseServer(

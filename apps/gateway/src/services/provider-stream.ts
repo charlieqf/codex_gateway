@@ -161,6 +161,7 @@ export interface CollectProviderMessageInput {
   scope: Scope;
   session: GatewaySession;
   message: string;
+  reasoningEffort?: string | null;
   clientTools?: ClientToolDefinition[];
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
@@ -190,6 +191,7 @@ export async function collectProviderMessage(
     scope: input.scope,
     session: input.session,
     message: input.message,
+    reasoningEffort: input.reasoningEffort,
     clientTools: input.clientTools,
     clientToolChoice: input.clientToolChoice,
     signal: input.signal,

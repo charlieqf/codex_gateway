@@ -179,6 +179,65 @@ describe("CodexProviderAdapter", () => {
     });
   });
 
+  it("lets request-level reasoning effort override the configured Codex default", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.completed",
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
+      }
+    ]);
+    const client = new FakeClient(thread);
+    const adapter = createAdapter(client, {
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
+    });
+
+    await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          reasoningEffort: "low"
+        })
+      )
+    );
+
+    expect(client.startedOptions[0]).toMatchObject({
+      model: "gpt-5.5",
+      modelReasoningEffort: "low"
+    });
+  });
+
+  it("keeps configured Codex reasoning effort when the request does not override it", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.completed",
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
+      }
+    ]);
+    const client = new FakeClient(thread);
+    const adapter = createAdapter(client, {
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
+    });
+
+    await collect(adapter.message(messageInput({ providerSessionRef: null })));
+
+    expect(client.startedOptions[0]).toMatchObject({
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
+    });
+  });
+
   it("maps tool calls once", async () => {
     const thread = new FakeThread(null, [
       { type: "thread.started", thread_id: "thread_1" },
@@ -451,6 +510,7 @@ function normalizeForTest(
 
 function messageInput(input: {
   providerSessionRef: string | null;
+  reasoningEffort?: string | null;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }): MessageInput {
   return {
@@ -459,6 +519,7 @@ function messageInput(input: {
     scope: "code",
     session: session(input.providerSessionRef),
     message: "hello",
+    reasoningEffort: input.reasoningEffort,
     onProviderError: input.onProviderError
   };
 }

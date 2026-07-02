@@ -1261,6 +1261,15 @@ export function buildGateway(options: GatewayOptions = {}) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
       return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
     }
+    const reasoningEffort = resolveChatCompletionReasoningEffort(
+      publicModel,
+      parsed.reasoningEffort,
+      parsed.model
+    );
+    if (reasoningEffort instanceof GatewayError) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+      return sendOpenAIError(request, reply, reasoningEffort);
+    }
 
     let entitlementAccess;
     try {
@@ -1296,6 +1305,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const { subject, scope } = getGatewayContext(request);
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
+      reasoningEffort,
       subject,
       scope,
       affinityKey,
@@ -1362,6 +1372,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
+            reasoningEffort: attempt.reasoningEffort,
             request: parsed,
             prompt,
             signal: sse.signal,
@@ -1417,6 +1428,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             subject: attempt.subject,
             scope: attempt.scope,
             session: attempt.session,
+            reasoningEffort: attempt.reasoningEffort,
             request: parsed,
             prompt,
             signal: sse.signal,
@@ -1474,6 +1486,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               scope: attempt.scope,
               session: attempt.session,
               message: prompt,
+              reasoningEffort: attempt.reasoningEffort,
               clientTools: nativeClientTools ? parsed.tools : undefined,
               clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
               signal: sse.signal,
@@ -1599,6 +1612,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           subject: attempt.subject,
           scope: attempt.scope,
           session: attempt.session,
+          reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
           requestId: request.id,
@@ -1629,6 +1643,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           subject: attempt.subject,
           scope: attempt.scope,
           session: attempt.session,
+          reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
           requestId: request.id,
@@ -1661,6 +1676,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             scope: attempt.scope,
             session: attempt.session,
             message: prompt,
+            reasoningEffort: attempt.reasoningEffort,
             clientTools: nativeClientTools ? parsed.tools : undefined,
             clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
             attemptKind: statelessAttempts > 1 ? "stateless_retry" : "primary",
@@ -1883,6 +1899,7 @@ interface StrictClientToolsInput {
   subject: Subject;
   scope: Scope;
   session: GatewaySession;
+  reasoningEffort: string | null;
   request: ChatCompletionRequest;
   prompt: string;
   signal?: AbortSignal;
@@ -2037,6 +2054,7 @@ async function collectNativeClientTools(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    reasoningEffort: input.reasoningEffort,
     clientTools: input.request.tools,
     clientToolChoice: toolChoice,
     attemptKind,
@@ -2444,6 +2462,7 @@ async function collectStrictToolDecision(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    reasoningEffort: input.reasoningEffort,
     attemptKind,
     attemptToolChoice: serializeToolChoice(input.request.toolChoice),
     upstreamRuntime: input.upstreamRuntime,
@@ -4079,6 +4098,71 @@ function parseModelReasoningEffort(
   }
   throw new Error(
     "MEDCODE_UPSTREAM_REASONING_EFFORT must be minimal, low, medium, high, or xhigh."
+  );
+}
+
+const maxRequestReasoningEfforts = ["minimal", "low", "medium", "high", "xhigh"] as const;
+const standardRequestReasoningEfforts = ["none", "low", "medium", "high"] as const;
+const standardReasoningModelIds = new Set([
+  "specialist",
+  "expert",
+  "advisor",
+  "consultant",
+  "pro",
+  "standard"
+]);
+
+function resolveChatCompletionReasoningEffort(
+  model: PublicModelConfig,
+  requested: string | undefined,
+  requestModelId: string
+): string | null | GatewayError {
+  if (requested === undefined) {
+    return configuredReasoningEffortForModel(model);
+  }
+
+  const supported = supportedReasoningEffortsForModel(model);
+  if (!supported) {
+    return new GatewayError({
+      code: "invalid_request",
+      message: `reasoning_effort is not supported for model '${requestModelId}'.`,
+      httpStatus: 400
+    });
+  }
+
+  if (!supported.values.includes(requested)) {
+    return new GatewayError({
+      code: "invalid_request",
+      message: `reasoning_effort '${requested}' is not supported for model '${requestModelId}'. Supported values: ${supported.values.join(", ")}.`,
+      httpStatus: 400
+    });
+  }
+
+  return requested;
+}
+
+function configuredReasoningEffortForModel(model: PublicModelConfig): string | null {
+  const effort = model.reasoning?.effort;
+  return typeof effort === "string" && effort.length > 0 ? effort : null;
+}
+
+function supportedReasoningEffortsForModel(
+  model: PublicModelConfig
+): { values: readonly string[] } | null {
+  if (isMaxReasoningModel(model)) {
+    return { values: maxRequestReasoningEfforts };
+  }
+  if (standardReasoningModelIds.has(model.id)) {
+    return { values: standardRequestReasoningEfforts };
+  }
+  return null;
+}
+
+function isMaxReasoningModel(model: PublicModelConfig): boolean {
+  return (
+    model.id === "max" ||
+    model.aliases.includes("medcode") ||
+    (model.runtime === "codex" && model.displayName.toLowerCase() === "max")
   );
 }
 
