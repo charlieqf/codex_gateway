@@ -239,7 +239,7 @@ describe("CodexProviderAdapter", () => {
     });
   });
 
-  it("disables Codex image generation for minimal reasoning requests", async () => {
+  it("maps minimal reasoning requests to Codex none effort", async () => {
     const thread = new FakeThread(null, [
       {
         type: "turn.completed",
@@ -273,14 +273,15 @@ describe("CodexProviderAdapter", () => {
     );
 
     expect(factoryInputs[0]?.config).toEqual({
+      model_reasoning_effort: "none",
       features: {
         image_generation: false
       }
     });
     expect(client.startedOptions[0]).toMatchObject({
-      model: "gpt-5.5",
-      modelReasoningEffort: "minimal"
+      model: "gpt-5.5"
     });
+    expect(client.startedOptions[0]?.modelReasoningEffort).toBeUndefined();
   });
 
   it("keeps Codex client config unchanged when reasoning effort is not minimal", async () => {

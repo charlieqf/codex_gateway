@@ -253,7 +253,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
   ): ThreadOptions {
     return {
       model: this.options.model,
-      modelReasoningEffort: modelReasoningEffortForRequest(
+      modelReasoningEffort: codexThreadReasoningEffortForRequest(
         reasoningEffort,
         this.options.modelReasoningEffort
       ),
@@ -333,10 +333,13 @@ export class CodexProviderAdapter implements ProviderAdapter {
   }
 }
 
-function modelReasoningEffortForRequest(
+function codexThreadReasoningEffortForRequest(
   reasoningEffort: string | null | undefined,
   fallback: ModelReasoningEffort | undefined
 ): ModelReasoningEffort | undefined {
+  if (reasoningEffort === "minimal") {
+    return undefined;
+  }
   return isModelReasoningEffort(reasoningEffort) ? reasoningEffort : fallback;
 }
 
@@ -346,6 +349,7 @@ function codexConfigForRequest(reasoningEffort: string | null | undefined): Code
   }
 
   return {
+    model_reasoning_effort: "none",
     features: {
       image_generation: false
     }
