@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { GatewayError, isRecord } from "@codex-gateway/core";
 
-export type ChatRuntimeKind = "codex" | "openrouter" | "qianfan";
+export type ChatRuntimeKind = "codex" | "openrouter" | "qianfan" | "aliyun" | "tencent";
 
 export interface PublicModelConfig {
   id: string;
@@ -28,6 +28,8 @@ export interface PublicModelRegistry {
 export interface PublicModelAvailability {
   openRouterAvailable: boolean;
   qianfanAvailable?: boolean;
+  aliyunAvailable?: boolean;
+  tencentAvailable?: boolean;
 }
 
 export interface PublicModelRegistryLogger {
@@ -118,6 +120,12 @@ function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailabili
   }
   if (model.runtime === "qianfan") {
     return input.qianfanAvailable === true;
+  }
+  if (model.runtime === "aliyun") {
+    return input.aliyunAvailable === true;
+  }
+  if (model.runtime === "tencent") {
+    return input.tencentAvailable === true;
   }
   return true;
 }
@@ -262,10 +270,18 @@ function parseAliases(value: unknown, id: string): string[] {
 }
 
 function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
-  if (value === "codex" || value === "openrouter" || value === "qianfan") {
+  if (
+    value === "codex" ||
+    value === "openrouter" ||
+    value === "qianfan" ||
+    value === "aliyun" ||
+    value === "tencent"
+  ) {
     return value;
   }
-  throw new Error(`Public model '${id}' runtime must be codex, openrouter, or qianfan.`);
+  throw new Error(
+    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, or tencent.`
+  );
 }
 
 function parseBoolean(value: unknown, id: string): boolean {

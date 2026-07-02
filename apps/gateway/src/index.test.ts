@@ -2673,7 +2673,9 @@ describe("gateway phase 1 routes", () => {
     expect(realtimePayload.models.map((model: { public_model_id: string }) => model.public_model_id)).toEqual([
       "max",
       "specialist",
+      "consultant",
       "expert",
+      "advisor",
       "pro",
       "standard"
     ]);
@@ -2706,6 +2708,24 @@ describe("gateway phase 1 routes", () => {
         (model: { public_model_id: string }) => model.public_model_id === "expert"
       )
     ).toMatchObject({
+      requests: 0,
+      total_tokens: 0
+    });
+    expect(
+      realtimePayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "advisor"
+      )
+    ).toMatchObject({
+      model_display_name: "Advisor",
+      requests: 0,
+      total_tokens: 0
+    });
+    expect(
+      realtimePayload.models.find(
+        (model: { public_model_id: string }) => model.public_model_id === "consultant"
+      )
+    ).toMatchObject({
+      model_display_name: "Consultant",
       requests: 0,
       total_tokens: 0
     });
@@ -4542,6 +4562,176 @@ describe("gateway phase 1 routes", () => {
     } finally {
       await openRouterServer.close();
       await qianfanServer.close();
+    }
+  });
+
+  it("routes Advisor and Consultant through Aliyun and Tencent runtimes", async () => {
+    const aliyunCaptured: Array<Record<string, unknown>> = [];
+    const tencentCaptured: Array<Record<string, unknown>> = [];
+    const aliyunServer = await startOpenAICompatibleSseServer(
+      async (_request, body, response) => {
+        aliyunCaptured.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "x-ds-request-id": "aliyun_req_1"
+        });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "advisor-ok" } }],
+            usage: {
+              prompt_tokens: 13,
+              completion_tokens: 4,
+              total_tokens: 17,
+              completion_tokens_details: { reasoning_tokens: 0 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+    const tencentServer = await startOpenAICompatibleSseServer(
+      async (_request, body, response) => {
+        tencentCaptured.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "x-request-id": "tencent_req_1"
+        });
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: "consultant-ok" } }],
+            usage: {
+              prompt_tokens: 17,
+              completion_tokens: 5,
+              total_tokens: 22,
+              completion_tokens_details: { reasoning_tokens: 0 }
+            }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+      }
+    );
+
+    try {
+      const registry = {
+        ...publicModelRegistryFixture(),
+        advisor: {
+          displayName: "Advisor",
+          runtime: "aliyun",
+          upstreamModel: "glm-5.2",
+          contextWindow: 200000,
+          upstreamContextWindow: 1048576,
+          reasoning: { effort: "none" },
+          enabled: true
+        },
+        consultant: {
+          displayName: "Consultant",
+          runtime: "tencent",
+          upstreamModel: "glm-5.2",
+          contextWindow: 200000,
+          upstreamContextWindow: 1048576,
+          reasoning: { effort: "none" },
+          enabled: true
+        }
+      };
+
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+          MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
+          MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL: aliyunServer.baseUrl,
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: tencentServer.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry)
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["advisor", "consultant"]);
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const listed = await app.inject({
+              method: "GET",
+              url: "/v1/models",
+              headers
+            });
+            const advisor = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "advisor",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+            const consultant = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "consultant",
+                messages: [{ role: "user", content: "Say ok." }]
+              }
+            });
+
+            expect(listed.statusCode).toBe(200);
+            expect(listed.json().data.map((model: { id: string }) => model.id)).toEqual([
+              "max",
+              "specialist",
+              "expert",
+              "pro",
+              "standard",
+              "advisor",
+              "consultant"
+            ]);
+            expect(advisor.statusCode).toBe(200);
+            expect(consultant.statusCode).toBe(200);
+            expect(advisor.json().choices[0].message.content).toBe("advisor-ok");
+            expect(consultant.json().choices[0].message.content).toBe("consultant-ok");
+            expect(aliyunCaptured).toHaveLength(1);
+            expect(tencentCaptured).toHaveLength(1);
+            expect(aliyunCaptured[0]).toMatchObject({
+              model: "glm-5.2",
+              reasoning_effort: "none"
+            });
+            expect(aliyunCaptured[0]).not.toHaveProperty("reasoning");
+            expect(tencentCaptured[0]).toMatchObject({
+              model: "glm-5.2",
+              reasoning_effort: "none"
+            });
+            expect(tencentCaptured[0]).not.toHaveProperty("reasoning");
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "advisor",
+                  upstreamRuntime: "aliyun",
+                  upstreamModel: "glm-5.2",
+                  upstreamAccountId: "aliyun-main",
+                  provider: "aliyun",
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "consultant",
+                  upstreamRuntime: "tencent",
+                  upstreamModel: "glm-5.2",
+                  upstreamAccountId: "tencent-main",
+                  provider: "tencent",
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await aliyunServer.close();
+      await tencentServer.close();
     }
   });
 

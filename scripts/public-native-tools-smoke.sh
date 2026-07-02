@@ -90,7 +90,7 @@ node - "$tmp_dir/models.json" <<'NODE'
 const fs = require("node:fs");
 const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const ids = payload.data.map((model) => model.id).sort();
-for (const required of ["max", "specialist", "expert", "pro", "standard"]) {
+for (const required of ["max", "specialist", "expert", "advisor", "consultant", "pro", "standard"]) {
   if (!ids.includes(required)) {
     console.error(`models_missing=${required} ids=${ids.join(",")}`);
     process.exit(1);

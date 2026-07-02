@@ -148,4 +148,49 @@ describe("public model registry", () => {
     expect(registry.get("expert")?.runtime).toBe("qianfan");
     expect(registry.get("expert")?.reasoning).toEqual({ effort: "medium" });
   });
+
+  it("exposes aliyun and tencent models only when those runtimes are configured", () => {
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        max: {
+          aliases: ["medcode"],
+          runtime: "codex",
+          upstreamModel: "gpt-5.5"
+        },
+        advisor: {
+          displayName: "Advisor",
+          runtime: "aliyun",
+          upstreamModel: "glm-5.2",
+          reasoning: { effort: "none" }
+        },
+        consultant: {
+          displayName: "Consultant",
+          runtime: "tencent",
+          upstreamModel: "glm-5.2",
+          reasoning: { effort: "none" }
+        }
+      })
+    });
+
+    expect(
+      registry
+        .listAvailable({
+          openRouterAvailable: false,
+          aliyunAvailable: true,
+          tencentAvailable: false
+        })
+        .map((model) => model.id)
+    ).toEqual(["max", "advisor"]);
+    expect(
+      registry
+        .listAvailable({
+          openRouterAvailable: false,
+          aliyunAvailable: false,
+          tencentAvailable: true
+        })
+        .map((model) => model.id)
+    ).toEqual(["max", "consultant"]);
+    expect(registry.get("advisor")?.runtime).toBe("aliyun");
+    expect(registry.get("consultant")?.runtime).toBe("tencent");
+  });
 });

@@ -5,6 +5,7 @@ import {
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type ProviderHealth,
+  type ProviderKind,
   type StreamEvent,
   type TokenUsage,
   type UpstreamAccount
@@ -12,12 +13,13 @@ import {
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
 
 export interface OpenAICompatibleProviderOptions {
-  providerKind: "openrouter" | "qianfan";
+  providerKind: Extract<ProviderKind, "openrouter" | "qianfan" | "aliyun" | "tencent">;
   baseUrl: string;
   apiKey: string;
   apiKeyEnv: string;
   upstreamModel: string;
   reasoning?: Record<string, unknown>;
+  reasoningParameterStyle?: "object" | "effort_field";
   timeoutMs: number;
   siteUrl?: string;
   appTitle?: string;
@@ -139,7 +141,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       stream_options: {
         include_usage: true
       },
-      ...(this.options.reasoning ? { reasoning: this.options.reasoning } : {}),
+      ...this.reasoningPayload(),
       ...(nativeToolCallsEnabled(input)
         ? {
             tools: input.clientTools,
@@ -147,6 +149,19 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           }
         : {})
     };
+  }
+
+  private reasoningPayload(): Record<string, unknown> {
+    if (!this.options.reasoning) {
+      return {};
+    }
+    if (this.options.reasoningParameterStyle !== "effort_field") {
+      return { reasoning: this.options.reasoning };
+    }
+    const effort = this.options.reasoning.effort;
+    return typeof effort === "string" && effort.length > 0
+      ? { reasoning_effort: effort }
+      : {};
   }
 
   private headers(): HeadersInit {

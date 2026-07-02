@@ -2,6 +2,8 @@ export type ProviderKind =
   | "openai-codex"
   | "openrouter"
   | "qianfan"
+  | "aliyun"
+  | "tencent"
   | "openai-api"
   | "anthropic"
   | "kimi"

@@ -144,11 +144,21 @@ const maxRequestLimit = 500;
 const maxClientMessageLookup = 1_000;
 const messageLookupSkewMs = 60_000;
 const authNoiseErrorCodes = new Set(["missing_credential", "invalid_credential"]);
-const defaultPublicModelIds = ["max", "specialist", "expert", "pro", "standard"];
+const defaultPublicModelIds = [
+  "max",
+  "specialist",
+  "consultant",
+  "expert",
+  "advisor",
+  "pro",
+  "standard"
+];
 const publicModelDisplayNames: Record<string, string> = {
   max: "Max",
   specialist: "Specialist",
+  consultant: "Consultant",
   expert: "Expert",
+  advisor: "Advisor",
   pro: "Pro",
   standard: "Standard",
   unknown: "Unknown"
@@ -897,7 +907,9 @@ export function renderRealtimeTokenUsagePage(
       const colors = {
         max: "#2563eb",
         specialist: "#059669",
+        consultant: "#0f766e",
         expert: "#7c3aed",
+        advisor: "#4f46e5",
         pro: "#d97706",
         standard: "#dc2626",
         unknown: "#64748b"

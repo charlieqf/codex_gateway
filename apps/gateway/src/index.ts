@@ -276,14 +276,25 @@ export function buildGateway(options: GatewayOptions = {}) {
   const publicModelRegistry = resolvePublicModelRegistry(process.env, app.log);
   const openRouterAdapters = createOpenRouterAdapters(publicModelRegistry.models, process.env, app.log);
   const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
+  const aliyunAdapters = createAliyunAdapters(publicModelRegistry.models, process.env, app.log);
+  const tencentAdapters = createTencentAdapters(publicModelRegistry.models, process.env, app.log);
   const chatRuntimeDispatcher = createChatRuntimeDispatcher({
     codexRouter: upstreamRouter,
     openRouterAdapterForModel: (model) => openRouterAdapters.get(model.id) ?? null,
-    qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null
+    qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null,
+    aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
+    tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
   const qianfanAvailable = qianfanAdapters.size > 0;
-  const publicModelAvailability = { openRouterAvailable, qianfanAvailable };
+  const aliyunAvailable = aliyunAdapters.size > 0;
+  const tencentAvailable = tencentAdapters.size > 0;
+  const publicModelAvailability = {
+    openRouterAvailable,
+    qianfanAvailable,
+    aliyunAvailable,
+    tencentAvailable
+  };
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
   const authMode = resolveAuthMode({
     configured: configuredAuthMode,
@@ -3040,8 +3051,16 @@ function hasNativeClientTools(
   request: ChatCompletionRequest,
   publicModel: PublicModelConfig
 ): boolean {
-  return (publicModel.runtime === "openrouter" || publicModel.runtime === "qianfan") &&
-    hasStrictClientTools(request);
+  return isOpenAICompatibleRuntime(publicModel.runtime) && hasStrictClientTools(request);
+}
+
+function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boolean {
+  return (
+    runtime === "openrouter" ||
+    runtime === "qianfan" ||
+    runtime === "aliyun" ||
+    runtime === "tencent"
+  );
 }
 
 function createStatelessSession(subjectId: string, upstreamAccountId: string): GatewaySession {
@@ -3836,17 +3855,75 @@ function createQianfanAdapters(
   });
 }
 
+function createAliyunAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): Map<string, ProviderAdapter> {
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "aliyun",
+    providerKind: "aliyun",
+    displayName: "Aliyun Token Plan",
+    apiKeyEnvName:
+      env.MEDCODE_ALIYUN_TOKEN_PLAN_API_KEY_ENV?.trim() ||
+      env.MEDCODE_ALIYUN_API_KEY_ENV?.trim() ||
+      "MEDCODE_ALIYUN_DASHSCOPE_API_KEY",
+    baseUrl:
+      env.MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL ??
+      env.MEDCODE_ALIYUN_DASHSCOPE_BASE_URL ??
+      "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_ALIYUN_TOKEN_PLAN_TIMEOUT_MS ?? env.MEDCODE_ALIYUN_DASHSCOPE_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_ALIYUN_TOKEN_PLAN_TIMEOUT_MS"
+    ),
+    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    reasoningParameterStyle: "effort_field"
+  });
+}
+
+function createTencentAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): Map<string, ProviderAdapter> {
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "tencent",
+    providerKind: "tencent",
+    displayName: "Tencent TokenHub",
+    apiKeyEnvName:
+      env.MEDCODE_TENCENT_TOKENHUB_API_KEY_ENV?.trim() ||
+      env.MEDCODE_TENCENT_API_KEY_ENV?.trim() ||
+      "MEDCODE_TENCENT_TOKENHUB_API_KEY",
+    baseUrl: env.MEDCODE_TENCENT_TOKENHUB_BASE_URL ?? "https://tokenhub.tencentmaas.com/plan/v3",
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_TENCENT_TOKENHUB_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_TENCENT_TOKENHUB_TIMEOUT_MS"
+    ),
+    reasoningForModel: (model) => model.reasoning ?? { effort: "none" },
+    reasoningParameterStyle: "effort_field"
+  });
+}
+
 function createOpenAICompatibleAdapters(input: {
   models: PublicModelConfig[];
   env: NodeJS.ProcessEnv;
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void };
-  runtime: "openrouter" | "qianfan";
-  providerKind: "openrouter" | "qianfan";
+  runtime: "openrouter" | "qianfan" | "aliyun" | "tencent";
+  providerKind: "openrouter" | "qianfan" | "aliyun" | "tencent";
   displayName: string;
   apiKeyEnvName: string;
   baseUrl: string;
   timeoutMs: number;
   reasoningForModel: (model: PublicModelConfig) => Record<string, unknown> | undefined;
+  reasoningParameterStyle?: "object" | "effort_field";
   siteUrl?: string;
   appTitle?: string;
 }): Map<string, ProviderAdapter> {
@@ -3878,6 +3955,7 @@ function createOpenAICompatibleAdapters(input: {
         apiKeyEnv: input.apiKeyEnvName,
         upstreamModel: model.upstreamModel,
         reasoning: input.reasoningForModel(model),
+        reasoningParameterStyle: input.reasoningParameterStyle,
         siteUrl: input.siteUrl,
         appTitle: input.appTitle,
         timeoutMs: input.timeoutMs

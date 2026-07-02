@@ -14,7 +14,8 @@ import {
   type UpstreamSoftAffinity
 } from "./upstream-account-router.js";
 
-export type UpstreamRuntimeKind = "codex" | "openrouter" | "qianfan";
+export type UpstreamRuntimeKind = "codex" | "openrouter" | "qianfan" | "aliyun" | "tencent";
+type ExternalRuntimeKind = Exclude<UpstreamRuntimeKind, "codex">;
 
 export interface ChatRuntimeContext {
   publicModelId: string;
@@ -53,25 +54,49 @@ export interface ChatRuntimeDispatcherInput {
   codexRouter: UpstreamAccountRouter;
   openRouterAdapterForModel: (model: PublicModelConfig) => ProviderAdapter | null;
   qianfanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
+  aliyunAccount?: UpstreamAccount;
+  tencentAccount?: UpstreamAccount;
 }
 
 export function createChatRuntimeDispatcher(
   input: ChatRuntimeDispatcherInput
 ): ChatRuntimeDispatcher {
-  const openRouterAccount = input.openRouterAccount ?? defaultOpenRouterVirtualAccount();
-  const qianfanAccount = input.qianfanAccount ?? defaultQianfanVirtualAccount();
+  const externalRuntimes: Record<
+    ExternalRuntimeKind,
+    {
+      account: UpstreamAccount;
+      adapterForModel: (model: PublicModelConfig) => ProviderAdapter | null;
+    }
+  > = {
+    openrouter: {
+      account: input.openRouterAccount ?? defaultOpenRouterVirtualAccount(),
+      adapterForModel: input.openRouterAdapterForModel
+    },
+    qianfan: {
+      account: input.qianfanAccount ?? defaultQianfanVirtualAccount(),
+      adapterForModel: input.qianfanAdapterForModel ?? (() => null)
+    },
+    aliyun: {
+      account: input.aliyunAccount ?? defaultAliyunVirtualAccount(),
+      adapterForModel: input.aliyunAdapterForModel ?? (() => null)
+    },
+    tencent: {
+      account: input.tencentAccount ?? defaultTencentVirtualAccount(),
+      adapterForModel: input.tencentAdapterForModel ?? (() => null)
+    }
+  };
   return {
     begin: (beginInput) => {
       if (beginInput.model.runtime === "codex") {
         return beginCodexRuntime(input.codexRouter, beginInput);
       }
 
-      const adapter =
-        beginInput.model.runtime === "openrouter"
-          ? input.openRouterAdapterForModel(beginInput.model)
-          : (input.qianfanAdapterForModel?.(beginInput.model) ?? null);
+      const externalRuntime = externalRuntimes[beginInput.model.runtime];
+      const adapter = externalRuntime.adapterForModel(beginInput.model);
       if (!adapter) {
         return new GatewayError({
           code: "model_not_found",
@@ -79,8 +104,7 @@ export function createChatRuntimeDispatcher(
           httpStatus: 404
         });
       }
-      const virtualAccount =
-        beginInput.model.runtime === "openrouter" ? openRouterAccount : qianfanAccount;
+      const virtualAccount = externalRuntime.account;
       const session = beginInput.createSession(beginInput.subject.id, virtualAccount.id);
       return {
         publicModelId: beginInput.model.id,
@@ -222,6 +246,30 @@ function defaultQianfanVirtualAccount(): UpstreamAccount {
     provider: "qianfan",
     label: "Qianfan Main",
     credentialRef: "ENV:MEDCODE_QIANFAN_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultAliyunVirtualAccount(): UpstreamAccount {
+  return {
+    id: "aliyun-main",
+    provider: "aliyun",
+    label: "Aliyun Token Plan Main",
+    credentialRef: "ENV:MEDCODE_ALIYUN_DASHSCOPE_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultTencentVirtualAccount(): UpstreamAccount {
+  return {
+    id: "tencent-main",
+    provider: "tencent",
+    label: "Tencent TokenHub Main",
+    credentialRef: "ENV:MEDCODE_TENCENT_TOKENHUB_API_KEY",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null
