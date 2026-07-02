@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import {
   Codex,
+  type CodexOptions,
   type ModelReasoningEffort,
   type ThreadEvent,
   type ThreadOptions,
@@ -32,6 +33,7 @@ export interface CodexProviderOptions {
 export interface CodexClientFactoryInput {
   codexHome: string;
   codexPath?: string;
+  config?: CodexOptions["config"];
 }
 
 export interface CodexClientLike {
@@ -70,7 +72,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
   }
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
-    const client = this.createClient();
+    const client = this.createClient(input.reasoningEffort);
     const thread = input.session.providerSessionRef
       ? client.resumeThread(
           input.session.providerSessionRef,
@@ -223,18 +225,21 @@ export class CodexProviderAdapter implements ProviderAdapter {
     });
   }
 
-  private createClient(): CodexClientLike {
+  private createClient(reasoningEffort?: string | null): CodexClientLike {
     mkdirSync(this.options.codexHome, { recursive: true });
+    const config = codexConfigForRequest(reasoningEffort);
 
     if (this.options.makeClient) {
       return this.options.makeClient({
         codexHome: this.options.codexHome,
-        codexPath: this.options.codexPath
+        codexPath: this.options.codexPath,
+        ...(config ? { config } : {})
       });
     }
 
     return new Codex({
       codexPathOverride: this.options.codexPath,
+      ...(config ? { config } : {}),
       env: {
         ...process.env,
         CODEX_HOME: this.options.codexHome
@@ -333,6 +338,18 @@ function modelReasoningEffortForRequest(
   fallback: ModelReasoningEffort | undefined
 ): ModelReasoningEffort | undefined {
   return isModelReasoningEffort(reasoningEffort) ? reasoningEffort : fallback;
+}
+
+function codexConfigForRequest(reasoningEffort: string | null | undefined): CodexOptions["config"] | undefined {
+  if (reasoningEffort !== "minimal") {
+    return undefined;
+  }
+
+  return {
+    features: {
+      image_generation: false
+    }
+  };
 }
 
 function isModelReasoningEffort(value: string | null | undefined): value is ModelReasoningEffort {

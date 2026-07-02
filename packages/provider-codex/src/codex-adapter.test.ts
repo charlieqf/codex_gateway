@@ -5,6 +5,7 @@ import type { ThreadEvent, ThreadOptions, TurnOptions } from "@openai/codex-sdk"
 import { describe, expect, it } from "vitest";
 import {
   CodexProviderAdapter,
+  type CodexClientFactoryInput,
   type CodexClientLike,
   type CodexThreadLike
 } from "./codex-adapter.js";
@@ -235,6 +236,90 @@ describe("CodexProviderAdapter", () => {
     expect(client.startedOptions[0]).toMatchObject({
       model: "gpt-5.5",
       modelReasoningEffort: "high"
+    });
+  });
+
+  it("disables Codex image generation for minimal reasoning requests", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.completed",
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
+      }
+    ]);
+    const client = new FakeClient(thread);
+    const factoryInputs: CodexClientFactoryInput[] = [];
+    const adapter = new CodexProviderAdapter({
+      codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
+      makeClient: (input) => {
+        factoryInputs.push(input);
+        return client;
+      },
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
+    });
+
+    await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          reasoningEffort: "minimal"
+        })
+      )
+    );
+
+    expect(factoryInputs[0]?.config).toEqual({
+      features: {
+        image_generation: false
+      }
+    });
+    expect(client.startedOptions[0]).toMatchObject({
+      model: "gpt-5.5",
+      modelReasoningEffort: "minimal"
+    });
+  });
+
+  it("keeps Codex client config unchanged when reasoning effort is not minimal", async () => {
+    const thread = new FakeThread(null, [
+      {
+        type: "turn.completed",
+        usage: {
+          input_tokens: 1,
+          cached_input_tokens: 0,
+          output_tokens: 1,
+          reasoning_output_tokens: 0
+        }
+      }
+    ]);
+    const client = new FakeClient(thread);
+    const factoryInputs: CodexClientFactoryInput[] = [];
+    const adapter = new CodexProviderAdapter({
+      codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
+      makeClient: (input) => {
+        factoryInputs.push(input);
+        return client;
+      },
+      model: "gpt-5.5",
+      modelReasoningEffort: "high"
+    });
+
+    await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          reasoningEffort: "low"
+        })
+      )
+    );
+
+    expect(factoryInputs[0]?.config).toBeUndefined();
+    expect(client.startedOptions[0]).toMatchObject({
+      model: "gpt-5.5",
+      modelReasoningEffort: "low"
     });
   });
 
