@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
@@ -112,12 +113,14 @@ import {
 import {
   buildImageGenerationResponse,
   finalizeImageGenerationResult,
+  GeminiImageGenerationProvider,
   isImageBillingLimitError,
   maxPromptCharsFromEnv,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
   parseImageModelMap,
   resolveImageUpstreamModel,
+  XAIImageGenerationProvider,
   type ImageGenerationRequest,
   type ImageGenerationProvider
 } from "./image-generation.js";
@@ -211,8 +214,15 @@ export interface GatewayOptions {
   imageGenerationProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackModel?: string;
+  imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
   now?: () => Date;
   logger?: boolean;
+}
+
+export interface ImageGenerationBillingFallbackInput {
+  accountId?: string;
+  provider: ImageGenerationProvider;
+  upstreamModel?: string;
 }
 
 export interface GatewayPublicMetadata {
@@ -255,9 +265,12 @@ interface OpenAICompatibleAdapterTarget {
 
 const maxStatelessAttempts = 2;
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
+const defaultXAIImageBillingFallbackModel = "grok-imagine-image-quality";
+const defaultGeminiImageBillingFallbackModel = "gemini-3.1-flash-image";
 const imageBillingFallbackAccountId = "image-billing-fallback";
 
 interface ImageGenerationBillingFallback {
+  accountId: string;
   provider: ImageGenerationProvider;
   upstreamModel: string;
 }
@@ -352,16 +365,11 @@ export function buildGateway(options: GatewayOptions = {}) {
         ? undefined
         : createDefaultImageGenerationProvider(process.env)
       : options.imageGenerationProvider ?? undefined;
-  const imageGenerationBillingFallback =
-    options.imageGenerationBillingFallbackProvider === undefined
-      ? createDefaultImageGenerationBillingFallback(process.env)
-      : options.imageGenerationBillingFallbackProvider
-        ? {
-            provider: options.imageGenerationBillingFallbackProvider,
-            upstreamModel:
-              options.imageGenerationBillingFallbackModel ?? defaultImageBillingFallbackModel
-          }
-        : undefined;
+  const imageGenerationBillingFallbacks = resolveImageGenerationBillingFallbacks(
+    options,
+    process.env,
+    app.log
+  );
   const accountPoolImageBindingDeclared = upstreamRouter.hasImageBindingDeclared();
   const imageModelMap = parseImageModelMap(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON);
   const imageMaxPromptChars = maxPromptCharsFromEnv(process.env.MEDCODE_IMAGE_MAX_PROMPT_CHARS);
@@ -1205,7 +1213,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           parsed,
           upstreamModel,
           timeoutMs: imageRequestTimeoutMs,
-          billingFallback: imageGenerationBillingFallback
+          billingFallbacks: imageGenerationBillingFallbacks
         });
       }
       if (!imageGenerationProvider) {
@@ -1243,11 +1251,11 @@ export function buildGateway(options: GatewayOptions = {}) {
         });
       } catch (err) {
         const error = imageErrorFromUnknown(err);
-        if (isImageBillingLimitError(error) && imageGenerationBillingFallback) {
+        if (isImageBillingLimitError(error) && imageGenerationBillingFallbacks.length > 0) {
           try {
-            return await generateImageWithBillingFallback(request, abort, {
+            return await generateImageWithBillingFallbacks(request, abort, {
               parsed,
-              billingFallback: imageGenerationBillingFallback
+              billingFallbacks: imageGenerationBillingFallbacks
             });
           } catch (fallbackErr) {
             return sendImageError(request, reply, imageErrorFromUnknown(fallbackErr));
@@ -2686,7 +2694,7 @@ async function generateImageWithAccountPool(
     parsed: ImageGenerationRequest;
     upstreamModel: string;
     timeoutMs: number;
-    billingFallback?: ImageGenerationBillingFallback;
+    billingFallbacks: readonly ImageGenerationBillingFallback[];
   }
 ) {
   const affinityKey = requestAffinityKey(request, router.softAffinity);
@@ -2725,11 +2733,11 @@ async function generateImageWithAccountPool(
           router.recordImageOutcome(lease.upstreamAccount.id, outcome);
         }
         lastError = error;
-        if (isImageBillingLimitError(error) && input.billingFallback) {
+        if (isImageBillingLimitError(error) && input.billingFallbacks.length > 0) {
           try {
-            return await generateImageWithBillingFallback(request, abort, {
+            return await generateImageWithBillingFallbacks(request, abort, {
               parsed: input.parsed,
-              billingFallback: input.billingFallback
+              billingFallbacks: input.billingFallbacks
             });
           } catch (fallbackErr) {
             return sendImageError(request, reply, imageErrorFromUnknown(fallbackErr));
@@ -2848,31 +2856,52 @@ async function runImageGenerationWithAbort(
   ]);
 }
 
-async function generateImageWithBillingFallback(
+async function generateImageWithBillingFallbacks(
   request: FastifyRequest,
   abort: ImageRequestAbort,
   input: {
     parsed: ImageGenerationRequest;
-    billingFallback: ImageGenerationBillingFallback;
+    billingFallbacks: readonly ImageGenerationBillingFallback[];
   }
 ) {
-  request.gatewayObservedUpstreamAccount = {
-    id: imageBillingFallbackAccountId,
-    provider: null
-  };
-  const result = await runImageGenerationWithAbort(input.billingFallback.provider, abort, {
-    request: input.parsed,
-    upstreamModel: input.billingFallback.upstreamModel
-  });
-  const finalized = await finalizeImageGenerationResult({
-    request: input.parsed,
-    result
-  });
-  markFirstByte(request);
-  return buildImageGenerationResponse({
-    request: input.parsed,
-    result: finalized
-  });
+  let lastError: GatewayError | null = null;
+  for (let index = 0; index < input.billingFallbacks.length; index += 1) {
+    const fallback = input.billingFallbacks[index];
+    request.gatewayObservedUpstreamAccount = {
+      id: fallback.accountId,
+      provider: null
+    };
+    try {
+      const result = await runImageGenerationWithAbort(fallback.provider, abort, {
+        request: input.parsed,
+        upstreamModel: fallback.upstreamModel
+      });
+      const finalized = await finalizeImageGenerationResult({
+        request: input.parsed,
+        result
+      });
+      markFirstByte(request);
+      return buildImageGenerationResponse({
+        request: input.parsed,
+        result: finalized
+      });
+    } catch (err) {
+      const error = imageErrorFromUnknown(err);
+      lastError = error;
+      if (!isImageFallbackRetryableError(error) || index + 1 >= input.billingFallbacks.length) {
+        throw error;
+      }
+    }
+  }
+
+  throw (
+    lastError ??
+    new GatewayError({
+      code: "upstream_unavailable",
+      message: "Image generation service is unavailable.",
+      httpStatus: 503
+    })
+  );
 }
 
 function imageErrorFromUnknown(err: unknown): GatewayError {
@@ -2933,6 +2962,14 @@ function isImageRetryableOutcome(outcome: ImageProviderOutcome): boolean {
     outcome === "upstream_timeout" ||
     outcome === "key_invalid"
   );
+}
+
+function isImageFallbackRetryableError(error: GatewayError): boolean {
+  if (isImageBillingLimitError(error)) {
+    return true;
+  }
+  const outcome = imageOutcomeFromError(error);
+  return outcome !== null && isImageRetryableOutcome(outcome);
 }
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
@@ -3678,38 +3715,247 @@ function createDefaultImageGenerationProvider(
   });
 }
 
-function createDefaultImageGenerationBillingFallback(
-  env: NodeJS.ProcessEnv
-): ImageGenerationBillingFallback | undefined {
-  if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
-    return undefined;
+function resolveImageGenerationBillingFallbacks(
+  options: GatewayOptions,
+  env: NodeJS.ProcessEnv,
+  logger: UpstreamAccountConfigLogger
+): ImageGenerationBillingFallback[] {
+  if (options.imageGenerationBillingFallbacks !== undefined) {
+    return options.imageGenerationBillingFallbacks.map((fallback, index) => ({
+      accountId: fallback.accountId ?? `${imageBillingFallbackAccountId}-${index + 1}`,
+      provider: fallback.provider,
+      upstreamModel: fallback.upstreamModel ?? defaultImageBillingFallbackModel
+    }));
   }
+  if (options.imageGenerationBillingFallbackProvider !== undefined) {
+    return options.imageGenerationBillingFallbackProvider
+      ? [
+          {
+            accountId: imageBillingFallbackAccountId,
+            provider: options.imageGenerationBillingFallbackProvider,
+            upstreamModel:
+              options.imageGenerationBillingFallbackModel ?? defaultImageBillingFallbackModel
+          }
+        ]
+      : [];
+  }
+  return createDefaultImageGenerationBillingFallbacks(env, logger);
+}
+
+function createDefaultImageGenerationBillingFallbacks(
+  env: NodeJS.ProcessEnv,
+  logger: UpstreamAccountConfigLogger
+): ImageGenerationBillingFallback[] {
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
+    return [];
+  }
+  const fallbacks: ImageGenerationBillingFallback[] = [];
   const apiKey = env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    return undefined;
+  if (apiKey) {
+    fallbacks.push({
+      accountId: imageBillingFallbackAccountId,
+      provider: new OpenAIImageGenerationProvider({
+        apiKey,
+        baseUrl:
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_BASE_URL ??
+          env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+        timeoutMs: parsePositiveIntegerEnv(
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ?? env.MEDCODE_IMAGE_TIMEOUT_MS,
+          180_000,
+          "MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS"
+        )
+      }),
+      upstreamModel: parseImageBillingFallbackModel(
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_MODEL,
+        defaultImageBillingFallbackModel,
+        "MEDCODE_IMAGE_BILLING_FALLBACK_MODEL"
+      )
+    });
+  }
+  fallbacks.push(...createExtraImageGenerationBillingFallbacks(env, logger));
+  return fallbacks;
+}
+
+function createExtraImageGenerationBillingFallbacks(
+  env: NodeJS.ProcessEnv,
+  logger: UpstreamAccountConfigLogger
+): ImageGenerationBillingFallback[] {
+  const keysFile = env.MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE?.trim();
+  if (!keysFile) {
+    return [];
+  }
+  const entries = parseImageBillingFallbackKeysFile(keysFile);
+  const counters = new Map<string, number>();
+  const fallbacks = entries.map((entry) => {
+    const next = (counters.get(entry.provider) ?? 0) + 1;
+    counters.set(entry.provider, next);
+    return createExtraImageGenerationBillingFallback(entry.provider, entry.apiKey, next, env);
+  });
+  logger.info(
+    {
+      image_billing_fallback_keys_file: keysFile,
+      image_billing_fallback_count: fallbacks.length,
+      image_billing_fallback_providers: entries.map((entry) => entry.provider)
+    },
+    "Configured extra image billing fallback providers."
+  );
+  return fallbacks;
+}
+
+function createExtraImageGenerationBillingFallback(
+  provider: ImageBillingFallbackProviderKind,
+  apiKey: string,
+  index: number,
+  env: NodeJS.ProcessEnv
+): ImageGenerationBillingFallback {
+  if (provider === "openai") {
+    return {
+      accountId: `${imageBillingFallbackAccountId}-openai-${index}`,
+      provider: new OpenAIImageGenerationProvider({
+        apiKey,
+        baseUrl:
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_EXTRA_OPENAI_BASE_URL ??
+          env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+        timeoutMs: parsePositiveIntegerEnv(
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_TIMEOUT_MS ??
+            env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ??
+            env.MEDCODE_IMAGE_TIMEOUT_MS,
+          180_000,
+          "MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_TIMEOUT_MS"
+        )
+      }),
+      upstreamModel: parseImageBillingFallbackModel(
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_MODEL ??
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_MODEL,
+        defaultImageBillingFallbackModel,
+        "MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_MODEL"
+      )
+    };
+  }
+  if (provider === "xai") {
+    return {
+      accountId: `${imageBillingFallbackAccountId}-xai-${index}`,
+      provider: new XAIImageGenerationProvider({
+        apiKey,
+        baseUrl: env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_BASE_URL,
+        timeoutMs: parsePositiveIntegerEnv(
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS ??
+            env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ??
+            env.MEDCODE_IMAGE_TIMEOUT_MS,
+          180_000,
+          "MEDCODE_IMAGE_BILLING_FALLBACK_XAI_TIMEOUT_MS"
+        ),
+        resolution: parseXAIImageResolution(env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_RESOLUTION)
+      }),
+      upstreamModel: parseImageBillingFallbackModel(
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_XAI_MODEL,
+        defaultXAIImageBillingFallbackModel,
+        "MEDCODE_IMAGE_BILLING_FALLBACK_XAI_MODEL"
+      )
+    };
   }
   return {
-    provider: new OpenAIImageGenerationProvider({
+    accountId: `${imageBillingFallbackAccountId}-gemini-${index}`,
+    provider: new GeminiImageGenerationProvider({
       apiKey,
-      baseUrl:
-        env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_BASE_URL ??
-        env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+      baseUrl: env.MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_BASE_URL,
       timeoutMs: parsePositiveIntegerEnv(
-        env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ?? env.MEDCODE_IMAGE_TIMEOUT_MS,
+        env.MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_TIMEOUT_MS ??
+          env.MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS ??
+          env.MEDCODE_IMAGE_TIMEOUT_MS,
         180_000,
-        "MEDCODE_IMAGE_BILLING_FALLBACK_TIMEOUT_MS"
-      )
+        "MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_TIMEOUT_MS"
+      ),
+      imageSize: parseGeminiImageSize(env.MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_IMAGE_SIZE)
     }),
-    upstreamModel: parseImageBillingFallbackModel(env.MEDCODE_IMAGE_BILLING_FALLBACK_MODEL)
+    upstreamModel: parseImageBillingFallbackModel(
+      env.MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_MODEL,
+      defaultGeminiImageBillingFallbackModel,
+      "MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_MODEL"
+    )
   };
 }
 
-function parseImageBillingFallbackModel(value: string | undefined): string {
-  const model = value?.trim() || defaultImageBillingFallbackModel;
+type ImageBillingFallbackProviderKind = "openai" | "xai" | "gemini";
+
+function parseImageBillingFallbackKeysFile(path: string): Array<{
+  provider: ImageBillingFallbackProviderKind;
+  apiKey: string;
+}> {
+  const content = readFileSync(path, "utf8");
+  const entries: Array<{ provider: ImageBillingFallbackProviderKind; apiKey: string }> = [];
+  const lines = content.split(/\r?\n/u);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const separator = line.indexOf(":");
+    if (separator <= 0) {
+      throw new Error(
+        `MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE line ${index + 1} must use provider:key format.`
+      );
+    }
+    const provider = parseImageBillingFallbackProviderKind(
+      line.slice(0, separator).trim(),
+      index + 1
+    );
+    const apiKey = line.slice(separator + 1).trim();
+    if (!apiKey) {
+      throw new Error(
+        `MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE line ${index + 1} has an empty key.`
+      );
+    }
+    entries.push({ provider, apiKey });
+  }
+  return entries;
+}
+
+function parseImageBillingFallbackProviderKind(
+  value: string,
+  lineNumber: number
+): ImageBillingFallbackProviderKind {
+  const normalized = value.toLowerCase();
+  if (normalized === "openai" || normalized === "xai" || normalized === "gemini") {
+    return normalized;
+  }
+  throw new Error(
+    `MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE line ${lineNumber} has unsupported provider: ${value}.`
+  );
+}
+
+function parseImageBillingFallbackModel(
+  value: string | undefined,
+  fallback: string,
+  envName: string
+): string {
+  const model = value?.trim() || fallback;
   if (!model) {
-    throw new Error("MEDCODE_IMAGE_BILLING_FALLBACK_MODEL must be a non-empty string.");
+    throw new Error(`${envName} must be a non-empty string.`);
   }
   return model;
+}
+
+function parseXAIImageResolution(value: string | undefined): "1k" | "2k" | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized === "1k" || normalized === "2k") {
+    return normalized;
+  }
+  throw new Error("MEDCODE_IMAGE_BILLING_FALLBACK_XAI_RESOLUTION must be 1k or 2k.");
+}
+
+function parseGeminiImageSize(value: string | undefined): "512" | "1K" | "2K" | "4K" | undefined {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized === "512" || normalized === "1K" || normalized === "2K" || normalized === "4K") {
+    return normalized;
+  }
+  throw new Error("MEDCODE_IMAGE_BILLING_FALLBACK_GEMINI_IMAGE_SIZE must be 512, 1K, 2K, or 4K.");
 }
 
 function createImageProviderForAccount(

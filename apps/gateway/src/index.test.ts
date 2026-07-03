@@ -866,6 +866,73 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("tries the next billing fallback image provider when a fallback key is also exhausted", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const billingLimitError = new GatewayError({
+      code: "upstream_unavailable",
+      message: "Billing hard limit has been reached.",
+      httpStatus: 503,
+      upstreamStatus: 400
+    });
+    const primaryImageProvider = new FakeImageGenerationProvider(billingLimitError);
+    const exhaustedFallbackProvider = new FakeImageGenerationProvider(billingLimitError);
+    const workingFallbackProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: testUpstreamAccount("codex-pro-1", {
+            imageApiKeyEnv: "MEDCODE_IMAGE_OPENAI_API_KEY_A"
+          }),
+          provider: new FakeProvider(),
+          imageProvider: primaryImageProvider,
+          maxConcurrent: 1
+        }
+      ],
+      imageGenerationBillingFallbacks: [
+        {
+          accountId: "image-billing-fallback-openai-1",
+          provider: exhaustedFallbackProvider,
+          upstreamModel: "gpt-image-1.5"
+        },
+        {
+          accountId: "image-billing-fallback-xai-1",
+          provider: workingFallbackProvider,
+          upstreamModel: "grok-imagine-image-quality"
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(primaryImageProvider.calls).toHaveLength(1);
+    expect(exhaustedFallbackProvider.calls).toHaveLength(1);
+    expect(workingFallbackProvider.calls).toHaveLength(1);
+    expect(workingFallbackProvider.calls[0].upstreamModel).toBe("grok-imagine-image-quality");
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "image-billing-fallback-xai-1",
+        status: "ok"
+      })
+    ]);
+
+    await app.close();
+  });
+
   it("rejects image generation without image_generation capability using the client error shape", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

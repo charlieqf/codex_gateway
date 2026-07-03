@@ -3,10 +3,12 @@ import sharp from "sharp";
 import { GatewayError } from "@codex-gateway/core";
 import {
   finalizeImageGenerationResult,
+  GeminiImageGenerationProvider,
   isImageBillingLimitError,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
   resolveImageUpstreamModel,
+  XAIImageGenerationProvider,
   type ImageGenerationRequest
 } from "./image-generation.js";
 
@@ -129,6 +131,178 @@ describe("OpenAIImageGenerationProvider", () => {
         httpStatus: 503,
         upstreamStatus: 400,
         message: "Billing hard limit has been reached."
+      });
+      expect(isImageBillingLimitError(error)).toBe(true);
+    }
+  });
+
+  it("maps insufficient quota errors as billing-limit upstream failures", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: "insufficient_quota",
+            message: "You exceeded your current quota."
+          }
+        }),
+        { status: 429 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new OpenAIImageGenerationProvider({
+      apiKey: "sk-test",
+      timeoutMs: 30_000
+    });
+
+    await expect(
+      provider.generate({
+        request,
+        upstreamModel: "gpt-image-2"
+      })
+    ).rejects.toMatchObject({
+      code: "upstream_unavailable",
+      httpStatus: 503,
+      upstreamStatus: 429
+    });
+  });
+});
+
+describe("XAIImageGenerationProvider", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    globalThis.fetch = originalFetch;
+  });
+
+  it("uses the xAI image endpoint with base64 output", async () => {
+    let url: string | undefined;
+    let body: Record<string, unknown> | undefined;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      url = String(input);
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              b64_json: "ZmFrZS1pbWFnZQ=="
+            }
+          ]
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new XAIImageGenerationProvider({
+      apiKey: "xai-test",
+      timeoutMs: 30_000
+    });
+
+    const result = await provider.generate({
+      request: {
+        ...request,
+        size: "1536x1024",
+        outputSize: "1536x1024"
+      },
+      upstreamModel: "grok-imagine-image-quality"
+    });
+
+    expect(url).toBe("https://api.x.ai/v1/images/generations");
+    expect(body).toMatchObject({
+      model: "grok-imagine-image-quality",
+      prompt: "Create a diagram.",
+      response_format: "b64_json",
+      aspect_ratio: "3:2",
+      resolution: "1k"
+    });
+    expect(result.data[0].b64_json).toBe("ZmFrZS1pbWFnZQ==");
+  });
+});
+
+describe("GeminiImageGenerationProvider", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    globalThis.fetch = originalFetch;
+  });
+
+  it("uses the Gemini Interactions image API", async () => {
+    let url: string | undefined;
+    let headers: HeadersInit | undefined;
+    let body: Record<string, unknown> | undefined;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      url = String(input);
+      headers = init?.headers;
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          output_image: {
+            data: "ZmFrZS1pbWFnZQ==",
+            mime_type: "image/jpeg"
+          }
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new GeminiImageGenerationProvider({
+      apiKey: "gemini-test",
+      timeoutMs: 30_000
+    });
+
+    const result = await provider.generate({
+      request,
+      upstreamModel: "gemini-3.1-flash-image"
+    });
+
+    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/interactions");
+    expect(headers).toMatchObject({
+      "x-goog-api-key": "gemini-test"
+    });
+    expect(body).toMatchObject({
+      model: "gemini-3.1-flash-image",
+      input: [{ type: "text", text: "Create a diagram." }],
+      response_format: {
+        type: "image",
+        mime_type: "image/jpeg",
+        aspect_ratio: "1:1",
+        image_size: "1K"
+      }
+    });
+    expect(result.data[0]).toMatchObject({
+      b64_json: "ZmFrZS1pbWFnZQ==",
+      mime_type: "image/jpeg"
+    });
+  });
+
+  it("maps Gemini quota exhaustion as a billing-limit upstream failure", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          error: {
+            status: "RESOURCE_EXHAUSTED",
+            message: "Quota exceeded for image generation."
+          }
+        }),
+        { status: 429 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new GeminiImageGenerationProvider({
+      apiKey: "gemini-test",
+      timeoutMs: 30_000
+    });
+
+    try {
+      await provider.generate({
+        request,
+        upstreamModel: "gemini-3.1-flash-image"
+      });
+      throw new Error("expected provider.generate to fail");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GatewayError);
+      const error = err as GatewayError;
+      expect(error).toMatchObject({
+        code: "upstream_unavailable",
+        httpStatus: 503,
+        upstreamStatus: 429
       });
       expect(isImageBillingLimitError(error)).toBe(true);
     }

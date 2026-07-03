@@ -17,6 +17,7 @@ config/*.env
 .codex/
 .gateway-state/
 auth.json
+extra_keys.txt
 
 # OS/editor noise.
 .DS_Store

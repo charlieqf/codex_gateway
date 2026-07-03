@@ -60,6 +60,20 @@ export interface OpenAIImageGenerationProviderOptions {
   timeoutMs?: number;
 }
 
+export interface XAIImageGenerationProviderOptions {
+  apiKey: string;
+  baseUrl?: string;
+  timeoutMs?: number;
+  resolution?: "1k" | "2k";
+}
+
+export interface GeminiImageGenerationProviderOptions {
+  apiKey: string;
+  baseUrl?: string;
+  timeoutMs?: number;
+  imageSize?: "512" | "1K" | "2K" | "4K";
+}
+
 export function parseImageGenerationRequest(
   body: unknown,
   input: {
@@ -190,7 +204,7 @@ export function resolveImageUpstreamModel(
 
 export function isImageBillingLimitError(error: GatewayError): boolean {
   return (
-    error.upstreamStatus === 400 &&
+    error.upstreamStatus !== undefined &&
     (error.code === "invalid_request" || error.code === "upstream_unavailable") &&
     isBillingLimitText(error.message)
   );
@@ -365,6 +379,161 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
   }
 }
 
+export class XAIImageGenerationProvider implements ImageGenerationProvider {
+  constructor(private readonly options: XAIImageGenerationProviderOptions) {}
+
+  async generate(input: {
+    request: ImageGenerationRequest;
+    upstreamModel: string;
+    signal?: AbortSignal;
+  }): Promise<ImageGenerationResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("upstream_timeout")), this.timeoutMs);
+    const abortFromParent = () => controller.abort(input.signal?.reason);
+    input.signal?.addEventListener("abort", abortFromParent, { once: true });
+
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/images/generations`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.apiKey}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model: input.upstreamModel,
+          prompt: input.request.prompt,
+          response_format: "b64_json",
+          aspect_ratio: aspectRatioForSize(input.request.size),
+          resolution: this.options.resolution ?? "1k"
+        }),
+        signal: controller.signal
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw normalizeOpenAIImageError(response.status, payload);
+      }
+      return parseOpenAIImageResult(payload, input.request.outputFormat);
+    } catch (err) {
+      if (err instanceof GatewayError) {
+        throw err;
+      }
+      if (controller.signal.aborted) {
+        if (isClientAbortReason(controller.signal.reason)) {
+          throw new GatewayError({
+            code: "client_aborted",
+            message: "Client aborted image generation.",
+            httpStatus: 499
+          });
+        }
+        throw new GatewayError({
+          code: "upstream_timeout",
+          message: "Image generation timed out.",
+          httpStatus: 504
+        });
+      }
+      throw new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503
+      });
+    } finally {
+      clearTimeout(timeout);
+      input.signal?.removeEventListener("abort", abortFromParent);
+    }
+  }
+
+  private get baseUrl(): string {
+    return (this.options.baseUrl ?? "https://api.x.ai").replace(/\/+$/, "");
+  }
+
+  private get timeoutMs(): number {
+    return this.options.timeoutMs ?? 180_000;
+  }
+}
+
+export class GeminiImageGenerationProvider implements ImageGenerationProvider {
+  constructor(private readonly options: GeminiImageGenerationProviderOptions) {}
+
+  async generate(input: {
+    request: ImageGenerationRequest;
+    upstreamModel: string;
+    signal?: AbortSignal;
+  }): Promise<ImageGenerationResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("upstream_timeout")), this.timeoutMs);
+    const abortFromParent = () => controller.abort(input.signal?.reason);
+    input.signal?.addEventListener("abort", abortFromParent, { once: true });
+
+    try {
+      const response = await fetch(`${this.baseUrl}/interactions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": this.options.apiKey
+        },
+        body: JSON.stringify({
+          model: input.upstreamModel,
+          input: [
+            {
+              type: "text",
+              text: input.request.prompt
+            }
+          ],
+          response_format: {
+            type: "image",
+            mime_type: mimeTypeForFormat(input.request.outputFormat),
+            aspect_ratio: aspectRatioForSize(input.request.size),
+            image_size: this.options.imageSize ?? "1K"
+          }
+        }),
+        signal: controller.signal
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw normalizeOpenAIImageError(response.status, payload);
+      }
+      return parseGeminiImageResult(payload, input.request.outputFormat);
+    } catch (err) {
+      if (err instanceof GatewayError) {
+        throw err;
+      }
+      if (controller.signal.aborted) {
+        if (isClientAbortReason(controller.signal.reason)) {
+          throw new GatewayError({
+            code: "client_aborted",
+            message: "Client aborted image generation.",
+            httpStatus: 499
+          });
+        }
+        throw new GatewayError({
+          code: "upstream_timeout",
+          message: "Image generation timed out.",
+          httpStatus: 504
+        });
+      }
+      throw new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503
+      });
+    } finally {
+      clearTimeout(timeout);
+      input.signal?.removeEventListener("abort", abortFromParent);
+    }
+  }
+
+  private get baseUrl(): string {
+    return (this.options.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta").replace(
+      /\/+$/,
+      ""
+    );
+  }
+
+  private get timeoutMs(): number {
+    return this.options.timeoutMs ?? 180_000;
+  }
+}
+
 function isClientAbortReason(reason: unknown): boolean {
   return reason instanceof Error && reason.message === "client_aborted";
 }
@@ -470,6 +639,19 @@ function mimeTypeForFormat(format: ImageGenerationOutputFormat): string {
   return "image/png";
 }
 
+function aspectRatioForSize(size: ImageGenerationSize): string {
+  if (size === "1024x1536") {
+    return "2:3";
+  }
+  if (size === "1536x1024") {
+    return "3:2";
+  }
+  if (size === "auto") {
+    return "auto";
+  }
+  return "1:1";
+}
+
 function sizeDimensions(size: ImageGenerationTargetSize): { width: number; height: number } {
   const [width, height] = size.split("x").map((part) => Number.parseInt(part, 10));
   return { width, height };
@@ -542,6 +724,67 @@ function parseOpenAIImageResult(
   };
 }
 
+function parseGeminiImageResult(
+  payload: unknown,
+  outputFormat: ImageGenerationOutputFormat
+): ImageGenerationResult {
+  if (!isRecord(payload)) {
+    throw upstreamShapeError();
+  }
+
+  const directImage =
+    imageDataFromGeminiBlock(payload.output_image, outputFormat) ??
+    imageDataFromGeminiBlock(payload.outputImage, outputFormat);
+  if (directImage) {
+    return {
+      data: [directImage]
+    };
+  }
+
+  const data: ImageGenerationResult["data"] = [];
+  const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+  for (const candidate of candidates) {
+    if (!isRecord(candidate) || !isRecord(candidate.content)) {
+      continue;
+    }
+    const parts = Array.isArray(candidate.content.parts) ? candidate.content.parts : [];
+    for (const part of parts) {
+      if (!isRecord(part)) {
+        continue;
+      }
+      const image =
+        imageDataFromGeminiBlock(part.inlineData, outputFormat) ??
+        imageDataFromGeminiBlock(part.inline_data, outputFormat);
+      if (image) {
+        data.push(image);
+      }
+    }
+  }
+  if (data.length === 0) {
+    throw upstreamShapeError();
+  }
+  return { data };
+}
+
+function imageDataFromGeminiBlock(
+  value: unknown,
+  outputFormat: ImageGenerationOutputFormat
+): ImageGenerationResult["data"][number] | null {
+  if (!isRecord(value) || typeof value.data !== "string" || value.data.length === 0) {
+    return null;
+  }
+  const mimeType =
+    typeof value.mime_type === "string"
+      ? value.mime_type
+      : typeof value.mimeType === "string"
+        ? value.mimeType
+        : mimeTypeForFormat(outputFormat);
+  return {
+    b64_json: value.data,
+    mime_type: mimeType
+  };
+}
+
 function upstreamShapeError(): GatewayError {
   return new GatewayError({
     code: "upstream_unavailable",
@@ -553,23 +796,25 @@ function upstreamShapeError(): GatewayError {
 function normalizeOpenAIImageError(status: number, payload: unknown): GatewayError {
   const error = isRecord(payload) && isRecord(payload.error) ? payload.error : {};
   const rawCode = typeof error.code === "string" ? error.code : "";
+  const rawStatus = typeof error.status === "string" ? error.status : "";
   const rawMessage = typeof error.message === "string" ? error.message : "";
   const normalizedMessage = publicUpstreamErrorMessage(rawMessage);
+  const billingText = `${rawCode} ${rawStatus} ${rawMessage}`;
 
+  if ((status === 400 || status === 402 || status === 403 || status === 429) && isBillingLimitText(billingText)) {
+    return new GatewayError({
+      code: "upstream_unavailable",
+      message: normalizedMessage ?? "Image generation billing limit reached.",
+      httpStatus: 503,
+      upstreamStatus: status
+    });
+  }
   if (status === 429) {
     return new GatewayError({
       code: "rate_limited",
       message: normalizedMessage ?? "Image generation rate limit reached.",
       httpStatus: 429,
       retryAfterSeconds: 60,
-      upstreamStatus: status
-    });
-  }
-  if (status === 400 && isBillingLimitText(`${rawCode} ${rawMessage}`)) {
-    return new GatewayError({
-      code: "upstream_unavailable",
-      message: normalizedMessage ?? "Image generation billing limit reached.",
-      httpStatus: 503,
       upstreamStatus: status
     });
   }
@@ -611,6 +856,9 @@ function isBillingLimitText(value: string): boolean {
     lower.includes("billing hard limit") ||
     lower.includes("hard limit has been reached") ||
     lower.includes("insufficient_quota") ||
+    lower.includes("insufficient quota") ||
+    lower.includes("quota exceeded") ||
+    (lower.includes("resource_exhausted") && lower.includes("quota")) ||
     (lower.includes("billing") && lower.includes("limit"))
   );
 }
