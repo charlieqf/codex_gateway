@@ -10,6 +10,7 @@ import {
   type ClientMessageEventStore,
   type CredentialAuthStore,
   decryptSecret,
+  type Entitlement,
   extractUnifiedClientKeyPrefix,
   GatewayError,
   publicFeaturePolicy,
@@ -629,6 +630,96 @@ export function buildGateway(options: GatewayOptions = {}) {
           : {}),
         ...(tokenUsage ? { token_usage: tokenUsage } : {})
       };
+    }
+  );
+
+  app.post<{ Body: unknown }>(
+    "/gateway/billing/v1/subscription/pause",
+    {
+      config: { skipRateLimit: true }
+    },
+    async (request, reply) => {
+      if (!planEntitlementStore) {
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Plan entitlement store is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      const parsed = parseClientSubscriptionPauseRequest(request.body);
+      if (parsed instanceof GatewayError) {
+        return sendGatewayErrorResponse(request, reply, parsed);
+      }
+
+      const { subject } = getGatewayContext(request);
+      const now = clock();
+      let access: ReturnType<PlanEntitlementStore["entitlementAccessForSubject"]>;
+      try {
+        access = planEntitlementStore.entitlementAccessForSubject(subject.id, now);
+      } catch (err) {
+        request.log.error(
+          { error: err instanceof Error ? err.message : String(err), subject_id: subject.id },
+          "Failed to resolve entitlement access for client subscription pause."
+        );
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Plan entitlement service is unavailable.",
+            httpStatus: 503
+          })
+        );
+      }
+
+      if (access.status === "inactive" && access.reason === "paused" && access.entitlement) {
+        return clientSubscriptionPauseResponse({
+          subject,
+          entitlement: access.entitlement,
+          planEntitlementStore,
+          alreadyPaused: true
+        });
+      }
+
+      if (access.status !== "active") {
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "entitlement_not_found",
+            message: "No active subscription is available to pause.",
+            httpStatus: 404
+          })
+        );
+      }
+
+      try {
+        const entitlement = planEntitlementStore.pauseEntitlement({
+          id: access.entitlement.id,
+          reason: parsed.reason ?? "client_requested",
+          now
+        });
+        return clientSubscriptionPauseResponse({
+          subject,
+          entitlement,
+          planEntitlementStore,
+          alreadyPaused: false
+        });
+      } catch (err) {
+        const pauseError = clientSubscriptionPauseError(err);
+        if (pauseError.code === "service_unavailable") {
+          request.log.error(
+            { error: err instanceof Error ? err.message : String(err), subject_id: subject.id },
+            "Failed to pause client subscription."
+          );
+        }
+        return sendGatewayErrorResponse(request, reply, pauseError);
+      }
     }
   );
 
@@ -2996,6 +3087,113 @@ function sendGatewayErrorResponse(
   });
 }
 
+function parseClientSubscriptionPauseRequest(
+  body: unknown
+): { reason: string | null } | GatewayError {
+  if (body === undefined || body === null) {
+    return { reason: null };
+  }
+  if (typeof body !== "object" || Array.isArray(body)) {
+    return new GatewayError({
+      code: "invalid_request",
+      message: "Request body must be a JSON object.",
+      httpStatus: 400
+    });
+  }
+
+  const value = body as Record<string, unknown>;
+  const allowed = new Set(["reason"]);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) {
+      return new GatewayError({
+        code: "invalid_request",
+        message: "Request body may only include reason.",
+        httpStatus: 400
+      });
+    }
+  }
+
+  if (value.reason === undefined || value.reason === null) {
+    return { reason: null };
+  }
+  if (typeof value.reason !== "string") {
+    return new GatewayError({
+      code: "invalid_request",
+      message: "reason must be a string.",
+      httpStatus: 400
+    });
+  }
+  const reason = value.reason.trim();
+  if (reason.length > 200) {
+    return new GatewayError({
+      code: "invalid_request",
+      message: "reason must be 200 characters or fewer.",
+      httpStatus: 400
+    });
+  }
+  return { reason: reason || null };
+}
+
+function clientSubscriptionPauseResponse(input: {
+  subject: Subject;
+  entitlement: Entitlement;
+  planEntitlementStore: PlanEntitlementStore;
+  alreadyPaused: boolean;
+}) {
+  const plan = input.planEntitlementStore.getPlan(input.entitlement.planId);
+  return {
+    paused: true,
+    already_paused: input.alreadyPaused,
+    subject: {
+      id: input.subject.id,
+      label: input.subject.label
+    },
+    ...(plan
+      ? {
+          plan: {
+            display_name: plan.displayName,
+            scope_allowlist: input.entitlement.scopeAllowlist
+          }
+        }
+      : {}),
+    entitlement: {
+      period_kind: input.entitlement.periodKind,
+      period_start: input.entitlement.periodStart.toISOString(),
+      period_end: input.entitlement.periodEnd?.toISOString() ?? null,
+      state: input.entitlement.state,
+      feature_policy: publicFeaturePolicy(input.entitlement.featurePolicySnapshot),
+      ...(input.entitlement.state === "paused" ? { reason: "paused" } : {})
+    }
+  };
+}
+
+function clientSubscriptionPauseError(err: unknown): GatewayError {
+  if (err instanceof GatewayError) {
+    return err;
+  }
+
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.startsWith("Entitlement not found")) {
+    return new GatewayError({
+      code: "entitlement_not_found",
+      message: "No active subscription is available to pause.",
+      httpStatus: 404
+    });
+  }
+  if (message.startsWith("Invalid entitlement state transition")) {
+    return new GatewayError({
+      code: "invalid_entitlement_transition",
+      message,
+      httpStatus: 409
+    });
+  }
+  return new GatewayError({
+    code: "service_unavailable",
+    message: "Subscription pause service is unavailable.",
+    httpStatus: 503
+  });
+}
+
 function authenticateUnifiedClientKeyBearer(
   request: FastifyRequest,
   options: {
@@ -4727,9 +4925,18 @@ function isPlanEntitlementStore(store: GatewayStore): store is GatewayStore & Pl
   const candidate = store as Partial<PlanEntitlementStore>;
   return (
     typeof candidate.createPlan === "function" &&
+    typeof candidate.listPlans === "function" &&
     typeof candidate.getPlan === "function" &&
+    typeof candidate.deprecatePlan === "function" &&
     typeof candidate.grantEntitlement === "function" &&
-    typeof candidate.entitlementAccessForSubject === "function"
+    typeof candidate.renewEntitlement === "function" &&
+    typeof candidate.getEntitlement === "function" &&
+    typeof candidate.listEntitlements === "function" &&
+    typeof candidate.pauseEntitlement === "function" &&
+    typeof candidate.resumeEntitlement === "function" &&
+    typeof candidate.cancelEntitlement === "function" &&
+    typeof candidate.entitlementAccessForSubject === "function" &&
+    typeof candidate.subjectHasEntitlementHistory === "function"
   );
 }
 
