@@ -11,6 +11,7 @@ import {
   type CredentialAuthStore,
   decryptSecret,
   type Entitlement,
+  extractAccessCredentialPrefix,
   extractUnifiedClientKeyPrefix,
   GatewayError,
   publicFeaturePolicy,
@@ -76,7 +77,7 @@ import {
   type UpstreamV2Client
 } from "./upstream-v2-client.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
-import { getGatewayContext } from "./http/context.js";
+import { getGatewayContext, type GatewayRequestContext } from "./http/context.js";
 import {
   markClientAborted,
   markFirstByte,
@@ -636,7 +637,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.post<{ Body: unknown }>(
     "/gateway/billing/v1/subscription/pause",
     {
-      config: { skipRateLimit: true }
+      config: { skipAuth: true, skipRateLimit: true }
     },
     async (request, reply) => {
       if (!planEntitlementStore) {
@@ -650,13 +651,36 @@ export function buildGateway(options: GatewayOptions = {}) {
           })
         );
       }
+      if (!credentialStore) {
+        return sendGatewayErrorResponse(
+          request,
+          reply,
+          new GatewayError({
+            code: "service_unavailable",
+            message: "Credential store is not configured.",
+            httpStatus: 503
+          })
+        );
+      }
 
       const parsed = parseClientSubscriptionPauseRequest(request.body);
       if (parsed instanceof GatewayError) {
         return sendGatewayErrorResponse(request, reply, parsed);
       }
 
-      const { subject } = getGatewayContext(request);
+      const context = authenticateClientSubscriptionPauseBearer(request, {
+        credentialStore,
+        unifiedClientKeyStore,
+        provider,
+        upstreamAccount,
+        now: clock
+      });
+      if (context instanceof GatewayError) {
+        return sendGatewayErrorResponse(request, reply, context);
+      }
+      request.gatewayContext = context;
+
+      const { subject } = context;
       const now = clock();
       let access: ReturnType<PlanEntitlementStore["entitlementAccessForSubject"]>;
       try {
@@ -3194,6 +3218,135 @@ function clientSubscriptionPauseError(err: unknown): GatewayError {
   });
 }
 
+function authenticateClientSubscriptionPauseBearer(
+  request: FastifyRequest,
+  options: {
+    credentialStore: CredentialAuthStore;
+    unifiedClientKeyStore?: UnifiedClientKeyStore;
+    provider: ProviderAdapter;
+    upstreamAccount: UpstreamAccount;
+    now?: () => Date;
+  }
+): GatewayRequestContext | GatewayError {
+  const token = bearerToken(request, invalidAccessCredentialError);
+  if (token instanceof GatewayError) {
+    return token;
+  }
+
+  const unifiedPrefix = extractUnifiedClientKeyPrefix(token);
+  if (unifiedPrefix) {
+    return authenticateClientPauseUnifiedKey(token, unifiedPrefix, options);
+  }
+
+  const credentialPrefix = extractAccessCredentialPrefix(token);
+  if (!credentialPrefix) {
+    return invalidAccessCredentialError();
+  }
+  const credential = options.credentialStore.getAccessCredentialByPrefix(credentialPrefix);
+  if (!credential) {
+    return invalidAccessCredentialError();
+  }
+
+  const tokenError = verifyAccessCredentialToken(
+    token,
+    credential,
+    options.now?.() ?? new Date()
+  );
+  if (tokenError) {
+    return tokenError;
+  }
+
+  const subject = options.credentialStore.getSubject(credential.subjectId);
+  if (!subject || subject.state !== "active") {
+    return invalidAccessCredentialError();
+  }
+
+  return {
+    subject,
+    upstreamAccount: options.upstreamAccount,
+    provider: options.provider,
+    scope: credential.scope,
+    credential: {
+      id: credential.id,
+      prefix: credential.prefix,
+      label: credential.label,
+      expiresAt: credential.expiresAt,
+      rate: credential.rate
+    }
+  };
+}
+
+function authenticateClientPauseUnifiedKey(
+  token: string,
+  prefix: string,
+  options: {
+    credentialStore: CredentialAuthStore;
+    unifiedClientKeyStore?: UnifiedClientKeyStore;
+    provider: ProviderAdapter;
+    upstreamAccount: UpstreamAccount;
+    now?: () => Date;
+  }
+): GatewayRequestContext | GatewayError {
+  if (!options.unifiedClientKeyStore) {
+    return invalidAccessCredentialError();
+  }
+
+  const now = options.now?.() ?? new Date();
+  const record = options.unifiedClientKeyStore.getUnifiedClientKeyByPrefix(prefix);
+  if (!record) {
+    return invalidAccessCredentialError();
+  }
+
+  const unifiedError = verifyUnifiedClientKeyToken(token, record, now);
+  if (unifiedError) {
+    return unifiedError;
+  }
+
+  const subject = options.credentialStore.getSubject(record.subjectId);
+  if (!subject || subject.state !== "active") {
+    return invalidAccessCredentialError();
+  }
+
+  const credential = options.credentialStore.getAccessCredentialByPrefix(
+    record.codexCredentialPrefix
+  );
+  if (
+    !credential ||
+    credential.id !== record.codexCredentialId ||
+    credential.subjectId !== record.subjectId
+  ) {
+    return invalidAccessCredentialError();
+  }
+  if (credential.revokedAt) {
+    return new GatewayError({
+      code: "revoked_credential",
+      message: "Access credential has been revoked.",
+      httpStatus: 401
+    });
+  }
+  if (credential.expiresAt.getTime() <= now.getTime()) {
+    return new GatewayError({
+      code: "expired_credential",
+      message: "Access credential has expired.",
+      httpStatus: 401
+    });
+  }
+
+  return {
+    subject,
+    upstreamAccount: options.upstreamAccount,
+    provider: options.provider,
+    scope: credential.scope,
+    credential: {
+      id: credential.id,
+      prefix: credential.prefix,
+      label: credential.label,
+      expiresAt: credential.expiresAt,
+      rate: credential.rate
+    }
+  };
+}
+
 function authenticateUnifiedClientKeyBearer(
   request: FastifyRequest,
   options: {
@@ -3281,19 +3434,22 @@ function recordUnifiedKeyResolveAudit(
   }
 }
 
-function bearerToken(request: FastifyRequest): string | GatewayError {
+function bearerToken(
+  request: FastifyRequest,
+  invalidError: () => GatewayError = invalidUnifiedKeyError
+): string | GatewayError {
   const authorization = request.headers.authorization;
   if (!authorization) {
     return new GatewayError({
       code: "missing_credential",
-      message: "Missing unified key.",
+      message: "Missing bearer credential.",
       httpStatus: 401
     });
   }
 
   const [scheme, token] = authorization.split(/\s+/, 2);
   if (scheme?.toLowerCase() !== "bearer" || !token) {
-    return invalidUnifiedKeyError();
+    return invalidError();
   }
   return token;
 }
@@ -3302,6 +3458,14 @@ function invalidUnifiedKeyError(): GatewayError {
   return new GatewayError({
     code: "invalid_credential",
     message: "Invalid unified key.",
+    httpStatus: 401
+  });
+}
+
+function invalidAccessCredentialError(): GatewayError {
+  return new GatewayError({
+    code: "invalid_credential",
+    message: "Invalid access credential.",
     httpStatus: 401
   });
 }

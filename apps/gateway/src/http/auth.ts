@@ -22,7 +22,7 @@ export async function devAuthHook(
   reply: FastifyReply,
   options: DevAuthOptions
 ) {
-  if (request.routeOptions.config?.public) {
+  if (request.routeOptions.config?.public || request.routeOptions.config?.skipAuth) {
     return;
   }
 
@@ -47,7 +47,7 @@ export async function credentialAuthHook(
   reply: FastifyReply,
   options: CredentialAuthOptions
 ) {
-  if (request.routeOptions.config?.public) {
+  if (request.routeOptions.config?.public || request.routeOptions.config?.skipAuth) {
     return;
   }
 

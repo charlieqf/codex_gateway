@@ -9974,6 +9974,105 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("pauses the current subscription directly with a unified client key", async () => {
+    const { store, issued } = createCredentialBackedStore();
+    const unified = issueUnifiedClientKey({
+      subjectId: "subj_dev",
+      label: "Desktop unified key",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      codexCredentialId: issued.record.id,
+      codexCredentialPrefix: issued.record.prefix,
+      codexKeyCiphertext: encryptSecret(issued.token, "pause-unified-test-secret"),
+      medevidenceKeyCiphertext: encryptSecret(
+        "mev2_live_pause_test_secret",
+        "pause-unified-test-secret"
+      ),
+      medevidenceKeyPrefix: "mev2_live_pause",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertUnifiedClientKey(unified.record);
+    store.createPlan({
+      id: "plan_client_pause_unified_v1",
+      displayName: "Unified Client Pause Plan",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_dev",
+      planId: "plan_client_pause_unified_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      now: () => new Date("2026-01-02T00:00:00Z"),
+      logger: false
+    });
+    const headers = { authorization: `Bearer ${unified.token}` };
+
+    const paused = await app.inject({
+      method: "POST",
+      url: "/gateway/billing/v1/subscription/pause",
+      headers,
+      payload: { reason: "user requested pause" }
+    });
+
+    expect(paused.statusCode).toBe(200);
+    expect(paused.json()).toMatchObject({
+      paused: true,
+      already_paused: false,
+      subject: {
+        id: "subj_dev"
+      },
+      plan: {
+        display_name: "Unified Client Pause Plan",
+        scope_allowlist: ["code"]
+      },
+      entitlement: {
+        period_kind: "unlimited",
+        period_end: null,
+        state: "paused",
+        reason: "paused"
+      }
+    });
+    expect(store.getEntitlement(entitlement.id)?.state).toBe("paused");
+    expect(store.listRequestEvents({ credentialId: issued.record.id, limit: 1 })).toEqual([
+      expect.objectContaining({
+        subjectId: "subj_dev",
+        status: "ok",
+        errorCode: null
+      })
+    ]);
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/gateway/billing/v1/subscription/pause",
+      headers
+    });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toMatchObject({
+      paused: true,
+      already_paused: true,
+      entitlement: {
+        state: "paused",
+        reason: "paused"
+      }
+    });
+
+    const current = await app.inject({
+      method: "GET",
+      url: "/gateway/credentials/current",
+      headers
+    });
+    expect(current.statusCode).toBe(401);
+    expect(current.json().error.code).toBe("invalid_credential");
+
+    await app.close();
+  });
+
   it("rejects client subscription pause without an active entitlement", async () => {
     const { store, headers } = createCredentialBackedStore();
     const app = buildGateway({
