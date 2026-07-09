@@ -746,6 +746,8 @@ function publicClientMessage(
 ) {
   const subject = getSubject(context.gateway, row.subjectId);
   const credential = getCredentialById(context.gateway, row.credentialId);
+  const attachments = parseJson(row.attachmentsJson);
+  const attachmentSummary = summarizeClientMessageAttachments(attachments);
   const output: Record<string, unknown> = {
     id: row.id,
     event_id: row.eventId,
@@ -771,7 +773,15 @@ function publicClientMessage(
     timezone,
     text_sha256: row.textSha256,
     text_preview: previewText(row.text, options.previewChars),
-    attachments: parseJson(row.attachmentsJson)
+    attachments,
+    attachments_count: attachmentSummary.attachmentsCount,
+    pdf_attachment_count: attachmentSummary.pdfAttachmentCount,
+    pdf_total_bytes: attachmentSummary.pdfTotalBytes,
+    pdf_max_bytes: attachmentSummary.pdfMaxBytes,
+    pdf_total_pages: attachmentSummary.pdfTotalPages,
+    pdf_max_pages: attachmentSummary.pdfMaxPages,
+    pdf_extracted_chars: attachmentSummary.pdfExtractedChars,
+    pdf_chunk_count: attachmentSummary.pdfChunkCount
   };
   if (options.includeText) {
     output.text = row.text;
@@ -788,6 +798,7 @@ function publicClientDiagnostic(
   const subject = getSubject(context.gateway, row.subjectId);
   const credential = getCredentialById(context.gateway, row.credentialId);
   const metadata = parseJson(row.metadataJson);
+  const requestShape = summarizeDiagnosticRequestShape(metadataObject(metadata));
   const output: Record<string, unknown> = {
     id: row.id,
     event_id: row.eventId,
@@ -818,6 +829,14 @@ function publicClientDiagnostic(
     metadata_client_turn_id: metadataField(metadata, "client_turn_id"),
     metadata_turn_code: metadataField(metadata, "turn_code"),
     metadata_gateway_request_id: metadataField(metadata, "gateway_request_id"),
+    request_shape_pdf_count: requestShape.pdfCount,
+    request_shape_pdf_total_bytes: requestShape.pdfTotalBytes,
+    request_shape_pdf_max_bytes: requestShape.pdfMaxBytes,
+    request_shape_file_total_bytes: requestShape.fileTotalBytes,
+    request_shape_media_base64_bytes: requestShape.mediaBase64Bytes,
+    request_shape_estimated_prompt_tokens: requestShape.estimatedPromptTokens,
+    request_shape_tools_schema_bytes: requestShape.toolsSchemaBytes,
+    request_shape_pdf_context_overflow: requestShape.pdfContextOverflow,
     app_name: row.appName,
     app_version: row.appVersion,
     created_at: row.createdAt.toISOString(),
@@ -1346,6 +1365,146 @@ function metadataObject(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function summarizeClientMessageAttachments(value: unknown): {
+  attachmentsCount: number | null;
+  pdfAttachmentCount: number | null;
+  pdfTotalBytes: number | null;
+  pdfMaxBytes: number | null;
+  pdfTotalPages: number | null;
+  pdfMaxPages: number | null;
+  pdfExtractedChars: number | null;
+  pdfChunkCount: number | null;
+} {
+  if (!Array.isArray(value)) {
+    return {
+      attachmentsCount: null,
+      pdfAttachmentCount: null,
+      pdfTotalBytes: null,
+      pdfMaxBytes: null,
+      pdfTotalPages: null,
+      pdfMaxPages: null,
+      pdfExtractedChars: null,
+      pdfChunkCount: null
+    };
+  }
+
+  let pdfAttachmentCount = 0;
+  let pdfTotalBytes = 0;
+  let pdfMaxBytes: number | null = null;
+  let pdfTotalPages = 0;
+  let pdfMaxPages: number | null = null;
+  let pdfExtractedChars = 0;
+  let pdfChunkCount = 0;
+  let hasPdfBytes = false;
+  let hasPdfPages = false;
+  let hasPdfExtractedChars = false;
+  let hasPdfChunkCount = false;
+
+  for (const item of value) {
+    const attachment = metadataObject(item);
+    if (!isPdfAttachment(attachment)) {
+      continue;
+    }
+    pdfAttachmentCount += 1;
+
+    const size = metadataNumber(attachment, "size");
+    if (size !== null) {
+      hasPdfBytes = true;
+      pdfTotalBytes += size;
+      pdfMaxBytes = pdfMaxBytes === null ? size : Math.max(pdfMaxBytes, size);
+    }
+
+    const pages = metadataNumber(attachment, "pages");
+    if (pages !== null) {
+      hasPdfPages = true;
+      pdfTotalPages += pages;
+      pdfMaxPages = pdfMaxPages === null ? pages : Math.max(pdfMaxPages, pages);
+    }
+
+    const extractedChars = metadataNumber(attachment, "extracted_chars");
+    if (extractedChars !== null) {
+      hasPdfExtractedChars = true;
+      pdfExtractedChars += extractedChars;
+    }
+
+    const chunkCount = metadataNumber(attachment, "chunk_count");
+    if (chunkCount !== null) {
+      hasPdfChunkCount = true;
+      pdfChunkCount += chunkCount;
+    }
+  }
+
+  return {
+    attachmentsCount: value.length,
+    pdfAttachmentCount,
+    pdfTotalBytes: hasPdfBytes ? pdfTotalBytes : null,
+    pdfMaxBytes,
+    pdfTotalPages: hasPdfPages ? pdfTotalPages : null,
+    pdfMaxPages,
+    pdfExtractedChars: hasPdfExtractedChars ? pdfExtractedChars : null,
+    pdfChunkCount: hasPdfChunkCount ? pdfChunkCount : null
+  };
+}
+
+function summarizeDiagnosticRequestShape(metadata: Record<string, unknown>): {
+  pdfCount: number | null;
+  pdfTotalBytes: number | null;
+  pdfMaxBytes: number | null;
+  fileTotalBytes: number | null;
+  mediaBase64Bytes: number | null;
+  estimatedPromptTokens: number | null;
+  toolsSchemaBytes: number | null;
+  pdfContextOverflow: boolean | null;
+} {
+  const requestShape = metadataObject(metadata.request_shape);
+  return {
+    pdfCount: requestShapeNumber(requestShape, "pdf_count"),
+    pdfTotalBytes: requestShapeNumber(requestShape, "pdf_total_bytes"),
+    pdfMaxBytes: requestShapeNumber(requestShape, "pdf_max_bytes"),
+    fileTotalBytes: requestShapeNumber(requestShape, "file_total_bytes"),
+    mediaBase64Bytes: requestShapeNumber(requestShape, "media_base64_bytes"),
+    estimatedPromptTokens: requestShapeNumber(requestShape, "estimated_prompt_tokens"),
+    toolsSchemaBytes: requestShapeNumber(requestShape, "tools_schema_bytes"),
+    pdfContextOverflow: requestShapeBoolean(requestShape, "pdf_context_overflow")
+  };
+}
+
+function isPdfAttachment(attachment: Record<string, unknown>): boolean {
+  const mime = metadataString(attachment, "mime")?.toLowerCase() ?? "";
+  const filename = metadataString(attachment, "filename")?.toLowerCase() ?? "";
+  return mime === "application/pdf" || filename.endsWith(".pdf");
+}
+
+function requestShapeNumber(requestShape: Record<string, unknown>, field: string): number | null {
+  for (const scope of requestShapeScopes(requestShape)) {
+    const value = metadataNumber(scope, field);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function requestShapeBoolean(requestShape: Record<string, unknown>, field: string): boolean | null {
+  for (const scope of requestShapeScopes(requestShape)) {
+    const value = metadataBoolean(scope, field);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function requestShapeScopes(requestShape: Record<string, unknown>): Array<Record<string, unknown>> {
+  const request = metadataObject(requestShape.request);
+  return [
+    requestShape,
+    request,
+    metadataObject(request.body),
+    metadataObject(request.prompt)
+  ];
 }
 
 function metadataValue(metadata: Record<string, unknown>, field: string): unknown {

@@ -1733,7 +1733,19 @@ describe("codex-gateway-admin user API key operations", () => {
       engine: "agent",
       text: prompt,
       textSha256: "0".repeat(64),
-      attachmentsJson: "[]",
+      attachmentsJson: JSON.stringify([
+        {
+          type: "file",
+          filename: "NEJMclde2600182.pdf",
+          mime: "application/pdf",
+          size: 12_345_678,
+          pages: 24,
+          sha256_prefix: "abcdef1234567890",
+          source_kind: "local_path",
+          extracted_chars: 98_765,
+          chunk_count: 9
+        }
+      ]),
       appName: "medevidence-desktop",
       appVersion: "1.4.6",
       createdAt: new Date("2026-05-07T03:30:00Z"),
@@ -1781,7 +1793,17 @@ describe("codex-gateway-admin user API key operations", () => {
         question_derived: true,
         medevidence_question_guard: { outcome: "accepted" },
         guard_reject_count: 1,
-        tool_outcome: "called"
+        tool_outcome: "called",
+        request_shape: {
+          pdf_count: 1,
+          pdf_total_bytes: 12_345_678,
+          pdf_max_bytes: 12_345_678,
+          file_total_bytes: 12_345_678,
+          media_base64_bytes: 16_460_904,
+          estimated_prompt_tokens: 101_234,
+          tools_schema_bytes: 4096,
+          pdf_context_overflow: true
+        }
       }),
       appName: "medevidence-desktop",
       appVersion: "1.4.6",
@@ -1899,6 +1921,14 @@ describe("codex-gateway-admin user API key operations", () => {
         text_preview: string;
         text?: string;
         received_at_local: string;
+        attachments_count: number;
+        pdf_attachment_count: number;
+        pdf_total_bytes: number;
+        pdf_max_bytes: number;
+        pdf_total_pages: number;
+        pdf_max_pages: number;
+        pdf_extracted_chars: number;
+        pdf_chunk_count: number;
       }>;
     };
     expect(messages.subject).toMatchObject({ id: "duheng", name: "杜衡" });
@@ -1908,7 +1938,15 @@ describe("codex-gateway-admin user API key operations", () => {
     expect(messages.messages[0]).toMatchObject({
       credential_prefix: issued.credential.prefix,
       text_preview: "请不要调用 MedEvi...",
-      received_at_local: "2026-05-07 11:31:19 Asia/Shanghai"
+      received_at_local: "2026-05-07 11:31:19 Asia/Shanghai",
+      attachments_count: 1,
+      pdf_attachment_count: 1,
+      pdf_total_bytes: 12_345_678,
+      pdf_max_bytes: 12_345_678,
+      pdf_total_pages: 24,
+      pdf_max_pages: 24,
+      pdf_extracted_chars: 98_765,
+      pdf_chunk_count: 9
     });
     expect(messages.messages[0].text).toBeUndefined();
 
@@ -1939,6 +1977,14 @@ describe("codex-gateway-admin user API key operations", () => {
         action: string;
         metadata_request_id: string;
         metadata_article_id: string;
+        request_shape_pdf_count: number;
+        request_shape_pdf_total_bytes: number;
+        request_shape_pdf_max_bytes: number;
+        request_shape_file_total_bytes: number;
+        request_shape_media_base64_bytes: number;
+        request_shape_estimated_prompt_tokens: number;
+        request_shape_tools_schema_bytes: number;
+        request_shape_pdf_context_overflow: boolean;
         metadata: { tool_name: string };
       }>;
     };
@@ -1951,6 +1997,14 @@ describe("codex-gateway-admin user API key operations", () => {
         metadata_turn_code: "T:7K3P2",
         metadata_gateway_request_id: "req_model_turn_1",
         metadata_article_id: "article_1",
+        request_shape_pdf_count: 1,
+        request_shape_pdf_total_bytes: 12_345_678,
+        request_shape_pdf_max_bytes: 12_345_678,
+        request_shape_file_total_bytes: 12_345_678,
+        request_shape_media_base64_bytes: 16_460_904,
+        request_shape_estimated_prompt_tokens: 101_234,
+        request_shape_tools_schema_bytes: 4096,
+        request_shape_pdf_context_overflow: true,
         metadata: expect.objectContaining({ tool_name: "medevidence" })
       })
     ]);

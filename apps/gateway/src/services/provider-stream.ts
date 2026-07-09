@@ -15,6 +15,9 @@ import {
   type UpstreamAttemptSummary
 } from "@codex-gateway/core";
 
+const CONTEXT_LENGTH_EXCEEDED_MESSAGE =
+  "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.";
+
 export interface ProviderToolCall {
   id: string;
   name: string;
@@ -270,7 +273,7 @@ export function streamErrorToGatewayError(event: { code: string; message: string
   if (event.code === "context_length_exceeded" || event.code === "context_too_large") {
     return new GatewayError({
       code: "context_length_exceeded",
-      message: event.message,
+      message: CONTEXT_LENGTH_EXCEEDED_MESSAGE,
       httpStatus: 413
     });
   }

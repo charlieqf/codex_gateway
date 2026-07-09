@@ -14,7 +14,7 @@ import {
 } from "@codex-gateway/core";
 
 describe("streamErrorToGatewayError", () => {
-  it("preserves structured context length errors", () => {
+  it("normalizes structured context length errors", () => {
     const error = streamErrorToGatewayError({
       code: "context_length_exceeded",
       message:
@@ -24,7 +24,7 @@ describe("streamErrorToGatewayError", () => {
     expect(error.code).toBe("context_length_exceeded");
     expect(error.httpStatus).toBe(413);
     expect(error.message).toBe(
-      "Current conversation is too long. Start a new conversation or clear earlier history before retrying."
+      "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying."
     );
   });
 
@@ -36,6 +36,9 @@ describe("streamErrorToGatewayError", () => {
 
     expect(error.code).toBe("context_length_exceeded");
     expect(error.httpStatus).toBe(413);
+    expect(error.message).toBe(
+      "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying."
+    );
   });
 });
 

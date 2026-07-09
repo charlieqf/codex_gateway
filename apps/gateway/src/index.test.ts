@@ -2166,7 +2166,15 @@ describe("gateway phase 1 routes", () => {
             type: "file",
             filename: "report.pdf",
             mime: "application/pdf",
-            size: 123456
+            size: 123456,
+            pages: 18,
+            sha256_prefix: "ABCDEF1234567890",
+            source_kind: "local_path",
+            extracted_chars: 43210,
+            extracted_bytes: 87654,
+            chunk_count: 7,
+            parser: "pdf.js",
+            ocr_used: false
           }
         ]
       })
@@ -2196,7 +2204,15 @@ describe("gateway phase 1 routes", () => {
         type: "file",
         filename: "report.pdf",
         mime: "application/pdf",
-        size: 123456
+        size: 123456,
+        pages: 18,
+        sha256_prefix: "abcdef1234567890",
+        source_kind: "local_path",
+        extracted_chars: 43210,
+        extracted_bytes: 87654,
+        chunk_count: 7,
+        parser: "pdf.js",
+        ocr_used: false
       }
     ]);
     expect(store.listRequestEvents()).toEqual([]);
@@ -3314,6 +3330,14 @@ describe("gateway phase 1 routes", () => {
       turn_code: "T:7K3P2",
       public_model_id: "pro",
       request_shape: {
+        pdf_count: 1,
+        pdf_total_bytes: 12_345_678,
+        pdf_max_bytes: 12_345_678,
+        file_total_bytes: 12_345_678,
+        media_base64_bytes: 16_460_904,
+        estimated_prompt_tokens: 101_234,
+        tools_schema_bytes: 4096,
+        pdf_context_overflow: true,
         request: {
           body: {
             messages_count: 3,
@@ -3607,13 +3631,96 @@ describe("gateway phase 1 routes", () => {
         ]
       })
     });
+    const attachmentPath = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_attachment_path_1",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            path: "C:\\Users\\user\\report.pdf"
+          }
+        ]
+      })
+    });
+    const attachmentPathAlias = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_attachment_path_alias_1",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            file_path: "C:\\Users\\user\\report.pdf"
+          }
+        ]
+      })
+    });
+    const attachmentDataUrl = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_attachment_data_url_1",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            data_url: "data:application/pdf;base64,JVBERi0="
+          }
+        ]
+      })
+    });
+    const invalidAttachmentMetadata = await app.inject({
+      method: "POST",
+      url: "/gateway/client-events/messages",
+      headers,
+      payload: clientMessagePayload({
+        event_id: "evt_attachment_metadata_1",
+        attachments: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            sha256_prefix: "not-a-hash",
+            source_kind: "C:\\Users\\user\\report.pdf"
+          }
+        ]
+      })
+    });
 
     expect(oversized.statusCode).toBe(413);
     expect(oversized.json().error.code).toBe("invalid_request");
     expect(attachmentContent.statusCode).toBe(400);
     expect(attachmentContent.json().error.message).toContain("content is not allowed");
+    expect(attachmentPath.statusCode).toBe(400);
+    expect(attachmentPath.json().error.message).toContain("path is not allowed");
+    expect(attachmentPathAlias.statusCode).toBe(400);
+    expect(attachmentPathAlias.json().error.message).toContain("file_path is not allowed");
+    expect(attachmentDataUrl.statusCode).toBe(400);
+    expect(attachmentDataUrl.json().error.message).toContain("data_url is not allowed");
+    expect(invalidAttachmentMetadata.statusCode).toBe(400);
+    expect(invalidAttachmentMetadata.json().error.message).toContain(
+      "sha256_prefix must be 8 to 64 hexadecimal characters"
+    );
     expect(clientEventsStore.getClientMessageEvent("subj_dev", "evt_oversized_1")).toBeNull();
     expect(clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_1")).toBeNull();
+    expect(
+      clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_path_1")
+    ).toBeNull();
+    expect(
+      clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_path_alias_1")
+    ).toBeNull();
+    expect(
+      clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_data_url_1")
+    ).toBeNull();
+    expect(
+      clientEventsStore.getClientMessageEvent("subj_dev", "evt_attachment_metadata_1")
+    ).toBeNull();
 
     await app.close();
   });

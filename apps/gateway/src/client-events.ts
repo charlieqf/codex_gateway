@@ -50,9 +50,30 @@ interface NormalizedAttachment {
   filename: string | null;
   mime: string | null;
   size: number | null;
+  pages?: number;
+  sha256_prefix?: string;
+  source_kind?: string;
+  extracted_chars?: number;
+  extracted_bytes?: number;
+  chunk_count?: number;
+  parser?: string;
+  ocr_used?: boolean;
 }
 
-const forbiddenAttachmentKeys = new Set(["content", "data", "base64", "text", "path"]);
+const forbiddenAttachmentKeys = new Set([
+  "base64",
+  "content",
+  "data",
+  "dataurl",
+  "file_path",
+  "filepath",
+  "local_path",
+  "localpath",
+  "path",
+  "text",
+  "uri",
+  "url"
+]);
 const forbiddenDiagnosticKeys = new Set([
   "access_token",
   "accesstoken",
@@ -385,7 +406,7 @@ function readAttachments(value: unknown): NormalizedAttachment[] | GatewayError 
       return invalid(`attachments[${index}] must be a JSON object.`);
     }
     for (const key of Object.keys(item)) {
-      if (forbiddenAttachmentKeys.has(key.toLowerCase())) {
+      if (isForbiddenAttachmentKey(key)) {
         return invalid(`attachments[${index}].${key} is not allowed.`);
       }
     }
@@ -414,13 +435,93 @@ function readAttachments(value: unknown): NormalizedAttachment[] | GatewayError 
     if (size instanceof GatewayError) {
       return size;
     }
+    const pages = readOptionalInteger(
+      item.pages,
+      `attachments[${index}].pages`,
+      1_000_000,
+      1
+    );
+    if (pages instanceof GatewayError) {
+      return pages;
+    }
+    const sha256Prefix = readOptionalSha256Prefix(
+      item.sha256_prefix,
+      `attachments[${index}].sha256_prefix`
+    );
+    if (sha256Prefix instanceof GatewayError) {
+      return sha256Prefix;
+    }
+    const sourceKind = readOptionalSafeToken(
+      item.source_kind,
+      `attachments[${index}].source_kind`
+    );
+    if (sourceKind instanceof GatewayError) {
+      return sourceKind;
+    }
+    const extractedChars = readOptionalInteger(
+      item.extracted_chars,
+      `attachments[${index}].extracted_chars`,
+      Number.MAX_SAFE_INTEGER
+    );
+    if (extractedChars instanceof GatewayError) {
+      return extractedChars;
+    }
+    const extractedBytes = readOptionalInteger(
+      item.extracted_bytes,
+      `attachments[${index}].extracted_bytes`,
+      Number.MAX_SAFE_INTEGER
+    );
+    if (extractedBytes instanceof GatewayError) {
+      return extractedBytes;
+    }
+    const chunkCount = readOptionalInteger(
+      item.chunk_count,
+      `attachments[${index}].chunk_count`,
+      1_000_000
+    );
+    if (chunkCount instanceof GatewayError) {
+      return chunkCount;
+    }
+    const parser = readOptionalSafeToken(item.parser, `attachments[${index}].parser`);
+    if (parser instanceof GatewayError) {
+      return parser;
+    }
+    const ocrUsed = readOptionalBoolean(item.ocr_used, `attachments[${index}].ocr_used`);
+    if (ocrUsed instanceof GatewayError) {
+      return ocrUsed;
+    }
 
-    normalized.push({
+    const attachment: NormalizedAttachment = {
       type,
       filename,
       mime,
       size
-    });
+    };
+    if (pages !== null) {
+      attachment.pages = pages;
+    }
+    if (sha256Prefix !== null) {
+      attachment.sha256_prefix = sha256Prefix;
+    }
+    if (sourceKind !== null) {
+      attachment.source_kind = sourceKind;
+    }
+    if (extractedChars !== null) {
+      attachment.extracted_chars = extractedChars;
+    }
+    if (extractedBytes !== null) {
+      attachment.extracted_bytes = extractedBytes;
+    }
+    if (chunkCount !== null) {
+      attachment.chunk_count = chunkCount;
+    }
+    if (parser !== null) {
+      attachment.parser = parser;
+    }
+    if (ocrUsed !== null) {
+      attachment.ocr_used = ocrUsed;
+    }
+    normalized.push(attachment);
   }
 
   return normalized;
@@ -570,6 +671,48 @@ function readOptionalInteger(
   return value;
 }
 
+function readOptionalBoolean(value: unknown, label: string): boolean | null | GatewayError {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "boolean") {
+    return invalid(`${label} must be a boolean or null.`);
+  }
+  return value;
+}
+
+function readOptionalSha256Prefix(value: unknown, label: string): string | null | GatewayError {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    return invalid(`${label} must be a string.`);
+  }
+  if (value.length === 0) {
+    return null;
+  }
+  if (!/^[a-fA-F0-9]{8,64}$/.test(value)) {
+    return invalid(`${label} must be 8 to 64 hexadecimal characters.`);
+  }
+  return value.toLowerCase();
+}
+
+function readOptionalSafeToken(value: unknown, label: string): string | null | GatewayError {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    return invalid(`${label} must be a string.`);
+  }
+  if (value.length === 0) {
+    return null;
+  }
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(value)) {
+    return invalid(`${label} must contain only letters, numbers, dot, underscore, or hyphen.`);
+  }
+  return value;
+}
+
 function readOptionalDiagnosticNumber(
   value: unknown,
   label: string,
@@ -669,6 +812,12 @@ function isForbiddenDiagnosticKey(key: string): boolean {
   const normalized = key.toLowerCase();
   const compact = normalized.replace(/[^a-z0-9]/g, "");
   return forbiddenDiagnosticKeys.has(normalized) || forbiddenDiagnosticKeys.has(compact);
+}
+
+function isForbiddenAttachmentKey(key: string): boolean {
+  const normalized = key.toLowerCase();
+  const compact = normalized.replace(/[^a-z0-9]/g, "");
+  return forbiddenAttachmentKeys.has(normalized) || forbiddenAttachmentKeys.has(compact);
 }
 
 function containsSensitiveDiagnosticText(value: string): boolean {

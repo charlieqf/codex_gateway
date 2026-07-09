@@ -18,6 +18,9 @@ import {
   type TokenUsage
 } from "@codex-gateway/core";
 
+const CONTEXT_LENGTH_EXCEEDED_MESSAGE =
+  "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.";
+
 export interface CodexProviderOptions {
   codexHome: string;
   codexPath?: string;
@@ -190,7 +193,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
     if (isContextWindowOverflow(lower)) {
       return new GatewayError({
         code: "context_length_exceeded",
-        message: "Current conversation is too long. Start a new conversation or clear earlier history before retrying.",
+        message: CONTEXT_LENGTH_EXCEEDED_MESSAGE,
         httpStatus: 413
       });
     }

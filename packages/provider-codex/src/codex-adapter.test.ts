@@ -385,7 +385,8 @@ describe("CodexProviderAdapter", () => {
       )
     ).toMatchObject({
       code: "context_length_exceeded",
-      message: "Current conversation is too long. Start a new conversation or clear earlier history before retrying."
+      message:
+        "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying."
     });
     expect(normalize(new Error("connection reset")).code).toBe("service_unavailable");
     expect(normalize(new Error("connection reset")).message).toBe(
@@ -523,14 +524,14 @@ describe("CodexProviderAdapter", () => {
         type: "error",
         code: "context_length_exceeded",
         message:
-          "Current conversation is too long. Start a new conversation or clear earlier history before retrying."
+          "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying."
       }
     ]);
     expect(diagnostics[0]).toMatchObject({
       source: "stream.error",
       code: "context_length_exceeded",
       publicMessage:
-        "Current conversation is too long. Start a new conversation or clear earlier history before retrying.",
+        "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.",
       rawMessage:
         "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
     });
