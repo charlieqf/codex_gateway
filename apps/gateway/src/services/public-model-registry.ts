@@ -203,7 +203,7 @@ function defaultPublicModel(env: NodeJS.ProcessEnv): PublicModelConfig {
     id,
     displayName: "Max",
     runtime: "codex",
-    upstreamModel: env.MEDCODE_UPSTREAM_MODEL?.trim() || "gpt-5.5",
+    upstreamModel: env.MEDCODE_UPSTREAM_MODEL?.trim() || "gpt-5.6-sol",
     contextWindow: positiveIntegerEnv(
       env.MEDCODE_PUBLIC_MODEL_CONTEXT_WINDOW,
       400_000,

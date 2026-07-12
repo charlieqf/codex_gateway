@@ -40,7 +40,7 @@ Options:
   --account <id>              Upstream account id. Default: codex-pro-1
   --codex-home <path>         Override CODEX_HOME inside the gateway container
   --container <name>          Gateway container. Default: codex_gateway_test-gateway-1
-  --model <model>             Probe model. Default: container MEDCODE_UPSTREAM_MODEL or gpt-5.5
+  --model <model>             Probe model. Default: container MEDCODE_UPSTREAM_MODEL or gpt-5.6-sol
   --timeout-ms <ms>           Probe timeout. Default: 180000
   --verify-only               Skip device login; run status/probe/state checks only
   --skip-probe                Skip the SDK probe
@@ -221,7 +221,7 @@ if [ -z "$MODEL" ]; then
   status=$?
   set -e
   if [ "$status" -ne 0 ] || [ -z "$MODEL" ]; then
-    MODEL="gpt-5.5"
+    MODEL="gpt-5.6-sol"
   fi
 fi
 

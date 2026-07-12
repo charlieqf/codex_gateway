@@ -9571,7 +9571,7 @@ describe("gateway phase 1 routes", () => {
         credentialId: issued.record.id,
         publicModelId: "medcode",
         upstreamRuntime: "codex",
-        upstreamModel: "gpt-5.5",
+        upstreamModel: "gpt-5.6-sol",
         promptTokens: 10,
         completionTokens: 2,
         totalTokens: 12,
@@ -9677,7 +9677,7 @@ describe("gateway phase 1 routes", () => {
       expect.objectContaining({
         publicModelId: "medcode",
         upstreamRuntime: "codex",
-        upstreamModel: "gpt-5.5",
+        upstreamModel: "gpt-5.6-sol",
         provider: "openai-codex",
         status: "ok",
         totalTokens: 23,
@@ -9686,7 +9686,7 @@ describe("gateway phase 1 routes", () => {
       expect.objectContaining({
         publicModelId: "medcode",
         upstreamRuntime: "codex",
-        upstreamModel: "gpt-5.5",
+        upstreamModel: "gpt-5.6-sol",
         provider: "openai-codex",
         status: "ok",
         totalTokens: 23,
