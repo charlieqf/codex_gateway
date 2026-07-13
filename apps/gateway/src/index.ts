@@ -113,6 +113,10 @@ import {
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
 import {
+  createResponsesResult,
+  parseResponsesRequest
+} from "./responses-compat.js";
+import {
   buildImageGenerationResponse,
   finalizeImageGenerationResult,
   GeminiImageGenerationProvider,
@@ -266,6 +270,7 @@ interface OpenAICompatibleAdapterTarget {
 }
 
 const maxStatelessAttempts = 2;
+const responsesCompatibilityRequests = new WeakSet<FastifyRequest>();
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
 const defaultXAIImageBillingFallbackModel = "grok-imagine-image-quality";
 const defaultGeminiImageBillingFallbackModel = "gemini-3.1-flash-image";
@@ -472,6 +477,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     app.addHook("onRequest", async (request, reply) =>
       credentialAuthHook(request, reply, {
         store: credentialStore,
+        unifiedClientKeyStore,
         provider,
         upstreamAccount,
         now: clock
@@ -1402,10 +1408,16 @@ export function buildGateway(options: GatewayOptions = {}) {
     return openAIModelObject(model, request.params.id);
   });
 
-  app.post<{ Body: unknown }>("/v1/chat/completions", async (request, reply) => {
+  const chatCompletionsHandler = async (
+    request: FastifyRequest<{ Body: unknown }>,
+    reply: FastifyReply
+  ) => {
     const parsed = parseChatCompletionRequest(request.body, publicModelRegistry.defaultModelId);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
+    }
+    if (responsesCompatibilityRequests.has(request)) {
+      parsed.preserveAutoToolChoice = true;
     }
     applyClientTurnHeaders(request);
     const publicModel = publicModelRegistry.get(parsed.model);
@@ -1930,6 +1942,62 @@ export function buildGateway(options: GatewayOptions = {}) {
       await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
       attempt.release();
     }
+  };
+
+  app.post<{ Body: unknown }>("/v1/chat/completions", chatCompletionsHandler);
+
+  app.post<{ Body: unknown }>("/v1/responses", async (request, reply) => {
+    const parsed = parseResponsesRequest(request.body);
+    if (parsed instanceof GatewayError) {
+      return sendOpenAIError(request, reply, parsed);
+    }
+
+    const originalBody = request.body;
+    const originalClientSessionHeader = request.headers["x-medcode-client-session-id"];
+    request.body = parsed.chatBody;
+    if (parsed.promptCacheKey && originalClientSessionHeader === undefined) {
+      request.headers["x-medcode-client-session-id"] = parsed.promptCacheKey;
+    }
+
+    let chatCompletion: unknown;
+    try {
+      responsesCompatibilityRequests.add(request);
+      chatCompletion = await chatCompletionsHandler(request, reply);
+    } finally {
+      responsesCompatibilityRequests.delete(request);
+      request.body = originalBody;
+      if (originalClientSessionHeader === undefined) {
+        delete request.headers["x-medcode-client-session-id"];
+      } else {
+        request.headers["x-medcode-client-session-id"] = originalClientSessionHeader;
+      }
+    }
+
+    if (reply.statusCode >= 400) {
+      return chatCompletion;
+    }
+
+    const result = createResponsesResult(parsed, chatCompletion, clock());
+    if (result instanceof GatewayError) {
+      return sendOpenAIError(request, reply, result);
+    }
+    if (!parsed.stream) {
+      return result.response;
+    }
+
+    const sse = setupSseResponse(reply);
+    try {
+      markFirstByte(request);
+      for (const frame of result.events) {
+        if (!sse.writeEvent(frame.event, frame.data)) {
+          break;
+        }
+      }
+    } finally {
+      releaseRateLimit(request);
+      recordObservation(request, observationStore, reply.raw.statusCode);
+      sse.end();
+    }
   });
 
   app.get("/sessions", async (request) => {
@@ -2349,6 +2417,9 @@ function initialNativeToolChoice(
   request: ChatCompletionRequest,
   upstreamModel: string
 ): ChatCompletionRequest["toolChoice"] {
+  if (request.preserveAutoToolChoice) {
+    return request.toolChoice;
+  }
   return shouldRequireNativeToolForFileGeneration(request, upstreamModel)
     ? "required"
     : request.toolChoice;

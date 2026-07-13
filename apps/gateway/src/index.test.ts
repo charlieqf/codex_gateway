@@ -1015,7 +1015,7 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
-  it("resolves Gateway-brokered unified client keys without accepting them as Gateway credentials", async () => {
+  it("resolves Gateway-brokered unified client keys and accepts them as Gateway credentials", async () => {
     const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
     const previousPublicBaseUrl = process.env.GATEWAY_PUBLIC_BASE_URL;
     const encryptionSecret = "unified-resolver-test-secret";
@@ -1111,8 +1111,11 @@ describe("gateway phase 1 routes", () => {
         url: "/gateway/status",
         headers: { authorization: `Bearer ${unified.token}` }
       });
-      expect(directGatewayUse.statusCode).toBe(401);
-      expect(directGatewayUse.json().error.code).toBe("invalid_credential");
+      expect(directGatewayUse.statusCode).toBe(200);
+      expect(directGatewayUse.json().subject).toEqual({
+        id: "subj_dev",
+        label: "Credential Subject"
+      });
 
       const gatewayCredentialOnResolve = await app.inject({
         method: "POST",
@@ -5341,6 +5344,117 @@ describe("gateway phase 1 routes", () => {
                   upstreamModel: expectedUpstreamModel,
                   upstreamAccountId: expectedMemberId,
                   provider: expectedRuntime,
+                  reasoningEffort: "medium",
+                  clientSessionId: sessionId,
+                  status: "ok"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await goldencode.close();
+    }
+  });
+
+  it("serves Codex Responses over /v1 with a cgu_live key and GoldenCode session affinity", async () => {
+    const goldencode = await startGoldencodeRuntimeServers();
+
+    try {
+      await withTemporaryEnv(
+        {
+          ...goldencode.env,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryWithGoldenCodeFixture())
+        },
+        async () => {
+          const { store, issued } = createModelEntitledStore(["goldencode"]);
+          const unified = issueUnifiedClientKey({
+            subjectId: issued.record.subjectId,
+            label: "Codex Responses key",
+            expiresAt: issued.record.expiresAt,
+            codexCredentialId: issued.record.id,
+            codexCredentialPrefix: issued.record.prefix,
+            codexKeyCiphertext: "ciphertext-not-used-by-direct-auth",
+            medevidenceKeyCiphertext: "ciphertext-not-used-by-direct-auth",
+            now: new Date("2026-01-01T00:00:00Z")
+          });
+          store.insertUnifiedClientKey(unified.record);
+          const sessionId = "codex-responses-session-1";
+          const expectedMemberId = hrwAccountForKey(
+            `client_session:${sessionId}`,
+            goldencodeMemberIds()
+          );
+          const expectedRuntime = goldencodeRuntimeForMember(expectedMemberId);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/responses",
+              headers: { authorization: `Bearer ${unified.token}` },
+              payload: {
+                model: "goldencode",
+                instructions: "Reply concisely.",
+                input: [
+                  {
+                    type: "message",
+                    role: "user",
+                    content: [{ type: "input_text", text: "Say ok." }]
+                  }
+                ],
+                prompt_cache_key: sessionId,
+                stream: true
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.headers["content-type"]).toContain("text/event-stream");
+            const events = parseResponsesSseData(response.body) as Array<Record<string, unknown>>;
+            expect(events.map((event) => event.type)).toEqual([
+              "response.created",
+              "response.output_item.added",
+              "response.content_part.added",
+              "response.output_text.delta",
+              "response.output_text.done",
+              "response.content_part.done",
+              "response.output_item.done",
+              "response.completed"
+            ]);
+            expect(events.at(-1)).toMatchObject({
+              type: "response.completed",
+              response: {
+                object: "response",
+                status: "completed",
+                model: "goldencode",
+                output: [
+                  {
+                    type: "message",
+                    role: "assistant",
+                    content: [
+                      {
+                        type: "output_text",
+                        text: `${expectedRuntime}-goldencode-ok`
+                      }
+                    ]
+                  }
+                ]
+              }
+            });
+            expect(store.listRequestEvents({ limit: 5 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  credentialId: issued.record.id,
+                  publicModelId: "goldencode",
+                  upstreamAccountId: expectedMemberId,
                   reasoningEffort: "medium",
                   clientSessionId: sessionId,
                   status: "ok"
@@ -10174,8 +10288,12 @@ describe("gateway phase 1 routes", () => {
       url: "/gateway/credentials/current",
       headers
     });
-    expect(current.statusCode).toBe(401);
-    expect(current.json().error.code).toBe("invalid_credential");
+    expect(current.statusCode).toBe(200);
+    expect(current.json()).toMatchObject({
+      valid: true,
+      subject: { id: "subj_dev" },
+      credential: { prefix: issued.record.prefix }
+    });
 
     await app.close();
   });
@@ -10598,6 +10716,16 @@ function parseOpenAISseData(payload: string): unknown[] {
     .map((frame) => frame.trim())
     .filter((frame) => frame.startsWith("data: "))
     .map((frame) => frame.slice("data: ".length))
+    .filter((data) => data !== "[DONE]")
+    .map((data) => JSON.parse(data) as unknown);
+}
+
+function parseResponsesSseData(payload: string): unknown[] {
+  return payload
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data: "))
+    .map((line) => line.slice("data: ".length))
     .filter((data) => data !== "[DONE]")
     .map((data) => JSON.parse(data) as unknown);
 }

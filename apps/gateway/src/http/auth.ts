@@ -2,10 +2,13 @@ import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
   extractAccessCredentialPrefix,
+  extractUnifiedClientKeyPrefix,
   GatewayError,
   verifyAccessCredentialToken,
+  verifyUnifiedClientKeyToken,
   type CredentialAuthStore,
   type ProviderAdapter,
+  type UnifiedClientKeyStore,
   type UpstreamAccount
 } from "@codex-gateway/core";
 import type { GatewayRequestContext } from "./context.js";
@@ -37,6 +40,7 @@ export async function devAuthHook(
 
 export interface CredentialAuthOptions {
   store: CredentialAuthStore;
+  unifiedClientKeyStore?: UnifiedClientKeyStore;
   provider: ProviderAdapter;
   upstreamAccount: UpstreamAccount;
   now?: () => Date;
@@ -115,6 +119,11 @@ function authenticateCredentialBearer(
     });
   }
 
+  const unifiedPrefix = extractUnifiedClientKeyPrefix(token);
+  if (unifiedPrefix) {
+    return authenticateUnifiedClientKey(token, unifiedPrefix, request, options);
+  }
+
   const prefix = extractAccessCredentialPrefix(token);
   if (!prefix) {
     return new GatewayError({
@@ -172,6 +181,90 @@ function authenticateCredentialBearer(
       rate: credential.rate
     }
   };
+}
+
+function authenticateUnifiedClientKey(
+  token: string,
+  prefix: string,
+  request: FastifyRequest,
+  options: CredentialAuthOptions
+): GatewayRequestContext | GatewayError {
+  const unifiedStore = options.unifiedClientKeyStore;
+  if (!unifiedStore) {
+    return invalidCredential();
+  }
+
+  const now = options.now?.() ?? new Date();
+  const record = unifiedStore.getUnifiedClientKeyByPrefix(prefix);
+  if (!record) {
+    return invalidCredential();
+  }
+
+  const unifiedError = verifyUnifiedClientKeyToken(token, record, now);
+  if (unifiedError) {
+    return unifiedError;
+  }
+
+  const subject = options.store.getSubject(record.subjectId);
+  if (!subject || subject.state !== "active") {
+    return invalidCredential();
+  }
+
+  const credential = options.store.getAccessCredentialByPrefix(record.codexCredentialPrefix);
+  if (
+    !credential ||
+    credential.id !== record.codexCredentialId ||
+    credential.subjectId !== record.subjectId
+  ) {
+    return invalidCredential();
+  }
+
+  if (credential.revokedAt) {
+    request.gatewayObservedCredential = {
+      id: credential.id,
+      subjectId: credential.subjectId,
+      scope: credential.scope
+    };
+    return new GatewayError({
+      code: "revoked_credential",
+      message: "Access credential has been revoked.",
+      httpStatus: 401
+    });
+  }
+  if (credential.expiresAt.getTime() <= now.getTime()) {
+    request.gatewayObservedCredential = {
+      id: credential.id,
+      subjectId: credential.subjectId,
+      scope: credential.scope
+    };
+    return new GatewayError({
+      code: "expired_credential",
+      message: "Access credential has expired.",
+      httpStatus: 401
+    });
+  }
+
+  return {
+    subject,
+    upstreamAccount: options.upstreamAccount,
+    provider: options.provider,
+    scope: credential.scope,
+    credential: {
+      id: credential.id,
+      prefix: credential.prefix,
+      label: credential.label,
+      expiresAt: credential.expiresAt,
+      rate: credential.rate
+    }
+  };
+}
+
+function invalidCredential(): GatewayError {
+  return new GatewayError({
+    code: "invalid_credential",
+    message: "Invalid access credential.",
+    httpStatus: 401
+  });
 }
 
 function sendGatewayError(

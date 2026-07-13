@@ -62,6 +62,7 @@ export interface ChatCompletionRequest {
   reasoningEffort?: string;
   tools?: OpenAIChatToolDefinition[];
   toolChoice: ChatCompletionToolChoice;
+  preserveAutoToolChoice?: boolean;
 }
 
 export type ChatCompletionToolChoice =
