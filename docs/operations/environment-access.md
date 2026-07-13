@@ -83,6 +83,37 @@ Known VM constraints from current testing:
 - Docker Engine and the Docker Compose plugin are installed and active, but the `qian` user is not in the `docker` group.
 - Continue using `sudo docker ...` for controlled gateway tests; do not change Docker daemon settings, network/firewall rules, or host service routing without an explicit maintenance window.
 
+## CN1 GoldenCode Gateway Access Pattern
+
+CN1 hosts a separate Codex Gateway profile for domestic-only GoldenCode testing.
+Use operator-local skill/access notes for the concrete CN1 SSH target.
+
+This is not the Azure `gw.instmarket.com.au` gateway. Do not copy Azure's full
+8-model env to CN1.
+
+Current CN1 Gateway shape:
+
+```text
+app root: /opt/codex-gateway-cn1
+current release: /opt/codex-gateway-cn1/current
+compose project: codex_gateway_cn1
+container: codex_gateway_cn1-gateway-1
+listener: 127.0.0.1:18787->8787
+public route: none
+```
+
+Basic CN1 checks:
+
+```bash
+cd /opt/codex-gateway-cn1/current
+docker compose -p codex_gateway_cn1 -f compose.azure.yml ps
+curl -fsS http://127.0.0.1:18787/gateway/health
+```
+
+The CN1 profile exposes only `goldencode`, backed by `qianfan`, `tencent`, and
+`aliyun` GLM-5.2 pool members. OpenRouter is intentionally absent. See
+`docs/operations/cn1-goldencode-gateway.md` for the full runbook.
+
 ## VM Project Paths
 
 Use only user-owned paths for native Node smoke tests and isolated development
@@ -114,6 +145,32 @@ The directory name records the original runtime deployment commit and is
 historical; the checkout may be detached at a newer docs/scripts commit. Use
 this directory for `compose.azure.yml`, public smoke scripts, and env-file
 updates unless a newer release checkout has been created deliberately.
+
+The live Azure env file in that checkout must be treated as a protected runtime
+artifact. On 2026-07-03, recreating the live container from a stale
+`config/gateway.container.env` regressed `/v1/models` from the expected
+8-model set to 4 models and temporarily removed `goldencode`. Before any
+`docker compose up`, `--force-recreate`, or image rebuild against the live
+`codex_gateway_test` project, verify that the env file still includes:
+
+```text
+MEDCODE_PUBLIC_MODELS_JSON with:
+  max, specialist, consultant, expert, advisor, pro, standard, goldencode
+MEDCODE_QIANFAN_API_KEY
+MEDCODE_TENCENT_TOKENHUB_API_KEY
+MEDCODE_ALIYUN_DASHSCOPE_API_KEY
+MEDCODE_OPENROUTER_API_KEY
+```
+
+The recovery source for the restored 8-model Azure env on 2026-07-03 was:
+
+```text
+/home/qian/codex-gateway-release-goldencode-20260702T104451Z/config/gateway.container.env
+```
+
+Do not copy this file to CN1. Do not print its values. If env lines must be
+merged, merge only named keys and keep any newer live-only settings, such as
+image fallback secret-file paths and billing/admin token settings.
 
 These `$HOME/codex-gateway-state` paths are not the current production state for
 `gw.instmarket.com.au`. The live gateway runs in Docker Compose project

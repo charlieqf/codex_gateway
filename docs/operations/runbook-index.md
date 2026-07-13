@@ -17,6 +17,7 @@ Deployment and safety:
 7. [MedCode Partner Trial Test Plan](./medcode-partner-trial-test-plan.md)
 8. [Desktop User Message Query Support](./client-message-query-support.zh-CN.md)
 9. [MedCode Service Unavailable Runbook](./medcode-service-unavailable-runbook.md)
+10. [CN1 GoldenCode Gateway](./cn1-goldencode-gateway.md)
 
 Operational workflows now covered:
 
@@ -46,6 +47,8 @@ Operational workflows now covered:
 - Desktop client message, diagnostic, and MedEvidence tool audit export ownership guidance plus read-only admin CLI examples in `docs/operations/client-message-query-support.zh-CN.md`.
 - `MedCode service is temporarily unavailable` triage, including event/log
   classification and upstream Codex account reauthentication.
+- CN1 domestic-only GoldenCode Gateway operation: loopback Docker service,
+  three-member GLM-5.2 sticky pool, and smoke/attribution checks.
 
 Operational workflows still pending:
 

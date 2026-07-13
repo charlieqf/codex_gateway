@@ -140,6 +140,43 @@ chmod 600 config/gateway.container.env
 grep -E '^(NODE_ENV|GATEWAY_AUTH_MODE|GATEWAY_SQLITE_PATH|CODEX_HOME|CODEX_WORKDIR|CODEX_SKIP_GIT_REPO_CHECK)=' config/gateway.container.env
 ```
 
+For the current Azure live gateway, `config/gateway.container.env` is not a
+generic example file; it is a protected runtime artifact. Before any live
+`build`, `up -d`, or `up -d --force-recreate`, run a model-config preflight.
+This command prints only model ids and key presence, not secret values:
+
+```bash
+node - <<'NODE'
+const fs = require("fs");
+const envText = fs.readFileSync("config/gateway.container.env", "utf8");
+const env = Object.fromEntries(
+  envText
+    .split(/\r?\n/)
+    .filter((line) => line && !line.startsWith("#") && line.includes("="))
+    .map((line) => {
+      const index = line.indexOf("=");
+      return [line.slice(0, index), line.slice(index + 1)];
+    })
+);
+const expected = ["max", "specialist", "consultant", "expert", "advisor", "pro", "standard", "goldencode"];
+const registry = JSON.parse(env.MEDCODE_PUBLIC_MODELS_JSON || "{}");
+const ids = Object.keys(registry);
+const missing = expected.filter((id) => !ids.includes(id));
+const keyNames = [
+  "MEDCODE_QIANFAN_API_KEY",
+  "MEDCODE_TENCENT_TOKENHUB_API_KEY",
+  "MEDCODE_ALIYUN_DASHSCOPE_API_KEY",
+  "MEDCODE_OPENROUTER_API_KEY"
+];
+const missingKeys = keyNames.filter((name) => !env[name]);
+console.log(JSON.stringify({ ids, missing, missingKeys }, null, 2));
+if (missing.length || missingKeys.length) process.exit(1);
+NODE
+```
+
+Do not proceed if this preflight fails. A stale env file can recreate a healthy
+container that silently exposes only the older public model set.
+
 Start the gateway:
 
 ```bash
@@ -151,6 +188,36 @@ curl -fsS http://127.0.0.1:18787/gateway/health
 
 Expected health includes `state: ready`, `auth_mode: credential`, SQLite session
 store, and observation enabled.
+
+After every live recreate, validate the public model surface before declaring
+the deployment complete:
+
+```bash
+USER_ID="goldencode-model-smoke-$(date +%s)"
+ISSUE_JSON="$(
+  sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+    node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db \
+    issue --user "$USER_ID" --user-label "$USER_ID" --label goldencode-model-smoke \
+    --scope code --expires-days 1 --rpm 3 --rpd 10 --concurrent 1
+)"
+TOKEN="$(printf '%s' "$ISSUE_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).token))')"
+PREFIX="$(printf '%s' "$ISSUE_JSON" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).credential.prefix))')"
+
+curl -fsS -H "Authorization: Bearer $TOKEN" \
+  https://gw.instmarket.com.au/v1/models \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const ids=JSON.parse(s).data.map((m)=>m.id); const required=["max","specialist","consultant","expert","advisor","pro","standard","goldencode"]; const missing=required.filter((id)=>!ids.includes(id)); console.log(JSON.stringify({ids, missing})); if(missing.length) process.exit(1);})'
+
+curl -fsS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -H "x-medcode-client-session-id: goldencode-model-smoke" \
+  --data '{"model":"goldencode","messages":[{"role":"user","content":"Reply with exactly: goldencode-ok"}],"max_tokens":32}' \
+  https://gw.instmarket.com.au/v1/chat/completions \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const x=JSON.parse(s); console.log(JSON.stringify({model:x.model, choices:(x.choices||[]).length})); if(x.model!=="goldencode") process.exit(1);})'
+
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db revoke "$PREFIX" >/dev/null
+sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+  node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db disable-user "$USER_ID" >/dev/null
+```
 
 ## Nginx Public Routing
 

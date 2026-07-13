@@ -1,10 +1,10 @@
 # System Status
 
-Last updated: 2026-06-30
+Last updated: 2026-07-03
 
 ## Current Phase
 
-The project is in a controlled public HTTPS internal trial for up to 10 trusted users. It is not a broad production service.
+The Azure gateway is in a controlled public HTTPS internal trial for up to 10 trusted users. It is not a broad production service. A separate CN1 loopback-only GoldenCode gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
@@ -59,6 +59,22 @@ Completed:
 - Long-running loopback gateway container started on the shared Azure VM for the controlled internal trial.
 - Public HTTPS routing for `gw.instmarket.com.au` through existing host Nginx to `127.0.0.1:18787`.
 - Azure VM non-invasive smoke tests against `127.0.0.1:18787`.
+- CN1 loopback-only GoldenCode Gateway deployment:
+  - App root: `/opt/codex-gateway-cn1`.
+  - Compose project: `codex_gateway_cn1`.
+  - Container: `codex_gateway_cn1-gateway-1`.
+  - Listener: `127.0.0.1:18787->8787`.
+  - Public routing: none.
+  - Runtime profile: only `goldencode`, with enabled GLM-5.2 pool members
+    `goldencode-qianfan`, `goldencode-tencent`, and `goldencode-aliyun`.
+  - OpenRouter and image generation are intentionally absent from the CN1
+    profile.
+  - Health returned `state=ready`, `service=goldencode`,
+    `auth_mode=credential`, and `phase=cn1-loopback` on 2026-07-03.
+  - Sticky/load-balancing smoke on 2026-07-03 issued a temporary key, verified
+    `/v1/models` exposes only `goldencode`, sent two requests to each HRW-picked
+    member session, and recorded request events for all three upstream member
+    ids with `upstream_model=glm-5.2` and `reasoning_effort=medium`.
 - OpenAI-compatible beta routes:
   - `GET /v1/models`
   - `GET /v1/models/:id`
@@ -112,6 +128,39 @@ Completed:
     `imageApiKeyEnv=MEDCODE_IMAGE_OPENAI_API_KEY_B`.
   - Both image env names are logged and stored as non-secret metadata only; API
     key values remain in the deployment env file and are not printed.
+- Live image billing fallback now supports an ordered extra-provider retry
+  chain from a mounted secret file:
+  - Existing legacy OpenAI fallback remains first:
+    `image-billing-fallback`.
+  - Extra fallback ids are derived from the secret file provider labels, such
+    as `image-billing-fallback-openai-1`,
+    `image-billing-fallback-xai-1`, and
+    `image-billing-fallback-gemini-1`.
+  - The mounted secret file path is configured through
+    `MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE`; the file contains only
+    operator-managed secrets and must not be committed or printed.
+  - Deployment smoke on 2026-07-03 selected primary image account
+    `codex-pro-1`, retried through the fallback chain, succeeded on
+    `image-billing-fallback-xai-1`, and recorded request id
+    `req-3ce3e1da-50ec-4c9f-bf8a-171afb7e8c58` with `status=ok`.
+- Azure live model-surface recovery on 2026-07-03:
+  - A recreate from stale `config/gateway.container.env` temporarily exposed
+    only `max`, `expert`, `pro`, and `standard`, causing
+    `Model 'goldencode' does not exist` for live clients.
+  - The env was restored by merging the GoldenCode registry and
+    qianfan/tencent/aliyun provider env lines from the 2026-07-02 GoldenCode
+    release env, while preserving newer image fallback and admin-token
+    settings.
+  - Post-recovery `/v1/models` exposed all 8 public models:
+    `max`, `specialist`, `consultant`, `expert`, `advisor`, `pro`,
+    `standard`, and `goldencode`.
+  - `model=goldencode` smoke returned 200 and request event
+    `req-0bfbcf27-c65f-4782-8f80-38fc72cb4a0c` recorded
+    `upstream_account_id=goldencode-tencent`, `upstream_runtime=tencent`,
+    `upstream_model=glm-5.2`, `reasoning_effort=medium`, and `status=ok`.
+  - Any future Azure live recreate must run the model-config preflight and
+    post-deploy `/v1/models` plus `goldencode` smoke documented in
+    `docs/operations/internal-trial-runbook.md`.
 - Two real controlled-trial API keys issued and managed by the SQLite credential store, currently capped at 10 requests per minute, 200 requests per day, and 4 concurrent requests each.
 
 Not completed:
