@@ -14,6 +14,9 @@ services:
       CODEX_HOME: /var/lib/codex-gateway/codex-home
       CODEX_WORKDIR: /app
       CODEX_SKIP_GIT_REPO_CHECK: "1"
+      CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START: "1"
+      CODEX_GATEWAY_ROLLOUT_ARCHIVE_ROOT: /var/lib/codex-gateway/codex-rollout-quarantine
+      CODEX_GATEWAY_ROLLOUT_ARCHIVE_MIN_AGE_HOURS: "24"
     volumes:
       - gateway_state:/var/lib/codex-gateway
       - gateway_logs:/var/log/codex-gateway

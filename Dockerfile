@@ -45,9 +45,11 @@ COPY --from=build /app/package.json /app/package.json
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/apps /app/apps
 COPY --from=build /app/packages /app/packages
+COPY scripts/archive-unreferenced-codex-rollouts.mjs /app/scripts/archive-unreferenced-codex-rollouts.mjs
 COPY scripts/codex-gateway-exec.sh /usr/local/bin/codex-gateway-exec
+COPY scripts/gateway-entrypoint.sh /usr/local/bin/codex-gateway-entrypoint
 
-RUN chmod 0755 /usr/local/bin/codex-gateway-exec
+RUN chmod 0755 /usr/local/bin/codex-gateway-exec /usr/local/bin/codex-gateway-entrypoint
 
 USER codexgw
 
@@ -56,4 +58,5 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/gateway/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["/usr/local/bin/codex-gateway-entrypoint"]
 CMD ["npm", "--workspace", "@codex-gateway/gateway", "run", "start"]
