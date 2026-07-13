@@ -1,10 +1,18 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ThreadEvent, ThreadOptions, TurnOptions } from "@openai/codex-sdk";
 import { describe, expect, it } from "vitest";
 import {
   CodexProviderAdapter,
+  cleanupStaleCodexRuntimeStateDirs,
   type CodexClientFactoryInput,
   type CodexClientLike,
   type CodexThreadLike
@@ -49,6 +57,64 @@ class FakeClient implements CodexClientLike {
     return this.thread;
   }
 }
+
+describe("cleanupStaleCodexRuntimeStateDirs", () => {
+  it("removes only stale Gateway runtime-state directories", () => {
+    const rootDir = mkdtempSync(path.join(tmpdir(), "codex-runtime-cleanup-test-"));
+    const nowMs = Date.UTC(2026, 6, 13, 10, 0, 0);
+    const currentPidDir = path.join(rootDir, "codex-gateway-state-4242-Ab12Cd");
+    const deadPidDir = path.join(rootDir, "codex-gateway-state-6000-Ef34Gh");
+    const activePidDir = path.join(rootDir, "codex-gateway-state-5000-Ij56Kl");
+    const oldLegacyDir = path.join(rootDir, "codex-gateway-state-Mn78Op");
+    const freshLegacyDir = path.join(rootDir, "codex-gateway-state-Qr90St");
+    const unsafeNameDir = path.join(rootDir, "codex-gateway-state-not-a-runtime-dir");
+    const matchingFile = path.join(rootDir, "codex-gateway-state-7000-Uv12Wx");
+    const unrelatedDir = path.join(rootDir, "other-app-state-Ab12Cd");
+
+    try {
+      for (const directory of [
+        currentPidDir,
+        deadPidDir,
+        activePidDir,
+        oldLegacyDir,
+        freshLegacyDir,
+        unsafeNameDir,
+        unrelatedDir
+      ]) {
+        mkdirSync(directory);
+      }
+      writeFileSync(matchingFile, "not a directory");
+      const oldDate = new Date(nowMs - 2 * 60 * 60 * 1000);
+      utimesSync(oldLegacyDir, oldDate, oldDate);
+
+      const report = cleanupStaleCodexRuntimeStateDirs({
+        rootDir,
+        currentPid: 4242,
+        nowMs,
+        legacyMinAgeMs: 60 * 60 * 1000,
+        isProcessAlive: (pid) => pid === 5000
+      });
+
+      expect(report).toEqual({
+        removed: 3,
+        skippedActive: 1,
+        skippedFreshLegacy: 1,
+        skippedUnsafe: 2,
+        errors: 0
+      });
+      expect(existsSync(currentPidDir)).toBe(false);
+      expect(existsSync(deadPidDir)).toBe(false);
+      expect(existsSync(oldLegacyDir)).toBe(false);
+      expect(existsSync(activePidDir)).toBe(true);
+      expect(existsSync(freshLegacyDir)).toBe(true);
+      expect(existsSync(unsafeNameDir)).toBe(true);
+      expect(existsSync(matchingFile)).toBe(true);
+      expect(existsSync(unrelatedDir)).toBe(true);
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("CodexProviderAdapter", () => {
   it("reports healthy when the Codex auth cache is present", async () => {
@@ -144,6 +210,9 @@ describe("CodexProviderAdapter", () => {
     expect(captured.env?.CODEX_GATEWAY_EPHEMERAL).toBe("1");
     const sqliteHome = (captured.config as Record<string, unknown>)?.sqlite_home;
     expect(typeof sqliteHome).toBe("string");
+    expect(path.basename(String(sqliteHome))).toMatch(
+      new RegExp(`^codex-gateway-state-${process.pid}-[A-Za-z0-9]{6}$`)
+    );
     expect(existsSync(String(sqliteHome))).toBe(false);
   });
 

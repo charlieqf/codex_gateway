@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import {
+  type Dirent,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -22,6 +30,110 @@ import {
 
 const CONTEXT_LENGTH_EXCEEDED_MESSAGE =
   "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.";
+const RUNTIME_STATE_DIR_PREFIX = "codex-gateway-state-";
+const LEGACY_RUNTIME_STATE_DIR_PATTERN = /^codex-gateway-state-[A-Za-z0-9]{6}$/;
+const PID_RUNTIME_STATE_DIR_PATTERN = /^codex-gateway-state-(\d+)-[A-Za-z0-9]{6}$/;
+const DEFAULT_LEGACY_RUNTIME_STATE_MIN_AGE_MS = 60 * 60 * 1000;
+
+export interface RuntimeStateCleanupOptions {
+  rootDir?: string;
+  currentPid?: number;
+  nowMs?: number;
+  legacyMinAgeMs?: number;
+  isProcessAlive?: (pid: number) => boolean;
+}
+
+export interface RuntimeStateCleanupReport {
+  removed: number;
+  skippedActive: number;
+  skippedFreshLegacy: number;
+  skippedUnsafe: number;
+  errors: number;
+}
+
+/**
+ * Remove runtime-state directories left by an earlier Gateway process.
+ *
+ * Call this once during process startup, before accepting requests. The scan is
+ * intentionally limited to the first level of the OS temp directory and only
+ * accepts names produced by this adapter. Legacy directories without a PID are
+ * removed only after a grace period so a concurrently running older Gateway is
+ * not disrupted.
+ */
+export function cleanupStaleCodexRuntimeStateDirs(
+  options: RuntimeStateCleanupOptions = {}
+): RuntimeStateCleanupReport {
+  const rootDir = options.rootDir ?? tmpdir();
+  const currentPid = options.currentPid ?? process.pid;
+  const nowMs = options.nowMs ?? Date.now();
+  const legacyMinAgeMs =
+    options.legacyMinAgeMs ?? DEFAULT_LEGACY_RUNTIME_STATE_MIN_AGE_MS;
+  const isProcessAlive = options.isProcessAlive ?? processIsAlive;
+  const report: RuntimeStateCleanupReport = {
+    removed: 0,
+    skippedActive: 0,
+    skippedFreshLegacy: 0,
+    skippedUnsafe: 0,
+    errors: 0
+  };
+
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    report.errors += 1;
+    return report;
+  }
+
+  for (const entry of entries) {
+    if (!entry.name.startsWith(RUNTIME_STATE_DIR_PREFIX)) {
+      continue;
+    }
+
+    const pidMatch = PID_RUNTIME_STATE_DIR_PATTERN.exec(entry.name);
+    const legacyMatch = LEGACY_RUNTIME_STATE_DIR_PATTERN.test(entry.name);
+    if (!pidMatch && !legacyMatch) {
+      report.skippedUnsafe += 1;
+      continue;
+    }
+
+    const candidate = join(rootDir, entry.name);
+    try {
+      const stats = lstatSync(candidate);
+      if (!entry.isDirectory() || !stats.isDirectory() || stats.isSymbolicLink()) {
+        report.skippedUnsafe += 1;
+        continue;
+      }
+
+      if (pidMatch) {
+        const ownerPid = Number.parseInt(pidMatch[1]!, 10);
+        if (ownerPid !== currentPid && isProcessAlive(ownerPid)) {
+          report.skippedActive += 1;
+          continue;
+        }
+      } else if (nowMs - stats.mtimeMs < legacyMinAgeMs) {
+        report.skippedFreshLegacy += 1;
+        continue;
+      }
+
+      rmSync(candidate, { recursive: true, force: true });
+      report.removed += 1;
+    } catch {
+      report.errors += 1;
+    }
+  }
+
+  return report;
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
 
 export interface CodexProviderOptions {
   codexHome: string;
@@ -80,7 +192,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const ephemeral = input.session.id.startsWith("sess_stateless_");
     const runtimeStateDir = ephemeral
-      ? mkdtempSync(join(tmpdir(), "codex-gateway-state-"))
+      ? mkdtempSync(join(tmpdir(), `${RUNTIME_STATE_DIR_PREFIX}${process.pid}-`))
       : null;
     const client = this.createClient(input.reasoningEffort, runtimeStateDir);
     const thread = input.session.providerSessionRef

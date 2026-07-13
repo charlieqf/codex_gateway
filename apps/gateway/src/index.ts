@@ -34,6 +34,7 @@ import {
   verifyUnifiedClientKeyToken
 } from "@codex-gateway/core";
 import {
+  cleanupStaleCodexRuntimeStateDirs,
   CodexProviderAdapter,
   type CodexProviderOptions
 } from "@codex-gateway/provider-codex";
@@ -2903,6 +2904,12 @@ function addOpenAIUsage(
 
 async function main() {
   validateRuntimeEnvironment(process.env);
+  const cleanup = cleanupStaleCodexRuntimeStateDirs();
+  if (cleanup.errors > 0) {
+    console.warn("Codex runtime state startup cleanup.", cleanup);
+  } else if (cleanup.removed > 0) {
+    console.info("Codex runtime state startup cleanup.", cleanup);
+  }
   const host = process.env.GATEWAY_HOST ?? "127.0.0.1";
   const port = Number.parseInt(process.env.GATEWAY_PORT ?? "8787", 10);
   const app = buildGateway();
