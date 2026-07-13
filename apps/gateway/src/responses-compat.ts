@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { GatewayError, isRecord } from "@codex-gateway/core";
 import type {
+  ChatCompletionRequest,
   ChatCompletionMessage,
   ChatCompletionToolChoice,
   OpenAIChatToolCall,
@@ -8,14 +9,15 @@ import type {
 } from "./openai-compat.js";
 
 export interface ParsedResponsesRequest {
-  model: string;
   stream: boolean;
   instructions: string | null;
-  reasoningEffort?: string;
   promptCacheKey: string | null;
-  tools: OpenAIChatToolDefinition[];
-  toolChoice: ChatCompletionToolChoice;
-  chatBody: Record<string, unknown>;
+  chatRequest: ChatCompletionRequest;
+}
+
+export interface ResponsesStreamState {
+  responseId: string;
+  createdAt: number;
 }
 
 export interface ResponsesSseEvent {
@@ -48,6 +50,22 @@ export function parseResponsesRequest(
     return invalidRequest("stream must be a boolean when provided.");
   }
   const stream = body.stream === true;
+
+  if (body.store !== undefined && typeof body.store !== "boolean") {
+    return invalidRequest("store must be a boolean when provided.");
+  }
+  if (body.store === true) {
+    return unsupportedParameter(
+      "store",
+      "store=true is not supported; send store=false and replay the full input history."
+    );
+  }
+  if (body.previous_response_id !== undefined && body.previous_response_id !== null) {
+    return unsupportedParameter(
+      "previous_response_id",
+      "previous_response_id is not supported; replay the full input history instead."
+    );
+  }
 
   let instructions: string | null = null;
   if (body.instructions !== undefined && body.instructions !== null) {
@@ -106,33 +124,29 @@ export function parseResponsesRequest(
     promptCacheKey = body.prompt_cache_key.trim();
   }
 
-  const chatBody: Record<string, unknown> = {
+  const chatRequest: ChatCompletionRequest = {
     model,
     messages,
     stream: false,
-    tools,
-    tool_choice: toolChoice
+    ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
+    ...(tools.length > 0 ? { tools } : {}),
+    toolChoice,
+    preserveAutoToolChoice: true
   };
-  if (reasoningEffort !== undefined) {
-    chatBody.reasoning_effort = reasoningEffort;
-  }
 
   return {
-    model,
     stream,
     instructions,
-    ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
     promptCacheKey,
-    tools,
-    toolChoice,
-    chatBody
+    chatRequest
   };
 }
 
 export function createResponsesResult(
   request: ParsedResponsesRequest,
   chatCompletion: unknown,
-  now = new Date()
+  now = new Date(),
+  streamState?: ResponsesStreamState
 ): ResponsesResult | GatewayError {
   if (!isRecord(chatCompletion)) {
     return upstreamShapeError();
@@ -144,6 +158,10 @@ export function createResponsesResult(
 
   const message = choices[0].message;
   const output: Array<Record<string, unknown>> = [];
+  const content = typeof message.content === "string" ? message.content : "";
+  if (content.length > 0) {
+    output.push(createAssistantMessageOutput(content));
+  }
   if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
     for (const rawToolCall of message.tool_calls) {
       const toolCall = parseChatToolCall(rawToolCall);
@@ -159,37 +177,95 @@ export function createResponsesResult(
         arguments: toolCall.function.arguments
       });
     }
-  } else {
-    const content = typeof message.content === "string" ? message.content : "";
-    output.push({
-      id: `msg_${randomUUID().replaceAll("-", "")}`,
-      type: "message",
-      status: "completed",
-      role: "assistant",
-      content: [{ type: "output_text", text: content, annotations: [] }]
-    });
+  }
+  if (output.length === 0) {
+    output.push(createAssistantMessageOutput(""));
   }
 
-  const responseId = `resp_${randomUUID().replaceAll("-", "")}`;
-  const createdAt = Math.floor(now.getTime() / 1000);
+  const responseId = streamState?.responseId ?? createResponseId();
+  const createdAt = streamState?.createdAt ?? Math.floor(now.getTime() / 1000);
+  const completedAt = Math.floor(now.getTime() / 1000);
   const usage = responsesUsage(chatCompletion.usage);
   const response = baseResponse({
     id: responseId,
     createdAt,
+    completedAt,
     status: "completed",
-    model: request.model,
+    model: request.chatRequest.model,
     output,
     instructions: request.instructions,
-    reasoningEffort: request.reasoningEffort ?? null,
-    toolChoice: request.toolChoice,
-    tools: request.tools,
+    reasoningEffort: request.chatRequest.reasoningEffort ?? null,
+    toolChoice: request.chatRequest.toolChoice,
+    tools: request.chatRequest.tools ?? [],
     usage
   });
 
   return {
     response,
-    events: responsesEvents(response, output, request, createdAt, usage)
+    events: responsesEvents(
+      response,
+      output,
+      request,
+      createdAt,
+      usage,
+      streamState === undefined
+    )
   };
+}
+
+export function createResponsesStreamStart(
+  request: ParsedResponsesRequest,
+  now = new Date()
+): { state: ResponsesStreamState; event: ResponsesSseEvent } {
+  const state = {
+    responseId: createResponseId(),
+    createdAt: Math.floor(now.getTime() / 1000)
+  };
+  const response = baseResponse({
+    id: state.responseId,
+    createdAt: state.createdAt,
+    completedAt: null,
+    status: "in_progress",
+    model: request.chatRequest.model,
+    output: [],
+    instructions: request.instructions,
+    reasoningEffort: request.chatRequest.reasoningEffort ?? null,
+    toolChoice: request.chatRequest.toolChoice,
+    tools: request.chatRequest.tools ?? [],
+    usage: null
+  });
+  return {
+    state,
+    event: event("response.created", { response })
+  };
+}
+
+export function createResponsesFailedEvent(
+  request: ParsedResponsesRequest,
+  state: ResponsesStreamState,
+  error: GatewayError,
+  now = new Date()
+): ResponsesSseEvent {
+  const response = {
+    ...baseResponse({
+      id: state.responseId,
+      createdAt: state.createdAt,
+      completedAt: Math.floor(now.getTime() / 1000),
+      status: "failed",
+      model: request.chatRequest.model,
+      output: [],
+      instructions: request.instructions,
+      reasoningEffort: request.chatRequest.reasoningEffort ?? null,
+      toolChoice: request.chatRequest.toolChoice,
+      tools: request.chatRequest.tools ?? [],
+      usage: null
+    }),
+    error: {
+      code: error.code,
+      message: error.message
+    }
+  };
+  return event("response.failed", { response });
 }
 
 function appendResponsesInput(
@@ -243,10 +319,9 @@ function appendResponsesInput(
       const previous = messages.at(-1);
       if (
         previous?.role === "assistant" &&
-        previous.content === null &&
-        Array.isArray(previous.tool_calls)
+        (previous.tool_calls === undefined || Array.isArray(previous.tool_calls))
       ) {
-        previous.tool_calls.push(call);
+        previous.tool_calls = [...(previous.tool_calls ?? []), call];
       } else {
         messages.push({ role: "assistant", content: null, tool_calls: [call] });
       }
@@ -277,14 +352,32 @@ function responsesContentText(value: unknown, path: string): string | GatewayErr
   }
   const parts: string[] = [];
   for (const [index, part] of value.entries()) {
-    if (
-      !isRecord(part) ||
-      !["input_text", "output_text", "text"].includes(String(part.type)) ||
-      typeof part.text !== "string"
-    ) {
+    if (!isRecord(part)) {
       return invalidRequest(`${path}[${index}] must be a supported text part.`);
     }
-    parts.push(part.text);
+    if (
+      ["input_text", "output_text", "text"].includes(String(part.type)) &&
+      typeof part.text === "string"
+    ) {
+      parts.push(part.text);
+      continue;
+    }
+    if (part.type === "refusal" && typeof part.refusal === "string") {
+      parts.push(part.refusal);
+      continue;
+    }
+    if (part.type === "input_image") {
+      parts.push("\n[Image attachment omitted: GoldenCode cannot access image content.]\n");
+      continue;
+    }
+    if (part.type === "input_file") {
+      parts.push("\n[File attachment omitted: GoldenCode cannot access file content.]\n");
+      continue;
+    }
+    return unsupportedParameter(
+      `${path}[${index}]`,
+      `Content part type=${String(part.type)} is not supported.`
+    );
   }
   return parts.join("");
 }
@@ -381,24 +474,26 @@ function responsesEvents(
   output: Array<Record<string, unknown>>,
   request: ParsedResponsesRequest,
   createdAt: number,
-  usage: Record<string, unknown> | null
+  usage: Record<string, unknown> | null,
+  includeCreatedEvent: boolean
 ): ResponsesSseEvent[] {
   const responseId = String(completedResponse.id);
   const created = baseResponse({
     id: responseId,
     createdAt,
+    completedAt: null,
     status: "in_progress",
-    model: request.model,
+    model: request.chatRequest.model,
     output: [],
     instructions: request.instructions,
-    reasoningEffort: request.reasoningEffort ?? null,
-    toolChoice: request.toolChoice,
-    tools: request.tools,
+    reasoningEffort: request.chatRequest.reasoningEffort ?? null,
+    toolChoice: request.chatRequest.toolChoice,
+    tools: request.chatRequest.tools ?? [],
     usage: null
   });
-  const events: ResponsesSseEvent[] = [
-    event("response.created", { response: created })
-  ];
+  const events: ResponsesSseEvent[] = includeCreatedEvent
+    ? [event("response.created", { response: created })]
+    : [];
 
   output.forEach((item, outputIndex) => {
     if (item.type === "function_call") {
@@ -478,7 +573,8 @@ function responsesEvents(
 function baseResponse(input: {
   id: string;
   createdAt: number;
-  status: "in_progress" | "completed";
+  completedAt: number | null;
+  status: "in_progress" | "completed" | "failed";
   model: string;
   output: Array<Record<string, unknown>>;
   instructions: string | null;
@@ -491,7 +587,7 @@ function baseResponse(input: {
     id: input.id,
     object: "response",
     created_at: input.createdAt,
-    completed_at: input.status === "completed" ? input.createdAt : null,
+    completed_at: input.completedAt,
     status: input.status,
     error: null,
     incomplete_details: null,
@@ -513,6 +609,20 @@ function baseResponse(input: {
     user: null,
     metadata: {}
   };
+}
+
+function createAssistantMessageOutput(content: string): Record<string, unknown> {
+  return {
+    id: `msg_${randomUUID().replaceAll("-", "")}`,
+    type: "message",
+    status: "completed",
+    role: "assistant",
+    content: [{ type: "output_text", text: content, annotations: [] }]
+  };
+}
+
+function createResponseId(): string {
+  return `resp_${randomUUID().replaceAll("-", "")}`;
 }
 
 function responsesToolChoice(value: ChatCompletionToolChoice): unknown {
@@ -552,6 +662,14 @@ function event(eventName: string, payload: Record<string, unknown>): ResponsesSs
 
 function invalidRequest(message: string): GatewayError {
   return new GatewayError({ code: "invalid_request", message, httpStatus: 400 });
+}
+
+function unsupportedParameter(parameter: string, message: string): GatewayError {
+  return new GatewayError({
+    code: "unsupported_parameter",
+    message: `${parameter}: ${message}`,
+    httpStatus: 400
+  });
 }
 
 function upstreamShapeError(): GatewayError {

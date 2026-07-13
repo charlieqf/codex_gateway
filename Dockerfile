@@ -29,6 +29,7 @@ ENV GATEWAY_SQLITE_PATH=/var/lib/codex-gateway/gateway.db
 ENV CODEX_HOME=/var/lib/codex-gateway/codex-home
 ENV CODEX_WORKDIR=/app
 ENV CODEX_SKIP_GIT_REPO_CHECK=1
+ENV CODEX_GATEWAY_CODEX_PATH=/usr/local/bin/codex-gateway-exec
 
 WORKDIR /app
 
@@ -44,6 +45,9 @@ COPY --from=build /app/package.json /app/package.json
 COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/apps /app/apps
 COPY --from=build /app/packages /app/packages
+COPY scripts/codex-gateway-exec.sh /usr/local/bin/codex-gateway-exec
+
+RUN chmod 0755 /usr/local/bin/codex-gateway-exec
 
 USER codexgw
 

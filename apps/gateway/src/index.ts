@@ -88,7 +88,7 @@ import {
   startObservation
 } from "./http/observation.js";
 import { rateLimitHook, releaseRateLimit } from "./http/rate-limit.js";
-import { setupSseResponse } from "./http/sse.js";
+import { setupSseResponse, type SseHandle } from "./http/sse.js";
 import {
   chatMessagesToPrompt,
   chatMessagesToStrictToolPrompt,
@@ -113,8 +113,11 @@ import {
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
 import {
+  createResponsesFailedEvent,
   createResponsesResult,
-  parseResponsesRequest
+  createResponsesStreamStart,
+  parseResponsesRequest,
+  type ResponsesSseEvent
 } from "./responses-compat.js";
 import {
   buildImageGenerationResponse,
@@ -270,7 +273,6 @@ interface OpenAICompatibleAdapterTarget {
 }
 
 const maxStatelessAttempts = 2;
-const responsesCompatibilityRequests = new WeakSet<FastifyRequest>();
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
 const defaultXAIImageBillingFallbackModel = "grok-imagine-image-quality";
 const defaultGeminiImageBillingFallbackModel = "gemini-3.1-flash-image";
@@ -280,6 +282,17 @@ interface ImageGenerationBillingFallback {
   accountId: string;
   provider: ImageGenerationProvider;
   upstreamModel: string;
+}
+
+interface ChatCompletionExecutionOptions {
+  captureErrors?: boolean;
+  clientSessionId?: string | null;
+  signal?: AbortSignal;
+}
+
+interface ChatCompletionExecutionFailure {
+  __chatCompletionExecutionFailure: true;
+  error: GatewayError;
 }
 
 export function buildGateway(options: GatewayOptions = {}) {
@@ -1408,18 +1421,17 @@ export function buildGateway(options: GatewayOptions = {}) {
     return openAIModelObject(model, request.params.id);
   });
 
-  const chatCompletionsHandler = async (
+  const executeChatCompletion = async (
     request: FastifyRequest<{ Body: unknown }>,
-    reply: FastifyReply
+    reply: FastifyReply,
+    parsed: ChatCompletionRequest,
+    executionOptions: ChatCompletionExecutionOptions = {}
   ) => {
-    const parsed = parseChatCompletionRequest(request.body, publicModelRegistry.defaultModelId);
-    if (parsed instanceof GatewayError) {
-      return sendOpenAIError(request, reply, parsed);
-    }
-    if (responsesCompatibilityRequests.has(request)) {
-      parsed.preserveAutoToolChoice = true;
-    }
-    applyClientTurnHeaders(request);
+    const fail = (error: GatewayError) =>
+      executionOptions.captureErrors
+        ? chatCompletionExecutionFailure(error)
+        : sendOpenAIError(request, reply, error);
+    applyClientTurnHeaders(request, executionOptions.clientSessionId);
     const publicModel = publicModelRegistry.get(parsed.model);
     request.gatewayPublicModelId = parsed.model;
     if (
@@ -1427,7 +1439,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       !publicModelRegistry.isAvailable(publicModel, publicModelAvailability)
     ) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
-      return sendOpenAIError(request, reply, modelNotFoundError(parsed.model));
+      return fail(modelNotFoundError(parsed.model));
     }
     const reasoningEffort = resolveChatCompletionReasoningEffort(
       publicModel,
@@ -1436,7 +1448,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
     if (reasoningEffort instanceof GatewayError) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
-      return sendOpenAIError(request, reply, reasoningEffort);
+      return fail(reasoningEffort);
     }
 
     let entitlementAccess;
@@ -1464,7 +1476,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
     if (entitlementAccess instanceof GatewayError) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
-      return sendOpenAIError(request, reply, entitlementAccess);
+      return fail(entitlementAccess);
     }
 
     const affinityKey = chatRuntimeAffinityKey(request, publicModel, upstreamRouter.softAffinity);
@@ -1481,7 +1493,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       createSession: createStatelessSession
     });
     if (attempt instanceof GatewayError) {
-      return sendOpenAIError(request, reply, attempt);
+      return fail(attempt);
     }
     applyChatRuntimeContext(request, attempt);
     const shape = createChatCompletionShape(parsed.model);
@@ -1510,7 +1522,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
     if (tokenBudgetError) {
       attempt.release();
-      return sendOpenAIError(request, reply, tokenBudgetError);
+      return fail(tokenBudgetError);
     }
 
     if (parsed.stream) {
@@ -1619,6 +1631,14 @@ export function buildGateway(options: GatewayOptions = {}) {
             usage = nativeResult.usage;
             markProviderStreamSummary(request, nativeResult.providerSummary);
             markOpenAITokenUsage(request, usage);
+            if (nativeResult.content.length > 0) {
+              const contentChunk = streamEventToChatCompletionChunk({
+                shape,
+                event: { type: "message_delta", text: nativeResult.content },
+                toolCallIndex
+              });
+              contentChunk && sse.writeData(contentChunk);
+            }
             for (const toolCall of nativeResult.toolCalls) {
               const chunk = streamEventToChatCompletionChunk({
                 shape,
@@ -1801,6 +1821,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
+          signal: executionOptions.signal,
           requestId: request.id,
           log: request.log,
           onProviderError
@@ -1810,7 +1831,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attempt.recordSuccess();
           }
           markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
-          return sendOpenAIError(request, reply, strictResult);
+          return fail(strictResult);
         }
         attempt.recordSuccess();
         markFirstByte(request);
@@ -1832,6 +1853,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
+          signal: executionOptions.signal,
           requestId: request.id,
           log: request.log,
           onProviderError
@@ -1841,7 +1863,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attempt.recordSuccess();
           }
           markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
-          return sendOpenAIError(request, reply, nativeResult);
+          return fail(nativeResult);
         }
         attempt.recordSuccess();
         markFirstByte(request);
@@ -1869,6 +1891,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attemptToolChoice: serializeToolChoice(parsed.toolChoice),
             upstreamRuntime: attempt.runtime,
             upstreamModel: attempt.upstreamModel,
+            signal: executionOptions.signal,
             onProviderError,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true
@@ -1900,7 +1923,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               request,
               combineProviderStreamSummaries(providerSummaries) ?? providerSummary
             );
-            return sendOpenAIError(request, reply, attemptResult);
+            return fail(attemptResult);
           }
           collected = attemptResult;
           providerSummaries.push(collected.providerSummary);
@@ -1908,9 +1931,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           break;
         }
         if (!collected) {
-          return sendOpenAIError(
-            request,
-            reply,
+          return fail(
             new GatewayError({
               code: "service_unavailable",
               message: "MedCode service is temporarily unavailable.",
@@ -1944,6 +1965,17 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
   };
 
+  const chatCompletionsHandler = async (
+    request: FastifyRequest<{ Body: unknown }>,
+    reply: FastifyReply
+  ) => {
+    const parsed = parseChatCompletionRequest(request.body, publicModelRegistry.defaultModelId);
+    if (parsed instanceof GatewayError) {
+      return sendOpenAIError(request, reply, parsed);
+    }
+    return executeChatCompletion(request, reply, parsed);
+  };
+
   app.post<{ Body: unknown }>("/v1/chat/completions", chatCompletionsHandler);
 
   app.post<{ Body: unknown }>("/v1/responses", async (request, reply) => {
@@ -1952,52 +1984,81 @@ export function buildGateway(options: GatewayOptions = {}) {
       return sendOpenAIError(request, reply, parsed);
     }
 
-    const originalBody = request.body;
-    const originalClientSessionHeader = request.headers["x-medcode-client-session-id"];
-    request.body = parsed.chatBody;
-    if (parsed.promptCacheKey && originalClientSessionHeader === undefined) {
-      request.headers["x-medcode-client-session-id"] = parsed.promptCacheKey;
-    }
-
-    let chatCompletion: unknown;
-    try {
-      responsesCompatibilityRequests.add(request);
-      chatCompletion = await chatCompletionsHandler(request, reply);
-    } finally {
-      responsesCompatibilityRequests.delete(request);
-      request.body = originalBody;
-      if (originalClientSessionHeader === undefined) {
-        delete request.headers["x-medcode-client-session-id"];
-      } else {
-        request.headers["x-medcode-client-session-id"] = originalClientSessionHeader;
-      }
-    }
-
-    if (reply.statusCode >= 400) {
-      return chatCompletion;
-    }
-
-    const result = createResponsesResult(parsed, chatCompletion, clock());
-    if (result instanceof GatewayError) {
-      return sendOpenAIError(request, reply, result);
-    }
     if (!parsed.stream) {
+      const chatCompletion = await executeChatCompletion(
+        request,
+        reply,
+        parsed.chatRequest,
+        {
+          captureErrors: true,
+          clientSessionId: parsed.promptCacheKey
+        }
+      );
+      if (isChatCompletionExecutionFailure(chatCompletion)) {
+        return sendOpenAIError(request, reply, chatCompletion.error);
+      }
+      const result = createResponsesResult(parsed, chatCompletion, clock());
+      if (result instanceof GatewayError) {
+        return sendOpenAIError(request, reply, result);
+      }
       return result.response;
     }
 
     const sse = setupSseResponse(reply);
+    const streamStart = createResponsesStreamStart(parsed, clock());
     try {
       markFirstByte(request);
+      if (!sse.writeEvent(streamStart.event.event, streamStart.event.data)) {
+        return;
+      }
+      const chatCompletion = await executeChatCompletion(
+        request,
+        reply,
+        parsed.chatRequest,
+        {
+          captureErrors: true,
+          clientSessionId: parsed.promptCacheKey,
+          signal: sse.signal
+        }
+      );
+      if (isChatCompletionExecutionFailure(chatCompletion)) {
+        writeResponsesFailure(
+          request,
+          sse,
+          createResponsesFailedEvent(parsed, streamStart.state, chatCompletion.error, clock()),
+          chatCompletion.error
+        );
+        return;
+      }
+      const result = createResponsesResult(parsed, chatCompletion, clock(), streamStart.state);
+      if (result instanceof GatewayError) {
+        writeResponsesFailure(
+          request,
+          sse,
+          createResponsesFailedEvent(parsed, streamStart.state, result, clock()),
+          result
+        );
+        return;
+      }
       for (const frame of result.events) {
         if (!sse.writeEvent(frame.event, frame.data)) {
           break;
         }
       }
+    } catch (err) {
+      const error = chatCompletionErrorFromUnknown(err);
+      writeResponsesFailure(
+        request,
+        sse,
+        createResponsesFailedEvent(parsed, streamStart.state, error, clock()),
+        error
+      );
     } finally {
       releaseRateLimit(request);
       recordObservation(request, observationStore, reply.raw.statusCode);
       sse.end();
     }
+    return;
   });
 
   app.get("/sessions", async (request) => {
@@ -2332,7 +2393,11 @@ function nativeCollectionToResult(
       ? attachProviderStreamSummary(parsed, providerSummary)
       : parsed;
   }
-  return strictDecisionToResult(parsed, usage, providerSummary);
+  const result = strictDecisionToResult(parsed, usage, providerSummary);
+  if (result.toolCalls.length > 0 && collected.content.length > 0) {
+    result.content = collected.content;
+  }
+  return result;
 }
 
 interface NativeAutoToolRetryPlan {
@@ -2355,6 +2420,9 @@ function nativeAutoToolRetryPlan(
   result: StrictClientToolsResult,
   prompt: string
 ): NativeAutoToolRetryPlan | null {
+  if (request.preserveAutoToolChoice) {
+    return null;
+  }
   const shouldRetry =
     request.toolChoice === "auto" &&
     attemptedToolChoice === "auto" &&
@@ -3165,6 +3233,49 @@ function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: Ga
   }
   reply.code(error.httpStatus);
   return openAIErrorPayload(error);
+}
+
+function chatCompletionExecutionFailure(
+  error: GatewayError
+): ChatCompletionExecutionFailure {
+  return {
+    __chatCompletionExecutionFailure: true,
+    error
+  };
+}
+
+function isChatCompletionExecutionFailure(
+  value: unknown
+): value is ChatCompletionExecutionFailure {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "__chatCompletionExecutionFailure" in value &&
+    (value as ChatCompletionExecutionFailure).__chatCompletionExecutionFailure === true
+  );
+}
+
+function chatCompletionErrorFromUnknown(err: unknown): GatewayError {
+  return err instanceof GatewayError
+    ? err
+    : new GatewayError({
+        code: "service_unavailable",
+        message: "GoldenCode service is temporarily unavailable.",
+        httpStatus: 503
+      });
+}
+
+function writeResponsesFailure(
+  request: FastifyRequest,
+  sse: SseHandle,
+  frame: ResponsesSseEvent,
+  error: GatewayError
+): void {
+  markGatewayError(request, error);
+  request.gatewayErrorCode = error.code;
+  if (!sse.isClosed()) {
+    sse.writeEvent(frame.event, frame.data);
+  }
 }
 
 function sendGatewayErrorResponse(
@@ -3998,10 +4109,16 @@ function createProviderErrorLogger(
   };
 }
 
-function applyClientTurnHeaders(request: FastifyRequest): void {
+function applyClientTurnHeaders(
+  request: FastifyRequest,
+  fallbackClientSessionId?: string | null
+): void {
   request.gatewayClientTurnId = readSingleHeader(request, "x-medcode-client-turn-id", 128);
   request.gatewayTurnCode = readSingleHeader(request, "x-medcode-client-turn-code", 64);
-  request.gatewayClientSessionId = readSingleHeader(request, "x-medcode-client-session-id", 128);
+  request.gatewayClientSessionId =
+    readSingleHeader(request, "x-medcode-client-session-id", 128) ??
+    fallbackClientSessionId ??
+    null;
   request.gatewayClientMessageId = readSingleHeader(request, "x-medcode-client-message-id", 128);
   request.gatewayClientAppVersion = readSingleHeader(request, "x-medcode-client-app-version", 64);
 }
@@ -4559,6 +4676,7 @@ function defaultUpstreamCooldown(): UpstreamAccountCooldownConfig {
 function createCodexProvider(env: NodeJS.ProcessEnv, codexHome: string): ProviderAdapter {
   return new CodexProviderAdapter({
     codexHome,
+    codexPath: env.CODEX_GATEWAY_CODEX_PATH,
     model: env.MEDCODE_UPSTREAM_MODEL,
     modelReasoningEffort: parseModelReasoningEffort(env.MEDCODE_UPSTREAM_REASONING_EFFORT),
     workingDirectory: env.CODEX_WORKDIR ?? process.cwd(),

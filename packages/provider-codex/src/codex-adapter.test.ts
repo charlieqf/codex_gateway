@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ThreadEvent, ThreadOptions, TurnOptions } from "@openai/codex-sdk";
@@ -118,6 +118,51 @@ describe("CodexProviderAdapter", () => {
         }
       }
     ]);
+  });
+
+  it("isolates and removes Codex state for stateless gateway turns", async () => {
+    const client = new FakeClient(new FakeThread(null, []));
+    let factoryInput: CodexClientFactoryInput | null = null;
+    const adapter = new CodexProviderAdapter({
+      codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
+      codexPath: "/usr/local/bin/codex-gateway-exec",
+      makeClient: (input) => {
+        factoryInput = input;
+        return client;
+      }
+    });
+
+    await collect(
+      adapter.message(
+        messageInput({ providerSessionRef: null, sessionId: "sess_stateless_test" })
+      )
+    );
+
+    expect(factoryInput).not.toBeNull();
+    const captured = factoryInput as unknown as CodexClientFactoryInput;
+    expect(captured.codexPath).toBe("/usr/local/bin/codex-gateway-exec");
+    expect(captured.env?.CODEX_GATEWAY_EPHEMERAL).toBe("1");
+    const sqliteHome = (captured.config as Record<string, unknown>)?.sqlite_home;
+    expect(typeof sqliteHome).toBe("string");
+    expect(existsSync(String(sqliteHome))).toBe(false);
+  });
+
+  it("keeps persistent Codex state available for resumable gateway sessions", async () => {
+    const client = new FakeClient(new FakeThread("thread_existing", []));
+    let factoryInput: CodexClientFactoryInput | null = null;
+    const adapter = new CodexProviderAdapter({
+      codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
+      makeClient: (input) => {
+        factoryInput = input;
+        return client;
+      }
+    });
+
+    await collect(adapter.message(messageInput({ providerSessionRef: "thread_existing" })));
+
+    const captured = factoryInput as unknown as CodexClientFactoryInput;
+    expect(captured.env?.CODEX_GATEWAY_EPHEMERAL).toBeUndefined();
+    expect(captured.config).toBeUndefined();
   });
 
   it("resumes an existing provider session ref", async () => {
@@ -597,6 +642,7 @@ function normalizeForTest(
 
 function messageInput(input: {
   providerSessionRef: string | null;
+  sessionId?: string;
   reasoningEffort?: string | null;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }): MessageInput {
@@ -604,7 +650,7 @@ function messageInput(input: {
     upstreamAccount: upstreamAccount(),
     subject: subject(),
     scope: "code",
-    session: session(input.providerSessionRef),
+    session: session(input.providerSessionRef, input.sessionId),
     message: "hello",
     reasoningEffort: input.reasoningEffort,
     onProviderError: input.onProviderError
@@ -632,9 +678,9 @@ function subject(): Subject {
   };
 }
 
-function session(providerSessionRef: string | null): GatewaySession {
+function session(providerSessionRef: string | null, sessionId = "sess_1"): GatewaySession {
   return {
-    id: "sess_1",
+    id: sessionId,
     subjectId: "subject_1",
     upstreamAccountId: "sub_1",
     providerSessionRef,

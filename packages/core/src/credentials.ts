@@ -79,6 +79,13 @@ export function verifyAccessCredentialToken(
     });
   }
 
+  return checkAccessCredentialState(record, now);
+}
+
+export function checkAccessCredentialState(
+  record: AccessCredentialRecord,
+  now = new Date()
+): GatewayError | null {
   if (record.revokedAt) {
     return new GatewayError({
       code: "revoked_credential",

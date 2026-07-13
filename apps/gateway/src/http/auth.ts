@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import {
+  checkAccessCredentialState,
   extractAccessCredentialPrefix,
   extractUnifiedClientKeyPrefix,
   GatewayError,
@@ -202,6 +203,22 @@ function authenticateUnifiedClientKey(
 
   const unifiedError = verifyUnifiedClientKeyToken(token, record, now);
   if (unifiedError) {
+    if (unifiedError.code !== "invalid_credential") {
+      const backingCredential = options.store.getAccessCredentialByPrefix(
+        record.codexCredentialPrefix
+      );
+      if (
+        backingCredential &&
+        backingCredential.id === record.codexCredentialId &&
+        backingCredential.subjectId === record.subjectId
+      ) {
+        request.gatewayObservedCredential = {
+          id: backingCredential.id,
+          subjectId: backingCredential.subjectId,
+          scope: backingCredential.scope
+        };
+      }
+    }
     return unifiedError;
   }
 
@@ -219,29 +236,14 @@ function authenticateUnifiedClientKey(
     return invalidCredential();
   }
 
-  if (credential.revokedAt) {
+  const credentialStateError = checkAccessCredentialState(credential, now);
+  if (credentialStateError) {
     request.gatewayObservedCredential = {
       id: credential.id,
       subjectId: credential.subjectId,
       scope: credential.scope
     };
-    return new GatewayError({
-      code: "revoked_credential",
-      message: "Access credential has been revoked.",
-      httpStatus: 401
-    });
-  }
-  if (credential.expiresAt.getTime() <= now.getTime()) {
-    request.gatewayObservedCredential = {
-      id: credential.id,
-      subjectId: credential.subjectId,
-      scope: credential.scope
-    };
-    return new GatewayError({
-      code: "expired_credential",
-      message: "Access credential has expired.",
-      httpStatus: 401
-    });
+    return credentialStateError;
   }
 
   return {

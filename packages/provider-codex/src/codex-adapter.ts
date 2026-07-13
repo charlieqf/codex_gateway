@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   Codex,
   type CodexOptions,
@@ -37,6 +39,7 @@ export interface CodexClientFactoryInput {
   codexHome: string;
   codexPath?: string;
   config?: CodexOptions["config"];
+  env?: Record<string, string>;
 }
 
 export interface CodexClientLike {
@@ -75,7 +78,11 @@ export class CodexProviderAdapter implements ProviderAdapter {
   }
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
-    const client = this.createClient(input.reasoningEffort);
+    const ephemeral = input.session.id.startsWith("sess_stateless_");
+    const runtimeStateDir = ephemeral
+      ? mkdtempSync(join(tmpdir(), "codex-gateway-state-"))
+      : null;
+    const client = this.createClient(input.reasoningEffort, runtimeStateDir);
     const thread = input.session.providerSessionRef
       ? client.resumeThread(
           input.session.providerSessionRef,
@@ -163,6 +170,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
         code: normalized.code,
         message: normalized.message
       };
+    } finally {
+      if (runtimeStateDir) {
+        rmSync(runtimeStateDir, { recursive: true, force: true });
+      }
     }
   }
 
@@ -228,25 +239,31 @@ export class CodexProviderAdapter implements ProviderAdapter {
     });
   }
 
-  private createClient(reasoningEffort?: string | null): CodexClientLike {
+  private createClient(
+    reasoningEffort?: string | null,
+    runtimeStateDir?: string | null
+  ): CodexClientLike {
     mkdirSync(this.options.codexHome, { recursive: true });
-    const config = codexConfigForRequest(reasoningEffort);
+    const config = codexConfigForRequest(reasoningEffort, runtimeStateDir);
+    const env = {
+      ...process.env,
+      CODEX_HOME: this.options.codexHome,
+      ...(runtimeStateDir ? { CODEX_GATEWAY_EPHEMERAL: "1" } : {})
+    } as Record<string, string>;
 
     if (this.options.makeClient) {
       return this.options.makeClient({
         codexHome: this.options.codexHome,
         codexPath: this.options.codexPath,
-        ...(config ? { config } : {})
+        ...(config ? { config } : {}),
+        env
       });
     }
 
     return new Codex({
       codexPathOverride: this.options.codexPath,
       ...(config ? { config } : {}),
-      env: {
-        ...process.env,
-        CODEX_HOME: this.options.codexHome
-      } as Record<string, string>
+      env
     });
   }
 
@@ -346,17 +363,19 @@ function codexThreadReasoningEffortForRequest(
   return isModelReasoningEffort(reasoningEffort) ? reasoningEffort : fallback;
 }
 
-function codexConfigForRequest(reasoningEffort: string | null | undefined): CodexOptions["config"] | undefined {
-  if (reasoningEffort !== "minimal") {
-    return undefined;
+function codexConfigForRequest(
+  reasoningEffort: string | null | undefined,
+  runtimeStateDir?: string | null
+): CodexOptions["config"] | undefined {
+  const config: NonNullable<CodexOptions["config"]> = {};
+  if (reasoningEffort === "minimal") {
+    config.model_reasoning_effort = "none";
+    config.features = { image_generation: false };
   }
-
-  return {
-    model_reasoning_effort: "none",
-    features: {
-      image_generation: false
-    }
-  };
+  if (runtimeStateDir) {
+    config.sqlite_home = runtimeStateDir;
+  }
+  return Object.keys(config).length > 0 ? config : undefined;
 }
 
 function isModelReasoningEffort(value: string | null | undefined): value is ModelReasoningEffort {

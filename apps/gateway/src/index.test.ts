@@ -1148,6 +1148,64 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("attributes a revoked unified-key request to its backing credential", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const issued = issueAccessCredential({
+      subjectId: "subj_revoked_unified",
+      label: "Unified backing credential",
+      scope: "code",
+      expiresAt: new Date("2030-02-01T00:00:00Z"),
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const unified = issueUnifiedClientKey({
+      subjectId: issued.record.subjectId,
+      label: "Revoked unified key",
+      expiresAt: issued.record.expiresAt,
+      codexCredentialId: issued.record.id,
+      codexCredentialPrefix: issued.record.prefix,
+      codexKeyCiphertext: "ciphertext-not-used-by-direct-auth",
+      medevidenceKeyCiphertext: "ciphertext-not-used-by-direct-auth",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.upsertSubject({
+      id: issued.record.subjectId,
+      label: "Revoked unified subject",
+      state: "active",
+      createdAt: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(issued.record);
+    store.insertUnifiedClientKey(unified.record);
+    store.revokeUnifiedClientKeyByPrefix(unified.record.prefix, new Date("2026-01-02T00:00:00Z"));
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/v1/models",
+        headers: { authorization: `Bearer ${unified.token}` }
+      });
+      expect(response.statusCode).toBe(401);
+      expect(response.json().error.code).toBe("revoked_credential");
+      expect(store.listRequestEvents({ limit: 1 })).toEqual([
+        expect.objectContaining({
+          credentialId: issued.record.id,
+          subjectId: issued.record.subjectId,
+          scope: "code",
+          status: "error",
+          errorCode: "revoked_credential"
+        })
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("serves billing admin plans, entitlement events, entitlements, and usage behind a separate token", async () => {
     const { store, issued } = createCredentialBackedStore();
     store.createPlan({
@@ -5468,6 +5526,115 @@ describe("gateway phase 1 routes", () => {
       );
     } finally {
       await goldencode.close();
+    }
+  });
+
+  it("flushes response.created before GoldenCode finishes and does not retry auto tools", async () => {
+    const captured: CapturedOpenAICompatibleRequest[] = [];
+    let releaseUpstream!: () => void;
+    const upstreamGate = new Promise<void>((resolve) => {
+      releaseUpstream = resolve;
+    });
+    const server = await startOpenAICompatibleSseServer(async (request, body, response) => {
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      await upstreamGate;
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "I will inspect the workspace." } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+    const appEnv = {
+      MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+      MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+      MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
+      MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
+      MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL: server.baseUrl,
+      MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+      MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryWithGoldenCodeFixture())
+    };
+
+    try {
+      await withTemporaryEnv(appEnv, async () => {
+        const { store, headers } = createModelEntitledStore(["goldencode"]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        try {
+          await app.listen({ host: "127.0.0.1", port: 0 });
+          const address = app.server.address() as AddressInfo;
+          const response = await Promise.race([
+            fetch(`http://127.0.0.1:${address.port}/v1/responses`, {
+              method: "POST",
+              headers: {
+                ...headers,
+                "content-type": "application/json"
+              },
+              body: JSON.stringify({
+                model: "goldencode",
+                input: "Inspect the workspace.",
+                stream: true,
+                tools: [
+                  {
+                    type: "function",
+                    name: "shell_command",
+                    parameters: { type: "object" }
+                  }
+                ],
+                tool_choice: "auto"
+              })
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("response.created was not flushed")), 1_000)
+            )
+          ]);
+          expect(response.status).toBe(200);
+          const reader = response.body?.getReader();
+          expect(reader).toBeDefined();
+          if (!reader) {
+            return;
+          }
+          const first = await reader.read();
+          const decoder = new TextDecoder();
+          const firstText = decoder.decode(first.value, { stream: true });
+          expect(firstText).toContain("event: response.created");
+          expect(firstText).toContain('"status":"in_progress"');
+
+          releaseUpstream();
+          let remaining = "";
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) {
+              break;
+            }
+            remaining += decoder.decode(chunk.value, { stream: true });
+          }
+          remaining += decoder.decode();
+          expect(firstText + remaining).toContain("event: response.completed");
+          expect(firstText + remaining).toContain("I will inspect the workspace.");
+          expect(captured).toHaveLength(1);
+          expect(captured[0].body.tool_choice).toBe("auto");
+        } finally {
+          releaseUpstream();
+          await app.close();
+        }
+      });
+    } finally {
+      releaseUpstream();
+      await server.close();
     }
   });
 

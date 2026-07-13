@@ -20,7 +20,9 @@ services:
     ports:
       - "127.0.0.1:18787:8787"
     cpus: "1.0"
-    mem_limit: 1g
+    # Codex CLI 0.144.x can approach 1 GiB for a single large-context turn.
+    # Leave headroom for the gateway plus the controlled-trial concurrency limit.
+    mem_limit: 6g
     pids_limit: 256
     init: true
     cap_drop:

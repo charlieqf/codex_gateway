@@ -389,7 +389,12 @@ export function createChatCompletionResponse(input: {
         index: 0,
         message: {
           role: "assistant",
-          content: input.toolCalls.length > 0 ? null : input.content,
+          content:
+            input.content.length > 0
+              ? input.content
+              : input.toolCalls.length > 0
+                ? null
+                : "",
           tool_calls: input.toolCalls.length > 0 ? input.toolCalls : undefined
         },
         logprobs: null,

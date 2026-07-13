@@ -4,6 +4,7 @@ export const gatewayErrorCodes = [
   "revoked_credential",
   "expired_credential",
   "invalid_request",
+  "unsupported_parameter",
   "invalid_event_type",
   "invalid_period",
   "invalid_external_user_id",

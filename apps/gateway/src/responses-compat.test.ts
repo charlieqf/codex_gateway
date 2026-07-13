@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { GatewayError } from "@codex-gateway/core";
-import { createResponsesResult, parseResponsesRequest } from "./responses-compat.js";
+import {
+  createResponsesFailedEvent,
+  createResponsesResult,
+  createResponsesStreamStart,
+  parseResponsesRequest
+} from "./responses-compat.js";
 
 describe("Responses compatibility", () => {
   it("maps Codex message, function tools, and unsupported built-in tools to Chat Completions", () => {
@@ -40,7 +45,7 @@ describe("Responses compatibility", () => {
       return;
     }
     expect(parsed.promptCacheKey).toBe("codex-thread-1");
-    expect(parsed.chatBody).toMatchObject({
+    expect(parsed.chatRequest).toMatchObject({
       model: "goldencode",
       stream: false,
       messages: [
@@ -56,7 +61,8 @@ describe("Responses compatibility", () => {
           }
         }
       ],
-      tool_choice: "auto"
+      toolChoice: "auto",
+      preserveAutoToolChoice: true
     });
   });
 
@@ -94,7 +100,7 @@ describe("Responses compatibility", () => {
     if (parsed instanceof GatewayError) {
       return;
     }
-    expect(parsed.chatBody.messages).toEqual([
+    expect(parsed.chatRequest.messages).toEqual([
       { role: "user", content: "Run the command." },
       {
         role: "assistant",
@@ -232,5 +238,148 @@ describe("Responses compatibility", () => {
     const parsed = parseResponsesRequest({ model: "max", input: "hello" });
     expect(parsed).toBeInstanceOf(GatewayError);
     expect((parsed as GatewayError).message).toContain("model=goldencode");
+  });
+
+  it("rejects stateful Responses parameters instead of silently ignoring them", () => {
+    for (const request of [
+      { model: "goldencode", input: "hello", store: true },
+      {
+        model: "goldencode",
+        input: "hello",
+        previous_response_id: "resp_previous"
+      }
+    ]) {
+      const parsed = parseResponsesRequest(request);
+      expect(parsed).toBeInstanceOf(GatewayError);
+      expect((parsed as GatewayError).code).toBe("unsupported_parameter");
+    }
+
+    const accepted = parseResponsesRequest({
+      model: "goldencode",
+      input: "hello",
+      store: false,
+      tools: [{ type: "web_search" }]
+    });
+    expect(accepted).not.toBeInstanceOf(GatewayError);
+    if (!(accepted instanceof GatewayError)) {
+      expect(accepted.chatRequest.tools).toBeUndefined();
+    }
+  });
+
+  it("preserves visible attachment placeholders and mixed assistant tool history", () => {
+    const parsed = parseResponsesRequest({
+      model: "goldencode",
+      input: [
+        {
+          type: "message",
+          role: "user",
+          content: [
+            { type: "input_text", text: "Review these:" },
+            { type: "input_image", image_url: "data:image/png;base64,ignored" },
+            { type: "input_file", file_id: "file_ignored" }
+          ]
+        },
+        {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: "I will inspect it." }]
+        },
+        {
+          type: "function_call",
+          call_id: "call_2",
+          name: "shell_command",
+          arguments: "{}"
+        }
+      ]
+    });
+
+    expect(parsed).not.toBeInstanceOf(GatewayError);
+    if (parsed instanceof GatewayError) {
+      return;
+    }
+    expect(parsed.chatRequest.messages[0]).toMatchObject({
+      role: "user",
+      content: expect.stringContaining("Image attachment omitted")
+    });
+    expect(parsed.chatRequest.messages[0]).toMatchObject({
+      content: expect.stringContaining("File attachment omitted")
+    });
+    expect(parsed.chatRequest.messages[1]).toEqual({
+      role: "assistant",
+      content: "I will inspect it.",
+      tool_calls: [
+        {
+          id: "call_2",
+          type: "function",
+          function: { name: "shell_command", arguments: "{}" }
+        }
+      ]
+    });
+  });
+
+  it("emits text before function calls and reuses the early stream response id", () => {
+    const parsed = parseResponsesRequest({
+      model: "goldencode",
+      input: "Inspect it.",
+      stream: true
+    });
+    expect(parsed).not.toBeInstanceOf(GatewayError);
+    if (parsed instanceof GatewayError) {
+      return;
+    }
+    const start = createResponsesStreamStart(parsed, new Date("2026-07-13T00:00:00Z"));
+    const result = createResponsesResult(
+      parsed,
+      {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "I found one issue.",
+              tool_calls: [
+                {
+                  id: "call_3",
+                  type: "function",
+                  function: { name: "shell_command", arguments: "{}" }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      new Date("2026-07-13T00:00:02Z"),
+      start.state
+    );
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) {
+      return;
+    }
+    expect(result.response.id).toBe(start.state.responseId);
+    expect(result.response.output).toEqual([
+      expect.objectContaining({ type: "message" }),
+      expect.objectContaining({ type: "function_call", call_id: "call_3" })
+    ]);
+    expect(result.events.map((item) => item.event)).not.toContain("response.created");
+
+    const failed = createResponsesFailedEvent(
+      parsed,
+      start.state,
+      new GatewayError({
+        code: "upstream_timeout",
+        message: "timed out",
+        httpStatus: 504
+      }),
+      new Date("2026-07-13T00:00:03Z")
+    );
+    expect(failed).toMatchObject({
+      event: "response.failed",
+      data: {
+        response: {
+          id: start.state.responseId,
+          status: "failed",
+          error: { code: "upstream_timeout" }
+        }
+      }
+    });
   });
 });
