@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
   utimesSync,
   writeFileSync
@@ -186,9 +187,10 @@ describe("CodexProviderAdapter", () => {
     ]);
   });
 
-  it("isolates and removes Codex state for stateless gateway turns", async () => {
+  it("keeps stateless gateway turns ephemeral without creating isolated SQLite state", async () => {
     const client = new FakeClient(new FakeThread(null, []));
     let factoryInput: CodexClientFactoryInput | null = null;
+    const runtimeDirsBefore = currentProcessRuntimeStateDirs();
     const adapter = new CodexProviderAdapter({
       codexHome: mkdtempSync(path.join(tmpdir(), "codex-provider-test-")),
       codexPath: "/usr/local/bin/codex-gateway-exec",
@@ -208,12 +210,8 @@ describe("CodexProviderAdapter", () => {
     const captured = factoryInput as unknown as CodexClientFactoryInput;
     expect(captured.codexPath).toBe("/usr/local/bin/codex-gateway-exec");
     expect(captured.env?.CODEX_GATEWAY_EPHEMERAL).toBe("1");
-    const sqliteHome = (captured.config as Record<string, unknown>)?.sqlite_home;
-    expect(typeof sqliteHome).toBe("string");
-    expect(path.basename(String(sqliteHome))).toMatch(
-      new RegExp(`^codex-gateway-state-${process.pid}-[A-Za-z0-9]{6}$`)
-    );
-    expect(existsSync(String(sqliteHome))).toBe(false);
+    expect(captured.config).toBeUndefined();
+    expect(currentProcessRuntimeStateDirs()).toEqual(runtimeDirsBefore);
   });
 
   it("keeps persistent Codex state available for resumable gateway sessions", async () => {
@@ -381,6 +379,7 @@ describe("CodexProviderAdapter", () => {
       adapter.message(
         messageInput({
           providerSessionRef: null,
+          sessionId: "sess_stateless_minimal",
           reasoningEffort: "minimal"
         })
       )
@@ -392,6 +391,7 @@ describe("CodexProviderAdapter", () => {
         image_generation: false
       }
     });
+    expect(factoryInputs[0]?.env?.CODEX_GATEWAY_EPHEMERAL).toBe("1");
     expect(client.startedOptions[0]).toMatchObject({
       model: "gpt-5.5"
     });
@@ -697,6 +697,13 @@ function createAdapter(
     makeClient: () => client,
     ...options
   });
+}
+
+function currentProcessRuntimeStateDirs(): string[] {
+  const prefix = `codex-gateway-state-${process.pid}-`;
+  return readdirSync(tmpdir())
+    .filter((name) => name.startsWith(prefix))
+    .sort();
 }
 
 function normalizeForTest(

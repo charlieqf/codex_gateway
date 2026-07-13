@@ -3,7 +3,6 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   rmSync
 } from "node:fs";
@@ -191,10 +190,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const ephemeral = input.session.id.startsWith("sess_stateless_");
-    const runtimeStateDir = ephemeral
-      ? mkdtempSync(join(tmpdir(), `${RUNTIME_STATE_DIR_PREFIX}${process.pid}-`))
-      : null;
-    const client = this.createClient(input.reasoningEffort, runtimeStateDir);
+    const client = this.createClient(input.reasoningEffort, ephemeral);
     const thread = input.session.providerSessionRef
       ? client.resumeThread(
           input.session.providerSessionRef,
@@ -282,10 +278,6 @@ export class CodexProviderAdapter implements ProviderAdapter {
         code: normalized.code,
         message: normalized.message
       };
-    } finally {
-      if (runtimeStateDir) {
-        rmSync(runtimeStateDir, { recursive: true, force: true });
-      }
     }
   }
 
@@ -353,14 +345,14 @@ export class CodexProviderAdapter implements ProviderAdapter {
 
   private createClient(
     reasoningEffort?: string | null,
-    runtimeStateDir?: string | null
+    ephemeral = false
   ): CodexClientLike {
     mkdirSync(this.options.codexHome, { recursive: true });
-    const config = codexConfigForRequest(reasoningEffort, runtimeStateDir);
+    const config = codexConfigForRequest(reasoningEffort);
     const env = {
       ...process.env,
       CODEX_HOME: this.options.codexHome,
-      ...(runtimeStateDir ? { CODEX_GATEWAY_EPHEMERAL: "1" } : {})
+      ...(ephemeral ? { CODEX_GATEWAY_EPHEMERAL: "1" } : {})
     } as Record<string, string>;
 
     if (this.options.makeClient) {
@@ -476,16 +468,12 @@ function codexThreadReasoningEffortForRequest(
 }
 
 function codexConfigForRequest(
-  reasoningEffort: string | null | undefined,
-  runtimeStateDir?: string | null
+  reasoningEffort: string | null | undefined
 ): CodexOptions["config"] | undefined {
   const config: NonNullable<CodexOptions["config"]> = {};
   if (reasoningEffort === "minimal") {
     config.model_reasoning_effort = "none";
     config.features = { image_generation: false };
-  }
-  if (runtimeStateDir) {
-    config.sqlite_home = runtimeStateDir;
   }
   return Object.keys(config).length > 0 ? config : undefined;
 }
