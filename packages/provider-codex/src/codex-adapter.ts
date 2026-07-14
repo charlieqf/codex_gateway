@@ -294,7 +294,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
     source: string,
     input: MessageInput
   ): GatewayError {
-    const normalized = this.normalize(err);
+    const normalized =
+      input.signal?.aborted && input.signal.reason instanceof GatewayError
+        ? input.signal.reason
+        : this.normalize(err);
     if (input.onProviderError) {
       try {
         input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));

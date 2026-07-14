@@ -178,6 +178,19 @@ import {
   publicModelPoolAffinityKey,
   type ChatRuntimeContext
 } from "./services/chat-runtime-dispatcher.js";
+import {
+  ActiveRequestRegistry,
+  type ActiveRequestHandle
+} from "./services/active-request-registry.js";
+import {
+  createChatRequestDeadline,
+  parseChatRequestTimeoutPolicy,
+  resolveChatRequestTimeoutMs
+} from "./services/chat-request-deadline.js";
+import {
+  assessToolLoopShadow,
+  parseToolLoopShadowPolicy
+} from "./services/tool-loop-shadow.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
 import {
@@ -225,6 +238,7 @@ export interface GatewayOptions {
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackModel?: string;
   imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
+  activeRequestRegistry?: ActiveRequestRegistry;
   now?: () => Date;
   logger?: boolean;
 }
@@ -303,6 +317,27 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
   const clock = options.now ?? (() => new Date());
+  const activeRequestRegistry =
+    options.activeRequestRegistry ??
+    new ActiveRequestRegistry({
+      now: clock,
+      snapshotPath: process.env.GATEWAY_OPS_RUNTIME_SNAPSHOT_PATH,
+      onSnapshotWriteError: (error) =>
+        app.log.warn(
+          { error: error instanceof Error ? error.message : String(error) },
+          "Failed to publish the operations runtime snapshot."
+        )
+    });
+  const chatRequestTimeoutPolicy = parseChatRequestTimeoutPolicy(process.env, (message) =>
+    app.log.warn(message)
+  );
+  const nativeToolForceRequiredMode = parseNativeToolForceRequiredMode(
+    process.env.MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE,
+    (message) => app.log.warn(message)
+  );
+  const toolLoopShadowPolicy = parseToolLoopShadowPolicy(process.env, (message) =>
+    app.log.warn(message)
+  );
   const subject = options.subject ?? defaultSubject();
   const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
   const upstreamPool = resolveUpstreamAccountPool(options, process.env, sessions, app.log);
@@ -1483,7 +1518,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     const affinityKey = chatRuntimeAffinityKey(request, publicModel, upstreamRouter.softAffinity);
     const attemptedAccountIds = new Set<string>();
     let statelessAttempts = 1;
-    const { subject, scope } = getGatewayContext(request);
+    const gatewayContext = getGatewayContext(request);
+    const { subject, scope } = gatewayContext;
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
       reasoningEffort,
@@ -1501,7 +1537,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     const nativeClientTools = hasNativeClientTools(parsed, publicModel);
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     request.gatewayToolChoice = serializeToolChoice(
-      nativeClientTools ? initialNativeToolChoice(parsed, attempt.upstreamModel) : parsed.toolChoice
+      nativeClientTools
+        ? initialNativeToolChoice(parsed, attempt.upstreamModel, nativeToolForceRequiredMode)
+        : parsed.toolChoice
     );
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
@@ -1510,6 +1548,58 @@ export function buildGateway(options: GatewayOptions = {}) {
       prompt,
       chatCompletionEstimateExtras(parsed, strictClientTools, attempt.runtime)
     );
+    if (
+      toolLoopShadowPolicy.mode === "shadow" &&
+      observationStore &&
+      gatewayContext.credential.id &&
+      request.gatewayClientTurnId
+    ) {
+      try {
+        const now = clock();
+        const assessment = assessToolLoopShadow({
+          events: observationStore.listRequestEvents({
+            credentialId: gatewayContext.credential.id,
+            subjectId: subject.id,
+            clientTurnId: request.gatewayClientTurnId,
+            limit: toolLoopShadowPolicy.historyLimit
+          }),
+          publicModelId: publicModel.id,
+          now,
+          promptTokens: request.gatewayEstimatedTokens,
+          policy: toolLoopShadowPolicy
+        });
+        const fields = {
+          request_id: request.id,
+          subject_id: subject.id,
+          credential_id: gatewayContext.credential.id,
+          client_turn_id: request.gatewayClientTurnId,
+          public_model_id: publicModel.id,
+          tool_loop_guard_mode: "shadow",
+          prior_consecutive_tool_calls: assessment.priorConsecutiveToolCalls,
+          candidate_call_count: assessment.candidateCallCount,
+          elapsed_ms: assessment.elapsedMs,
+          prompt_tokens: assessment.promptTokens,
+          would_warn: assessment.wouldWarn,
+          would_finalize: assessment.wouldFinalize,
+          warning_reasons: assessment.warningReasons,
+          hard_reasons: assessment.hardReasons
+        };
+        if (assessment.wouldWarn) {
+          request.log.warn(fields, "Tool loop guard shadow threshold matched; request is not altered.");
+        } else {
+          request.log.info(fields, "Tool loop guard shadow assessment completed.");
+        }
+      } catch (error) {
+        request.log.warn(
+          {
+            request_id: request.id,
+            client_turn_id: request.gatewayClientTurnId,
+            error: error instanceof Error ? error.message : String(error)
+          },
+          "Tool loop guard shadow assessment failed; request is not altered."
+        );
+      }
+    }
     const tokenBudgetError = await beginTokenBudget(
       request,
       tokenBudgetLimiter,
@@ -1526,8 +1616,32 @@ export function buildGateway(options: GatewayOptions = {}) {
       return fail(tokenBudgetError);
     }
 
+    const chatRequestTimeoutMs = resolveChatRequestTimeoutMs(
+      chatRequestTimeoutPolicy,
+      publicModel.id,
+      attempt.runtime
+    );
+    const beginActiveRequest = (
+      runtimeContext: ChatRuntimeContext,
+      deadlineAt: Date | null
+    ): ActiveRequestHandle =>
+      activeRequestRegistry.begin({
+        requestId: request.id,
+        publicModelId: publicModel.id,
+        upstreamRuntime: runtimeContext.runtime,
+        upstreamAccountId: runtimeContext.adapterInputUpstreamAccount.id,
+        startedAt: clock(),
+        deadlineAt
+      });
+
     if (parsed.stream) {
       const sse = setupSseResponse(reply);
+      const deadline = createChatRequestDeadline({
+        timeoutMs: chatRequestTimeoutMs,
+        parentSignals: [executionOptions.signal, sse.signal],
+        now: clock()
+      });
+      const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
       let failed = false;
       let hasToolCalls = false;
       let toolCallIndex = 0;
@@ -1557,7 +1671,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             reasoningEffort: attempt.reasoningEffort,
             request: parsed,
             prompt,
-            signal: sse.signal,
+            signal: deadline.signal,
             requestId: request.id,
             log: request.log,
             onProviderError
@@ -1571,6 +1685,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             sse.writeData(openAIErrorPayload(strictResult));
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
+            activeRequest.markFirstByte();
             attempt.recordSuccess();
             hasToolCalls = true;
             usage = strictResult.usage;
@@ -1588,6 +1703,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
+            activeRequest.markFirstByte();
             attempt.recordSuccess();
             usage = strictResult.usage;
             markProviderStreamSummary(request, strictResult.providerSummary);
@@ -1613,7 +1729,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             reasoningEffort: attempt.reasoningEffort,
             request: parsed,
             prompt,
-            signal: sse.signal,
+            nativeToolForceRequiredMode,
+            signal: deadline.signal,
             requestId: request.id,
             log: request.log,
             onProviderError
@@ -1627,6 +1744,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             sse.writeData(openAIErrorPayload(nativeResult));
             failed = true;
           } else if (nativeResult.toolCalls.length > 0) {
+            activeRequest.markFirstByte();
             attempt.recordSuccess();
             hasToolCalls = true;
             usage = nativeResult.usage;
@@ -1652,6 +1770,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
+            activeRequest.markFirstByte();
             attempt.recordSuccess();
             usage = nativeResult.usage;
             markProviderStreamSummary(request, nativeResult.providerSummary);
@@ -1679,7 +1798,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               reasoningEffort: attempt.reasoningEffort,
               clientTools: nativeClientTools ? parsed.tools : undefined,
               clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
-              signal: sse.signal,
+              signal: deadline.signal,
               onProviderError
             })) {
               providerSummary.record(event);
@@ -1713,6 +1832,10 @@ export function buildGateway(options: GatewayOptions = {}) {
                     statelessAttempts += 1;
                     attempt = nextAttempt;
                     applyChatRuntimeContext(request, attempt);
+                    activeRequest.update({
+                      upstreamRuntime: attempt.runtime,
+                      upstreamAccountId: attempt.adapterInputUpstreamAccount.id
+                    });
                     retrying = true;
                     break;
                   }
@@ -1731,6 +1854,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               if (!writeInitialChunk()) {
                 break;
               }
+              activeRequest.markFirstByte();
               if (event.type === "tool_call") {
                 if (parsed.toolChoice === "none") {
                   continue;
@@ -1797,6 +1921,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       } finally {
         await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
         attempt.release();
+        activeRequest.finish();
+        deadline.cleanup();
         releaseRateLimit(request);
         recordObservation(request, observationStore, reply.raw.statusCode);
         sse.end();
@@ -1807,6 +1933,12 @@ export function buildGateway(options: GatewayOptions = {}) {
     let content = "";
     const toolCalls: OpenAIChatToolCall[] = [];
     let usage: OpenAIChatUsage | null = null;
+    const deadline = createChatRequestDeadline({
+      timeoutMs: chatRequestTimeoutMs,
+      parentSignals: [executionOptions.signal],
+      now: clock()
+    });
+    const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
 
     try {
       if (strictClientTools) {
@@ -1822,7 +1954,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
-          signal: executionOptions.signal,
+          signal: deadline.signal,
           requestId: request.id,
           log: request.log,
           onProviderError
@@ -1835,6 +1967,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           return fail(strictResult);
         }
         attempt.recordSuccess();
+        activeRequest.markFirstByte();
         markFirstByte(request);
         content = strictResult.content;
         toolCalls.push(...strictResult.toolCalls);
@@ -1854,7 +1987,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
-          signal: executionOptions.signal,
+          nativeToolForceRequiredMode,
+          signal: deadline.signal,
           requestId: request.id,
           log: request.log,
           onProviderError
@@ -1867,6 +2001,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           return fail(nativeResult);
         }
         attempt.recordSuccess();
+        activeRequest.markFirstByte();
         markFirstByte(request);
         content = nativeResult.content;
         toolCalls.push(...nativeResult.toolCalls);
@@ -1892,7 +2027,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             attemptToolChoice: serializeToolChoice(parsed.toolChoice),
             upstreamRuntime: attempt.runtime,
             upstreamModel: attempt.upstreamModel,
-            signal: executionOptions.signal,
+            signal: deadline.signal,
             onProviderError,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true
@@ -1917,6 +2052,10 @@ export function buildGateway(options: GatewayOptions = {}) {
                 statelessAttempts += 1;
                 attempt = nextAttempt;
                 applyChatRuntimeContext(request, attempt);
+                activeRequest.update({
+                  upstreamRuntime: attempt.runtime,
+                  upstreamAccountId: attempt.adapterInputUpstreamAccount.id
+                });
                 continue;
               }
             }
@@ -1941,6 +2080,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           );
         }
         if (collected.content.length > 0 || collected.toolCalls.length > 0) {
+          activeRequest.markFirstByte();
           markFirstByte(request);
         }
         content = collected.content;
@@ -1963,6 +2103,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     } finally {
       await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
       attempt.release();
+      activeRequest.finish();
+      deadline.cleanup();
     }
   };
 
@@ -2212,6 +2354,10 @@ interface StrictClientToolsInput {
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }
 
+interface NativeClientToolsInput extends StrictClientToolsInput {
+  nativeToolForceRequiredMode: NativeToolForceRequiredMode;
+}
+
 interface StrictClientToolsResult {
   content: string;
   toolCalls: OpenAIChatToolCall[];
@@ -2230,9 +2376,13 @@ interface StrictToolCollection {
 }
 
 async function runNativeClientTools(
-  input: StrictClientToolsInput
+  input: NativeClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
-  const firstToolChoice = initialNativeToolChoice(input.request, input.upstreamModel);
+  const firstToolChoice = initialNativeToolChoice(
+    input.request,
+    input.upstreamModel,
+    input.nativeToolForceRequiredMode
+  );
   if (firstToolChoice !== input.request.toolChoice) {
     input.log?.info(
       {
@@ -2305,7 +2455,8 @@ async function runNativeClientTools(
     input.upstreamModel,
     firstToolChoice,
     firstResult,
-    input.prompt
+    input.prompt,
+    input.nativeToolForceRequiredMode
   );
   if (!retryPlan) {
     return firstResult;
@@ -2340,6 +2491,9 @@ async function runNativeClientTools(
       second.providerSummary
   );
   if (secondResult instanceof GatewayError) {
+    return secondResult;
+  }
+  if (retryPlan.kind === "auto_ack_after_tool_to_auto") {
     return secondResult;
   }
   return secondResult.toolCalls.length > 0 ? secondResult : firstResult;
@@ -2402,7 +2556,11 @@ function nativeCollectionToResult(
 }
 
 interface NativeAutoToolRetryPlan {
-  kind: "auto_ack_to_required" | "auto_ack_to_auto" | "auto_empty_to_auto";
+  kind:
+    | "auto_ack_to_required"
+    | "auto_ack_to_auto"
+    | "auto_ack_after_tool_to_auto"
+    | "auto_empty_to_auto";
   toolChoice: ChatCompletionRequest["toolChoice"];
   prompt: string;
 }
@@ -2419,7 +2577,8 @@ function nativeAutoToolRetryPlan(
   upstreamModel: string,
   attemptedToolChoice: ChatCompletionRequest["toolChoice"],
   result: StrictClientToolsResult,
-  prompt: string
+  prompt: string,
+  forceRequiredMode: NativeToolForceRequiredMode
 ): NativeAutoToolRetryPlan | null {
   if (request.preserveAutoToolChoice) {
     return null;
@@ -2444,11 +2603,30 @@ function nativeAutoToolRetryPlan(
     return null;
   }
 
-  if (usesAutoOnlyNativeTools(upstreamModel)) {
+  const completedToolRound = hasCompletedClientToolRound(request);
+  // This safety invariant intentionally overrides legacy mode: legacy restores
+  // the old initial-choice classifier for diagnostics, never the post-tool loop vector.
+  if (completedToolRound) {
+    return {
+      kind: "auto_ack_after_tool_to_auto",
+      toolChoice: "auto",
+      prompt: nativePostToolAcknowledgementRetryPrompt(prompt)
+    };
+  }
+
+  const shouldForceRequired =
+    forceRequiredMode === "legacy" ||
+    (forceRequiredMode === "first_step" &&
+      shouldRequireNativeToolForFileGeneration(request, upstreamModel, forceRequiredMode));
+  const shouldUseStrongAutoPrompt =
+    usesAutoOnlyNativeTools(upstreamModel) && isFirstStepNativeFileGenerationTask(request);
+  if (usesAutoOnlyNativeTools(upstreamModel) || !shouldForceRequired) {
     return {
       kind: "auto_ack_to_auto",
       toolChoice: "auto",
-      prompt: nativeToolAcknowledgementRetryPrompt(prompt)
+      prompt: shouldForceRequired || shouldUseStrongAutoPrompt
+        ? nativeToolAcknowledgementRetryPrompt(prompt)
+        : nativeAutoAcknowledgementRetryPrompt(prompt)
     };
   }
   return {
@@ -2482,22 +2660,46 @@ function nativeValidationRetryPlan(
   };
 }
 
+type NativeToolForceRequiredMode = "first_step" | "disabled" | "legacy";
+
+function parseNativeToolForceRequiredMode(
+  value: string | undefined,
+  onWarning?: (message: string) => void
+): NativeToolForceRequiredMode {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized || normalized === "first_step") {
+    return "first_step";
+  }
+  if (normalized === "disabled" || normalized === "legacy") {
+    return normalized;
+  }
+  onWarning?.(
+    `Invalid MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE=${value}; using first_step.`
+  );
+  return "first_step";
+}
+
 function initialNativeToolChoice(
   request: ChatCompletionRequest,
-  upstreamModel: string
+  upstreamModel: string,
+  forceRequiredMode: NativeToolForceRequiredMode
 ): ChatCompletionRequest["toolChoice"] {
   if (request.preserveAutoToolChoice) {
     return request.toolChoice;
   }
-  return shouldRequireNativeToolForFileGeneration(request, upstreamModel)
+  return shouldRequireNativeToolForFileGeneration(request, upstreamModel, forceRequiredMode)
     ? "required"
     : request.toolChoice;
 }
 
 function shouldRequireNativeToolForFileGeneration(
   request: ChatCompletionRequest,
-  upstreamModel: string
+  upstreamModel: string,
+  forceRequiredMode: NativeToolForceRequiredMode
 ): boolean {
+  if (forceRequiredMode === "disabled") {
+    return false;
+  }
   if (request.toolChoice !== "auto" || !request.tools?.length) {
     return false;
   }
@@ -2507,7 +2709,19 @@ function shouldRequireNativeToolForFileGeneration(
   if (!request.tools.some((tool) => looksLikeFileOrCodeTool(tool))) {
     return false;
   }
-  return looksLikeFileGenerationTask(request);
+  if (forceRequiredMode === "legacy") {
+    return looksLikeLegacyFileGenerationTask(request);
+  }
+  return isFirstStepNativeFileGenerationTask(request);
+}
+
+function isFirstStepNativeFileGenerationTask(request: ChatCompletionRequest): boolean {
+  return (
+    request.toolChoice === "auto" &&
+    request.tools?.some((tool) => looksLikeFileOrCodeTool(tool)) === true &&
+    !hasCompletedClientToolRound(request) &&
+    looksLikeFileGenerationTask(request)
+  );
 }
 
 function looksLikeSilentNativeToolNoop(request: ChatCompletionRequest, content: string): boolean {
@@ -2538,6 +2752,24 @@ function nativeToolAcknowledgementRetryPrompt(prompt: string): string {
     prompt,
     "",
     "The previous assistant output only acknowledged the task. Complete the user's requested task now by calling one of the client-declared tools. Do not send another acknowledgement or plain-text description."
+  ].join("\n");
+}
+
+function nativeAutoAcknowledgementRetryPrompt(prompt: string): string {
+  return [
+    prompt,
+    "",
+    "The previous assistant output only acknowledged the task. Do not send another acknowledgement.",
+    "If a client-declared tool is genuinely needed, call it now; otherwise provide the final answer now."
+  ].join("\n");
+}
+
+function nativePostToolAcknowledgementRetryPrompt(prompt: string): string {
+  return [
+    prompt,
+    "",
+    "The previous assistant output only acknowledged the task after client tools had already run. Do not send another acknowledgement.",
+    "If another client-declared tool call is genuinely needed, call it now; otherwise provide the final answer now using the available tool results."
   ].join("\n");
 }
 
@@ -2596,11 +2828,37 @@ function looksLikeFileOrCodeTool(tool: NonNullable<ChatCompletionRequest["tools"
     /\b(write|edit|create|save|patch|replace).{0,40}\b(file|workspace|code)\b/.test(description);
 }
 
-function looksLikeFileGenerationTask(request: ChatCompletionRequest): boolean {
+function hasCompletedClientToolRound(request: ChatCompletionRequest): boolean {
+  return request.messages.some(
+    (message) =>
+      message.role === "tool" ||
+      (message.role === "assistant" && (message.tool_calls?.length ?? 0) > 0)
+  );
+}
+
+function latestUserText(request: ChatCompletionRequest): string {
+  for (let index = request.messages.length - 1; index >= 0; index -= 1) {
+    const message = request.messages[index];
+    if (message?.role === "user" && typeof message.content === "string") {
+      return message.content;
+    }
+  }
+  return "";
+}
+
+function looksLikeLegacyFileGenerationTask(request: ChatCompletionRequest): boolean {
   const text = request.messages
     .map((message) => (typeof message.content === "string" ? message.content : ""))
     .join("\n")
     .toLowerCase();
+  return looksLikeFileGenerationText(text);
+}
+
+function looksLikeFileGenerationTask(request: ChatCompletionRequest): boolean {
+  return looksLikeFileGenerationText(latestUserText(request).toLowerCase());
+}
+
+function looksLikeFileGenerationText(text: string): boolean {
   if (!text.trim()) {
     return false;
   }

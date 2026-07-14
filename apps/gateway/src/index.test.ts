@@ -6366,6 +6366,469 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("ignores file keywords in a Research system prompt when the latest user request is not a file task", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: { content: "The available evidence is mixed." },
+              finish_reason: "stop"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "Research agent: create and write files or code when a file-generation task requires it."
+                  },
+                  {
+                    role: "user",
+                    content: "What does the recent literature say about this treatment?"
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" }, content: { type: "string" } },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "stop",
+              message: { content: "The available evidence is mixed." }
+            });
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              tool_choice: "auto"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("restores only the legacy initial file classifier when diagnostic mode is enabled", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_legacy_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":"legacy.html","content":"legacy"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE: "legacy",
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  {
+                    role: "system",
+                    content: "Research agent may create and write code files when requested."
+                  },
+                  { role: "user", content: "Summarize the evidence in plain text." }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" }, content: { type: "string" } },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              tool_choice: "required"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("keeps acknowledgement retry on auto after a completed client tool round", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      const content = captured.length === 1
+        ? "I will create the final HTML file."
+        : "The research results support a cautious conclusion.";
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content }, finish_reason: "stop" }]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  { role: "user", content: "Create an HTML file summarizing the research." },
+                  {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_pubmed",
+                        type: "function",
+                        function: { name: "pubmed_search", arguments: '{"query":"evidence"}' }
+                      }
+                    ]
+                  },
+                  {
+                    role: "tool",
+                    tool_call_id: "call_pubmed",
+                    content: '{"articles":["result"]}'
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" }, content: { type: "string" } },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "auto"]);
+            expect(response.json().choices[0]).toMatchObject({
+              finish_reason: "stop",
+              message: { content: "The research results support a cautious conclusion." }
+            });
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain(
+              "after client tools had already run"
+            );
+            expect(retryMessages[1].content).not.toContain(
+              "Complete the user's requested task now by calling"
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("keeps the initial choice on auto when a real file task already has tool history", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: { content: "The existing tool result is sufficient for the final answer." },
+              finish_reason: "stop"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  { role: "user", content: "Create an HTML file summarizing this evidence." },
+                  {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_write_history",
+                        type: "function",
+                        function: {
+                          name: "write_file",
+                          arguments: '{"path":"summary.html","content":"draft"}'
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    role: "tool",
+                    tool_call_id: "call_write_history",
+                    content: '{"ok":true}'
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" }, content: { type: "string" } },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "z-ai/glm-5.2",
+              tool_choice: "auto"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("disables both native auto-to-required upgrades with the emergency mode", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      const content = captured.length === 1
+        ? "I will create the requested HTML file."
+        : "I cannot create the file without more details.";
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content }, finish_reason: "stop" }]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE: "disabled",
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["expert"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "expert",
+                messages: [
+                  { role: "user", content: "Create an interactive HTML file for this result." }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" }, content: { type: "string" } },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "auto"]);
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain(
+              "If a client-declared tool is genuinely needed"
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("retries Expert native tool validation failures with auto while enforcing required", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
@@ -6804,6 +7267,12 @@ describe("gateway phase 1 routes", () => {
             expect(retryMessages[1].content).toContain(
               "The previous assistant output only acknowledged the task."
             );
+            expect(retryMessages[1].content).toContain(
+              "Complete the user's requested task now by calling one of the client-declared tools."
+            );
+            expect(retryMessages[1].content).not.toContain(
+              "If a client-declared tool is genuinely needed"
+            );
           } finally {
             await app.close();
           }
@@ -6951,7 +7420,7 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
-  it("retries native OpenRouter auto tools once when a non-file task only acknowledges an action", async () => {
+  it("keeps native OpenRouter acknowledgement retries on auto for non-file tools", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
       captured.push(JSON.parse(body) as Record<string, unknown>);
@@ -7082,7 +7551,11 @@ describe("gateway phase 1 routes", () => {
                 total_tokens: 96
               }
             });
-            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "required"]);
+            expect(captured.map((body) => body.tool_choice)).toEqual(["auto", "auto"]);
+            const retryMessages = captured[1].messages as Array<{ role: string; content: string }>;
+            expect(retryMessages[1].content).toContain(
+              "If a client-declared tool is genuinely needed"
+            );
           } finally {
             await app.close();
           }

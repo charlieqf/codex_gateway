@@ -50,6 +50,7 @@ import {
 } from "./commands/client-event-queries.js";
 import { registerIssueCommand } from "./commands/issue.js";
 import { registerProvisionUserCommand } from "./commands/provision-user.js";
+import { buildOpsSnapshot } from "./commands/ops-snapshot.js";
 import { resolveSubjectUserId } from "./commands/subject-options.js";
 import {
   encryptAccessCredentialToken,
@@ -126,6 +127,23 @@ registerClientEventQueryCommands(program, {
   printJson,
   printText
 });
+
+program
+  .command("ops-snapshot")
+  .description("Print a read-only operations snapshot as JSON.")
+  .option(
+    "--runtime-snapshot <path>",
+    "Gateway runtime snapshot path",
+    process.env.GATEWAY_OPS_RUNTIME_SNAPSHOT_PATH
+  )
+  .action((options: { runtimeSnapshot?: string }) => {
+    printJson(
+      buildOpsSnapshot({
+        dbPath: requireDbPath(),
+        runtimeSnapshotPath: options.runtimeSnapshot
+      })
+    );
+  });
 
 program
   .command("list")
