@@ -32,7 +32,8 @@ describe("buildOpsSnapshot", () => {
         status TEXT NOT NULL,
         error_code TEXT,
         rate_limited INTEGER NOT NULL DEFAULT 0,
-        limit_kind TEXT
+        limit_kind TEXT,
+        upstream_attempts_json TEXT
       );
       CREATE TABLE upstream_accounts (
         id TEXT PRIMARY KEY,
@@ -45,8 +46,9 @@ describe("buildOpsSnapshot", () => {
     const insert = db.prepare(
       `INSERT INTO request_events (
          request_id, subject_id, upstream_account_id, public_model_id, started_at,
-         duration_ms, first_byte_ms, status, error_code, rate_limited, limit_kind
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         duration_ms, first_byte_ms, status, error_code, rate_limited, limit_kind,
+         upstream_attempts_json
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     insert.run(
       "req-upstream-rate",
@@ -59,7 +61,8 @@ describe("buildOpsSnapshot", () => {
       "error",
       "rate_limited",
       1,
-      null
+      null,
+      JSON.stringify([{ kind: "native_initial" }])
     );
     insert.run(
       "req-user-rate",
@@ -72,7 +75,8 @@ describe("buildOpsSnapshot", () => {
       "error",
       "rate_limited",
       1,
-      "concurrency"
+      "concurrency",
+      null
     );
     insert.run(
       "req-timeout",
@@ -85,6 +89,21 @@ describe("buildOpsSnapshot", () => {
       "error",
       "upstream_timeout",
       0,
+      null,
+      null
+    );
+    insert.run(
+      "req-unknown-rate",
+      "user-3",
+      null,
+      "standard",
+      "2026-07-14T00:06:00.000Z",
+      5,
+      null,
+      "error",
+      "rate_limited",
+      1,
+      null,
       null
     );
     db.prepare(
@@ -113,12 +132,16 @@ describe("buildOpsSnapshot", () => {
     expect(snapshot.runtimeSnapshotStatus).toBe("ok");
     expect(snapshot.runtime).toMatchObject({ inflightRequests: 2 });
     expect(snapshot.windows["5m"]).toMatchObject({
-      total: 3,
-      affectedUsers: 2,
+      total: 4,
+      affectedUsers: 3,
+      infrastructureAffectedUsers: 1,
       infrastructureErrors: 1,
       upstreamRateLimited: 1,
       userRateLimited: 1,
-      byModel: { max: 2, goldencode: 1 }
+      rateLimitOriginUnknown: 1,
+      p95DurationMs: 180_000,
+      p95FirstByteMs: 60_000,
+      byModel: { max: 2, goldencode: 1, standard: 1 }
     });
     expect(snapshot.upstreamAccounts).toHaveLength(1);
     expect(after.count).toBe(before.count);

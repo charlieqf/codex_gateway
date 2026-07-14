@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the Codex Gateway watchdog every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+RandomizedDelaySec=5s
+AccuracySec=5s
+Persistent=false
+Unit=codex-gateway-watchdog.service
+
+[Install]
+WantedBy=timers.target

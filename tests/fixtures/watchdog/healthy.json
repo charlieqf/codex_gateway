@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-15T00:00:00.000Z",
+  "gatewayHealth": { "status": "ok", "httpStatus": 200, "ready": true, "totalMs": 50 },
+  "host": {
+    "memAvailableBytes": 12884901888,
+    "memoryPsiSupported": true,
+    "memoryPsiSomeAvg60": 0,
+    "memoryPsiFullAvg60": 0,
+    "diskUsedBytes": 85899345920,
+    "diskUsedPercent": 69,
+    "diskAvailableBytes": 42949672960,
+    "inodeUsedPercent": 3,
+    "load1": 0.2,
+    "vcpus": 4
+  },
+  "container": {
+    "status": "ok",
+    "health": "healthy",
+    "restartCount": 0,
+    "oomKilled": false,
+    "memoryBytes": 209715200,
+    "pids": 24,
+    "codexChildren": 0,
+    "allowedCodexConcurrency": 4
+  },
+  "temporaryState": {
+    "status": "ok",
+    "count": 0,
+    "totalBytes": 0,
+    "largestBytes": 0,
+    "oldestAgeSeconds": 0
+  },
+  "persistentState": {
+    "primaryDbBytes": 6500000000,
+    "primaryWalBytes": 0,
+    "plusDbBytes": 4900000000,
+    "plusWalBytes": 0,
+    "quarantineBytes": 8700000000
+  },
+  "ops": {
+    "runtimeSnapshotStatus": "ok",
+    "runtime": {
+      "inflightRequests": 0,
+      "oldestInflightAgeSeconds": null,
+      "deadlineExceededRequests": 0,
+      "oldestDeadlineExceededAgeSeconds": null
+    },
+    "windows": {
+      "5m": {
+        "total": 5,
+        "infrastructureErrors": 0,
+        "infrastructureAffectedUsers": 0,
+        "upstreamRateLimited": 0,
+        "rateLimitOriginUnknown": 0
+      },
+      "15m": {
+        "total": 10,
+        "p95FirstByteMs": 5000,
+        "firstByteOver300Seconds": 0,
+        "p95DurationMs": 10000,
+        "durationOver600Seconds": 0
+      }
+    },
+    "upstreamAccounts": [
+      { "id": "account-a", "state": "active", "cooldownUntil": null }
+    ]
+  }
+}

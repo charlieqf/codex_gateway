@@ -46,10 +46,12 @@ COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/apps /app/apps
 COPY --from=build /app/packages /app/packages
 COPY scripts/archive-unreferenced-codex-rollouts.mjs /app/scripts/archive-unreferenced-codex-rollouts.mjs
+COPY scripts/ops/gateway-request-watchdog.mjs /app/scripts/ops/gateway-request-watchdog.mjs
 COPY scripts/codex-gateway-exec.sh /usr/local/bin/codex-gateway-exec
 COPY scripts/gateway-entrypoint.sh /usr/local/bin/codex-gateway-entrypoint
 
-RUN chmod 0755 /usr/local/bin/codex-gateway-exec /usr/local/bin/codex-gateway-entrypoint
+RUN chmod 0755 /usr/local/bin/codex-gateway-exec /usr/local/bin/codex-gateway-entrypoint \
+  && chmod 0555 /app/scripts/ops/gateway-request-watchdog.mjs
 
 USER codexgw
 

@@ -1,12 +1,22 @@
 # System Status
 
-Last updated: 2026-07-03
+Last updated: 2026-07-15
 
 ## Current Phase
 
 The Azure gateway is in a controlled public HTTPS internal trial for up to 10 trusted users. It is not a broad production service. A separate CN1 loopback-only GoldenCode gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
+
+- Monitoring data-plane implementation and local no-notify watchdog fixtures:
+  - Gateway active-request registry and atomic runtime snapshot;
+  - read-only admin `ops-snapshot` with 5/15-minute request aggregation;
+  - explicit local/upstream/unknown `rate_limited` disambiguation;
+  - configurable total chat deadline;
+  - host watchdog collector, standalone rule evaluator, sanitized fixtures,
+    incident deduplication/resolution state, and hardened systemd templates;
+  - real email/SMS delivery and external Gatus deployment remain disabled and
+    are not part of this completed data-plane scope.
 
 - TypeScript/npm workspace scaffold.
 - OpenAI Codex provider feasibility validation using ChatGPT device-code authorization.

@@ -1,0 +1,33 @@
+[Unit]
+Description=Codex Gateway read-only watchdog (no notifications)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+StateDirectory=codex-gateway-watchdog
+StateDirectoryMode=0700
+Environment=WATCHDOG_CONTAINER=codex_gateway_test-gateway-1
+Environment=WATCHDOG_STATE_DIR=/var/lib/codex-gateway-watchdog
+Environment=WATCHDOG_GATEWAY_HEALTH_URL=http://127.0.0.1:18787/gateway/health
+Environment=WATCHDOG_ALLOWED_CODEX_CONCURRENCY=2
+ExecStart=/usr/local/lib/codex-gateway-watchdog/gateway-host-watchdog.sh --dry-run --no-notify
+TimeoutStartSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+ReadWritePaths=/var/lib/codex-gateway-watchdog
+
+[Install]
+WantedBy=multi-user.target
