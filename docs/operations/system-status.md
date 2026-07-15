@@ -4,7 +4,11 @@ Last updated: 2026-07-15
 
 ## Current Phase
 
-The Azure gateway is in a controlled public HTTPS internal trial for up to 10 trusted users. It is not a broad production service. A separate CN1 loopback-only GoldenCode gateway is also running for domestic-only GLM-5.2 validation.
+The Azure gateway is the live public HTTPS Gateway. It originated as a
+controlled trial for up to 10 trusted users, but the 2026-07-15 production
+`trial-check` found 77 active users and 73 active API keys, so it no longer
+fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
+gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
@@ -211,6 +215,28 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-15 commit `db12b11` deployed rate-limit response contract v1 to the
+  live Azure Gateway from clean release checkout
+  `/home/qian/codex-gateway-release-db12b11-20260715T101500Z`. VM
+  `npm run build` and all 326 tests in 22 files passed. The protected env
+  preflight confirmed all 8 public models and the four GoldenCode provider
+  keys without printing secret values. A consistent pre-deploy database
+  archive was stored at
+  `/home/qian/codex-gateway-backups/db12b11/gateway-databases-pre-db12b11-20260715T103101Z.tgz`.
+  The container started at `2026-07-15T10:31:27Z` on image
+  `sha256:ab61480826e2be9f9743b324f31cd1384ce2f376f5811b2dcf5fc4c2996060a6`,
+  stayed healthy with zero restarts, and remained loopback-only at
+  `127.0.0.1:18787->8787`. Public OpenAI-compatible smoke passed; the exact
+  8-model surface passed; GoldenCode request
+  `req-2d29bb6b-880c-489d-ac30-add8dfb934f1` recorded
+  `goldencode-qianfan / qianfan / glm-5.2 / medium`; and local 429 request
+  `req-1aedad43-533c-492e-850a-1ba4b9733f85` returned
+  `request_minute / gateway / contract version 1` with matching body and
+  headers. All temporary smoke keys were revoked and their users disabled.
+  The controlled-trial check now reports existing operational debt: 77 active
+  users exceed the historical limit of 10, 14 active keys lack both daily and
+  concurrency caps, 17 active users lack contact metadata, and several legacy
+  entitlement states need review. No real user was disabled during deployment.
 - 2026-06-30 the live controlled-trial gateway registry was updated in
   `config/gateway.container.env` to publish four public models:
   `max -> gpt-5.5`, `expert -> z-ai/glm-5.2` with

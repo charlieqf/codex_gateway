@@ -2,7 +2,7 @@
 
 日期：2026-07-15
 合同版本：`rate_limit_contract_version = 1`
-状态：代码与测试已实现，待生产部署后补充上线 commit 和部署时间。
+状态：已于 2026-07-15 部署到 Azure 生产 Gateway。
 
 ## 1. 背景
 
@@ -300,9 +300,18 @@ error.request_id 为非空字符串
 error.rate_limit_origin in ["gateway", "upstream", "unknown"]
 ```
 
-生产部署完成后，本节需要补充：
+生产上线记录：
 
-- Gateway Git commit
-- Docker镜像构建时间
-- Azure部署时间
-- 公网smoke request ID
+- Gateway Git commit：`db12b11`（`Expose precise rate limit causes`）
+- Docker 镜像：
+  `sha256:ab61480826e2be9f9743b324f31cd1384ce2f376f5811b2dcf5fc4c2996060a6`
+- Docker 镜像构建时间：`2026-07-15T10:27:31Z`
+- Azure 容器启动时间：`2026-07-15T10:31:27Z`
+- 公网 OpenAI-compatible smoke：
+  `req-1cd39cbf-035b-4548-886d-cec04ce2a782`
+- 公网 GoldenCode smoke：
+  `req-2d29bb6b-880c-489d-ac30-add8dfb934f1`，审计归因为
+  `goldencode-qianfan / qianfan / glm-5.2 / medium`
+- 公网 Gateway 本地 429 合同 smoke：
+  `req-1aedad43-533c-492e-850a-1ba4b9733f85`，返回
+  `request_minute / gateway / contract version 1`
