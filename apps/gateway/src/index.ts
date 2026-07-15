@@ -14,6 +14,7 @@ import {
   extractAccessCredentialPrefix,
   extractUnifiedClientKeyPrefix,
   GatewayError,
+  type LimitRejection,
   publicFeaturePolicy,
   type GatewaySession,
   type GatewayStore,
@@ -80,9 +81,16 @@ import {
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
 import { getGatewayContext, type GatewayRequestContext } from "./http/context.js";
 import {
+  applyGatewayErrorHeaders,
+  gatewayErrorMetadata,
+  type GatewayErrorResponseContext
+} from "./http/error-response.js";
+import {
   markClientAborted,
   markFirstByte,
   markGatewayError,
+  markRateLimitOrigin,
+  markRateLimitRejection,
   markSession,
   markTokenUsage,
   recordObservation,
@@ -443,6 +451,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.clientEventsRateLimiter ?? new InMemoryCredentialRateLimiter({ now: clock });
   const clientEventsRatePolicy =
     options.clientEventsRatePolicy ?? resolveClientEventsRatePolicy(process.env);
+  const clientEventsRateLimitLogState = new Map<
+    string,
+    { nextLogAtMs: number; suppressed: number }
+  >();
   const adminMessagesAccess = resolveAdminMessagesAccess({
     token: options.adminMessagesToken ?? process.env.GATEWAY_ADMIN_MESSAGES_TOKEN,
     authMode: options.adminMessagesAuthMode ?? process.env.GATEWAY_ADMIN_MESSAGES_AUTH
@@ -540,6 +552,12 @@ export function buildGateway(options: GatewayOptions = {}) {
       })
     );
   }
+
+  app.addHook("preHandler", async (request) => {
+    if (!request.routeOptions.config?.public) {
+      applyClientTurnHeaders(request);
+    }
+  });
 
   app.addHook("preHandler", async (request, reply) =>
     rateLimitHook(request, reply, rateLimiter)
@@ -1142,6 +1160,16 @@ export function buildGateway(options: GatewayOptions = {}) {
         policy: clientEventsRatePolicy
       });
       if (!("release" in permit)) {
+        markRateLimitRejection(request, permit);
+        logClientEventRateLimitRejection({
+          request,
+          credentialId: credential.id,
+          subjectId: subject.id,
+          family: "messages",
+          rejection: permit,
+          state: clientEventsRateLimitLogState,
+          now: clock()
+        });
         return sendError(request, reply, permit.error);
       }
 
@@ -1258,6 +1286,16 @@ export function buildGateway(options: GatewayOptions = {}) {
         policy: clientEventsRatePolicy
       });
       if (!("release" in permit)) {
+        markRateLimitRejection(request, permit);
+        logClientEventRateLimitRejection({
+          request,
+          credentialId: credential.id,
+          subjectId: subject.id,
+          family: "diagnostics",
+          rejection: permit,
+          state: clientEventsRateLimitLogState,
+          now: clock()
+        });
         return sendError(request, reply, permit.error);
       }
 
@@ -1682,7 +1720,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
             request.gatewayErrorCode = strictResult.code;
-            sse.writeData(openAIErrorPayload(strictResult));
+            sse.writeData(
+              openAIErrorPayload(strictResult, gatewayErrorResponseContext(request))
+            );
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
             activeRequest.markFirstByte();
@@ -1741,7 +1781,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
-            sse.writeData(openAIErrorPayload(nativeResult));
+            sse.writeData(
+              openAIErrorPayload(nativeResult, gatewayErrorResponseContext(request))
+            );
             failed = true;
           } else if (nativeResult.toolCalls.length > 0) {
             activeRequest.markFirstByte();
@@ -1846,7 +1888,9 @@ export function buildGateway(options: GatewayOptions = {}) {
                   request,
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
                 );
-                sse.writeData(openAIErrorPayload(error));
+                sse.writeData(
+                  openAIErrorPayload(error, gatewayErrorResponseContext(request))
+                );
                 failed = true;
                 break;
               }
@@ -1897,7 +1941,12 @@ export function buildGateway(options: GatewayOptions = {}) {
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
                 );
                 writeInitialChunk();
-                sse.writeData(openAIErrorPayload(truncatedWithoutOutputError));
+                sse.writeData(
+                  openAIErrorPayload(
+                    truncatedWithoutOutputError,
+                    gatewayErrorResponseContext(request)
+                  )
+                );
                 failed = true;
                 break;
               }
@@ -3182,25 +3231,61 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 }
 
 function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
+  const errorContext = gatewayErrorResponseContext(request);
+  applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
   return {
     error: {
       code: error.code,
       message: error.message,
-      retry_after_seconds: error.retryAfterSeconds
+      ...gatewayErrorMetadata(error, errorContext)
     }
   };
 }
 
+function gatewayErrorResponseContext(
+  request: FastifyRequest
+): GatewayErrorResponseContext {
+  return {
+    requestId: request.id,
+    limitKind: request.gatewayLimitKind,
+    limitDetails: request.gatewayLimitDetails,
+    rateLimitOrigin: request.gatewayRateLimitOrigin
+  };
+}
+
+function inferUpstreamRateLimitOrigin(
+  request: FastifyRequest,
+  error: GatewayError
+): void {
+  if (error.code !== "rate_limited" || request.gatewayLimitKind) {
+    return;
+  }
+  if (
+    error.upstreamStatus === 429 ||
+    request.gatewayUpstreamHttpStatus === 429 ||
+    request.gatewayUpstreamAttempts?.some(
+      (attempt) => attempt.errorCode === "rate_limited" || attempt.upstreamHttpStatus === 429
+    )
+  ) {
+    markRateLimitOrigin(request, "upstream");
+  }
+}
+
 function sendImageError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
+  const errorContext = gatewayErrorResponseContext(request);
+  applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
   return {
     error: {
       code: error.code,
       message: error.message,
-      request_id: request.id
+      request_id: request.id,
+      ...gatewayErrorMetadata(error, errorContext)
     }
   };
 }
@@ -3492,12 +3577,15 @@ function isImageFallbackRetryableError(error: GatewayError): boolean {
 }
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
+  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
   if (error.upstreamStatus !== undefined) {
     request.gatewayUpstreamHttpStatus = error.upstreamStatus;
   }
+  const errorContext = gatewayErrorResponseContext(request);
+  applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
-  return openAIErrorPayload(error);
+  return openAIErrorPayload(error, errorContext);
 }
 
 function chatCompletionExecutionFailure(
@@ -4146,6 +4234,43 @@ function clientEventsRateLimitKey(
   return `${credentialId}:${eventFamily}`;
 }
 
+function logClientEventRateLimitRejection(input: {
+  request: FastifyRequest;
+  credentialId: string;
+  subjectId: string;
+  family: "messages" | "diagnostics";
+  rejection: LimitRejection;
+  state: Map<string, { nextLogAtMs: number; suppressed: number }>;
+  now: Date;
+}): void {
+  const key = `${input.credentialId}:${input.family}:${input.rejection.limitKind}`;
+  const nowMs = input.now.getTime();
+  const previous = input.state.get(key);
+  if (previous && nowMs < previous.nextLogAtMs) {
+    previous.suppressed += 1;
+    return;
+  }
+
+  input.request.log.warn(
+    {
+      request_id: input.request.id,
+      credential_id: input.credentialId,
+      subject_id: input.subjectId,
+      event_family: input.family,
+      limit_kind: input.rejection.limitKind,
+      rate_limit_origin: "gateway",
+      limit: input.rejection.details ?? null,
+      retry_after_seconds: input.rejection.error.retryAfterSeconds ?? null,
+      rejected_since_previous_log: (previous?.suppressed ?? 0) + 1
+    },
+    "Client event ingest rate limited."
+  );
+  input.state.set(key, {
+    nextLogAtMs: nowMs + 60_000,
+    suppressed: 0
+  });
+}
+
 const diagnosticInferredLinkSource = "inferred_latest_session_message";
 const sessionScopedDiagnosticCategories = new Set([
   "agent_turn",
@@ -4355,6 +4480,9 @@ function createProviderErrorLogger(
     if (diagnostic.rawStatus !== undefined) {
       request.gatewayUpstreamHttpStatus = diagnostic.rawStatus;
     }
+    if (diagnostic.code === "rate_limited" || diagnostic.rawStatus === 429) {
+      markRateLimitOrigin(request, "upstream");
+    }
     request.log.warn(
       {
         request_id: request.id,
@@ -4433,6 +4561,15 @@ function markProviderStreamSummary(
 ): void {
   if (!summary) {
     return;
+  }
+  if (
+    summary.errorCode === "rate_limited" ||
+    summary.upstreamHttpStatus === 429 ||
+    summary.attempts.some(
+      (attempt) => attempt.errorCode === "rate_limited" || attempt.upstreamHttpStatus === 429
+    )
+  ) {
+    markRateLimitOrigin(request, "upstream");
   }
   request.gatewayUpstreamFinishReason = summary.finishReason;
   request.gatewayUpstreamRequestId = summary.upstreamRequestId;

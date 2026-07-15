@@ -20,6 +20,14 @@ describe("InMemoryCredentialRateLimiter", () => {
     expect(rejection(limited).limitKind).toBe("request_minute");
     expect(rejection(limited).error.code).toBe("rate_limited");
     expect(rejection(limited).error.retryAfterSeconds).toBe(60);
+    expect(rejection(limited).details).toEqual({
+      scope: "credential",
+      window: "minute",
+      limit: 1,
+      used: 1,
+      requested: 1
+    });
+    expect(rejection(limited).error.message).toContain("1 of 1 requests");
 
     now = new Date("2026-01-02T00:01:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy })).release();
@@ -38,6 +46,12 @@ describe("InMemoryCredentialRateLimiter", () => {
     const limited = limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy });
     expect(rejection(limited).limitKind).toBe("request_day");
     expect(rejection(limited).error.retryAfterSeconds).toBe(60);
+    expect(rejection(limited).details).toMatchObject({
+      scope: "credential",
+      window: "day",
+      limit: 1,
+      used: 1
+    });
 
     now = new Date("2026-01-02T00:00:00Z");
     permit(limiter.acquire({ credentialId: "cred_1", policy: dailyPolicy })).release();
@@ -95,6 +109,13 @@ describe("InMemoryCredentialRateLimiter", () => {
     const limited = limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy });
     expect(rejection(limited).limitKind).toBe("concurrency");
     expect(rejection(limited).error.retryAfterSeconds).toBe(1);
+    expect(rejection(limited).details).toEqual({
+      scope: "credential",
+      window: "concurrency",
+      limit: 1,
+      used: 1,
+      requested: 1
+    });
 
     first.release();
     permit(limiter.acquire({ credentialId: "cred_1", policy: concurrencyPolicy })).release();

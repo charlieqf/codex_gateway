@@ -10,6 +10,7 @@ import {
   type FinalizeInput,
   type FinalizeResult,
   type GetUsageInput,
+  type LimitDetails,
   type LimitKind,
   type LimitRejection,
   type ProviderKind,
@@ -139,7 +140,18 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       policy.maxPromptTokensPerRequest !== null &&
       estimatedPromptTokens > policy.maxPromptTokensPerRequest
     ) {
-      return tokenRejection("token_request_prompt", "Prompt exceeds maxPromptTokensPerRequest.");
+      return tokenRejection(
+        "token_request_prompt",
+        `Prompt token limit exceeded: this request needs ${estimatedPromptTokens} tokens; the maximum is ${policy.maxPromptTokensPerRequest}.`,
+        undefined,
+        {
+          scope: "request",
+          window: "request",
+          limit: policy.maxPromptTokensPerRequest,
+          used: 0,
+          requested: estimatedPromptTokens
+        }
+      );
     }
     if (
       policy.maxTotalTokensPerRequest !== null &&
@@ -147,7 +159,15 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     ) {
       return tokenRejection(
         "token_request_total",
-        "Single request would exceed maxTotalTokensPerRequest."
+        `Total token limit exceeded: this request needs ${reservedTokens} tokens; the maximum is ${policy.maxTotalTokensPerRequest}.`,
+        undefined,
+        {
+          scope: "request",
+          window: "request",
+          limit: policy.maxTotalTokensPerRequest,
+          used: 0,
+          requested: reservedTokens
+        }
       );
     }
 
@@ -646,8 +666,15 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const limitKind = `token_${input.kind}` as LimitKind;
     return tokenRejection(
       limitKind,
-      `Token ${input.kind} budget exceeded.`,
-      Math.max(1, Math.ceil((input.windowEnd.getTime() - input.now.getTime()) / 1000))
+      `Token ${input.kind} quota exceeded: ${used + reserved} tokens used or reserved, ${input.reservedTokens} requested, maximum ${input.limit}.`,
+      Math.max(1, Math.ceil((input.windowEnd.getTime() - input.now.getTime()) / 1000)),
+      {
+        scope: input.entitlementId ? "entitlement" : "subject",
+        window: input.kind,
+        limit: input.limit,
+        used: used + reserved,
+        requested: input.reservedTokens
+      }
     );
   }
 
@@ -1019,11 +1046,13 @@ function nonNegativeInteger(value: number): number {
 function tokenRejection(
   limitKind: LimitKind,
   message: string,
-  retryAfterSeconds?: number
+  retryAfterSeconds?: number,
+  details?: LimitDetails
 ): LimitRejection {
   return {
     ok: false,
     limitKind,
+    details,
     error: new GatewayError({
       code: "rate_limited",
       message,

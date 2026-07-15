@@ -1,8 +1,11 @@
 import type { FastifyRequest } from "fastify";
 import type {
   GatewayError,
+  LimitDetails,
   LimitKind,
+  LimitRejection,
   ObservationStore,
+  RateLimitOrigin,
   RequestTokenUsageSource,
   TokenUsage
 } from "@codex-gateway/core";
@@ -15,6 +18,7 @@ export function markGatewayError(request: FastifyRequest, error: GatewayError): 
   request.gatewayErrorCode = error.code;
   if (error.code === "rate_limited") {
     request.gatewayRateLimited = true;
+    request.gatewayRateLimitOrigin ??= "unknown";
   }
 }
 
@@ -27,8 +31,30 @@ export function markRateLimited(request: FastifyRequest): void {
   request.gatewayRateLimited = true;
 }
 
-export function markLimitKind(request: FastifyRequest, limitKind: LimitKind): void {
+export function markRateLimitOrigin(
+  request: FastifyRequest,
+  origin: RateLimitOrigin
+): void {
+  request.gatewayRateLimitOrigin = origin;
+}
+
+export function markLimitKind(
+  request: FastifyRequest,
+  limitKind: LimitKind,
+  details?: LimitDetails
+): void {
   request.gatewayLimitKind = limitKind;
+  request.gatewayLimitDetails = details;
+}
+
+export function markRateLimitRejection(
+  request: FastifyRequest,
+  rejection: LimitRejection
+): void {
+  markGatewayError(request, rejection.error);
+  markRateLimited(request);
+  markLimitKind(request, rejection.limitKind, rejection.details);
+  markRateLimitOrigin(request, "gateway");
 }
 
 export function markSession(request: FastifyRequest, sessionId: string | null): void {

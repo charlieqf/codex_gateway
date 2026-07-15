@@ -2,8 +2,10 @@ import type { FastifyRequest } from "fastify";
 import type {
   ProviderAdapter,
   GatewayErrorCode,
+  LimitDetails,
   LimitKind,
   ProviderKind,
+  RateLimitOrigin,
   RateLimitPolicy,
   RequestTokenUsageSource,
   Scope,
@@ -48,6 +50,8 @@ declare module "fastify" {
     gatewayErrorCode?: GatewayErrorCode | string;
     gatewayRateLimited?: boolean;
     gatewayLimitKind?: LimitKind;
+    gatewayLimitDetails?: LimitDetails;
+    gatewayRateLimitOrigin?: RateLimitOrigin;
     gatewaySessionId?: string | null;
     gatewayTokenUsage?: TokenUsage;
     gatewayEstimatedTokens?: number | null;

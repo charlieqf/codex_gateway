@@ -10,8 +10,7 @@ import {
 import { getGatewayContext } from "../http/context.js";
 import {
   markGatewayError,
-  markLimitKind,
-  markRateLimited,
+  markRateLimitRejection,
   markTokenFinalizeResult,
   markTokenReservation
 } from "../http/observation.js";
@@ -154,9 +153,7 @@ export async function beginTokenBudget(
       now
     });
     if (!result.ok) {
-      markGatewayError(request, result.error);
-      markRateLimited(request);
-      markLimitKind(request, result.limitKind);
+      markRateLimitRejection(request, result);
       return result.error;
     }
     markTokenReservation(request, result.reservationId, "reservation");

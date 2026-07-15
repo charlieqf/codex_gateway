@@ -57,6 +57,21 @@ export interface LimitRejection {
   ok: false;
   error: GatewayError;
   limitKind: LimitKind;
+  details?: LimitDetails;
+}
+
+export type LimitScope = "credential" | "subject" | "entitlement" | "request";
+
+export type RateLimitOrigin = "gateway" | "upstream" | "unknown";
+
+export type LimitWindow = "minute" | "day" | "month" | "concurrency" | "request";
+
+export interface LimitDetails {
+  scope: LimitScope;
+  window: LimitWindow;
+  limit: number;
+  used: number;
+  requested?: number;
 }
 
 export interface FinalizeInput {

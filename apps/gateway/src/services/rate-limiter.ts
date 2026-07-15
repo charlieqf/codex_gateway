@@ -64,7 +64,18 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     state.lastSeenMs = now.getTime();
     const concurrencyLimit = input.policy.concurrentRequests;
     if (concurrencyLimit !== null && state.active >= concurrencyLimit) {
-      return rateLimited("concurrency", "Concurrent request limit reached.", 1);
+      return rateLimited(
+        "concurrency",
+        `Concurrent request limit reached: ${state.active} of ${concurrencyLimit} requests are active.`,
+        1,
+        {
+          scope: "credential",
+          window: "concurrency",
+          limit: concurrencyLimit,
+          used: state.active,
+          requested: 1
+        }
+      );
     }
 
     const minuteWindow = Math.floor(now.getTime() / 60_000);
@@ -74,10 +85,21 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
     }
     if (state.minuteCount >= input.policy.requestsPerMinute) {
       const nextMinuteAt = (minuteWindow + 1) * 60_000;
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((nextMinuteAt - now.getTime()) / 1000)
+      );
       return rateLimited(
         "request_minute",
-        "Requests per minute limit reached.",
-        Math.max(1, Math.ceil((nextMinuteAt - now.getTime()) / 1000))
+        `Request frequency limit reached: ${state.minuteCount} of ${input.policy.requestsPerMinute} requests used in the current minute. Retry in ${retryAfterSeconds} seconds.`,
+        retryAfterSeconds,
+        {
+          scope: "credential",
+          window: "minute",
+          limit: input.policy.requestsPerMinute,
+          used: state.minuteCount,
+          requested: 1
+        }
       );
     }
 
@@ -90,10 +112,21 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       input.policy.requestsPerDay !== null &&
       state.dayCount >= input.policy.requestsPerDay
     ) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((nextUtcDay(now).getTime() - now.getTime()) / 1000)
+      );
       return rateLimited(
         "request_day",
-        "Requests per day limit reached.",
-        Math.max(1, Math.ceil((nextUtcDay(now).getTime() - now.getTime()) / 1000))
+        `Daily request quota reached: ${state.dayCount} of ${input.policy.requestsPerDay} requests used in the current UTC day. Retry in ${retryAfterSeconds} seconds.`,
+        retryAfterSeconds,
+        {
+          scope: "credential",
+          window: "day",
+          limit: input.policy.requestsPerDay,
+          used: state.dayCount,
+          requested: 1
+        }
       );
     }
 
@@ -198,11 +231,13 @@ function resetSnapshot(state: CredentialRateState): RateLimitResetSnapshot {
 function rateLimited(
   limitKind: LimitKind,
   message: string,
-  retryAfterSeconds: number
+  retryAfterSeconds: number,
+  details: NonNullable<LimitRejection["details"]>
 ): LimitRejection {
   return {
     ok: false,
     limitKind,
+    details,
     error: new GatewayError({
       code: "rate_limited",
       message,

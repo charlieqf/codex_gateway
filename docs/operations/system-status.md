@@ -59,6 +59,17 @@ Completed:
   controlled debugging and makes the page/data route unauthenticated.
 - Client diagnostic metadata ingestion stores the full metadata JSON object without field whitelisting, while rejecting obvious credential/secret material. The diagnostic metadata limit is 192KB UTF-8 and the diagnostic body limit is 256KB so MedEvidence tool audit fields can include both Desktop original text and the extracted MedEvidence question.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
+- Rate-limit response contract v1 for Gateway and OpenAI-compatible errors:
+  - all `429 rate_limited` JSON/SSE errors include `request_id`,
+    `rate_limit_contract_version=1`, `limit_kind`, `rate_limit_origin`, and
+    `retry_after_seconds`;
+  - Gateway-local request and token limits expose structured maximum/used/requested details;
+  - confirmed provider rate limits use `rate_limit_origin=upstream` and do not
+    masquerade as user quota exhaustion;
+  - non-streaming responses return standard `Retry-After` plus sanitized
+    classification headers;
+  - client-event ingest rejections emit sampled structured diagnostics instead
+    of one extra warning per rejected upload.
 - SQLite request event writer for gateway observations, including Phase 1 token usage fields when provider usage is available.
 - Admin CLI usage aggregation with token totals and dry-run-capable manual request event pruning.
 - Production runtime startup validation for credential auth, SQLite state, `CODEX_HOME`, and dev-token rejection.

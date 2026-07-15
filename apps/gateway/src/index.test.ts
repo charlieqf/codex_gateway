@@ -3839,7 +3839,13 @@ describe("gateway phase 1 routes", () => {
     expect(firstClientEvent.statusCode).toBe(201);
     expect(firstModelRoute.statusCode).toBe(200);
     expect(secondClientEvent.statusCode).toBe(429);
-    expect(secondClientEvent.json().error.code).toBe("rate_limited");
+    expect(secondClientEvent.json().error).toMatchObject({
+      code: "rate_limited",
+      request_id: expect.any(String),
+      limit_kind: "request_minute",
+      rate_limit_origin: "gateway"
+    });
+    expect(secondClientEvent.headers["retry-after"]).toMatch(/^\d+$/);
     expect(secondModelRoute.statusCode).toBe(429);
 
     await app.close();
@@ -3883,7 +3889,22 @@ describe("gateway phase 1 routes", () => {
     expect(firstDiagnostic.statusCode).toBe(201);
     expect(messageAfterDiagnostic.statusCode).toBe(201);
     expect(secondDiagnostic.statusCode).toBe(429);
-    expect(secondDiagnostic.json().error.code).toBe("rate_limited");
+    expect(secondDiagnostic.json().error).toMatchObject({
+      code: "rate_limited",
+      request_id: expect.any(String),
+      retry_after_seconds: expect.any(Number),
+      limit_kind: "request_minute",
+      rate_limit_origin: "gateway",
+      limit: {
+        scope: "credential",
+        window: "minute",
+        maximum: 1,
+        used: 1,
+        requested: 1
+      }
+    });
+    expect(secondDiagnostic.headers["retry-after"]).toMatch(/^\d+$/);
+    expect(secondDiagnostic.headers["x-gateway-limit-kind"]).toBe("request_minute");
 
     await app.close();
   });
@@ -9663,6 +9684,53 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("marks upstream rate limiting in non-streaming OpenAI-compatible errors", async () => {
+    const accounts = [
+      testUpstreamAccount("codex-pro-1"),
+      testUpstreamAccount("codex-pro-2")
+    ];
+    const providers = accounts.map(
+      () =>
+        new FakeProvider([
+          { type: "error", code: "rate_limited", message: "upstream model rate limited" }
+        ])
+    );
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: accounts.map((account, index) => ({
+        upstreamAccount: account,
+        provider: providers[index],
+        maxConcurrent: 1
+      })),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json().error).toMatchObject({
+      code: "rate_limited",
+      request_id: requestId,
+      retry_after_seconds: 60,
+      limit_kind: null,
+      rate_limit_origin: "upstream"
+    });
+    expect(response.headers["retry-after"]).toBe("60");
+    expect(response.headers["x-gateway-rate-limit-origin"]).toBe("upstream");
+    expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1]);
+
+    await app.close();
+  });
+
   it("retries stateless streaming chat before the first business chunk", async () => {
     const firstAccount = testUpstreamAccount("codex-pro-1");
     const secondAccount = testUpstreamAccount("codex-pro-2");
@@ -9754,6 +9822,54 @@ describe("gateway phase 1 routes", () => {
     expect(accounts[0].cooldownUntil).toBeInstanceOf(Date);
     expect(accounts[1].cooldownUntil).toBeInstanceOf(Date);
     expect(accounts[2].cooldownUntil).toBeNull();
+
+    await app.close();
+  });
+
+  it("marks upstream rate limiting in OpenAI-compatible streaming errors", async () => {
+    const accounts = [
+      testUpstreamAccount("codex-pro-1"),
+      testUpstreamAccount("codex-pro-2")
+    ];
+    const providers = accounts.map(
+      () =>
+        new FakeProvider([
+          {
+            type: "error",
+            code: "rate_limited",
+            message: "upstream model rate limited"
+          }
+        ])
+    );
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: accounts.map((account, index) => ({
+        upstreamAccount: account,
+        provider: providers[index],
+        maxConcurrent: 1
+      })),
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain('"code":"rate_limited"');
+    expect(response.payload).toContain('"limit_kind":null');
+    expect(response.payload).toContain('"rate_limit_origin":"upstream"');
+    expect(response.payload).toContain(`"request_id":"${requestId}"`);
+    expect(response.payload).toContain('"retry_after_seconds":60');
+    expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1]);
 
     await app.close();
   });
@@ -10195,8 +10311,21 @@ describe("gateway phase 1 routes", () => {
     expect(second.statusCode).toBe(429);
     expect(second.json().error).toMatchObject({
       code: "rate_limited",
-      retry_after_seconds: expect.any(Number)
+      request_id: expect.any(String),
+      retry_after_seconds: expect.any(Number),
+      limit_kind: "request_minute",
+      rate_limit_origin: "gateway",
+      limit: {
+        scope: "credential",
+        window: "minute",
+        maximum: 1,
+        used: 1,
+        requested: 1
+      }
     });
+    expect(second.headers["retry-after"]).toMatch(/^\d+$/);
+    expect(second.headers["x-gateway-limit-kind"]).toBe("request_minute");
+    expect(second.headers["x-gateway-rate-limit-origin"]).toBe("gateway");
 
     await app.close();
   });
@@ -10236,11 +10365,17 @@ describe("gateway phase 1 routes", () => {
       headers
     });
     const firstRequestId = expectRequestIdHeader(first);
-    await app.inject({
+    const limited = await app.inject({
       method: "GET",
       url: "/gateway/status",
-      headers
+      headers: {
+        ...headers,
+        "x-medcode-client-session-id": "ses_rate_limit_test",
+        "x-medcode-client-turn-id": "msg_rate_limit_test",
+        "x-medcode-client-turn-code": "T:RATE1"
+      }
     });
+    expect(limited.statusCode).toBe(429);
 
     const events = store.listRequestEvents({ credentialId: issued.record.id });
     expect(events).toHaveLength(2);
@@ -10261,7 +10396,11 @@ describe("gateway phase 1 routes", () => {
           scope: "code",
           status: "error",
           errorCode: "rate_limited",
-          rateLimited: true
+          rateLimited: true,
+          limitKind: "request_minute",
+          clientSessionId: "ses_rate_limit_test",
+          clientTurnId: "msg_rate_limit_test",
+          turnCode: "T:RATE1"
         })
       ])
     );
@@ -11131,7 +11270,21 @@ describe("gateway phase 1 routes", () => {
     });
 
     expect(response.statusCode).toBe(429);
-    expect(response.json().error.code).toBe("rate_limited");
+    expect(response.json().error).toMatchObject({
+      code: "rate_limited",
+      request_id: expect.any(String),
+      retry_after_seconds: null,
+      limit_kind: "token_request_total",
+      rate_limit_origin: "gateway",
+      limit: {
+        scope: "request",
+        window: "request",
+        maximum: 10,
+        used: 0,
+        requested: expect.any(Number)
+      }
+    });
+    expect(response.headers["x-gateway-limit-kind"]).toBe("token_request_total");
     expect(provider.messages).toHaveLength(0);
     expect(store.listRequestEvents({ credentialId: issued.record.id })).toEqual([
       expect.objectContaining({

@@ -1,7 +1,16 @@
 import { Ajv } from "ajv";
 import { Ajv2019 } from "ajv/dist/2019.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { GatewayError, isRecord, type StreamEvent, type TokenUsage } from "@codex-gateway/core";
+import {
+  GatewayError,
+  isRecord,
+  type StreamEvent,
+  type TokenUsage
+} from "@codex-gateway/core";
+import {
+  gatewayErrorMetadata,
+  type GatewayErrorResponseContext
+} from "./http/error-response.js";
 
 const draft7ToolSchemaValidator = new Ajv({
   allErrors: true,
@@ -481,14 +490,17 @@ export function openAIUsageFromTokenUsage(usage: TokenUsage | undefined): OpenAI
   };
 }
 
-export function openAIErrorPayload(error: GatewayError) {
+export function openAIErrorPayload(
+  error: GatewayError,
+  context: GatewayErrorResponseContext = {}
+) {
   return {
     error: {
       message: error.message,
       type: openAIErrorType(error),
       code: error.code,
       param: null,
-      retry_after_seconds: error.retryAfterSeconds
+      ...gatewayErrorMetadata(error, context)
     }
   };
 }

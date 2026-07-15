@@ -2,7 +2,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { GatewayError } from "@codex-gateway/core";
 import type { CredentialRateLimiter } from "../services/rate-limiter.js";
 import { openAIErrorPayload } from "../openai-compat.js";
-import { markGatewayError, markLimitKind, markRateLimited } from "./observation.js";
+import { applyGatewayErrorHeaders, gatewayErrorMetadata } from "./error-response.js";
+import { markRateLimitRejection } from "./observation.js";
 
 export async function rateLimitHook(
   request: FastifyRequest,
@@ -23,9 +24,13 @@ export async function rateLimitHook(
     policy: credential.rate
   });
   if (!("release" in result)) {
-    markGatewayError(request, result.error);
-    markRateLimited(request);
-    markLimitKind(request, result.limitKind);
+    markRateLimitRejection(request, result);
+    applyGatewayErrorHeaders(reply, result.error, {
+      requestId: request.id,
+      limitKind: result.limitKind,
+      limitDetails: result.details,
+      rateLimitOrigin: "gateway"
+    });
     reply.code(result.error.httpStatus).send(errorPayload(request, result.error));
     return;
   }
@@ -42,14 +47,27 @@ export function releaseRateLimit(request: FastifyRequest): void {
 
 function errorPayload(request: FastifyRequest, error: GatewayError) {
   if (request.url.startsWith("/v1/")) {
-    return openAIErrorPayload(error);
+    return openAIErrorPayload(
+      error,
+      {
+        requestId: request.id,
+        limitKind: request.gatewayLimitKind,
+        limitDetails: request.gatewayLimitDetails,
+        rateLimitOrigin: request.gatewayRateLimitOrigin
+      }
+    );
   }
 
   return {
     error: {
       code: error.code,
       message: error.message,
-      retry_after_seconds: error.retryAfterSeconds
+      ...gatewayErrorMetadata(error, {
+        requestId: request.id,
+        limitKind: request.gatewayLimitKind,
+        limitDetails: request.gatewayLimitDetails,
+        rateLimitOrigin: request.gatewayRateLimitOrigin
+      })
     }
   };
 }
