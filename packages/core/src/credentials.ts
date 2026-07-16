@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { GatewayError } from "./errors.js";
+import { normalizeRateLimitPolicy } from "./token-budget.js";
 import type { AccessCredentialRecord, RateLimitPolicy, Scope } from "./types.js";
 
 export const accessCredentialTokenPrefix = "cgw";
@@ -36,12 +37,12 @@ export function issueAccessCredential(input: IssueAccessCredentialInput): Issued
       scope: input.scope,
       expiresAt: input.expiresAt,
       revokedAt: null,
-      rate: {
+      rate: normalizeRateLimitPolicy({
         requestsPerMinute: input.rate?.requestsPerMinute ?? 30,
         requestsPerDay: input.rate?.requestsPerDay ?? null,
         concurrentRequests: input.rate?.concurrentRequests ?? 1,
         ...(input.rate?.token !== undefined ? { token: input.rate.token } : {})
-      },
+      }),
       createdAt: now,
       rotatesId: input.rotatesId ?? null
     }

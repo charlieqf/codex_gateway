@@ -66,6 +66,29 @@ describe("access credentials", () => {
     ).toBe("revoked_credential");
   });
 
+  it("raises explicit per-minute token limits to the system minimum", () => {
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "minimum token rate",
+      scope: "code",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      rate: {
+        token: {
+          tokensPerMinute: 100_000,
+          tokensPerDay: 5_000_000,
+          tokensPerMonth: 100_000_000,
+          maxPromptTokensPerRequest: 200_000,
+          maxTotalTokensPerRequest: 300_000,
+          reserveTokensPerRequest: 0,
+          missingUsageCharge: "none"
+        }
+      },
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    expect(issued.record.rate.token?.tokensPerMinute).toBe(300_000);
+  });
+
   it("issues Gateway unified client keys without exposing embedded service credentials", () => {
     const issued = issueUnifiedClientKey({
       subjectId: "subj_1",

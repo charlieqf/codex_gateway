@@ -211,6 +211,82 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("migrates explicit per-minute token limits below the system minimum", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-store-token-floor-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const store = createSeededStore(dbPath);
+    const plan = store.createPlan({
+      id: "plan_token_floor_v1",
+      displayName: "Token floor",
+      policy: {
+        tokensPerMinute: 300_000,
+        tokensPerDay: 5_000_000,
+        tokensPerMonth: 100_000_000,
+        maxPromptTokensPerRequest: 200_000,
+        maxTotalTokensPerRequest: 300_000,
+        reserveTokensPerRequest: 0,
+        missingUsageCharge: "none"
+      },
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: plan.id,
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const credential = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "token floor",
+      scope: "code",
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+      rate: {
+        token: plan.policy
+      },
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertAccessCredential(credential.record);
+
+    store.database.exec("DROP TRIGGER trg_plans_policy_immutable");
+    store.database
+      .prepare(
+        "UPDATE plans SET policy_json = json_set(policy_json, '$.tokensPerMinute', 100000) WHERE id = ?"
+      )
+      .run(plan.id);
+    store.database
+      .prepare(
+        "UPDATE entitlements SET policy_snapshot_json = json_set(policy_snapshot_json, '$.tokensPerMinute', 100000) WHERE id = ?"
+      )
+      .run(entitlement.id);
+    store.database
+      .prepare(
+        "UPDATE access_credentials SET rate_json = json_set(rate_json, '$.token.tokensPerMinute', 100000) WHERE id = ?"
+      )
+      .run(credential.record.id);
+    store.database.prepare("DELETE FROM schema_migrations WHERE version = 21").run();
+    store.close();
+
+    const migrated = createSqliteStore({ path: dbPath });
+    expect(migrated.getPlan(plan.id)?.policy.tokensPerMinute).toBe(300_000);
+    expect(migrated.getEntitlement(entitlement.id)?.policySnapshot.tokensPerMinute).toBe(300_000);
+    expect(
+      migrated.getAccessCredentialByPrefix(credential.record.prefix)?.rate.token?.tokensPerMinute
+    ).toBe(300_000);
+    expect(
+      migrated.database
+        .prepare("SELECT version FROM schema_migrations WHERE version = 21")
+        .get()
+    ).toBeTruthy();
+    expect(() =>
+      migrated.database
+        .prepare("UPDATE plans SET policy_json = policy_json WHERE id = ?")
+        .run(plan.id)
+    ).toThrow("plans.policy_json is immutable");
+    migrated.close();
+  });
+
   it("applies billing purchase events with explicit periods and idempotent replay", () => {
     const store = createSeededStore(":memory:");
     store.createPlan({

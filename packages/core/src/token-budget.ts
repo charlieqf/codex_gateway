@@ -1,5 +1,7 @@
 import type { GatewayError } from "./errors.js";
-import type { ProviderKind, Scope, TokenUsage } from "./types.js";
+import type { ProviderKind, RateLimitPolicy, Scope, TokenUsage } from "./types.js";
+
+export const minimumTokensPerMinute = 300_000;
 
 export interface ModelUsageAttribution {
   publicModelId?: string | null;
@@ -176,8 +178,14 @@ export function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy 
     throw new Error("token.missingUsageCharge must be none, estimate, or reserve.");
   }
 
+  const tokensPerMinute = nullableNonNegativeInteger(
+    policy.tokensPerMinute,
+    "tokensPerMinute"
+  );
+
   return {
-    tokensPerMinute: nullableNonNegativeInteger(policy.tokensPerMinute, "tokensPerMinute"),
+    tokensPerMinute:
+      tokensPerMinute === null ? null : Math.max(tokensPerMinute, minimumTokensPerMinute),
     tokensPerDay: nullableNonNegativeInteger(policy.tokensPerDay, "tokensPerDay"),
     tokensPerMonth: nullableNonNegativeInteger(policy.tokensPerMonth, "tokensPerMonth"),
     maxPromptTokensPerRequest: nullableNonNegativeInteger(
@@ -190,6 +198,16 @@ export function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy 
     ),
     reserveTokensPerRequest: nonNegativeInteger(policy.reserveTokensPerRequest),
     missingUsageCharge
+  };
+}
+
+export function normalizeRateLimitPolicy(policy: RateLimitPolicy): RateLimitPolicy {
+  if (!policy.token) {
+    return policy;
+  }
+  return {
+    ...policy,
+    token: validateTokenPolicy(policy.token)
   };
 }
 

@@ -1,4 +1,5 @@
 import {
+  normalizeRateLimitPolicy,
   validatePlanPolicy,
   validatePlanFeaturePolicy,
   type AccessCredentialRecord,
@@ -98,7 +99,7 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     scope: value.scope,
     expiresAt: new Date(value.expires_at),
     revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
-    rate: JSON.parse(value.rate_json) as RateLimitPolicy,
+    rate: normalizeRateLimitPolicy(JSON.parse(value.rate_json) as RateLimitPolicy),
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
   };

@@ -663,6 +663,47 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    21,
+    () => {
+      if (tableExists(db, "plans")) {
+        db.exec(`
+          DROP TRIGGER IF EXISTS trg_plans_policy_immutable;
+          UPDATE plans
+          SET policy_json = json_set(policy_json, '$.tokensPerMinute', 300000)
+          WHERE json_valid(policy_json)
+            AND json_type(policy_json, '$.tokensPerMinute') IN ('integer', 'real')
+            AND json_extract(policy_json, '$.tokensPerMinute') < 300000;
+          CREATE TRIGGER IF NOT EXISTS trg_plans_policy_immutable
+          BEFORE UPDATE OF policy_json ON plans
+          BEGIN
+            SELECT RAISE(ABORT, 'plans.policy_json is immutable');
+          END;
+        `);
+      }
+      if (tableExists(db, "entitlements")) {
+        db.exec(`
+          UPDATE entitlements
+          SET policy_snapshot_json = json_set(policy_snapshot_json, '$.tokensPerMinute', 300000)
+          WHERE json_valid(policy_snapshot_json)
+            AND json_type(policy_snapshot_json, '$.tokensPerMinute') IN ('integer', 'real')
+            AND json_extract(policy_snapshot_json, '$.tokensPerMinute') < 300000;
+        `);
+      }
+      if (tableExists(db, "access_credentials")) {
+        db.exec(`
+          UPDATE access_credentials
+          SET rate_json = json_set(rate_json, '$.token.tokensPerMinute', 300000)
+          WHERE json_valid(rate_json)
+            AND json_type(rate_json, '$.token.tokensPerMinute') IN ('integer', 'real')
+            AND json_extract(rate_json, '$.token.tokensPerMinute') < 300000;
+        `);
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

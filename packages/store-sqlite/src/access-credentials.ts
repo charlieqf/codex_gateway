@@ -1,8 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
-import type {
-  AccessCredentialRecord,
-  ListAccessCredentialsInput,
-  UpdateAccessCredentialInput
+import {
+  normalizeRateLimitPolicy,
+  type AccessCredentialRecord,
+  type ListAccessCredentialsInput,
+  type UpdateAccessCredentialInput
 } from "@codex-gateway/core";
 import { accessCredentialColumns } from "./columns.js";
 import { rowToAccessCredential } from "./row-mappers.js";
@@ -11,6 +12,7 @@ export function insert(
   db: DatabaseSync,
   record: AccessCredentialRecord
 ): AccessCredentialRecord {
+  const normalizedRate = normalizeRateLimitPolicy(record.rate);
   db.prepare(
     `INSERT INTO access_credentials (
       id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at,
@@ -26,12 +28,12 @@ export function insert(
     record.scope,
     record.expiresAt.toISOString(),
     record.revokedAt?.toISOString() ?? null,
-    JSON.stringify(record.rate),
+    JSON.stringify(normalizedRate),
     record.createdAt.toISOString(),
     record.rotatesId
   );
 
-  return record;
+  return { ...record, rate: normalizedRate };
 }
 
 export function getByPrefix(
@@ -81,6 +83,7 @@ export function updateByPrefix(
   prefix: string,
   input: UpdateAccessCredentialInput
 ): AccessCredentialRecord | null {
+  const normalizedRate = input.rate ? normalizeRateLimitPolicy(input.rate) : null;
   db.prepare(
     `UPDATE access_credentials
      SET label = COALESCE(?, label),
@@ -92,7 +95,7 @@ export function updateByPrefix(
     input.label ?? null,
     input.scope ?? null,
     input.expiresAt?.toISOString() ?? null,
-    input.rate ? JSON.stringify(input.rate) : null,
+    normalizedRate ? JSON.stringify(normalizedRate) : null,
     prefix
   );
 
