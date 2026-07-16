@@ -100,6 +100,41 @@ export interface RateLimitPolicy {
 
 export type RequestEventStatus = "ok" | "error";
 
+export type ToolLoopGuardMode = "disabled" | "shadow";
+
+export type ToolLoopGuardAssessmentStatus =
+  | "not_assessed"
+  | "assessed"
+  | "failed";
+
+export type ToolLoopGuardDecision =
+  | "not_assessed"
+  | "allow"
+  | "shadow_warn"
+  | "shadow_finalize"
+  | "assessment_failed";
+
+export interface ToolLoopGuardDiagnostic {
+  policyVersion: string;
+  mode: ToolLoopGuardMode;
+  warningCalls: number;
+  hardCalls: number;
+  maxElapsedMs: number;
+  promptWarningTokens: number;
+  promptHardTokens: number;
+  assessmentStatus: ToolLoopGuardAssessmentStatus;
+  assessmentReason: string | null;
+  decision: ToolLoopGuardDecision;
+  priorConsecutiveToolCalls: number | null;
+  candidateCallCount: number | null;
+  elapsedMs: number | null;
+  promptTokens: number | null;
+  warningReasons: string[];
+  hardReasons: string[];
+  wouldWarn: boolean | null;
+  wouldFinalize: boolean | null;
+}
+
 export type AdminAuditAction =
   | "issue"
   | "unified-key-issue"
@@ -184,6 +219,13 @@ export interface RequestEventRecord {
   totalTokens?: number | null;
   cachedPromptTokens?: number | null;
   estimatedTokens?: number | null;
+  gatewayEstimatedPromptTokens?: number | null;
+  gatewayPromptEstimateMethod?: string | null;
+  modelContextTokens?: number | null;
+  modelMaxOutputTokens?: number | null;
+  activeToolCount?: number | null;
+  clientToolMode?: string | null;
+  toolLoopGuard?: ToolLoopGuardDiagnostic | null;
   usageSource?: RequestTokenUsageSource | null;
   limitKind?: import("./token-budget.js").LimitKind | null;
   reservationId?: string | null;

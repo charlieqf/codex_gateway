@@ -278,6 +278,13 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     total_tokens: number | null;
     cached_prompt_tokens: number | null;
     estimated_tokens: number | null;
+    gateway_estimated_prompt_tokens: number | null;
+    gateway_prompt_estimate_method: string | null;
+    model_context_tokens: number | null;
+    model_max_output_tokens: number | null;
+    active_tool_count: number | null;
+    client_tool_mode: string | null;
+    tool_loop_guard_json: string | null;
     usage_source: RequestEventRecord["usageSource"];
     limit_kind: RequestEventRecord["limitKind"];
     reservation_id: string | null;
@@ -327,12 +334,32 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     totalTokens: value.total_tokens,
     cachedPromptTokens: value.cached_prompt_tokens,
     estimatedTokens: value.estimated_tokens,
+    gatewayEstimatedPromptTokens: value.gateway_estimated_prompt_tokens,
+    gatewayPromptEstimateMethod: value.gateway_prompt_estimate_method,
+    modelContextTokens: value.model_context_tokens,
+    modelMaxOutputTokens: value.model_max_output_tokens,
+    activeToolCount: value.active_tool_count,
+    clientToolMode: value.client_tool_mode,
+    toolLoopGuard: parseToolLoopGuard(value.tool_loop_guard_json),
     usageSource: value.usage_source,
     limitKind: value.limit_kind,
     reservationId: value.reservation_id,
     overRequestLimit: value.over_request_limit === 1,
     identityGuardHit: value.identity_guard_hit === 1
   };
+}
+
+function parseToolLoopGuard(
+  value: string | null
+): RequestEventRecord["toolLoopGuard"] {
+  if (!value) {
+    return null;
+  }
+  try {
+    return JSON.parse(value) as NonNullable<RequestEventRecord["toolLoopGuard"]>;
+  } catch {
+    return null;
+  }
 }
 
 export function rowToAdminAuditEvent(row: unknown): AdminAuditEventRecord {

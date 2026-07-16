@@ -176,6 +176,7 @@ import {
   beginTokenBudget,
   cleanupExpiredTokenReservations,
   estimatePromptTokens,
+  PROMPT_TOKEN_ESTIMATE_METHOD,
   finalizeTokenBudget,
   publicRatePolicy,
   publicTokenPolicy,
@@ -197,7 +198,10 @@ import {
 } from "./services/chat-request-deadline.js";
 import {
   assessToolLoopShadow,
-  parseToolLoopShadowPolicy
+  parseToolLoopShadowPolicy,
+  toolLoopGuardAssessed,
+  toolLoopGuardAssessmentFailed,
+  toolLoopGuardNotAssessed
 } from "./services/tool-loop-shadow.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
@@ -1579,12 +1583,36 @@ export function buildGateway(options: GatewayOptions = {}) {
         ? initialNativeToolChoice(parsed, attempt.upstreamModel, nativeToolForceRequiredMode)
         : parsed.toolChoice
     );
+    request.gatewayModelContextTokens = attempt.limits.contextWindow;
+    request.gatewayModelMaxOutputTokens = attempt.limits.maxOutputTokens;
+    request.gatewayActiveToolCount =
+      request.gatewayToolChoice === "none" ? 0 : parsed.tools?.length ?? 0;
+    request.gatewayClientToolMode =
+      (parsed.tools?.length ?? 0) === 0
+        ? "none"
+        : nativeClientTools
+          ? "native"
+          : "strict";
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed, { includeToolsContext: !nativeClientTools });
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
       chatCompletionEstimateExtras(parsed, strictClientTools, attempt.runtime)
+    );
+    request.gatewayEstimatedPromptTokens = request.gatewayEstimatedTokens;
+    request.gatewayPromptEstimateMethod = PROMPT_TOKEN_ESTIMATE_METHOD;
+    request.gatewayToolLoopGuard = toolLoopGuardNotAssessed(
+      toolLoopShadowPolicy,
+      toolLoopShadowPolicy.mode === "disabled"
+        ? "disabled"
+        : !observationStore
+          ? "observation_store_unavailable"
+          : !gatewayContext.credential.id
+            ? "credential_id_unavailable"
+            : !request.gatewayClientTurnId
+              ? "client_turn_id_unavailable"
+              : "not_started"
     );
     if (
       toolLoopShadowPolicy.mode === "shadow" &&
@@ -1606,6 +1634,10 @@ export function buildGateway(options: GatewayOptions = {}) {
           promptTokens: request.gatewayEstimatedTokens,
           policy: toolLoopShadowPolicy
         });
+        request.gatewayToolLoopGuard = toolLoopGuardAssessed(
+          toolLoopShadowPolicy,
+          assessment
+        );
         const fields = {
           request_id: request.id,
           subject_id: subject.id,
@@ -1628,6 +1660,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           request.log.info(fields, "Tool loop guard shadow assessment completed.");
         }
       } catch (error) {
+        request.gatewayToolLoopGuard = toolLoopGuardAssessmentFailed(toolLoopShadowPolicy);
         request.log.warn(
           {
             request_id: request.id,
@@ -2324,6 +2357,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
 
       request.gatewayEstimatedTokens = estimatePromptTokens(message);
+      request.gatewayEstimatedPromptTokens = request.gatewayEstimatedTokens;
+      request.gatewayPromptEstimateMethod = PROMPT_TOKEN_ESTIMATE_METHOD;
       const tokenBudgetError = await beginTokenBudget(
         request,
         tokenBudgetLimiter,

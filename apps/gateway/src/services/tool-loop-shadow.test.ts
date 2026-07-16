@@ -1,6 +1,12 @@
 import type { RequestEventRecord } from "@codex-gateway/core";
 import { describe, expect, it } from "vitest";
-import { assessToolLoopShadow, parseToolLoopShadowPolicy } from "./tool-loop-shadow.js";
+import {
+  assessToolLoopShadow,
+  parseToolLoopShadowPolicy,
+  toolLoopGuardAssessed,
+  toolLoopGuardAssessmentFailed,
+  toolLoopGuardNotAssessed
+} from "./tool-loop-shadow.js";
 
 describe("tool loop shadow", () => {
   it("uses reviewed shadow defaults and rejects unsafe threshold ordering", () => {
@@ -78,6 +84,35 @@ describe("tool loop shadow", () => {
     expect(
       assessToolLoopShadow({ events: eleven, publicModelId: "expert", now, promptTokens: 100, policy })
     ).toMatchObject({ candidateCallCount: 12, wouldWarn: true, wouldFinalize: true });
+  });
+
+  it("emits versioned diagnostics for assessed and unassessed requests", () => {
+    const policy = parseToolLoopShadowPolicy({});
+    const assessment = assessToolLoopShadow({
+      events: [],
+      publicModelId: "expert",
+      now: new Date("2026-07-14T02:20:00.000Z"),
+      promptTokens: 121_000,
+      policy
+    });
+
+    expect(toolLoopGuardAssessed(policy, assessment)).toMatchObject({
+      policyVersion: "tool_loop_shadow_v1",
+      assessmentStatus: "assessed",
+      decision: "shadow_finalize",
+      candidateCallCount: 1,
+      hardReasons: ["prompt_tokens"]
+    });
+    expect(toolLoopGuardNotAssessed(policy, "client_turn_id_unavailable")).toMatchObject({
+      assessmentStatus: "not_assessed",
+      assessmentReason: "client_turn_id_unavailable",
+      decision: "not_assessed"
+    });
+    expect(toolLoopGuardAssessmentFailed(policy)).toMatchObject({
+      assessmentStatus: "failed",
+      assessmentReason: "assessment_error",
+      decision: "assessment_failed"
+    });
   });
 });
 

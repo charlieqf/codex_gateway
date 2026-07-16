@@ -163,6 +163,8 @@ describe("SqliteGatewayStore", () => {
       expect(columnNames(db, "token_reservations")).toContain("entitlement_id");
       expect(columnNames(db, "request_events")).toContain("reasoning_effort");
       expect(columnNames(db, "request_events")).toContain("reasoning_tokens");
+      expect(columnNames(db, "request_events")).toContain("gateway_estimated_prompt_tokens");
+      expect(columnNames(db, "request_events")).toContain("tool_loop_guard_json");
       expect(columnNames(db, "token_reservations")).toContain("public_model_id");
       expect(columnNames(db, "token_reservations")).toContain("final_reasoning_tokens");
     } finally {
@@ -578,6 +580,32 @@ describe("SqliteGatewayStore", () => {
       totalTokens: 12,
       cachedPromptTokens: 4,
       estimatedTokens: null,
+      gatewayEstimatedPromptTokens: 11,
+      gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+      modelContextTokens: 200_000,
+      modelMaxOutputTokens: 32_000,
+      activeToolCount: 2,
+      clientToolMode: "native",
+      toolLoopGuard: {
+        policyVersion: "tool_loop_shadow_v1",
+        mode: "shadow",
+        warningCalls: 8,
+        hardCalls: 12,
+        maxElapsedMs: 600_000,
+        promptWarningTokens: 100_000,
+        promptHardTokens: 120_000,
+        assessmentStatus: "assessed",
+        assessmentReason: null,
+        decision: "shadow_warn",
+        priorConsecutiveToolCalls: 7,
+        candidateCallCount: 8,
+        elapsedMs: 42_000,
+        promptTokens: 11,
+        warningReasons: ["calls"],
+        hardReasons: [],
+        wouldWarn: true,
+        wouldFinalize: false
+      },
       usageSource: "provider"
     });
 
@@ -636,6 +664,18 @@ describe("SqliteGatewayStore", () => {
         totalTokens: 12,
         cachedPromptTokens: 4,
         estimatedTokens: null,
+        gatewayEstimatedPromptTokens: 11,
+        gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+        modelContextTokens: 200_000,
+        modelMaxOutputTokens: 32_000,
+        activeToolCount: 2,
+        clientToolMode: "native",
+        toolLoopGuard: expect.objectContaining({
+          policyVersion: "tool_loop_shadow_v1",
+          decision: "shadow_warn",
+          candidateCallCount: 8,
+          warningReasons: ["calls"]
+        }),
         usageSource: "provider"
       }
     ]);

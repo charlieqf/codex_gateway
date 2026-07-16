@@ -231,6 +231,8 @@ export function publicRatePolicy<T extends { token?: TokenLimitPolicy | null }>(
   };
 }
 
+export const PROMPT_TOKEN_ESTIMATE_METHOD = "utf16_chars_div_3_v1";
+
 export function estimatePromptTokens(text: string, extraText = ""): number {
   return Math.max(1, Math.ceil((text.length + extraText.length) / 3));
 }

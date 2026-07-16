@@ -12,7 +12,8 @@ import type {
   Subject,
   UpstreamAccount,
   TokenUsage,
-  UpstreamAttemptSummary
+  UpstreamAttemptSummary,
+  ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
 
 export interface GatewayRequestContext {
@@ -55,6 +56,13 @@ declare module "fastify" {
     gatewaySessionId?: string | null;
     gatewayTokenUsage?: TokenUsage;
     gatewayEstimatedTokens?: number | null;
+    gatewayEstimatedPromptTokens?: number | null;
+    gatewayPromptEstimateMethod?: string | null;
+    gatewayModelContextTokens?: number | null;
+    gatewayModelMaxOutputTokens?: number | null;
+    gatewayActiveToolCount?: number | null;
+    gatewayClientToolMode?: string | null;
+    gatewayToolLoopGuard?: ToolLoopGuardDiagnostic | null;
     gatewayTokenUsageSource?: RequestTokenUsageSource;
     gatewayTokenReservationId?: string | null;
     gatewayTokenReservationKind?: "reservation" | "soft_write";

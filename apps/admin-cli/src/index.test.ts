@@ -541,6 +541,37 @@ describe("codex-gateway-admin user API key operations", () => {
       publicModelId: "medcode",
       upstreamRuntime: "codex",
       upstreamModel: "gpt-5.5",
+      promptTokens: 100,
+      completionTokens: 20,
+      totalTokens: 120,
+      estimatedTokens: null,
+      gatewayEstimatedPromptTokens: 110,
+      gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+      modelContextTokens: 200_000,
+      modelMaxOutputTokens: 32_000,
+      activeToolCount: 0,
+      clientToolMode: "none",
+      toolLoopGuard: {
+        policyVersion: "tool_loop_shadow_v1",
+        mode: "shadow",
+        warningCalls: 8,
+        hardCalls: 12,
+        maxElapsedMs: 600_000,
+        promptWarningTokens: 100_000,
+        promptHardTokens: 120_000,
+        assessmentStatus: "not_assessed",
+        assessmentReason: "client_turn_id_unavailable",
+        decision: "not_assessed",
+        priorConsecutiveToolCalls: null,
+        candidateCallCount: null,
+        elapsedMs: null,
+        promptTokens: null,
+        warningReasons: [],
+        hardReasons: [],
+        wouldWarn: null,
+        wouldFinalize: null
+      },
+      usageSource: "provider",
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 20,
       firstByteMs: 10,
@@ -571,6 +602,20 @@ describe("codex-gateway-admin user API key operations", () => {
         upstream_model: "gpt-5.5"
       }
     ]);
+    expect(events.events[0]).toMatchObject({
+      gateway_estimated_prompt_tokens: 110,
+      gateway_prompt_estimate_method: "utf16_chars_div_3_v1",
+      model_context_tokens: 200_000,
+      model_max_output_tokens: 32_000,
+      active_tool_count: 0,
+      client_tool_mode: "none",
+      gateway_context_utilization: 0.00055,
+      gateway_estimate_to_provider_prompt_ratio: 1.1,
+      tool_loop_guard: expect.objectContaining({
+        policyVersion: "tool_loop_shadow_v1",
+        assessmentReason: "client_turn_id_unavailable"
+      })
+    });
 
     const usage = runCli(dbPath, [
       "report-usage",
@@ -1840,6 +1885,33 @@ describe("codex-gateway-admin user API key operations", () => {
       upstreamRawResponseHash: "b".repeat(64),
       upstreamRawResponseChars: 96,
       upstreamEmptyStop: true,
+      promptTokens: 100_000,
+      gatewayEstimatedPromptTokens: 110_000,
+      gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+      modelContextTokens: 200_000,
+      modelMaxOutputTokens: 128_000,
+      activeToolCount: 17,
+      clientToolMode: "native",
+      toolLoopGuard: {
+        policyVersion: "tool_loop_shadow_v1",
+        mode: "shadow",
+        warningCalls: 8,
+        hardCalls: 12,
+        maxElapsedMs: 600_000,
+        promptWarningTokens: 100_000,
+        promptHardTokens: 120_000,
+        assessmentStatus: "assessed",
+        assessmentReason: null,
+        decision: "shadow_warn",
+        priorConsecutiveToolCalls: 7,
+        candidateCallCount: 8,
+        elapsedMs: 120_000,
+        promptTokens: 110_000,
+        warningReasons: ["calls", "prompt_tokens"],
+        hardReasons: [],
+        wouldWarn: true,
+        wouldFinalize: false
+      },
       upstreamAttemptCount: 2,
       upstreamAttempts: [
         {
@@ -2031,6 +2103,10 @@ describe("codex-gateway-admin user API key operations", () => {
         upstream_empty_stop: boolean;
         upstream_attempt_count: number;
         upstream_attempts: Array<{ kind: string; toolChoice: string }>;
+        gateway_estimated_prompt_tokens: number;
+        gateway_context_utilization: number;
+        gateway_estimate_to_provider_prompt_ratio: number;
+        tool_loop_guard: { decision: string; candidateCallCount: number };
       }>;
       timeline: Array<{ source: string; request_id: string }>;
     };
@@ -2048,6 +2124,13 @@ describe("codex-gateway-admin user API key operations", () => {
         reasoning_effort: "none",
         upstream_empty_stop: true,
         upstream_attempt_count: 2,
+        gateway_estimated_prompt_tokens: 110_000,
+        gateway_context_utilization: 0.55,
+        gateway_estimate_to_provider_prompt_ratio: 1.1,
+        tool_loop_guard: expect.objectContaining({
+          decision: "shadow_warn",
+          candidateCallCount: 8
+        }),
         upstream_attempts: [
           expect.objectContaining({ kind: "native_initial", toolChoice: "required" }),
           expect.objectContaining({ kind: "validation_failed_to_auto", toolChoice: "auto" })

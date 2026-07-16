@@ -12,6 +12,7 @@ import {
   type ClientMessageEventRecord,
   type Scope,
   type Subject,
+  type ToolLoopGuardDiagnostic,
   type UpstreamAttemptSummary
 } from "@codex-gateway/core";
 
@@ -129,6 +130,14 @@ interface GatewayRequestEventRow {
   upstreamEmptyStop: boolean | null;
   upstreamAttemptCount: number | null;
   upstreamAttempts: UpstreamAttemptSummary[] | null;
+  promptTokens: number | null;
+  gatewayEstimatedPromptTokens: number | null;
+  gatewayPromptEstimateMethod: string | null;
+  modelContextTokens: number | null;
+  modelMaxOutputTokens: number | null;
+  activeToolCount: number | null;
+  clientToolMode: string | null;
+  toolLoopGuard: ToolLoopGuardDiagnostic | null;
   startedAt: Date;
   durationMs: number | null;
   firstByteMs: number | null;
@@ -639,8 +648,10 @@ function queryClientTurnGatewayRequests(
               upstream_http_status, upstream_content_chars, upstream_tool_call_count,
               upstream_tool_names_json, upstream_raw_response_hash,
               upstream_raw_response_chars, upstream_empty_stop, upstream_attempt_count,
-              upstream_attempts_json, started_at, duration_ms, first_byte_ms, status,
-              error_code, rate_limited
+              upstream_attempts_json, prompt_tokens, gateway_estimated_prompt_tokens,
+              gateway_prompt_estimate_method, model_context_tokens, model_max_output_tokens,
+              active_tool_count, client_tool_mode, tool_loop_guard_json, started_at,
+              duration_ms, first_byte_ms, status, error_code, rate_limited
        FROM request_events
        ${whereSql(where)}
        ORDER BY started_at ASC
@@ -890,6 +901,22 @@ function publicGatewayRequestEvent(
     upstream_empty_stop: row.upstreamEmptyStop,
     upstream_attempt_count: row.upstreamAttemptCount,
     upstream_attempts: row.upstreamAttempts,
+    prompt_tokens: row.promptTokens,
+    gateway_estimated_prompt_tokens: row.gatewayEstimatedPromptTokens,
+    gateway_prompt_estimate_method: row.gatewayPromptEstimateMethod,
+    model_context_tokens: row.modelContextTokens,
+    model_max_output_tokens: row.modelMaxOutputTokens,
+    active_tool_count: row.activeToolCount,
+    client_tool_mode: row.clientToolMode,
+    gateway_context_utilization:
+      row.gatewayEstimatedPromptTokens && row.modelContextTokens
+        ? row.gatewayEstimatedPromptTokens / row.modelContextTokens
+        : null,
+    gateway_estimate_to_provider_prompt_ratio:
+      row.gatewayEstimatedPromptTokens && row.promptTokens
+        ? row.gatewayEstimatedPromptTokens / row.promptTokens
+        : null,
+    tool_loop_guard: row.toolLoopGuard,
     started_at: row.startedAt.toISOString(),
     started_at_local: formatInTimezone(row.startedAt, timezone),
     duration_ms: row.durationMs,
@@ -1299,6 +1326,14 @@ function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
     upstream_empty_stop: number | null;
     upstream_attempt_count: number | null;
     upstream_attempts_json: string | null;
+    prompt_tokens: number | null;
+    gateway_estimated_prompt_tokens: number | null;
+    gateway_prompt_estimate_method: string | null;
+    model_context_tokens: number | null;
+    model_max_output_tokens: number | null;
+    active_tool_count: number | null;
+    client_tool_mode: string | null;
+    tool_loop_guard_json: string | null;
     started_at: string;
     duration_ms: number | null;
     first_byte_ms: number | null;
@@ -1336,6 +1371,14 @@ function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
       value.upstream_empty_stop === null ? null : value.upstream_empty_stop === 1,
     upstreamAttemptCount: value.upstream_attempt_count,
     upstreamAttempts: parseUpstreamAttempts(value.upstream_attempts_json),
+    promptTokens: value.prompt_tokens,
+    gatewayEstimatedPromptTokens: value.gateway_estimated_prompt_tokens,
+    gatewayPromptEstimateMethod: value.gateway_prompt_estimate_method,
+    modelContextTokens: value.model_context_tokens,
+    modelMaxOutputTokens: value.model_max_output_tokens,
+    activeToolCount: value.active_tool_count,
+    clientToolMode: value.client_tool_mode,
+    toolLoopGuard: parseToolLoopGuard(value.tool_loop_guard_json),
     startedAt: new Date(value.started_at),
     durationMs: value.duration_ms,
     firstByteMs: value.first_byte_ms,
@@ -1343,6 +1386,15 @@ function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
     errorCode: value.error_code,
     rateLimited: value.rate_limited === 1
   };
+}
+
+function parseToolLoopGuard(value: string | null): ToolLoopGuardDiagnostic | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as ToolLoopGuardDiagnostic;
+  } catch {
+    return null;
+  }
 }
 
 function previewText(text: string, maxChars: number): string {

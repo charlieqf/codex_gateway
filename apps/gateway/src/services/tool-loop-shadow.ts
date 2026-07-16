@@ -1,4 +1,9 @@
-import type { RequestEventRecord } from "@codex-gateway/core";
+import type {
+  RequestEventRecord,
+  ToolLoopGuardDiagnostic
+} from "@codex-gateway/core";
+
+export const TOOL_LOOP_GUARD_POLICY_VERSION = "tool_loop_shadow_v1";
 
 export interface ToolLoopShadowPolicy {
   mode: "disabled" | "shadow";
@@ -19,6 +24,66 @@ export interface ToolLoopShadowAssessment {
   hardReasons: Array<"calls" | "elapsed" | "prompt_tokens">;
   wouldWarn: boolean;
   wouldFinalize: boolean;
+}
+
+export function toolLoopGuardNotAssessed(
+  policy: ToolLoopShadowPolicy,
+  reason: string
+): ToolLoopGuardDiagnostic {
+  return {
+    policyVersion: TOOL_LOOP_GUARD_POLICY_VERSION,
+    mode: policy.mode,
+    warningCalls: policy.warningCalls,
+    hardCalls: policy.hardCalls,
+    maxElapsedMs: policy.maxElapsedMs,
+    promptWarningTokens: policy.promptWarningTokens,
+    promptHardTokens: policy.promptHardTokens,
+    assessmentStatus: "not_assessed",
+    assessmentReason: reason,
+    decision: "not_assessed",
+    priorConsecutiveToolCalls: null,
+    candidateCallCount: null,
+    elapsedMs: null,
+    promptTokens: null,
+    warningReasons: [],
+    hardReasons: [],
+    wouldWarn: null,
+    wouldFinalize: null
+  };
+}
+
+export function toolLoopGuardAssessed(
+  policy: ToolLoopShadowPolicy,
+  assessment: ToolLoopShadowAssessment
+): ToolLoopGuardDiagnostic {
+  return {
+    ...toolLoopGuardNotAssessed(policy, "not_started"),
+    assessmentStatus: "assessed",
+    assessmentReason: null,
+    decision: assessment.wouldFinalize
+      ? "shadow_finalize"
+      : assessment.wouldWarn
+        ? "shadow_warn"
+        : "allow",
+    priorConsecutiveToolCalls: assessment.priorConsecutiveToolCalls,
+    candidateCallCount: assessment.candidateCallCount,
+    elapsedMs: assessment.elapsedMs,
+    promptTokens: assessment.promptTokens,
+    warningReasons: assessment.warningReasons,
+    hardReasons: assessment.hardReasons,
+    wouldWarn: assessment.wouldWarn,
+    wouldFinalize: assessment.wouldFinalize
+  };
+}
+
+export function toolLoopGuardAssessmentFailed(
+  policy: ToolLoopShadowPolicy
+): ToolLoopGuardDiagnostic {
+  return {
+    ...toolLoopGuardNotAssessed(policy, "assessment_error"),
+    assessmentStatus: "failed",
+    decision: "assessment_failed"
+  };
 }
 
 const defaults: ToolLoopShadowPolicy = {

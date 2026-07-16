@@ -6030,6 +6030,21 @@ describe("gateway phase 1 routes", () => {
                   })
                 ],
                 status: "ok",
+                estimatedTokens: null,
+                gatewayEstimatedPromptTokens: expect.any(Number),
+                gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+                modelContextTokens: 200_000,
+                modelMaxOutputTokens: 128_000,
+                activeToolCount: 0,
+                clientToolMode: "none",
+                toolLoopGuard: expect.objectContaining({
+                  policyVersion: "tool_loop_shadow_v1",
+                  assessmentStatus: "assessed",
+                  decision: "allow",
+                  candidateCallCount: 1,
+                  wouldWarn: false,
+                  wouldFinalize: false
+                }),
                 totalTokens: 9,
                 reasoningTokens: 0
               })
@@ -10470,6 +10485,17 @@ describe("gateway phase 1 routes", () => {
         totalTokens: 12,
         cachedPromptTokens: 4,
         estimatedTokens: null,
+        gatewayEstimatedPromptTokens: expect.any(Number),
+        gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
+        modelContextTokens: 400_000,
+        modelMaxOutputTokens: 128_000,
+        activeToolCount: 0,
+        clientToolMode: "none",
+        toolLoopGuard: expect.objectContaining({
+          assessmentStatus: "not_assessed",
+          assessmentReason: "client_turn_id_unavailable",
+          decision: "not_assessed"
+        }),
         usageSource: "provider"
       })
     ]);

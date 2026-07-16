@@ -1162,6 +1162,21 @@ program
           total_tokens: event.totalTokens ?? null,
           cached_prompt_tokens: event.cachedPromptTokens ?? null,
           estimated_tokens: event.estimatedTokens ?? null,
+          gateway_estimated_prompt_tokens: event.gatewayEstimatedPromptTokens ?? null,
+          gateway_prompt_estimate_method: event.gatewayPromptEstimateMethod ?? null,
+          model_context_tokens: event.modelContextTokens ?? null,
+          model_max_output_tokens: event.modelMaxOutputTokens ?? null,
+          active_tool_count: event.activeToolCount ?? null,
+          client_tool_mode: event.clientToolMode ?? null,
+          gateway_context_utilization:
+            event.gatewayEstimatedPromptTokens && event.modelContextTokens
+              ? event.gatewayEstimatedPromptTokens / event.modelContextTokens
+              : null,
+          gateway_estimate_to_provider_prompt_ratio:
+            event.gatewayEstimatedPromptTokens && event.promptTokens
+              ? event.gatewayEstimatedPromptTokens / event.promptTokens
+              : null,
+          tool_loop_guard: event.toolLoopGuard ?? null,
           usage_source: event.usageSource ?? null,
           limit_kind: event.limitKind ?? null,
           reservation_id: event.reservationId ?? null,
