@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Current Phase
 
@@ -63,6 +63,11 @@ Completed:
   controlled debugging and makes the page/data route unauthenticated.
 - Client diagnostic metadata ingestion stores the full metadata JSON object without field whitelisting, while rejecting obvious credential/secret material. The diagnostic metadata limit is 192KB UTF-8 and the diagnostic body limit is 256KB so MedEvidence tool audit fields can include both Desktop original text and the extracted MedEvidence question.
 - Per-credential in-process rate limiting for requests per minute, requests per day, and concurrency.
+- A system-wide floor of 300,000 tokens per minute for every explicit non-null
+  plan, entitlement snapshot, and API key token policy. Missing or `null`
+  values remain unlimited. SQLite migration 21 raises persisted lower values,
+  while core/store normalization prevents future plan or key writes below the
+  floor.
 - Rate-limit response contract v1 for Gateway and OpenAI-compatible errors:
   - all `429 rate_limited` JSON/SSE errors include `request_id`,
     `rate_limit_contract_version=1`, `limit_kind`, `rate_limit_origin`, and
@@ -215,6 +220,28 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-16 commit `14b4bb2` deployed the system-wide 300,000 token/minute
+  floor to the live Azure Gateway from clean release checkout
+  `/home/qian/codex-gateway-release-14b4bb2-20260716T113736Z`. Local and VM
+  `npm run build` passed, and all 329 tests in 22 files passed. The protected
+  env preflight confirmed all 8 public models and all four Azure GoldenCode
+  provider key names without printing secret values. A stopped-container,
+  consistent pre-migration database archive is stored at
+  `/home/qian/codex-gateway-backups/14b4bb2/gateway-databases-pre-14b4bb2-20260716T114043Z.tgz`.
+  Migration 21 completed with zero remaining explicit plan, entitlement, or
+  API key values below 300,000; `plan_paid_monthly_v1` and the affected
+  `subj_6etViPr6cpYeOuf_kvZF6oJd` entitlement now expose
+  `tokensPerMinute=300000`. The container runs image
+  `sha256:bc7f18361dcb434c94b6c4b663aab1a458668ed06aa2151c31fe882fd0600cd3`,
+  is healthy with zero restarts, and remains loopback-only at
+  `127.0.0.1:18787->8787`. Public OpenAI-compatible smoke passed and cleaned
+  up its temporary key. `/v1/models` returned exactly `max`, `specialist`,
+  `consultant`, `expert`, `advisor`, `pro`, `standard`, and `goldencode`.
+  GoldenCode native-tools request
+  `req-51fb2225-d065-4333-8b0b-543485ed8e14` recorded
+  `goldencode-openrouter / openrouter / z-ai/glm-5.2 / medium / status=ok`;
+  its temporary key was revoked. CN1 was explicitly excluded from this
+  deployment and remains unchanged.
 - 2026-07-15 commit `db12b11` deployed rate-limit response contract v1 to the
   live Azure Gateway from clean release checkout
   `/home/qian/codex-gateway-release-db12b11-20260715T101500Z`. VM
