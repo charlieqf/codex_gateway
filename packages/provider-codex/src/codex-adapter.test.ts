@@ -17,12 +17,13 @@ import {
   type CodexClientLike,
   type CodexThreadLike
 } from "./codex-adapter.js";
-import type {
-  GatewaySession,
-  MessageInput,
-  ProviderErrorDiagnostic,
-  Subject,
-  UpstreamAccount
+import {
+  GatewayError,
+  type GatewaySession,
+  type MessageInput,
+  type ProviderErrorDiagnostic,
+  type Subject,
+  type UpstreamAccount
 } from "@codex-gateway/core";
 
 class FakeThread implements CodexThreadLike {
@@ -45,7 +46,7 @@ class FakeClient implements CodexClientLike {
   readonly startedOptions: ThreadOptions[] = [];
   readonly resumed: Array<{ id: string; options?: ThreadOptions }> = [];
 
-  constructor(private readonly thread: FakeThread) {}
+  constructor(private readonly thread: CodexThreadLike) {}
 
   startThread(options?: ThreadOptions): CodexThreadLike {
     this.startedOptions.push(options ?? {});
@@ -138,6 +139,43 @@ describe("CodexProviderAdapter", () => {
     expect(health.state).toBe("reauth_required");
     expect(health.checkedAt).toBeInstanceOf(Date);
     expect(health.detail).toBe("Codex auth cache is missing; run device-code authorization.");
+  });
+
+  it("preserves a structured client abort reason when SDK cancellation throws", async () => {
+    const controller = new AbortController();
+    const clientAbort = new GatewayError({
+      code: "client_aborted",
+      message: "Client disconnected.",
+      httpStatus: 499
+    });
+    const thread: CodexThreadLike = {
+      id: null,
+      async runStreamed(_input, turnOptions) {
+        expect(turnOptions?.signal).toBe(controller.signal);
+        controller.abort(clientAbort);
+        throw Object.assign(new Error("The operation was aborted."), {
+          name: "AbortError"
+        });
+      }
+    };
+    const adapter = createAdapter(new FakeClient(thread));
+
+    const events = await collect(
+      adapter.message(
+        messageInput({
+          providerSessionRef: null,
+          signal: controller.signal
+        })
+      )
+    );
+
+    expect(events).toEqual([
+      {
+        type: "error",
+        code: "client_aborted",
+        message: "Client disconnected."
+      }
+    ]);
   });
 
   it("maps streamed agent message updates into gateway deltas", async () => {
@@ -713,6 +751,7 @@ function messageInput(input: {
   providerSessionRef: string | null;
   sessionId?: string;
   reasoningEffort?: string | null;
+  signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
 }): MessageInput {
   return {
@@ -722,6 +761,7 @@ function messageInput(input: {
     session: session(input.providerSessionRef, input.sessionId),
     message: "hello",
     reasoningEffort: input.reasoningEffort,
+    signal: input.signal,
     onProviderError: input.onProviderError
   };
 }

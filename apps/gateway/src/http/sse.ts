@@ -1,3 +1,4 @@
+import { GatewayError } from "@codex-gateway/core";
 import type { FastifyReply } from "fastify";
 
 export interface SseHandle {
@@ -23,7 +24,13 @@ export function setupSseResponse(reply: FastifyReply): SseHandle {
       return;
     }
     closed = true;
-    abort.abort();
+    abort.abort(
+      new GatewayError({
+        code: "client_aborted",
+        message: "Client disconnected.",
+        httpStatus: 499
+      })
+    );
   };
   reply.raw.on("close", close);
 

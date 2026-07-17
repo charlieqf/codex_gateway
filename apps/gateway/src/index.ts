@@ -1748,9 +1748,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderError
           });
           if (strictResult instanceof GatewayError) {
-            if (!attempt.recordError(strictResult)) {
-              attempt.recordSuccess();
-            }
+            recordChatRuntimeErrorOutcome(attempt, strictResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
             request.gatewayErrorCode = strictResult.code;
             sse.writeData(
@@ -1759,7 +1757,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
             activeRequest.markFirstByte();
-            attempt.recordSuccess();
+            if (!sse.isClosed()) {
+              attempt.recordSuccess();
+            }
             hasToolCalls = true;
             usage = strictResult.usage;
             markProviderStreamSummary(request, strictResult.providerSummary);
@@ -1777,7 +1777,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
           } else {
             activeRequest.markFirstByte();
-            attempt.recordSuccess();
+            if (!sse.isClosed()) {
+              attempt.recordSuccess();
+            }
             usage = strictResult.usage;
             markProviderStreamSummary(request, strictResult.providerSummary);
             markOpenAITokenUsage(request, usage);
@@ -1809,9 +1811,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderError
           });
           if (nativeResult instanceof GatewayError) {
-            if (!attempt.recordError(nativeResult)) {
-              attempt.recordSuccess();
-            }
+            recordChatRuntimeErrorOutcome(attempt, nativeResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
             sse.writeData(
@@ -1820,7 +1820,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             failed = true;
           } else if (nativeResult.toolCalls.length > 0) {
             activeRequest.markFirstByte();
-            attempt.recordSuccess();
+            if (!sse.isClosed()) {
+              attempt.recordSuccess();
+            }
             hasToolCalls = true;
             usage = nativeResult.usage;
             markProviderStreamSummary(request, nativeResult.providerSummary);
@@ -1846,7 +1848,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
           } else {
             activeRequest.markFirstByte();
-            attempt.recordSuccess();
+            if (!sse.isClosed()) {
+              attempt.recordSuccess();
+            }
             usage = nativeResult.usage;
             markProviderStreamSummary(request, nativeResult.providerSummary);
             markOpenAITokenUsage(request, usage);
@@ -1957,7 +1961,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             if (retrying) {
               continue;
             }
-            if (!failed) {
+            if (!failed && !sse.isClosed()) {
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
@@ -2042,9 +2046,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderError
         });
         if (strictResult instanceof GatewayError) {
-          if (!attempt.recordError(strictResult)) {
-            attempt.recordSuccess();
-          }
+          recordChatRuntimeErrorOutcome(attempt, strictResult);
           markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
           return fail(strictResult);
         }
@@ -2076,9 +2078,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderError
         });
         if (nativeResult instanceof GatewayError) {
-          if (!attempt.recordError(nativeResult)) {
-            attempt.recordSuccess();
-          }
+          recordChatRuntimeErrorOutcome(attempt, nativeResult);
           markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
           return fail(nativeResult);
         }
@@ -2405,7 +2405,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             break;
           }
         }
-        if (!providerFailed && !outcomeRecorded) {
+        if (!providerFailed && !outcomeRecorded && !sse.isClosed()) {
           upstreamRouter.recordOutcome(lease.upstreamAccount.id, "success");
         }
       } finally {
@@ -5491,6 +5491,18 @@ function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome |
 
 function isStatelessRetryableProviderError(error: GatewayError): boolean {
   return upstreamOutcomeFromError(error) !== null;
+}
+
+function recordChatRuntimeErrorOutcome(
+  runtime: ChatRuntimeContext,
+  error: GatewayError
+): void {
+  if (error.code === "client_aborted") {
+    return;
+  }
+  if (!runtime.recordError(error)) {
+    runtime.recordSuccess();
+  }
 }
 
 function recordUpstreamErrorOutcome(

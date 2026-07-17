@@ -14,6 +14,17 @@ import {
 } from "@codex-gateway/core";
 
 describe("streamErrorToGatewayError", () => {
+  it("preserves client abort errors without classifying the upstream as unavailable", () => {
+    const error = streamErrorToGatewayError({
+      code: "client_aborted",
+      message: "Client disconnected."
+    });
+
+    expect(error.code).toBe("client_aborted");
+    expect(error.httpStatus).toBe(499);
+    expect(error.message).toBe("Client disconnected.");
+  });
+
   it("normalizes structured context length errors", () => {
     const error = streamErrorToGatewayError({
       code: "context_length_exceeded",

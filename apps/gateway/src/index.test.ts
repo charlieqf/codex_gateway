@@ -70,6 +70,53 @@ class FakeProvider implements ProviderAdapter {
   }
 }
 
+class HangingChatProvider implements ProviderAdapter {
+  readonly kind = "fake";
+  readonly messages: MessageInput[] = [];
+  readonly started: Promise<void>;
+  abortReason: unknown;
+  private resolveStarted!: () => void;
+
+  constructor() {
+    this.started = new Promise((resolve) => {
+      this.resolveStarted = resolve;
+    });
+  }
+
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
+    return {
+      state: "healthy",
+      checkedAt: new Date("2026-01-01T00:00:00Z")
+    };
+  }
+
+  async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    this.messages.push(input);
+    this.resolveStarted();
+    await new Promise<void>((resolve) => {
+      if (input.signal?.aborted) {
+        resolve();
+        return;
+      }
+      input.signal?.addEventListener("abort", () => resolve(), { once: true });
+    });
+    this.abortReason = input.signal?.reason;
+    const error =
+      this.abortReason instanceof GatewayError
+        ? this.abortReason
+        : new GatewayError({
+            code: "service_unavailable",
+            message: "Unexpected abort reason.",
+            httpStatus: 503
+          });
+    yield {
+      type: "error",
+      code: error.code,
+      message: error.message
+    };
+  }
+}
+
 class FakeImageGenerationProvider implements ImageGenerationProvider {
   readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
 
@@ -7984,6 +8031,67 @@ describe("gateway phase 1 routes", () => {
     expect(response.payload).toContain("data: [DONE]");
 
     await app.close();
+  });
+
+  it("records a streaming chat disconnect without marking the upstream account successful", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    const provider = new HangingChatProvider();
+    const account = testUpstreamAccount("codex-pro-1");
+    const app = buildGateway({
+      accessToken: "secret",
+      authMode: "dev",
+      sessionStore: store,
+      observationStore: store,
+      upstreamAccounts: [
+        {
+          upstreamAccount: account,
+          provider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    try {
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address() as AddressInfo;
+      const request = http.request({
+        method: "POST",
+        host: "127.0.0.1",
+        port: address.port,
+        path: "/v1/chat/completions",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        }
+      });
+      request.on("error", () => undefined);
+      request.end(
+        JSON.stringify({
+          model: "medcode",
+          stream: true,
+          messages: [{ role: "user", content: "Wait for me." }]
+        })
+      );
+
+      await provider.started;
+      request.destroy();
+
+      await eventually(() => {
+        expect(store.listRequestEvents({ limit: 1 })).toEqual([
+          expect.objectContaining({
+            status: "error",
+            errorCode: "client_aborted"
+          })
+        ]);
+      });
+      expect(provider.abortReason).toBeInstanceOf(GatewayError);
+      expect((provider.abortReason as GatewayError).code).toBe("client_aborted");
+      expect(account.lastUsedAt).toBeNull();
+      expect(account.cooldownUntil).toBeNull();
+    } finally {
+      await app.close();
+    }
   });
 
   it("returns OpenAI tool calls and usage for non-streaming chat completions", async () => {

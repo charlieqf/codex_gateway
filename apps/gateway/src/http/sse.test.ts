@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
+import { GatewayError } from "@codex-gateway/core";
 import type { FastifyReply } from "fastify";
 import { setupSseResponse } from "./sse.js";
 
@@ -46,6 +47,8 @@ describe("setupSseResponse", () => {
 
     expect(sse.writeData({ second: true })).toBe(false);
     expect(sse.signal.aborted).toBe(true);
+    expect(sse.signal.reason).toBeInstanceOf(GatewayError);
+    expect((sse.signal.reason as GatewayError).code).toBe("client_aborted");
     expect(sse.isClosed()).toBe(true);
 
     const writesAfterFailure = raw.writes.length;
@@ -63,6 +66,8 @@ describe("setupSseResponse", () => {
     raw.emit("close");
 
     expect(sse.signal.aborted).toBe(true);
+    expect(sse.signal.reason).toBeInstanceOf(GatewayError);
+    expect((sse.signal.reason as GatewayError).code).toBe("client_aborted");
     expect(sse.isClosed()).toBe(true);
     expect(sse.writeComment("late")).toBe(false);
 

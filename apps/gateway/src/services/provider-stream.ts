@@ -248,6 +248,13 @@ export async function collectProviderMessage(
 }
 
 export function streamErrorToGatewayError(event: { code: string; message: string }): GatewayError {
+  if (event.code === "client_aborted") {
+    return new GatewayError({
+      code: "client_aborted",
+      message: event.message,
+      httpStatus: 499
+    });
+  }
   if (event.code === "rate_limited") {
     return new GatewayError({
       code: "rate_limited",

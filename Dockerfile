@@ -10,6 +10,7 @@ COPY apps/admin-cli/package.json apps/admin-cli/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/provider-codex/package.json packages/provider-codex/package.json
 COPY packages/store-sqlite/package.json packages/store-sqlite/package.json
+COPY scripts/patch-codex-sdk-stdin-epipe.mjs scripts/patch-codex-sdk-stdin-epipe.mjs
 
 RUN npm ci
 

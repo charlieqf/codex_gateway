@@ -11,6 +11,7 @@
     "build": "tsc -b",
     "typecheck": "tsc -b",
     "test": "vitest run",
+    "postinstall": "node scripts/patch-codex-sdk-stdin-epipe.mjs",
     "dev:gateway": "npm --workspace @codex-gateway/gateway run dev",
     "dev:admin": "npm --workspace @codex-gateway/admin-cli run dev",
     "probe:codex": "npm --workspace @codex-gateway/provider-codex run probe --"
