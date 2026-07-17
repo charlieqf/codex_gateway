@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-16
+Last updated: 2026-07-17
 
 ## Current Phase
 
@@ -11,6 +11,18 @@ fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
 gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
+
+- Codex SDK child-process cancellation crash hardening:
+  - the live 2026-07-17 incident was traced to an unhandled
+    `child.stdin` `write EPIPE` after an aborted Codex SDK turn, which caused
+    the npm Gateway process to exit and Docker to restart the container;
+  - `@openai/codex-sdk` is pinned to `0.144.1`, and an exact-version,
+    exact-source-hash postinstall patch attaches a stdin error handler while
+    preserving non-abort failures;
+  - SSE disconnects now carry a structured `client_aborted` reason through the
+    provider stream and do not mark an upstream account successful or failed;
+  - the patch is idempotent and has a 16 MiB input cancellation regression
+    test that reproduces the former unhandled-error path.
 
 - Monitoring data-plane implementation and local no-notify watchdog fixtures:
   - Gateway active-request registry and atomic runtime snapshot;
@@ -220,6 +232,33 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-17 commit `843d6aa` deployed the Codex SDK stdin `EPIPE` crash fix
+  to the live Azure Gateway from clean release checkout
+  `/home/qian/codex-gateway-release-843d6aa-20260717T042146Z`. Local and VM
+  `npm run build` passed, and all 335 tests in 23 files passed. The protected
+  env preflight confirmed the exact 8-model registry and all four Azure
+  GoldenCode provider key names without printing secret values. A
+  stopped-container, consistent database archive is stored at
+  `/home/qian/codex-gateway-backups/843d6aa/gateway-databases-pre-843d6aa-20260717T042413Z.tgz`.
+  The deployed image is
+  `sha256:2d23e375abf6cfa4a790cdb65e32526af9f16ebad42249891f56d3c847036937`;
+  the previous image remains tagged
+  `codex_gateway_test-gateway:pre-843d6aa` for rollback. An initial activation
+  reached HTTP readiness while Docker health was still `starting`; the strict
+  deployment guard automatically restored the previous image. After verifying
+  the rollback, activation was repeated with a combined HTTP-ready and Docker
+  health wait and completed successfully. The live container is healthy with
+  zero restarts and no OOM, and remains loopback-only at
+  `127.0.0.1:18787->8787`. The runtime image reports Codex SDK `0.144.1` with
+  the stdin patch present, and a 16 MiB image-level cancellation regression
+  survived without an unhandled error. Public OpenAI-compatible and strict
+  tools smokes passed and cleaned up their temporary keys/users.
+  `/v1/models` returned exactly `max`, `specialist`, `consultant`, `expert`,
+  `advisor`, `pro`, `standard`, and `goldencode`. GoldenCode native-tools
+  request `req-8ed013b2-4b73-4df9-8df9-f38cbe26d920` recorded
+  `goldencode-aliyun / aliyun / glm-5.2 / medium / status=ok`. Post-deploy
+  logs contained no new `EPIPE` or unhandled-error exit. CN1 was explicitly
+  excluded from this deployment and remains unchanged.
 - 2026-07-16 commit `14b4bb2` deployed the system-wide 300,000 token/minute
   floor to the live Azure Gateway from clean release checkout
   `/home/qian/codex-gateway-release-14b4bb2-20260716T113736Z`. Local and VM
