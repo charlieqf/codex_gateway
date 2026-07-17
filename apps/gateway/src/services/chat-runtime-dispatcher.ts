@@ -306,7 +306,9 @@ function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome |
   if (
     error.code === "service_unavailable" ||
     error.code === "upstream_unavailable" ||
-    error.code === "upstream_timeout"
+    error.code === "upstream_timeout" ||
+    error.code === "upstream_incomplete_stream" ||
+    error.code === "upstream_empty_response"
   ) {
     return "service_error";
   }

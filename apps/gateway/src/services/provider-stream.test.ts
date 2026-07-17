@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   collectProviderMessage,
+  providerStreamSummaryFromError,
   streamErrorToGatewayError
 } from "./provider-stream.js";
 import {
@@ -50,6 +51,17 @@ describe("streamErrorToGatewayError", () => {
     expect(error.message).toBe(
       "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying."
     );
+  });
+
+  it.each([
+    ["upstream_incomplete_stream", "Incomplete upstream stream."],
+    ["upstream_empty_response", "Empty upstream response."]
+  ])("preserves %s as a retryable upstream protocol error", (code, message) => {
+    const error = streamErrorToGatewayError({ code, message });
+
+    expect(error.code).toBe(code);
+    expect(error.httpStatus).toBe(502);
+    expect(error.message).toBe(message);
   });
 });
 
@@ -113,6 +125,106 @@ describe("collectProviderMessage", () => {
         finishReason: "length",
         contentChars: "partial output".length,
         toolCallCount: 0
+      }
+    });
+  });
+
+  it("preserves provider response diagnostics attached to an error event", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        { type: "message_delta", text: "partial" },
+        {
+          type: "error",
+          code: "upstream_incomplete_stream",
+          message: "The stream ended early.",
+          responseSummary: {
+            finishReason: null,
+            upstreamRequestId: "upstream_incomplete_1",
+            upstreamHttpStatus: 200,
+            rawResponseHash: "hash_incomplete",
+            rawResponseChars: 234,
+            terminationKind: "eof_before_terminal"
+          }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      upstreamRuntime: "openrouter",
+      upstreamModel: "z-ai/glm-5-turbo"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect((result as GatewayError).code).toBe("upstream_incomplete_stream");
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      finishReason: null,
+      upstreamRequestId: "upstream_incomplete_1",
+      upstreamHttpStatus: 200,
+      errorCode: "upstream_incomplete_stream",
+      contentChars: "partial".length,
+      rawResponseHash: "hash_incomplete",
+      rawResponseChars: 234,
+      terminationKind: "eof_before_terminal"
+    });
+  });
+
+  it("maps a protocol-complete empty provider message to an upstream error", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "completed",
+          responseSummary: {
+            upstreamHttpStatus: 200,
+            rawResponseHash: "hash_empty",
+            rawResponseChars: 8,
+            terminationKind: "done"
+          }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      upstreamRuntime: "openrouter",
+      upstreamModel: "z-ai/glm-5-turbo"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect((result as GatewayError).code).toBe("upstream_empty_response");
+    expect((result as GatewayError).httpStatus).toBe(502);
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      finishReason: null,
+      upstreamHttpStatus: 200,
+      errorCode: "upstream_empty_response",
+      contentChars: 0,
+      toolCallCount: 0,
+      terminationKind: "done"
+    });
+  });
+
+  it("does not infer an upstream finish reason from visible content", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        { type: "message_delta", text: "visible" },
+        { type: "completed" }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello"
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    expect(result).toMatchObject({
+      content: "visible",
+      providerSummary: {
+        finishReason: null,
+        contentChars: "visible".length,
+        terminationKind: null
       }
     });
   });

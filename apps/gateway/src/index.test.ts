@@ -6108,6 +6108,84 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("records an unterminated OpenRouter EOF as an upstream error", async () => {
+    const server = await startOpenAICompatibleSseServer(
+      async (_request, _body, response) => {
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "x-openrouter-request-id": "up_req_unterminated_1"
+        });
+        response.end(
+          `data: ${JSON.stringify({
+            choices: [],
+            diagnostic: { state: "started" }
+          })}\n\n`
+        );
+      }
+    );
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Produce a complete response." }]
+              }
+            });
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "upstream_incomplete_stream"
+            });
+            expect(store.listRequestEvents({ limit: 1 })).toEqual([
+              expect.objectContaining({
+                publicModelId: "pro",
+                upstreamRuntime: "openrouter",
+                upstreamHttpStatus: 200,
+                upstreamFinishReason: null,
+                upstreamContentChars: 0,
+                upstreamToolCallCount: 0,
+                upstreamRawResponseChars: expect.any(Number),
+                status: "error",
+                errorCode: "upstream_incomplete_stream",
+                upstreamAttempts: [
+                  expect.objectContaining({
+                    errorCode: "upstream_incomplete_stream",
+                    upstreamHttpStatus: 200,
+                    terminationKind: "eof_before_terminal"
+                  })
+                ]
+              })
+            ]);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("uses native OpenRouter tools for Pro without strict JSON prompts", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
@@ -9711,6 +9789,64 @@ describe("gateway phase 1 routes", () => {
         errorCode: null
       })
     ]);
+
+    await app.close();
+  });
+
+  it("retries an incomplete upstream stream before any business output", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      {
+        type: "error",
+        code: "upstream_incomplete_stream",
+        message: "The upstream stream ended early.",
+        responseSummary: {
+          upstreamHttpStatus: 200,
+          rawResponseHash: "incomplete_hash",
+          rawResponseChars: 234,
+          terminationKind: "eof_before_terminal"
+        }
+      }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "retry-after-incomplete-ok" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0].message.content).toBe(
+      "retry-after-incomplete-ok"
+    );
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
 
     await app.close();
   });

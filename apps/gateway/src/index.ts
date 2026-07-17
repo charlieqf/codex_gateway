@@ -146,8 +146,8 @@ import {
   attachProviderStreamSummary,
   combineProviderStreamSummaries,
   collectProviderMessage,
+  providerCompletionError,
   providerStreamSummaryFromError,
-  providerTruncatedWithoutOutputError,
   ProviderStreamSummaryCollector,
   streamErrorToGatewayError,
   type CollectedProviderMessage,
@@ -1965,14 +1965,13 @@ export function buildGateway(options: GatewayOptions = {}) {
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
-              const truncatedWithoutOutputError =
-                providerTruncatedWithoutOutputError(successSummary);
-              if (truncatedWithoutOutputError) {
+              const completionError = providerCompletionError(successSummary);
+              if (completionError) {
                 const errorSummary =
-                  providerStreamSummaryFromError(truncatedWithoutOutputError) ?? successSummary;
+                  providerStreamSummaryFromError(completionError) ?? successSummary;
                 providerSummaries.push(errorSummary);
-                attempt.recordError(truncatedWithoutOutputError);
-                request.gatewayErrorCode = truncatedWithoutOutputError.code;
+                attempt.recordError(completionError);
+                request.gatewayErrorCode = completionError.code;
                 markProviderStreamSummary(
                   request,
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
@@ -1980,7 +1979,7 @@ export function buildGateway(options: GatewayOptions = {}) {
                 writeInitialChunk();
                 sse.writeData(
                   openAIErrorPayload(
-                    truncatedWithoutOutputError,
+                    completionError,
                     gatewayErrorResponseContext(request)
                   )
                 );
@@ -2532,7 +2531,7 @@ async function runNativeClientTools(
     if (secondResult instanceof GatewayError) {
       return secondResult;
     }
-    return secondResult;
+    return validateNativeCompletion(secondResult);
   }
   const retryPlan = nativeAutoToolRetryPlan(
     input.request,
@@ -2543,7 +2542,7 @@ async function runNativeClientTools(
     input.nativeToolForceRequiredMode
   );
   if (!retryPlan) {
-    return firstResult;
+    return validateNativeCompletion(firstResult);
   }
 
   input.log?.info(
@@ -2578,9 +2577,11 @@ async function runNativeClientTools(
     return secondResult;
   }
   if (retryPlan.kind === "auto_ack_after_tool_to_auto") {
-    return secondResult;
+    return validateNativeCompletion(secondResult);
   }
-  return secondResult.toolCalls.length > 0 ? secondResult : firstResult;
+  return validateNativeCompletion(
+    secondResult.toolCalls.length > 0 ? secondResult : firstResult
+  );
 }
 
 async function collectNativeClientTools(
@@ -2605,8 +2606,18 @@ async function collectNativeClientTools(
     upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
-    suppressTextAfterToolCall: true
+    suppressTextAfterToolCall: true,
+    deferEmptyCompletionError: true
   });
+}
+
+function validateNativeCompletion(
+  result: StrictClientToolsResult
+): StrictClientToolsResult | GatewayError {
+  if (result.content.length > 0 || result.toolCalls.length > 0 || !result.providerSummary) {
+    return result;
+  }
+  return providerCompletionError(result.providerSummary) ?? result;
 }
 
 function nativeCollectionToResult(
@@ -5482,7 +5493,9 @@ function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome |
   if (
     error.code === "service_unavailable" ||
     error.code === "upstream_unavailable" ||
-    error.code === "upstream_timeout"
+    error.code === "upstream_timeout" ||
+    error.code === "upstream_incomplete_stream" ||
+    error.code === "upstream_empty_response"
   ) {
     return "service_error";
   }

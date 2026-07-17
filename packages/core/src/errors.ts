@@ -34,6 +34,8 @@ export const gatewayErrorCodes = [
   "client_aborted",
   "upstream_timeout",
   "upstream_unavailable",
+  "upstream_incomplete_stream",
+  "upstream_empty_response",
   "tool_call_validation_failed",
   // Public compatibility error code; do not rename during upstream account cleanup.
   "subscription_unavailable",

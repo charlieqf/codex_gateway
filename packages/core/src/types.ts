@@ -253,6 +253,7 @@ export interface UpstreamAttemptSummary {
   rawResponseHash: string | null;
   rawResponseChars: number | null;
   emptyStop: boolean | null;
+  terminationKind?: ProviderStreamTermination | null;
 }
 
 export interface ClientMessageEventRecord {
@@ -345,12 +346,19 @@ export interface TokenUsage {
   reasoningTokens?: number;
 }
 
+export type ProviderStreamTermination =
+  | "finish_reason"
+  | "done"
+  | "finish_reason_and_done"
+  | "eof_before_terminal";
+
 export interface ProviderResponseSummary {
   finishReason?: string | null;
   upstreamRequestId?: string | null;
   upstreamHttpStatus?: number | null;
   rawResponseHash?: string | null;
   rawResponseChars?: number | null;
+  terminationKind?: ProviderStreamTermination | null;
 }
 
 export type StreamEvent =
@@ -368,7 +376,12 @@ export type StreamEvent =
       usage?: TokenUsage;
       responseSummary?: ProviderResponseSummary;
     }
-  | { type: "error"; code: string; message: string };
+  | {
+      type: "error";
+      code: string;
+      message: string;
+      responseSummary?: ProviderResponseSummary;
+    };
 
 export interface ClientToolDefinition {
   type: "function";

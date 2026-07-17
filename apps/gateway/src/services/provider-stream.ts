@@ -5,6 +5,7 @@ import {
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type ProviderResponseSummary,
+  type ProviderStreamTermination,
   type Scope,
   type StreamEvent,
   type Subject,
@@ -44,6 +45,7 @@ export interface ProviderStreamSummary {
   rawResponseHash: string | null;
   rawResponseChars: number | null;
   emptyStop: boolean | null;
+  terminationKind: ProviderStreamTermination | null;
   attempts: UpstreamAttemptSummary[];
 }
 
@@ -67,6 +69,7 @@ export class ProviderStreamSummaryCollector {
   private upstreamHttpStatus: number | null = null;
   private upstreamRawHash: string | null = null;
   private upstreamRawChars: number | null = null;
+  private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
   private normalizedDigest: string | null = null;
 
@@ -88,18 +91,26 @@ export class ProviderStreamSummaryCollector {
     }
     if (event.type === "completed") {
       this.applyProviderSummary(event.responseSummary);
-      this.recordNormalized({ type: event.type, finish_reason: event.responseSummary?.finishReason ?? null });
+      this.recordNormalized({
+        type: event.type,
+        finish_reason: event.responseSummary?.finishReason ?? null,
+        termination_kind: event.responseSummary?.terminationKind ?? null
+      });
       return;
     }
     if (event.type === "error") {
+      this.applyProviderSummary(event.responseSummary);
       this.errorCode = event.code;
-      this.recordNormalized({ type: event.type, code: event.code });
+      this.recordNormalized({
+        type: event.type,
+        code: event.code,
+        termination_kind: event.responseSummary?.terminationKind ?? null
+      });
     }
   }
 
   snapshot(attempt?: ProviderStreamAttemptContext): ProviderStreamSummary {
-    const finishReason =
-      this.finishReason ?? (this.toolCallCount > 0 ? "tool_calls" : this.contentChars > 0 ? "stop" : null);
+    const finishReason = this.finishReason;
     const summary: ProviderStreamSummary = {
       finishReason,
       upstreamRequestId: this.upstreamRequestId,
@@ -110,6 +121,7 @@ export class ProviderStreamSummaryCollector {
       toolNames: [...this.toolNames].sort(),
       rawResponseHash: this.upstreamRawHash ?? this.normalizedRawHash(),
       rawResponseChars: this.upstreamRawChars ?? this.normalizedChars,
+      terminationKind: this.terminationKind,
       emptyStop:
         finishReason === null || this.errorCode !== null
           ? null
@@ -154,6 +166,9 @@ export class ProviderStreamSummaryCollector {
     if (summary.rawResponseChars !== undefined) {
       this.upstreamRawChars = summary.rawResponseChars;
     }
+    if (summary.terminationKind !== undefined) {
+      this.terminationKind = summary.terminationKind;
+    }
   }
 }
 
@@ -171,6 +186,7 @@ export interface CollectProviderMessageInput {
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   suppressToolCalls?: boolean;
   suppressTextAfterToolCall?: boolean;
+  deferEmptyCompletionError?: boolean;
   attemptKind?: string | null;
   attemptToolChoice?: string | null;
   upstreamRuntime?: string | null;
@@ -238,11 +254,12 @@ export async function collectProviderMessage(
   }
 
   result.providerSummary = collector.snapshot(providerAttemptContext(input));
-  const truncatedWithoutOutputError = providerTruncatedWithoutOutputError(
-    result.providerSummary
-  );
-  if (truncatedWithoutOutputError) {
-    return truncatedWithoutOutputError;
+  const completionError = providerCompletionError(result.providerSummary);
+  if (
+    completionError &&
+    !(input.deferEmptyCompletionError && completionError.code === "upstream_empty_response")
+  ) {
+    return completionError;
   }
   return result;
 }
@@ -305,6 +322,20 @@ export function streamErrorToGatewayError(event: { code: string; message: string
       httpStatus: 503
     });
   }
+  if (event.code === "upstream_incomplete_stream") {
+    return new GatewayError({
+      code: "upstream_incomplete_stream",
+      message: event.message,
+      httpStatus: 502
+    });
+  }
+  if (event.code === "upstream_empty_response") {
+    return new GatewayError({
+      code: "upstream_empty_response",
+      message: event.message,
+      httpStatus: 502
+    });
+  }
   return new GatewayError({
     code: "service_unavailable",
     message: event.message,
@@ -348,6 +379,7 @@ export function combineProviderStreamSummaries(
     toolNames,
     rawResponseHash: hash.digest("hex"),
     rawResponseChars: hasRawChars ? rawChars : null,
+    terminationKind: present[present.length - 1]?.terminationKind ?? null,
     emptyStop:
       finishReason === null ? null : finishReason === "stop" && contentChars === 0 && toolCallCount === 0,
     attempts: attempts.map((attempt, index) => ({ ...attempt, index: index + 1 }))
@@ -403,6 +435,35 @@ export function providerTruncatedWithoutOutputError(
   });
 }
 
+export function providerCompletionError(summary: ProviderStreamSummary): GatewayError | null {
+  const truncatedWithoutOutputError = providerTruncatedWithoutOutputError(summary);
+  if (truncatedWithoutOutputError) {
+    return truncatedWithoutOutputError;
+  }
+  if (
+    summary.contentChars > 0 ||
+    summary.toolCallCount > 0 ||
+    !providerResponseCompleted(summary)
+  ) {
+    return null;
+  }
+
+  const error = new GatewayError({
+    code: "upstream_empty_response",
+    message: "MedCode upstream completed without a usable response.",
+    httpStatus: 502
+  });
+
+  return attachProviderStreamSummary(error, {
+    ...summary,
+    errorCode: error.code,
+    attempts: summary.attempts.map((attempt) => ({
+      ...attempt,
+      errorCode: attempt.errorCode ?? error.code
+    }))
+  });
+}
+
 export function providerStreamSummaryFromError(error: GatewayError): ProviderStreamSummary | null {
   const summary = (error as GatewayError & { providerSummary?: unknown }).providerSummary;
   return isProviderStreamSummary(summary) ? summary : null;
@@ -440,7 +501,8 @@ function providerSummaryToAttempt(
     toolNames: [...summary.toolNames],
     rawResponseHash: summary.rawResponseHash,
     rawResponseChars: summary.rawResponseChars,
-    emptyStop: summary.emptyStop
+    emptyStop: summary.emptyStop,
+    terminationKind: summary.terminationKind
   };
 }
 
@@ -487,6 +549,15 @@ function emptyProviderStreamSummary(): ProviderStreamSummary {
     rawResponseHash: null,
     rawResponseChars: null,
     emptyStop: null,
+    terminationKind: null,
     attempts: []
   };
+}
+
+function providerResponseCompleted(summary: ProviderStreamSummary): boolean {
+  return (
+    summary.finishReason !== null ||
+    (summary.terminationKind !== null &&
+      summary.terminationKind !== "eof_before_terminal")
+  );
 }

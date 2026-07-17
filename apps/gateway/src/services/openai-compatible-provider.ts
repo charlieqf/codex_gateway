@@ -6,6 +6,8 @@ import {
   type ProviderErrorDiagnostic,
   type ProviderHealth,
   type ProviderKind,
+  type ProviderResponseSummary,
+  type ProviderStreamTermination,
   type StreamEvent,
   type TokenUsage,
   type UpstreamAccount
@@ -76,12 +78,18 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
       let usage: TokenUsage | undefined;
       let finishReason: string | null = null;
+      let sawDone = false;
+      let sawFinishReason = false;
       const rawResponseHash = createHash("sha256");
       let rawResponseChars = 0;
       const nativeToolCalls = nativeToolCallsEnabled(input)
         ? new NativeToolCallAccumulator()
         : null;
       for await (const chunk of parseOpenAISse(response.body)) {
+        if (chunk.type === "done") {
+          sawDone = true;
+          break;
+        }
         rawResponseHash.update(chunk.rawData, "utf8");
         rawResponseChars += chunk.rawData.length;
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
@@ -93,8 +101,39 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         }
         if (event.finishReason !== null) {
           finishReason = event.finishReason;
+          sawFinishReason = true;
         }
       }
+      const terminationKind = providerStreamTermination(sawDone, sawFinishReason);
+      const responseSummary: ProviderResponseSummary = {
+        finishReason,
+        upstreamRequestId: upstreamRequestId(response.headers),
+        upstreamHttpStatus: response.status,
+        rawResponseHash: rawResponseHash.digest("hex"),
+        rawResponseChars,
+        terminationKind
+      };
+
+      if (terminationKind === "eof_before_terminal") {
+        const normalized = this.normalizeAndReport(
+          new GatewayError({
+            code: "upstream_incomplete_stream",
+            message: "MedCode upstream response ended before completion.",
+            httpStatus: 502,
+            upstreamStatus: response.status
+          }),
+          "incomplete_sse_eof",
+          input
+        );
+        yield {
+          type: "error",
+          code: normalized.code,
+          message: normalized.message,
+          responseSummary
+        };
+        return;
+      }
+
       if (nativeToolCalls) {
         for (const event of nativeToolCalls.drain()) {
           yield event;
@@ -104,13 +143,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       yield {
         type: "completed",
         ...(usage ? { usage } : {}),
-        responseSummary: {
-          finishReason,
-          upstreamRequestId: upstreamRequestId(response.headers),
-          upstreamHttpStatus: response.status,
-          rawResponseHash: rawResponseHash.digest("hex"),
-          rawResponseChars
-        }
+        responseSummary
       };
     } catch (err) {
       const normalized = this.normalizeAndReport(err, "exception", input);
@@ -276,11 +309,18 @@ interface ParsedOpenAIChunk {
 }
 
 interface ParsedOpenAISseData {
+  type: "data";
   value: unknown;
   rawData: string;
 }
 
-async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<ParsedOpenAISseData> {
+interface ParsedOpenAISseDone {
+  type: "done";
+}
+
+async function* parseOpenAISse(
+  body: ReadableStream<Uint8Array>
+): AsyncIterable<ParsedOpenAISseData | ParsedOpenAISseDone> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -299,10 +339,15 @@ async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<
           continue;
         }
         const data = trimmed.slice("data:".length).trim();
-        if (!data || data === "[DONE]") {
+        if (!data) {
           continue;
         }
+        if (data === "[DONE]") {
+          yield { type: "done" };
+          return;
+        }
         yield {
+          type: "data",
           value: JSON.parse(data) as unknown,
           rawData: data
         };
@@ -311,16 +356,38 @@ async function* parseOpenAISse(body: ReadableStream<Uint8Array>): AsyncIterable<
     const tail = buffer.trim();
     if (tail.startsWith("data:")) {
       const data = tail.slice("data:".length).trim();
-      if (data && data !== "[DONE]") {
+      if (data === "[DONE]") {
+        yield { type: "done" };
+        return;
+      }
+      if (data) {
         yield {
+          type: "data",
           value: JSON.parse(data) as unknown,
           rawData: data
         };
       }
     }
   } finally {
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
+}
+
+function providerStreamTermination(
+  sawDone: boolean,
+  sawFinishReason: boolean
+): ProviderStreamTermination {
+  if (sawDone && sawFinishReason) {
+    return "finish_reason_and_done";
+  }
+  if (sawDone) {
+    return "done";
+  }
+  if (sawFinishReason) {
+    return "finish_reason";
+  }
+  return "eof_before_terminal";
 }
 
 function mapOpenAIStreamChunk(

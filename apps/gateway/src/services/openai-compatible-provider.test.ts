@@ -1,8 +1,16 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import type { GatewaySession, Subject, UpstreamAccount } from "@codex-gateway/core";
-import { collectProviderMessage } from "./provider-stream.js";
+import {
+  GatewayError,
+  type GatewaySession,
+  type Subject,
+  type UpstreamAccount
+} from "@codex-gateway/core";
+import {
+  collectProviderMessage,
+  providerStreamSummaryFromError
+} from "./provider-stream.js";
 import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js";
 
 describe("OpenAICompatibleProviderAdapter", () => {
@@ -67,6 +75,10 @@ describe("OpenAICompatibleProviderAdapter", () => {
           totalTokens: 13,
           cachedPromptTokens: 3,
           reasoningTokens: 0
+        },
+        providerSummary: {
+          finishReason: null,
+          terminationKind: "done"
         }
       });
       expect(captured).toHaveLength(1);
@@ -198,6 +210,10 @@ describe("OpenAICompatibleProviderAdapter", () => {
           promptTokens: 20,
           completionTokens: 4,
           totalTokens: 24
+        },
+        providerSummary: {
+          finishReason: "tool_calls",
+          terminationKind: "finish_reason_and_done"
         }
       });
       expect(captured).toHaveLength(1);
@@ -213,6 +229,153 @@ describe("OpenAICompatibleProviderAdapter", () => {
           }
         ],
         tool_choice: "required"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("classifies an EOF without terminal evidence as an incomplete upstream stream", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-openrouter-request-id": "up_req_incomplete_empty"
+      });
+      response.end();
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect((result as GatewayError).code).toBe("upstream_incomplete_stream");
+      expect((result as GatewayError).httpStatus).toBe(502);
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+        finishReason: null,
+        upstreamRequestId: "up_req_incomplete_empty",
+        upstreamHttpStatus: 200,
+        errorCode: "upstream_incomplete_stream",
+        contentChars: 0,
+        toolCallCount: 0,
+        rawResponseChars: 0,
+        terminationKind: "eof_before_terminal",
+        attempts: [
+          expect.objectContaining({
+            errorCode: "upstream_incomplete_stream",
+            terminationKind: "eof_before_terminal"
+          })
+        ]
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("does not accept partial content followed by an unterminated EOF", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "partial" } }]
+        })}\n\n`
+      );
+      response.end();
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect((result as GatewayError).code).toBe("upstream_incomplete_stream");
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+        contentChars: "partial".length,
+        toolCallCount: 0,
+        terminationKind: "eof_before_terminal"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("classifies a terminal SSE response without semantic output as empty upstream output", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect((result as GatewayError).code).toBe("upstream_empty_response");
+      expect((result as GatewayError).httpStatus).toBe(502);
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+        finishReason: null,
+        upstreamHttpStatus: 200,
+        errorCode: "upstream_empty_response",
+        contentChars: 0,
+        toolCallCount: 0,
+        terminationKind: "done"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("accepts an explicit finish reason when the provider omits the done marker", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "complete" } }]
+        })}\n\n`
+      );
+      response.end(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "stop" }]
+        })}\n\n`
+      );
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({
+        content: "complete",
+        providerSummary: {
+          finishReason: "stop",
+          contentChars: "complete".length,
+          terminationKind: "finish_reason"
+        }
       });
     } finally {
       await server.close();
@@ -320,6 +483,17 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 });
+
+function openAICompatibleProvider(baseUrl: string): OpenAICompatibleProviderAdapter {
+  return new OpenAICompatibleProviderAdapter({
+    providerKind: "openrouter",
+    apiKey: "sk-test-redacted",
+    apiKeyEnv: "MEDCODE_OPENROUTER_API_KEY",
+    baseUrl,
+    upstreamModel: "z-ai/glm-5.2",
+    timeoutMs: 5_000
+  });
+}
 
 async function startSseServer(
   handler: (
