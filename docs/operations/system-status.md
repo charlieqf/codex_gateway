@@ -232,6 +232,42 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-18 commit `f64cfa1` deployed incomplete OpenAI-compatible SSE
+  detection and empty-response classification to the live Azure Gateway from
+  clean release checkout
+  `/home/qian/codex-gateway-release-f64cfa1-20260718T000109Z`. A separate
+  clean local worktree and the VM release both passed `npm ci`,
+  `npm run build`, and all 346 tests in 23 files. The protected env preflight
+  confirmed the exact 8-model registry and all four Azure GoldenCode provider
+  key names without printing secret values. A stopped-container, consistent
+  database archive is stored at
+  `/home/qian/codex-gateway-backups/f64cfa1/gateway-databases-pre-f64cfa1-20260718T000109Z.tgz`.
+  The deployed image is
+  `sha256:1ac387f0286cd281b2ad39c5be2c9388c58df8f2a41ae0b465ed574a02cab78d`;
+  the previous image remains tagged
+  `codex_gateway_test-gateway:pre-f64cfa1` for rollback. The first preflight
+  attempt rejected shell-quoted registry JSON before any runtime mutation; the
+  parser was corrected and the failed release containing the protected env was
+  removed. During the stopped backup, a non-privileged `chmod` exited after the
+  root-owned archive was already complete; the mode was corrected with `sudo`
+  and the already-built release was activated. The live container is healthy
+  with zero restarts and no OOM, and remains loopback-only at
+  `127.0.0.1:18787->8787`. Public OpenAI-compatible, strict tools, `pro`
+  native-tools, and GoldenCode smokes passed and cleaned up every temporary key
+  and user. `/v1/models` returned exactly `max`, `specialist`, `consultant`,
+  `expert`, `advisor`, `pro`, `standard`, and `goldencode`. Pro request
+  `req-221b3c24-ba2c-4866-a183-a46e52c08cee` recorded
+  `openrouter / z-ai/glm-5-turbo / tool_calls / finish_reason_and_done /
+  status=ok`. GoldenCode request
+  `req-2324f914-f6bb-41fc-8a75-a3f94b794b4e` recorded
+  `goldencode-openrouter / openrouter / z-ai/glm-5.2 / stop /
+  finish_reason_and_done / status=ok`. Image inspection confirmed the new SSE
+  error markers, and post-deploy logs contained no `EPIPE`, unhandled, fatal,
+  incomplete-stream, or empty-response entries. `trial-check` infrastructure
+  checks passed but its overall result remains false because the existing
+  active-user count exceeds the old controlled-trial threshold and historical
+  key/contact/entitlement findings remain; no real user, key, or entitlement
+  was changed. CN1 was explicitly excluded and remains unchanged.
 - 2026-07-17 commit `843d6aa` deployed the Codex SDK stdin `EPIPE` crash fix
   to the live Azure Gateway from clean release checkout
   `/home/qian/codex-gateway-release-843d6aa-20260717T042146Z`. Local and VM

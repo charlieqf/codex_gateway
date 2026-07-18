@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-05-14
+Last updated: 2026-07-18
 
 ## Safety Rules That Worked
 
@@ -31,6 +31,14 @@ Last updated: 2026-05-14
 - Avoid quote-heavy one-line SSH commands from PowerShell when shell variables,
   JSON, or heredocs are involved. Transfer a temporary script or pipe normalized
   LF-only content to `bash -s`.
+- Protected env files can wrap JSON values in matching single or double quotes.
+  Preflight parsers should remove only one matching outer quote pair before
+  `JSON.parse`, validate the exact expected registry, and print key names or
+  presence only, never values.
+- Archives written through a root-owned temporary Docker container are also
+  root-owned on the host bind mount. Use `sudo chmod` for the final mode, and
+  install an error/exit recovery trap before stopping the live service so a
+  post-backup permission failure cannot leave the container stopped.
 - For live incident workflows, prefer an interactive SSH session into the VM and
   run repo Bash scripts there. Windows PowerShell should only open SSH or run
   simple one-line read-only commands; it should not be the business logic layer
