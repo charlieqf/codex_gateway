@@ -1,12 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import {
+  chmod,
   lstat,
+  link,
   mkdir,
   open,
-  readFile,
   readdir,
-  rename,
   rm,
+  rmdir,
   stat
 } from "node:fs/promises";
 import path from "node:path";
@@ -57,6 +59,11 @@ export interface StoredResearchArtifactFile {
   sizeBytes: number;
 }
 
+export interface VerifiedResearchArtifactStream {
+  stream: NodeJS.ReadableStream;
+  sizeBytes: number;
+}
+
 export function publicResearchArtifactManifests(
   artifacts: readonly StagedResearchArtifact[]
 ): DoctorResearchArtifactManifest[] {
@@ -78,6 +85,19 @@ export async function readVerifiedResearchArtifact(input: {
   artifact: StoredResearchArtifactFile;
   maximumArtifactBytes: number;
 }): Promise<Buffer> {
+  const verified = await openVerifiedResearchArtifactStream(input);
+  const chunks: Buffer[] = [];
+  for await (const chunk of verified.stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks, verified.sizeBytes);
+}
+
+export async function openVerifiedResearchArtifactStream(input: {
+  root: string;
+  artifact: StoredResearchArtifactFile;
+  maximumArtifactBytes: number;
+}): Promise<VerifiedResearchArtifactStream> {
   validatePositiveSizeLimit(
     input.maximumArtifactBytes,
     "maximumArtifactBytes"
@@ -107,21 +127,53 @@ export async function readVerifiedResearchArtifact(input: {
     artifactPath,
     "Research artifact path escapes its configured root."
   );
-  const artifactStat = await stat(artifactPath);
-  if (
-    !artifactStat.isFile() ||
-    artifactStat.size !== input.artifact.sizeBytes
-  ) {
-    throw new Error("Research artifact size does not match metadata.");
+  const flags =
+    process.platform === "win32"
+      ? constants.O_RDONLY
+      : constants.O_RDONLY | constants.O_NOFOLLOW;
+  const handle = await open(artifactPath, flags);
+  try {
+    const artifactStat = await handle.stat();
+    if (
+      !artifactStat.isFile() ||
+      artifactStat.size !== input.artifact.sizeBytes
+    ) {
+      throw new Error("Research artifact size does not match metadata.");
+    }
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+    let position = 0;
+    while (position < artifactStat.size) {
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        Math.min(buffer.length, artifactStat.size - position),
+        position
+      );
+      if (bytesRead <= 0) {
+        throw new Error("Research artifact ended before its declared size.");
+      }
+      hash.update(buffer.subarray(0, bytesRead));
+      position += bytesRead;
+    }
+    if (
+      position !== input.artifact.sizeBytes ||
+      hash.digest("hex") !== input.artifact.sha256
+    ) {
+      throw new Error("Research artifact integrity check failed.");
+    }
+    return {
+      stream: handle.createReadStream({
+        start: 0,
+        end: Math.max(0, artifactStat.size - 1),
+        autoClose: true
+      }),
+      sizeBytes: artifactStat.size
+    };
+  } catch (error) {
+    await handle.close();
+    throw error;
   }
-  const bytes = await readFile(artifactPath);
-  if (
-    bytes.length !== input.artifact.sizeBytes ||
-    createHash("sha256").update(bytes).digest("hex") !== input.artifact.sha256
-  ) {
-    throw new Error("Research artifact integrity check failed.");
-  }
-  return bytes;
 }
 
 export async function deleteResearchArtifactFiles(input: {
@@ -176,7 +228,7 @@ export async function deleteResearchArtifactFiles(input: {
   }
   for (const runDirectory of runDirectories) {
     try {
-      await rm(runDirectory);
+      await rmdir(runDirectory);
     } catch (error) {
       if (
         errorCode(error) !== "ENOENT" &&
@@ -210,11 +262,15 @@ export function renderDoctorResearchArtifacts(
       if (!source) {
         throw new Error(`Unknown primary source: ${sourceId}`);
       }
-      return `- [${source.title}](${source.url}) — ${source.accessed_at.slice(0, 10)} (${source.source_id})`;
+      return (
+        `- [${markdownInline(source.title)}](<${markdownHttpsUrl(source.url)}>)` +
+        ` — ${markdownInline(source.accessed_at.slice(0, 10))}` +
+        ` (${markdownInline(source.source_id)})`
+      );
     }
   );
   const profile = [
-    `# ${result.doctor.name} ${language === "zh-CN" ? "基础信息与研究方向" : "Profile and Research Directions"}`,
+    `# ${markdownInline(result.doctor.name)} ${language === "zh-CN" ? "基础信息与研究方向" : "Profile and Research Directions"}`,
     "",
     section(
       language === "zh-CN" ? "基础档案" : "Profile",
@@ -248,20 +304,20 @@ export function renderDoctorResearchArtifacts(
 
   const references = result.review.references.map(
     (reference, index) =>
-      `${index + 1}. ${reference.title}. ${reference.journal}. ${reference.publication_year}.` +
-      `${reference.pmid ? ` PMID: ${reference.pmid}.` : ""}` +
-      `${reference.doi ? ` DOI: ${reference.doi}.` : ""}`
+      `${index + 1}. ${markdownInline(reference.title)}. ${markdownInline(reference.journal)}. ${reference.publication_year}.` +
+      `${reference.pmid ? ` PMID: ${markdownInline(reference.pmid)}.` : ""}` +
+      `${reference.doi ? ` DOI: ${markdownInline(reference.doi)}.` : ""}`
   );
   const review = [
-    `# ${result.review.title}`,
+    `# ${markdownInline(result.review.title)}`,
     "",
     "## Abstract",
     "",
-    result.review.abstract,
+    markdownInline(result.review.abstract),
     "",
     "## Keywords",
     "",
-    result.review.keywords.join("; "),
+    result.review.keywords.map(markdownInline).join("; "),
     "",
     result.review.markdown.trim(),
     "",
@@ -271,26 +327,42 @@ export function renderDoctorResearchArtifacts(
     "",
     "## Search Report",
     "",
-    `- Databases: ${result.review.search_report.databases.join(", ")}`,
-    `- Searched at: ${result.review.search_report.searched_at}`,
+    `- Databases: ${result.review.search_report.databases.map(markdownInline).join(", ")}`,
+    `- Searched at: ${markdownInline(result.review.search_report.searched_at)}`,
     `- Included: ${result.review.search_report.included_count}`,
-    ...result.review.search_report.queries.map((query) => `- Query: ${query}`),
+    ...result.review.search_report.queries.map(
+      (query) => `- Query: ${markdownInline(query)}`
+    ),
     ""
   ].join("\n");
   const questions = result.predicted_questions
     .map((question, index) => `${index + 1}${language === "zh-CN" ? "、" : ". "}${question}`)
     .join("\n");
   const answers = [
-    `# ${result.doctor.name} ${language === "zh-CN" ? "问题与答案" : "Questions and Answers"}`,
+    `# ${markdownInline(result.doctor.name)} ${language === "zh-CN" ? "问题与答案" : "Questions and Answers"}`,
     "",
-    ...result.answers.flatMap((answer, index) => [
-      `## ${language === "zh-CN" ? "问题" : "Question"} ${index + 1}`,
-      "",
-      result.predicted_questions[index]!,
-      "",
-      `**${language === "zh-CN" ? "答案" : "Answer"}**: ${answer.answer}`,
-      ""
-    ])
+    ...result.answers.flatMap((answer, index) => {
+      const answerSources = answer.source_ids.map((sourceId) => {
+        const source = sourceById.get(sourceId);
+        if (!source) {
+          throw new Error(`Unknown answer source: ${sourceId}`);
+        }
+        return (
+          `[${markdownInline(source.title)}](<${markdownHttpsUrl(source.url)}>)` +
+          ` (${markdownInline(source.source_id)})`
+        );
+      });
+      return [
+        `## ${language === "zh-CN" ? "问题" : "Question"} ${index + 1}`,
+        "",
+        markdownInline(result.predicted_questions[index]!),
+        "",
+        `**${language === "zh-CN" ? "答案" : "Answer"}**: ${markdownInline(answer.answer)}`,
+        "",
+        `**${language === "zh-CN" ? "已验证来源" : "Verified sources"}**: ${answerSources.join("; ")}`,
+        ""
+      ];
+    })
   ].join("\n");
 
   const names =
@@ -365,6 +437,9 @@ export async function stageResearchArtifacts(input: {
     absoluteRoot,
     "Research artifact root must be a real directory."
   );
+  if (process.platform !== "win32") {
+    await chmod(absoluteRoot, 0o700);
+  }
   const runDirectory = path.resolve(absoluteRoot, input.runId);
   assertArtifactPath(absoluteRoot, runDirectory);
   try {
@@ -381,65 +456,100 @@ export async function stageResearchArtifacts(input: {
   );
 
   const staged: StagedResearchArtifact[] = [];
-  for (const artifact of input.artifacts) {
-    const artifactId = `dra_${randomUUID().replaceAll("-", "")}`;
-    const basename = `${artifactId}.v1`;
-    const temporaryPath = path.join(
-      runDirectory,
-      `.${basename}.tmp-${randomUUID().replaceAll("-", "")}`
-    );
-    const publishedPath = path.join(runDirectory, basename);
-    assertArtifactPath(absoluteRoot, temporaryPath);
-    assertArtifactPath(absoluteRoot, publishedPath);
-    await assertRealPathInsideRoot(
-      absoluteRoot,
-      temporaryPath,
-      "Research artifact path escapes its configured root.",
-      { allowMissingLeaf: true }
-    );
-    await assertRealPathInsideRoot(
-      absoluteRoot,
-      publishedPath,
-      "Research artifact path escapes its configured root.",
-      { allowMissingLeaf: true }
-    );
-    const bytes = Buffer.from(artifact.content, "utf8");
-    const stagedArtifact: StagedResearchArtifact = {
-      artifactId,
-      kind: artifact.kind,
-      filenameUtf8: artifact.filenameUtf8,
-      filenameAscii: artifact.filenameAscii,
-      contentType: artifact.contentType,
-      storageRelativePath: `${input.runId}/${basename}`,
-      storageVersion: 1,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      sizeBytes: bytes.length,
-      expiresAt: input.expiresAt
-    };
-    const handle = await open(temporaryPath, "wx", 0o600);
-    try {
-      await handle.writeFile(bytes);
-      await input.onFaultPoint?.("after_temp_write", stagedArtifact);
-      await handle.sync();
-      await input.onFaultPoint?.("after_file_sync", stagedArtifact);
-    } finally {
-      await handle.close();
+  const temporaryPaths = new Set<string>();
+  try {
+    for (const artifact of input.artifacts) {
+      const artifactId = `dra_${randomUUID().replaceAll("-", "")}`;
+      const basename = `${artifactId}.v1`;
+      const temporaryPath = path.join(
+        runDirectory,
+        `.${basename}.tmp-${randomUUID().replaceAll("-", "")}`
+      );
+      const publishedPath = path.join(runDirectory, basename);
+      temporaryPaths.add(temporaryPath);
+      assertArtifactPath(absoluteRoot, temporaryPath);
+      assertArtifactPath(absoluteRoot, publishedPath);
+      await assertRealPathInsideRoot(
+        absoluteRoot,
+        temporaryPath,
+        "Research artifact path escapes its configured root.",
+        { allowMissingLeaf: true }
+      );
+      await assertRealPathInsideRoot(
+        absoluteRoot,
+        publishedPath,
+        "Research artifact path escapes its configured root.",
+        { allowMissingLeaf: true }
+      );
+      const bytes = Buffer.from(artifact.content, "utf8");
+      const stagedArtifact: StagedResearchArtifact = {
+        artifactId,
+        kind: artifact.kind,
+        filenameUtf8: artifact.filenameUtf8,
+        filenameAscii: artifact.filenameAscii,
+        contentType: artifact.contentType,
+        storageRelativePath: `${input.runId}/${basename}`,
+        storageVersion: 1,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        sizeBytes: bytes.length,
+        expiresAt: input.expiresAt
+      };
+      const handle = await open(temporaryPath, "wx", 0o600);
+      try {
+        await handle.writeFile(bytes);
+        await input.onFaultPoint?.("after_temp_write", stagedArtifact);
+        await handle.sync();
+        await input.onFaultPoint?.("after_file_sync", stagedArtifact);
+      } finally {
+        await handle.close();
+      }
+      try {
+        await lstat(publishedPath);
+        throw new Error("Research artifact destination already exists.");
+      } catch (error) {
+        if (!isMissingFileError(error)) {
+          throw error;
+        }
+      }
+      await link(temporaryPath, publishedPath);
+      await rm(temporaryPath);
+      temporaryPaths.delete(temporaryPath);
+      await syncDirectoryBestEffort(runDirectory);
+      staged.push(stagedArtifact);
+      await input.onFaultPoint?.("after_rename", stagedArtifact);
     }
+    await input.onFaultPoint?.("before_metadata_commit");
+    return staged;
+  } catch (error) {
+    await Promise.allSettled(
+      [...temporaryPaths].map((temporaryPath) =>
+        rm(temporaryPath, { force: true })
+      )
+    );
+    await Promise.allSettled(
+      staged.map((artifact) =>
+        rm(
+          path.resolve(
+            absoluteRoot,
+            ...artifact.storageRelativePath.split("/")
+          ),
+          { force: true }
+        )
+      )
+    );
     try {
-      await lstat(publishedPath);
-      throw new Error("Research artifact destination already exists.");
-    } catch (error) {
-      if (!isMissingFileError(error)) {
-        throw error;
+      await rmdir(runDirectory);
+    } catch (cleanupError) {
+      if (
+        errorCode(cleanupError) !== "ENOENT" &&
+        errorCode(cleanupError) !== "ENOTEMPTY" &&
+        errorCode(cleanupError) !== "EEXIST"
+      ) {
+        throw cleanupError;
       }
     }
-    await rename(temporaryPath, publishedPath);
-    await syncDirectoryBestEffort(runDirectory);
-    staged.push(stagedArtifact);
-    await input.onFaultPoint?.("after_rename", stagedArtifact);
+    throw error;
   }
-  await input.onFaultPoint?.("before_metadata_commit");
-  return staged;
 }
 
 export async function recoverOrphanResearchArtifacts(input: {
@@ -535,9 +645,37 @@ function rendered(
 }
 
 function section(title: string, values: readonly string[]): string {
-  return [`## ${title}`, "", ...values.map((value) => `- ${value}`), ""].join(
-    "\n"
-  );
+  return [
+    `## ${title}`,
+    "",
+    ...values.map((value) => `- ${markdownInline(value)}`),
+    ""
+  ].join("\n");
+}
+
+function markdownInline(value: string): string {
+  return value
+    .normalize("NFC")
+    .replace(/[\r\n]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(
+      /\b(?:https?|javascript|data|mailto):/giu,
+      (scheme) => `${scheme.slice(0, -1)}∶`
+    )
+    .replace(/([\\`*_[\]{}()<>#+\-.!|])/gu, "\\$1");
+}
+
+function markdownHttpsUrl(value: string): string {
+  const url = new URL(value);
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== ""
+  ) {
+    throw new Error("Research artifact source URL must use HTTPS.");
+  }
+  return url.toString().replaceAll(">", "%3E");
 }
 
 function safeDisplayFilenamePart(value: string): string {

@@ -196,6 +196,27 @@ export type CreateResearchRunResult =
       >;
     };
 
+export interface InspectCreateResearchRunIdempotencyInput {
+  subjectId: string;
+  credentialId: string | null;
+  requestId: string;
+  idempotencyKey: string;
+  requestHash: string;
+  now?: Date;
+}
+
+export type InspectCreateResearchRunIdempotencyResult =
+  | { outcome: "not_found" }
+  | Extract<
+      CreateResearchRunResult,
+      {
+        outcome:
+          | "replayed"
+          | "idempotency_conflict"
+          | "idempotency_expired";
+      }
+    >;
+
 export interface ListResearchRunsInput {
   subjectId: string;
   status?: ResearchRunStatus;
@@ -497,7 +518,100 @@ export interface CleanupResearchDataResult {
   artifactStorageRelativePaths: string[];
 }
 
+export interface ResearchRunBudgetLimits {
+  externalRequests: number;
+  externalResponseBytes: number;
+  llmCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface ChargeResearchRunBudgetInput {
+  token: ResearchLeaseToken;
+  charge: ResearchRunBudgetLimits;
+  limits: ResearchRunBudgetLimits;
+  now?: Date;
+}
+
+export type ChargeResearchRunBudgetResult =
+  | {
+      outcome: "charged";
+      totals: ResearchRunBudgetLimits;
+    }
+  | {
+      outcome: "budget_exceeded";
+      limit:
+        | "external_requests"
+        | "external_response_bytes"
+        | "llm_calls"
+        | "input_tokens"
+        | "output_tokens";
+    }
+  | { outcome: "fenced_or_cancelled" };
+
+export interface StartResearchStageRunInput {
+  token: ResearchLeaseToken;
+  stage: ResearchRunStage;
+  attempt: number;
+  inputSha256: string;
+  now?: Date;
+}
+
+export interface CompleteResearchStageRunInput {
+  token: ResearchLeaseToken;
+  stage: ResearchRunStage;
+  attempt: number;
+  outputSha256: string | null;
+  durationMs: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  gatewayRequestId: string | null;
+  errorCode: string | null;
+  now?: Date;
+}
+
+export type WriteResearchStageRunResult =
+  | { outcome: "written" }
+  | { outcome: "fenced_or_cancelled" };
+
+export interface RecordResearchBackupStartedInput {
+  backupId: string;
+  schemaVersion: string;
+  now?: Date;
+}
+
+export interface RecordResearchBackupCompletedInput {
+  backupId: string;
+  outcome: "succeeded" | "failed";
+  manifestSha256?: string;
+  errorCode?: string;
+  now?: Date;
+}
+
+export type ResearchMaintenanceLockName =
+  | "reconcile"
+  | "cleanup"
+  | "backup";
+
+export interface AcquireResearchMaintenanceLockInput {
+  name: ResearchMaintenanceLockName;
+  owner: string;
+  leaseSeconds: number;
+  now?: Date;
+}
+
+export interface RenewResearchMaintenanceLockInput
+  extends AcquireResearchMaintenanceLockInput {}
+
+export interface ReleaseResearchMaintenanceLockInput {
+  name: ResearchMaintenanceLockName;
+  owner: string;
+}
+
 export interface ResearchStore {
+  inspectCreateRunIdempotency(
+    input: InspectCreateResearchRunIdempotencyInput
+  ): InspectCreateResearchRunIdempotencyResult;
   createRun(input: CreateResearchRunInput): CreateResearchRunResult;
   getRunForSubject(runId: string, subjectId: string): ResearchRunRecord | null;
   getRunResultForSubject(
@@ -552,4 +666,22 @@ export interface ResearchWorkerStore {
   cleanupExpiredData(
     input?: CleanupResearchDataInput
   ): CleanupResearchDataResult;
+  chargeRunBudget(
+    input: ChargeResearchRunBudgetInput
+  ): ChargeResearchRunBudgetResult;
+  startStageRun(
+    input: StartResearchStageRunInput
+  ): WriteResearchStageRunResult;
+  completeStageRun(
+    input: CompleteResearchStageRunInput
+  ): WriteResearchStageRunResult;
+  listCommittedArtifactStoragePaths(): string[];
+  recordBackupStarted(input: RecordResearchBackupStartedInput): void;
+  recordBackupCompleted(input: RecordResearchBackupCompletedInput): void;
+  latestSuccessfulBackupAt(): Date | null;
+  acquireMaintenanceLock(
+    input: AcquireResearchMaintenanceLockInput
+  ): boolean;
+  renewMaintenanceLock(input: RenewResearchMaintenanceLockInput): boolean;
+  releaseMaintenanceLock(input: ReleaseResearchMaintenanceLockInput): void;
 }

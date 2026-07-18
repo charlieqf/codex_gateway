@@ -1,0 +1,172 @@
+name: codex-gateway-research-staging
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${RESEARCH_STAGING_GATEWAY_ENV_FILE:?set a staging-only Gateway env file}
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8787
+      GATEWAY_SQLITE_PATH: /var/lib/codex-gateway/gateway.db
+      RESEARCH_API_ENABLED: ${RESEARCH_STAGING_API_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+    volumes:
+      - research_staging_gateway_state:/var/lib/codex-gateway
+      - research_staging_gateway_logs:/var/log/codex-gateway
+      - research_staging_state:/var/lib/codex-gateway-research
+    ports:
+      - "127.0.0.1:${RESEARCH_STAGING_PORT:-18788}:8787"
+    cpus: "1.0"
+    mem_limit: 6g
+    pids_limit: 256
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  research-worker:
+    profiles:
+      - research-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "on-failure:3"
+    stop_grace_period: 45s
+    command:
+      - node
+      - /app/apps/research-worker/dist/index.js
+    env_file:
+      - ${RESEARCH_STAGING_WORKER_ENV_FILE:?set a staging-only Worker env file}
+    environment:
+      NODE_ENV: staging
+      RESEARCH_WORKER_ENABLED: ${RESEARCH_STAGING_WORKER_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+      RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
+      RESEARCH_LLM_BASE_URL: http://gateway:8787
+      RESEARCH_LLM_BEARER_TOKEN_FILE: /run/secrets/research_llm_bearer
+      RESEARCH_WEB_SEARCH_API_KEY_FILE: /run/secrets/research_web_search_api_key
+      RESEARCH_ORCID_CLIENT_ID_FILE: /run/secrets/research_orcid_client_id
+      RESEARCH_ORCID_CLIENT_SECRET_FILE: /run/secrets/research_orcid_client_secret
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    volumes:
+      - research_staging_state:/var/lib/codex-gateway-research
+      - research_staging_backups:/var/lib/codex-gateway-research-backups
+    secrets:
+      - source: research_llm_bearer
+        target: research_llm_bearer
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_web_search_api_key
+        target: research_web_search_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_orcid_client_id
+        target: research_orcid_client_id
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_orcid_client_secret
+        target: research_orcid_client_secret
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    depends_on:
+      gateway:
+        condition: service_healthy
+      research-maintenance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "/app/scripts/research-worker-health.mjs"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    cpus: "1.0"
+    mem_limit: 2g
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  research-maintenance:
+    profiles:
+      - research-beta
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "on-failure:3"
+    stop_grace_period: 45s
+    command:
+      - node
+      - /app/apps/research-worker/dist/maintenance-index.js
+    env_file:
+      - ${RESEARCH_STAGING_WORKER_ENV_FILE:?set a staging-only Worker env file}
+    environment:
+      NODE_ENV: staging
+      RESEARCH_WORKER_ENABLED: "false"
+      RESEARCH_MAINTENANCE_ENABLED: ${RESEARCH_STAGING_MAINTENANCE_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+      RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
+      RESEARCH_LLM_BASE_URL: http://gateway:8787
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    volumes:
+      - research_staging_state:/var/lib/codex-gateway-research
+      - research_staging_backups:/var/lib/codex-gateway-research-backups
+    healthcheck:
+      test: ["CMD", "node", "/app/scripts/research-maintenance-health.mjs"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    cpus: "0.5"
+    mem_limit: 1g
+    pids_limit: 64
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  research_staging_gateway_state:
+  research_staging_gateway_logs:
+  research_staging_state:
+  research_staging_backups:
+
+secrets:
+  research_llm_bearer:
+    file: ${RESEARCH_STAGING_LLM_TOKEN_FILE:-./secrets/research-staging-llm-token}
+  research_web_search_api_key:
+    file: ${RESEARCH_STAGING_WEB_SEARCH_KEY_FILE:-./secrets/research-staging-web-search-key}
+  research_orcid_client_id:
+    file: ${RESEARCH_STAGING_ORCID_CLIENT_ID_FILE:-./secrets/research-staging-orcid-client-id}
+  research_orcid_client_secret:
+    file: ${RESEARCH_STAGING_ORCID_CLIENT_SECRET_FILE:-./secrets/research-staging-orcid-client-secret}

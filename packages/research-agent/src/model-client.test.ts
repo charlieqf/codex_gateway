@@ -1,0 +1,192 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  GatewayResearchModelClient
+} from "./index.js";
+
+describe("Doctor Research structured Gateway model client", () => {
+  it("preflights the exact credential model and requests one plain JSON value", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url;
+        requests.push({ url, init });
+        if (url.includes("/worker/llm-readiness/")) {
+          return jsonResponse({
+            schema_version: "research_llm_readiness.v1",
+            model: "medcode",
+            authorized: true
+          });
+        }
+        return jsonResponse(
+          {
+            choices: [
+              {
+                message: {
+                  role: "assistant",
+                  content:
+                    "{\"schema_version\":\"doctor_research_model_output.v1\"}"
+                },
+                finish_reason: "stop"
+              }
+            ],
+            usage: {
+              prompt_tokens: 100,
+              completion_tokens: 20,
+              total_tokens: 120
+            }
+          },
+          { "x-request-id": "req_model_client" }
+        );
+      }
+    );
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 1_000_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl
+    });
+    const signal = new AbortController().signal;
+
+    await expect(client.assertModelAvailable(signal)).resolves.toBeUndefined();
+    const response = await client.generate({
+      runId: `drr_${"a".repeat(32)}`,
+      stage: "synthesize_review",
+      attempt: 1,
+      system: "Return structured evidence.",
+      prompt: "Use the closed evidence set.",
+      signal
+    });
+
+    expect(response).toEqual({
+      text: "{\"schema_version\":\"doctor_research_model_output.v1\"}",
+      gatewayRequestId: "req_model_client",
+      usage: {
+        promptTokens: 100,
+        completionTokens: 20,
+        totalTokens: 120
+      }
+    });
+    const readinessUrl = new URL(requests[0]!.url);
+    expect(Object.fromEntries(readinessUrl.searchParams)).toEqual({
+      maximum_prompt_tokens_per_call: "200000",
+      maximum_output_tokens_per_call: "12000",
+      calls_per_run: "3",
+      maximum_tokens_per_run: "636000"
+    });
+    const request = requests[1];
+    const body = JSON.parse(String(request?.init?.body)) as {
+      stream: boolean;
+      max_tokens: number;
+      messages: Array<{ role: string; content: string }>;
+      tools?: unknown;
+      tool_choice?: unknown;
+      response_format?: unknown;
+    };
+    expect(body.stream).toBe(false);
+    expect(body.max_tokens).toBe(12_000);
+    expect(body.messages).toHaveLength(2);
+    expect(body).not.toHaveProperty("tools");
+    expect(body).not.toHaveProperty("tool_choice");
+    expect(body).not.toHaveProperty("response_format");
+    expect(request?.init?.headers).toMatchObject({
+      authorization: "Bearer secret-staging-token",
+      "x-medcode-client-session-id": `drr_${"a".repeat(32)}`,
+      "x-medcode-client-turn-code": "research:synthesize_review:1"
+    });
+  });
+
+  it("fails closed when the service credential does not expose the exact model", async () => {
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () =>
+        jsonResponse({
+          schema_version: "research_llm_readiness.v1",
+          model: "another-model",
+          authorized: false
+        })
+    });
+    await expect(
+      client.assertModelAvailable(new AbortController().signal)
+    ).rejects.toThrow("Research LLM request failed");
+  });
+
+  it("does not send a bearer token over cleartext HTTP to a public hostname", () => {
+    expect(
+      () =>
+        new GatewayResearchModelClient({
+          baseUrl: "http://gateway.example:8787",
+          allowedHosts: ["gateway.example"],
+          model: "medcode",
+          bearerToken: "secret-staging-token",
+          timeoutMs: 5_000,
+          maximumResponseBytes: 100_000,
+          readinessRequirements: readinessRequirements()
+        })
+    ).toThrow("cleartext HTTP");
+  });
+
+  it("classifies a model network failure as a retryable transport error", async () => {
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () => {
+        throw new TypeError("simulated network failure");
+      }
+    });
+
+    await expect(
+      client.generate({
+        runId: `drr_${"b".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal
+      })
+    ).rejects.toMatchObject({
+      name: "ResearchModelClientError",
+      code: "upstream_error",
+      statusCode: 0,
+      gatewayRequestId: null
+    });
+  });
+});
+
+function readinessRequirements() {
+  return {
+    maximumPromptTokensPerCall: 200_000,
+    maximumOutputTokensPerCall: 12_000,
+    callsPerRun: 3,
+    maximumTokensPerRun: 636_000
+  };
+}
+
+function jsonResponse(
+  value: unknown,
+  headers: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "content-type": "application/json", ...headers }
+  });
+}

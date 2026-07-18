@@ -83,7 +83,9 @@ describe("Doctor Research production contracts", () => {
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.1.0",
+      version: "1.2.0",
+      promptVersion: "doctor-research-prompt.v2",
+      validationPolicyVersion: "doctor_research_validation.v2",
       modelOutputSchemaVersion: "doctor_research_model_output.v1",
       outputSchemaVersion: "doctor_research_result.v1",
       contentTrustPolicy: "external_content_is_untrusted_data"
@@ -105,14 +107,14 @@ describe("Doctor Research production contracts", () => {
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        promptVersion: "doctor-research-prompt.v2"
+        promptVersion: "doctor-research-prompt.v3"
       })
     ).toThrow("strictly newer semantic version");
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        version: "1.2.0",
-        promptVersion: "doctor-research-prompt.v2"
+        version: "1.3.0",
+        promptVersion: "doctor-research-prompt.v3"
       })
     ).not.toThrow();
   });
@@ -149,6 +151,12 @@ describe("Doctor Research production contracts", () => {
       parseAndValidateDoctorResearchResult(
         JSON.stringify(missingPublicSources)
       )
+    ).toMatchObject({ ok: false, kind: "schema_error" });
+
+    const uncitedAnswer = structuredClone(result);
+    uncitedAnswer.answers[0]!.source_ids = [];
+    expect(
+      parseAndValidateDoctorResearchResult(JSON.stringify(uncitedAnswer))
     ).toMatchObject({ ok: false, kind: "schema_error" });
 
     const duplicateKind = structuredClone(result);
@@ -387,9 +395,24 @@ describe("Doctor Research artifact renderer and crash harness", () => {
     expect(rendered[2]!.contentType).toBe(
       "text/plain; charset=utf-8"
     );
+    expect(rendered[3]!.content).toContain("**Verified sources**:");
+    expect(rendered[3]!.content).toContain("(src\\_pubmed\\_1)");
   });
 
-  it("publishes immutable internal paths and recovers temp and renamed orphans", async () => {
+  it("escapes untrusted inline metadata while preserving only the verified source link", () => {
+    const result = validResult();
+    const verifiedUrl = result.sources[0]!.url;
+    result.sources[0]!.title =
+      "Profile](https://attacker.invalid/) <script>alert(1)</script>";
+    const rendered = renderDoctorResearchArtifacts(result, "en");
+    const profile = rendered.find((artifact) => artifact.kind === "profile");
+    expect(profile?.content).toContain(`(<${verifiedUrl}>)`);
+    expect(profile?.content).not.toContain("https://attacker.invalid/");
+    expect(profile?.content).not.toContain("<script>");
+    expect(profile?.content).toContain("https∶//attacker");
+  });
+
+  it("publishes immutable internal paths and cleans faulted staging files", async () => {
     const root = temporaryDirectory();
     const result = validResult();
     const artifacts = renderDoctorResearchArtifacts(result, "en");
@@ -448,7 +471,7 @@ describe("Doctor Research artifact renderer and crash harness", () => {
         now: new Date(Date.now() + 10_000),
         graceMs: 0
       })
-    ).toEqual({ removedTemporary: 1, removedPublished: 0 });
+    ).toEqual({ removedTemporary: 0, removedPublished: 0 });
 
     const renamedRoot = temporaryDirectory();
     await expect(
@@ -473,7 +496,7 @@ describe("Doctor Research artifact renderer and crash harness", () => {
         now: new Date(Date.now() + 10_000),
         graceMs: 0
       })
-    ).toEqual({ removedTemporary: 0, removedPublished: 1 });
+    ).toEqual({ removedTemporary: 0, removedPublished: 0 });
   });
 });
 
@@ -602,6 +625,23 @@ describe("Doctor Research backup and storage harnesses", () => {
     ).toMatchObject({
       passed: false,
       errors: [expect.stringContaining(artifactId)]
+    });
+
+    await writeFile(
+      backup.manifestPath,
+      JSON.stringify({
+        ...backup.manifest,
+        artifacts: [null]
+      })
+    );
+    expect(
+      await verifyResearchBackupSnapshot({
+        backupDirectory: backup.backupDirectory
+      })
+    ).toMatchObject({
+      passed: false,
+      errors: ["manifest_invalid"],
+      manifest: null
     });
   });
 

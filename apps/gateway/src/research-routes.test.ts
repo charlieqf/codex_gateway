@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  GatewayError,
   issueAccessCredential,
   type ProviderAdapter
 } from "@codex-gateway/core";
@@ -36,6 +37,11 @@ const provider: ProviderAdapter = {
 };
 
 const cleanupDirectories: string[] = [];
+const researchLlmReadinessQuery =
+  "?maximum_prompt_tokens_per_call=200000" +
+  "&maximum_output_tokens_per_call=12000" +
+  "&calls_per_run=3" +
+  "&maximum_tokens_per_run=636000";
 
 afterEach(() => {
   for (const directory of cleanupDirectories.splice(0)) {
@@ -120,19 +126,32 @@ describe("Doctor Research control-plane routes", () => {
     );
   });
 
-  it("assembles and registers the Research store from production environment settings", async () => {
+  it("assembles the Research store and refuses admission until a Worker is ready", async () => {
     await withTemporaryEnv(
       {
         RESEARCH_API_ENABLED: "true",
         RESEARCH_DB_PATH: ":memory:",
         RESEARCH_ARTIFACT_ROOT: ".research-test-artifacts",
-        RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE: "true",
+        RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE: "false",
         RESEARCH_CONTROL_READ_RPM: "20",
         RESEARCH_CONTROL_MUTATION_RPM: "10",
         RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT: "10",
         RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "10",
         RESEARCH_MAX_QUEUED_RUNS: "100",
-        RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "10"
+        RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "10",
+        RESEARCH_MAX_CHECKPOINT_BYTES: "1048576",
+        RESEARCH_MAX_RESULT_BYTES: "4194304",
+        RESEARCH_MAX_ARTIFACT_BYTES: "1048576",
+        RESEARCH_HEARTBEAT_STALE_SECONDS: "45",
+        RESEARCH_MAX_STORAGE_BYTES: "1073741824",
+        RESEARCH_MIN_FREE_BYTES: "1",
+        RESEARCH_MIN_FREE_PERCENT: "1",
+        RESEARCH_BACKUP_MAX_AGE_SECONDS: "3600",
+        RESEARCH_IDEMPOTENCY_REPLAY_SECONDS: "604800",
+        RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS: "2592000",
+        RESEARCH_RESULT_TTL_SECONDS: "2592000",
+        RESEARCH_RUN_RETENTION_SECONDS: "7776000",
+        RESEARCH_NEEDS_INPUT_TTL_SECONDS: "259200"
       },
       async () => {
         const gateway = createSqliteStore({ path: ":memory:" });
@@ -172,8 +191,10 @@ describe("Doctor Research control-plane routes", () => {
           payload: validRequest("Environment Doctor")
         });
 
-        expect(response.statusCode).toBe(202);
-        expect(response.json().run_id).toMatch(/^drr_[a-f0-9]{32}$/);
+        expect(response.statusCode).toBe(503);
+        expect(response.json().error.code).toBe(
+          "research_worker_unavailable"
+        );
         await app.close();
       }
     );
@@ -221,6 +242,114 @@ describe("Doctor Research control-plane routes", () => {
       error: { code: "run_not_found" }
     });
     await fixture.app.close();
+  });
+
+  it("preflights the Worker LLM credential, exact model, and entitlement without generating", async () => {
+    const fixture = createFixture({
+      capability: true,
+      allowedPublicModels: ["medcode"],
+      featureCapabilities: ["chat"],
+      boundedServicePolicy: true
+    });
+    const response = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        researchLlmReadinessQuery,
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
+    const missing = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/not-a-model" +
+        researchLlmReadinessQuery,
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
+    const missingRequirements = await fixture.app.inject({
+      method: "GET",
+      url: "/gateway/research/v1/worker/llm-readiness/medcode",
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
+    const insufficientPolicy = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        "?maximum_prompt_tokens_per_call=200000" +
+        "&maximum_output_tokens_per_call=50000" +
+        "&calls_per_run=3" +
+        "&maximum_tokens_per_run=250000",
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      schema_version: "research_llm_readiness.v1",
+      model: "medcode",
+      authorized: true
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(missingRequirements.statusCode).toBe(400);
+    expect(insufficientPolicy.statusCode).toBe(403);
+    expect(insufficientPolicy.json().error.code).toBe(
+      "plan_capability_required"
+    );
+    await fixture.app.close();
+
+    const overbroad = createFixture({
+      capability: true,
+      allowedPublicModels: ["medcode", "max"],
+      featureCapabilities: ["chat"],
+      boundedServicePolicy: true
+    });
+    const rejected = await overbroad.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        researchLlmReadinessQuery,
+      headers: { authorization: `Bearer ${overbroad.token}` }
+    });
+    expect(rejected.statusCode).toBe(403);
+    expect(rejected.json().error.code).toBe(
+      "model_not_allowed_for_credential"
+    );
+    await overbroad.app.close();
+
+    const overcapable = createFixture({
+      capability: true,
+      allowedPublicModels: ["medcode"],
+      featureCapabilities: ["chat", "doctor_research"],
+      boundedServicePolicy: true
+    });
+    const capabilityRejected = await overcapable.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        researchLlmReadinessQuery,
+      headers: { authorization: `Bearer ${overcapable.token}` }
+    });
+    expect(capabilityRejected.statusCode).toBe(403);
+    expect(capabilityRejected.json().error.code).toBe(
+      "plan_capability_required"
+    );
+    await overcapable.app.close();
+
+    const unbounded = createFixture({
+      capability: true,
+      allowedPublicModels: ["medcode"],
+      featureCapabilities: ["chat"]
+    });
+    const policyRejected = await unbounded.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        researchLlmReadinessQuery,
+      headers: { authorization: `Bearer ${unbounded.token}` }
+    });
+    expect(policyRejected.statusCode).toBe(403);
+    expect(policyRejected.json().error.code).toBe(
+      "plan_capability_required"
+    );
+    await unbounded.app.close();
   });
 
   it("fails closed before admission when no healthy Worker is available", async () => {
@@ -302,6 +431,99 @@ describe("Doctor Research control-plane routes", () => {
         "subj_research"
       )?.status
     ).toBe("needs_input");
+    await fixture.app.close();
+  });
+
+  it("runs the storage and backup admission guard before creating a run", async () => {
+    const fixture = createFixture({
+      capability: true,
+      admissionGuard: async () =>
+        new GatewayError({
+          code: "research_storage_unavailable",
+          message: "Research storage is unavailable.",
+          httpStatus: 503,
+          retryAfterSeconds: 60
+        })
+    });
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        authorization: `Bearer ${fixture.token}`,
+        "idempotency-key": "research:storage-guard"
+      },
+      payload: validRequest("Doctor Storage Guard")
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.headers["retry-after"]).toBe("60");
+    expect(response.json().error.code).toBe("research_storage_unavailable");
+    expect(
+      fixture.research.database
+        .prepare("SELECT COUNT(*) AS count FROM research_runs")
+        .get()
+    ).toEqual({ count: 0 });
+    await fixture.app.close();
+  });
+
+  it("replays and rejects conflicting create keys before a later admission outage", async () => {
+    let admissionUnavailable = false;
+    const fixture = createFixture({
+      capability: true,
+      admissionGuard: async () =>
+        admissionUnavailable
+          ? new GatewayError({
+              code: "research_storage_unavailable",
+              message: "Research storage is unavailable.",
+              httpStatus: 503
+            })
+          : null
+    });
+    const headers = {
+      authorization: `Bearer ${fixture.token}`,
+      "idempotency-key": "research:replay-during-outage"
+    };
+    const payload = validRequest("Doctor Replay During Outage");
+    const created = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers,
+      payload
+    });
+    admissionUnavailable = true;
+    const replayed = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers,
+      payload
+    });
+    const conflict = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers,
+      payload: validRequest("Different Doctor During Outage")
+    });
+    const newRequest = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...headers,
+        "idempotency-key": "research:new-during-outage"
+      },
+      payload: validRequest("New Doctor During Outage")
+    });
+
+    expect(created.statusCode).toBe(202);
+    expect(replayed.statusCode).toBe(202);
+    expect(replayed.json()).toEqual(created.json());
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error.code).toBe("idempotency_conflict");
+    expect(newRequest.statusCode).toBe(503);
+    expect(
+      fixture.research.database
+        .prepare("SELECT COUNT(*) AS count FROM research_runs")
+        .get()
+    ).toEqual({ count: 1 });
     await fixture.app.close();
   });
 
@@ -444,7 +666,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.1.0"
+        version: "1.2.0"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1185,6 +1407,60 @@ describe("Doctor Research control-plane routes", () => {
       url: "/gateway/research/v1/doctor-runs?cursor=not-a-cursor",
       headers: auth
     });
+    const forgedLongLivedCursor = Buffer.from(
+      JSON.stringify({
+        v: 1,
+        status: null,
+        created_at: "2026-07-17T01:00:00.000Z",
+        run_id: `drr_${"a".repeat(32)}`,
+        expires_at: "2030-01-01T00:00:00.000Z"
+      })
+    ).toString("base64url");
+    const longLivedCursor = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/doctor-runs?cursor=" +
+        forgedLongLivedCursor,
+      headers: auth
+    });
+    const weakIdentity = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:weak-identity"
+      },
+      payload: {
+        ...validRequest("Doctor With Weak Identity"),
+        doctor: {
+          name: "Doctor With Weak Identity",
+          hospital: "Example Hospital",
+          department: null,
+          title: null,
+          city: "Sydney",
+          orcid: null
+        }
+      }
+    });
+    const oversizedIdentitySearch = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:oversized-identity-search"
+      },
+      payload: {
+        ...validRequest("Doctor With Oversized Anchors"),
+        doctor: {
+          name: "Doctor With Oversized Anchors",
+          hospital: "H".repeat(190),
+          department: "D".repeat(190),
+          title: null,
+          city: null,
+          orcid: null
+        }
+      }
+    });
 
     expect(unsafe.statusCode).toBe(400);
     expect(unsafe.json().error.code).toBe("invalid_request");
@@ -1192,6 +1468,48 @@ describe("Doctor Research control-plane routes", () => {
     expect(missingKey.json().error.code).toBe("invalid_request");
     expect(cursor.statusCode).toBe(400);
     expect(cursor.json().error.code).toBe("invalid_request");
+    expect(longLivedCursor.statusCode).toBe(400);
+    expect(longLivedCursor.json().error.code).toBe("invalid_request");
+    expect(weakIdentity.statusCode).toBe(400);
+    expect(weakIdentity.json()).toMatchObject({
+      error: {
+        code: "invalid_request",
+        message: expect.stringContaining("both hospital and department")
+      }
+    });
+    expect(oversizedIdentitySearch.statusCode).toBe(400);
+    expect(oversizedIdentitySearch.json()).toMatchObject({
+      error: {
+        code: "invalid_request",
+        message: expect.stringContaining("too long")
+      }
+    });
+    expect(() =>
+      parseDoctorResearchRunRequest(validRequest("A\ud800"))
+    ).toThrow("doctor.name is invalid");
+    const identityA = parseDoctorResearchRunRequest({
+      ...validRequest("Example  Doctor"),
+      doctor: {
+        ...validRequest("Example Doctor").doctor,
+        name: "Example  Doctor",
+        hospital: "EXAMPLE HOSPITAL",
+        title: "Professor",
+        city: "Sydney"
+      }
+    });
+    const identityB = parseDoctorResearchRunRequest({
+      ...validRequest("example doctor"),
+      doctor: {
+        ...validRequest("example doctor").doctor,
+        name: "example doctor",
+        hospital: "example hospital",
+        title: null,
+        city: null
+      }
+    });
+    expect(identityA.identityFingerprint).toBe(
+      identityB.identityFingerprint
+    );
     await fixture.app.close();
   });
 });
@@ -1204,6 +1522,12 @@ function createFixture(input: {
   mutationRpm?: number;
   acceptWhenWorkerUnavailable?: boolean;
   artifactRoot?: string;
+  admissionGuard?: (
+    now: Date
+  ) => Promise<GatewayError | null>;
+  allowedPublicModels?: string[];
+  featureCapabilities?: string[];
+  boundedServicePolicy?: boolean;
 }): {
   app: ReturnType<typeof buildGateway>;
   gateway: SqliteGatewayStore;
@@ -1222,15 +1546,23 @@ function createFixture(input: {
       needsInputPerSubject: 10
     }
   });
-  const issued = addSubject(gateway, "subj_research");
+  const issued = addSubject(
+    gateway,
+    "subj_research",
+    input.allowedPublicModels,
+    input.boundedServicePolicy
+  );
   gateway.createPlan({
     id: "plan_research_fixture_v1",
     displayName: "Research fixture",
-    policy: unrestrictedTokenPolicy(),
+    policy: input.boundedServicePolicy
+      ? boundedServiceTokenPolicy()
+      : unrestrictedTokenPolicy(),
     featurePolicy: {
       capabilities: input.capability
-        ? ["chat", "tools", "doctor_research"]
-        : ["chat", "tools"],
+        ? input.featureCapabilities ??
+          ["chat", "tools", "doctor_research"]
+        : input.featureCapabilities ?? ["chat", "tools"],
       imageGeneration: null,
       medcodeModels: null
     },
@@ -1274,6 +1606,7 @@ function createFixture(input: {
     researchStore: research,
     researchAcceptWhenWorkerUnavailable:
       input.acceptWhenWorkerUnavailable ?? true,
+    researchAdmissionGuard: input.admissionGuard,
     ...(input.artifactRoot
       ? {
           researchArtifactRoot: input.artifactRoot,
@@ -1532,13 +1865,33 @@ async function withTemporaryEnv(
   }
 }
 
-function addSubject(store: SqliteGatewayStore, subjectId: string) {
+function addSubject(
+  store: SqliteGatewayStore,
+  subjectId: string,
+  allowedPublicModels?: string[],
+  boundedServicePolicy = false
+) {
   const issued = issueAccessCredential({
     subjectId,
     label: `${subjectId} credential`,
     scope: "code",
     expiresAt: new Date("2030-01-01T00:00:00Z"),
-    now: new Date("2026-07-17T00:00:00Z")
+    now: new Date("2026-07-17T00:00:00Z"),
+    ...(allowedPublicModels
+      ? {
+          allowedPublicModels,
+          knownPublicModelIds: ["medcode", "max"]
+        }
+      : {}),
+    ...(boundedServicePolicy
+      ? {
+          rate: {
+            requestsPerMinute: 4,
+            requestsPerDay: 100,
+            concurrentRequests: 1
+          }
+        }
+      : {})
   });
   store.upsertSubject({
     id: subjectId,
@@ -1616,5 +1969,17 @@ function unrestrictedTokenPolicy() {
     maxTotalTokensPerRequest: null,
     reserveTokensPerRequest: 0,
     missingUsageCharge: "none" as const
+  };
+}
+
+function boundedServiceTokenPolicy() {
+  return {
+    tokensPerMinute: 700_000,
+    tokensPerDay: 5_000_000,
+    tokensPerMonth: 20_000_000,
+    maxPromptTokensPerRequest: 200_000,
+    maxTotalTokensPerRequest: 212_000,
+    reserveTokensPerRequest: 12_000,
+    missingUsageCharge: "reserve" as const
   };
 }

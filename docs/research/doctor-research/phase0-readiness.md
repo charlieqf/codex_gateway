@@ -5,6 +5,7 @@ Status as of 2026-07-18:
 - **Phase 0A — offline engineering foundation: complete.**
 - **Phase 0B — evidence and product validation: incomplete.**
 - **Phase 0.5 — release compatibility gate: not started.**
+- **Controlled-beta Worker engineering: implemented, live staging evidence pending.**
 - **Phase 1 — production readiness and internal brief: not complete.**
 
 The Research feature remains disabled by default. This classification allows
@@ -21,13 +22,14 @@ or unapproved production settings are safe.
 | Allowlist enforcement on chat, responses and native sessions | Gateway tests, including null native-session model attribution |
 | `doctor_research_run.v1` and `doctor_research_result.v1` | `packages/research-agent/src/contracts.ts` |
 | Reviewed immutable `SkillDefinition` and version rule | `packages/research-agent/src/skill-definition.ts` |
-| Independent Research SQLite schema and forward migration | Research migrations `1` and `2`, including a v1 upgrade fixture |
+| Independent Research SQLite schema and forward migration | Research migrations `1` through `5`, including v1 upgrade, run-scoped evidence-key fixtures and expiring owner-fenced maintenance locks |
 | Admission ledger and active-brief database invariant | Store quota and rollback tests |
 | Exact create/cancel/identity idempotency and tombstones | replay, conflict, expiry, scrub and reuse tests |
 | Lease generation, renewal, takeover and late-write fencing | two-owner fake-clock Store tests |
 | Cancel signal versus lease loss and cancel versus success | current-owner and fenced-completion tests |
 | Active execution time and `needs_input` timeout reconciliation | fake-clock Store and API tests |
-| Worker heartbeat and non-reentrant maintenance | Store and Agent tests |
+| Worker heartbeat and independent non-reentrant maintenance | process-instance heartbeat, separate maintenance lifecycle, fresh-backup Worker gate, process-local gates and database-fenced maintenance-lock tests |
+| Fenced LLM stage request/hash/token accounting | Store and real Worker-loop tests |
 | Subject-scoped create/list/get/result/cancel/identity API | Gateway Research route tests |
 | Default-off environment assembly | fail-closed `RESEARCH_API_ENABLED` configuration and route assembly tests |
 | Grantable `doctor_research` capability | strict writer and stored-decoder tests |
@@ -42,6 +44,32 @@ or unapproved production settings are safe.
 
 All Phase 0A tests are offline: they use no Azure endpoint, live credential,
 live LLM or real-time internet source.
+
+## Controlled-beta engineering implemented
+
+The 2026-07-18 default-off implementation now includes the Worker main loop,
+live PubMed/Crossref/ORCID/allowlisted-official-site adapters, exact-model
+Gateway LLM preflight, persistent budgets, fenced workflow completion,
+an independent maintenance/scheduler process, fresh-backup-gated Worker
+readiness, verified backups, four authenticated artifact
+downloads and isolated staging configuration. A deterministic in-process E2E
+crosses the authenticated HTTP control plane, reaches `succeeded`, persists
+the closed evidence set and verifies exactly four downloads. Beta admission
+requires hospital plus department; one official source must bind all three
+identity anchors in a bounded local window, and publication attribution
+requires both anchors in the matched author's own PubMed affiliation.
+Profile claims must be exact, type-anchored excerpts of their cited official
+source, and unsupported numeric claims fail closed.
+All model-controlled narrative fields reject HTML, links, URLs and dangerous
+URI schemes. The four-artifact renderer adds only server-verified source links
+and identifiers. The current offline baseline passes build, 473 Vitest tests,
+8 Python tests, script syntax checks, Compose security assertions and a
+zero-vulnerability production dependency audit.
+
+This does not close Phase 0B or make production ready. The implementation has
+no approved live ORCID, Brave or LLM credential in the repository and must
+not have one. The live loopback staging smoke and its quality review therefore
+remain external evidence gates. See `controlled-beta-runbook.md`.
 
 ## Phase 0B evidence still required
 

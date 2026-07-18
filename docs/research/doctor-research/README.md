@@ -6,6 +6,8 @@ design and Phase 0 implementation material.
 ## Contents
 
 - `api-service-design.md`: reviewed API and implementation design.
+- `controlled-beta-runbook.md`: isolated staging bootstrap, smoke, negative
+  tests, shutdown and production gate.
 - `doctor-research-query/`: first-party source Skill retained as design input.
 - `doctor-research-query/doctor-research-query.skill`: archive rebuilt from
   and byte-matched to the reviewed adjacent `SKILL.md`.
@@ -189,7 +191,73 @@ Validation after the second follow-up:
 
 The authoritative phased completion matrix is `phase0-readiness.md`.
 
-This is not a production enablement. The feature flag remains off and the
-repository still has no production Worker process/scheduler, approved live
-source adapters, four-artifact download endpoints, backup scheduler,
-deployment configuration or live smoke evidence.
+The controlled-beta implementation batch on 2026-07-18 adds:
+
+- a default-off `research-worker` entry point with startup preflight, ready
+  heartbeat, lease renewal/fencing, cancellation, retry/requeue, graceful
+  drain and terminal convergence;
+- an independently startable maintenance/scheduler process for reconciliation,
+  cleanup, storage probes and verified backups; staging Worker readiness
+  requires its fresh backup and keeps embedded maintenance disabled;
+- bounded first-party PubMed, Crossref and ORCID adapters plus fail-closed
+  Brave official-site search over an explicit domain allowlist;
+- a Gateway-backed non-streaming LLM client with exact credential/model
+  readiness, persistent per-run budgets, unique-JSON/AJV validation and one
+  bounded repair;
+- atomic immutable publication and authenticated streaming download of
+  exactly four hash-verified Markdown/text artifacts;
+- separate Research state and backup volumes, loopback-only default-closed
+  staging Compose, restrictive Worker runtime settings and a redacted E2E
+  smoke script;
+- an isolated in-process HTTP E2E covering credential-authenticated POST,
+  heartbeat-gated admission, separate Gateway/Worker SQLite connections,
+  lease, workflow, success, GET result and four authenticated hash-verified
+  artifact downloads.
+
+The final controlled-beta hardening pass also:
+
+- advances the frozen first-party Skill to `1.2.0` /
+  `doctor-research-prompt.v2` and rejects queued work carrying any other
+  Skill, prompt, input or output version;
+- requires hospital and department for beta admission, binds each accepted
+  PubMed author to both values in that author's own affiliation, and rejects
+  article-level or same-name-only attribution; a single official source must
+  also place name, hospital and department in one bounded local text window;
+- accepts profile facts only as type-anchored, normalized contiguous excerpts
+  from their cited official/ORCID source, rebuilds profile arrays from those
+  claims, and rejects unsupported numeric narrative claims;
+- persists fenced LLM stage hashes, timings, token counts and Gateway request
+  IDs without persisting prompts or source bodies;
+- uses Research migrations `3` through `5` for persistent budgets, run-scoped
+  source/claim/reference keys and database-fenced maintenance locks, then
+  atomically commits the evidence rows and subject-local canonical identity
+  mapping with each successful result;
+- makes Worker LLM readiness prove that the credential's request and token
+  policy covers the configured per-call and per-run budget, rather than only
+  checking that non-zero limits exist;
+- covers cancellation arriving after the final renewal but before terminal
+  commit, repeated evidence IDs across runs, and exactly-four-artifact
+  publication in deterministic Worker-loop tests;
+- blocks raw HTML, Markdown links/images, URLs and dangerous URI schemes in
+  all model-controlled narrative fields; the answers artifact renders only
+  server-verified source links and IDs;
+- rejects public proxies and pins allowlisted official-site TLS connections
+  to DNS results that exclude special-purpose IPv4, IPv6, mapped and
+  translation ranges.
+
+Validation after the controlled-beta hardening pass:
+
+- clean `npm ci` lockfile install;
+- `npm run build`;
+- `npm test` (32 test files, 473 tests);
+- `python -m unittest discover -s tests -p "test_*.py"` (8 tests);
+- syntax checks for the beta smoke and both container health scripts;
+- staging Compose parse and security assertions;
+- `npm audit --omit=dev` (0 production vulnerabilities);
+- `git diff --check`.
+
+This is still not a production enablement. Production flags and credentials
+remain unchanged and disabled. Live staging evidence with approved ORCID,
+official-search and LLM credentials, provider/quality approval, rollback
+compatibility, encrypted backup/restore and production limits is still
+required.

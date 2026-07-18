@@ -85,10 +85,18 @@ async function directoryBytes(root: string): Promise<number> {
       throw new Error("Research storage roots must not contain symbolic links.");
     }
     if (childStat.isDirectory()) {
-      total += await directoryBytes(child);
+      total = safeStorageByteSum(total, await directoryBytes(child));
     } else if (childStat.isFile()) {
-      total += childStat.size;
+      total = safeStorageByteSum(total, childStat.size);
     }
+  }
+  return total;
+}
+
+function safeStorageByteSum(left: number, right: number): number {
+  const total = left + right;
+  if (!Number.isSafeInteger(total) || total < 0) {
+    throw new Error("Research storage byte count exceeds the safe range.");
   }
   return total;
 }

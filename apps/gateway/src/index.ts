@@ -45,7 +45,7 @@ import {
   CodexProviderAdapter,
   type CodexProviderOptions
 } from "@codex-gateway/provider-codex";
-import { deleteResearchArtifactFiles } from "@codex-gateway/research-agent";
+import { probeResearchStorageAdmission } from "@codex-gateway/research-agent";
 import {
   buildQuotaDashboardData,
   buildRealtimeTokenUsageData,
@@ -88,7 +88,11 @@ import {
   type UpstreamV2Client
 } from "./upstream-v2-client.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
-import { getGatewayContext, type GatewayRequestContext } from "./http/context.js";
+import {
+  getGatewayContext,
+  researchRouteConfig,
+  type GatewayRequestContext
+} from "./http/context.js";
 import {
   applyGatewayErrorHeaders,
   gatewayErrorMetadata,
@@ -265,6 +269,7 @@ export interface GatewayOptions {
   researchWorkerStaleAfterSeconds?: number;
   researchArtifactRoot?: string;
   researchMaximumArtifactBytes?: number;
+  researchAdmissionGuard?: (now: Date) => Promise<GatewayError | null>;
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
@@ -462,7 +467,6 @@ export function buildGateway(options: GatewayOptions = {}) {
     options.researchStore === undefined
       ? createDefaultResearchRuntime(process.env, app.log)
       : null;
-  const researchMaintenanceTimers: NodeJS.Timeout[] = [];
   const researchStore =
     options.researchStore === undefined
       ? defaultResearchRuntime?.store
@@ -497,6 +501,8 @@ export function buildGateway(options: GatewayOptions = {}) {
   const researchMaximumArtifactBytes =
     options.researchMaximumArtifactBytes ??
     defaultResearchRuntime?.maximumArtifactBytes;
+  const researchAdmissionGuard =
+    options.researchAdmissionGuard ?? defaultResearchRuntime?.admissionGuard;
   const imageGenerationProvider =
     options.imageGenerationProvider === undefined
       ? upstreamRouter.hasImageBindingDeclared()
@@ -575,71 +581,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   };
 
   app.addHook("onClose", async () => {
-    for (const timer of researchMaintenanceTimers.splice(0)) {
-      clearInterval(timer);
-    }
     sessions.close?.();
     clientEventsStore?.close?.();
     researchStore?.close?.();
   });
-
-  if (defaultResearchRuntime) {
-    const reconcileResearch = () => {
-      try {
-        const maintenanceNow = clock();
-        defaultResearchRuntime.maintenanceStore.reconcileTtl({
-          now: maintenanceNow,
-          batchSize: 100
-        });
-        defaultResearchRuntime.maintenanceStore.maintainIdempotency({
-          now: maintenanceNow,
-          batchSize: 100
-        });
-      } catch (error) {
-        app.log.error(
-          {
-            error_type: error instanceof Error ? error.name : "unknown"
-          },
-          "Research reconciliation failed."
-        );
-      }
-    };
-    const cleanupResearch = async () => {
-      try {
-        const cleaned =
-          defaultResearchRuntime.maintenanceStore.cleanupExpiredData({
-            now: clock(),
-            batchSize: 100
-          });
-        await deleteResearchArtifactFiles({
-          root: defaultResearchRuntime.artifactRoot,
-          storageRelativePaths: cleaned.artifactStorageRelativePaths
-        });
-      } catch (error) {
-        app.log.error(
-          {
-            error_type: error instanceof Error ? error.name : "unknown"
-          },
-          "Research cleanup failed."
-        );
-      }
-    };
-    app.addHook("onReady", async () => {
-      reconcileResearch();
-      await cleanupResearch();
-      const reconcileTimer = setInterval(
-        reconcileResearch,
-        defaultResearchRuntime.reconcileIntervalSeconds * 1_000
-      );
-      const cleanupTimer = setInterval(
-        () => void cleanupResearch(),
-        defaultResearchRuntime.cleanupIntervalSeconds * 1_000
-      );
-      reconcileTimer.unref();
-      cleanupTimer.unref();
-      researchMaintenanceTimers.push(reconcileTimer, cleanupTimer);
-    });
-  }
 
   app.addHook("onRequest", async (request, reply) => {
     startObservation(request);
@@ -713,6 +658,142 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   if (researchStore) {
+    app.get<{
+      Params: { model: string };
+      Querystring: {
+        maximum_prompt_tokens_per_call?: string;
+        maximum_output_tokens_per_call?: string;
+        calls_per_run?: string;
+        maximum_tokens_per_run?: string;
+      };
+    }>(
+      "/gateway/research/v1/worker/llm-readiness/:model",
+      { config: researchRouteConfig },
+      async (request, reply) => {
+        let requirements: ResearchLlmReadinessRequirements;
+        try {
+          requirements = parseResearchLlmReadinessRequirements(
+            request.query
+          );
+        } catch (error) {
+          return sendOpenAIError(
+            request,
+            reply,
+            error instanceof GatewayError
+              ? error
+              : researchReadinessInvalidRequest(
+                  "Research LLM readiness requirements are invalid."
+                )
+          );
+        }
+        const publicModel = publicModelRegistry.get(request.params.model);
+        if (
+          !publicModel ||
+          !publicModelRegistry.isAvailable(
+            publicModel,
+            publicModelAvailability
+          )
+        ) {
+          return sendOpenAIError(
+            request,
+            reply,
+            modelNotFoundError(request.params.model)
+          );
+        }
+        const { subject, scope, credential } = getGatewayContext(request);
+        if (
+          credential.allowedPublicModels === null ||
+          credential.allowedPublicModels.length !== 1 ||
+          credential.allowedPublicModels[0] !== publicModel.id
+        ) {
+          return sendOpenAIError(
+            request,
+            reply,
+            new GatewayError({
+              code: "model_not_allowed_for_credential",
+              message: "Credential is not allowed to use this model.",
+              httpStatus: 403
+            })
+          );
+        }
+        const entitlement = resolveEntitlementAccessForChat({
+          context: { subject, scope, credential },
+          entitlementStore: planEntitlementStore,
+          requireEntitlement: true,
+          now: clock()
+        });
+        if (entitlement instanceof GatewayError) {
+          return sendOpenAIError(request, reply, entitlement);
+        }
+        const serviceCapabilities =
+          entitlement.decision?.status === "active"
+            ? entitlement.decision.entitlement.featurePolicySnapshot
+                .capabilities
+            : [];
+        if (
+          serviceCapabilities.length !== 1 ||
+          serviceCapabilities[0] !== "chat"
+        ) {
+          return sendOpenAIError(
+            request,
+            reply,
+            new GatewayError({
+              code: "plan_capability_required",
+              message:
+                "Research Worker credential requires a chat-only entitlement.",
+              httpStatus: 403
+            })
+          );
+        }
+        const serviceRate = credential.rate;
+        const serviceTokenPolicy = entitlement.tokenPolicy;
+        if (
+          !serviceRate ||
+          serviceRate.requestsPerMinute < requirements.callsPerRun ||
+          serviceRate.requestsPerDay === null ||
+          serviceRate.requestsPerDay < requirements.callsPerRun ||
+          serviceRate.concurrentRequests === null ||
+          serviceRate.concurrentRequests <= 0 ||
+          !serviceTokenPolicy ||
+          serviceTokenPolicy.tokensPerMinute === null ||
+          serviceTokenPolicy.tokensPerMinute <
+            requirements.maximumTokensPerRun ||
+          serviceTokenPolicy.tokensPerDay === null ||
+          serviceTokenPolicy.tokensPerDay <
+            requirements.maximumTokensPerRun ||
+          serviceTokenPolicy.tokensPerMonth === null ||
+          serviceTokenPolicy.tokensPerMonth <
+            requirements.maximumTokensPerRun ||
+          serviceTokenPolicy.maxPromptTokensPerRequest === null ||
+          serviceTokenPolicy.maxPromptTokensPerRequest <
+            requirements.maximumPromptTokensPerCall ||
+          serviceTokenPolicy.maxTotalTokensPerRequest === null ||
+          serviceTokenPolicy.maxTotalTokensPerRequest <
+            requirements.maximumPromptTokensPerCall +
+              requirements.maximumOutputTokensPerCall ||
+          serviceTokenPolicy.reserveTokensPerRequest <
+            requirements.maximumOutputTokensPerCall ||
+          serviceTokenPolicy.missingUsageCharge !== "reserve"
+        ) {
+          return sendOpenAIError(
+            request,
+            reply,
+            new GatewayError({
+              code: "plan_capability_required",
+              message:
+                "Research Worker credential requires bounded request and token policies.",
+              httpStatus: 403
+            })
+          );
+        }
+        return {
+          schema_version: "research_llm_readiness.v1",
+          request_id: request.id,
+          model: publicModel.id,
+          authorized: true
+        };
+      }
+    );
     registerResearchRoutes(app, {
       store: researchStore,
       planEntitlementStore,
@@ -724,6 +805,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       workerStaleAfterSeconds: researchWorkerStaleAfterSeconds,
       artifactRoot: researchArtifactRoot,
       maximumArtifactBytes: researchMaximumArtifactBytes,
+      admissionGuard: researchAdmissionGuard,
       now: clock
     });
   }
@@ -4558,10 +4640,106 @@ function parseRequiredPositiveIntegerEnv(
   value: string | undefined,
   name: string
 ): number {
-  if (value === undefined || value.trim() === "") {
+  const normalized = value?.trim();
+  if (!normalized) {
     throw new Error(`${name} is required when Research API is enabled.`);
   }
-  return parsePositiveIntegerEnv(value, 1, name);
+  if (!/^[1-9][0-9]*$/u.test(normalized)) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  const parsed = Number(normalized);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error(`${name} exceeds the safe integer range.`);
+  }
+  return parsed;
+}
+
+function parseRequiredResearchSecondsEnv(
+  value: string | undefined,
+  name: string
+): number {
+  const seconds = parseRequiredPositiveIntegerEnv(value, name);
+  if (!Number.isSafeInteger(seconds * 1_000)) {
+    throw new Error(`${name} exceeds the safe millisecond range.`);
+  }
+  return seconds;
+}
+
+interface ResearchLlmReadinessRequirements {
+  maximumPromptTokensPerCall: number;
+  maximumOutputTokensPerCall: number;
+  callsPerRun: number;
+  maximumTokensPerRun: number;
+}
+
+function parseResearchLlmReadinessRequirements(input: {
+  maximum_prompt_tokens_per_call?: string;
+  maximum_output_tokens_per_call?: string;
+  calls_per_run?: string;
+  maximum_tokens_per_run?: string;
+}): ResearchLlmReadinessRequirements {
+  const maximumPromptTokensPerCall = boundedReadinessInteger(
+    input.maximum_prompt_tokens_per_call,
+    "maximum_prompt_tokens_per_call",
+    1_000_000
+  );
+  const maximumOutputTokensPerCall = boundedReadinessInteger(
+    input.maximum_output_tokens_per_call,
+    "maximum_output_tokens_per_call",
+    100_000
+  );
+  const callsPerRun = boundedReadinessInteger(
+    input.calls_per_run,
+    "calls_per_run",
+    3
+  );
+  const maximumTokensPerRun = boundedReadinessInteger(
+    input.maximum_tokens_per_run,
+    "maximum_tokens_per_run",
+    1_100_000
+  );
+  if (
+    maximumTokensPerRun <
+      maximumPromptTokensPerCall + maximumOutputTokensPerCall
+  ) {
+    throw researchReadinessInvalidRequest(
+      "maximum_tokens_per_run must cover one maximum-size model call."
+    );
+  }
+  return {
+    maximumPromptTokensPerCall,
+    maximumOutputTokensPerCall,
+    callsPerRun,
+    maximumTokensPerRun
+  };
+}
+
+function boundedReadinessInteger(
+  value: string | undefined,
+  name: string,
+  maximum: number
+): number {
+  const normalized = value?.trim();
+  if (!normalized || !/^[1-9][0-9]*$/u.test(normalized)) {
+    throw researchReadinessInvalidRequest(
+      `${name} must be a positive integer.`
+    );
+  }
+  const parsed = Number(normalized);
+  if (!Number.isSafeInteger(parsed) || parsed > maximum) {
+    throw researchReadinessInvalidRequest(
+      `${name} exceeds its controlled-beta bound.`
+    );
+  }
+  return parsed;
+}
+
+function researchReadinessInvalidRequest(message: string): GatewayError {
+  return new GatewayError({
+    code: "invalid_request",
+    message,
+    httpStatus: 400
+  });
 }
 
 function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
@@ -4652,18 +4830,13 @@ function createDefaultResearchRuntime(
 ): {
   store: ResearchStore;
   workerHealthStore: Pick<ResearchWorkerStore, "listWorkerHeartbeats">;
-  maintenanceStore: Pick<
-    ResearchWorkerStore,
-    "reconcileTtl" | "maintainIdempotency" | "cleanupExpiredData"
-  >;
   readRatePolicy: RateLimitPolicy;
   mutationRatePolicy: RateLimitPolicy;
   acceptWhenWorkerUnavailable: boolean;
   workerStaleAfterSeconds: number;
   artifactRoot: string;
   maximumArtifactBytes: number;
-  reconcileIntervalSeconds: number;
-  cleanupIntervalSeconds: number;
+  admissionGuard: (now: Date) => Promise<GatewayError | null>;
 } | null {
   if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
     return null;
@@ -4689,41 +4862,65 @@ function createDefaultResearchRuntime(
     env.RESEARCH_CONTROL_MUTATION_RPM,
     "RESEARCH_CONTROL_MUTATION_RPM"
   );
-  const maximumCheckpointBytes = parsePositiveIntegerEnv(
+  const maximumCheckpointBytes = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_MAX_CHECKPOINT_BYTES,
-    1_048_576,
     "RESEARCH_MAX_CHECKPOINT_BYTES"
   );
-  const maximumResultBytes = parsePositiveIntegerEnv(
+  const maximumResultBytes = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_MAX_RESULT_BYTES,
-    4_194_304,
     "RESEARCH_MAX_RESULT_BYTES"
   );
-  const maximumArtifactBytes = parsePositiveIntegerEnv(
+  const maximumArtifactBytes = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_MAX_ARTIFACT_BYTES,
-    1_048_576,
     "RESEARCH_MAX_ARTIFACT_BYTES"
   );
+  if (
+    maximumCheckpointBytes > 10 * 1_024 * 1_024 ||
+    maximumResultBytes > 10 * 1_024 * 1_024 ||
+    maximumArtifactBytes > 10 * 1_024 * 1_024
+  ) {
+    throw new Error(
+      "Research checkpoint, result, and artifact byte limits must not exceed 10 MiB."
+    );
+  }
   const acceptWhenWorkerUnavailable = parseResearchBoolean(
     env.RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE,
     false,
     "RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE"
   );
-  const workerStaleAfterSeconds = parsePositiveIntegerEnv(
+  if (acceptWhenWorkerUnavailable) {
+    throw new Error(
+      "RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE must remain false for the controlled beta."
+    );
+  }
+  const workerStaleAfterSeconds = parseRequiredResearchSecondsEnv(
     env.RESEARCH_HEARTBEAT_STALE_SECONDS,
-    45,
     "RESEARCH_HEARTBEAT_STALE_SECONDS"
   );
-  const reconcileIntervalSeconds = parsePositiveIntegerEnv(
-    env.RESEARCH_RECONCILE_INTERVAL_SECONDS,
-    60,
-    "RESEARCH_RECONCILE_INTERVAL_SECONDS"
+  const maximumStorageBytes = parseRequiredPositiveIntegerEnv(
+    env.RESEARCH_MAX_STORAGE_BYTES,
+    "RESEARCH_MAX_STORAGE_BYTES"
   );
-  const cleanupIntervalSeconds = parsePositiveIntegerEnv(
-    env.RESEARCH_CLEANUP_INTERVAL_SECONDS,
-    3_600,
-    "RESEARCH_CLEANUP_INTERVAL_SECONDS"
+  const minimumFreeBytes = parseRequiredPositiveIntegerEnv(
+    env.RESEARCH_MIN_FREE_BYTES,
+    "RESEARCH_MIN_FREE_BYTES"
   );
+  const minimumFreePercent = parseRequiredPositiveIntegerEnv(
+    env.RESEARCH_MIN_FREE_PERCENT,
+    "RESEARCH_MIN_FREE_PERCENT"
+  );
+  if (minimumFreePercent > 100) {
+    throw new Error("RESEARCH_MIN_FREE_PERCENT must not exceed 100.");
+  }
+  const backupMaxAgeSeconds = parseRequiredResearchSecondsEnv(
+    env.RESEARCH_BACKUP_MAX_AGE_SECONDS,
+    "RESEARCH_BACKUP_MAX_AGE_SECONDS"
+  );
+  const resolvedArtifactRoot = path.resolve(artifactRoot);
+  const researchStorageRoot =
+    databasePath === ":memory:"
+      ? resolvedArtifactRoot
+      : assertResearchStorageLayout(databasePath, resolvedArtifactRoot);
   const store = createResearchSqliteStore({
     path: databasePath,
     limits: {
@@ -4744,29 +4941,24 @@ function createDefaultResearchRuntime(
         "RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT"
       )
     },
-    idempotencyReplaySeconds: parsePositiveIntegerEnv(
+    idempotencyReplaySeconds: parseRequiredResearchSecondsEnv(
       env.RESEARCH_IDEMPOTENCY_REPLAY_SECONDS,
-      604_800,
       "RESEARCH_IDEMPOTENCY_REPLAY_SECONDS"
     ),
-    idempotencyTombstoneSeconds: parsePositiveIntegerEnv(
+    idempotencyTombstoneSeconds: parseRequiredResearchSecondsEnv(
       env.RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS,
-      2_592_000,
       "RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS"
     ),
-    resultTtlSeconds: parsePositiveIntegerEnv(
+    resultTtlSeconds: parseRequiredResearchSecondsEnv(
       env.RESEARCH_RESULT_TTL_SECONDS,
-      2_592_000,
       "RESEARCH_RESULT_TTL_SECONDS"
     ),
-    runRetentionSeconds: parsePositiveIntegerEnv(
+    runRetentionSeconds: parseRequiredResearchSecondsEnv(
       env.RESEARCH_RUN_RETENTION_SECONDS,
-      7_776_000,
       "RESEARCH_RUN_RETENTION_SECONDS"
     ),
-    needsInputTtlSeconds: parsePositiveIntegerEnv(
+    needsInputTtlSeconds: parseRequiredResearchSecondsEnv(
       env.RESEARCH_NEEDS_INPUT_TTL_SECONDS,
-      259_200,
       "RESEARCH_NEEDS_INPUT_TTL_SECONDS"
     ),
     maximumCheckpointBytes,
@@ -4776,16 +4968,64 @@ function createDefaultResearchRuntime(
   return {
     store,
     workerHealthStore: store,
-    maintenanceStore: store,
     readRatePolicy: researchControlRatePolicy(readRpm),
     mutationRatePolicy: researchControlRatePolicy(mutationRpm),
     acceptWhenWorkerUnavailable,
     workerStaleAfterSeconds,
-    artifactRoot: path.resolve(artifactRoot),
+    artifactRoot: resolvedArtifactRoot,
     maximumArtifactBytes,
-    reconcileIntervalSeconds,
-    cleanupIntervalSeconds
+    admissionGuard: async (now) => {
+      const latestBackup = store.latestSuccessfulBackupAt();
+      if (
+        latestBackup === null ||
+        now.getTime() - latestBackup.getTime() >
+          backupMaxAgeSeconds * 1_000
+      ) {
+        return new GatewayError({
+          code: "research_backup_stale",
+          message: "Research backups are stale.",
+          httpStatus: 503,
+          retryAfterSeconds: 60
+        });
+      }
+      const report = await probeResearchStorageAdmission({
+        filesystemPath: resolvedArtifactRoot,
+        researchRoot: researchStorageRoot,
+        policy: {
+          minimumFreeBytes,
+          minimumFreePercent,
+          maximumResearchBytes: maximumStorageBytes
+        }
+      });
+      return report.available
+        ? null
+        : new GatewayError({
+            code: "research_storage_unavailable",
+            message: "Research storage is unavailable.",
+            httpStatus: 503,
+            retryAfterSeconds: 60
+          });
+    }
   };
+}
+
+function assertResearchStorageLayout(
+  databasePath: string,
+  artifactRoot: string
+): string {
+  const databaseDirectory = path.dirname(path.resolve(databasePath));
+  const relativeArtifactPath = path.relative(databaseDirectory, artifactRoot);
+  if (
+    relativeArtifactPath === "" ||
+    relativeArtifactPath === ".." ||
+    relativeArtifactPath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativeArtifactPath)
+  ) {
+    throw new Error(
+      "RESEARCH_ARTIFACT_ROOT must be a child of the Research database directory."
+    );
+  }
+  return databaseDirectory;
 }
 
 function parseResearchEnabled(value: string | undefined): boolean {

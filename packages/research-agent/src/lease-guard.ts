@@ -14,12 +14,22 @@ export async function runWithResearchLeaseGuard<T>(input: {
     | Promise<ResearchLeaseRenewalDecision>;
   operation: (signal: AbortSignal) => Promise<T>;
   signal?: AbortSignal;
+  abortSettleTimeoutMs?: number;
 }): Promise<ResearchLeaseGuardResult<T>> {
   if (
     !Number.isSafeInteger(input.renewalIntervalMs) ||
     input.renewalIntervalMs <= 0
   ) {
     throw new Error("renewalIntervalMs must be a positive safe integer.");
+  }
+  const abortSettleTimeoutMs = input.abortSettleTimeoutMs ?? 0;
+  if (
+    !Number.isSafeInteger(abortSettleTimeoutMs) ||
+    abortSettleTimeoutMs < 0
+  ) {
+    throw new Error(
+      "abortSettleTimeoutMs must be a non-negative safe integer."
+    );
   }
   const controller = new AbortController();
   let abortOutcome: "cancel_requested" | "lease_lost" | null = null;
@@ -95,6 +105,27 @@ export async function runWithResearchLeaseGuard<T>(input: {
       operationSettled = true;
       return { outcome: "completed", value: winner.value };
     }
+    const settledOperation = operation.then(
+      () => undefined,
+      () => undefined
+    );
+    if (abortSettleTimeoutMs > 0) {
+      let timer: NodeJS.Timeout | undefined;
+      await Promise.race([
+        settledOperation,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, abortSettleTimeoutMs);
+          timer.unref();
+        })
+      ]);
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+    void settledOperation.then(() => {
+      // The caller has already converged cancellation/lease loss. Absorb a
+      // late abort rejection while fencing prevents any terminal commit.
+    });
     return { outcome: abortOutcome ?? "lease_lost" };
   } finally {
     operationSettled = true;

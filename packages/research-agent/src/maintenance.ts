@@ -1,8 +1,8 @@
 export class ResearchMaintenanceGate {
-  private running = false;
+  private active: Promise<unknown> | null = null;
 
   get isRunning(): boolean {
-    return this.running;
+    return this.active !== null;
   }
 
   async run<T>(
@@ -11,17 +11,26 @@ export class ResearchMaintenanceGate {
     | { outcome: "completed"; value: T }
     | { outcome: "skipped_already_running" }
   > {
-    if (this.running) {
+    if (this.active) {
       return { outcome: "skipped_already_running" };
     }
-    this.running = true;
+    const active = Promise.resolve().then(operation);
+    this.active = active;
     try {
       return {
         outcome: "completed",
-        value: await operation()
+        value: await active
       };
     } finally {
-      this.running = false;
+      if (this.active === active) {
+        this.active = null;
+      }
+    }
+  }
+
+  async waitForIdle(): Promise<void> {
+    if (this.active) {
+      await this.active;
     }
   }
 }

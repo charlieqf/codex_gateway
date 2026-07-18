@@ -2,11 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import {
   type AcquiredResearchLease,
+  type AcquireResearchMaintenanceLockInput,
   type AcquireResearchLeaseInput,
+  type ChargeResearchRunBudgetInput,
+  type ChargeResearchRunBudgetResult,
   type CleanupResearchDataInput,
   type CleanupResearchDataResult,
   type CompleteResearchCancellationInput,
   type CompleteResearchCancellationResult,
+  type CompleteResearchStageRunInput,
   type CompleteSuccessfulResearchRunInput,
   type CompleteSuccessfulResearchRunResult,
   type CreateResearchRunInput,
@@ -14,6 +18,8 @@ import {
   type DoctorResearchRunInput,
   type FailResearchRunInput,
   type FailResearchRunResult,
+  type InspectCreateResearchRunIdempotencyInput,
+  type InspectCreateResearchRunIdempotencyResult,
   type ListResearchRunsInput,
   type ListResearchWorkerHeartbeatsInput,
   type MaintainResearchIdempotencyInput,
@@ -24,8 +30,12 @@ import {
   type ReconcileResearchTtlResult,
   type RecordResearchWorkerHeartbeatInput,
   type RecordResearchWorkerHeartbeatResult,
+  type RecordResearchBackupCompletedInput,
+  type RecordResearchBackupStartedInput,
   type RequeueResearchRunInput,
   type RequeueResearchRunResult,
+  type ReleaseResearchMaintenanceLockInput,
+  type RenewResearchMaintenanceLockInput,
   type RenewResearchLeaseInput,
   type RenewResearchLeaseResult,
   type RequestResearchRunCancelInput,
@@ -42,11 +52,14 @@ import {
   type ResearchRunResultRecord,
   type ResearchRunStage,
   type ResearchRunStatus,
+  researchRunStages,
   type ResearchStore,
   type ResearchWorkerHeartbeat,
   type ResearchWorkerStore,
+  type StartResearchStageRunInput,
   type WriteResearchCheckpointInput,
-  type WriteResearchCheckpointResult
+  type WriteResearchCheckpointResult,
+  type WriteResearchStageRunResult
 } from "@codex-gateway/core";
 import {
   type DoctorResearchResult,
@@ -99,37 +112,36 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
   constructor(options: ResearchSqliteStoreOptions) {
     this.path = options.path;
     this.limits = validateLimits(options.limits);
-    this.replayMs =
-      positiveInteger(options.idempotencyReplaySeconds ?? 604_800, "idempotencyReplaySeconds") *
-      1000;
-    this.tombstoneMs =
-      positiveInteger(
-        options.idempotencyTombstoneSeconds ?? 2_592_000,
-        "idempotencyTombstoneSeconds"
-      ) * 1000;
+    this.replayMs = secondsToMs(
+      options.idempotencyReplaySeconds ?? 604_800,
+      "idempotencyReplaySeconds"
+    );
+    this.tombstoneMs = secondsToMs(
+      options.idempotencyTombstoneSeconds ?? 2_592_000,
+      "idempotencyTombstoneSeconds"
+    );
     if (this.tombstoneMs <= this.replayMs) {
       throw new Error(
         "idempotencyTombstoneSeconds must be greater than idempotencyReplaySeconds."
       );
     }
-    this.resultTtlMs =
-      positiveInteger(options.resultTtlSeconds ?? 2_592_000, "resultTtlSeconds") *
-      1000;
-    this.runRetentionMs =
-      positiveInteger(
-        options.runRetentionSeconds ?? 7_776_000,
-        "runRetentionSeconds"
-      ) * 1000;
+    this.resultTtlMs = secondsToMs(
+      options.resultTtlSeconds ?? 2_592_000,
+      "resultTtlSeconds"
+    );
+    this.runRetentionMs = secondsToMs(
+      options.runRetentionSeconds ?? 7_776_000,
+      "runRetentionSeconds"
+    );
     if (this.runRetentionMs < this.resultTtlMs) {
       throw new Error(
         "runRetentionSeconds must be greater than or equal to resultTtlSeconds."
       );
     }
-    this.needsInputTtlMs =
-      positiveInteger(
-        options.needsInputTtlSeconds ?? 259_200,
-        "needsInputTtlSeconds"
-      ) * 1000;
+    this.needsInputTtlMs = secondsToMs(
+      options.needsInputTtlSeconds ?? 259_200,
+      "needsInputTtlSeconds"
+    );
     this.maximumCheckpointBytes = positiveInteger(
       options.maximumCheckpointBytes ?? 1_048_576,
       "maximumCheckpointBytes"
@@ -139,18 +151,60 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
       "maximumResultBytes"
     );
 
-    this.db = openConfiguredSqliteDatabase(options.path);
     const busyTimeoutMs = positiveInteger(
       options.busyTimeoutMs ?? 5_000,
       "busyTimeoutMs"
     );
-    this.db.exec(`PRAGMA busy_timeout = ${busyTimeoutMs}`);
-    migrateResearchSchema(this.db, options.logger);
-    tightenSqliteFilePermissions(options.path);
+    const database = openConfiguredSqliteDatabase(options.path);
+    try {
+      database.exec(`PRAGMA busy_timeout = ${busyTimeoutMs}`);
+      migrateResearchSchema(database, options.logger);
+      tightenSqliteFilePermissions(options.path);
+    } catch (error) {
+      database.close();
+      throw error;
+    }
+    this.db = database;
   }
 
   get database(): DatabaseSync {
     return this.db;
+  }
+
+  inspectCreateRunIdempotency(
+    input: InspectCreateResearchRunIdempotencyInput
+  ): InspectCreateResearchRunIdempotencyResult {
+    const now = input.now ?? new Date();
+    return inImmediateTransaction(this.db, () => {
+      const idempotency = resolveIdempotency(this.db, {
+        subjectId: input.subjectId,
+        credentialId: input.credentialId,
+        requestId: input.requestId,
+        endpoint: createRunEndpoint,
+        idempotencyKey: input.idempotencyKey,
+        requestHash: input.requestHash,
+        expectedResponseStatus: 202,
+        now
+      });
+      if (idempotency.outcome === "proceed") {
+        return { outcome: "not_found" };
+      }
+      if (idempotency.outcome === "conflict") {
+        return { outcome: "idempotency_conflict" };
+      }
+      if (idempotency.outcome === "expired") {
+        return { outcome: "idempotency_expired" };
+      }
+      const run = getRun(this.db, idempotency.runId, input.subjectId);
+      if (!run) {
+        throw new Error("Research idempotency record references a missing run.");
+      }
+      return {
+        outcome: "replayed",
+        run,
+        receipt: parseRunReceipt(idempotency.responseBodyJson)
+      };
+    });
   }
 
   createRun(input: CreateResearchRunInput): CreateResearchRunResult {
@@ -313,7 +367,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         mode: "brief",
         skill: {
           name: "doctor-research-query",
-          version: "1.1.0"
+          version: "1.2.0"
         },
         created_at: timestamp,
         status_url: `${createRunEndpoint}/${runId}`,
@@ -327,8 +381,8 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
             mode, language, input_json, status, stage, progress_percent,
             warning_codes_json, queued_at, created_at, updated_at
           ) VALUES (
-            ?, ?, ?, 'doctor-research-query', '1.1.0',
-            'doctor-research-prompt.v1', 'doctor_research_run_input.v1',
+            ?, ?, ?, 'doctor-research-query', '1.2.0',
+            'doctor-research-prompt.v2', 'doctor_research_run_input.v1',
             'doctor_research_result.v1', ?, ?, ?, 'queued', 'validate_input',
             0, '[]', ?, ?, ?
           )`
@@ -1284,12 +1338,19 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
       if (fenced.changes !== 1) {
         return { outcome: "fenced_or_cancelled" };
       }
-      this.db
+      const inserted = this.db
         .prepare(
           `INSERT INTO research_checkpoints (
             run_id, stage, checkpoint_version, payload_json, payload_sha256,
             lease_generation, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(run_id, stage, checkpoint_version) DO UPDATE SET
+            payload_json = excluded.payload_json,
+            payload_sha256 = excluded.payload_sha256,
+            lease_generation = excluded.lease_generation,
+            created_at = excluded.created_at
+          WHERE research_checkpoints.lease_generation <
+            excluded.lease_generation`
         )
         .run(
           input.token.runId,
@@ -1300,6 +1361,26 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
           input.token.generation,
           now.toISOString()
         );
+      if (inserted.changes === 0) {
+        const existing = this.db
+          .prepare(
+            `SELECT payload_sha256
+             FROM research_checkpoints
+             WHERE run_id = ?
+               AND stage = ?
+               AND checkpoint_version = ?`
+          )
+          .get(
+            input.token.runId,
+            input.stage,
+            input.checkpointVersion
+          ) as { payload_sha256: string } | undefined;
+        if (existing?.payload_sha256 !== payloadSha256) {
+          throw new Error(
+            "Research checkpoint replay conflicts with committed checkpoint data."
+          );
+        }
+      }
       return { outcome: "written" };
     });
   }
@@ -1348,6 +1429,8 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
            SET status = 'succeeded',
                stage = 'complete',
                progress_percent = 100,
+               canonical_identity_id = ?,
+               warning_codes_json = ?,
                active_elapsed_ms = active_elapsed_ms + ?,
                active_started_at = NULL,
                lease_owner = NULL,
@@ -1364,6 +1447,13 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
              AND cancel_requested_at IS NULL`
         )
         .run(
+          validatedResult.value.identity_resolution.canonical_identity_id,
+          JSON.stringify([
+            ...new Set([
+              ...validatedResult.value.source_coverage.warnings,
+              ...validatedResult.value.quality.warnings
+            ])
+          ]),
           activeDeltaMs,
           now.toISOString(),
           expiresAt.toISOString(),
@@ -1381,6 +1471,51 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
       if (!run) {
         throw new Error("Research run disappeared during completion.");
       }
+      const admission = this.db
+        .prepare(
+          `SELECT identity_fingerprint
+           FROM research_doctor_admissions
+           WHERE run_id = ? AND subject_id = ?`
+        )
+        .get(input.token.runId, run.subjectId) as
+        | { identity_fingerprint: string }
+        | undefined;
+      if (!admission) {
+        throw new Error("Research run admission disappeared during completion.");
+      }
+      const canonicalIdentityId =
+        validatedResult.value.identity_resolution.canonical_identity_id;
+      this.db
+        .prepare(
+          `INSERT INTO research_subject_identity_aliases (
+             subject_id, identity_fingerprint, canonical_identity_id, verified_at
+           ) VALUES (?, ?, ?, ?)
+           ON CONFLICT(subject_id, identity_fingerprint) DO UPDATE SET
+             canonical_identity_id = excluded.canonical_identity_id,
+             verified_at = excluded.verified_at`
+        )
+        .run(
+          run.subjectId,
+          admission.identity_fingerprint,
+          canonicalIdentityId,
+          now.toISOString()
+        );
+      this.db
+        .prepare(
+          `UPDATE research_doctor_admissions
+           SET canonical_identity_id = ?,
+               doctor_key = ?,
+               updated_at = ?
+           WHERE subject_id = ?
+             AND identity_fingerprint = ?`
+        )
+        .run(
+          canonicalIdentityId,
+          `dci:${canonicalIdentityId}`,
+          now.toISOString(),
+          run.subjectId,
+          admission.identity_fingerprint
+        );
       this.db
         .prepare(
           `INSERT INTO research_run_results (
@@ -1397,6 +1532,69 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
           now.toISOString(),
           expiresAt.toISOString()
         );
+      const insertSource = this.db.prepare(
+        `INSERT INTO research_sources (
+           source_id, run_id, source_type, url, title, content_sha256,
+           trust_tier, accessed_at, metadata_json
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}')`
+      );
+      for (const source of validatedResult.value.sources) {
+        insertSource.run(
+          source.source_id,
+          input.token.runId,
+          source.source_type,
+          source.url,
+          source.title,
+          source.content_sha256,
+          source.source_type === "official_web" ||
+            source.source_type === "orcid"
+            ? "primary_public"
+            : "first_party_metadata",
+          source.accessed_at
+        );
+      }
+      const insertClaim = this.db.prepare(
+        `INSERT INTO research_claims (
+           claim_id, run_id, claim_type, claim_text, source_ids_json,
+           verification_status, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      );
+      for (const claim of validatedResult.value.profile.claims) {
+        insertClaim.run(
+          claim.claim_id,
+          input.token.runId,
+          claim.claim_type,
+          claim.text,
+          JSON.stringify(claim.source_ids),
+          claim.verification_status,
+          now.toISOString()
+        );
+      }
+      const studyTypes = new Map(
+        validatedResult.value.review.core_evidence.map((evidence) => [
+          evidence.reference_id,
+          evidence.study_type
+        ])
+      );
+      const insertReference = this.db.prepare(
+        `INSERT INTO research_references (
+           reference_id, run_id, pmid, doi, title, authors_json, journal,
+           publication_year, study_type, verification_status, metadata_json
+         ) VALUES (?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, '{}')`
+      );
+      for (const reference of validatedResult.value.review.references) {
+        insertReference.run(
+          reference.reference_id,
+          input.token.runId,
+          reference.pmid,
+          reference.doi,
+          reference.title,
+          reference.journal,
+          reference.publication_year,
+          studyTypes.get(reference.reference_id) ?? null,
+          reference.verification_status
+        );
+      }
       const insertArtifact = this.db.prepare(
         `INSERT INTO research_artifacts (
           artifact_id, run_id, subject_id, kind, filename_ascii, filename_utf8,
@@ -1737,6 +1935,11 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
     requireNonEmpty(input.processInstanceId, "processInstanceId");
     requireNonEmpty(input.version, "version");
     const now = input.now ?? new Date();
+    if (input.startedAt.getTime() > now.getTime()) {
+      throw new Error(
+        "Research Worker startedAt must not be later than the heartbeat."
+      );
+    }
     const changed = this.db
       .prepare(
         `INSERT INTO research_worker_heartbeats (
@@ -1798,7 +2001,11 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         startedAt,
         lastSeenAt,
         ageSeconds: ageMs / 1000,
-        available: row.state === "ready" && ageMs <= staleAfterMs
+        available:
+          row.state === "ready" &&
+          lastSeenAt.getTime() >= startedAt.getTime() &&
+          lastSeenAt.getTime() <= now.getTime() &&
+          ageMs <= staleAfterMs
       };
     });
   }
@@ -1946,7 +2153,8 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
           "research_claims",
           "research_references",
           "research_run_results",
-          "research_artifacts"
+          "research_artifacts",
+          "research_run_budgets"
         ]) {
           this.db
             .prepare(`DELETE FROM ${table} WHERE run_id IN (${placeholders})`)
@@ -1998,6 +2206,384 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         artifactStorageRelativePaths
       };
     });
+  }
+
+  chargeRunBudget(
+    input: ChargeResearchRunBudgetInput
+  ): ChargeResearchRunBudgetResult {
+    const now = input.now ?? new Date();
+    validateLeaseToken(input.token);
+    validateBudgetValues(input.charge, "charge", true);
+    validateBudgetValues(input.limits, "limits", false);
+    return inImmediateTransaction(this.db, () => {
+      const run = getRunById(this.db, input.token.runId);
+      if (
+        !run ||
+        run.status !== "running" ||
+        run.leaseOwner !== input.token.owner ||
+        run.leaseGeneration !== input.token.generation ||
+        !run.leaseUntil ||
+        run.leaseUntil.getTime() <= now.getTime() ||
+        run.cancelRequestedAt
+      ) {
+        return { outcome: "fenced_or_cancelled" };
+      }
+      const current = this.db
+        .prepare(
+          `SELECT external_requests, external_response_bytes, llm_calls,
+                  input_tokens, output_tokens
+           FROM research_run_budgets
+           WHERE run_id = ?`
+        )
+        .get(input.token.runId) as
+        | {
+            external_requests: number;
+            external_response_bytes: number;
+            llm_calls: number;
+            input_tokens: number;
+            output_tokens: number;
+          }
+        | undefined;
+      const currentTotals = {
+        externalRequests: current?.external_requests ?? 0,
+        externalResponseBytes: current?.external_response_bytes ?? 0,
+        llmCalls: current?.llm_calls ?? 0,
+        inputTokens: current?.input_tokens ?? 0,
+        outputTokens: current?.output_tokens ?? 0
+      };
+      validateBudgetValues(currentTotals, "stored", true);
+      const exceeded: Array<
+        [
+          keyof typeof currentTotals,
+          Extract<
+            ChargeResearchRunBudgetResult,
+            { outcome: "budget_exceeded" }
+          >["limit"]
+        ]
+      > = [
+        ["externalRequests", "external_requests"],
+        ["externalResponseBytes", "external_response_bytes"],
+        ["llmCalls", "llm_calls"],
+        ["inputTokens", "input_tokens"],
+        ["outputTokens", "output_tokens"]
+      ];
+      for (const [key, publicLimit] of exceeded) {
+        if (
+          currentTotals[key] > input.limits[key] ||
+          input.charge[key] > input.limits[key] - currentTotals[key]
+        ) {
+          return { outcome: "budget_exceeded", limit: publicLimit };
+        }
+      }
+      const totals = {
+        externalRequests:
+          currentTotals.externalRequests + input.charge.externalRequests,
+        externalResponseBytes:
+          currentTotals.externalResponseBytes +
+          input.charge.externalResponseBytes,
+        llmCalls: currentTotals.llmCalls + input.charge.llmCalls,
+        inputTokens:
+          currentTotals.inputTokens + input.charge.inputTokens,
+        outputTokens:
+          currentTotals.outputTokens + input.charge.outputTokens
+      };
+      this.db
+        .prepare(
+          `INSERT INTO research_run_budgets (
+             run_id, external_requests, external_response_bytes, llm_calls,
+             input_tokens, output_tokens, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(run_id) DO UPDATE SET
+             external_requests = excluded.external_requests,
+             external_response_bytes = excluded.external_response_bytes,
+             llm_calls = excluded.llm_calls,
+             input_tokens = excluded.input_tokens,
+             output_tokens = excluded.output_tokens,
+             updated_at = excluded.updated_at`
+        )
+        .run(
+          input.token.runId,
+          totals.externalRequests,
+          totals.externalResponseBytes,
+          totals.llmCalls,
+          totals.inputTokens,
+          totals.outputTokens,
+          now.toISOString()
+        );
+      return { outcome: "charged", totals };
+    });
+  }
+
+  startStageRun(
+    input: StartResearchStageRunInput
+  ): WriteResearchStageRunResult {
+    const now = input.now ?? new Date();
+    validateLeaseToken(input.token);
+    validateResearchStage(input.stage);
+    boundedStageAttempt(input.attempt);
+    validateSha256(input.inputSha256, "inputSha256");
+    return inImmediateTransaction(this.db, () => {
+      if (!leaseAllowsWorkerWrite(this.db, input.token, now)) {
+        return { outcome: "fenced_or_cancelled" };
+      }
+      const inserted = this.db
+        .prepare(
+          `INSERT INTO research_stage_runs (
+             run_id, stage, attempt, lease_generation, input_sha256, started_at
+           ) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(run_id, stage, attempt, lease_generation) DO NOTHING`
+        )
+        .run(
+          input.token.runId,
+          input.stage,
+          input.attempt,
+          input.token.generation,
+          input.inputSha256,
+          now.toISOString()
+        );
+      if (inserted.changes === 0) {
+        const existing = this.db
+          .prepare(
+            `SELECT input_sha256
+             FROM research_stage_runs
+             WHERE run_id = ?
+               AND stage = ?
+               AND attempt = ?
+               AND lease_generation = ?`
+          )
+          .get(
+            input.token.runId,
+            input.stage,
+            input.attempt,
+            input.token.generation
+          ) as { input_sha256: string | null } | undefined;
+        if (existing?.input_sha256 !== input.inputSha256) {
+          throw new Error(
+            "Research stage-run replay conflicts with its committed input hash."
+          );
+        }
+      }
+      return { outcome: "written" };
+    });
+  }
+
+  completeStageRun(
+    input: CompleteResearchStageRunInput
+  ): WriteResearchStageRunResult {
+    const now = input.now ?? new Date();
+    validateLeaseToken(input.token);
+    validateResearchStage(input.stage);
+    boundedStageAttempt(input.attempt);
+    if (input.outputSha256 !== null) {
+      validateSha256(input.outputSha256, "outputSha256");
+    }
+    nonNegativeSafeInteger(input.durationMs, "durationMs");
+    nullableTokenCount(input.promptTokens, "promptTokens");
+    nullableTokenCount(input.completionTokens, "completionTokens");
+    nullableBoundedSingleLine(
+      input.gatewayRequestId,
+      "gatewayRequestId",
+      200
+    );
+    if (
+      input.errorCode !== null &&
+      !/^[a-z][a-z0-9_]{0,99}$/u.test(input.errorCode)
+    ) {
+      throw new Error("errorCode is invalid.");
+    }
+    if ((input.outputSha256 === null) === (input.errorCode === null)) {
+      throw new Error(
+        "A Research stage run must complete with either an output hash or an error code."
+      );
+    }
+    return inImmediateTransaction(this.db, () => {
+      if (!leaseAllowsWorkerWrite(this.db, input.token, now)) {
+        return { outcome: "fenced_or_cancelled" };
+      }
+      const completed = this.db
+        .prepare(
+          `UPDATE research_stage_runs
+           SET output_sha256 = ?,
+               duration_ms = ?,
+               prompt_tokens = ?,
+               completion_tokens = ?,
+               gateway_request_id = ?,
+               error_code = ?,
+               error_detail_sanitized = NULL,
+               completed_at = ?
+           WHERE run_id = ?
+             AND stage = ?
+             AND attempt = ?
+             AND lease_generation = ?
+             AND completed_at IS NULL`
+        )
+        .run(
+          input.outputSha256,
+          input.durationMs,
+          input.promptTokens,
+          input.completionTokens,
+          input.gatewayRequestId,
+          input.errorCode,
+          now.toISOString(),
+          input.token.runId,
+          input.stage,
+          input.attempt,
+          input.token.generation
+        );
+      if (completed.changes !== 1) {
+        throw new Error(
+          "Research stage run was missing or had already completed."
+        );
+      }
+      return { outcome: "written" };
+    });
+  }
+
+  listCommittedArtifactStoragePaths(): string[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT storage_path
+           FROM research_artifacts
+           ORDER BY storage_path ASC`
+        )
+        .all() as Array<{ storage_path: string }>
+    ).map((row) => row.storage_path);
+  }
+
+  recordBackupStarted(input: RecordResearchBackupStartedInput): void {
+    validateBackupId(input.backupId);
+    requireNonEmpty(input.schemaVersion, "schemaVersion");
+    const now = input.now ?? new Date();
+    this.db
+      .prepare(
+        `INSERT INTO research_backup_runs (
+           backup_id, schema_version, state, started_at
+         ) VALUES (?, ?, 'running', ?)`
+      )
+      .run(input.backupId, input.schemaVersion, now.toISOString());
+  }
+
+  recordBackupCompleted(input: RecordResearchBackupCompletedInput): void {
+    validateBackupId(input.backupId);
+    const now = input.now ?? new Date();
+    if (
+      input.outcome === "succeeded" &&
+      !/^[a-f0-9]{64}$/.test(input.manifestSha256 ?? "")
+    ) {
+      throw new Error("A successful Research backup requires a manifest hash.");
+    }
+    if (
+      input.errorCode !== undefined &&
+      !/^[a-z][a-z0-9_]{2,63}$/.test(input.errorCode)
+    ) {
+      throw new Error("Research backup errorCode is invalid.");
+    }
+    const updated = this.db
+      .prepare(
+        `UPDATE research_backup_runs
+         SET state = ?,
+             completed_at = ?,
+             manifest_sha256 = ?,
+             error_code = ?
+         WHERE backup_id = ?
+           AND state = 'running'`
+      )
+      .run(
+        input.outcome,
+        now.toISOString(),
+        input.outcome === "succeeded" ? input.manifestSha256 ?? null : null,
+        input.outcome === "failed"
+          ? input.errorCode ?? "backup_failed"
+          : null,
+        input.backupId
+      );
+    if (updated.changes !== 1) {
+      throw new Error("Research backup completion invariant violation.");
+    }
+  }
+
+  latestSuccessfulBackupAt(): Date | null {
+    const row = this.db
+      .prepare(
+        `SELECT completed_at
+         FROM research_backup_runs
+         WHERE state = 'succeeded'
+           AND completed_at IS NOT NULL
+         ORDER BY completed_at DESC
+         LIMIT 1`
+      )
+      .get() as { completed_at: string } | undefined;
+    return row ? requiredDate(row.completed_at, "completed_at") : null;
+  }
+
+  acquireMaintenanceLock(
+    input: AcquireResearchMaintenanceLockInput
+  ): boolean {
+    validateMaintenanceLockIdentity(input.name, input.owner);
+    const now = input.now ?? new Date();
+    const leaseUntil = new Date(
+      now.getTime() +
+        secondsToMs(input.leaseSeconds, "maintenanceLock.leaseSeconds")
+    );
+    const changed = this.db
+      .prepare(
+        `INSERT INTO research_maintenance_locks (
+           lock_name, owner, lease_until, updated_at
+         ) VALUES (?, ?, ?, ?)
+         ON CONFLICT(lock_name) DO UPDATE SET
+           owner = excluded.owner,
+           lease_until = excluded.lease_until,
+           updated_at = excluded.updated_at
+         WHERE research_maintenance_locks.lease_until <= excluded.updated_at
+            OR research_maintenance_locks.owner = excluded.owner`
+      )
+      .run(
+        input.name,
+        input.owner,
+        leaseUntil.toISOString(),
+        now.toISOString()
+      );
+    return changed.changes === 1;
+  }
+
+  renewMaintenanceLock(
+    input: RenewResearchMaintenanceLockInput
+  ): boolean {
+    validateMaintenanceLockIdentity(input.name, input.owner);
+    const now = input.now ?? new Date();
+    const leaseUntil = new Date(
+      now.getTime() +
+        secondsToMs(input.leaseSeconds, "maintenanceLock.leaseSeconds")
+    );
+    const changed = this.db
+      .prepare(
+        `UPDATE research_maintenance_locks
+         SET lease_until = ?, updated_at = ?
+         WHERE lock_name = ?
+           AND owner = ?
+           AND lease_until > ?`
+      )
+      .run(
+        leaseUntil.toISOString(),
+        now.toISOString(),
+        input.name,
+        input.owner,
+        now.toISOString()
+      );
+    return changed.changes === 1;
+  }
+
+  releaseMaintenanceLock(
+    input: ReleaseResearchMaintenanceLockInput
+  ): void {
+    validateMaintenanceLockIdentity(input.name, input.owner);
+    this.db
+      .prepare(
+        `DELETE FROM research_maintenance_locks
+         WHERE lock_name = ? AND owner = ?`
+      )
+      .run(input.name, input.owner);
   }
 
   close(): void {
@@ -2657,7 +3243,11 @@ function validateIdentityCandidate(
 }
 
 function secondsToMs(value: number, name: string): number {
-  return positiveInteger(value, name) * 1000;
+  const milliseconds = positiveInteger(value, name) * 1_000;
+  if (!Number.isSafeInteger(milliseconds)) {
+    throw new Error(`${name} exceeds the safe millisecond range.`);
+  }
+  return milliseconds;
 }
 
 function rowToResearchRun(row: unknown): ResearchRunRecord {
@@ -2851,6 +3441,113 @@ function positiveInteger(value: number, name: string): number {
     throw new Error(`${name} must be a positive integer.`);
   }
   return value;
+}
+
+function validateBudgetValues(
+  value: ChargeResearchRunBudgetInput["limits"],
+  name: string,
+  allowZero: boolean
+): void {
+  for (const [field, amount] of Object.entries(value)) {
+    if (
+      !Number.isSafeInteger(amount) ||
+      amount < 0 ||
+      (!allowZero && amount === 0)
+    ) {
+      throw new Error(
+        `${name}.${field} must be a ${allowZero ? "non-negative" : "positive"} safe integer.`
+      );
+    }
+  }
+}
+
+function leaseAllowsWorkerWrite(
+  db: DatabaseSync,
+  token: ResearchLeaseToken,
+  now: Date
+): boolean {
+  return Boolean(
+    db
+      .prepare(
+        `SELECT 1 AS active
+         FROM research_runs
+         WHERE run_id = ?
+           AND status = 'running'
+           AND lease_owner = ?
+           AND lease_generation = ?
+           AND lease_until > ?
+           AND cancel_requested_at IS NULL`
+      )
+      .get(
+        token.runId,
+        token.owner,
+        token.generation,
+        now.toISOString()
+      )
+  );
+}
+
+function validateResearchStage(stage: ResearchRunStage): void {
+  if (!researchRunStages.includes(stage)) {
+    throw new Error("Research stage is invalid.");
+  }
+}
+
+function boundedStageAttempt(value: number): void {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 100) {
+    throw new Error("Research stage attempt must be an integer from 1 to 100.");
+  }
+}
+
+function validateSha256(value: string, name: string): void {
+  if (!/^[a-f0-9]{64}$/u.test(value)) {
+    throw new Error(`${name} must be a canonical SHA-256 digest.`);
+  }
+}
+
+function nonNegativeSafeInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+}
+
+function nullableTokenCount(value: number | null, name: string): void {
+  if (value !== null) {
+    nonNegativeSafeInteger(value, name);
+  }
+}
+
+function nullableBoundedSingleLine(
+  value: string | null,
+  name: string,
+  maximumLength: number
+): void {
+  if (
+    value !== null &&
+    (value.length === 0 ||
+      value.length > maximumLength ||
+      /[\r\n]/u.test(value))
+  ) {
+    throw new Error(`${name} must be a bounded single-line value.`);
+  }
+}
+
+function validateBackupId(value: string): void {
+  if (!/^drb_[a-f0-9]{16,64}$/.test(value)) {
+    throw new Error("Invalid Research backup ID.");
+  }
+}
+
+function validateMaintenanceLockIdentity(
+  name: AcquireResearchMaintenanceLockInput["name"],
+  owner: string
+): void {
+  if (!["reconcile", "cleanup", "backup"].includes(name)) {
+    throw new Error("Invalid Research maintenance lock name.");
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/u.test(owner)) {
+    throw new Error("Invalid Research maintenance lock owner.");
+  }
 }
 
 function requireNonEmpty(value: string, name: string): string {

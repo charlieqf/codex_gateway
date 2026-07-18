@@ -108,7 +108,8 @@ export function migrateResearchSchema(
           AND status IN ('queued', 'running');
 
       CREATE TABLE research_run_results (
-        run_id TEXT PRIMARY KEY REFERENCES research_runs(run_id),
+        run_id TEXT PRIMARY KEY REFERENCES research_runs(run_id)
+          ON DELETE CASCADE,
         schema_version TEXT NOT NULL,
         result_json TEXT NOT NULL CHECK (
           json_valid(result_json) AND json_type(result_json) = 'object'
@@ -393,6 +394,160 @@ export function migrateResearchSchema(
         ON research_artifacts(subject_id, created_at DESC);
       CREATE INDEX idx_research_artifacts_expires
         ON research_artifacts(expires_at);
+    `,
+    logger
+  );
+
+  applyResearchMigration(
+    db,
+    3,
+    `
+      CREATE TABLE research_run_budgets (
+        run_id TEXT PRIMARY KEY REFERENCES research_runs(run_id),
+        external_requests INTEGER NOT NULL DEFAULT 0
+          CHECK (external_requests >= 0),
+        external_response_bytes INTEGER NOT NULL DEFAULT 0
+          CHECK (external_response_bytes >= 0),
+        llm_calls INTEGER NOT NULL DEFAULT 0 CHECK (llm_calls >= 0),
+        input_tokens INTEGER NOT NULL DEFAULT 0 CHECK (input_tokens >= 0),
+        output_tokens INTEGER NOT NULL DEFAULT 0 CHECK (output_tokens >= 0),
+        updated_at TEXT NOT NULL
+      );
+    `,
+    logger
+  );
+
+  applyResearchMigration(
+    db,
+    4,
+    `
+      ALTER TABLE research_sources RENAME TO research_sources_v1;
+      CREATE TABLE research_sources (
+        source_id TEXT NOT NULL,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        source_type TEXT NOT NULL,
+        url TEXT,
+        title TEXT,
+        content_sha256 TEXT,
+        trust_tier TEXT NOT NULL,
+        accessed_at TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (
+          json_valid(metadata_json) AND json_type(metadata_json) = 'object'
+        ),
+        PRIMARY KEY (run_id, source_id)
+      );
+      INSERT INTO research_sources (
+        source_id, run_id, source_type, url, title, content_sha256,
+        trust_tier, accessed_at, metadata_json
+      )
+      SELECT
+        source_id, run_id, source_type, url, title, content_sha256,
+        trust_tier, accessed_at, metadata_json
+      FROM research_sources_v1;
+      DROP TABLE research_sources_v1;
+      CREATE INDEX idx_research_sources_source
+        ON research_sources(source_id);
+
+      ALTER TABLE research_claims RENAME TO research_claims_v1;
+      CREATE TABLE research_claims (
+        claim_id TEXT NOT NULL,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        claim_type TEXT NOT NULL,
+        claim_text TEXT NOT NULL,
+        source_ids_json TEXT NOT NULL CHECK (
+          json_valid(source_ids_json) AND json_type(source_ids_json) = 'array'
+        ),
+        verification_status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (run_id, claim_id)
+      );
+      INSERT INTO research_claims (
+        claim_id, run_id, claim_type, claim_text, source_ids_json,
+        verification_status, created_at
+      )
+      SELECT
+        claim_id, run_id, claim_type, claim_text, source_ids_json,
+        verification_status, created_at
+      FROM research_claims_v1;
+      DROP TABLE research_claims_v1;
+      CREATE INDEX idx_research_claims_claim
+        ON research_claims(claim_id);
+
+      ALTER TABLE research_references RENAME TO research_references_v1;
+      CREATE TABLE research_references (
+        reference_id TEXT NOT NULL,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        pmid TEXT,
+        doi TEXT,
+        title TEXT NOT NULL,
+        authors_json TEXT NOT NULL CHECK (
+          json_valid(authors_json) AND json_type(authors_json) = 'array'
+        ),
+        journal TEXT,
+        publication_year INTEGER,
+        study_type TEXT,
+        verification_status TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (
+          json_valid(metadata_json) AND json_type(metadata_json) = 'object'
+        ),
+        PRIMARY KEY (run_id, reference_id)
+      );
+      INSERT INTO research_references (
+        reference_id, run_id, pmid, doi, title, authors_json, journal,
+        publication_year, study_type, verification_status, metadata_json
+      )
+      SELECT
+        reference_id, run_id, pmid, doi, title, authors_json, journal,
+        publication_year, study_type, verification_status, metadata_json
+      FROM research_references_v1;
+      DROP TABLE research_references_v1;
+      CREATE INDEX idx_research_references_reference
+        ON research_references(reference_id);
+
+      ALTER TABLE research_identity_candidates
+        RENAME TO research_identity_candidates_v1;
+      CREATE TABLE research_identity_candidates (
+        candidate_id TEXT NOT NULL,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        candidate_json TEXT NOT NULL CHECK (
+          json_valid(candidate_json) AND json_type(candidate_json) = 'object'
+        ),
+        evidence_json TEXT NOT NULL CHECK (
+          json_valid(evidence_json) AND json_type(evidence_json) = 'array'
+        ),
+        score REAL NOT NULL,
+        selected_at TEXT,
+        rejected_at TEXT,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (run_id, candidate_id)
+      );
+      INSERT INTO research_identity_candidates (
+        candidate_id, run_id, candidate_json, evidence_json, score,
+        selected_at, rejected_at, created_at
+      )
+      SELECT
+        candidate_id, run_id, candidate_json, evidence_json, score,
+        selected_at, rejected_at, created_at
+      FROM research_identity_candidates_v1;
+      DROP TABLE research_identity_candidates_v1;
+      CREATE INDEX idx_research_identity_candidates_candidate
+        ON research_identity_candidates(candidate_id);
+    `,
+    logger
+  );
+
+  applyResearchMigration(
+    db,
+    5,
+    `
+      CREATE TABLE research_maintenance_locks (
+        lock_name TEXT PRIMARY KEY CHECK (
+          lock_name IN ('reconcile', 'cleanup', 'backup')
+        ),
+        owner TEXT NOT NULL,
+        lease_until TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `,
     logger
   );

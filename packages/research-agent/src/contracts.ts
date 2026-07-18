@@ -42,11 +42,23 @@ export interface DoctorResearchSource {
 
 export interface DoctorResearchClaim {
   claim_id: string;
-  claim_type: string;
+  claim_type: DoctorResearchClaimType;
   text: string;
   source_ids: string[];
   verification_status: "verified";
 }
+
+export const doctorResearchClaimTypes = [
+  "identity",
+  "position",
+  "expertise",
+  "education_and_career",
+  "research_direction",
+  "representative_output"
+] as const;
+
+export type DoctorResearchClaimType =
+  (typeof doctorResearchClaimTypes)[number];
 
 export interface DoctorResearchReference {
   reference_id: string;
@@ -339,7 +351,7 @@ export const doctorResearchResultSchema = {
             ],
             properties: {
               claim_id: { type: "string", pattern: "^clm_[a-z0-9_-]{3,80}$" },
-              claim_type: { type: "string", pattern: idPattern },
+              claim_type: { enum: doctorResearchClaimTypes },
               text: { type: "string", minLength: 1, maxLength: 2000 },
               source_ids: {
                 type: "array",
@@ -499,6 +511,7 @@ export const doctorResearchResultSchema = {
           answer: { type: "string", minLength: 1 },
           source_ids: {
             type: "array",
+            minItems: 1,
             uniqueItems: true,
             items: { type: "string", pattern: "^src_[a-z0-9_-]{3,80}$" }
           }

@@ -6,6 +6,15 @@ export interface FrozenPublicationMetadata {
   journal: string;
   publicationYear: number;
   authors: string[];
+  authorAffiliations?: Array<{
+    author: string;
+    affiliations: string[];
+  }>;
+  abstractText?: string | null;
+  affiliations?: string[];
+  sourceUrl?: string;
+  accessedAt?: string;
+  contentSha256?: string;
 }
 
 export interface FrozenIdentityRecord {
@@ -13,7 +22,14 @@ export interface FrozenIdentityRecord {
   name: string;
   institution: string;
   department: string;
+  affiliations?: Array<{
+    institution: string;
+    department: string;
+  }>;
   orcid: string | null;
+  sourceUrl?: string;
+  accessedAt?: string;
+  contentSha256?: string;
 }
 
 export interface FrozenOfficialSource {
@@ -26,6 +42,10 @@ export interface FrozenOfficialSource {
 }
 
 export interface ResearchAdapterBundle {
+  readonly versions?: Readonly<Record<string, string>>;
+  readonly budgetHints?: {
+    officialSearchRequestUnits: number;
+  };
   searchPubMed(
     query: string,
     signal: AbortSignal

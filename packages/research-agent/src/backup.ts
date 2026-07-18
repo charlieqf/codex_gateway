@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { constants, createReadStream } from "node:fs";
 import {
+  chmod,
   copyFile,
   mkdir,
   open,
@@ -63,6 +64,12 @@ export async function createResearchBackupSnapshot(input: {
     artifactRoot,
     "Research artifact root must be a real directory."
   );
+  if (process.platform !== "win32") {
+    await Promise.all([
+      chmod(backupRoot, 0o700),
+      chmod(artifactRoot, 0o700)
+    ]);
+  }
   const backupDirectory = path.resolve(backupRoot, input.backupId);
   assertBackupPath(backupRoot, backupDirectory);
   await mkdir(backupDirectory, { recursive: false, mode: 0o700 });
@@ -76,6 +83,7 @@ export async function createResearchBackupSnapshot(input: {
     "research.snapshot.db"
   );
   await backup(input.sourceDatabase, databaseSnapshotPath);
+  await chmod(databaseSnapshotPath, 0o600);
   const databaseSnapshotSha256 = await fileSha256(databaseSnapshotPath);
 
   const snapshot = new DatabaseSync(databaseSnapshotPath, {
@@ -146,7 +154,12 @@ export async function createResearchBackupSnapshot(input: {
       "Research backup destination path escapes its configured root.",
       { allowMissingLeaf: true }
     );
-    await copyFile(sourcePath, destinationPath);
+    await copyFile(
+      sourcePath,
+      destinationPath,
+      constants.COPYFILE_EXCL
+    );
+    await chmod(destinationPath, 0o600);
     artifacts.push({
       artifact_id: row.artifact_id,
       storage_relative_path: row.storage_path,
@@ -202,6 +215,10 @@ export async function verifyResearchBackupSnapshot(input: {
       manifestPath,
       "Research backup path escapes its configured root."
     );
+    const manifestStat = await stat(manifestPath);
+    if (!manifestStat.isFile() || manifestStat.size > 10_000_000) {
+      throw new Error("Research backup manifest is invalid.");
+    }
     manifest = parseManifest(await readFile(manifestPath, "utf8"));
   } catch {
     return {
@@ -333,12 +350,53 @@ function parseManifest(value: string): ResearchBackupManifest {
     parsed.schema_version !== "research_backup_manifest.v1" ||
     !/^drb_[a-f0-9]{16,64}$/.test(parsed.backup_id) ||
     !Number.isSafeInteger(parsed.research_schema_version) ||
+    parsed.research_schema_version <= 0 ||
+    typeof parsed.created_at !== "string" ||
+    !isCanonicalIsoDate(parsed.created_at) ||
     !/^[a-f0-9]{64}$/.test(parsed.database_snapshot_sha256) ||
-    !Array.isArray(parsed.artifacts)
+    !Array.isArray(parsed.artifacts) ||
+    parsed.artifacts.length > 50_000
   ) {
     throw new Error("Invalid Research backup manifest.");
   }
+  const artifactIds = new Set<string>();
+  const storagePaths = new Set<string>();
+  for (const artifact of parsed.artifacts) {
+    if (
+      !artifact ||
+      typeof artifact !== "object" ||
+      !/^dra_[a-f0-9]{32}$/.test(artifact.artifact_id) ||
+      typeof artifact.storage_relative_path !== "string" ||
+      !Number.isSafeInteger(artifact.storage_version) ||
+      artifact.storage_version <= 0 ||
+      !Number.isSafeInteger(artifact.size_bytes) ||
+      artifact.size_bytes < 0 ||
+      !/^[a-f0-9]{64}$/.test(artifact.sha256) ||
+      !artifact.storage_relative_path.endsWith(
+        `/${artifact.artifact_id}.v${artifact.storage_version}`
+      )
+    ) {
+      throw new Error("Invalid Research backup artifact manifest.");
+    }
+    validateStorageRelativePath(artifact.storage_relative_path);
+    if (
+      artifactIds.has(artifact.artifact_id) ||
+      storagePaths.has(artifact.storage_relative_path)
+    ) {
+      throw new Error("Duplicate Research backup artifact manifest.");
+    }
+    artifactIds.add(artifact.artifact_id);
+    storagePaths.add(artifact.storage_relative_path);
+  }
   return parsed;
+}
+
+function isCanonicalIsoDate(value: string): boolean {
+  const milliseconds = Date.parse(value);
+  return (
+    Number.isFinite(milliseconds) &&
+    new Date(milliseconds).toISOString() === value
+  );
 }
 
 function validateStorageRelativePath(value: string): void {

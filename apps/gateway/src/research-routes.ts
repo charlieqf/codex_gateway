@@ -20,7 +20,7 @@ import {
   type ResolveResearchIdentityInput,
   type ResearchStore
 } from "@codex-gateway/core";
-import { readVerifiedResearchArtifact } from "@codex-gateway/research-agent";
+import { openVerifiedResearchArtifactStream } from "@codex-gateway/research-agent";
 import { getGatewayContext, researchRouteConfig } from "./http/context.js";
 import type { CredentialRateLimiter } from "./services/rate-limiter.js";
 import {
@@ -48,6 +48,7 @@ export interface ResearchRouteOptions {
   workerStaleAfterSeconds?: number;
   artifactRoot?: string;
   maximumArtifactBytes?: number;
+  admissionGuard?: (now: Date) => Promise<GatewayError | null>;
   now?: () => Date;
 }
 
@@ -98,13 +99,77 @@ export function registerResearchRoutes(
           error instanceof GatewayError ? error : invalidRequest()
         );
       }
+      const context = getGatewayContext(request);
+      try {
+        const idempotency = options.store.inspectCreateRunIdempotency({
+          subjectId: context.subject.id,
+          credentialId: context.credential.id,
+          requestId: request.id,
+          idempotencyKey,
+          requestHash: parsed.requestHash,
+          now: now()
+        });
+        if (idempotency.outcome === "replayed") {
+          reply.code(202);
+          return idempotency.receipt;
+        }
+        if (idempotency.outcome === "idempotency_conflict") {
+          return sendResearchError(
+            request,
+            reply,
+            new GatewayError({
+              code: "idempotency_conflict",
+              message:
+                "Idempotency key was already used for a different request.",
+              httpStatus: 409
+            })
+          );
+        }
+        if (idempotency.outcome === "idempotency_expired") {
+          return sendResearchError(
+            request,
+            reply,
+            new GatewayError({
+              code: "idempotency_expired",
+              message: "Idempotency replay window has expired.",
+              httpStatus: 409
+            })
+          );
+        }
+      } catch (error) {
+        request.log.error(
+          {
+            request_id: request.id,
+            error_type: error instanceof Error ? error.name : "unknown"
+          },
+          "Research idempotency lookup failed."
+        );
+        return sendResearchError(request, reply, researchStorageUnavailable());
+      }
       const workerError = researchWorkerAvailabilityError(options, now());
       if (workerError) {
         return sendResearchError(request, reply, workerError);
       }
+      if (options.admissionGuard) {
+        let admissionError: GatewayError | null;
+        try {
+          admissionError = await options.admissionGuard(now());
+        } catch (error) {
+          request.log.error(
+            {
+              request_id: request.id,
+              error_type: error instanceof Error ? error.name : "unknown"
+            },
+            "Research admission probe failed."
+          );
+          admissionError = researchStorageUnavailable();
+        }
+        if (admissionError) {
+          return sendResearchError(request, reply, admissionError);
+        }
+      }
 
       try {
-        const context = getGatewayContext(request);
         const result = options.store.createRun({
           subjectId: context.subject.id,
           credentialId: context.credential.id,
@@ -640,7 +705,7 @@ export function registerResearchRoutes(
         if (!options.artifactRoot || !options.maximumArtifactBytes) {
           throw new Error("Research artifact delivery is not configured.");
         }
-        const bytes = await readVerifiedResearchArtifact({
+        const verified = await openVerifiedResearchArtifactStream({
           root: options.artifactRoot,
           artifact,
           maximumArtifactBytes: options.maximumArtifactBytes
@@ -653,8 +718,8 @@ export function registerResearchRoutes(
         reply.header("cache-control", "private, no-store");
         reply.header("referrer-policy", "no-referrer");
         reply.header("x-content-type-options", "nosniff");
-        reply.header("content-length", String(bytes.length));
-        return reply.send(bytes);
+        reply.header("content-length", String(verified.sizeBytes));
+        return reply.send(verified.stream);
       } catch (error) {
         request.log.error(
           {
@@ -712,6 +777,31 @@ export function parseDoctorResearchRunRequest(
     city: optionalText(body.doctor.city, "doctor.city", 100),
     orcid: optionalOrcid(body.doctor.orcid)
   };
+  if (!doctor.hospital || !doctor.department) {
+    throw new GatewayError({
+      code: "invalid_request",
+      message:
+        "The controlled Doctor Research beta requires both hospital and department identity anchors.",
+      httpStatus: 400
+    });
+  }
+  const officialSearchQuery = [
+    `"${doctor.name}"`,
+    doctor.hospital,
+    doctor.department,
+    "doctor profile"
+  ].join(" ");
+  if (
+    officialSearchQuery.length > 280 ||
+    officialSearchQuery.split(/\s+/u).length > 40
+  ) {
+    throw new GatewayError({
+      code: "invalid_request",
+      message:
+        "The doctor identity anchors are too long for controlled official-site search.",
+      httpStatus: 400
+    });
+  }
   if (body.mode !== "brief") {
     throw new GatewayError({
       code: "invalid_request",
@@ -750,7 +840,11 @@ export function parseDoctorResearchRunRequest(
     clientReference
   };
   const canonical = JSON.stringify(input);
-  const identityCanonical = JSON.stringify(doctor);
+  const identityCanonical = JSON.stringify({
+    name: canonicalIdentityAnchor(doctor.name),
+    hospital: canonicalIdentityAnchor(doctor.hospital),
+    department: canonicalIdentityAnchor(doctor.department)
+  });
   return {
     input,
     requestHash: sha256(canonical),
@@ -1072,11 +1166,15 @@ function decodeCursor(
   now: Date
 ): { createdAt: Date; runId: string } {
   try {
+    if (value.length === 0 || value.length > 1_024) {
+      throw invalidRequest();
+    }
     const decoded = JSON.parse(
       Buffer.from(value, "base64url").toString("utf8")
     ) as unknown;
     if (
       !isRecord(decoded) ||
+      Object.keys(decoded).length !== 5 ||
       decoded.v !== 1 ||
       decoded.status !== (status ?? null) ||
       typeof decoded.created_at !== "string" ||
@@ -1091,7 +1189,9 @@ function decodeCursor(
     if (
       Number.isNaN(createdAt.getTime()) ||
       Number.isNaN(expiresAt.getTime()) ||
-      expiresAt.getTime() <= now.getTime()
+      expiresAt.getTime() <= now.getTime() ||
+      expiresAt.getTime() > now.getTime() + cursorLifetimeMs ||
+      createdAt.getTime() > now.getTime()
     ) {
       throw invalidRequest();
     }
@@ -1118,7 +1218,8 @@ function normalizedText(
   if (
     length < minimum ||
     length > maximum ||
-    /[\u0000-\u001f\u007f]/u.test(normalized)
+    /[\u0000-\u001f\u007f]/u.test(normalized) ||
+    hasUnpairedSurrogate(normalized)
   ) {
     throw new GatewayError({
       code: "invalid_request",
@@ -1127,6 +1228,34 @@ function normalizedText(
     });
   }
   return normalized;
+}
+
+function canonicalIdentityAnchor(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function hasUnpairedSurrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (
+        index + 1 >= value.length ||
+        next < 0xdc00 ||
+        next > 0xdfff
+      ) {
+        return true;
+      }
+      index += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function optionalText(
@@ -1144,7 +1273,8 @@ function optionalOrcid(value: unknown): string | null {
   const normalized = optionalText(value, "doctor.orcid", 19);
   if (
     normalized !== null &&
-    !/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/.test(normalized)
+    (!/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/.test(normalized) ||
+      !hasValidOrcidChecksum(normalized))
   ) {
     throw new GatewayError({
       code: "invalid_request",
@@ -1153,6 +1283,16 @@ function optionalOrcid(value: unknown): string | null {
     });
   }
   return normalized;
+}
+
+function hasValidOrcidChecksum(value: string): boolean {
+  const compact = value.replaceAll("-", "");
+  let total = 0;
+  for (const digit of compact.slice(0, 15)) {
+    total = (total + Number(digit)) * 2;
+  }
+  const checkValue = (12 - (total % 11)) % 11;
+  return compact[15] === (checkValue === 10 ? "X" : String(checkValue));
 }
 
 function assertOnlyKeys(

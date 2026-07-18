@@ -20,6 +20,8 @@ config/*.env
 .gateway-state/
 auth.json
 extra_keys.txt
+secrets/
+research-smoke-output/
 
 # OS/editor noise.
 .DS_Store

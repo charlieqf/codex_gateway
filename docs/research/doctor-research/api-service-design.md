@@ -252,6 +252,7 @@ golden 必须来自独立、可追溯、人工复核的冻结证据集。
 | API 形态 | `/gateway/research/v1` 下的领域化异步 REST API，不占用 OpenAI `/v1` 命名空间 |
 | API 承载 | 现有 Fastify Gateway 中的轻量控制面路由 |
 | 重任务执行 | 独立 `research-worker` 容器 |
+| 维护调度 | 独立 `research-maintenance` 进程；Worker 默认不内嵌 scheduler，且新鲜备份未建立时不进入 ready |
 | 数据库 | 独立 SQLite `research.db`，不复用 `gateway.db` |
 | Artifact | 独立 `research_state` volume 中的文件，SQLite 保存元数据 |
 | 备份 | 一致 SQLite snapshot 和 artifact manifest 写入独立批准的 backup target；同 `research_state` 内副本不算备份 |
@@ -499,6 +500,11 @@ reconciler 延迟时按相同时间条件 fail closed，不作为状态迁移执
 
 医生身份至少使用以下两类证据：
 
+受控 beta 先收窄 admission：`hospital` 和 `department` 均为必填身份锚点；
+`orcid` 可选但一旦提供必须精确解析。首版论文归属必须在目标作者自己的 PubMed
+affiliation 中同时命中医院和科室。只有姓名、只有一个锚点或只在其他作者单位中
+命中的请求不得进入排队；更宽输入和候选身份交互留待完成真实歧义质量验证后开放。
+
 - 医院或大学；
 - 科室；
 - 城市或职称；
@@ -721,7 +727,7 @@ Idempotency-Key: research:<client-generated-id>
   "mode": "brief",
   "skill": {
     "name": "doctor-research-query",
-    "version": "1.0.0"
+    "version": "1.2.0"
   },
   "created_at": "2026-07-17T01:30:00Z",
   "status_url": "/gateway/research/v1/doctor-runs/drr_...",
@@ -2201,8 +2207,8 @@ RESEARCH_MIN_FREE_PERCENT=...
 RESEARCH_BACKUP_ROOT=<approved-separate-backup-target>
 RESEARCH_BACKUP_INTERVAL_SECONDS=...
 RESEARCH_BACKUP_MAX_AGE_SECONDS=...
-RESEARCH_SKILL_VERSION=1.1.0
-RESEARCH_PROMPT_VERSION=doctor-research-prompt.v1
+RESEARCH_SKILL_VERSION=1.2.0
+RESEARCH_PROMPT_VERSION=doctor-research-prompt.v2
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=...
 RESEARCH_LLM_BEARER_TOKEN_FILE=/run/secrets/research_llm_bearer
@@ -2223,7 +2229,9 @@ RESEARCH_ARTIFACT_SIGNING_SECRET_FILE=/run/secrets/research_artifact_signing_sec
 退化为无上限。当 `RESEARCH_API_ENABLED=true` 时，该值缺失、空、无法解析、
 为 0 或为负数，Gateway 必须拒绝启动并给出不含 secret 的配置错误；不能使用
 隐式默认值继续运行。Worker 启动预检还必须确认
-`RESEARCH_LLM_MODEL` 与服务 credential 的非空精确模型允许清单一致。
+`RESEARCH_LLM_MODEL` 与服务 credential 的非空精确模型允许清单一致，并通过
+Worker readiness 查询确认 credential 的 RPM/RPD、单请求 prompt/total/reserve
+和日/月 token policy 覆盖 Worker 配置的单次调用及整次 run 上限。
 
 每日 run、needs-input、全局 queue、control-plane、artifact/result/storage、磁盘
 余量和 backup age 等硬限制同样不得使用无上限隐式默认值。所有秒数关系必须在

@@ -1,0 +1,9 @@
+{
+  "tokensPerMinute": 700000,
+  "tokensPerDay": 5000000,
+  "tokensPerMonth": 20000000,
+  "maxPromptTokensPerRequest": 200000,
+  "maxTotalTokensPerRequest": 212000,
+  "reserveTokensPerRequest": 12000,
+  "missingUsageCharge": "reserve"
+}

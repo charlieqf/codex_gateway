@@ -66,14 +66,16 @@ describe("ResearchSqliteStore", () => {
           "research_subject_identity_aliases",
           "research_worker_heartbeats",
           "research_audit_events",
-          "research_backup_runs"
+          "research_backup_runs",
+          "research_run_budgets",
+          "research_maintenance_locks"
         ])
       );
       expect(tables).not.toContain("schema_migrations");
       expect(
         db
           .prepare(
-            "SELECT version FROM research_schema_migrations WHERE version = 2"
+            "SELECT version FROM research_schema_migrations WHERE version = 5"
           )
           .get()
       ).toBeTruthy();
@@ -114,6 +116,49 @@ describe("ResearchSqliteStore", () => {
       CREATE TABLE research_runs (run_id TEXT PRIMARY KEY);
       INSERT INTO research_runs (run_id)
       VALUES ('drr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      CREATE TABLE research_sources (
+        source_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        source_type TEXT NOT NULL,
+        url TEXT,
+        title TEXT,
+        content_sha256 TEXT,
+        trust_tier TEXT NOT NULL,
+        accessed_at TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE TABLE research_claims (
+        claim_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        claim_type TEXT NOT NULL,
+        claim_text TEXT NOT NULL,
+        source_ids_json TEXT NOT NULL,
+        verification_status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE research_references (
+        reference_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        pmid TEXT,
+        doi TEXT,
+        title TEXT NOT NULL,
+        authors_json TEXT NOT NULL,
+        journal TEXT,
+        publication_year INTEGER,
+        study_type TEXT,
+        verification_status TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}'
+      );
+      CREATE TABLE research_identity_candidates (
+        candidate_id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        candidate_json TEXT NOT NULL,
+        evidence_json TEXT NOT NULL,
+        score REAL NOT NULL,
+        selected_at TEXT,
+        rejected_at TEXT,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE research_artifacts (
         artifact_id TEXT PRIMARY KEY,
         run_id TEXT NOT NULL REFERENCES research_runs(run_id),
@@ -174,7 +219,13 @@ describe("ResearchSqliteStore", () => {
            ORDER BY version`
         )
         .all()
-    ).toEqual([{ version: 1 }, { version: 2 }]);
+    ).toEqual([
+      { version: 1 },
+      { version: 2 },
+      { version: 3 },
+      { version: 4 },
+      { version: 5 }
+    ]);
     store.close();
   });
 
@@ -398,6 +449,17 @@ describe("ResearchSqliteStore", () => {
       throw new Error("Expected the old worker to acquire the run.");
     }
     expect(
+      store.writeCheckpoint({
+        token: oldLease.token,
+        stage: "discover_identity",
+        checkpointVersion: 1,
+        payload: { firstGeneration: true },
+        payloadSha256: checkpointHash({ firstGeneration: true }),
+        progressPercent: 10,
+        now: new Date(startedAt.getTime() + 1_000)
+      })
+    ).toEqual({ outcome: "written" });
+    expect(
       store.acquireLease({
         workerId: "worker-new",
         leaseSeconds: 120,
@@ -476,6 +538,163 @@ describe("ResearchSqliteStore", () => {
       lease_generation: 2,
       payload_sha256: checkpointHash({ stale: false })
     });
+    store.close();
+  });
+
+  it("persists conservative run budgets and verified backup freshness", () => {
+    const store = createStore(":memory:");
+    const now = new Date("2026-07-17T01:30:00Z");
+    const created = store.createRun(
+      command(
+        "subj_a",
+        "key-budget",
+        "hash-budget",
+        "fp-budget",
+        now
+      )
+    );
+    if (created.outcome !== "created") {
+      throw new Error("Expected a created Research budget run.");
+    }
+    const lease = store.acquireLease({
+      workerId: "worker-budget",
+      leaseSeconds: 120,
+      now
+    });
+    if (!lease) {
+      throw new Error("Expected a Research budget lease.");
+    }
+    const limits = {
+      externalRequests: 3,
+      externalResponseBytes: 300,
+      llmCalls: 2,
+      inputTokens: 200,
+      outputTokens: 100
+    };
+    expect(
+      store.chargeRunBudget({
+        token: lease.token,
+        charge: {
+          externalRequests: 2,
+          externalResponseBytes: 200,
+          llmCalls: 1,
+          inputTokens: 100,
+          outputTokens: 50
+        },
+        limits,
+        now
+      })
+    ).toMatchObject({
+      outcome: "charged",
+      totals: {
+        externalRequests: 2,
+        externalResponseBytes: 200,
+        llmCalls: 1,
+        inputTokens: 100,
+        outputTokens: 50
+      }
+    });
+    expect(
+      store.chargeRunBudget({
+        token: lease.token,
+        charge: {
+          externalRequests: 2,
+          externalResponseBytes: 1,
+          llmCalls: 0,
+          inputTokens: 0,
+          outputTokens: 0
+        },
+        limits,
+        now
+      })
+    ).toEqual({
+      outcome: "budget_exceeded",
+      limit: "external_requests"
+    });
+    expect(
+      store.database
+        .prepare(
+          `SELECT external_requests, external_response_bytes, llm_calls,
+                  input_tokens, output_tokens
+           FROM research_run_budgets
+           WHERE run_id = ?`
+        )
+        .get(created.run.runId)
+    ).toEqual({
+      external_requests: 2,
+      external_response_bytes: 200,
+      llm_calls: 1,
+      input_tokens: 100,
+      output_tokens: 50
+    });
+    expect(
+      store.startStageRun({
+        token: lease.token,
+        stage: "synthesize_review",
+        attempt: 1,
+        inputSha256: "c".repeat(64),
+        now
+      })
+    ).toEqual({ outcome: "written" });
+    expect(
+      store.completeStageRun({
+        token: lease.token,
+        stage: "synthesize_review",
+        attempt: 1,
+        outputSha256: "d".repeat(64),
+        durationMs: 25,
+        promptTokens: 100,
+        completionTokens: 50,
+        gatewayRequestId: "req_gateway_stage_1",
+        errorCode: null,
+        now: new Date(now.getTime() + 1_000)
+      })
+    ).toEqual({ outcome: "written" });
+    expect(
+      store.database
+        .prepare(
+          `SELECT input_sha256, output_sha256, duration_ms, prompt_tokens,
+                  completion_tokens, gateway_request_id, error_code
+           FROM research_stage_runs
+           WHERE run_id = ?`
+        )
+        .get(created.run.runId)
+    ).toEqual({
+      input_sha256: "c".repeat(64),
+      output_sha256: "d".repeat(64),
+      duration_ms: 25,
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      gateway_request_id: "req_gateway_stage_1",
+      error_code: null
+    });
+    expect(
+      store.startStageRun({
+        token: lease.token,
+        stage: "validate_outputs",
+        attempt: 2,
+        inputSha256: "e".repeat(64),
+        now: new Date(now.getTime() + 121_000)
+      })
+    ).toEqual({ outcome: "fenced_or_cancelled" });
+
+    const backupId = `drb_${"a".repeat(32)}`;
+    store.recordBackupStarted({
+      backupId,
+      schemaVersion: "research_backup_manifest.v1",
+      now
+    });
+    expect(store.latestSuccessfulBackupAt()).toBeNull();
+    const completedAt = new Date(now.getTime() + 1_000);
+    store.recordBackupCompleted({
+      backupId,
+      outcome: "succeeded",
+      manifestSha256: "b".repeat(64),
+      now: completedAt
+    });
+    expect(store.latestSuccessfulBackupAt()?.toISOString()).toBe(
+      completedAt.toISOString()
+    );
     store.close();
   });
 
@@ -941,6 +1160,114 @@ describe("ResearchSqliteStore", () => {
         })
       ])
     );
+    store.database
+      .prepare(
+        `UPDATE research_worker_heartbeats
+         SET last_seen_at = '2026-07-17T03:00:00.000Z'
+         WHERE worker_id = 'worker-ready'`
+      )
+      .run();
+    expect(
+      store.listWorkerHeartbeats({
+        now: new Date("2026-07-17T02:00:45.001Z"),
+        staleAfterSeconds: 45
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          workerId: "worker-ready",
+          available: false
+        })
+      ])
+    );
+    expect(() =>
+      store.recordWorkerHeartbeat({
+        workerId: "worker-future",
+        processInstanceId: "process-future",
+        version: "1.0.0",
+        state: "ready",
+        startedAt: new Date("2026-07-17T04:00:00Z"),
+        now: new Date("2026-07-17T03:00:00Z")
+      })
+    ).toThrow("must not be later");
+    store.close();
+  });
+
+  it("serializes maintenance across processes with an expiring owner-fenced lock", () => {
+    const store = createStore(":memory:");
+    const startedAt = new Date("2026-07-17T01:00:00Z");
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-one",
+        leaseSeconds: 60,
+        now: startedAt
+      })
+    ).toBe(true);
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-two",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:00:30Z")
+      })
+    ).toBe(false);
+    expect(
+      store.renewMaintenanceLock({
+        name: "backup",
+        owner: "process-one",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:00:30Z")
+      })
+    ).toBe(true);
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-two",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:01:29.999Z")
+      })
+    ).toBe(false);
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-two",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:01:30Z")
+      })
+    ).toBe(true);
+    expect(
+      store.renewMaintenanceLock({
+        name: "backup",
+        owner: "process-one",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:01:31Z")
+      })
+    ).toBe(false);
+    store.releaseMaintenanceLock({
+      name: "backup",
+      owner: "process-one"
+    });
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-three",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:01:31Z")
+      })
+    ).toBe(false);
+    store.releaseMaintenanceLock({
+      name: "backup",
+      owner: "process-two"
+    });
+    expect(
+      store.acquireMaintenanceLock({
+        name: "backup",
+        owner: "process-three",
+        leaseSeconds: 60,
+        now: new Date("2026-07-17T01:01:31Z")
+      })
+    ).toBe(true);
     store.close();
   });
 
@@ -987,11 +1314,38 @@ describe("ResearchSqliteStore", () => {
           `SELECT
              (SELECT COUNT(*) FROM research_run_results) AS results,
              (SELECT COUNT(*) FROM research_artifacts) AS artifacts,
+             (SELECT COUNT(*) FROM research_sources) AS sources,
+             (SELECT COUNT(*) FROM research_claims) AS claims,
+             (SELECT COUNT(*) FROM research_references) AS refs,
              (SELECT COUNT(*) FROM research_audit_events
                 WHERE action = 'run_succeeded') AS audits`
         )
         .get()
-    ).toEqual({ results: 1, artifacts: 4, audits: 1 });
+    ).toEqual({
+      results: 1,
+      artifacts: 4,
+      sources: 2,
+      claims: 1,
+      refs: 1,
+      audits: 1
+    });
+    expect(
+      store.getRunForSubject(created.run.runId, "subj_a")
+    ).toMatchObject({
+      canonicalIdentityId: "dci_example01"
+    });
+    expect(
+      store.database
+        .prepare(
+          `SELECT canonical_identity_id, doctor_key
+           FROM research_doctor_admissions
+           WHERE run_id = ?`
+        )
+        .get(created.run.runId)
+    ).toEqual({
+      canonical_identity_id: "dci_example01",
+      doctor_key: "dci:dci_example01"
+    });
     expect(
       (
         store.database
@@ -1008,6 +1362,51 @@ describe("ResearchSqliteStore", () => {
         }
       )
     ).toEqual({ kinds: 4, ascii_names: 4, utf8_names: 4 });
+
+    const secondCreated = store.createRun(
+      command(
+        "subj_b",
+        "key-success-second",
+        "hash-success-second",
+        "fp-success-second",
+        new Date(completedAt.getTime() + 1_000)
+      )
+    );
+    if (secondCreated.outcome !== "created") {
+      throw new Error("Expected a second created run.");
+    }
+    const secondLease = store.acquireLease({
+      workerId: "worker-success",
+      leaseSeconds: 120,
+      now: new Date(completedAt.getTime() + 1_000)
+    });
+    if (!secondLease) {
+      throw new Error("Expected a second lease.");
+    }
+    const secondArtifacts = commitArtifacts(secondCreated.run.runId, 4);
+    expect(
+      store.completeSuccessfulRun({
+        token: secondLease.token,
+        resultSchemaVersion: "doctor_research_result.v1",
+        result: successfulResult(
+          secondCreated.run.runId,
+          new Date(completedAt.getTime() + 2_000),
+          secondArtifacts
+        ),
+        artifacts: secondArtifacts,
+        now: new Date(completedAt.getTime() + 2_000)
+      })
+    ).toMatchObject({ outcome: "succeeded" });
+    expect(
+      store.database
+        .prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM research_sources) AS sources,
+             (SELECT COUNT(*) FROM research_claims) AS claims,
+             (SELECT COUNT(*) FROM research_references) AS refs`
+        )
+        .get()
+    ).toEqual({ sources: 4, claims: 2, refs: 2 });
     store.close();
   });
 
@@ -1403,6 +1802,14 @@ describe("ResearchSqliteStore", () => {
     const storagePath = `${created.run.runId}/${artifactId}.v1`;
     store.database
       .prepare(
+        `INSERT INTO research_run_budgets (
+           run_id, external_requests, external_response_bytes, llm_calls,
+           input_tokens, output_tokens, updated_at
+         ) VALUES (?, 1, 100, 1, 100, 100, ?)`
+      )
+      .run(created.run.runId, old.toISOString());
+    store.database
+      .prepare(
         `INSERT INTO research_artifacts (
           artifact_id, run_id, subject_id, kind, filename_ascii, filename_utf8,
           content_type, storage_path, storage_version, sha256, size_bytes,
@@ -1439,9 +1846,13 @@ describe("ResearchSqliteStore", () => {
     });
     expect(
       store.database
-        .prepare("SELECT COUNT(*) AS count FROM research_runs")
+        .prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM research_runs) AS runs,
+             (SELECT COUNT(*) FROM research_run_budgets) AS budgets`
+        )
         .get()
-    ).toEqual({ count: 0 });
+    ).toEqual({ runs: 0, budgets: 0 });
     store.close();
   });
 });
@@ -1497,7 +1908,7 @@ function runInput(name: string): DoctorResearchRunInput {
   };
 }
 
-function commitArtifacts(runId: string) {
+function commitArtifacts(runId: string, suffixOffset = 0) {
   return (
     [
       ["1", "profile", "profile.md", "profile.md", "text/markdown; charset=utf-8"],
@@ -1512,7 +1923,10 @@ function commitArtifacts(runId: string) {
       ["4", "answers", "answers.md", "answers.md", "text/markdown; charset=utf-8"]
     ] as const
   ).map(([suffix, kind, filenameAscii, filenameUtf8, contentType]) => {
-    const artifactId = `dra_${suffix.repeat(32)}`;
+    const uniqueSuffix = (
+      Number.parseInt(suffix, 10) + suffixOffset
+    ).toString(16);
+    const artifactId = `dra_${uniqueSuffix.repeat(32)}`;
     return {
       artifactId,
       kind,
@@ -1521,7 +1935,7 @@ function commitArtifacts(runId: string) {
       contentType,
       storageRelativePath: `${runId}/${artifactId}.v1`,
       storageVersion: 1,
-      sha256: suffix.repeat(64),
+      sha256: uniqueSuffix.repeat(64),
       sizeBytes: 10
     };
   });

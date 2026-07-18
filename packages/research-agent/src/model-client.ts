@@ -1,0 +1,354 @@
+import { readBoundedResponseBody } from "./safe-http.js";
+
+export interface ResearchModelUsage {
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+}
+
+export interface ResearchModelResponse {
+  text: string;
+  gatewayRequestId: string | null;
+  usage: ResearchModelUsage;
+}
+
+export interface ResearchModelClient {
+  readonly model: string;
+  generate(input: {
+    runId: string;
+    stage: string;
+    attempt: number;
+    system: string;
+    prompt: string;
+    signal: AbortSignal;
+  }): Promise<ResearchModelResponse>;
+}
+
+export class GatewayResearchModelClient implements ResearchModelClient {
+  readonly model: string;
+  private readonly endpoint: URL;
+  private readonly readinessEndpoint: URL;
+  private readonly timeoutMs: number;
+  private readonly maximumResponseBytes: number;
+  private readonly maximumOutputTokensPerCall: number;
+
+  constructor(
+    private readonly options: {
+      baseUrl: string;
+      allowedHosts: readonly string[];
+      model: string;
+      bearerToken: string;
+      timeoutMs: number;
+      maximumResponseBytes: number;
+      readinessRequirements: {
+        maximumPromptTokensPerCall: number;
+        maximumOutputTokensPerCall: number;
+        callsPerRun: number;
+        maximumTokensPerRun: number;
+      };
+      fetchImpl?: typeof fetch;
+    }
+  ) {
+    this.model = requiredIdentifier(options.model, "model");
+    if (
+      options.bearerToken !== options.bearerToken.trim() ||
+      options.bearerToken.length < 8 ||
+      options.bearerToken.length > 8_192 ||
+      /[\r\n\u0000]/u.test(options.bearerToken)
+    ) {
+      throw new Error("Research LLM bearer token is missing or invalid.");
+    }
+    this.timeoutMs = positiveInteger(options.timeoutMs, "timeoutMs");
+    this.maximumResponseBytes = positiveInteger(
+      options.maximumResponseBytes,
+      "maximumResponseBytes"
+    );
+    const readiness = options.readinessRequirements;
+    positiveInteger(
+      readiness.maximumPromptTokensPerCall,
+      "readinessRequirements.maximumPromptTokensPerCall"
+    );
+    positiveInteger(
+      readiness.maximumOutputTokensPerCall,
+      "readinessRequirements.maximumOutputTokensPerCall"
+    );
+    this.maximumOutputTokensPerCall =
+      readiness.maximumOutputTokensPerCall;
+    positiveInteger(
+      readiness.callsPerRun,
+      "readinessRequirements.callsPerRun"
+    );
+    positiveInteger(
+      readiness.maximumTokensPerRun,
+      "readinessRequirements.maximumTokensPerRun"
+    );
+    if (
+      readiness.callsPerRun > 3 ||
+      !Number.isSafeInteger(
+        readiness.maximumPromptTokensPerCall +
+          readiness.maximumOutputTokensPerCall
+      ) ||
+      readiness.maximumTokensPerRun <
+        readiness.maximumPromptTokensPerCall +
+          readiness.maximumOutputTokensPerCall
+    ) {
+      throw new Error("Research LLM readiness requirements are inconsistent.");
+    }
+    const baseUrl = new URL(options.baseUrl);
+    if (
+      (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") ||
+      baseUrl.username ||
+      baseUrl.password ||
+      baseUrl.search ||
+      baseUrl.hash
+    ) {
+      throw new Error("Research LLM base URL is invalid.");
+    }
+    const normalizedHost = baseUrl.hostname.toLowerCase().replace(/\.$/u, "");
+    if (
+      baseUrl.protocol === "http:" &&
+      !["127.0.0.1", "localhost", "[::1]"].includes(normalizedHost) &&
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(normalizedHost)
+    ) {
+      throw new Error(
+        "Research LLM cleartext HTTP is limited to loopback or a single-label private service name."
+      );
+    }
+    if (
+      options.allowedHosts.length === 0 ||
+      options.allowedHosts.length > 20 ||
+      !options.allowedHosts.some(
+        (host) => host.toLowerCase().replace(/\.$/u, "") === normalizedHost
+      )
+    ) {
+      throw new Error("Research LLM base URL host is not allowlisted.");
+    }
+    this.endpoint = new URL("/v1/chat/completions", baseUrl);
+    this.readinessEndpoint = new URL(
+      `/gateway/research/v1/worker/llm-readiness/${encodeURIComponent(this.model)}`,
+      baseUrl
+    );
+    this.readinessEndpoint.searchParams.set(
+      "maximum_prompt_tokens_per_call",
+      String(readiness.maximumPromptTokensPerCall)
+    );
+    this.readinessEndpoint.searchParams.set(
+      "maximum_output_tokens_per_call",
+      String(readiness.maximumOutputTokensPerCall)
+    );
+    this.readinessEndpoint.searchParams.set(
+      "calls_per_run",
+      String(readiness.callsPerRun)
+    );
+    this.readinessEndpoint.searchParams.set(
+      "maximum_tokens_per_run",
+      String(readiness.maximumTokensPerRun)
+    );
+  }
+
+  async assertModelAvailable(signal: AbortSignal): Promise<void> {
+    const response = await (this.options.fetchImpl ?? fetch)(this.readinessEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${this.options.bearerToken}`
+      },
+      redirect: "error",
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(this.timeoutMs)
+      ])
+    });
+    const requestId = boundedHeader(response.headers.get("x-request-id"));
+    const bytes = await readBoundedResponseBody(
+      response.body,
+      this.maximumResponseBytes
+    );
+    let payload: unknown;
+    try {
+      payload = JSON.parse(bytes.toString("utf8"));
+    } catch {
+      throw new ResearchModelClientError(
+        "invalid_response",
+        response.status,
+        requestId
+      );
+    }
+    if (
+      !response.ok ||
+      !isRecord(payload) ||
+      payload.authorized !== true ||
+      payload.model !== this.model
+    ) {
+      throw new ResearchModelClientError(
+        response.status === 429 ? "rate_limited" : "upstream_error",
+        response.status,
+        requestId
+      );
+    }
+  }
+
+  async generate(input: {
+    runId: string;
+    stage: string;
+    attempt: number;
+    system: string;
+    prompt: string;
+    signal: AbortSignal;
+  }): Promise<ResearchModelResponse> {
+    if (!/^drr_[a-f0-9]{32}$/.test(input.runId)) {
+      throw new Error("Research LLM run ID is invalid.");
+    }
+    const stage = requiredIdentifier(input.stage, "stage");
+    if (!Number.isSafeInteger(input.attempt) || input.attempt < 1 || input.attempt > 9) {
+      throw new Error("Research LLM attempt is invalid.");
+    }
+    if (
+      input.system.length === 0 ||
+      input.system.length > 30_000 ||
+      input.prompt.length === 0 ||
+      input.prompt.length > 500_000
+    ) {
+      throw new Error("Research LLM prompt is empty or exceeds its bound.");
+    }
+    const signal = AbortSignal.any([
+      input.signal,
+      AbortSignal.timeout(this.timeoutMs)
+    ]);
+    let response: Response;
+    try {
+      response = await (this.options.fetchImpl ?? fetch)(this.endpoint, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${this.options.bearerToken}`,
+          "content-type": "application/json",
+          "x-medcode-client-session-id": input.runId,
+          "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          stream: false,
+          max_tokens: this.maximumOutputTokensPerCall,
+          messages: [
+            { role: "system", content: input.system },
+            { role: "user", content: input.prompt }
+          ]
+        }),
+        redirect: "error",
+        signal
+      });
+    } catch (error) {
+      if (input.signal.aborted) {
+        throw input.signal.reason ?? error;
+      }
+      if (signal.aborted) {
+        throw signal.reason ?? error;
+      }
+      throw new ResearchModelClientError("upstream_error", 0, null);
+    }
+    const requestId = boundedHeader(response.headers.get("x-request-id"));
+    const bytes = await readBoundedResponseBody(
+      response.body,
+      this.maximumResponseBytes
+    );
+    let payload: unknown;
+    try {
+      payload = JSON.parse(bytes.toString("utf8"));
+    } catch {
+      throw new ResearchModelClientError(
+        "invalid_response",
+        response.status,
+        requestId
+      );
+    }
+    if (!response.ok) {
+      throw new ResearchModelClientError(
+        response.status === 429 ? "rate_limited" : "upstream_error",
+        response.status,
+        requestId
+      );
+    }
+    if (!isRecord(payload)) {
+      throw new ResearchModelClientError(
+        "invalid_response",
+        response.status,
+        requestId
+      );
+    }
+    const choices = payload.choices;
+    const first =
+      Array.isArray(choices) && choices.length === 1 && isRecord(choices[0])
+        ? choices[0]
+        : null;
+    const message = first && isRecord(first.message) ? first.message : null;
+    const text = typeof message?.content === "string" ? message.content : null;
+    if (text === null || text.trim() === "") {
+      throw new ResearchModelClientError(
+        "empty_response",
+        response.status,
+        requestId
+      );
+    }
+    const usage = isRecord(payload.usage) ? payload.usage : null;
+    return {
+      text,
+      gatewayRequestId: requestId,
+      usage: {
+        promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
+        completionTokens: nonNegativeIntegerOrNull(usage?.completion_tokens),
+        totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
+      }
+    };
+  }
+}
+
+export class ResearchModelClientError extends Error {
+  constructor(
+    readonly code:
+      | "rate_limited"
+      | "upstream_error"
+      | "invalid_response"
+      | "empty_response",
+    readonly statusCode: number,
+    readonly gatewayRequestId: string | null
+  ) {
+    super("Research LLM request failed.");
+    this.name = "ResearchModelClientError";
+  }
+}
+
+export function estimateResearchInputTokens(value: string): number {
+  return Math.max(1, Math.ceil(Buffer.byteLength(value, "utf8") / 3));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function nonNegativeIntegerOrNull(value: unknown): number | null {
+  return typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+    ? value
+    : null;
+}
+
+function boundedHeader(value: string | null): string | null {
+  return value && value.length <= 200 ? value : null;
+}
+
+function requiredIdentifier(value: string, name: string): string {
+  const normalized = value.trim();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/u.test(normalized)) {
+    throw new Error(`${name} is invalid.`);
+  }
+  return normalized;
+}
+
+function positiveInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive safe integer.`);
+  }
+  return value;
+}

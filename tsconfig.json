@@ -5,6 +5,7 @@
     { "path": "./packages/provider-codex" },
     { "path": "./packages/research-agent" },
     { "path": "./packages/store-sqlite" },
+    { "path": "./apps/research-worker" },
     { "path": "./apps/gateway" },
     { "path": "./apps/admin-cli" }
   ]
