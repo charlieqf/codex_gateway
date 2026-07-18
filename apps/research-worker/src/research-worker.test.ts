@@ -504,6 +504,76 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
+  it("does not infer a missing research direction without an explicit official label", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "explicit_research_direction_required"
+    );
+    const explicitOnlyAdapters = adapters();
+    explicitOnlyAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/example",
+      title: "Example Hospital Doctor Profile",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "Example Doctor works in Cardiology at Example Hospital."
+    });
+    const unsupported = modelOutput();
+    unsupported.profile.research_directions = [
+      "Invented oncology program"
+    ];
+    unsupported.profile.claims = [
+      {
+        claim_id: "clm_research_direction_invented",
+        claim_type: "research_direction",
+        text: "Invented oncology program",
+        source_ids: ["src_official_1"],
+        verification_status: "verified"
+      }
+    ];
+    let modelCalls = 0;
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: explicitOnlyAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(unsupported),
+            gatewayRequestId: `req_model_explicit_only_${modelCalls}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(modelCalls).toBe(2);
+    expect(validationCodes).toEqual([
+      ["verified_research_direction_required"],
+      ["verified_research_direction_required"]
+    ]);
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
   it("rejects model-controlled links on both the initial and repair attempts", async () => {
     const fixture = createLeasedWorkflowFixture("unsafe_markup");
     const linked = modelOutput();
