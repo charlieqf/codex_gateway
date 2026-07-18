@@ -639,7 +639,10 @@ async function discoverIdentityEvidence(
   );
   const sourceIds = await context["input"].adapters.searchOfficialSources(
     officialQuery,
-    context.callSignal()
+    context.callSignal(),
+    {
+      seedUrls: doctor.officialProfileUrls ?? []
+    }
   );
   const officialSources: FrozenOfficialSource[] = [];
   let remainingOfficialCharacters = Math.max(
@@ -1455,7 +1458,14 @@ function buildModelPrompt(
     "Every substantive review paragraph must contain a numeric citation, and core_evidence must contain one entry for every supplied reference.",
     `Schema: ${JSON.stringify(doctorResearchModelOutputSchema)}`,
     `Identity: ${JSON.stringify({
-      doctor: run.input.doctor,
+      doctor: {
+        name: run.input.doctor.name,
+        hospital: run.input.doctor.hospital,
+        department: run.input.doctor.department,
+        title: run.input.doctor.title,
+        city: run.input.doctor.city,
+        orcid: run.input.doctor.orcid
+      },
       canonical_identity_id: identity.canonicalIdentityId,
       matched_by: identity.matchedBy
     })}`,

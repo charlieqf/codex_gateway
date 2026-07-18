@@ -204,7 +204,8 @@ The controlled-beta implementation batch on 2026-07-18 adds:
   cleanup, storage probes and verified backups; staging Worker readiness
   requires its fresh backup and keeps embedded maintenance disabled;
 - bounded first-party PubMed, Crossref and ORCID adapters plus fail-closed
-  Brave official-site search over an explicit domain allowlist;
+  direct official-source retrieval and optional Brave search over an explicit
+  domain allowlist;
 - a Gateway-backed non-streaming LLM client with exact credential/model
   readiness, persistent per-run budgets, unique-JSON/AJV validation and one
   bounded repair;
@@ -263,7 +264,7 @@ Validation after the controlled-beta hardening pass:
 - `git diff --check`.
 
 This is still not a production enablement. Production flags and credentials
-remain unchanged and disabled. Live staging evidence with approved ORCID,
-official-search and LLM credentials, provider/quality approval, encrypted
-backup/restore and production limits is still required. The separate Phase 0.5
-rollback-compatibility gate is pinned in `phase0.5-compatibility.md`.
+remain unchanged and disabled. Live staging evidence, the production ORCID
+terms/credential decision, official-source and LLM quality approval, encrypted
+backup/restore and production limits are still required. The separate Phase
+0.5 rollback-compatibility gate is pinned in `phase0.5-compatibility.md`.

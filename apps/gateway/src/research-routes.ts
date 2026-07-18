@@ -49,6 +49,8 @@ export interface ResearchRouteOptions {
   artifactRoot?: string;
   maximumArtifactBytes?: number;
   admissionGuard?: (now: Date) => Promise<GatewayError | null>;
+  officialSourceMode?: "brave" | "direct";
+  officialWebAllowedDomains?: readonly string[];
   now?: () => Date;
 }
 
@@ -88,7 +90,11 @@ export function registerResearchRoutes(
       let parsed: ParsedResearchRunRequest;
       let idempotencyKey: string;
       try {
-        parsed = parseDoctorResearchRunRequest(request.body);
+        parsed = parseDoctorResearchRunRequest(request.body, {
+          officialSourceMode: options.officialSourceMode ?? "brave",
+          officialWebAllowedDomains:
+            options.officialWebAllowedDomains ?? []
+        });
         idempotencyKey = parseIdempotencyKey(
           request.headers["idempotency-key"]
         );
@@ -740,7 +746,11 @@ export function registerResearchRoutes(
 }
 
 export function parseDoctorResearchRunRequest(
-  body: unknown
+  body: unknown,
+  policy: {
+    officialSourceMode?: "brave" | "direct";
+    officialWebAllowedDomains?: readonly string[];
+  } = {}
 ): ParsedResearchRunRequest {
   if (!isRecord(body)) {
     throw invalidRequest();
@@ -761,7 +771,8 @@ export function parseDoctorResearchRunRequest(
     "department",
     "title",
     "city",
-    "orcid"
+    "orcid",
+    "official_profile_urls"
   ]);
   assertOnlyKeys(body.options, ["publication_years", "citation_style"]);
 
@@ -775,13 +786,28 @@ export function parseDoctorResearchRunRequest(
     ),
     title: optionalText(body.doctor.title, "doctor.title", 100),
     city: optionalText(body.doctor.city, "doctor.city", 100),
-    orcid: optionalOrcid(body.doctor.orcid)
+    orcid: optionalOrcid(body.doctor.orcid),
+    officialProfileUrls: parseOfficialProfileUrls(
+      body.doctor.official_profile_urls,
+      policy.officialWebAllowedDomains ?? []
+    )
   };
   if (!doctor.hospital || !doctor.department) {
     throw new GatewayError({
       code: "invalid_request",
       message:
         "The controlled Doctor Research beta requires both hospital and department identity anchors.",
+      httpStatus: 400
+    });
+  }
+  if (
+    policy.officialSourceMode === "direct" &&
+    doctor.officialProfileUrls.length === 0
+  ) {
+    throw new GatewayError({
+      code: "invalid_request",
+      message:
+        "Direct official-source mode requires at least one allowlisted doctor.official_profile_urls entry.",
       httpStatus: 400
     });
   }
@@ -1283,6 +1309,74 @@ function optionalOrcid(value: unknown): string | null {
     });
   }
   return normalized;
+}
+
+function parseOfficialProfileUrls(
+  value: unknown,
+  allowedDomains: readonly string[]
+): string[] {
+  if (value === undefined) {
+    return [];
+  }
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 3
+  ) {
+    throw new GatewayError({
+      code: "invalid_request",
+      message:
+        "doctor.official_profile_urls must contain one to three allowlisted HTTPS URLs.",
+      httpStatus: 400
+    });
+  }
+  const normalizedDomains = allowedDomains.map((domain) =>
+    domain.trim().toLowerCase().replace(/^\./u, "")
+  );
+  const urls = value.map((item) => {
+    if (
+      typeof item !== "string" ||
+      item !== item.trim() ||
+      item.length === 0 ||
+      item.length > 2_048 ||
+      /[\u0000-\u001f\u007f]/u.test(item)
+    ) {
+      throw invalidOfficialProfileUrl();
+    }
+    let url: URL;
+    try {
+      url = new URL(item);
+    } catch {
+      throw invalidOfficialProfileUrl();
+    }
+    const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      (url.port !== "" && url.port !== "443") ||
+      url.hash !== "" ||
+      !normalizedDomains.some(
+        (domain) =>
+          hostname === domain || hostname.endsWith(`.${domain}`)
+      )
+    ) {
+      throw invalidOfficialProfileUrl();
+    }
+    return url.toString();
+  });
+  if (new Set(urls).size !== urls.length) {
+    throw invalidOfficialProfileUrl();
+  }
+  return urls;
+}
+
+function invalidOfficialProfileUrl(): GatewayError {
+  return new GatewayError({
+    code: "invalid_request",
+    message: "doctor.official_profile_urls contains a URL that is not allowed.",
+    httpStatus: 400
+  });
 }
 
 function hasValidOrcidChecksum(value: string): boolean {

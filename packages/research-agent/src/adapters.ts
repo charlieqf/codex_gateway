@@ -64,7 +64,10 @@ export interface ResearchAdapterBundle {
   ): Promise<FrozenIdentityRecord | null>;
   searchOfficialSources(
     normalizedDoctorName: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    options?: {
+      seedUrls?: readonly string[];
+    }
   ): Promise<readonly string[]>;
   fetchApprovedSource(
     sourceId: string,

@@ -14,20 +14,20 @@ import {
 
 export interface LiveResearchAdapterOptions {
   ncbi: {
-    email: string;
+    email?: string;
     tool?: string;
     apiKey?: string;
     maximumResults?: number;
   };
   crossref: {
-    mailto: string;
+    mailto?: string;
   };
   orcid: {
-    bearerToken: string;
+    bearerToken?: string;
   };
   officialWeb: {
-    provider: "brave";
-    apiKey: string;
+    provider: "brave" | "direct";
+    apiKey?: string;
     allowedDomains: readonly string[];
     maximumResults?: number;
   };
@@ -80,18 +80,29 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       "officialWeb.maximumResults",
       10
     );
-    requireEmail(options.ncbi.email, "ncbi.email");
-    requireEmail(options.crossref.mailto, "crossref.mailto");
-    requireSecret(options.orcid.bearerToken, "orcid.bearerToken");
-    requireSecret(options.officialWeb.apiKey, "officialWeb.apiKey");
+    if (options.ncbi.email !== undefined) {
+      requireEmail(options.ncbi.email, "ncbi.email");
+    }
+    if (options.crossref.mailto !== undefined) {
+      requireEmail(options.crossref.mailto, "crossref.mailto");
+    }
+    if (options.orcid.bearerToken !== undefined) {
+      requireSecret(options.orcid.bearerToken, "orcid.bearerToken");
+    }
+    if (options.officialWeb.provider === "brave") {
+      requireSecret(options.officialWeb.apiKey ?? "", "officialWeb.apiKey");
+    } else if (options.officialWeb.apiKey !== undefined) {
+      throw new Error(
+        "Direct official web retrieval must not configure an API key."
+      );
+    }
     validateAllowedDomains(options.officialWeb.allowedDomains);
     this.budgetHints = Object.freeze({
       officialSearchRequestUnits:
-        options.officialWeb.allowedDomains.length * 2
+        options.officialWeb.provider === "brave"
+          ? options.officialWeb.allowedDomains.length * 2
+          : 0
     });
-    if (options.officialWeb.provider !== "brave") {
-      throw new Error("Unsupported official web search provider.");
-    }
     if (
       options.userAgent !== options.userAgent.trim() ||
       options.userAgent.length < 10 ||
@@ -116,7 +127,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (!orcid) {
       throw new Error("ORCID preflight record was unavailable.");
     }
-    await this.searchOfficialSources("doctor profile", signal);
+    if (this.options.officialWeb.provider === "brave") {
+      await this.searchOfficialSources("doctor profile", signal);
+    }
   }
 
   async searchPubMed(
@@ -261,7 +274,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     const url = new URL(
       `https://api.crossref.org/v1/works/${encodeURIComponent(normalizedDoi)}`
     );
-    url.searchParams.set("mailto", this.options.crossref.mailto);
+    if (this.options.crossref.mailto) {
+      url.searchParams.set("mailto", this.options.crossref.mailto);
+    }
     let response;
     try {
       response = await this.requestJsonWithRetry<CrossrefWorkResponse>(
@@ -329,7 +344,12 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         signal,
         {
           accept: "application/vnd.orcid+json",
-          authorization: `Bearer ${this.options.orcid.bearerToken}`
+          ...(this.options.orcid.bearerToken
+            ? {
+                authorization:
+                  `Bearer ${this.options.orcid.bearerToken}`
+              }
+            : {})
         }
       );
     } catch (error) {
@@ -411,11 +431,30 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
 
   async searchOfficialSources(
     normalizedDoctorName: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    options: {
+      seedUrls?: readonly string[];
+    } = {}
   ): Promise<readonly string[]> {
     const query = boundedBraveIdentityQuery(normalizedDoctorName);
     this.officialSources.clear();
     const sourceIds: string[] = [];
+    for (const rawUrl of options.seedUrls ?? []) {
+      const sourceUrl = approvedSeedUrl(
+        rawUrl,
+        this.options.officialWeb.allowedDomains
+      );
+      const sourceId = `src_web_${sha256(sourceUrl.toString()).slice(0, 24)}`;
+      this.officialSources.set(sourceId, {
+        url: sourceUrl,
+        title: sourceUrl.hostname,
+        snippet: ""
+      });
+      sourceIds.push(sourceId);
+    }
+    if (this.options.officialWeb.provider === "direct") {
+      return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
+    }
     for (const domain of this.options.officialWeb.allowedDomains) {
       const url = new URL("https://api.search.brave.com/res/v1/web/search");
       setSearchParams(url, {
@@ -428,7 +467,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         url,
         signal,
         {
-          "x-subscription-token": this.options.officialWeb.apiKey
+          "x-subscription-token": this.options.officialWeb.apiKey!
         },
         2
       );
@@ -982,6 +1021,37 @@ function hostAllowed(hostname: string, allowedDomains: readonly string[]): boole
     const domain = raw.trim().toLowerCase().replace(/^\./u, "");
     return host === domain || host.endsWith(`.${domain}`);
   });
+}
+
+function approvedSeedUrl(
+  value: string,
+  allowedDomains: readonly string[]
+): URL {
+  if (
+    typeof value !== "string" ||
+    value !== value.trim() ||
+    value.length === 0 ||
+    value.length > 2_048
+  ) {
+    throw new Error("Official source seed URL is invalid.");
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Official source seed URL is invalid.");
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    (url.port !== "" && url.port !== "443") ||
+    url.hash !== "" ||
+    !hostAllowed(url.hostname, allowedDomains)
+  ) {
+    throw new Error("Official source seed URL is not allowlisted.");
+  }
+  return url;
 }
 
 async function abortableDelay(

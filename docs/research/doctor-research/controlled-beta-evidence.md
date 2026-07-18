@@ -14,14 +14,14 @@ must never be reported as a live PubMed, Crossref, ORCID, Brave or LLM result.
 | Startable Worker lifecycle | `apps/research-worker/src/index.ts` and `runtime.ts`; startup, ready heartbeat, graceful drain and dependency-loss tests | Passed offline and on Azure Ubuntu |
 | Heartbeat, lease, renewal, fencing, cancellation and terminal convergence | Research Store lease/fencing transactions, lease guard and Worker runtime tests, including cancellation after the final renewal | Passed deterministic race tests |
 | Independent maintenance/scheduler | `maintenance-index.ts`, database-fenced maintenance locks, reconciliation, cleanup, storage probe and verified backup lifecycle | Passed deterministic process/backup tests |
-| First-party live adapters | Bounded PubMed E-utilities, Crossref REST and ORCID public-record adapters | Code and mocked protocol tests passed; live credentials/contact evidence pending |
-| Official-site search and LLM | Explicit-domain Brave adapter and exact-model Gateway LLM readiness/generation client | Fail-closed code/tests passed; approved provider settings and live credentials pending |
+| First-party live adapters | Bounded PubMed E-utilities, Crossref REST and ORCID public-record adapters | Code/mocked protocol tests passed; the live `Shen Baiyong / Ruijin Hospital / Surgery` preflight discovered 15 PubMed records, retained 14 after author-affiliation binding and resolved all 15 available DOI records through Crossref; production contacts and ORCID terms remain open |
+| Official-site retrieval/search and LLM | Allowlisted direct-URL retrieval plus optional explicit-domain Brave search, and exact-model Gateway LLM readiness/generation | The allowlisted SJTUSM profile fetched live and matched name, hospital and department; `goldencode`/GLM-5.2 is selected and fail-closed code/tests passed; live model quality evidence is pending |
 | No public proxy, Scholar scraping or dynamic Skill execution | Proxy variables rejected while enabled; Compose clears proxy variables; no Scholar adapter; immutable compiled `SkillDefinition`; runtime image excludes docs/Skill archives | Passed config, image-content and source audit |
 | Exactly four atomic artifacts | Immutable temp-write/fsync/link publication, one fenced DB transaction, orphan cleanup and authenticated hash-verified streaming downloads | Passed crash tests and HTTP E2E with exactly four files |
 | Isolated staging state | Loopback-only staging Compose with separate Gateway, Research state and Research backup volumes | Compose/security assertions passed; disabled volumes created on Azure |
 | Secret-safe smoke | `scripts/research-beta-smoke.mjs` accepts only literal loopback, reads token/request from files, bounds responses and verifies four hashes | Syntax and Python wrapper tests passed; live invocation pending |
 | Default-off and fail-closed | Gateway, Worker and maintenance flags default false; enabled startup/admission rejects incomplete DB, storage, backup, provider, model, quota or Worker readiness | Passed route/config/runtime negative tests |
-| Existing Gateway compatibility | Full build and Vitest suite covers chat, sessions, responses compatibility, tools, images, credentials and Research | 475/475 passed on Windows; 475/475 passed on Azure Ubuntu for the immediately preceding runtime-equivalent release |
+| Existing Gateway compatibility | Full build and Vitest suite covers chat, sessions, responses compatibility, tools, images, credentials and Research | Current changes passed 482/482 on Windows plus 11/11 Python contract tests; 475/475 passed on Azure Ubuntu for the immediately preceding runtime-equivalent release |
 
 ## End-to-end evidence
 
@@ -81,9 +81,12 @@ entitlement, environment, container, listener or edge route.
 
 The following cannot be replaced by deterministic code:
 
-- approved staging-only exact LLM/model and chat-only service credential;
-- approved ORCID public-record credential/method;
-- Brave key and reviewed first-party domain allowlist;
+- staging-only credentials for the direct GoldenCode pool, plus a chat-only
+  service credential restricted exactly to `goldencode`;
+- production ORCID terms/commercial-use decision or registered/member
+  credential; staging uses the bounded Anonymous API;
+- reviewed first-party domain allowlist and direct official URLs for the beta
+  doctors; a Brave key is needed only if automatic site discovery is enabled;
 - NCBI and Crossref operator contact values;
 - approved beta doctor requests and human identity/citation/claim review;
 - Phase 0B frozen real-doctor fixtures and quality thresholds;

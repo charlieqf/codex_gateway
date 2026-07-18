@@ -144,7 +144,12 @@ export async function fetchApprovedWebDocument(input: {
       all: true,
       verbatim: true
     });
-    if (addresses.length === 0 || addresses.some((item) => !isPublicIp(item.address))) {
+    if (
+      addresses.length === 0 ||
+      addresses.some(
+        (item) => !isPublicResearchAddress(item.address)
+      )
+    ) {
       throw new Error("Approved source resolved to a non-public address.");
     }
     const selected = addresses[0]!;
@@ -252,12 +257,17 @@ async function requestPinnedAddress(input: {
           "accept-encoding": "identity",
           "user-agent": input.userAgent
         },
-        lookup: (_hostname, _options, callback) => {
-          callback(
-            null,
-            input.address,
-            input.family === 6 ? 6 : 4
-          );
+        lookup: (_hostname, options, callback) => {
+          const family = input.family === 6 ? 6 : 4;
+          if (
+            typeof options === "object" &&
+            options !== null &&
+            options.all
+          ) {
+            callback(null, [{ address: input.address, family }]);
+            return;
+          }
+          callback(null, input.address, family);
         },
         servername: input.url.hostname,
         signal
@@ -362,18 +372,23 @@ function validateApprovedUrl(url: URL, allowedDomains: readonly string[]): void 
   }
 }
 
-const blockedAddresses = createBlockedAddressList();
+const blockedAddresses = createBlockedAddressLists();
 
-function isPublicIp(address: string): boolean {
+export function isPublicResearchAddress(address: string): boolean {
   const family = isIP(address);
   if (family === 0) {
     return false;
   }
-  return !blockedAddresses.check(address, family === 4 ? "ipv4" : "ipv6");
+  return family === 4
+    ? !blockedAddresses.ipv4.check(address, "ipv4")
+    : !blockedAddresses.ipv6.check(address, "ipv6");
 }
 
-function createBlockedAddressList(): BlockList {
-  const block = new BlockList();
+function createBlockedAddressLists(): {
+  ipv4: BlockList;
+  ipv6: BlockList;
+} {
+  const ipv4 = new BlockList();
   for (const [address, prefix] of [
     ["0.0.0.0", 8],
     ["10.0.0.0", 8],
@@ -391,8 +406,9 @@ function createBlockedAddressList(): BlockList {
     ["224.0.0.0", 4],
     ["240.0.0.0", 4]
   ] as const) {
-    block.addSubnet(address, prefix, "ipv4");
+    ipv4.addSubnet(address, prefix, "ipv4");
   }
+  const ipv6 = new BlockList();
   for (const [address, prefix] of [
     ["::", 96],
     ["::1", 128],
@@ -410,9 +426,9 @@ function createBlockedAddressList(): BlockList {
     ["fe80::", 10],
     ["ff00::", 8]
   ] as const) {
-    block.addSubnet(address, prefix, "ipv6");
+    ipv6.addSubnet(address, prefix, "ipv6");
   }
-  return block;
+  return { ipv4, ipv6 };
 }
 
 function isRedirect(statusCode: number): boolean {

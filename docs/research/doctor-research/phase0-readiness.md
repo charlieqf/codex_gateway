@@ -69,9 +69,11 @@ and identifiers. The current offline baseline passes build, 475 Vitest tests,
 zero-vulnerability production dependency audit.
 
 This does not close Phase 0B or make production ready. The implementation has
-no approved live ORCID, Brave or LLM credential in the repository and must
-not have one. The live loopback staging smoke and its quality review therefore
-remain external evidence gates. See `controlled-beta-runbook.md`.
+no live credential in the repository and must not have one. Isolated staging
+uses explicit allowlisted official profile URLs and the bounded ORCID
+Anonymous API, while production ORCID terms/commercial-use approval remains
+open. The live loopback staging smoke and its quality review therefore remain
+external evidence gates. See `controlled-beta-runbook.md`.
 
 ## Phase 0.5 completed
 
@@ -94,8 +96,9 @@ These decisions and measurements cannot be fabricated in code:
    retrieval dates, URLs, hashes and human-verified gold sets.
 3. Measure the proposed Phase 1 data-source stack: `recall@15`, author
    attribution precision, claim coverage and insufficient-evidence rates.
-4. Select the internal LLM and official-site search provider, then run a
-   reproducible structured-output and quality benchmark.
+4. Run a reproducible structured-output and quality benchmark for the selected
+   `goldencode`/GLM-5.2 model and allowlisted direct official-source path.
+   Benchmark Brave separately before enabling automatic site discovery.
 
 The legacy prompts in `doctor-research-query/evals/evals.json` do not count.
 They have no frozen source bundle or human gold set. The quarantined Martin

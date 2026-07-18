@@ -19,6 +19,23 @@ services:
       - research_staging_gateway_state:/var/lib/codex-gateway
       - research_staging_gateway_logs:/var/log/codex-gateway
       - research_staging_state:/var/lib/codex-gateway-research
+      - ./config/research.staging.goldencode.example.json:/etc/codex-gateway/research-staging-goldencode.json:ro
+    secrets:
+      - source: goldencode_qianfan_api_key
+        target: goldencode_qianfan_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: goldencode_tencent_api_key
+        target: goldencode_tencent_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: goldencode_aliyun_api_key
+        target: goldencode_aliyun_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
     ports:
       - "127.0.0.1:${RESEARCH_STAGING_PORT:-18788}:8787"
     cpus: "1.0"
@@ -51,9 +68,6 @@ services:
       RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
       RESEARCH_LLM_BASE_URL: http://gateway:8787
       RESEARCH_LLM_BEARER_TOKEN_FILE: /run/secrets/research_llm_bearer
-      RESEARCH_WEB_SEARCH_API_KEY_FILE: /run/secrets/research_web_search_api_key
-      RESEARCH_ORCID_CLIENT_ID_FILE: /run/secrets/research_orcid_client_id
-      RESEARCH_ORCID_CLIENT_SECRET_FILE: /run/secrets/research_orcid_client_secret
       HTTP_PROXY: ""
       HTTPS_PROXY: ""
       ALL_PROXY: ""
@@ -66,21 +80,6 @@ services:
     secrets:
       - source: research_llm_bearer
         target: research_llm_bearer
-        uid: "999"
-        gid: "999"
-        mode: 0400
-      - source: research_web_search_api_key
-        target: research_web_search_api_key
-        uid: "999"
-        gid: "999"
-        mode: 0400
-      - source: research_orcid_client_id
-        target: research_orcid_client_id
-        uid: "999"
-        gid: "999"
-        mode: 0400
-      - source: research_orcid_client_secret
-        target: research_orcid_client_secret
         uid: "999"
         gid: "999"
         mode: 0400
@@ -162,11 +161,11 @@ volumes:
   research_staging_backups:
 
 secrets:
+  goldencode_qianfan_api_key:
+    file: ${RESEARCH_STAGING_QIANFAN_KEY_FILE:-./secrets/research-staging-qianfan-key}
+  goldencode_tencent_api_key:
+    file: ${RESEARCH_STAGING_TENCENT_KEY_FILE:-./secrets/research-staging-tencent-key}
+  goldencode_aliyun_api_key:
+    file: ${RESEARCH_STAGING_ALIYUN_KEY_FILE:-./secrets/research-staging-aliyun-key}
   research_llm_bearer:
     file: ${RESEARCH_STAGING_LLM_TOKEN_FILE:-./secrets/research-staging-llm-token}
-  research_web_search_api_key:
-    file: ${RESEARCH_STAGING_WEB_SEARCH_KEY_FILE:-./secrets/research-staging-web-search-key}
-  research_orcid_client_id:
-    file: ${RESEARCH_STAGING_ORCID_CLIENT_ID_FILE:-./secrets/research-staging-orcid-client-id}
-  research_orcid_client_secret:
-    file: ${RESEARCH_STAGING_ORCID_CLIENT_SECRET_FILE:-./secrets/research-staging-orcid-client-secret}

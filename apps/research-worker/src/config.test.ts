@@ -24,6 +24,9 @@ describe("Research Worker fail-closed configuration", () => {
       embeddedMaintenanceEnabled: false,
       ncbiApiKeyFile: null,
       webSearchApiKeyFile: path.resolve("secrets/web-search"),
+      llm: {
+        model: "goldencode"
+      },
       workflowPolicy: {
         maximumArtifactBytes: 1_000_000,
         maximumRunArtifactBytes: 4_000_000,
@@ -110,6 +113,44 @@ describe("Research Worker fail-closed configuration", () => {
       })
     ).toThrow("placeholders must be replaced");
   });
+
+  it("supports explicit direct official retrieval and fail-closed anonymous ORCID policy", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      NODE_ENV: "staging",
+      RESEARCH_ORCID_MODE: "anonymous",
+      RESEARCH_ORCID_BEARER_TOKEN_FILE: undefined,
+      RESEARCH_WEB_SEARCH_PROVIDER: "direct",
+      RESEARCH_WEB_SEARCH_API_KEY_FILE: undefined,
+      RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "shsmu.edu.cn"
+    });
+    expect(config).toMatchObject({
+      webSearchApiKeyFile: null,
+      orcid: { mode: "anonymous" },
+      adapterOptions: {
+        officialWeb: {
+          provider: "direct",
+          allowedDomains: ["shsmu.edu.cn"]
+        }
+      }
+    });
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        NODE_ENV: "production",
+        RESEARCH_ORCID_MODE: "anonymous",
+        RESEARCH_ORCID_BEARER_TOKEN_FILE: undefined
+      })
+    ).toThrow("RESEARCH_ORCID_ANONYMOUS_USE_APPROVED=true");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_WEB_SEARCH_PROVIDER: "direct"
+      })
+    ).toThrow("must not configure a search API key file");
+  });
 });
 
 function validEnvironment(): NodeJS.ProcessEnv {
@@ -187,7 +228,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_EXTERNAL_USER_AGENT: "codex-gateway-research-test/1.0",
     RESEARCH_LLM_BASE_URL: "http://gateway:8787",
     RESEARCH_LLM_ALLOWED_HOSTS: "gateway",
-    RESEARCH_LLM_MODEL: "medcode",
+    RESEARCH_LLM_MODEL: "goldencode",
     RESEARCH_LLM_BEARER_TOKEN_FILE: path.resolve("secrets/llm"),
     RESEARCH_LLM_TIMEOUT_MS: "600000",
     RESEARCH_MAX_LLM_RESPONSE_BYTES: "2000000"

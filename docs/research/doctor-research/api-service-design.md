@@ -366,7 +366,7 @@ Gateway Auth 重新认证，不能仅凭这些 ID 授权。
 
 ```text
 RESEARCH_LLM_BASE_URL=http://gateway:8787
-RESEARCH_LLM_MODEL=<approved-existing-model>
+RESEARCH_LLM_MODEL=goldencode
 RESEARCH_LLM_BEARER_TOKEN_FILE=/run/secrets/research_llm_bearer
 ```
 
@@ -683,12 +683,15 @@ Idempotency-Key: research:<client-generated-id>
 ```json
 {
   "doctor": {
-    "name": "马丁",
-    "hospital": "华中科技大学同济医学院附属同济医院",
-    "department": "妇产科",
-    "title": null,
-    "city": "武汉",
-    "orcid": null
+    "name": "Shen Baiyong",
+    "hospital": "Ruijin Hospital",
+    "department": "Surgery",
+    "title": "Professor, Chief Physician",
+    "city": "Shanghai",
+    "orcid": null,
+    "official_profile_urls": [
+      "https://www.shsmu.edu.cn/english/info/1336/2980.htm"
+    ]
   },
   "mode": "brief",
   "language": "zh-CN",
@@ -705,6 +708,9 @@ Idempotency-Key: research:<client-generated-id>
 - `name` 必填，trim 后 2 至 100 个字符；
 - `hospital`、`department`、`title`、`city` 和 `orcid` 均有独立长度与字符集
   上限；所有字符串先做 Unicode NFC，再参与 canonical request hash；
+- `official_profile_urls` 可包含 1 至 3 个 HTTPS URL，只允许命中配置中的官网
+  域名；`direct` 官网来源模式下必填，Gateway 在排队前拒绝缺失、跨域、带
+  credential、非 HTTPS、非 443 或含 fragment 的 URL；
 - `mode` 为 `brief` 或 `full`，首版只允许 `brief`；
 - `language` 首版允许 `zh-CN` 和 `en`；
 - `publication_years` 为 1 至 10；
@@ -712,7 +718,7 @@ Idempotency-Key: research:<client-generated-id>
 - `client_reference` 最长 128 个字符，只作为不可信显示元数据；
 - Phase 1 固定生成 profile、review、questions 和 answers 四个标准 artifact，
   请求不接受 `outputs`；未来若支持子集必须升级 input schema version；
-- 不接受 model、system prompt、tool list、skill path 或 URL；
+- 不接受 model、system prompt、tool list、skill path 或任意未审核 URL；
 - `Idempotency-Key` 必填，总长不超过 128。
 
 响应：HTTP 202
@@ -2210,14 +2216,17 @@ RESEARCH_BACKUP_MAX_AGE_SECONDS=...
 RESEARCH_SKILL_VERSION=1.2.0
 RESEARCH_PROMPT_VERSION=doctor-research-prompt.v2
 RESEARCH_LLM_BASE_URL=http://gateway:8787
-RESEARCH_LLM_MODEL=...
+RESEARCH_LLM_MODEL=goldencode
 RESEARCH_LLM_BEARER_TOKEN_FILE=/run/secrets/research_llm_bearer
 RESEARCH_NCBI_API_KEY_FILE=/run/secrets/research_ncbi_api_key
 RESEARCH_CROSSREF_MAILTO=...
 RESEARCH_ORCID_CLIENT_ID_FILE=/run/secrets/research_orcid_client_id
 RESEARCH_ORCID_CLIENT_SECRET_FILE=/run/secrets/research_orcid_client_secret
-RESEARCH_WEB_SEARCH_PROVIDER=...
+RESEARCH_ORCID_MODE=anonymous|bearer_file|client_credentials
+RESEARCH_ORCID_ANONYMOUS_USE_APPROVED=false
+RESEARCH_WEB_SEARCH_PROVIDER=direct|brave
 RESEARCH_WEB_SEARCH_API_KEY_FILE=/run/secrets/research_web_search_api_key
+RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS=...
 RESEARCH_SIGNED_URL_ENABLED=false
 RESEARCH_SIGNED_URL_LOG_REDACTION_CONFIRMED=false
 RESEARCH_ARTIFACT_SIGNING_SECRET_FILE=/run/secrets/research_artifact_signing_secret

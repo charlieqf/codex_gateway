@@ -60,6 +60,7 @@ export interface ResearchDoctorInput {
   title: string | null;
   city: string | null;
   orcid: string | null;
+  officialProfileUrls?: string[];
 }
 
 export interface DoctorResearchRunInput {

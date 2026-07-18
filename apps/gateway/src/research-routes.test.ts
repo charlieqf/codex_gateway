@@ -38,10 +38,10 @@ const provider: ProviderAdapter = {
 
 const cleanupDirectories: string[] = [];
 const researchLlmReadinessQuery =
-  "?maximum_prompt_tokens_per_call=200000" +
+  "?maximum_prompt_tokens_per_call=180000" +
   "&maximum_output_tokens_per_call=12000" +
   "&calls_per_run=3" +
-  "&maximum_tokens_per_run=636000";
+  "&maximum_tokens_per_run=576000";
 
 afterEach(() => {
   for (const directory of cleanupDirectories.splice(0)) {
@@ -132,6 +132,8 @@ describe("Doctor Research control-plane routes", () => {
         RESEARCH_API_ENABLED: "true",
         RESEARCH_DB_PATH: ":memory:",
         RESEARCH_ARTIFACT_ROOT: ".research-test-artifacts",
+        RESEARCH_WEB_SEARCH_PROVIDER: "brave",
+        RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "hospital.example",
         RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE: "false",
         RESEARCH_CONTROL_READ_RPM: "20",
         RESEARCH_CONTROL_MUTATION_RPM: "10",
@@ -280,6 +282,16 @@ describe("Doctor Research control-plane routes", () => {
         "&maximum_tokens_per_run=250000",
       headers: { authorization: `Bearer ${fixture.token}` }
     });
+    const overContext = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        "?maximum_prompt_tokens_per_call=400000" +
+        "&maximum_output_tokens_per_call=12000" +
+        "&calls_per_run=3" +
+        "&maximum_tokens_per_run=412000",
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -293,6 +305,8 @@ describe("Doctor Research control-plane routes", () => {
     expect(insufficientPolicy.json().error.code).toBe(
       "plan_capability_required"
     );
+    expect(overContext.statusCode).toBe(400);
+    expect(overContext.json().error.code).toBe("context_length_exceeded");
     await fixture.app.close();
 
     const overbroad = createFixture({
@@ -1512,6 +1526,49 @@ describe("Doctor Research control-plane routes", () => {
     );
     await fixture.app.close();
   });
+
+  it("admits direct official profile URLs only from the configured HTTPS allowlist", () => {
+    const request = validRequest("Guang Ning");
+    request.doctor.official_profile_urls = [
+      "https://www.shsmu.edu.cn/english/info/1354/4134.htm"
+    ];
+    const parsed = parseDoctorResearchRunRequest(request, {
+      officialSourceMode: "direct",
+      officialWebAllowedDomains: ["shsmu.edu.cn"]
+    });
+    expect(parsed.input.doctor.officialProfileUrls).toEqual([
+      "https://www.shsmu.edu.cn/english/info/1354/4134.htm"
+    ]);
+
+    expect(() =>
+      parseDoctorResearchRunRequest(validRequest("Guang Ning"), {
+        officialSourceMode: "direct",
+        officialWebAllowedDomains: ["shsmu.edu.cn"]
+      })
+    ).toThrow("requires at least one allowlisted");
+
+    const blocked = validRequest("Guang Ning");
+    blocked.doctor.official_profile_urls = [
+      "https://unapproved.example/profile"
+    ];
+    expect(() =>
+      parseDoctorResearchRunRequest(blocked, {
+        officialSourceMode: "direct",
+        officialWebAllowedDomains: ["shsmu.edu.cn"]
+      })
+    ).toThrow("not allowed");
+
+    const unsafe = validRequest("Guang Ning");
+    unsafe.doctor.official_profile_urls = [
+      "https://www.shsmu.edu.cn/profile#fragment"
+    ];
+    expect(() =>
+      parseDoctorResearchRunRequest(unsafe, {
+        officialSourceMode: "direct",
+        officialWebAllowedDomains: ["shsmu.edu.cn"]
+      })
+    ).toThrow("not allowed");
+  });
 });
 
 function createFixture(input: {
@@ -1911,7 +1968,8 @@ function validRequest(name: string) {
       department: "Cardiology",
       title: null,
       city: "Sydney",
-      orcid: null
+      orcid: null,
+      official_profile_urls: undefined as string[] | undefined
     },
     mode: "brief",
     language: "en",
@@ -1977,8 +2035,8 @@ function boundedServiceTokenPolicy() {
     tokensPerMinute: 700_000,
     tokensPerDay: 5_000_000,
     tokensPerMonth: 20_000_000,
-    maxPromptTokensPerRequest: 200_000,
-    maxTotalTokensPerRequest: 212_000,
+    maxPromptTokensPerRequest: 180_000,
+    maxTotalTokensPerRequest: 192_000,
     reserveTokensPerRequest: 12_000,
     missingUsageCharge: "reserve" as const
   };

@@ -219,6 +219,7 @@ import {
 } from "./services/tool-loop-shadow.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
+import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
   modelNotFoundError,
   openAIModelObject,
@@ -270,6 +271,8 @@ export interface GatewayOptions {
   researchArtifactRoot?: string;
   researchMaximumArtifactBytes?: number;
   researchAdmissionGuard?: (now: Date) => Promise<GatewayError | null>;
+  researchOfficialSourceMode?: "brave" | "direct";
+  researchOfficialWebAllowedDomains?: readonly string[];
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
@@ -503,6 +506,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     defaultResearchRuntime?.maximumArtifactBytes;
   const researchAdmissionGuard =
     options.researchAdmissionGuard ?? defaultResearchRuntime?.admissionGuard;
+  const researchOfficialSourceMode =
+    options.researchOfficialSourceMode ??
+    defaultResearchRuntime?.officialSourceMode ??
+    "brave";
+  const researchOfficialWebAllowedDomains =
+    options.researchOfficialWebAllowedDomains ??
+    defaultResearchRuntime?.officialWebAllowedDomains ??
+    [];
   const imageGenerationProvider =
     options.imageGenerationProvider === undefined
       ? upstreamRouter.hasImageBindingDeclared()
@@ -700,6 +711,22 @@ export function buildGateway(options: GatewayOptions = {}) {
             modelNotFoundError(request.params.model)
           );
         }
+        if (
+          requirements.maximumPromptTokensPerCall +
+            requirements.maximumOutputTokensPerCall >
+          publicModel.contextWindow
+        ) {
+          return sendOpenAIError(
+            request,
+            reply,
+            new GatewayError({
+              code: "context_length_exceeded",
+              message:
+                "Research LLM readiness requirements exceed the model context window.",
+              httpStatus: 400
+            })
+          );
+        }
         const { subject, scope, credential } = getGatewayContext(request);
         if (
           credential.allowedPublicModels === null ||
@@ -806,6 +833,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       artifactRoot: researchArtifactRoot,
       maximumArtifactBytes: researchMaximumArtifactBytes,
       admissionGuard: researchAdmissionGuard,
+      officialSourceMode: researchOfficialSourceMode,
+      officialWebAllowedDomains: researchOfficialWebAllowedDomains,
       now: clock
     });
   }
@@ -4837,6 +4866,8 @@ function createDefaultResearchRuntime(
   artifactRoot: string;
   maximumArtifactBytes: number;
   admissionGuard: (now: Date) => Promise<GatewayError | null>;
+  officialSourceMode: "brave" | "direct";
+  officialWebAllowedDomains: string[];
 } | null {
   if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
     return null;
@@ -4854,6 +4885,14 @@ function createDefaultResearchRuntime(
       "RESEARCH_ARTIFACT_ROOT is required when Research API is enabled."
     );
   }
+  const officialSourceMode = parseResearchOfficialSourceMode(
+    env.RESEARCH_WEB_SEARCH_PROVIDER
+  );
+  const officialWebAllowedDomains =
+    parseResearchOfficialWebAllowedDomains(
+      env.RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS,
+      env.NODE_ENV
+    );
   const readRpm = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_CONTROL_READ_RPM,
     "RESEARCH_CONTROL_READ_RPM"
@@ -4974,6 +5013,8 @@ function createDefaultResearchRuntime(
     workerStaleAfterSeconds,
     artifactRoot: resolvedArtifactRoot,
     maximumArtifactBytes,
+    officialSourceMode,
+    officialWebAllowedDomains,
     admissionGuard: async (now) => {
       const latestBackup = store.latestSuccessfulBackupAt();
       if (
@@ -5058,6 +5099,57 @@ function parseResearchBoolean(
     return false;
   }
   throw new Error(`${name} must be true/false or 1/0.`);
+}
+
+function parseResearchOfficialSourceMode(
+  value: string | undefined
+): "brave" | "direct" {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "brave" || normalized === "direct") {
+    return normalized;
+  }
+  throw new Error(
+    "RESEARCH_WEB_SEARCH_PROVIDER must be brave or direct when Research API is enabled."
+  );
+}
+
+function parseResearchOfficialWebAllowedDomains(
+  value: string | undefined,
+  nodeEnvironment: string | undefined
+): string[] {
+  const domains = (value ?? "")
+    .split(",")
+    .map((domain) => domain.trim().toLowerCase().replace(/^\./u, ""))
+    .filter(Boolean);
+  if (
+    domains.length === 0 ||
+    domains.length > 10 ||
+    new Set(domains).size !== domains.length ||
+    domains.reduce((total, domain) => total + domain.length + 7, 0) >
+      1_600 ||
+    domains.some(
+      (domain) =>
+        domain.length > 100 ||
+        !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/u.test(
+          domain
+        )
+    )
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS must contain unique valid DNS domains."
+    );
+  }
+  if (
+    ["staging", "production"].includes(
+      nodeEnvironment?.trim().toLowerCase() ?? ""
+    ) &&
+    domains.some((domain) => domain.endsWith(".example"))
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS placeholders must be replaced."
+    );
+  }
+  return domains;
 }
 
 function assertDedicatedResearchDatabasePath(
@@ -6112,7 +6204,8 @@ function createOpenAICompatibleAdapters(input: {
   appTitle?: string;
 }): OpenAICompatibleAdapterMap {
   const adapters: OpenAICompatibleAdapterMap = new Map();
-  const apiKey = input.env[input.apiKeyEnvName]?.trim();
+  const resolvedSecret = resolveProviderApiKey(input.env, input.apiKeyEnvName);
+  const apiKey = resolvedSecret.apiKey;
   const enabledTargets = openAICompatibleAdapterTargets(input.models, input.runtime);
   assertUniqueOpenAICompatibleAdapterTargetIds(enabledTargets);
   if (!apiKey) {
@@ -6120,6 +6213,7 @@ function createOpenAICompatibleAdapters(input: {
       input.logger?.warn(
         {
           api_key_env: input.apiKeyEnvName,
+          api_key_file_env: `${input.apiKeyEnvName}_FILE`,
           public_model_ids: uniqueValues(enabledTargets.map((target) => target.publicModelId)),
           adapter_ids: enabledTargets.map((target) => target.id)
         },
@@ -6136,7 +6230,7 @@ function createOpenAICompatibleAdapters(input: {
         providerKind: input.providerKind,
         baseUrl: input.baseUrl,
         apiKey,
-        apiKeyEnv: input.apiKeyEnvName,
+        apiKeyEnv: resolvedSecret.sourceEnvName,
         upstreamModel: target.upstreamModel,
         reasoning: input.reasoningForTarget(target),
         reasoningParameterStyle: input.reasoningParameterStyle,

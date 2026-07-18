@@ -13,8 +13,11 @@ flag.
   `RESEARCH_STAGING_MAINTENANCE_ENABLED` and
   `RESEARCH_STAGING_WORKER_ENABLED` unset until staging data, secrets,
   entitlements, backup target and upstream capacity are ready.
-- Never copy a production user token, upstream account, Gateway encryption
-  secret, Research service credential or provider key into staging.
+- Never copy a production user token, Codex login/upstream account, Gateway
+  encryption secret or Research service credential into staging. A bounded
+  staging smoke may reuse only the three existing direct GoldenCode provider
+  API keys on the same host, copied without output into mode-`0400` staging
+  secret files; it must not alter, rotate or expose those keys.
 - Do not expose the staging port publicly or add an Nginx route.
 - Do not enable `RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE`.
 - Do not use a public proxy, scrape Google Scholar, or execute a `.skill`,
@@ -25,22 +28,33 @@ flag.
 
 The Worker intentionally fails startup until all of these are present:
 
-1. A staging-only Gateway upstream and an approved exact public model ID.
+1. Staging-only credentials for the frozen three-member direct GoldenCode
+   pool (`qianfan`, `tencent`, `aliyun`) and exact public model ID
+   `goldencode`. This path uses GLM-5.2; it does not require Max, a Codex
+   device login, OpenRouter or another public proxy.
 2. A staging-only Gateway service credential with:
    - an active entitlement containing `chat`;
    - an exact non-empty public-model allowlist containing only
      `RESEARCH_LLM_MODEL`;
    - no `doctor_research`, `image_generation` or admin capability.
-3. An approved ORCID public-record access method and credential.
-4. A Brave Search API key and a reviewed allowlist of first-party
-   hospital/university domains.
-5. Operator contact values for NCBI and Crossref.
+3. For isolated staging, the bounded ORCID Anonymous API path. A request may
+   omit ORCID; when it supplies one, the public record must resolve and match.
+   Production use still requires a recorded terms/commercial-use decision or
+   registered/member credentials.
+4. Direct official-source mode with a reviewed first-party
+   hospital/university domain allowlist. Every create request must supply one
+   to three `doctor.official_profile_urls` values from that allowlist. Brave
+   remains supported for later automatic discovery but is not required for
+   this controlled staging path.
+5. A bounded staging User-Agent. NCBI email and Crossref `mailto` are optional
+   for this isolated smoke but become mandatory production configuration.
 6. A separate Research state volume and separate backup volume with enough
    free space.
 
-PubMed and Crossref do not substitute for missing ORCID, official-site search
-or LLM readiness. Missing any required dependency is a startup/admission
-failure, never a successful empty result.
+PubMed and Crossref do not substitute for missing official identity evidence
+or LLM readiness. Direct mode rejects requests without an allowlisted official
+URL before queue insertion. Missing any required dependency is a
+startup/admission failure, never a successful empty result.
 
 ## Prepare staging files
 
@@ -59,7 +73,7 @@ chmod 600 config/research.staging.gateway.env \
   config/research.staging.worker.env
 ```
 
-Replace every `replace-with-...` value and every example official domain.
+Replace every `replace-with-...` value.
 The actual Gateway environment file contains a staging-only encryption secret
 and therefore remains untracked with mode `0600`.
 
@@ -70,20 +84,20 @@ fields are not sufficient by themselves. Install the final files as host
 verify metadata only:
 
 ```text
-secrets/research-staging-web-search-key
-secrets/research-staging-orcid-client-id
-secrets/research-staging-orcid-client-secret
+secrets/research-staging-qianfan-key
+secrets/research-staging-tencent-key
+secrets/research-staging-aliyun-key
 ```
 
 ```bash
 sudo chown 999:999 \
-  secrets/research-staging-web-search-key \
-  secrets/research-staging-orcid-client-id \
-  secrets/research-staging-orcid-client-secret
+  secrets/research-staging-qianfan-key \
+  secrets/research-staging-tencent-key \
+  secrets/research-staging-aliyun-key
 sudo chmod 0400 \
-  secrets/research-staging-web-search-key \
-  secrets/research-staging-orcid-client-id \
-  secrets/research-staging-orcid-client-secret
+  secrets/research-staging-qianfan-key \
+  secrets/research-staging-tencent-key \
+  secrets/research-staging-aliyun-key
 stat -c '%u:%g %a %n' secrets/research-staging-*
 ```
 
@@ -98,9 +112,9 @@ Set paths without putting secret values in the environment:
 ```bash
 export RESEARCH_STAGING_GATEWAY_ENV_FILE=./config/research.staging.gateway.env
 export RESEARCH_STAGING_WORKER_ENV_FILE=./config/research.staging.worker.env
-export RESEARCH_STAGING_WEB_SEARCH_KEY_FILE=./secrets/research-staging-web-search-key
-export RESEARCH_STAGING_ORCID_CLIENT_ID_FILE=./secrets/research-staging-orcid-client-id
-export RESEARCH_STAGING_ORCID_CLIENT_SECRET_FILE=./secrets/research-staging-orcid-client-secret
+export RESEARCH_STAGING_QIANFAN_KEY_FILE=./secrets/research-staging-qianfan-key
+export RESEARCH_STAGING_TENCENT_KEY_FILE=./secrets/research-staging-tencent-key
+export RESEARCH_STAGING_ALIYUN_KEY_FILE=./secrets/research-staging-aliyun-key
 export RESEARCH_STAGING_LLM_TOKEN_FILE=./secrets/research-staging-llm-token
 ```
 
@@ -163,7 +177,7 @@ dc_admin issue \
   --user-label "Research service staging" \
   --label "Research Worker LLM" \
   --scope medical \
-  --allowed-public-models "<exact-RESEARCH_LLM_MODEL>" \
+  --allowed-public-models "goldencode" \
   --rpm 4 --rpd 100 --concurrent 1 \
   --no-entitlement-check >"$service_issue"
 dc_admin entitlement grant \
@@ -212,8 +226,9 @@ The independent maintenance process must complete database-fenced TTL
 reconciliation, orphan cleanup, storage admission and a verified initial
 backup before it becomes healthy. The Worker depends on that health signal,
 then completes live adapter preflight, exact-model credential readiness
-(including configured per-call/per-run rate and token coverage), fresh-backup
-verification and storage admission before it writes a `ready` heartbeat.
+(including the exact `goldencode` allowlist and configured per-call/per-run
+rate and token coverage), fresh-backup verification and storage admission
+before it writes a `ready` heartbeat.
 `RESEARCH_EMBEDDED_MAINTENANCE_ENABLED` remains `false`. Until then, create
 requests return a Research `503`.
 
@@ -231,10 +246,15 @@ input, prompts, source bodies, artifacts or credentials.
 ## End-to-end smoke
 
 Prepare a bounded JSON request file containing a permitted public doctor
-identity. The controlled beta requires both hospital and department; ORCID is
-optional but, when supplied, its public record must resolve the same name,
-hospital and department anchors exactly. Keep both the beta token and request
-JSON in separate mode-`0600` files.
+identity. The controlled beta requires both hospital and department plus one
+to three `doctor.official_profile_urls` entries from the configured allowlist.
+ORCID is optional but, when supplied, its public record must resolve the same
+name, hospital and department anchors exactly. Keep both the beta token and
+request JSON in separate mode-`0600` files.
+
+The checked-in `config/research.staging.request.example.json` is the reviewed
+live-E2E case. Copy it to a private mode-`0600` file before invoking the smoke;
+do not weaken its official-source or author-affiliation matching gates.
 
 ```bash
 export RESEARCH_SMOKE_BASE_URL=http://127.0.0.1:18788

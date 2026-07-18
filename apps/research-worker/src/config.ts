@@ -33,9 +33,10 @@ export interface ResearchWorkerConfig {
     minimumFreePercent: number;
   };
   ncbiApiKeyFile: string | null;
-  webSearchApiKeyFile: string;
+  webSearchApiKeyFile: string | null;
   adapterOptions: Omit<LiveResearchAdapterOptions, "orcid">;
   orcid:
+    | { mode: "anonymous" }
     | { mode: "bearer_file"; bearerTokenFile: string }
     | {
         mode: "client_credentials";
@@ -166,29 +167,88 @@ export function loadResearchWorkerConfig(
   const orcidBearerTokenFile = optionalString(
     env.RESEARCH_ORCID_BEARER_TOKEN_FILE
   );
-  const orcid = orcidBearerTokenFile
-    ? ({
-        mode: "bearer_file",
-        bearerTokenFile: orcidBearerTokenFile
-      } as const)
-    : ({
-        mode: "client_credentials",
-        clientIdFile: requiredString(
-          env.RESEARCH_ORCID_CLIENT_ID_FILE,
-          "RESEARCH_ORCID_CLIENT_ID_FILE"
-        ),
-        clientSecretFile: requiredString(
-          env.RESEARCH_ORCID_CLIENT_SECRET_FILE,
-          "RESEARCH_ORCID_CLIENT_SECRET_FILE"
-        )
-      } as const);
+  const orcidClientIdFile = optionalString(
+    env.RESEARCH_ORCID_CLIENT_ID_FILE
+  );
+  const orcidClientSecretFile = optionalString(
+    env.RESEARCH_ORCID_CLIENT_SECRET_FILE
+  );
+  const orcidMode =
+    optionalString(env.RESEARCH_ORCID_MODE) ??
+    (orcidBearerTokenFile ? "bearer_file" : "client_credentials");
+  const orcid =
+    orcidMode === "anonymous"
+      ? ({ mode: "anonymous" } as const)
+      : orcidMode === "bearer_file"
+        ? ({
+            mode: "bearer_file",
+            bearerTokenFile: requiredString(
+              orcidBearerTokenFile ?? undefined,
+              "RESEARCH_ORCID_BEARER_TOKEN_FILE"
+            )
+          } as const)
+        : orcidMode === "client_credentials"
+          ? ({
+              mode: "client_credentials",
+              clientIdFile: requiredString(
+                orcidClientIdFile ?? undefined,
+                "RESEARCH_ORCID_CLIENT_ID_FILE"
+              ),
+              clientSecretFile: requiredString(
+                orcidClientSecretFile ?? undefined,
+                "RESEARCH_ORCID_CLIENT_SECRET_FILE"
+              )
+            } as const)
+          : null;
+  if (!orcid) {
+    throw new Error(
+      "RESEARCH_ORCID_MODE must be anonymous, bearer_file or client_credentials."
+    );
+  }
+  if (
+    orcid.mode === "anonymous" &&
+    (orcidBearerTokenFile ||
+      orcidClientIdFile ||
+      orcidClientSecretFile)
+  ) {
+    throw new Error(
+      "Anonymous ORCID mode must not configure credential files."
+    );
+  }
+  const orcidAnonymousUseApproved = parseBoolean(
+    env.RESEARCH_ORCID_ANONYMOUS_USE_APPROVED,
+    false,
+    "RESEARCH_ORCID_ANONYMOUS_USE_APPROVED"
+  );
+  if (
+    orcid.mode === "anonymous" &&
+    env.NODE_ENV?.trim().toLowerCase() === "production" &&
+    !orcidAnonymousUseApproved
+  ) {
+    throw new Error(
+      "RESEARCH_ORCID_ANONYMOUS_USE_APPROVED=true is required for anonymous ORCID use in production."
+    );
+  }
   const webProvider = requiredString(
     env.RESEARCH_WEB_SEARCH_PROVIDER,
     "RESEARCH_WEB_SEARCH_PROVIDER"
   );
-  if (webProvider !== "brave") {
+  if (webProvider !== "brave" && webProvider !== "direct") {
     throw new Error(
-      "RESEARCH_WEB_SEARCH_PROVIDER must be the explicitly supported value brave."
+      "RESEARCH_WEB_SEARCH_PROVIDER must be brave or direct."
+    );
+  }
+  const webSearchApiKeyFile = optionalString(
+    env.RESEARCH_WEB_SEARCH_API_KEY_FILE
+  );
+  if (webProvider === "brave" && !webSearchApiKeyFile) {
+    throw new Error(
+      "RESEARCH_WEB_SEARCH_API_KEY_FILE is required for Brave search."
+    );
+  }
+  if (webProvider === "direct" && webSearchApiKeyFile) {
+    throw new Error(
+      "Direct official web retrieval must not configure a search API key file."
     );
   }
   const allowedDomains = parseCsv(
@@ -201,21 +261,15 @@ export function loadResearchWorkerConfig(
     "RESEARCH_FORBIDDEN_OUTPUT_FRAGMENTS",
     100
   );
-  const ncbiEmail = requiredString(
-    env.RESEARCH_NCBI_EMAIL,
-    "RESEARCH_NCBI_EMAIL"
-  );
-  const crossrefMailto = requiredString(
-    env.RESEARCH_CROSSREF_MAILTO,
-    "RESEARCH_CROSSREF_MAILTO"
-  );
+  const ncbiEmail = optionalString(env.RESEARCH_NCBI_EMAIL);
+  const crossrefMailto = optionalString(env.RESEARCH_CROSSREF_MAILTO);
   const externalUserAgent = requiredString(
     env.RESEARCH_EXTERNAL_USER_AGENT,
     "RESEARCH_EXTERNAL_USER_AGENT"
   );
   if (
     [ncbiEmail, crossrefMailto, externalUserAgent].some((value) =>
-      /replace-with/iu.test(value)
+      value ? /replace-with/iu.test(value) : false
     ) ||
     (["staging", "production"].includes(
       env.NODE_ENV?.trim().toLowerCase() ?? ""
@@ -224,6 +278,14 @@ export function loadResearchWorkerConfig(
   ) {
     throw new Error(
       "Research external contact and official-domain placeholders must be replaced."
+    );
+  }
+  if (
+    env.NODE_ENV?.trim().toLowerCase() === "production" &&
+    (!ncbiEmail || !crossrefMailto)
+  ) {
+    throw new Error(
+      "RESEARCH_NCBI_EMAIL and RESEARCH_CROSSREF_MAILTO are required in production."
     );
   }
   const databasePath = requiredString(
@@ -335,7 +397,7 @@ export function loadResearchWorkerConfig(
   }
   const singleAttemptExternalRequestUnits =
     6 +
-    allowedDomains.length * 2 +
+    (webProvider === "brave" ? allowedDomains.length * 2 : 0) +
     maximumOfficialResults * 8 +
     maximumPublications * 9;
   const reservedExternalRequestUnits =
@@ -479,23 +541,22 @@ export function loadResearchWorkerConfig(
       minimumFreePercent
     },
     ncbiApiKeyFile: optionalString(env.RESEARCH_NCBI_API_KEY_FILE),
-    webSearchApiKeyFile: requiredString(
-      env.RESEARCH_WEB_SEARCH_API_KEY_FILE,
-      "RESEARCH_WEB_SEARCH_API_KEY_FILE"
-    ),
+    webSearchApiKeyFile,
     adapterOptions: {
       ncbi: {
-        email: ncbiEmail,
+        ...(ncbiEmail ? { email: ncbiEmail } : {}),
         tool: "codex_gateway_doctor_research",
         apiKey: undefined,
         maximumResults: maximumPublications
       },
       crossref: {
-        mailto: crossrefMailto
+        ...(crossrefMailto ? { mailto: crossrefMailto } : {})
       },
       officialWeb: {
-        provider: "brave",
-        apiKey: "__loaded_from_file__",
+        provider: webProvider,
+        ...(webProvider === "brave"
+          ? { apiKey: "__loaded_from_file__" }
+          : {}),
         allowedDomains,
         maximumResults: maximumOfficialResults
       },

@@ -1,10 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   fetchApprovedWebDocument,
+  isPublicResearchAddress,
   LiveResearchAdapters
 } from "./index.js";
 
 describe("Doctor Research live first-party adapters", () => {
+  it("distinguishes public IPv4/IPv6 from special-purpose ranges", () => {
+    expect(isPublicResearchAddress("202.120.143.40")).toBe(true);
+    expect(isPublicResearchAddress("2606:4700:4700::1111")).toBe(true);
+    expect(isPublicResearchAddress("127.0.0.1")).toBe(false);
+    expect(isPublicResearchAddress("10.0.0.1")).toBe(false);
+    expect(isPublicResearchAddress("::1")).toBe(false);
+    expect(isPublicResearchAddress("::ffff:127.0.0.1")).toBe(false);
+    expect(isPublicResearchAddress("64:ff9b::7f00:1")).toBe(false);
+    expect(isPublicResearchAddress("not-an-address")).toBe(false);
+  });
+
   it("parses bounded PubMed abstract, Crossref, ORCID, and allowlisted Brave metadata", async () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(
@@ -293,6 +305,73 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).resolves.toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("supports explicit allowlisted official URLs and anonymous ORCID reads without search credentials", async () => {
+    const fetchImpl = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        expect(headers.has("authorization")).toBe(false);
+        return jsonResponse({
+          person: {
+            name: {
+              "given-names": { value: "Example" },
+              "family-name": { value: "Doctor" }
+            }
+          }
+        });
+      }
+    );
+    const adapters = new LiveResearchAdapters({
+      ncbi: {
+        email: "operator@example.org",
+        maximumResults: 1
+      },
+      crossref: { mailto: "operator@example.org" },
+      orcid: {},
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 3
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.lookupOrcid(
+        "0000-0002-1825-0097",
+        new AbortController().signal
+      )
+    ).resolves.toMatchObject({
+      name: "Example Doctor",
+      orcid: "0000-0002-1825-0097"
+    });
+    await expect(
+      adapters.searchOfficialSources(
+        "Example Doctor Example Hospital Cardiology",
+        new AbortController().signal,
+        {
+          seedUrls: [
+            "https://hospital.example/doctors/example"
+          ]
+        }
+      )
+    ).resolves.toHaveLength(1);
+    expect(adapters.budgetHints).toEqual({
+      officialSearchRequestUnits: 0
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    await expect(
+      adapters.searchOfficialSources(
+        "Example Doctor Example Hospital Cardiology",
+        new AbortController().signal,
+        {
+          seedUrls: ["https://unapproved.example/doctors/example"]
+        }
+      )
+    ).rejects.toThrow("not allowlisted");
   });
 });
 

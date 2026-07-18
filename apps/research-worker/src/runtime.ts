@@ -580,10 +580,16 @@ async function createLiveDependencies(
         ...config.adapterOptions.ncbi,
         apiKey: secrets.ncbiApiKey
       },
-      orcid: { bearerToken: secrets.orcidBearerToken },
+      orcid: {
+        ...(secrets.orcidBearerToken
+          ? { bearerToken: secrets.orcidBearerToken }
+          : {})
+      },
       officialWeb: {
         ...config.adapterOptions.officialWeb,
-        apiKey: secrets.webSearchApiKey
+        ...(secrets.webSearchApiKey
+          ? { apiKey: secrets.webSearchApiKey }
+          : {})
       },
       fetchImpl
     }),
@@ -640,38 +646,42 @@ async function loadRuntimeSecrets(
   fetchImpl?: typeof fetch
 ): Promise<{
   llmBearerToken: string;
-  webSearchApiKey: string;
+  webSearchApiKey: string | undefined;
   ncbiApiKey: string | undefined;
-  orcidBearerToken: string;
+  orcidBearerToken: string | undefined;
 }> {
   const llmBearerToken = await readSecretFile(
     config.llm.bearerTokenFile,
     "Research LLM bearer token"
   );
-  const webSearchApiKey = await readSecretFile(
-    config.webSearchApiKeyFile,
-    "Research web search API key"
-  );
+  const webSearchApiKey = config.webSearchApiKeyFile
+    ? await readSecretFile(
+        config.webSearchApiKeyFile,
+        "Research web search API key"
+      )
+    : undefined;
   const ncbiApiKey = config.ncbiApiKeyFile
     ? await readSecretFile(config.ncbiApiKeyFile, "NCBI API key")
     : undefined;
   const orcidBearerToken =
-    config.orcid.mode === "bearer_file"
-      ? await readSecretFile(
-          config.orcid.bearerTokenFile,
-          "ORCID bearer token"
-        )
-      : await obtainOrcidToken({
-          clientId: await readSecretFile(
-            config.orcid.clientIdFile,
-            "ORCID client ID"
-          ),
-          clientSecret: await readSecretFile(
-            config.orcid.clientSecretFile,
-            "ORCID client secret"
-          ),
-          fetchImpl
-        });
+    config.orcid.mode === "anonymous"
+      ? undefined
+      : config.orcid.mode === "bearer_file"
+        ? await readSecretFile(
+            config.orcid.bearerTokenFile,
+            "ORCID bearer token"
+          )
+        : await obtainOrcidToken({
+            clientId: await readSecretFile(
+              config.orcid.clientIdFile,
+              "ORCID client ID"
+            ),
+            clientSecret: await readSecretFile(
+              config.orcid.clientSecretFile,
+              "ORCID client secret"
+            ),
+            fetchImpl
+          });
   return {
     llmBearerToken,
     webSearchApiKey,

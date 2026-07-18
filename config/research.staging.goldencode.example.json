@@ -1,0 +1,45 @@
+{
+  "goldencode": {
+    "displayName": "GoldenCode",
+    "runtime": "pool",
+    "contextWindow": 200000,
+    "maxContextWindow": 200000,
+    "upstreamContextWindow": 1048576,
+    "maxOutputTokens": 128000,
+    "enabled": true,
+    "reasoning": {
+      "effort": "medium"
+    },
+    "pool": {
+      "selection": {
+        "strategy": "hrw_sticky",
+        "stickyKeyOrder": [
+          "client_session",
+          "credential",
+          "subject"
+        ]
+      },
+      "requireAllMembers": true,
+      "members": [
+        {
+          "id": "goldencode-qianfan",
+          "runtime": "qianfan",
+          "upstreamModel": "glm-5.2",
+          "enabled": true
+        },
+        {
+          "id": "goldencode-tencent",
+          "runtime": "tencent",
+          "upstreamModel": "glm-5.2",
+          "enabled": true
+        },
+        {
+          "id": "goldencode-aliyun",
+          "runtime": "aliyun",
+          "upstreamModel": "glm-5.2",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}

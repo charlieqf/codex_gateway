@@ -1,0 +1,20 @@
+{
+  "doctor": {
+    "name": "Shen Baiyong",
+    "hospital": "Ruijin Hospital",
+    "department": "Surgery",
+    "title": "Professor, Chief Physician",
+    "city": "Shanghai",
+    "orcid": null,
+    "official_profile_urls": [
+      "https://www.shsmu.edu.cn/english/info/1336/2980.htm"
+    ]
+  },
+  "mode": "brief",
+  "language": "zh-CN",
+  "options": {
+    "publication_years": 5,
+    "citation_style": "vancouver"
+  },
+  "client_reference": "controlled-beta-live-e2e"
+}
