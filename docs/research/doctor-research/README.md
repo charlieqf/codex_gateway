@@ -8,6 +8,10 @@ design and Phase 0 implementation material.
 - `api-service-design.md`: reviewed API and implementation design.
 - `controlled-beta-runbook.md`: isolated staging bootstrap, smoke, negative
   tests, shutdown and production gate.
+- `controlled-beta-evidence.md`: requirement-to-code/test/runtime evidence and
+  the explicit external live-E2E gap.
+- `phase0.5-compatibility.md`: pinned rollback image and capability
+  compatibility gate.
 - `doctor-research-query/`: first-party source Skill retained as design input.
 - `doctor-research-query/doctor-research-query.skill`: archive rebuilt from
   and byte-matched to the reviewed adjacent `SKILL.md`.
@@ -259,6 +263,6 @@ Validation after the controlled-beta hardening pass:
 
 This is still not a production enablement. Production flags and credentials
 remain unchanged and disabled. Live staging evidence with approved ORCID,
-official-search and LLM credentials, provider/quality approval, rollback
-compatibility, encrypted backup/restore and production limits is still
-required.
+official-search and LLM credentials, provider/quality approval, encrypted
+backup/restore and production limits is still required. The separate Phase 0.5
+rollback-compatibility gate is pinned in `phase0.5-compatibility.md`.

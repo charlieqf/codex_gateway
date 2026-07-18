@@ -301,8 +301,10 @@ is not part of this runbook.
 
 ## Production gate
 
-Passing this runbook is necessary but not sufficient for production. Keep the
-production decision at **NO-GO** until Phase 0B quality evidence, Phase 0.5
-rollback compatibility, privacy/cross-border review, provider terms, approved
-capacity, encrypted backup/restore targets, alerting and the exact production
-limits/RPO/RTO have owners and recorded approval.
+Passing this runbook is necessary but not sufficient for production. Phase 0.5
+is pinned separately in `phase0.5-compatibility.md`; do not choose an older
+rollback image after a production `doctor_research` capability write. Keep the
+production decision at **NO-GO** until Phase 0B quality evidence,
+privacy/cross-border review, provider terms, approved capacity, encrypted
+backup/restore targets, alerting and the exact production limits/RPO/RTO have
+owners and recorded approval.

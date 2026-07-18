@@ -1,0 +1,140 @@
+{
+  "schema_version": "doctor_research_phase0_5_compatibility.v1",
+  "verified_date": "2026-07-18",
+  "minimum_rollback": {
+    "source_commit": "ccccf1cf42a93de6de73c22746dd54bec7c3dd08",
+    "image_digest": "sha256:d0f1b54a82bcf48e47448a7e2876f434ef001587b8cc99c0629043dd11b6a3ac"
+  },
+  "production_read_probe": {
+    "gateway_schema_migration": 23,
+    "policy_rows_decoded": 196,
+    "research_api_enabled": false,
+    "contains_production_values": false
+  },
+  "stored_policy_snapshots": [
+    {
+      "id": "legacy-minimal",
+      "stored_policy": {
+        "capabilities": [
+          "chat",
+          "tools"
+        ]
+      },
+      "expected_public_policy": {
+        "capabilities": [
+          "chat",
+          "tools"
+        ]
+      }
+    },
+    {
+      "id": "current-camel-case",
+      "stored_policy": {
+        "capabilities": [
+          "chat",
+          "tools",
+          "image_generation"
+        ],
+        "imageGeneration": {
+          "enabled": true,
+          "allowedModels": [
+            "medcode-image-default"
+          ],
+          "defaultModel": "medcode-image-default",
+          "allowedSizes": [
+            "1024x1024"
+          ],
+          "allowedQualities": [
+            "medium"
+          ],
+          "allowedFormats": [
+            "png"
+          ]
+        },
+        "medcodeModels": {
+          "allowed": [
+            "standard",
+            "expert",
+            "pro",
+            "medcode"
+          ]
+        }
+      },
+      "expected_public_policy": {
+        "capabilities": [
+          "chat",
+          "tools",
+          "image_generation"
+        ],
+        "image_generation": {
+          "enabled": true,
+          "allowed_models": [
+            "medcode-image-default"
+          ],
+          "default_model": "medcode-image-default",
+          "allowed_sizes": [
+            "1024x1024"
+          ],
+          "allowed_qualities": [
+            "medium"
+          ],
+          "allowed_formats": [
+            "png"
+          ]
+        },
+        "medcode_models": {
+          "allowed": [
+            "standard",
+            "expert",
+            "pro",
+            "medcode"
+          ]
+        }
+      }
+    },
+    {
+      "id": "stored-snake-case",
+      "stored_policy": {
+        "capabilities": [
+          "chat",
+          "tools"
+        ],
+        "medcode_models": {
+          "allowed": [
+            "standard"
+          ]
+        }
+      },
+      "expected_public_policy": {
+        "capabilities": [
+          "chat",
+          "tools"
+        ],
+        "medcode_models": {
+          "allowed": [
+            "standard",
+            "medcode",
+            "expert",
+            "pro"
+          ]
+        }
+      }
+    }
+  ],
+  "forward_compatibility_probe": {
+    "stored_policy": {
+      "capabilities": [
+        "chat",
+        "doctor_research",
+        "future_capability"
+      ]
+    },
+    "strict_writer_policy": {
+      "capabilities": [
+        "chat",
+        "doctor_research"
+      ]
+    },
+    "strict_rejected_capability": "future_capability"
+  }
+}

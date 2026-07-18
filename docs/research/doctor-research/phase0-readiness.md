@@ -4,7 +4,8 @@ Status as of 2026-07-18:
 
 - **Phase 0A — offline engineering foundation: complete.**
 - **Phase 0B — evidence and product validation: incomplete.**
-- **Phase 0.5 — release compatibility gate: not started.**
+- **Phase 0.5 — release compatibility gate: complete for the pinned release
+  line.**
 - **Controlled-beta Worker engineering: implemented, live staging evidence pending.**
 - **Phase 1 — production readiness and internal brief: not complete.**
 
@@ -72,6 +73,16 @@ no approved live ORCID, Brave or LLM credential in the repository and must
 not have one. The live loopback staging smoke and its quality review therefore
 remain external evidence gates. See `controlled-beta-runbook.md`.
 
+## Phase 0.5 completed
+
+The minimum rollback boundary is pinned to source commit `ccccf1c` and image
+digest `sha256:d0f1b54a82bcf48e47448a7e2876f434ef001587b8cc99c0629043dd11b6a3ac`.
+Frozen compatibility fixtures cover legacy/current policy shapes, tolerant
+stored reads, strict writers and public round-trip output. The pinned image
+also decoded all current production plan and entitlement policy rows through a
+read-only probe while the production Research API remained disabled. See
+`phase0.5-compatibility.md`.
+
 ## Phase 0B evidence still required
 
 These decisions and measurements cannot be fabricated in code:
@@ -95,9 +106,6 @@ sample never counts, even if its visible text is edited.
 The following controls remain important, but they do not block completion of
 the offline engineering foundation:
 
-- **Phase 0.5 release compatibility:** pin the minimum rollback image digest
-  and verify capability read compatibility against production-shaped frozen
-  snapshots before any `doctor_research` value is written to production.
 - **Phase 1 production enablement:** approve RPO/RTO, backup cadence,
   backup-stale thresholds, storage limits, retention, privacy/cross-border
   boundaries and owners; then run the disk-hard-limit and encrypted
@@ -110,8 +118,8 @@ the offline engineering foundation:
 
 ## Current decision
 
-Phase 0A may be marked complete. Overall Phase 0 remains open only for the four
-Phase 0B evidence items above. Engineering may continue behind the default-off
-feature flag, but Research must not be enabled in production and no live
-quality claim may be made until Phase 0B, Phase 0.5 and the applicable Phase 1
-gates have passed.
+Phase 0A and Phase 0.5 may be marked complete. Overall Phase 0 remains open
+only for the four Phase 0B evidence items above. Engineering may continue
+behind the default-off feature flag, but Research must not be enabled in
+production and no live quality claim may be made until Phase 0B and the
+applicable Phase 1 gates have passed.
