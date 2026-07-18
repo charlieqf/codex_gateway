@@ -415,14 +415,18 @@ describe("Research Worker controlled-beta workflow", () => {
       attempt: number;
       errorCodes: readonly string[];
     }> = [];
+    let repairPrompt = "";
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
       adapters: adapters(),
       modelClient: {
         model: "test-model",
-        async generate() {
+        async generate(input) {
           modelCalls += 1;
+          if (modelCalls === 2) {
+            repairPrompt = input.prompt;
+          }
           return {
             text: JSON.stringify(
               modelCalls === 1 ? hallucinated : numericHallucinated
@@ -450,6 +454,10 @@ describe("Research Worker controlled-beta workflow", () => {
       reason: "model_contract_error"
     });
     expect(modelCalls).toBe(2);
+    expect(repairPrompt).toContain("Preserve every required field");
+    expect(repairPrompt).toContain("Schema:");
+    expect(repairPrompt).toContain("untrusted_official_sources");
+    expect(repairPrompt).toContain("Invented oncology program");
     expect(validationEvents).toEqual([
       expect.objectContaining({
         stage: "synthesize_review",

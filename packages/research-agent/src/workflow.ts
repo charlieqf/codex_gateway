@@ -1037,10 +1037,12 @@ async function generateAndValidateModelOutput(
   const repairPrompt = [
     "Repair the candidate JSON. Return exactly one JSON object and no other text.",
     "Do not add sources, identifiers, facts, or references.",
+    "Preserve every required field and re-check the complete schema.",
     `Validation errors: ${JSON.stringify(validation.errors.slice(0, 12))}`,
     "Candidate:",
     first.text.slice(0, 300_000),
-    "The original closed evidence set remains authoritative."
+    "The original task, schema, and closed evidence set remain authoritative:",
+    prompt
   ].join("\n\n");
   const repaired = await context.generateModel({
     stage: "validate_outputs",
