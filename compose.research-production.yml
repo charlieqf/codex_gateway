@@ -1,0 +1,181 @@
+services:
+  gateway:
+    env_file:
+      - ${RESEARCH_PRODUCTION_API_ENV_FILE:?set a production Research API env file}
+    environment:
+      RESEARCH_API_ENABLED: ${RESEARCH_PRODUCTION_API_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+    volumes:
+      - research_production_state:/var/lib/codex-gateway-research
+
+  research-llm-gateway:
+    profiles:
+      - research-production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${RESEARCH_PRODUCTION_LLM_GATEWAY_ENV_FILE:?set a production Research LLM Gateway env file}
+    environment:
+      NODE_ENV: production
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8787
+      GATEWAY_AUTH_MODE: credential
+      GATEWAY_SQLITE_PATH: /var/lib/codex-gateway/gateway.db
+      RESEARCH_API_ENABLED: "false"
+    volumes:
+      - research_production_llm_gateway_state:/var/lib/codex-gateway
+      - research_production_llm_gateway_logs:/var/log/codex-gateway
+      - ./config/research.production.goldencode.example.json:/etc/codex-gateway/research-production-goldencode.json:ro
+    secrets:
+      - source: research_production_qianfan_api_key
+        target: research_production_qianfan_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_production_tencent_api_key
+        target: research_production_tencent_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_production_aliyun_api_key
+        target: research_production_aliyun_api_key
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    cpus: "1.0"
+    mem_limit: 2g
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  research-worker:
+    profiles:
+      - research-production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "on-failure:3"
+    stop_grace_period: 45s
+    command:
+      - node
+      - /app/apps/research-worker/dist/index.js
+    env_file:
+      - ${RESEARCH_PRODUCTION_WORKER_ENV_FILE:?set a production Research Worker env file}
+    environment:
+      NODE_ENV: production
+      RESEARCH_WORKER_ENABLED: ${RESEARCH_PRODUCTION_WORKER_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+      RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
+      RESEARCH_LLM_BASE_URL: http://research-llm-gateway:8787
+      RESEARCH_LLM_BEARER_TOKEN_FILE: /run/secrets/research_production_llm_bearer
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    volumes:
+      - research_production_state:/var/lib/codex-gateway-research
+      - research_production_backups:/var/lib/codex-gateway-research-backups
+    secrets:
+      - source: research_production_llm_bearer
+        target: research_production_llm_bearer
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    depends_on:
+      research-llm-gateway:
+        condition: service_healthy
+      research-maintenance:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "/app/scripts/research-worker-health.mjs"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    cpus: "1.0"
+    mem_limit: 2g
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  research-maintenance:
+    profiles:
+      - research-production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "on-failure:3"
+    stop_grace_period: 45s
+    command:
+      - node
+      - /app/apps/research-worker/dist/maintenance-index.js
+    env_file:
+      - ${RESEARCH_PRODUCTION_WORKER_ENV_FILE:?set a production Research Worker env file}
+    environment:
+      NODE_ENV: production
+      RESEARCH_WORKER_ENABLED: "false"
+      RESEARCH_MAINTENANCE_ENABLED: ${RESEARCH_PRODUCTION_MAINTENANCE_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+      RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
+      RESEARCH_LLM_BASE_URL: http://research-llm-gateway:8787
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    volumes:
+      - research_production_state:/var/lib/codex-gateway-research
+      - research_production_backups:/var/lib/codex-gateway-research-backups
+    healthcheck:
+      test: ["CMD", "node", "/app/scripts/research-maintenance-health.mjs"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    cpus: "0.5"
+    mem_limit: 1g
+    pids_limit: 64
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  research_production_state:
+  research_production_backups:
+  research_production_llm_gateway_state:
+  research_production_llm_gateway_logs:
+
+secrets:
+  research_production_qianfan_api_key:
+    file: ${RESEARCH_PRODUCTION_QIANFAN_KEY_FILE:?set a production Qianfan key file}
+  research_production_tencent_api_key:
+    file: ${RESEARCH_PRODUCTION_TENCENT_KEY_FILE:?set a production Tencent key file}
+  research_production_aliyun_api_key:
+    file: ${RESEARCH_PRODUCTION_ALIYUN_KEY_FILE:?set a production Aliyun key file}
+  research_production_llm_bearer:
+    file: ${RESEARCH_PRODUCTION_LLM_TOKEN_FILE:?set a production Research LLM token file}

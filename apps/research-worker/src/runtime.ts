@@ -590,6 +590,7 @@ async function createLiveDependencies(
         apiKey: secrets.ncbiApiKey
       },
       orcid: {
+        enabled: config.orcid.mode !== "disabled",
         ...(secrets.orcidBearerToken
           ? { bearerToken: secrets.orcidBearerToken }
           : {})
@@ -673,6 +674,7 @@ async function loadRuntimeSecrets(
     ? await readSecretFile(config.ncbiApiKeyFile, "NCBI API key")
     : undefined;
   const orcidBearerToken =
+    config.orcid.mode === "disabled" ||
     config.orcid.mode === "anonymous"
       ? undefined
       : config.orcid.mode === "bearer_file"

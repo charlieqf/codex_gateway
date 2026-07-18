@@ -166,6 +166,28 @@ describe("Research Worker fail-closed configuration", () => {
       })
     ).toThrow("must not configure a search API key file");
   });
+
+  it("supports a credential-free disabled ORCID mode for runs that omit ORCID", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      NODE_ENV: "production",
+      RESEARCH_ORCID_MODE: "disabled",
+      RESEARCH_ORCID_ANONYMOUS_USE_APPROVED: "false",
+      RESEARCH_ORCID_BEARER_TOKEN_FILE: undefined,
+      RESEARCH_ORCID_CLIENT_ID_FILE: undefined,
+      RESEARCH_ORCID_CLIENT_SECRET_FILE: undefined,
+      RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "hospital.org",
+      RESEARCH_BACKUP_TARGET_ENCRYPTION_CONFIRMED: "true"
+    });
+    expect(config?.orcid).toEqual({ mode: "disabled" });
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_ORCID_MODE: "disabled"
+      })
+    ).toThrow("Disabled ORCID mode must not configure credential files");
+  });
 });
 
 function validEnvironment(): NodeJS.ProcessEnv {

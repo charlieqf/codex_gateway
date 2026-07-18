@@ -36,6 +36,7 @@ export interface ResearchWorkerConfig {
   webSearchApiKeyFile: string | null;
   adapterOptions: Omit<LiveResearchAdapterOptions, "orcid">;
   orcid:
+    | { mode: "disabled" }
     | { mode: "anonymous" }
     | { mode: "bearer_file"; bearerTokenFile: string }
     | {
@@ -178,7 +179,9 @@ export function loadResearchWorkerConfig(
     optionalString(env.RESEARCH_ORCID_MODE) ??
     (orcidBearerTokenFile ? "bearer_file" : "client_credentials");
   const orcid =
-    orcidMode === "anonymous"
+    orcidMode === "disabled"
+      ? ({ mode: "disabled" } as const)
+      : orcidMode === "anonymous"
       ? ({ mode: "anonymous" } as const)
       : orcidMode === "bearer_file"
         ? ({
@@ -203,7 +206,17 @@ export function loadResearchWorkerConfig(
           : null;
   if (!orcid) {
     throw new Error(
-      "RESEARCH_ORCID_MODE must be anonymous, bearer_file or client_credentials."
+      "RESEARCH_ORCID_MODE must be disabled, anonymous, bearer_file or client_credentials."
+    );
+  }
+  if (
+    orcid.mode === "disabled" &&
+    (orcidBearerTokenFile ||
+      orcidClientIdFile ||
+      orcidClientSecretFile)
+  ) {
+    throw new Error(
+      "Disabled ORCID mode must not configure credential files."
     );
   }
   if (

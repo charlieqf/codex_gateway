@@ -23,6 +23,7 @@ export interface LiveResearchAdapterOptions {
     mailto?: string;
   };
   orcid: {
+    enabled?: boolean;
     bearerToken?: string;
   };
   officialWeb: {
@@ -123,9 +124,11 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (!crossref) {
       throw new Error("Crossref preflight metadata was unavailable.");
     }
-    const orcid = await this.lookupOrcid("0000-0002-1825-0097", signal);
-    if (!orcid) {
-      throw new Error("ORCID preflight record was unavailable.");
+    if (this.options.orcid.enabled !== false) {
+      const orcid = await this.lookupOrcid("0000-0002-1825-0097", signal);
+      if (!orcid) {
+        throw new Error("ORCID preflight record was unavailable.");
+      }
     }
     if (this.options.officialWeb.provider === "brave") {
       await this.searchOfficialSources("doctor profile", signal);
@@ -333,6 +336,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     orcid: string,
     signal: AbortSignal
   ): Promise<FrozenIdentityRecord | null> {
+    if (this.options.orcid.enabled === false) {
+      return null;
+    }
     const normalizedOrcid = normalizeOrcid(orcid);
     const url = new URL(
       `https://pub.orcid.org/v3.0/${normalizedOrcid}/record`

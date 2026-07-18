@@ -373,6 +373,65 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).rejects.toThrow("not allowlisted");
   });
+
+  it("skips ORCID preflight and returns no identity when ORCID is disabled", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+      );
+      if (url.pathname.endsWith("/esearch.fcgi")) {
+        return jsonResponse({ esearchresult: { idlist: [] } });
+      }
+      if (url.hostname === "api.crossref.org") {
+        return jsonResponse({
+          message: {
+            title: ["The proximal origin of SARS-CoV-2"],
+            "container-title": ["Nature Medicine"],
+            author: [{ given: "Kristian", family: "Andersen" }],
+            published: { "date-parts": [[2020, 3, 17]] }
+          }
+        });
+      }
+      throw new Error(`Unexpected disabled-ORCID URL: ${url.hostname}`);
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {
+        email: "operator@example.org",
+        maximumResults: 1
+      },
+      crossref: { mailto: "operator@example.org" },
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 1
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+    const signal = new AbortController().signal;
+
+    await expect(adapters.assertAvailable(signal)).resolves.toBeUndefined();
+    await expect(
+      adapters.lookupOrcid("0000-0002-1825-0097", signal)
+    ).resolves.toBeNull();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(
+      fetchImpl.mock.calls.some(([input]) =>
+        new URL(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url
+        ).hostname.includes("orcid")
+      )
+    ).toBe(false);
+  });
 });
 
 function jsonResponse(value: unknown): Response {

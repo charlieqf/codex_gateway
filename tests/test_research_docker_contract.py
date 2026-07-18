@@ -106,6 +106,94 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertNotIn("openrouter", json.dumps(registry).lower())
         self.assertNotIn('"runtime": "codex"', json.dumps(registry).lower())
 
+    def test_production_overlay_is_default_closed_and_uses_separate_state(self):
+        compose = (ROOT / "compose.research-production.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "RESEARCH_API_ENABLED: ${RESEARCH_PRODUCTION_API_ENABLED:-false}",
+            compose,
+        )
+        self.assertIn(
+            "RESEARCH_WORKER_ENABLED: ${RESEARCH_PRODUCTION_WORKER_ENABLED:-false}",
+            compose,
+        )
+        self.assertIn(
+            "RESEARCH_MAINTENANCE_ENABLED: ${RESEARCH_PRODUCTION_MAINTENANCE_ENABLED:-false}",
+            compose,
+        )
+        self.assertIn(
+            "research_production_state:/var/lib/codex-gateway-research",
+            compose,
+        )
+        self.assertIn(
+            "research_production_backups:/var/lib/codex-gateway-research-backups",
+            compose,
+        )
+        self.assertIn(
+            "research_production_llm_gateway_state:/var/lib/codex-gateway",
+            compose,
+        )
+        self.assertNotIn("network_mode: host", compose)
+        self.assertNotIn("ports:", compose)
+
+    def test_production_research_llm_pool_is_direct_goldencode_only(self):
+        registry = json.loads(
+            (
+                ROOT / "config" / "research.production.goldencode.example.json"
+            ).read_text(encoding="utf-8")
+        )
+        model = registry["goldencode"]
+        members = model["pool"]["members"]
+
+        self.assertTrue(model["pool"]["requireAllMembers"])
+        self.assertEqual(
+            [(member["runtime"], member["upstreamModel"]) for member in members],
+            [
+                ("qianfan", "glm-5.2"),
+                ("tencent", "glm-5.2"),
+                ("aliyun", "glm-5.2"),
+            ],
+        )
+        serialized = json.dumps(registry).lower()
+        self.assertNotIn("openrouter", serialized)
+        self.assertNotIn('"runtime": "codex"', serialized)
+
+    def test_production_examples_fail_closed_without_operator_values(self):
+        worker = (
+            ROOT / "config" / "research.production.worker.example.env"
+        ).read_text(encoding="utf-8")
+        compose_environment = (
+            ROOT / "config" / "research.production.compose.example.env"
+        ).read_text(encoding="utf-8")
+        llm_gateway = (
+            ROOT / "config" / "research.production.llm-gateway.example.env"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("RESEARCH_PRODUCTION_API_ENABLED=false", compose_environment)
+        self.assertIn(
+            "RESEARCH_PRODUCTION_WORKER_ENABLED=false",
+            compose_environment,
+        )
+        self.assertIn(
+            "RESEARCH_PRODUCTION_MAINTENANCE_ENABLED=false",
+            compose_environment,
+        )
+        self.assertIn("RESEARCH_WORKER_ENABLED=false", worker)
+        self.assertIn(
+            "RESEARCH_BACKUP_TARGET_ENCRYPTION_CONFIRMED=false",
+            worker,
+        )
+        self.assertIn("RESEARCH_ORCID_MODE=disabled", worker)
+        self.assertIn("replace-with-production-operator", worker)
+        self.assertIn(
+            "GATEWAY_API_KEY_ENCRYPTION_SECRET=replace-with-",
+            llm_gateway,
+        )
+        self.assertNotIn("sk-", worker)
+        self.assertNotIn("sk-", llm_gateway)
+
     def test_live_smoke_case_is_an_allowlisted_direct_profile(self):
         request = json.loads(
             (

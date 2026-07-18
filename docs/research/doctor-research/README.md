@@ -10,6 +10,8 @@ design and Phase 0 implementation material.
   tests, shutdown and production gate.
 - `controlled-beta-evidence.md`: requirement-to-code/test/runtime evidence and
   the explicit external live-E2E gap.
+- `production-runbook.md`: default-closed production overlay, bootstrap,
+  enablement, E2E and rollback sequence.
 - `phase0.5-compatibility.md`: pinned rollback image and capability
   compatibility gate.
 - `doctor-research-query/`: first-party source Skill retained as design input.
