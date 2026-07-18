@@ -1324,6 +1324,9 @@ function closeProfileToOfficialEvidence(
 ):
   | { ok: true; profile: DoctorResearchModelOutput["profile"] }
   | { ok: false; errors: string[] } {
+  const modelSubmittedResearchDirection = profile.claims.some(
+    (claim) => claim.claim_type === "research_direction"
+  );
   const sources = new Map(
     identity.sourceEvidence.map((source) => [
       source.source_id,
@@ -1357,6 +1360,18 @@ function closeProfileToOfficialEvidence(
     }
     return accepted;
   });
+  if (
+    !modelSubmittedResearchDirection &&
+    !claims.some((claim) => claim.claim_type === "research_direction")
+  ) {
+    const derived = deriveOfficialResearchDirectionClaim(
+      identity,
+      doctorName
+    );
+    if (derived) {
+      claims.push(derived);
+    }
+  }
   const fieldByClaimType = {
     position: "positions",
     expertise: "expertise",
@@ -1405,6 +1420,40 @@ function closeProfileToOfficialEvidence(
       primary_public_source_ids: identity.profileSourceIds
     }
   };
+}
+
+function deriveOfficialResearchDirectionClaim(
+  identity: NonNullable<ReturnType<typeof resolveIdentity>>,
+  doctorName: string
+): DoctorResearchModelOutput["profile"]["claims"][number] | null {
+  for (const [index, source] of identity.sourceEvidence.entries()) {
+    if (source.source_type !== "official_web") {
+      continue;
+    }
+    const normalized = normalizeEvidenceText(source.untrusted_text);
+    const english = /\bresearch area\s+([\p{L}\p{N}&/+ -]{2,120}?)(?=\s+(?:e ?mail|tel(?:ephone)?|phone|research interests?|dr|professor|chief|physician|hospital)\b|$)/iu.exec(
+      normalized
+    );
+    const chinese = /(?:研究方向|研究领域|科研方向)\s*([\p{Script=Han}\p{L}\p{N}&/+ -]{2,80}?)(?=(?:电子邮箱|邮箱|电话|研究兴趣|职称|医院|科室)|$)/u.exec(
+      normalized
+    );
+    const claimText = (english?.[0] ?? chinese?.[0])?.trim();
+    if (
+      !claimText ||
+      !profileClaimHasTypeMarker("research_direction", claimText) ||
+      !textOccursNearIdentity(normalized, claimText, doctorName)
+    ) {
+      continue;
+    }
+    return {
+      claim_id: `clm_research_direction_server_${index + 1}`,
+      claim_type: "research_direction",
+      text: claimText,
+      source_ids: [source.source_id],
+      verification_status: "verified"
+    };
+  }
+  return null;
 }
 
 function textOccursNearIdentity(

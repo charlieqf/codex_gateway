@@ -219,13 +219,13 @@ describe("Research Worker controlled-beta workflow", () => {
     ).toBe(true);
     const closableOutput = modelOutput();
     closableOutput.profile.expertise = ["Invented unsupported specialty"];
-    closableOutput.profile.claims.push({
+    closableOutput.profile.claims = [{
       claim_id: "clm_unsupported_extra",
       claim_type: "expertise",
       text: "Invented unsupported specialty",
       source_ids: ["src_official_1"],
       verification_status: "verified"
-    });
+    }];
 
     let observedPrompt = "";
     const modelClient: ResearchModelClient = {
@@ -244,6 +244,7 @@ describe("Research Worker controlled-beta workflow", () => {
         };
       }
     };
+    const validationErrors: string[][] = [];
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
@@ -252,10 +253,15 @@ describe("Research Worker controlled-beta workflow", () => {
       artifactRoot,
       policy: workflowPolicy(),
       signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationErrors.push([...event.errorCodes]);
+      },
       now: () => now
     });
 
-    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(outcome, JSON.stringify(validationErrors)).toEqual({
+      outcome: "succeeded"
+    });
     expect(observedPrompt).toContain("untrusted_publication_abstracts");
     expect(observedPrompt).toContain(
       "untrusted_publication_abstracts[].abstract"
@@ -284,7 +290,7 @@ describe("Research Worker controlled-beta workflow", () => {
       }>;
     };
     expect(result.profile.research_directions).toEqual([
-      "Clinical evidence is the listed research direction"
+      "research area cardiology"
     ]);
     expect(result.profile.expertise).toEqual([]);
     expect(JSON.stringify(result.profile)).not.toContain(
@@ -295,7 +301,7 @@ describe("Research Worker controlled-beta workflow", () => {
         expect.objectContaining({ claim_type: "identity" }),
         expect.objectContaining({
           claim_type: "research_direction",
-          text: "Clinical evidence is the listed research direction"
+          text: "research area cardiology"
         })
       ])
     );
@@ -1530,7 +1536,7 @@ function adapters(
         accessedAt: "2026-07-18T03:00:00.000Z",
         contentSha256: "a".repeat(64),
         untrustedText:
-          "Example Doctor works in Cardiology at Example Hospital. Clinical evidence is the listed research direction."
+          "Example Doctor works in Cardiology at Example Hospital. Research area: Cardiology. Email: doctor@example.test. Clinical evidence is the listed research direction."
       };
     }
   };
