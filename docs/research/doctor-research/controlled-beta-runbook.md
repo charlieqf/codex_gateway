@@ -166,14 +166,14 @@ Create immutable staging-only plans:
 
 ```bash
 dc_admin plan create \
-  --id plan_research_service_staging_v1 \
+  --id plan_research_service_staging_v2 \
   --display-name "Research service staging" \
   --scope medical \
   --policy-file /staging-config/research.staging.token-policy.example.json \
   --feature-policy-file /staging-config/research.staging.service-feature-policy.example.json
 
 dc_admin plan create \
-  --id plan_research_beta_staging_v1 \
+  --id plan_research_beta_staging_v2 \
   --display-name "Research beta staging" \
   --scope medical \
   --policy-file /staging-config/research.staging.token-policy.example.json \
@@ -197,7 +197,7 @@ dc_admin issue \
   --no-entitlement-check >"$service_issue"
 dc_admin entitlement grant \
   --user research-service-staging \
-  --plan plan_research_service_staging_v1 \
+  --plan plan_research_service_staging_v2 \
   --period unlimited >/dev/null
 node -e '
   const fs = require("node:fs");
@@ -212,7 +212,7 @@ sudo chmod 0400 "$RESEARCH_STAGING_LLM_TOKEN_FILE"
 ```
 
 Use the same restricted-capture pattern for a dedicated beta user credential.
-Its plan is `plan_research_beta_staging_v1`; it must not be the Worker service
+Its plan is `plan_research_beta_staging_v2`; it must not be the Worker service
 subject. Store its full token in a separate mode-`0600` host file for the
 smoke test. Do not print either token or commit either file.
 
