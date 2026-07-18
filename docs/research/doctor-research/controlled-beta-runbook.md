@@ -71,6 +71,13 @@ mkdir -p secrets research-smoke-output
 chmod 700 secrets research-smoke-output
 chmod 600 config/research.staging.gateway.env \
   config/research.staging.worker.env
+chmod 0555 config
+chmod 0444 \
+  config/research.staging.goldencode.example.json \
+  config/research.staging.request.example.json \
+  config/research.staging.token-policy.example.json \
+  config/research.staging.service-feature-policy.example.json \
+  config/research.staging.beta-feature-policy.example.json
 ```
 
 Replace every `replace-with-...` value.
@@ -126,7 +133,9 @@ unset RESEARCH_STAGING_API_ENABLED \
   RESEARCH_STAGING_MAINTENANCE_ENABLED \
   RESEARCH_STAGING_WORKER_ENABLED
 docker compose -f compose.research-staging.yml config
-docker compose -f compose.research-staging.yml build
+docker compose --profile research-beta \
+  -f compose.research-staging.yml build \
+  gateway research-worker research-maintenance
 docker compose -f compose.research-staging.yml up -d gateway
 ```
 
@@ -140,10 +149,10 @@ helper form mounts only the reviewed policy examples:
 
 ```bash
 dc_admin() {
-  docker compose -f compose.research-staging.yml run --rm --no-deps \
+  docker compose -f compose.research-staging.yml run -T --rm --no-deps \
     -v "$PWD/config:/staging-config:ro" \
     gateway node apps/admin-cli/dist/index.js \
-    --db /var/lib/codex-gateway/gateway.db "$@"
+    --db /var/lib/codex-gateway/gateway.db "$@" </dev/null
 }
 ```
 

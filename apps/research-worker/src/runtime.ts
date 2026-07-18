@@ -1027,7 +1027,10 @@ function recurring(
         onError?.(error);
       });
   }, intervalMs);
-  timer.unref();
+  // These recurring jobs are part of the Worker/maintenance lifecycle. At
+  // least one referenced handle must keep a standalone maintenance process
+  // alive while it is awaiting SIGINT/SIGTERM; an unresolved Promise alone
+  // does not keep the Node.js event loop running.
   return timer;
 }
 
