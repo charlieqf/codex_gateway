@@ -378,7 +378,7 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
-  it("fails closed when repair replaces an unsupported profile claim with a transposed numeric claim", async () => {
+  it("fails closed when repair replaces unsafe markup with a transposed numeric claim", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -426,6 +426,8 @@ describe("Research Worker controlled-beta workflow", () => {
         verification_status: "verified"
       }
     ];
+    hallucinated.review.markdown =
+      "The retrieved publication supports cautious synthesis, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].";
     const numericHallucinated = modelOutput();
     numericHallucinated.review.markdown =
       "The retrieved publication enrolled 2025 patients and established a precise effect, repurposing the publication year as an unsupported sample size [1].";
@@ -483,7 +485,7 @@ describe("Research Worker controlled-beta workflow", () => {
         stage: "synthesize_review",
         attempt: 1,
         errorCodes: expect.arrayContaining([
-          "verified_research_direction_required"
+          "unsafe_model_markup"
         ])
       }),
       expect.objectContaining({

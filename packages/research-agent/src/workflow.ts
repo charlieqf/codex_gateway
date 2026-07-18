@@ -1324,9 +1324,6 @@ function closeProfileToOfficialEvidence(
 ):
   | { ok: true; profile: DoctorResearchModelOutput["profile"] }
   | { ok: false; errors: string[] } {
-  const modelSubmittedResearchDirection = profile.claims.some(
-    (claim) => claim.claim_type === "research_direction"
-  );
   const sources = new Map(
     identity.sourceEvidence.map((source) => [
       source.source_id,
@@ -1361,7 +1358,6 @@ function closeProfileToOfficialEvidence(
     return accepted;
   });
   if (
-    !modelSubmittedResearchDirection &&
     !claims.some((claim) => claim.claim_type === "research_direction")
   ) {
     const derived = deriveOfficialResearchDirectionClaim(
