@@ -19,7 +19,11 @@ class ResearchDockerContractTests(unittest.TestCase):
         readable_workspace = dockerfile.index(
             "chmod -R a=rX /app/apps /app/packages"
         )
+        readable_package = dockerfile.index(
+            "chmod 0444 /app/package.json"
+        )
         non_root_user = dockerfile.index("USER codexgw")
+        package_probe = dockerfile.index("test -r /app/package.json")
         gateway_probe = dockerfile.index(
             "test -r /app/apps/gateway/dist/index.js"
         )
@@ -36,8 +40,10 @@ class ResearchDockerContractTests(unittest.TestCase):
 
         self.assertLess(copy_apps, readable_workspace)
         self.assertLess(copy_packages, readable_workspace)
+        self.assertLess(readable_package, non_root_user)
         self.assertLess(readable_workspace, non_root_user)
-        self.assertLess(non_root_user, gateway_probe)
+        self.assertLess(non_root_user, package_probe)
+        self.assertLess(package_probe, gateway_probe)
         self.assertLess(gateway_probe, worker_probe)
         self.assertLess(worker_probe, maintenance_probe)
         self.assertLess(maintenance_probe, fixture_probe)
