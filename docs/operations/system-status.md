@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-17
+Last updated: 2026-07-18
 
 ## Current Phase
 
@@ -232,6 +232,36 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-18 commit `ccccf1c` deployed the completed OpenAI SSE termination
+  contract, pre-commit tool-call buffering, credential public-model allowlists,
+  and the disabled-by-default Doctor Research Phase 0 foundation to the live
+  Azure Gateway from clean release checkout
+  `/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z`. Local and VM
+  `npm ci`, `npm run build`, all 435 tests in 28 files, the 6 Python operations
+  tests, and Python syntax checks passed. The protected env was copied
+  byte-for-byte with mode `600`; preflight confirmed the exact 8-model registry
+  and all four Azure GoldenCode provider key names without printing values.
+  `RESEARCH_API_ENABLED` remained disabled, no Research database was created,
+  and no Worker or scheduler was enabled. Online SQLite snapshots for both live
+  databases passed integrity checks and are stored under
+  `/var/lib/codex-gateway/backups/pre-ccccf1c-20260718T031142Z`. The deployed
+  image is
+  `sha256:d0f1b54a82bcf48e47448a7e2876f434ef001587b8cc99c0629043dd11b6a3ac`;
+  the previous image remains tagged
+  `codex_gateway_test-gateway:rollback-f64cfa1-20260718T031500Z`. The first
+  switch was automatically rolled back because an anonymous disabled-route
+  probe expected `404` but the global auth hook correctly returned `401`; the
+  gate was corrected to verify the protected container configuration directly,
+  and the second switch completed healthy. Gateway schema migration `23` and
+  database quick check passed. The container has zero restarts, remains
+  loopback-only at `127.0.0.1:18787->8787`, and Nginx/Docker stayed active.
+  Public OpenAI-compatible and strict-tools smokes passed. A focused production
+  credential smoke verified `allowed_public_models=["max"]`, allowed `max`,
+  rejected a `standard` chat before provider execution with
+  `403 model_not_allowed_for_credential`, and preserved missing/wrong-key
+  `401` boundaries. The final audit found no active keys across the eight most
+  recent deployment-smoke users and no recent uncaught, unhandled, fatal, or
+  `EPIPE` log lines. CN1 was explicitly excluded and remains unchanged.
 - 2026-07-18 commit `f64cfa1` deployed incomplete OpenAI-compatible SSE
   detection and empty-response classification to the live Azure Gateway from
   clean release checkout

@@ -138,13 +138,12 @@ chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 The current live gateway is operated from a clean release checkout:
 
 ```text
-/home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z
 ```
 
-The directory name records the original runtime deployment commit and is
-historical; the checkout may be detached at a newer docs/scripts commit. Use
-this directory for `compose.azure.yml`, public smoke scripts, and env-file
-updates unless a newer release checkout has been created deliberately.
+This checkout is detached at runtime commit `ccccf1c`. Use this directory for
+`compose.azure.yml`, public smoke scripts, and protected env-file operations
+unless a newer release checkout has been created deliberately.
 
 The live Azure env file in that checkout must be treated as a protected runtime
 artifact. On 2026-07-03, recreating the live container from a stale
