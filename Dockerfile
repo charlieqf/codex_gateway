@@ -64,11 +64,17 @@ COPY scripts/codex-gateway-exec.sh /usr/local/bin/codex-gateway-exec
 COPY scripts/gateway-entrypoint.sh /usr/local/bin/codex-gateway-entrypoint
 
 RUN chmod 0755 /usr/local/bin/codex-gateway-exec /usr/local/bin/codex-gateway-entrypoint \
+  && chmod -R a=rX /app/apps /app/packages \
   && chmod 0555 /app/scripts/ops/gateway-request-watchdog.mjs \
      /app/scripts/research-worker-health.mjs \
      /app/scripts/research-maintenance-health.mjs
 
 USER codexgw
+
+RUN test -r /app/apps/gateway/dist/index.js \
+  && test -r /app/apps/research-worker/dist/index.js \
+  && test -r /app/apps/research-worker/dist/maintenance-index.js \
+  && test -r /app/packages/core/src/fixtures/phase0.5-compatibility.v1.json
 
 EXPOSE 8787
 
