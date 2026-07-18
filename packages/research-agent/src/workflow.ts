@@ -173,16 +173,17 @@ export async function executeDoctorResearchWorkflow(input: {
       publicationEvidence: literature.publicationEvidence,
       literatureDatabases: literature.databases
     };
-    const generated = await generateAndValidateModelOutput(
+    const generatedResult = await generateAndValidateModelOutput(
       context,
       identity,
       evidence,
       searchQuery,
       literature.discoveredCount
     );
-    if (!generated) {
+    if (!generatedResult) {
       return { outcome: "failed", reason: "model_contract_error" };
     }
+    const generated = generatedResult.output;
     await context.checkpoint("synthesize_review", 67, {
       schema_version: "doctor_research_model_checkpoint.v1",
       output_sha256: sha256(JSON.stringify(generated)),
@@ -221,6 +222,7 @@ export async function executeDoctorResearchWorkflow(input: {
         checks: qualityChecks,
         warnings: [
           "llm_synthesis_requires_human_review",
+          ...generatedResult.warnings,
           ...(literature.references.length < input.policy.maximumPublications
             ? ["verified_reference_target_not_reached"]
             : [])
@@ -1005,7 +1007,10 @@ async function generateAndValidateModelOutput(
   },
   searchQuery: string,
   discoveredCount: number
-): Promise<DoctorResearchModelOutput | null> {
+): Promise<{
+  output: DoctorResearchModelOutput;
+  warnings: string[];
+} | null> {
   const prompt = buildModelPrompt(
     context.run,
     identity,
@@ -1027,7 +1032,10 @@ async function generateAndValidateModelOutput(
     context.input.policy
   );
   if (validation.ok) {
-    return validation.value;
+    return {
+      output: validation.value,
+      warnings: validation.warnings
+    };
   }
   context.reportValidationFailure(
     "synthesize_review",
@@ -1072,7 +1080,12 @@ async function generateAndValidateModelOutput(
       validation.errorCodes
     );
   }
-  return validation.ok ? validation.value : null;
+  return validation.ok
+    ? {
+        output: validation.value,
+        warnings: validation.warnings
+      }
+    : null;
 }
 
 function validateGeneratedOutput(
@@ -1087,7 +1100,11 @@ function validateGeneratedOutput(
   },
   policy: DoctorResearchWorkflowPolicy
 ):
-  | { ok: true; value: DoctorResearchModelOutput }
+  | {
+      ok: true;
+      value: DoctorResearchModelOutput;
+      warnings: string[];
+    }
   | { ok: false; errors: string[]; errorCodes: string[] } {
   const parsed = parseAndValidateDoctorResearchModelOutput(text);
   if (!parsed.ok) {
@@ -1178,11 +1195,50 @@ function validateGeneratedOutput(
     new Set(identity.profileSourceIds),
     run.language
   );
-  if (!numericEvidenceClosed(reparsed.value, identity, evidence)) {
+  const unsupportedNumericTokens = unsupportedNarrativeNumericTokens(
+    reparsed.value,
+    identity,
+    evidence
+  );
+  if (
+    qualityErrors.length === 0 &&
+    unsupportedNumericTokens.size > 0
+  ) {
+    const redacted = redactUnsupportedNarrativeNumbers(
+      reparsed.value,
+      unsupportedNumericTokens
+    );
+    const redactedParsed = parseAndValidateDoctorResearchModelOutput(
+      JSON.stringify(redacted)
+    );
+    if (redactedParsed.ok) {
+      const redactedQualityErrors = validateRuntimeQuality(
+        redactedParsed.value,
+        policy,
+        new Set(identity.profileSourceIds),
+        run.language
+      );
+      if (
+        redactedQualityErrors.length === 0 &&
+        unsupportedNarrativeNumericTokens(
+          redactedParsed.value,
+          identity,
+          evidence
+        ).size === 0
+      ) {
+        return {
+          ok: true,
+          value: redactedParsed.value,
+          warnings: ["unsupported_numeric_claims_redacted"]
+        };
+      }
+    }
+  }
+  if (unsupportedNumericTokens.size > 0) {
     qualityErrors.push("numeric_evidence_closure");
   }
   return qualityErrors.length === 0
-    ? { ok: true, value: reparsed.value }
+    ? { ok: true, value: reparsed.value, warnings: [] }
     : {
         ok: false,
         errors: qualityErrors,
@@ -1666,7 +1722,7 @@ function numericEvidenceContextAllowlist(
   return [...contexts];
 }
 
-function numericEvidenceClosed(
+function unsupportedNarrativeNumericTokens(
   output: DoctorResearchModelOutput,
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
   evidence: {
@@ -1674,10 +1730,11 @@ function numericEvidenceClosed(
     references: DoctorResearchReference[];
     sources: DoctorResearchSource[];
   }
-): boolean {
+): Set<string> {
   const evidenceText = closedNumericEvidenceText(identity, evidence);
   const allowed = new Set(extractNumericTokens(evidenceText));
   const normalizedEvidence = normalizeNumericContext(evidenceText);
+  const unsupported = new Set<string>();
   for (const narrative of modelNarrativeStrings(output)) {
     const withoutCitations = narrative.replace(/\[[0-9,\s-]+\]/gu, "");
     const normalizedNarrative = normalizeNumericContext(withoutCitations);
@@ -1687,7 +1744,8 @@ function numericEvidenceClosed(
       const tokens = extractNumericTokens(word);
       for (const token of tokens) {
         if (!allowed.has(token)) {
-          return false;
+          unsupported.add(token);
+          continue;
         }
         const previous = words[index - 1];
         const next = words[index + 1];
@@ -1701,12 +1759,53 @@ function numericEvidenceClosed(
             ` ${normalizedEvidence} `.includes(` ${context} `)
           )
         ) {
-          return false;
+          unsupported.add(token);
         }
       }
     }
   }
-  return true;
+  return unsupported;
+}
+
+function redactUnsupportedNarrativeNumbers(
+  output: DoctorResearchModelOutput,
+  unsupportedTokens: ReadonlySet<string>
+): DoctorResearchModelOutput {
+  const redacted = structuredClone(output);
+  const redact = (value: string): string =>
+    value
+      .split(/(\[[0-9,\s-]+\])/gu)
+      .map((part, index) =>
+        index % 2 === 1
+          ? part
+          : part.replace(
+              /[0-9]+(?:\.[0-9]+)?(?:[%％])?/gu,
+              (token) => (unsupportedTokens.has(token) ? "" : token)
+            )
+      )
+      .join("")
+      .replace(/[^\S\r\n]{2,}/gu, " ")
+      .replace(/[^\S\r\n]+([,.;:!?，。；：！？])/gu, "$1");
+  redacted.review.title = redact(redacted.review.title);
+  redacted.review.abstract = redact(redacted.review.abstract);
+  redacted.review.keywords = redacted.review.keywords.map(redact);
+  redacted.review.markdown = redact(redacted.review.markdown);
+  redacted.review.core_evidence = redacted.review.core_evidence.map(
+    (item) => ({
+      ...item,
+      study_type: redact(item.study_type),
+      sample_and_source: redact(item.sample_and_source),
+      methods: redact(item.methods),
+      key_results: redact(item.key_results),
+      limitations: redact(item.limitations)
+    })
+  );
+  redacted.predicted_questions = redacted.predicted_questions.map(redact);
+  redacted.answers = redacted.answers.map((answer) => ({
+    ...answer,
+    answer: redact(answer.answer)
+  }));
+  return redacted;
 }
 
 function closedNumericEvidenceText(

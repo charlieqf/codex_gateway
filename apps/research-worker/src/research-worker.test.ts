@@ -380,7 +380,7 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
-  it("fails closed when repair replaces unsafe markup with a transposed numeric claim", async () => {
+  it("redacts a transposed numeric claim after repairing unsafe markup", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -473,10 +473,7 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "model_contract_error"
-    });
+    expect(outcome).toEqual({ outcome: "succeeded" });
     expect(modelCalls).toBe(2);
     expect(repairPrompt).toContain("Preserve every required field");
     expect(repairPrompt).toContain("Schema:");
@@ -493,11 +490,6 @@ describe("Research Worker controlled-beta workflow", () => {
           "unsafe_model_markup",
           "numeric_evidence_closure"
         ])
-      }),
-      expect.objectContaining({
-        stage: "validate_outputs",
-        attempt: 2,
-        errorCodes: expect.arrayContaining(["numeric_evidence_closure"])
       })
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
@@ -506,8 +498,74 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(JSON.stringify(validationEvents)).not.toContain(
       "Invented oncology program"
     );
-    expect(existsSync(artifactRoot)).toBe(false);
+    const stored = store.getRunResultForSubject(
+      lease.run.runId,
+      "subj_profile_closure"
+    );
+    const storedResult = stored?.result as unknown as {
+      quality: { warnings: string[] };
+      review: {
+        markdown: string;
+        references: Array<{ publication_year: number }>;
+      };
+    };
+    expect(storedResult.quality.warnings).toContain(
+      "unsupported_numeric_claims_redacted"
+    );
+    expect(storedResult.review.markdown).not.toContain("2025 patients");
+    expect(storedResult.review.markdown).toContain("[1]");
+    expect(storedResult.review.references[0]?.publication_year).toBe(2025);
+    expect(existsSync(artifactRoot)).toBe(true);
     store.close();
+  });
+
+  it("fails closed when numeric redaction would violate the output contract", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "numeric_redaction_contract"
+    );
+    const invalidAfterRedaction = modelOutput();
+    invalidAfterRedaction.answers[0]!.answer = "Evidence 2025";
+    let modelCalls = 0;
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(invalidAfterRedaction),
+            gatewayRequestId: `req_model_numeric_contract_${modelCalls}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(modelCalls).toBe(2);
+    expect(validationCodes).toEqual([
+      ["numeric_evidence_closure"],
+      ["numeric_evidence_closure"]
+    ]);
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
   });
 
   it("does not infer a missing research direction without an explicit official label", async () => {
