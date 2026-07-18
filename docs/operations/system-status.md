@@ -12,6 +12,18 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
+- Doctor Research controlled-beta mainline on isolated Azure staging:
+  - source commit `1fdd0fa62444af14fa358c4fb09968ad1a3b01c5`;
+  - separate loopback-only listener `127.0.0.1:18788`, independent Research
+    database, artifact and backup volumes, Worker and maintenance processes;
+  - real `goldencode`/GLM-5.2 run completed live official-source, PubMed,
+    Crossref, structured generation, validation, result and exactly four
+    authenticated hash-verified downloads;
+  - live stale-heartbeat admission, cancellation, subject isolation, encoded
+    traversal and isolated backup/restore drills passed;
+  - production Research remains disabled; production container, environment,
+    users, credentials, Nginx and `127.0.0.1:18787` listener were not changed.
+
 - Codex SDK child-process cancellation crash hardening:
   - the live 2026-07-17 incident was traced to an unhandled
     `child.stdin` `write EPIPE` after an aborted Codex SDK turn, which caused
@@ -208,7 +220,6 @@ Completed:
 Not completed:
 
 - Native SDK-level dynamic tool registration, MCP bridge support, or pause/resume of the same upstream turn while waiting for external tool results.
-- `/v1/responses`.
 - OpenAI-compatible SSE framing for the native `/sessions/:id/messages` endpoint.
 - Persistent/distributed rate limiting for multiple gateway processes.
 - Token budget enforcement; current implementation records token usage but does not block by token quota.
@@ -232,6 +243,16 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-18 the isolated Doctor Research staging Compose project passed the
+  live controlled-beta rehearsal documented in
+  `docs/research/doctor-research/controlled-beta-evidence.md`. Run
+  `drr_e5d73d1b922745639ecf820f9df81cc8` succeeded through
+  GoldenCode/GLM-5.2 and produced exactly four hash-verified files. Backup
+  `drb_cf6a01d4733946b2ada650aa9de12ae0` passed a networkless isolated restore.
+  Staging Gateway, Worker and maintenance were healthy with zero restarts after
+  the drills, and staging published only `127.0.0.1:18788`. The production
+  Gateway remained healthy with zero restarts on its original image and
+  loopback listener; its Research feature flag remained false.
 - 2026-07-18 commit `ccccf1c` deployed the completed OpenAI SSE termination
   contract, pre-commit tool-call buffering, credential public-model allowlists,
   and the disabled-by-default Doctor Research Phase 0 foundation to the live
@@ -598,7 +619,7 @@ SQLite schema currently includes:
 - `request_events`
 - `admin_audit_events`
 
-Session persistence, API key authentication, API key issue/update/revoke/rotate/reveal, user contact metadata, user-level disable/enable, single-process API key rate limiting, request event writing with token usage fields, admin action audit events, dynamic usage reports with token totals, read-only controlled-trial checks, dry-run-capable manual request event pruning, and strict client-defined tools validation are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Existing SQLite databases migrate `subscriptions` / `subscription_id` to `upstream_accounts` / `upstream_account_id`; public compatibility aliases remain for `/gateway/status`, session JSON, and `GATEWAY_PUBLIC_SUBSCRIPTION_ID`. Token budget enforcement, scheduled retention jobs, materialized usage reports, admin operator identity capture, native SDK-level dynamic tool registration, `/v1/responses`, and multi-process shared rate limiting are still pending.
+Session persistence, API key authentication, API key issue/update/revoke/rotate/reveal, user contact metadata, user-level disable/enable, single-process API key rate limiting, request event writing with token usage fields, admin action audit events, dynamic usage reports with token totals, read-only controlled-trial checks, dry-run-capable manual request event pruning, strict client-defined tools validation, and `/v1/responses` are wired into the gateway. Public HTTPS routing for `gw.instmarket.com.au` is active through existing Nginx. Existing SQLite databases migrate `subscriptions` / `subscription_id` to `upstream_accounts` / `upstream_account_id`; public compatibility aliases remain for `/gateway/status`, session JSON, and `GATEWAY_PUBLIC_SUBSCRIPTION_ID`. Token budget enforcement, scheduled retention jobs, materialized usage reports, admin operator identity capture, native SDK-level dynamic tool registration, and multi-process shared rate limiting are still pending.
 
 ## Ops Skill
 

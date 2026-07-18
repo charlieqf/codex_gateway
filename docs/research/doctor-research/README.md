@@ -263,8 +263,24 @@ Validation after the controlled-beta hardening pass:
 - `npm audit --omit=dev` (0 production vulnerabilities);
 - `git diff --check`.
 
+The live staging closure on 2026-07-18 then:
+
+- selected only the direct `goldencode`/GLM-5.2 pool with reasoning effort
+  `low`; Max, Codex, OpenRouter, public proxies, Google Scholar and dynamic
+  Skill execution were not used;
+- completed a real
+  `POST -> heartbeat/lease -> PubMed/Crossref/official source -> structured
+  LLM -> validation -> succeeded -> result -> four downloads` run;
+- verified exactly three Markdown files and one five-line text file, with all
+  sizes and SHA-256 values equal to the stored manifest;
+- passed live cancellation, stale-heartbeat `503`, foreign-subject `404`,
+  encoded traversal rejection and isolated four-artifact backup/restore;
+- passed GoldenCode model, Chat Completions and Responses compatibility smoke;
+- found no doctor input, Prompt, source body, artifact body or credential
+  literal in Research audit parameters or container logs.
+
 This is still not a production enablement. Production flags and credentials
-remain unchanged and disabled. Live staging evidence, the production ORCID
-terms/credential decision, official-source and LLM quality approval, encrypted
-backup/restore and production limits are still required. The separate Phase
-0.5 rollback-compatibility gate is pinned in `phase0.5-compatibility.md`.
+remain unchanged and disabled. The production ORCID terms/credential decision,
+human quality approval, encrypted backup/restore target and approved
+production limits/RPO/RTO are still required. The separate Phase 0.5
+rollback-compatibility gate is pinned in `phase0.5-compatibility.md`.

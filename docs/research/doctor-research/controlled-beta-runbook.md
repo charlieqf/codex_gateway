@@ -294,6 +294,36 @@ never resolves `localhost`, accepts a non-loopback URL, or prints the Bearer
 token or doctor request. Treat the emitted run ID and hashes as operational
 metadata.
 
+### Latest isolated staging rehearsal
+
+On 2026-07-18, commit
+`1fdd0fa62444af14fa358c4fb09968ad1a3b01c5` passed this smoke against the
+loopback-only Azure staging deployment. Run
+`drr_e5d73d1b922745639ecf820f9df81cc8` completed through the direct
+three-member GoldenCode/GLM-5.2 pool and produced exactly three Markdown files
+and one text file; the text file contained exactly five questions. All four
+download hashes matched their manifest.
+
+The same rehearsal verified:
+
+- a cancellation during LLM work remained terminally cancelled with zero
+  artifacts;
+- a stale Worker heartbeat caused create to return exactly
+  `503 research_worker_unavailable`;
+- a foreign subject received `404` for the run, result and all four artifacts;
+- three encoded traversal probes received `404 artifact_not_found`;
+- backup `drb_cf6a01d4733946b2ada650aa9de12ae0` copied into a new networkless
+  restore directory passed database hash, SQLite integrity, foreign-key,
+  manifest and four-artifact hash checks;
+- `/gateway/health`, credential auth, exact `goldencode` model listing,
+  non-streaming Chat Completions and streaming Responses passed.
+
+The staging image deliberately has no Codex/native-session upstream account,
+so `/sessions` fails closed with `503 service_unavailable`. Do not copy a
+production Codex login into this staging profile merely to make that optional
+smoke pass; native-session compatibility remains covered by the complete
+Gateway regression suite and the unchanged production deployment.
+
 ## Negative and recovery checks
 
 Before any production proposal, record staging evidence for:

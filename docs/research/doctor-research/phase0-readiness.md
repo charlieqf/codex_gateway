@@ -6,7 +6,7 @@ Status as of 2026-07-18:
 - **Phase 0B — evidence and product validation: incomplete.**
 - **Phase 0.5 — release compatibility gate: complete for the pinned release
   line.**
-- **Controlled-beta Worker engineering: implemented, live staging evidence pending.**
+- **Controlled-beta Worker mainline: live staging evidence passed.**
 - **Phase 1 — production readiness and internal brief: not complete.**
 
 The Research feature remains disabled by default. This classification allows
@@ -60,20 +60,28 @@ requires hospital plus department; one official source must bind all three
 identity anchors in a bounded local window, and publication attribution
 requires both anchors in the matched author's own PubMed affiliation.
 Profile claims must be exact, type-anchored excerpts of their cited official
-source, and unsupported numeric claims fail closed.
+source. Unsupported numeric claims fail closed unless they are the only
+remaining defect, in which case only those narrative numbers are replaced by
+an explicit `unverified`/`未核验` marker and the complete validation pipeline is
+rerun.
 All model-controlled narrative fields reject raw or entity-encoded HTML,
 links, URLs, dangerous URI schemes, control bytes and bidirectional text
 controls. The four-artifact renderer adds only server-verified source links
-and identifiers. The current offline baseline passes build, 475 Vitest tests,
-11 Python tests, script syntax checks, Compose security assertions and a
+and identifiers. The current baseline passes build, 487 Vitest tests, 14
+Python tests, script syntax checks, Compose security assertions and a
 zero-vulnerability production dependency audit.
 
-This does not close Phase 0B or make production ready. The implementation has
-no live credential in the repository and must not have one. Isolated staging
-uses explicit allowlisted official profile URLs and the bounded ORCID
-Anonymous API, while production ORCID terms/commercial-use approval remains
-open. The live loopback staging smoke and its quality review therefore remain
-external evidence gates. See `controlled-beta-runbook.md`.
+The isolated Azure staging deployment at
+`1fdd0fa62444af14fa358c4fb09968ad1a3b01c5` passed a live
+PubMed/Crossref/official-source/GoldenCode GLM-5.2 E2E and downloaded exactly
+four hash-verified files. It also passed live cancellation, stale-heartbeat
+admission, subject-isolation, traversal and backup/restore drills. No live
+credential is stored in the repository.
+
+This does not close Phase 0B or make production ready. Production ORCID
+terms/commercial-use approval, human quality review, encrypted production
+backup targets and approved limits remain open. See
+`controlled-beta-evidence.md` and `controlled-beta-runbook.md`.
 
 ## Phase 0.5 completed
 
