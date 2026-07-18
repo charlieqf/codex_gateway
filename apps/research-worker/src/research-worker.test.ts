@@ -237,7 +237,7 @@ describe("Research Worker controlled-beta workflow", () => {
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
-      adapters: adapters(),
+      adapters: adapters(0),
       modelClient,
       artifactRoot,
       policy: workflowPolicy(),
@@ -1426,8 +1426,17 @@ describe("Research Worker controlled-beta workflow", () => {
   });
 });
 
-function adapters(): ResearchAdapterBundle {
+function adapters(
+  officialSearchRequestUnits?: number
+): ResearchAdapterBundle {
   return {
+    ...(officialSearchRequestUnits === undefined
+      ? {}
+      : {
+          budgetHints: {
+            officialSearchRequestUnits
+          }
+        }),
     async searchPubMed() {
       return ["1001"];
     },

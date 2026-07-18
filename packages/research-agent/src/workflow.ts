@@ -633,10 +633,12 @@ async function discoverIdentityEvidence(
   ]
     .filter((value): value is string => Boolean(value))
     .join(" ");
-  context.chargeExternal(
+  const officialSearchRequestUnits =
     context["input"].adapters.budgetHints
-      ?.officialSearchRequestUnits ?? 3
-  );
+      ?.officialSearchRequestUnits ?? 3;
+  if (officialSearchRequestUnits > 0) {
+    context.chargeExternal(officialSearchRequestUnits);
+  }
   const sourceIds = await context["input"].adapters.searchOfficialSources(
     officialQuery,
     context.callSignal(),
