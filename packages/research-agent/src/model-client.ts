@@ -5,6 +5,7 @@ import { readBoundedResponseBody } from "./safe-http.js";
 export interface ResearchModelUsage {
   promptTokens: number | null;
   completionTokens: number | null;
+  reasoningTokens?: number | null;
   totalTokens: number | null;
 }
 
@@ -309,12 +310,19 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       );
     }
     const usage = isRecord(payload.usage) ? payload.usage : null;
+    const completionDetails =
+      usage && isRecord(usage.completion_tokens_details)
+        ? usage.completion_tokens_details
+        : null;
     return {
       text,
       gatewayRequestId: requestId,
       usage: {
         promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
         completionTokens: nonNegativeIntegerOrNull(usage?.completion_tokens),
+        reasoningTokens: nonNegativeIntegerOrNull(
+          completionDetails?.reasoning_tokens
+        ),
         totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
       }
     };

@@ -560,7 +560,7 @@ class WorkflowContext {
     }
     if (
       usage.completionTokens !== null &&
-      usage.completionTokens >
+      visibleCompletionTokens(usage) >
         this.input.policy.maximumOutputTokensPerCall
     ) {
       throw new WorkflowBudgetError("per_call_output_tokens");
@@ -608,6 +608,21 @@ class WorkflowContext {
       throw new WorkflowBudgetError(result.limit);
     }
   }
+}
+
+function visibleCompletionTokens(usage: ResearchModelUsage): number {
+  if (usage.completionTokens === null) {
+    return 0;
+  }
+  const reasoningTokens = usage.reasoningTokens;
+  if (
+    reasoningTokens === undefined ||
+    reasoningTokens === null ||
+    reasoningTokens > usage.completionTokens
+  ) {
+    return usage.completionTokens;
+  }
+  return usage.completionTokens - reasoningTokens;
 }
 
 async function discoverIdentityEvidence(

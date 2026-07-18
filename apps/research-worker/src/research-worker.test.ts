@@ -228,8 +228,9 @@ describe("Research Worker controlled-beta workflow", () => {
           gatewayRequestId: "req_model_test",
           usage: {
             promptTokens: 100,
-            completionTokens: 100,
-            totalTokens: 200
+            completionTokens: 3_500,
+            reasoningTokens: 2_000,
+            totalTokens: 3_600
           }
         };
       }
@@ -299,7 +300,7 @@ describe("Research Worker controlled-beta workflow", () => {
         attempt: 1,
         gateway_request_id: "req_model_test",
         prompt_tokens: 100,
-        completion_tokens: 100,
+        completion_tokens: 3_500,
         error_code: null
       }
     ]);

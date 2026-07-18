@@ -38,6 +38,9 @@ describe("Doctor Research structured Gateway model client", () => {
             usage: {
               prompt_tokens: 100,
               completion_tokens: 20,
+              completion_tokens_details: {
+                reasoning_tokens: 7
+              },
               total_tokens: 120
             }
           },
@@ -74,6 +77,7 @@ describe("Doctor Research structured Gateway model client", () => {
       usage: {
         promptTokens: 100,
         completionTokens: 20,
+        reasoningTokens: 7,
         totalTokens: 120
       }
     });
@@ -200,6 +204,9 @@ describe("Doctor Research structured Gateway model client", () => {
             usage: {
               prompt_tokens: 10,
               completion_tokens: 5,
+              completion_tokens_details: {
+                reasoning_tokens: 2
+              },
               total_tokens: 15
             }
           })
@@ -238,6 +245,7 @@ describe("Doctor Research structured Gateway model client", () => {
         usage: {
           promptTokens: 10,
           completionTokens: 5,
+          reasoningTokens: 2,
           totalTokens: 15
         }
       });
