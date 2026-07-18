@@ -1,3 +1,5 @@
+import { request as requestHttp } from "node:http";
+import { request as requestHttps } from "node:https";
 import { readBoundedResponseBody } from "./safe-http.js";
 
 export interface ResearchModelUsage {
@@ -217,27 +219,38 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     ]);
     let response: Response;
     try {
-      response = await (this.options.fetchImpl ?? fetch)(this.endpoint, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          authorization: `Bearer ${this.options.bearerToken}`,
-          "content-type": "application/json",
-          "x-medcode-client-session-id": input.runId,
-          "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
-        },
-        body: JSON.stringify({
-          model: this.model,
-          stream: false,
-          max_tokens: this.maximumOutputTokensPerCall,
-          messages: [
-            { role: "system", content: input.system },
-            { role: "user", content: input.prompt }
-          ]
-        }),
-        redirect: "error",
-        signal
+      const headers = {
+        accept: "application/json",
+        authorization: `Bearer ${this.options.bearerToken}`,
+        "content-type": "application/json",
+        "x-medcode-client-session-id": input.runId,
+        "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
+      };
+      const body = JSON.stringify({
+        model: this.model,
+        stream: false,
+        max_tokens: this.maximumOutputTokensPerCall,
+        messages: [
+          { role: "system", content: input.system },
+          { role: "user", content: input.prompt }
+        ]
       });
+      response = this.options.fetchImpl
+        ? await this.options.fetchImpl(this.endpoint, {
+            method: "POST",
+            headers,
+            body,
+            redirect: "error",
+            signal
+          })
+        : await requestBoundedModelResponse({
+            url: this.endpoint,
+            headers,
+            body,
+            signal,
+            timeoutMs: this.timeoutMs,
+            maximumBytes: this.maximumResponseBytes
+          });
     } catch (error) {
       if (input.signal.aborted) {
         throw input.signal.reason ?? error;
@@ -301,6 +314,104 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       }
     };
   }
+}
+
+async function requestBoundedModelResponse(input: {
+  url: URL;
+  headers: Readonly<Record<string, string>>;
+  body: string;
+  signal: AbortSignal;
+  timeoutMs: number;
+  maximumBytes: number;
+}): Promise<Response> {
+  const request = input.url.protocol === "https:" ? requestHttps : requestHttp;
+  return await new Promise<Response>((resolve, reject) => {
+    let settled = false;
+    const finishReject = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error);
+    };
+    const outgoing = request(
+      input.url,
+      {
+        method: "POST",
+        headers: {
+          ...input.headers,
+          "content-length": String(Buffer.byteLength(input.body, "utf8"))
+        },
+        signal: input.signal
+      },
+      (incoming) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        incoming.on("data", (value: Buffer | string) => {
+          if (settled) {
+            return;
+          }
+          const chunk = Buffer.isBuffer(value)
+            ? value
+            : Buffer.from(value);
+          size += chunk.length;
+          if (size > input.maximumBytes) {
+            incoming.destroy(
+              new Error("Research LLM response exceeded its byte bound.")
+            );
+            return;
+          }
+          chunks.push(chunk);
+        });
+        incoming.once("error", finishReject);
+        incoming.once("aborted", () =>
+          finishReject(new Error("Research LLM response was aborted."))
+        );
+        incoming.once("end", () => {
+          if (settled) {
+            return;
+          }
+          const status = incoming.statusCode;
+          if (
+            status === undefined ||
+            status < 100 ||
+            status > 599
+          ) {
+            finishReject(
+              new Error("Research LLM response status is invalid.")
+            );
+            return;
+          }
+          const headers = new Headers();
+          for (const [name, rawValue] of Object.entries(
+            incoming.headers
+          )) {
+            for (const value of Array.isArray(rawValue)
+              ? rawValue
+              : rawValue === undefined
+                ? []
+                : [rawValue]) {
+              headers.append(name, value);
+            }
+          }
+          settled = true;
+          resolve(
+            new Response(Buffer.concat(chunks, size), {
+              status,
+              headers
+            })
+          );
+        });
+      }
+    );
+    outgoing.setTimeout(input.timeoutMs, () => {
+      outgoing.destroy(
+        new DOMException("Research LLM request timed out.", "TimeoutError")
+      );
+    });
+    outgoing.once("error", finishReject);
+    outgoing.end(input.body);
+  });
 }
 
 export class ResearchModelClientError extends Error {

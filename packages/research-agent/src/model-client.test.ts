@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import {
   GatewayResearchModelClient
@@ -169,6 +170,75 @@ describe("Doctor Research structured Gateway model client", () => {
       statusCode: 0,
       gatewayRequestId: null
     });
+  });
+
+  it("uses the bounded native HTTP transport for long non-streaming generation", async () => {
+    const server = createServer((request, response) => {
+      expect(request.method).toBe("POST");
+      expect(request.url).toBe("/v1/chat/completions");
+      setTimeout(() => {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "x-request-id": "req_native_transport"
+        });
+        response.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  role: "assistant",
+                  content: "{\"native\":true}"
+                }
+              }
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 5,
+              total_tokens: 15
+            }
+          })
+        );
+      }, 25);
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve)
+    );
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        throw new Error("Test HTTP server did not bind.");
+      }
+      const client = new GatewayResearchModelClient({
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        allowedHosts: ["127.0.0.1"],
+        model: "goldencode",
+        bearerToken: "secret-staging-token",
+        timeoutMs: 5_000,
+        maximumResponseBytes: 100_000,
+        readinessRequirements: readinessRequirements()
+      });
+      const response = await client.generate({
+        runId: `drr_${"c".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return JSON.",
+        prompt: "Use bounded native HTTP.",
+        signal: new AbortController().signal
+      });
+      expect(response).toEqual({
+        text: "{\"native\":true}",
+        gatewayRequestId: "req_native_transport",
+        usage: {
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15
+        }
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
   });
 });
 
