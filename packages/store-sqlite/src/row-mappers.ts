@@ -1,7 +1,8 @@
 import {
+  decodeStoredAllowedPublicModelsJson,
+  decodePlanFeaturePolicy,
   normalizeRateLimitPolicy,
   validatePlanPolicy,
-  validatePlanFeaturePolicy,
   type AccessCredentialRecord,
   type AdminAuditEventRecord,
   type BillingAdminTokenRecord,
@@ -28,6 +29,7 @@ export function rowToSession(row: unknown): GatewaySession {
     id: string;
     subject_id: string;
     upstream_account_id: string;
+    public_model_id: string | null;
     provider_session_ref: string | null;
     title: string | null;
     state: GatewaySession["state"];
@@ -39,6 +41,7 @@ export function rowToSession(row: unknown): GatewaySession {
     id: value.id,
     subjectId: value.subject_id,
     upstreamAccountId: value.upstream_account_id,
+    publicModelId: value.public_model_id,
     providerSessionRef: value.provider_session_ref,
     title: value.title,
     state: value.state,
@@ -85,6 +88,7 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     expires_at: string;
     revoked_at: string | null;
     rate_json: string;
+    allowed_public_models_json: string | null;
     created_at: string;
     rotates_id: string | null;
   };
@@ -100,6 +104,9 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     expiresAt: new Date(value.expires_at),
     revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
     rate: normalizeRateLimitPolicy(JSON.parse(value.rate_json) as RateLimitPolicy),
+    allowedPublicModels: decodeStoredAllowedPublicModelsJson(
+      value.allowed_public_models_json
+    ),
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
   };
@@ -188,7 +195,7 @@ export function rowToPlan(row: unknown): Plan {
     id: value.id,
     displayName: value.display_name,
     policy: validatePlanPolicy(JSON.parse(value.policy_json) as TokenLimitPolicy),
-    featurePolicy: validatePlanFeaturePolicy(JSON.parse(value.feature_policy_json)),
+    featurePolicy: decodePlanFeaturePolicy(JSON.parse(value.feature_policy_json)),
     scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
     priorityClass: value.priority_class,
     teamPoolId: value.team_pool_id,
@@ -223,7 +230,9 @@ export function rowToEntitlement(row: unknown): Entitlement {
     subjectId: value.subject_id,
     planId: value.plan_id,
     policySnapshot: validatePlanPolicy(JSON.parse(value.policy_snapshot_json) as TokenLimitPolicy),
-    featurePolicySnapshot: validatePlanFeaturePolicy(JSON.parse(value.feature_policy_snapshot_json)),
+    featurePolicySnapshot: decodePlanFeaturePolicy(
+      JSON.parse(value.feature_policy_snapshot_json)
+    ),
     scopeAllowlist: parseScopeAllowlist(value.scope_allowlist_json),
     periodKind: value.period_kind,
     periodStart: new Date(value.period_start),

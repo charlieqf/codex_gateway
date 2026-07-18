@@ -39,6 +39,7 @@ describe("SqliteGatewayStore", () => {
       upstreamAccountId: "sub_openai_codex"
     });
     expect(session.providerSessionRef).toBeNull();
+    expect(session.publicModelId).toBeNull();
 
     const updated = first.setProviderSessionRef(session.id, "thread_1");
     expect(updated?.providerSessionRef).toBe("thread_1");
@@ -167,6 +168,13 @@ describe("SqliteGatewayStore", () => {
       expect(columnNames(db, "request_events")).toContain("tool_loop_guard_json");
       expect(columnNames(db, "token_reservations")).toContain("public_model_id");
       expect(columnNames(db, "token_reservations")).toContain("final_reasoning_tokens");
+      expect(columnNames(db, "access_credentials")).toContain(
+        "allowed_public_models_json"
+      );
+      expect(columnNames(db, "sessions")).toContain("public_model_id");
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 23").get()
+      ).toBeTruthy();
     } finally {
       db.close();
     }
@@ -208,6 +216,86 @@ describe("SqliteGatewayStore", () => {
     ).toThrow("plans.policy_json is immutable");
     expect(store.getPlan("plan_immutable_v1")?.policy.tokensPerDay).toBe(10_000);
 
+    store.close();
+  });
+
+  it("round-trips future stored capabilities while plan writers stay strict", () => {
+    const store = createSeededStore(":memory:");
+    const policy = {
+      tokensPerMinute: null,
+      tokensPerDay: null,
+      tokensPerMonth: null,
+      maxPromptTokensPerRequest: null,
+      maxTotalTokensPerRequest: null,
+      reserveTokensPerRequest: 0,
+      missingUsageCharge: "none" as const
+    };
+    store.createPlan({
+      id: "plan_future_capability_v1",
+      displayName: "Future capability",
+      policy,
+      featurePolicy: {
+        capabilities: ["chat", "tools"],
+        imageGeneration: null,
+        medcodeModels: null
+      },
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.database.exec("DROP TRIGGER trg_plans_feature_policy_immutable");
+    store.database
+      .prepare("UPDATE plans SET feature_policy_json = ? WHERE id = ?")
+      .run(
+        JSON.stringify({
+          capabilities: ["chat", "doctor_research", "future_capability"]
+        }),
+        "plan_future_capability_v1"
+      );
+
+    expect(
+      store.getPlan("plan_future_capability_v1")?.featurePolicy.capabilities
+    ).toEqual(["chat", "doctor_research", "future_capability"]);
+    expect(
+      store.listPlans().find((plan) => plan.id === "plan_future_capability_v1")
+        ?.featurePolicy.capabilities
+    ).toEqual(["chat", "doctor_research", "future_capability"]);
+    const entitlement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_future_capability_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(entitlement.featurePolicySnapshot.capabilities).toEqual([
+      "chat",
+      "doctor_research",
+      "future_capability"
+    ]);
+    expect(
+      store.entitlementAccessForSubject(
+        "subj_1",
+        new Date("2026-01-02T00:00:00Z")
+      )
+    ).toMatchObject({
+      status: "active",
+      entitlement: {
+        featurePolicySnapshot: {
+          capabilities: ["chat", "doctor_research", "future_capability"]
+        }
+      }
+    });
+    expect(() =>
+      store.createPlan({
+        id: "plan_typo_capability_v1",
+        displayName: "Typo capability",
+        policy,
+        featurePolicy: {
+          capabilities: ["chat", "doctor_reseach"],
+          imageGeneration: null,
+          medcodeModels: null
+        },
+        scopeAllowlist: ["code"]
+      })
+    ).toThrow("Unsupported feature capability: doctor_reseach");
     store.close();
   });
 
@@ -530,6 +618,60 @@ describe("SqliteGatewayStore", () => {
       new Date("2026-01-03T00:00:00Z")
     );
     expect(expiring?.expiresAt.toISOString()).toBe("2026-01-03T00:00:00.000Z");
+    store.close();
+  });
+
+  it("persists validated credential public model allowlists and rejects invalid JSON", () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Research model token",
+      scope: "code",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      allowedPublicModels: ["max"],
+      knownPublicModelIds: ["max", "standard"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    store.insertAccessCredential(issued.record);
+    expect(
+      store.getAccessCredentialByPrefix(issued.record.prefix)?.allowedPublicModels
+    ).toEqual(["max"]);
+
+    const update = store.database.prepare(
+      "UPDATE access_credentials SET allowed_public_models_json = ? WHERE id = ?"
+    );
+    expect(() => update.run("[]", issued.record.id)).toThrow(
+      "access_credentials.allowed_public_models_json is invalid"
+    );
+    expect(() => update.run('["max","max"]', issued.record.id)).toThrow(
+      "access_credentials.allowed_public_models_json is invalid"
+    );
+    expect(() => update.run('{"model":"max"}', issued.record.id)).toThrow(
+      "access_credentials.allowed_public_models_json is invalid"
+    );
+    expect(() => update.run('[" Max "]', issued.record.id)).toThrow(
+      "access_credentials.allowed_public_models_json is invalid"
+    );
+
+    update.run(null, issued.record.id);
+    expect(
+      store.getAccessCredentialByPrefix(issued.record.prefix)?.allowedPublicModels
+    ).toBeNull();
+    store.database.exec(
+      "DROP TRIGGER trg_access_credentials_allowed_public_models_update"
+    );
+    update.run("[]", issued.record.id);
+    expect(
+      store.getAccessCredentialByPrefix(issued.record.prefix)
+        ?.allowedPublicModels
+    ).toEqual([]);
+    expect(store.listAccessCredentials()).toEqual([
+      expect.objectContaining({
+        id: issued.record.id,
+        allowedPublicModels: []
+      })
+    ]);
     store.close();
   });
 

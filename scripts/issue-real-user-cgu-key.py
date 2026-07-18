@@ -23,6 +23,8 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
+
 
 DEFAULT_GATEWAY_BASE_URL = "https://gw.instmarket.com.au"
 DEFAULT_PROVIDER = "manual_trial"
@@ -34,20 +36,10 @@ DEFAULT_OUTPUT_DIR = r"C:\Users\rdpuser\medevidence_api_keys"
 DEFAULT_VM_HOST = "4.242.58.89"
 DEFAULT_VM_USER = "qian"
 DEFAULT_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
-DEFAULT_REMOTE_REPO = "/home/qian/codex-gateway-release-4e61f98-20260511T230214Z"
 DEFAULT_COMPOSE_PROJECT = "codex_gateway_test"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
-
-SECRET_PATTERNS = [
-    (re.compile(r"cgu_live_[A-Za-z0-9]{64}"), "cgu_live_<redacted>"),
-    (re.compile(r"cgw\.[A-Za-z0-9._-]+"), "cgw.<redacted>"),
-    (re.compile(r"mev2_live_[A-Za-z0-9._-]+"), "mev2_live_<redacted>"),
-    (re.compile(r"bat_(?:test|live)_[A-Za-z0-9._-]+"), "bat_<redacted>"),
-    (re.compile(r"Bearer\s+[A-Za-z0-9._=-]+", re.IGNORECASE), "Bearer <redacted>"),
-]
-
 
 class IssueError(RuntimeError):
     pass
@@ -716,13 +708,6 @@ def tighten_file_permissions(path: Path) -> None:
             pass
     else:
         path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-
-
-def redact_secrets(value: str) -> str:
-    redacted = value
-    for pattern, replacement in SECRET_PATTERNS:
-        redacted = pattern.sub(replacement, redacted)
-    return redacted
 
 
 if __name__ == "__main__":

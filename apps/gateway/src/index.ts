@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import {
@@ -8,6 +9,7 @@ import {
   type BillingAdminTokenStore,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventStore,
+  credentialAllowsPublicModel,
   type CredentialAuthStore,
   decryptSecret,
   type Entitlement,
@@ -23,8 +25,12 @@ import {
   type PlanEntitlementStore,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type PublicModelAliasGroup,
   type RateLimitPolicy,
+  type ResearchStore,
+  type ResearchWorkerStore,
   type Scope,
+  type StreamEvent,
   type Subject,
   type SubjectStore,
   type TokenBudgetLimiter,
@@ -39,9 +45,11 @@ import {
   CodexProviderAdapter,
   type CodexProviderOptions
 } from "@codex-gateway/provider-codex";
+import { deleteResearchArtifactFiles } from "@codex-gateway/research-agent";
 import {
   buildQuotaDashboardData,
   buildRealtimeTokenUsageData,
+  createResearchSqliteStore,
   createSqliteClientEventsStore,
   createSqliteStore,
   createSqliteTokenBudgetLimiter,
@@ -74,6 +82,7 @@ import {
   resolveBillingAdminTokenMode,
   type BillingAdminTokenMode
 } from "./billing-admin.js";
+import { registerResearchRoutes } from "./research-routes.js";
 import {
   resolveUpstreamV2Client,
   type UpstreamV2Client
@@ -83,6 +92,7 @@ import { getGatewayContext, type GatewayRequestContext } from "./http/context.js
 import {
   applyGatewayErrorHeaders,
   gatewayErrorMetadata,
+  researchErrorPayload,
   type GatewayErrorResponseContext
 } from "./http/error-response.js";
 import {
@@ -212,7 +222,8 @@ import {
   resolvePublicModelRegistry,
   type OpenAICompatibleRuntimeKind,
   type PublicModelConfig,
-  type PublicModelPoolMemberConfig
+  type PublicModelPoolMemberConfig,
+  type PublicModelRegistry
 } from "./services/public-model-registry.js";
 
 export type GatewayAuthMode = "dev" | "credential";
@@ -243,9 +254,21 @@ export interface GatewayOptions {
   billingAdminStore?: BillingAdminStore;
   billingAdminRateLimiter?: CredentialRateLimiter;
   billingAdminRatePolicy?: RateLimitPolicy;
+  researchRateLimiter?: CredentialRateLimiter;
+  researchReadRatePolicy?: RateLimitPolicy;
+  researchMutationRatePolicy?: RateLimitPolicy;
+  researchWorkerHealthStore?: Pick<
+    ResearchWorkerStore,
+    "listWorkerHeartbeats"
+  >;
+  researchAcceptWhenWorkerUnavailable?: boolean;
+  researchWorkerStaleAfterSeconds?: number;
+  researchArtifactRoot?: string;
+  researchMaximumArtifactBytes?: number;
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
+  researchStore?: ResearchStore | null;
   imageGenerationProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackModel?: string;
@@ -371,6 +394,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   const publicMetadata = resolvePublicMetadata(options.publicMetadata, process.env, app.log);
   const publicGatewayBaseUrl = normalizeBaseUrl(process.env.GATEWAY_PUBLIC_BASE_URL);
   const publicModelRegistry = resolvePublicModelRegistry(process.env, app.log);
+  const publicModelAliasGroups = publicModelRegistry.models.map((model) => ({
+    id: model.id,
+    aliases: model.aliases
+  }));
+  const nativeSessionPublicModel = resolveNativeSessionPublicModel(
+    publicModelRegistry,
+    process.env
+  );
   const openRouterAdapters = createOpenRouterAdapters(publicModelRegistry.models, process.env, app.log);
   const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
   const aliyunAdapters = createAliyunAdapters(publicModelRegistry.models, process.env, app.log);
@@ -427,6 +458,45 @@ export function buildGateway(options: GatewayOptions = {}) {
   const planEntitlementStore =
     options.planEntitlementStore ??
     (isPlanEntitlementStore(sessions) ? sessions : undefined);
+  const defaultResearchRuntime =
+    options.researchStore === undefined
+      ? createDefaultResearchRuntime(process.env, app.log)
+      : null;
+  const researchMaintenanceTimers: NodeJS.Timeout[] = [];
+  const researchStore =
+    options.researchStore === undefined
+      ? defaultResearchRuntime?.store
+      : options.researchStore ?? undefined;
+  const researchRateLimiter =
+    options.researchRateLimiter ??
+    new InMemoryCredentialRateLimiter({ now: clock });
+  const researchReadRatePolicy =
+    options.researchReadRatePolicy ??
+    defaultResearchRuntime?.readRatePolicy ??
+    researchControlRatePolicy(120);
+  const researchMutationRatePolicy =
+    options.researchMutationRatePolicy ??
+    defaultResearchRuntime?.mutationRatePolicy ??
+    researchControlRatePolicy(30);
+  const researchWorkerHealthStore =
+    options.researchWorkerHealthStore ??
+    defaultResearchRuntime?.workerHealthStore ??
+    (isResearchWorkerHealthStore(researchStore)
+      ? researchStore
+      : undefined);
+  const researchAcceptWhenWorkerUnavailable =
+    options.researchAcceptWhenWorkerUnavailable ??
+    defaultResearchRuntime?.acceptWhenWorkerUnavailable ??
+    false;
+  const researchWorkerStaleAfterSeconds =
+    options.researchWorkerStaleAfterSeconds ??
+    defaultResearchRuntime?.workerStaleAfterSeconds ??
+    45;
+  const researchArtifactRoot =
+    options.researchArtifactRoot ?? defaultResearchRuntime?.artifactRoot;
+  const researchMaximumArtifactBytes =
+    options.researchMaximumArtifactBytes ??
+    defaultResearchRuntime?.maximumArtifactBytes;
   const imageGenerationProvider =
     options.imageGenerationProvider === undefined
       ? upstreamRouter.hasImageBindingDeclared()
@@ -499,14 +569,77 @@ export function buildGateway(options: GatewayOptions = {}) {
       prefix: "dev",
       label: "Development token",
       expiresAt: null,
-      rate: null
+      rate: null,
+      allowedPublicModels: null
     }
   };
 
   app.addHook("onClose", async () => {
+    for (const timer of researchMaintenanceTimers.splice(0)) {
+      clearInterval(timer);
+    }
     sessions.close?.();
     clientEventsStore?.close?.();
+    researchStore?.close?.();
   });
+
+  if (defaultResearchRuntime) {
+    const reconcileResearch = () => {
+      try {
+        const maintenanceNow = clock();
+        defaultResearchRuntime.maintenanceStore.reconcileTtl({
+          now: maintenanceNow,
+          batchSize: 100
+        });
+        defaultResearchRuntime.maintenanceStore.maintainIdempotency({
+          now: maintenanceNow,
+          batchSize: 100
+        });
+      } catch (error) {
+        app.log.error(
+          {
+            error_type: error instanceof Error ? error.name : "unknown"
+          },
+          "Research reconciliation failed."
+        );
+      }
+    };
+    const cleanupResearch = async () => {
+      try {
+        const cleaned =
+          defaultResearchRuntime.maintenanceStore.cleanupExpiredData({
+            now: clock(),
+            batchSize: 100
+          });
+        await deleteResearchArtifactFiles({
+          root: defaultResearchRuntime.artifactRoot,
+          storageRelativePaths: cleaned.artifactStorageRelativePaths
+        });
+      } catch (error) {
+        app.log.error(
+          {
+            error_type: error instanceof Error ? error.name : "unknown"
+          },
+          "Research cleanup failed."
+        );
+      }
+    };
+    app.addHook("onReady", async () => {
+      reconcileResearch();
+      await cleanupResearch();
+      const reconcileTimer = setInterval(
+        reconcileResearch,
+        defaultResearchRuntime.reconcileIntervalSeconds * 1_000
+      );
+      const cleanupTimer = setInterval(
+        () => void cleanupResearch(),
+        defaultResearchRuntime.cleanupIntervalSeconds * 1_000
+      );
+      reconcileTimer.unref();
+      cleanupTimer.unref();
+      researchMaintenanceTimers.push(reconcileTimer, cleanupTimer);
+    });
+  }
 
   app.addHook("onRequest", async (request, reply) => {
     startObservation(request);
@@ -577,6 +710,46 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.addHook("onResponse", async (request, reply) => {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
+  });
+
+  if (researchStore) {
+    registerResearchRoutes(app, {
+      store: researchStore,
+      planEntitlementStore,
+      rateLimiter: researchRateLimiter,
+      readRatePolicy: researchReadRatePolicy,
+      mutationRatePolicy: researchMutationRatePolicy,
+      workerHealthStore: researchWorkerHealthStore,
+      acceptWhenWorkerUnavailable: researchAcceptWhenWorkerUnavailable,
+      workerStaleAfterSeconds: researchWorkerStaleAfterSeconds,
+      artifactRoot: researchArtifactRoot,
+      maximumArtifactBytes: researchMaximumArtifactBytes,
+      now: clock
+    });
+  }
+
+  app.setNotFoundHandler(async (request, reply) => {
+    if (request.url.startsWith("/gateway/research/v1/")) {
+      const artifactRoute = request.url.startsWith(
+        "/gateway/research/v1/artifacts/"
+      );
+      const error = new GatewayError({
+        code: artifactRoute ? "artifact_not_found" : "run_not_found",
+        message: artifactRoute
+          ? "Research artifact was not found."
+          : "Research route was not found.",
+        httpStatus: 404
+      });
+      markGatewayError(request, error);
+      reply.code(404);
+      return researchErrorPayload(error, { requestId: request.id });
+    }
+    reply.code(404);
+    return {
+      message: `Route ${request.method}:${request.url} not found`,
+      error: "Not Found",
+      statusCode: 404
+    };
   });
 
   app.get(
@@ -684,6 +857,9 @@ export function buildGateway(options: GatewayOptions = {}) {
           scope,
           expires_at: credential.expiresAt?.toISOString() ?? null,
           rate: publicRatePolicy(credential.rate),
+          ...(credential.allowedPublicModels
+            ? { allowed_public_models: credential.allowedPublicModels }
+            : {}),
           ...(tokenPolicy ? { token: publicTokenPolicy(tokenPolicy) } : {})
         },
         ...(visibleEntitlement
@@ -1519,6 +1695,23 @@ export function buildGateway(options: GatewayOptions = {}) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
       return fail(modelNotFoundError(parsed.model));
     }
+    const { credential } = getGatewayContext(request);
+    if (
+      !credentialAllowsPublicModel(
+        credential.allowedPublicModels,
+        publicModel.id,
+        publicModelAliasGroups
+      )
+    ) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+      return fail(
+        new GatewayError({
+          code: "model_not_allowed_for_credential",
+          message: "Credential is not allowed to use this model.",
+          httpStatus: 403
+        })
+      );
+    }
     const reasoningEffort = resolveChatCompletionReasoningEffort(
       publicModel,
       parsed.reasoningEffort,
@@ -1730,7 +1923,6 @@ export function buildGateway(options: GatewayOptions = {}) {
       try {
         if (strictClientTools) {
           const onProviderError = createProviderErrorLogger(request);
-          writeInitialChunk();
           const strictResult = await runStrictClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
@@ -1751,11 +1943,10 @@ export function buildGateway(options: GatewayOptions = {}) {
             recordChatRuntimeErrorOutcome(attempt, strictResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
             request.gatewayErrorCode = strictResult.code;
-            sse.writeData(
-              openAIErrorPayload(strictResult, gatewayErrorResponseContext(request))
-            );
+            writeOpenAIStreamError(request, reply, sse, strictResult);
             failed = true;
           } else if (strictResult.toolCalls.length > 0) {
+            writeInitialChunk();
             activeRequest.markFirstByte();
             if (!sse.isClosed()) {
               attempt.recordSuccess();
@@ -1776,6 +1967,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
+            writeInitialChunk();
             activeRequest.markFirstByte();
             if (!sse.isClosed()) {
               attempt.recordSuccess();
@@ -1792,7 +1984,6 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         } else if (nativeClientTools) {
           const onProviderError = createProviderErrorLogger(request);
-          writeInitialChunk();
           const nativeResult = await runNativeClientTools({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
@@ -1814,11 +2005,10 @@ export function buildGateway(options: GatewayOptions = {}) {
             recordChatRuntimeErrorOutcome(attempt, nativeResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
-            sse.writeData(
-              openAIErrorPayload(nativeResult, gatewayErrorResponseContext(request))
-            );
+            writeOpenAIStreamError(request, reply, sse, nativeResult);
             failed = true;
           } else if (nativeResult.toolCalls.length > 0) {
+            writeInitialChunk();
             activeRequest.markFirstByte();
             if (!sse.isClosed()) {
               attempt.recordSuccess();
@@ -1847,6 +2037,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               }
             }
           } else {
+            writeInitialChunk();
             activeRequest.markFirstByte();
             if (!sse.isClosed()) {
               attempt.recordSuccess();
@@ -1867,6 +2058,10 @@ export function buildGateway(options: GatewayOptions = {}) {
             const onProviderError = createProviderErrorLogger(request);
             const providerSummary = new ProviderStreamSummaryCollector();
             const attemptKind = statelessAttempts > 1 ? "stateless_retry" : "primary";
+            const bufferedToolCalls: Array<
+              Extract<StreamEvent, { type: "tool_call" }>
+            > = [];
+            let attemptHasToolCalls = false;
             let retrying = false;
             for await (const event of attempt.adapter.message({
               upstreamAccount: attempt.adapterInputUpstreamAccount,
@@ -1919,41 +2114,37 @@ export function buildGateway(options: GatewayOptions = {}) {
                     break;
                   }
                 }
-                writeInitialChunk();
                 request.gatewayErrorCode = error.code;
                 markProviderStreamSummary(
                   request,
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
                 );
-                sse.writeData(
-                  openAIErrorPayload(error, gatewayErrorResponseContext(request))
-                );
+                writeOpenAIStreamError(request, reply, sse, error);
                 failed = true;
                 break;
+              }
+
+              if (event.type === "tool_call") {
+                if (parsed.toolChoice === "none") {
+                  continue;
+                }
+                attemptHasToolCalls = true;
+                bufferedToolCalls.push(event);
+                continue;
+              }
+              if (event.type === "message_delta" && attemptHasToolCalls) {
+                continue;
               }
 
               if (!writeInitialChunk()) {
                 break;
               }
               activeRequest.markFirstByte();
-              if (event.type === "tool_call") {
-                if (parsed.toolChoice === "none") {
-                  continue;
-                }
-                hasToolCalls = true;
-              }
-              if (event.type === "message_delta" && hasToolCalls) {
-                continue;
-              }
-
               const chunk = streamEventToChatCompletionChunk({
                 shape,
                 event,
                 toolCallIndex
               });
-              if (event.type === "tool_call") {
-                toolCallIndex += 1;
-              }
               if (chunk && !sse.writeData(chunk)) {
                 break;
               }
@@ -1971,23 +2162,57 @@ export function buildGateway(options: GatewayOptions = {}) {
                   providerStreamSummaryFromError(completionError) ?? successSummary;
                 providerSummaries.push(errorSummary);
                 attempt.recordError(completionError);
+                if (
+                  !initialChunkSent &&
+                  statelessAttempts < maxStatelessAttempts &&
+                  isStatelessRetryableProviderError(completionError) &&
+                  attempt.beginRetry
+                ) {
+                  attemptedAccountIds.add(attempt.runtimeInstanceId);
+                  attempt.release();
+                  const nextAttempt = attempt.beginRetry({
+                    excludeAccountIds: attemptedAccountIds
+                  });
+                  if (!(nextAttempt instanceof GatewayError)) {
+                    statelessAttempts += 1;
+                    attempt = nextAttempt;
+                    applyChatRuntimeContext(request, attempt);
+                    activeRequest.update({
+                      upstreamRuntime: attempt.runtime,
+                      upstreamAccountId: attempt.adapterInputUpstreamAccount.id
+                    });
+                    continue;
+                  }
+                }
                 request.gatewayErrorCode = completionError.code;
                 markProviderStreamSummary(
                   request,
                   combineProviderStreamSummaries(providerSummaries) ?? errorSummary
                 );
-                writeInitialChunk();
-                sse.writeData(
-                  openAIErrorPayload(
-                    completionError,
-                    gatewayErrorResponseContext(request)
-                  )
-                );
+                writeOpenAIStreamError(request, reply, sse, completionError);
                 failed = true;
                 break;
               }
               providerSummaries.push(successSummary);
               attempt.recordSuccess();
+              if (bufferedToolCalls.length > 0) {
+                if (!writeInitialChunk()) {
+                  break;
+                }
+                activeRequest.markFirstByte();
+                hasToolCalls = true;
+                for (const toolCall of bufferedToolCalls) {
+                  const chunk = streamEventToChatCompletionChunk({
+                    shape,
+                    event: toolCall,
+                    toolCallIndex
+                  });
+                  toolCallIndex += 1;
+                  if (chunk && !sse.writeData(chunk)) {
+                    break;
+                  }
+                }
+              }
               markProviderStreamSummary(
                 request,
                 combineProviderStreamSummaries(providerSummaries) ?? successSummary
@@ -2295,6 +2520,22 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   app.post("/sessions", async (request, reply) => {
+    if (!nativeSessionPublicModel) {
+      return sendError(
+        request,
+        reply,
+        nativeSessionsUnavailable()
+      );
+    }
+    const modelAccessError = credentialPublicModelAccessError(
+      request,
+      nativeSessionPublicModel.id,
+      publicModelAliasGroups
+    );
+    if (modelAccessError) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+      return sendError(request, reply, modelAccessError);
+    }
     const selected = upstreamRouter.selectForNewSession({
       affinityKey: requestAffinityKey(request, upstreamRouter.softAffinity)
     });
@@ -2305,7 +2546,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     const { subject, upstreamAccount } = getGatewayContext(request);
     const session = sessions.create({
       subjectId: subject.id,
-      upstreamAccountId: upstreamAccount.id
+      upstreamAccountId: upstreamAccount.id,
+      publicModelId: nativeSessionPublicModel.id
     });
     markSession(request, session.id);
 
@@ -2334,6 +2576,24 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
+      const sessionPublicModelId =
+        session.publicModelId ?? nativeSessionPublicModel?.id;
+      if (!sessionPublicModelId) {
+        return sendError(
+          request,
+          reply,
+          nativeSessionsUnavailable()
+        );
+      }
+      const modelAccessError = credentialPublicModelAccessError(
+        request,
+        sessionPublicModelId,
+        publicModelAliasGroups
+      );
+      if (modelAccessError) {
+        request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+        return sendError(request, reply, modelAccessError);
+      }
       const lease = upstreamRouter.beginExistingSession(session.upstreamAccountId);
       if (lease instanceof GatewayError) {
         return sendError(request, reply, lease);
@@ -3021,6 +3281,21 @@ async function runStrictClientTools(
 
   const repairedParsed = repaired.parsed;
   if (repairedParsed instanceof GatewayError) {
+    const repairedCompletionError = providerCompletionError(
+      repaired.collected.providerSummary
+    );
+    if (repairedCompletionError) {
+      const repairedErrorSummary =
+        providerStreamSummaryFromError(repairedCompletionError) ??
+        repaired.collected.providerSummary;
+      return attachProviderStreamSummary(
+        repairedCompletionError,
+        combineProviderStreamSummaries([
+          first.collected.providerSummary,
+          repairedErrorSummary
+        ]) ?? repairedErrorSummary
+      );
+    }
     if (
       shouldFallbackStrictAutoPlainText({
         toolChoice: input.request.toolChoice,
@@ -3136,7 +3411,8 @@ async function collectStrictToolDecision(
     upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
-    suppressToolCalls: true
+    suppressToolCalls: true,
+    deferEmptyCompletionError: true
   });
   if (collected instanceof GatewayError) {
     return collected;
@@ -3282,6 +3558,9 @@ function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayE
   const errorContext = gatewayErrorResponseContext(request);
   applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
+  if (request.routeOptions.config?.responseDialect === "research") {
+    return researchErrorPayload(error, errorContext);
+  }
   return {
     error: {
       code: error.code,
@@ -3289,6 +3568,51 @@ function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayE
       ...gatewayErrorMetadata(error, errorContext)
     }
   };
+}
+
+function writeOpenAIStreamError(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  sse: SseHandle,
+  error: GatewayError
+): boolean {
+  const errorContext = gatewayErrorResponseContext(request);
+  const payload = openAIErrorPayload(error, errorContext);
+  if (reply.raw.headersSent) {
+    return sse.writeData(payload);
+  }
+
+  applyGatewayErrorHeaders(reply, error, errorContext);
+  reply.raw.statusCode = error.httpStatus;
+  reply.raw.setHeader("content-type", "application/json; charset=utf-8");
+  reply.raw.setHeader("cache-control", "no-store");
+  try {
+    return reply.raw.write(JSON.stringify(payload));
+  } catch {
+    return false;
+  }
+}
+
+function credentialPublicModelAccessError(
+  request: FastifyRequest,
+  canonicalPublicModelId: string,
+  aliasGroups: readonly PublicModelAliasGroup[]
+): GatewayError | null {
+  const { credential } = getGatewayContext(request);
+  if (
+    credentialAllowsPublicModel(
+      credential.allowedPublicModels,
+      canonicalPublicModelId,
+      aliasGroups
+    )
+  ) {
+    return null;
+  }
+  return new GatewayError({
+    code: "model_not_allowed_for_credential",
+    message: "Credential is not allowed to use this model.",
+    httpStatus: 403
+  });
 }
 
 function gatewayErrorResponseContext(
@@ -3852,7 +4176,8 @@ function authenticateClientSubscriptionPauseBearer(
       prefix: credential.prefix,
       label: credential.label,
       expiresAt: credential.expiresAt,
-      rate: credential.rate
+      rate: credential.rate,
+      allowedPublicModels: credential.allowedPublicModels
     }
   };
 }
@@ -3923,7 +4248,8 @@ function authenticateClientPauseUnifiedKey(
       prefix: credential.prefix,
       label: credential.label,
       expiresAt: credential.expiresAt,
-      rate: credential.rate
+      rate: credential.rate,
+      allowedPublicModels: credential.allowedPublicModels
     }
   };
 }
@@ -4129,6 +4455,7 @@ function createStatelessSession(subjectId: string, upstreamAccountId: string): G
     id: `sess_stateless_${randomUUID().replaceAll("-", "")}`,
     subjectId,
     upstreamAccountId,
+    publicModelId: null,
     providerSessionRef: null,
     title: null,
     state: "active",
@@ -4227,6 +4554,16 @@ function parsePositiveIntegerEnv(
   return parsed;
 }
 
+function parseRequiredPositiveIntegerEnv(
+  value: string | undefined,
+  name: string
+): number {
+  if (value === undefined || value.trim() === "") {
+    throw new Error(`${name} is required when Research API is enabled.`);
+  }
+  return parsePositiveIntegerEnv(value, 1, name);
+}
+
 function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
   const parsed = Number.parseInt(value ?? "", 10);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
@@ -4264,6 +4601,42 @@ function createDefaultSessionStore(logger?: { info: (message: string) => void })
   return new InMemorySessionStore();
 }
 
+function resolveNativeSessionPublicModel(
+  registry: PublicModelRegistry,
+  env: NodeJS.ProcessEnv
+): PublicModelConfig | null {
+  const configuredId = env.GATEWAY_NATIVE_SESSION_PUBLIC_MODEL_ID?.trim();
+  let model: PublicModelConfig | null | undefined;
+  if (configuredId) {
+    model = registry.get(configuredId);
+  } else {
+    const codexModels = registry.models.filter(
+      (candidate) => candidate.runtime === "codex" && candidate.enabled
+    );
+    model =
+      codexModels.find((candidate) => candidate.id === "max") ??
+      codexModels.find((candidate) =>
+        candidate.aliases.includes("medcode")
+      ) ??
+      (codexModels.length === 1 ? codexModels[0] : null);
+  }
+  if (configuredId && (!model || model.runtime !== "codex" || !model.enabled)) {
+    throw new Error(
+      "GATEWAY_NATIVE_SESSION_PUBLIC_MODEL_ID must identify one enabled codex public model."
+    );
+  }
+  return model ?? null;
+}
+
+function nativeSessionsUnavailable(): GatewayError {
+  return new GatewayError({
+    code: "service_unavailable",
+    message: "Native Codex sessions are not configured.",
+    httpStatus: 503,
+    retryAfterSeconds: 30
+  });
+}
+
 function createDefaultClientEventsStore(): ClientMessageEventStore | undefined {
   const sqlitePath = process.env.GATEWAY_CLIENT_EVENTS_SQLITE_PATH;
   if (!sqlitePath) {
@@ -4271,6 +4644,252 @@ function createDefaultClientEventsStore(): ClientMessageEventStore | undefined {
   }
 
   return createSqliteClientEventsStore({ path: sqlitePath });
+}
+
+function createDefaultResearchRuntime(
+  env: NodeJS.ProcessEnv,
+  logger: { info(message: string): void }
+): {
+  store: ResearchStore;
+  workerHealthStore: Pick<ResearchWorkerStore, "listWorkerHeartbeats">;
+  maintenanceStore: Pick<
+    ResearchWorkerStore,
+    "reconcileTtl" | "maintainIdempotency" | "cleanupExpiredData"
+  >;
+  readRatePolicy: RateLimitPolicy;
+  mutationRatePolicy: RateLimitPolicy;
+  acceptWhenWorkerUnavailable: boolean;
+  workerStaleAfterSeconds: number;
+  artifactRoot: string;
+  maximumArtifactBytes: number;
+  reconcileIntervalSeconds: number;
+  cleanupIntervalSeconds: number;
+} | null {
+  if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
+    return null;
+  }
+  const databasePath = env.RESEARCH_DB_PATH?.trim();
+  if (!databasePath) {
+    throw new Error(
+      "RESEARCH_DB_PATH is required when Research API is enabled."
+    );
+  }
+  assertDedicatedResearchDatabasePath(databasePath, env);
+  const artifactRoot = env.RESEARCH_ARTIFACT_ROOT?.trim();
+  if (!artifactRoot) {
+    throw new Error(
+      "RESEARCH_ARTIFACT_ROOT is required when Research API is enabled."
+    );
+  }
+  const readRpm = parseRequiredPositiveIntegerEnv(
+    env.RESEARCH_CONTROL_READ_RPM,
+    "RESEARCH_CONTROL_READ_RPM"
+  );
+  const mutationRpm = parseRequiredPositiveIntegerEnv(
+    env.RESEARCH_CONTROL_MUTATION_RPM,
+    "RESEARCH_CONTROL_MUTATION_RPM"
+  );
+  const maximumCheckpointBytes = parsePositiveIntegerEnv(
+    env.RESEARCH_MAX_CHECKPOINT_BYTES,
+    1_048_576,
+    "RESEARCH_MAX_CHECKPOINT_BYTES"
+  );
+  const maximumResultBytes = parsePositiveIntegerEnv(
+    env.RESEARCH_MAX_RESULT_BYTES,
+    4_194_304,
+    "RESEARCH_MAX_RESULT_BYTES"
+  );
+  const maximumArtifactBytes = parsePositiveIntegerEnv(
+    env.RESEARCH_MAX_ARTIFACT_BYTES,
+    1_048_576,
+    "RESEARCH_MAX_ARTIFACT_BYTES"
+  );
+  const acceptWhenWorkerUnavailable = parseResearchBoolean(
+    env.RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE,
+    false,
+    "RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE"
+  );
+  const workerStaleAfterSeconds = parsePositiveIntegerEnv(
+    env.RESEARCH_HEARTBEAT_STALE_SECONDS,
+    45,
+    "RESEARCH_HEARTBEAT_STALE_SECONDS"
+  );
+  const reconcileIntervalSeconds = parsePositiveIntegerEnv(
+    env.RESEARCH_RECONCILE_INTERVAL_SECONDS,
+    60,
+    "RESEARCH_RECONCILE_INTERVAL_SECONDS"
+  );
+  const cleanupIntervalSeconds = parsePositiveIntegerEnv(
+    env.RESEARCH_CLEANUP_INTERVAL_SECONDS,
+    3_600,
+    "RESEARCH_CLEANUP_INTERVAL_SECONDS"
+  );
+  const store = createResearchSqliteStore({
+    path: databasePath,
+    limits: {
+      dailyRunsPerSubject: parseRequiredPositiveIntegerEnv(
+        env.RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT,
+        "RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT"
+      ),
+      uniqueDoctors30dPerSubject: parseRequiredPositiveIntegerEnv(
+        env.RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D,
+        "RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D"
+      ),
+      globalActiveRuns: parseRequiredPositiveIntegerEnv(
+        env.RESEARCH_MAX_QUEUED_RUNS,
+        "RESEARCH_MAX_QUEUED_RUNS"
+      ),
+      needsInputPerSubject: parseRequiredPositiveIntegerEnv(
+        env.RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT,
+        "RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT"
+      )
+    },
+    idempotencyReplaySeconds: parsePositiveIntegerEnv(
+      env.RESEARCH_IDEMPOTENCY_REPLAY_SECONDS,
+      604_800,
+      "RESEARCH_IDEMPOTENCY_REPLAY_SECONDS"
+    ),
+    idempotencyTombstoneSeconds: parsePositiveIntegerEnv(
+      env.RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS,
+      2_592_000,
+      "RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS"
+    ),
+    resultTtlSeconds: parsePositiveIntegerEnv(
+      env.RESEARCH_RESULT_TTL_SECONDS,
+      2_592_000,
+      "RESEARCH_RESULT_TTL_SECONDS"
+    ),
+    runRetentionSeconds: parsePositiveIntegerEnv(
+      env.RESEARCH_RUN_RETENTION_SECONDS,
+      7_776_000,
+      "RESEARCH_RUN_RETENTION_SECONDS"
+    ),
+    needsInputTtlSeconds: parsePositiveIntegerEnv(
+      env.RESEARCH_NEEDS_INPUT_TTL_SECONDS,
+      259_200,
+      "RESEARCH_NEEDS_INPUT_TTL_SECONDS"
+    ),
+    maximumCheckpointBytes,
+    maximumResultBytes,
+    logger
+  });
+  return {
+    store,
+    workerHealthStore: store,
+    maintenanceStore: store,
+    readRatePolicy: researchControlRatePolicy(readRpm),
+    mutationRatePolicy: researchControlRatePolicy(mutationRpm),
+    acceptWhenWorkerUnavailable,
+    workerStaleAfterSeconds,
+    artifactRoot: path.resolve(artifactRoot),
+    maximumArtifactBytes,
+    reconcileIntervalSeconds,
+    cleanupIntervalSeconds
+  };
+}
+
+function parseResearchEnabled(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === "") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0") {
+    return false;
+  }
+  throw new Error("RESEARCH_API_ENABLED must be true/false or 1/0.");
+}
+
+function parseResearchBoolean(
+  value: string | undefined,
+  fallback: boolean,
+  name: string
+): boolean {
+  if (value === undefined || value.trim() === "") {
+    return fallback;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0") {
+    return false;
+  }
+  throw new Error(`${name} must be true/false or 1/0.`);
+}
+
+function assertDedicatedResearchDatabasePath(
+  databasePath: string,
+  env: NodeJS.ProcessEnv
+): void {
+  if (
+    databasePath === ":memory:" &&
+    env.NODE_ENV?.trim().toLowerCase() === "production"
+  ) {
+    throw new Error("RESEARCH_DB_PATH cannot be :memory: in production.");
+  }
+  if (databasePath === ":memory:") {
+    return;
+  }
+  const researchPath = comparableFilesystemPath(databasePath);
+  for (const [name, configuredPath] of [
+    ["GATEWAY_SQLITE_PATH", env.GATEWAY_SQLITE_PATH],
+    [
+      "GATEWAY_CLIENT_EVENTS_SQLITE_PATH",
+      env.GATEWAY_CLIENT_EVENTS_SQLITE_PATH
+    ]
+  ] as const) {
+    if (
+      configuredPath &&
+      configuredPath !== ":memory:" &&
+      comparableFilesystemPath(configuredPath) === researchPath
+    ) {
+      throw new Error(`RESEARCH_DB_PATH must not reuse ${name}.`);
+    }
+  }
+}
+
+function comparableFilesystemPath(value: string): string {
+  const resolved = path.resolve(value.trim());
+  let canonical = resolved;
+  try {
+    canonical = realpathSync.native(resolved);
+  } catch {
+    try {
+      canonical = path.join(
+        realpathSync.native(path.dirname(resolved)),
+        path.basename(resolved)
+      );
+    } catch {
+      canonical = resolved;
+    }
+  }
+  return process.platform === "win32"
+    ? canonical.toLowerCase()
+    : canonical;
+}
+
+function isResearchWorkerHealthStore(
+  value: ResearchStore | undefined
+): value is ResearchStore &
+  Pick<ResearchWorkerStore, "listWorkerHeartbeats"> {
+  return (
+    value !== undefined &&
+    typeof (value as Partial<ResearchWorkerStore>).listWorkerHeartbeats ===
+      "function"
+  );
+}
+
+function researchControlRatePolicy(
+  requestsPerMinute: number
+): RateLimitPolicy {
+  return {
+    requestsPerMinute,
+    requestsPerDay: null,
+    concurrentRequests: null
+  };
 }
 
 function clientEventsRateLimitKey(

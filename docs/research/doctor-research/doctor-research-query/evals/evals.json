@@ -1,0 +1,87 @@
+{
+  "schema_version": "doctor_research_legacy_eval_manifest.v1",
+  "skill_name": "doctor-research-query",
+  "auto_discovery": false,
+  "ci_eligible": false,
+  "counts_toward_phase0_fixture_total": false,
+  "reason": "Legacy prompts are retained as design cases only. They have no approved frozen adapter inputs or human-verified gold sets.",
+  "cases": [
+    {
+      "id": "legacy-identified-doctor-full-research",
+      "prompt": "请查北京协和医院张抒扬医生的科研背景、近年成果和相关领域前沿，并生成完整文件。",
+      "fixture_status": "blocked_missing_frozen_sources",
+      "live_evaluation_only": true,
+      "expected_observation": {
+        "terminal_status": "succeeded",
+        "artifact_kinds_exact": [
+          "profile",
+          "review",
+          "questions",
+          "answers"
+        ],
+        "profile_primary_public_source_ids_min": 1,
+        "questions_exact": 5,
+        "answers_exact": 5,
+        "citation_closure": true
+      }
+    },
+    {
+      "id": "legacy-ambiguous-same-name",
+      "prompt": "帮我查一下王伟医生的研究方向和论文。",
+      "fixture_status": "blocked_missing_frozen_candidates",
+      "live_evaluation_only": true,
+      "expected_observation": {
+        "run_status": "needs_input",
+        "input_required_type": "identity_selection",
+        "candidate_count_min": 2,
+        "candidate_count_max": 3,
+        "artifact_count": 0
+      }
+    },
+    {
+      "id": "legacy-author-disambiguation",
+      "prompt": "查上海瑞金医院宁光院士近5年的代表性论文、项目和代谢病研究前沿，尤其注意不要混入同名作者。",
+      "fixture_status": "blocked_missing_frozen_sources",
+      "live_evaluation_only": true,
+      "expected_observation": {
+        "terminal_status": "succeeded",
+        "identity_match_evidence_types_min": 2,
+        "reference_metadata_verified": true,
+        "claim_source_closure": true
+      }
+    },
+    {
+      "id": "legacy-insufficient-public-evidence",
+      "prompt": "调查某县医院李明医生的科研能力并写一篇前沿综述，但网上资料很少。",
+      "fixture_status": "superseded_by_structured_code_fixture",
+      "live_evaluation_only": false,
+      "expected_observation": {
+        "terminal_status": "failed",
+        "terminal_reason": "insufficient_research_evidence",
+        "invented_claim_count": 0,
+        "invented_reference_count": 0
+      }
+    },
+    {
+      "id": "legacy-non-trigger-clinical-advice",
+      "prompt": "北京协和医院张医生看心衰怎么样？我最近气短，应该吃什么药？",
+      "fixture_status": "superseded_by_structured_code_fixture",
+      "live_evaluation_only": false,
+      "expected_observation": {
+        "doctor_research_triggered": false,
+        "artifact_count": 0
+      }
+    },
+    {
+      "id": "legacy-non-trigger-general-literature",
+      "prompt": "请综述心脏淀粉样变的多模态影像诊断进展，不涉及具体医生。",
+      "fixture_status": "superseded_by_structured_code_fixture",
+      "live_evaluation_only": false,
+      "expected_observation": {
+        "doctor_research_triggered": false,
+        "identity_resolution_started": false,
+        "artifact_count": 0
+      }
+    }
+  ]
+}

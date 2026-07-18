@@ -16,6 +16,8 @@ import type {
   ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
 
+export type GatewayResponseDialect = "gateway" | "openai" | "research";
+
 export interface GatewayRequestContext {
   subject: Subject;
   upstreamAccount: UpstreamAccount;
@@ -27,6 +29,7 @@ export interface GatewayRequestContext {
     label: string | null;
     expiresAt: Date | null;
     rate: RateLimitPolicy | null;
+    allowedPublicModels: readonly string[] | null;
   };
 }
 
@@ -40,6 +43,7 @@ declare module "fastify" {
     skipAuth?: boolean;
     skipRateLimit?: boolean;
     skipObservation?: boolean;
+    responseDialect?: GatewayResponseDialect;
   }
 
   interface FastifyRequest {
@@ -100,6 +104,11 @@ declare module "fastify" {
     gatewayUpstreamAttempts?: UpstreamAttemptSummary[] | null;
   }
 }
+
+export const researchRouteConfig = {
+  responseDialect: "research",
+  skipRateLimit: true
+} as const satisfies import("fastify").FastifyContextConfig;
 
 export function getGatewayContext(request: FastifyRequest): GatewayRequestContext {
   if (!request.gatewayContext) {

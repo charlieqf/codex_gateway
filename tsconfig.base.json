@@ -15,6 +15,7 @@
     "paths": {
       "@codex-gateway/core": ["packages/core/src/index.ts"],
       "@codex-gateway/provider-codex": ["packages/provider-codex/src/index.ts"],
+      "@codex-gateway/research-agent": ["packages/research-agent/src/index.ts"],
       "@codex-gateway/store-sqlite": ["packages/store-sqlite/src/index.ts"]
     },
     "rootDir": ".",

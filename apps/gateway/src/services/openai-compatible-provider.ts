@@ -78,6 +78,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
       let usage: TokenUsage | undefined;
       let finishReason: string | null = null;
+      let semanticOutputChars = 0;
       let sawDone = false;
       let sawFinishReason = false;
       const rawResponseHash = createHash("sha256");
@@ -92,7 +93,31 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         }
         rawResponseHash.update(chunk.rawData, "utf8");
         rawResponseChars += chunk.rawData.length;
+        const upstreamStreamError = openAIStreamError(chunk.value);
+        if (upstreamStreamError) {
+          const normalized = this.normalizeAndReport(
+            upstreamStreamError,
+            "stream_error_frame",
+            input
+          );
+          yield {
+            type: "error",
+            code: normalized.code,
+            message: normalized.message,
+            responseSummary: {
+              finishReason,
+              upstreamRequestId: upstreamRequestId(response.headers),
+              upstreamHttpStatus: response.status,
+              semanticOutputChars,
+              rawResponseHash: rawResponseHash.digest("hex"),
+              rawResponseChars,
+              terminationKind: "error"
+            }
+          };
+          return;
+        }
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
+        semanticOutputChars += event.semanticOutputChars;
         for (const mappedEvent of event.events) {
           yield mappedEvent;
         }
@@ -109,6 +134,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         finishReason,
         upstreamRequestId: upstreamRequestId(response.headers),
         upstreamHttpStatus: response.status,
+        semanticOutputChars,
         rawResponseHash: rawResponseHash.digest("hex"),
         rawResponseChars,
         terminationKind
@@ -306,6 +332,7 @@ interface ParsedOpenAIChunk {
   events: StreamEvent[];
   usage?: TokenUsage;
   finishReason: string | null;
+  semanticOutputChars: number;
 }
 
 interface ParsedOpenAISseData {
@@ -384,9 +411,6 @@ function providerStreamTermination(
   if (sawDone) {
     return "done";
   }
-  if (sawFinishReason) {
-    return "finish_reason";
-  }
   return "eof_before_terminal";
 }
 
@@ -395,34 +419,150 @@ function mapOpenAIStreamChunk(
   nativeToolCalls: NativeToolCallAccumulator | null = null
 ): ParsedOpenAIChunk {
   if (!isRecord(chunk)) {
-    return { events: [], finishReason: null };
+    return { events: [], finishReason: null, semanticOutputChars: 0 };
   }
   const usage = mapUsage(chunk.usage);
   const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
   const choice = choices[0];
   if (!isRecord(choice)) {
-    return usage ? { events: [], usage, finishReason: null } : { events: [], finishReason: null };
+    return usage
+      ? { events: [], usage, finishReason: null, semanticOutputChars: 0 }
+      : { events: [], finishReason: null, semanticOutputChars: 0 };
   }
 
   const events: StreamEvent[] = [];
   const delta = choice.delta;
+  let semanticOutputChars = 0;
   if (isRecord(delta)) {
     const content = delta.content;
     if (typeof content === "string" && content.length > 0) {
       events.push({ type: "message_delta", text: content });
+      semanticOutputChars += content.length;
+    }
+    const refusal = delta.refusal;
+    if (typeof refusal === "string" && refusal.length > 0) {
+      events.push({ type: "message_delta", text: refusal });
+      semanticOutputChars += refusal.length;
+    }
+    const reasoningContent =
+      typeof delta.reasoning_content === "string"
+        ? delta.reasoning_content
+        : typeof delta.reasoning === "string"
+          ? delta.reasoning
+          : "";
+    if (reasoningContent.length > 0) {
+      semanticOutputChars += reasoningContent.length;
+    }
+    if (nativeToolCalls === null) {
+      semanticOutputChars += structuredOutputChars(delta.tool_calls);
+      semanticOutputChars += structuredOutputChars(delta.function_call);
     }
     nativeToolCalls?.append(delta.tool_calls);
-  }
-
-  if (nativeToolCalls && choice.finish_reason === "tool_calls") {
-    events.push(...nativeToolCalls.drain());
   }
 
   return {
     events,
     ...(usage ? { usage } : {}),
-    finishReason: typeof choice.finish_reason === "string" ? choice.finish_reason : null
+    finishReason:
+      typeof choice.finish_reason === "string" ? choice.finish_reason : null,
+    semanticOutputChars
   };
+}
+
+function structuredOutputChars(value: unknown): number {
+  if (value === undefined || value === null) {
+    return 0;
+  }
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return 0;
+  }
+}
+
+function openAIStreamError(
+  chunk: unknown
+): GatewayError | UpstreamHttpError | null {
+  if (!isRecord(chunk) || chunk.error === undefined || chunk.error === null) {
+    return null;
+  }
+  const error = chunk.error;
+  const errorRecord = isRecord(error) ? error : null;
+  const rawText = safeJson(error);
+  const status =
+    firstHttpStatus(
+      errorRecord?.status,
+      errorRecord?.status_code,
+      errorRecord?.http_status,
+      errorRecord?.code,
+      chunk.status,
+      chunk.status_code
+    ) ?? inferredErrorStatus(errorRecord, rawText);
+  const classifierText = [
+    errorRecord?.code,
+    errorRecord?.type,
+    errorRecord?.message,
+    rawText
+  ]
+    .map((value) => (typeof value === "string" ? value : ""))
+    .join(" ");
+
+  if (/content[_ -]?filter|content[_ -]?policy|moderation|safety/i.test(classifierText)) {
+    return new GatewayError({
+      code: "content_policy_violation",
+      message: "MedCode upstream filtered the response for content policy reasons.",
+      httpStatus: 400,
+      ...(status !== null ? { upstreamStatus: status } : {})
+    });
+  }
+  return new UpstreamHttpError(status ?? 502, rawText);
+}
+
+function firstHttpStatus(...values: unknown[]): number | null {
+  for (const value of values) {
+    const numeric =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && /^\d{3}$/.test(value.trim())
+          ? Number(value)
+          : NaN;
+    if (Number.isInteger(numeric) && numeric >= 400 && numeric <= 599) {
+      return numeric;
+    }
+  }
+  return null;
+}
+
+function inferredErrorStatus(
+  error: Record<string, unknown> | null,
+  rawText: string
+): number | null {
+  const classifierText = [
+    error?.code,
+    error?.type,
+    error?.message,
+    rawText
+  ]
+    .map((value) => (typeof value === "string" ? value : ""))
+    .join(" ");
+  if (/rate[_ -]?limit|too many requests/i.test(classifierText)) {
+    return 429;
+  }
+  if (/invalid[_ -]?request|bad request/i.test(classifierText)) {
+    return 400;
+  }
+  if (/timeout|timed out/i.test(classifierText)) {
+    return 504;
+  }
+  return null;
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 interface PendingNativeToolCall {

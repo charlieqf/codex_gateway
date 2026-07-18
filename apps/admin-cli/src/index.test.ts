@@ -9,6 +9,7 @@ import {
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
 import { sanitizeAuditErrorMessage } from "./audit.js";
+import { allowedPublicModelsReadExpression } from "./commands/client-event-queries.js";
 
 const cleanupDirs: string[] = [];
 
@@ -19,6 +20,27 @@ afterEach(() => {
 });
 
 describe("codex-gateway-admin user API key operations", () => {
+  it("keeps read-only credential diagnostics compatible with pre-migration-22 databases", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec("CREATE TABLE access_credentials (id TEXT PRIMARY KEY)");
+      db.exec("PRAGMA query_only = ON");
+      expect(allowedPublicModelsReadExpression(db)).toBe(
+        "NULL AS allowed_public_models_json"
+      );
+      db.exec("PRAGMA query_only = OFF");
+      db.exec(
+        "ALTER TABLE access_credentials ADD COLUMN allowed_public_models_json TEXT"
+      );
+      db.exec("PRAGMA query_only = ON");
+      expect(allowedPublicModelsReadExpression(db)).toBe(
+        "allowed_public_models_json"
+      );
+    } finally {
+      db.close();
+    }
+  });
+
   it("redacts cmev1 and underlying keys from audit errors", () => {
     const cguKey = "cgu_live_" + "x".repeat(80);
     const billingToken = `bat_test_${"x".repeat(10)}.${"y".repeat(22)}`;
@@ -39,6 +61,105 @@ describe("codex-gateway-admin user API key operations", () => {
     expect(message).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
     expect(message).not.toContain("mev2_live_secret");
   });
+
+  it("sets, canonicalizes, updates, and preserves credential model allowlists", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-model-rotation-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const env = {
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        max: { aliases: ["medcode"] },
+        standard: {}
+      })
+    };
+    const issued = runCli(dbPath, [
+      "issue",
+      "--user",
+      "research-worker",
+      "--label",
+      "Research worker",
+      "--scope",
+      "code",
+      "--allowed-public-models",
+      "medcode"
+    ], env) as {
+      credential: {
+        id: string;
+        prefix: string;
+        allowed_public_models: string[];
+      };
+    };
+    expect(issued.credential.allowed_public_models).toEqual(["max"]);
+
+    const rotated = runCli(dbPath, [
+      "rotate",
+      issued.credential.prefix,
+      "--grace-hours",
+      "0"
+    ], {
+      MEDCODE_PUBLIC_MODELS_JSON: "",
+      MEDCODE_PUBLIC_MODELS_JSON_FILE: "",
+      MEDCODE_PUBLIC_MODEL_ID: "medcode"
+    }) as {
+      credential: {
+        prefix: string;
+        allowed_public_models: string[];
+      };
+    };
+
+    expect(rotated.credential.prefix).not.toBe(issued.credential.prefix);
+    expect(rotated.credential.allowed_public_models).toEqual(["max"]);
+
+    const corrupt = new DatabaseSync(dbPath);
+    try {
+      corrupt.exec(
+        "DROP TRIGGER trg_access_credentials_allowed_public_models_update"
+      );
+      corrupt
+        .prepare(
+          `UPDATE access_credentials
+           SET allowed_public_models_json = '[]'
+           WHERE prefix = ?`
+        )
+        .run(rotated.credential.prefix);
+    } finally {
+      corrupt.close();
+    }
+    expect(() =>
+      runCli(dbPath, [
+        "rotate",
+        rotated.credential.prefix,
+        "--grace-hours",
+        "0"
+      ])
+    ).toThrow();
+
+    const updated = runCli(dbPath, [
+      "update-key",
+      rotated.credential.prefix,
+      "--allowed-public-models",
+      "standard"
+    ], env) as {
+      credential: { allowed_public_models: string[] };
+    };
+    expect(updated.credential.allowed_public_models).toEqual(["standard"]);
+    expect(() =>
+      runCli(dbPath, [
+        "update-key",
+        rotated.credential.prefix,
+        "--allowed-public-models",
+        "maax"
+      ], env)
+    ).toThrow();
+
+    const unrestricted = runCli(dbPath, [
+      "update-key",
+      rotated.credential.prefix,
+      "--allowed-public-models",
+      "all"
+    ], env) as { credential: Record<string, unknown> };
+    expect(unrestricted.credential).not.toHaveProperty("allowed_public_models");
+  }, 20_000);
 
   it("issues, lists, shows, and revokes DB-backed billing admin tokens", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-billing-token-"));
@@ -1217,6 +1338,10 @@ describe("codex-gateway-admin user API key operations", () => {
     expect(html).toContain("今日 provider tokens");
     expect(html).toContain("近 7 天 provider tokens");
     expect(html).toContain("主要限流");
+    expect(html).toContain('research_active_brief: "Research 活跃 brief"');
+    expect(html).toContain(
+      'research_unique_doctors_30d: "Research 30 天不同医生"'
+    );
     expect(html).not.toContain("test-api-key-encryption-secret");
   }, 20_000);
 

@@ -9,6 +9,7 @@ import {
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
+  gatewayErrorRetryable,
   type GatewayErrorResponseContext
 } from "./http/error-response.js";
 
@@ -500,6 +501,8 @@ export function openAIErrorPayload(
       type: openAIErrorType(error),
       code: error.code,
       param: null,
+      retryable: gatewayErrorRetryable(error),
+      ...(context.requestId ? { request_id: context.requestId } : {}),
       ...gatewayErrorMetadata(error, context)
     }
   };

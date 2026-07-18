@@ -28,7 +28,14 @@ export type LimitKind =
   | "token_day"
   | "token_month"
   | "token_request_prompt"
-  | "token_request_total";
+  | "token_request_total"
+  | "research_control_read_minute"
+  | "research_control_mutation_minute"
+  | "research_active_brief"
+  | "research_needs_input"
+  | "research_daily_runs"
+  | "research_unique_doctors_30d"
+  | "research_global_queue";
 
 export interface AcquireInput {
   requestId: string;

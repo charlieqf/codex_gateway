@@ -57,6 +57,7 @@ import {
   encryptGatewaySecret,
   revealAccessCredentialToken
 } from "./crypto.js";
+import { resolvePublicModelAllowlistOption } from "./public-model-allowlist.js";
 import {
   parseAdminAuditAction,
   parseAdminAuditStatus,
@@ -1010,8 +1011,15 @@ program
   .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
   .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
   .option("--clear-token-policy", "remove token budget policy from this credential")
+  .option(
+    "--allowed-public-models <ids>",
+    "comma-separated configured public model IDs or aliases; use all for unrestricted"
+  )
   .option("--no-entitlement-check", "allow updating a key without an active entitlement during compatibility rollout")
   .action((prefix, options: UpdateKeyOptions) => {
+    const modelAllowlist = resolvePublicModelAllowlistOption(
+      options.allowedPublicModels
+    );
     withAuditedStore(
       {
         action: "update-key",
@@ -1044,7 +1052,8 @@ program
           label: options.label,
           scope: options.scope,
           expiresAt,
-          rate
+          rate,
+          allowedPublicModels: modelAllowlist?.models
         });
         if (!updated) {
           throw new Error(`Credential prefix not found: ${prefix}`);
@@ -1483,6 +1492,14 @@ program
         if (oldCredential.expiresAt.getTime() <= now.getTime()) {
           throw new Error(`Credential prefix is expired and cannot be rotated: ${prefix}`);
         }
+        if (
+          oldCredential.allowedPublicModels !== null &&
+          oldCredential.allowedPublicModels.length === 0
+        ) {
+          throw new Error(
+            `Credential ${prefix} has an invalid stored public-model allowlist; repair it with update-key --allowed-public-models before rotation.`
+          );
+        }
 
         const issued = issueAccessCredential({
           subjectId: oldCredential.subjectId,
@@ -1504,6 +1521,11 @@ program
         });
         const record = {
           ...issued.record,
+          // Rotation preserves already-stored authorization state. Only an
+          // explicit allowlist update is validated against the current registry.
+          allowedPublicModels: oldCredential.allowedPublicModels
+            ? [...oldCredential.allowedPublicModels]
+            : null,
           tokenCiphertext: encryptAccessCredentialToken(issued.token)
         };
         store.insertAccessCredential(record);
@@ -1584,6 +1606,7 @@ interface UpdateKeyOptions {
   missingUsageCharge?: MissingUsageCharge;
   clearTokenPolicy?: boolean;
   entitlementCheck?: boolean;
+  allowedPublicModels?: string;
 }
 
 interface UnifiedKeyIssueOptions {
@@ -2220,6 +2243,7 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
     concurrent: normalizeNullableIntegerOption(options.concurrent),
     token: requestedTokenPolicyParams(options),
     clear_token_policy: Boolean(options.clearTokenPolicy),
+    allowed_public_models: options.allowedPublicModels,
     no_entitlement_check: entitlementCheckBypassed(options)
   };
 }
@@ -2243,6 +2267,7 @@ function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
     options.rpm === undefined &&
     options.rpd === undefined &&
     options.concurrent === undefined &&
+    options.allowedPublicModels === undefined &&
     !hasTokenPolicyOption(options) &&
     !options.clearTokenPolicy
   ) {

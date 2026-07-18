@@ -4,6 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Command } from "commander";
 import {
+  decodeStoredAllowedPublicModelsJson,
   extractAccessCredentialPrefix,
   hashAccessCredential,
   type AccessCredentialRecord,
@@ -1122,7 +1123,8 @@ function getCredentialByPrefix(db: DatabaseSync, prefix: string): AccessCredenti
   const row = db
     .prepare(
       `SELECT id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at,
-              revoked_at, rate_json, created_at, rotates_id
+              revoked_at, rate_json, ${allowedPublicModelsReadExpression(db)},
+              created_at, rotates_id
        FROM access_credentials
        WHERE prefix = ?`
     )
@@ -1134,12 +1136,22 @@ function getCredentialById(db: DatabaseSync, id: string): AccessCredentialRecord
   const row = db
     .prepare(
       `SELECT id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at,
-              revoked_at, rate_json, created_at, rotates_id
+              revoked_at, rate_json, ${allowedPublicModelsReadExpression(db)},
+              created_at, rotates_id
        FROM access_credentials
        WHERE id = ?`
     )
     .get(id);
   return row ? rowToAccessCredential(row) : null;
+}
+
+export function allowedPublicModelsReadExpression(db: DatabaseSync): string {
+  const columns = db.prepare("PRAGMA table_info(access_credentials)").all() as Array<{
+    name: string;
+  }>;
+  return columns.some((column) => column.name === "allowed_public_models_json")
+    ? "allowed_public_models_json"
+    : "NULL AS allowed_public_models_json";
 }
 
 function rowToSubject(row: unknown): Subject {
@@ -1173,6 +1185,7 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     expires_at: string;
     revoked_at: string | null;
     rate_json: string;
+    allowed_public_models_json: string | null;
     created_at: string;
     rotates_id: string | null;
   };
@@ -1187,6 +1200,9 @@ function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     expiresAt: new Date(value.expires_at),
     revokedAt: value.revoked_at ? new Date(value.revoked_at) : null,
     rate: JSON.parse(value.rate_json),
+    allowedPublicModels: decodeStoredAllowedPublicModelsJson(
+      value.allowed_public_models_json
+    ),
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
   };

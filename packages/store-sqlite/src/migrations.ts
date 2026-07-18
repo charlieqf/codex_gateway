@@ -704,6 +704,101 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    22,
+    () => {
+      if (!tableExists(db, "access_credentials")) {
+        return;
+      }
+      if (!columnExists(db, "access_credentials", "allowed_public_models_json")) {
+        db.exec(
+          "ALTER TABLE access_credentials ADD COLUMN allowed_public_models_json TEXT"
+        );
+      }
+      db.exec(`
+        CREATE TRIGGER IF NOT EXISTS trg_access_credentials_allowed_public_models_insert
+        BEFORE INSERT ON access_credentials
+        WHEN NEW.allowed_public_models_json IS NOT NULL
+        BEGIN
+          SELECT CASE
+            WHEN json_valid(NEW.allowed_public_models_json) = 0
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN json_type(NEW.allowed_public_models_json) <> 'array'
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN json_array_length(NEW.allowed_public_models_json) = 0
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN EXISTS (
+              SELECT 1
+              FROM json_each(NEW.allowed_public_models_json)
+              WHERE type <> 'text'
+                 OR value = ''
+                 OR value <> trim(value)
+                 OR length(value) > 64
+                 OR value <> lower(value)
+                 OR value NOT GLOB '[a-z]*'
+                 OR value GLOB '*[^a-z0-9._-]*'
+            )
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN (
+              SELECT COUNT(*) FROM json_each(NEW.allowed_public_models_json)
+            ) <> (
+              SELECT COUNT(DISTINCT value) FROM json_each(NEW.allowed_public_models_json)
+            )
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+          END;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_access_credentials_allowed_public_models_update
+        BEFORE UPDATE OF allowed_public_models_json ON access_credentials
+        WHEN NEW.allowed_public_models_json IS NOT NULL
+        BEGIN
+          SELECT CASE
+            WHEN json_valid(NEW.allowed_public_models_json) = 0
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN json_type(NEW.allowed_public_models_json) <> 'array'
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN json_array_length(NEW.allowed_public_models_json) = 0
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN EXISTS (
+              SELECT 1
+              FROM json_each(NEW.allowed_public_models_json)
+              WHERE type <> 'text'
+                 OR value = ''
+                 OR value <> trim(value)
+                 OR length(value) > 64
+                 OR value <> lower(value)
+                 OR value NOT GLOB '[a-z]*'
+                 OR value GLOB '*[^a-z0-9._-]*'
+            )
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+            WHEN (
+              SELECT COUNT(*) FROM json_each(NEW.allowed_public_models_json)
+            ) <> (
+              SELECT COUNT(DISTINCT value) FROM json_each(NEW.allowed_public_models_json)
+            )
+              THEN RAISE(ABORT, 'access_credentials.allowed_public_models_json is invalid')
+          END;
+        END;
+      `);
+    },
+    logger
+  );
+
+  applyMigration(
+    db,
+    23,
+    () => {
+      if (
+        tableExists(db, "sessions") &&
+        !columnExists(db, "sessions", "public_model_id")
+      ) {
+        db.exec("ALTER TABLE sessions ADD COLUMN public_model_id TEXT");
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

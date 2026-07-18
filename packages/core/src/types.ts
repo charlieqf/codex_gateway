@@ -42,6 +42,7 @@ export interface AccessCredentialRecord {
   expiresAt: Date;
   revokedAt: Date | null;
   rate: RateLimitPolicy;
+  allowedPublicModels: string[] | null;
   createdAt: Date;
   rotatesId: string | null;
 }
@@ -331,6 +332,7 @@ export interface GatewaySession {
   id: string;
   subjectId: string;
   upstreamAccountId: string;
+  publicModelId: string | null;
   providerSessionRef: string | null;
   title: string | null;
   state: "active" | "archived" | "failed";
@@ -350,12 +352,14 @@ export type ProviderStreamTermination =
   | "finish_reason"
   | "done"
   | "finish_reason_and_done"
+  | "error"
   | "eof_before_terminal";
 
 export interface ProviderResponseSummary {
   finishReason?: string | null;
   upstreamRequestId?: string | null;
   upstreamHttpStatus?: number | null;
+  semanticOutputChars?: number | null;
   rawResponseHash?: string | null;
   rawResponseChars?: number | null;
   terminationKind?: ProviderStreamTermination | null;

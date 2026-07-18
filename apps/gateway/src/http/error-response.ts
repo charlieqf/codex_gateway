@@ -13,6 +13,12 @@ export interface GatewayErrorResponseContext {
   rateLimitOrigin?: RateLimitOrigin | null;
 }
 
+export type ResearchErrorCode = "research_quota_exceeded";
+
+export interface ResearchErrorResponseContext extends GatewayErrorResponseContext {
+  researchCode?: ResearchErrorCode | null;
+}
+
 export function applyGatewayErrorHeaders(
   reply: FastifyReply,
   error: GatewayError,
@@ -62,6 +68,39 @@ export function gatewayErrorMetadata(
           }
         }
       : {})
+  };
+}
+
+export function gatewayErrorRetryable(error: GatewayError): boolean {
+  return (
+    error.code === "rate_limited" ||
+    error.code === "upstream_timeout" ||
+    error.code === "upstream_unavailable" ||
+    error.code === "upstream_incomplete_stream" ||
+    error.code === "upstream_empty_response" ||
+    error.code === "research_worker_unavailable" ||
+    error.code === "research_storage_unavailable" ||
+    error.code === "service_unavailable"
+  );
+}
+
+export function researchErrorPayload(
+  error: GatewayError,
+  context: ResearchErrorResponseContext
+) {
+  const { request_id: _requestId, ...rateLimitMetadata } =
+    error.code === "rate_limited" || error.retryAfterSeconds !== undefined
+      ? gatewayErrorMetadata(error, context)
+      : {};
+  return {
+    schema_version: "doctor_research_error.v1",
+    request_id: context.requestId ?? null,
+    error: {
+      code: error.code,
+      ...(context.researchCode ? { research_code: context.researchCode } : {}),
+      message: error.message,
+      ...rateLimitMetadata
+    }
   };
 }
 

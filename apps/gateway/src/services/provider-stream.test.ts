@@ -205,6 +205,70 @@ describe("collectProviderMessage", () => {
     });
   });
 
+  it("treats a completed event without response metadata as an empty upstream response", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([{ type: "completed" }]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect((result as GatewayError).code).toBe("upstream_empty_response");
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      completed: true,
+      contentChars: 0,
+      toolCallCount: 0
+    });
+  });
+
+  it("treats provider iteration ending without a completed event as incomplete", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([{ type: "message_delta", text: "partial" }]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect((result as GatewayError).code).toBe("upstream_incomplete_stream");
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      completed: false,
+      contentChars: "partial".length,
+      errorCode: "upstream_incomplete_stream",
+      terminationKind: "eof_before_terminal"
+    });
+  });
+
+  it("maps content-filter completion to a non-retryable policy error", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "completed",
+          responseSummary: {
+            finishReason: "content_filter",
+            terminationKind: "finish_reason_and_done"
+          }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect(result).toMatchObject({
+      code: "content_policy_violation",
+      httpStatus: 400
+    });
+  });
+
   it("does not infer an upstream finish reason from visible content", async () => {
     const result = await collectProviderMessage({
       provider: fakeProvider([
@@ -271,6 +335,7 @@ function session(): GatewaySession {
     id: "session_1",
     subjectId: "subject_1",
     upstreamAccountId: "openrouter-main",
+    publicModelId: null,
     providerSessionRef: null,
     title: null,
     state: "active",

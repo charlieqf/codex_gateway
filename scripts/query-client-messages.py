@@ -13,31 +13,22 @@ import argparse
 import base64
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
+
 
 DEFAULT_VM_HOST = "4.242.58.89"
 DEFAULT_VM_USER = "qian"
 DEFAULT_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
-DEFAULT_REMOTE_REPO = "/home/qian/codex-gateway-release-4e61f98-20260511T230214Z"
 DEFAULT_COMPOSE_PROJECT = "codex_gateway_test"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 DEFAULT_GATEWAY_DB = "/var/lib/codex-gateway/gateway.db"
 DEFAULT_CLIENT_EVENTS_DB = "/var/lib/codex-gateway/client-events.db"
-
-SECRET_PATTERNS = [
-    (re.compile(r"cgu_live_[A-Za-z0-9]{64}"), "cgu_live_<redacted>"),
-    (re.compile(r"cgw\.[A-Za-z0-9._-]+"), "cgw.<redacted>"),
-    (re.compile(r"mev2_live_[A-Za-z0-9._-]+"), "mev2_live_<redacted>"),
-    (re.compile(r"bat_(?:test|live)_[A-Za-z0-9._-]+"), "bat_<redacted>"),
-    (re.compile(r"Bearer\s+[A-Za-z0-9._=-]+", re.IGNORECASE), "Bearer <redacted>"),
-]
-
 
 class QueryError(RuntimeError):
     pass
@@ -254,13 +245,6 @@ def expanded_ssh_key(value: str) -> Path:
 
 def shell_word(value: str) -> str:
     return "'" + value.replace("'", "'\"'\"'") + "'"
-
-
-def redact_secrets(value: str) -> str:
-    redacted = value
-    for pattern, replacement in SECRET_PATTERNS:
-        redacted = pattern.sub(replacement, redacted)
-    return redacted
 
 
 if __name__ == "__main__":

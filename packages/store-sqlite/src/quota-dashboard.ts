@@ -552,7 +552,14 @@ function rateLimitLabel(kind: RateLimitKind | null): string {
     token_day: "日 token",
     token_month: "月 token",
     token_request_prompt: "单请求 prompt token",
-    token_request_total: "单请求总 token"
+    token_request_total: "单请求总 token",
+    research_control_read_minute: "Research 分钟读取",
+    research_control_mutation_minute: "Research 分钟写入",
+    research_active_brief: "Research 活跃 brief",
+    research_needs_input: "Research 待输入",
+    research_daily_runs: "Research 每日任务",
+    research_unique_doctors_30d: "Research 30 天不同医生",
+    research_global_queue: "Research 全局队列"
   };
   return labels[kind] ?? kind;
 }
@@ -1396,7 +1403,14 @@ function renderQuotaDashboardDocument(input: {
         token_day: "日 token",
         token_month: "月 token",
         token_request_prompt: "单请求 prompt token",
-        token_request_total: "单请求总 token"
+        token_request_total: "单请求总 token",
+        research_control_read_minute: "Research 分钟读取",
+        research_control_mutation_minute: "Research 分钟写入",
+        research_active_brief: "Research 活跃 brief",
+        research_needs_input: "Research 待输入",
+        research_daily_runs: "Research 每日任务",
+        research_unique_doctors_30d: "Research 30 天不同医生",
+        research_global_queue: "Research 全局队列"
       })[kind] || kind;
     }
 

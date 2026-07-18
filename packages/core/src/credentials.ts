@@ -1,6 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { GatewayError } from "./errors.js";
+import { normalizeAllowedPublicModels } from "./public-model-access.js";
 import { normalizeRateLimitPolicy } from "./token-budget.js";
+import type { PublicModelAliasGroup } from "./public-model-usage.js";
 import type { AccessCredentialRecord, RateLimitPolicy, Scope } from "./types.js";
 
 export const accessCredentialTokenPrefix = "cgw";
@@ -11,6 +13,9 @@ export interface IssueAccessCredentialInput {
   scope: Scope;
   expiresAt: Date;
   rate?: Partial<RateLimitPolicy>;
+  allowedPublicModels?: readonly string[] | null;
+  knownPublicModelIds?: readonly string[];
+  publicModelAliases?: readonly PublicModelAliasGroup[];
   now?: Date;
   rotatesId?: string | null;
 }
@@ -21,6 +26,15 @@ export interface IssuedAccessCredential {
 }
 
 export function issueAccessCredential(input: IssueAccessCredentialInput): IssuedAccessCredential {
+  if (
+    input.allowedPublicModels !== undefined &&
+    input.allowedPublicModels !== null &&
+    input.knownPublicModelIds === undefined
+  ) {
+    throw new Error(
+      "knownPublicModelIds is required when allowedPublicModels is set."
+    );
+  }
   const prefix = randomTokenPart(10);
   const secret = randomTokenPart(32);
   const token = `${accessCredentialTokenPrefix}.${prefix}.${secret}`;
@@ -43,6 +57,11 @@ export function issueAccessCredential(input: IssueAccessCredentialInput): Issued
         concurrentRequests: input.rate?.concurrentRequests ?? 1,
         ...(input.rate?.token !== undefined ? { token: input.rate.token } : {})
       }),
+      allowedPublicModels: normalizeAllowedPublicModels(
+        input.allowedPublicModels,
+        input.knownPublicModelIds,
+        input.publicModelAliases
+      ),
       createdAt: now,
       rotatesId: input.rotatesId ?? null
     }

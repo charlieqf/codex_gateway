@@ -332,7 +332,39 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
 
 ## Daily Checks
 
-During the trial, check usage and recent operations at least once per day:
+From the operator workstation, use the read-only Python report for the current
+Sydney calendar day:
+
+```powershell
+python scripts\check-daily-usage-health.py
+```
+
+The report queries production through SSH key authentication and checks public
+and loopback health, VM resources, critical services, the Gateway container,
+TLS expiry, recent request health, per-user usage, models, upstream accounts,
+tokens, and error codes. Requests without a user id (for example rejected
+`missing_credential` traffic) are reported separately and are not counted as
+active users. The report does not read or print full API keys, phone numbers,
+container environment variables, or user prompts.
+
+Useful variants:
+
+```powershell
+# Machine-readable output for the current Sydney day.
+python scripts\check-daily-usage-health.py --format json
+
+# A completed historical Sydney calendar day.
+python scripts\check-daily-usage-health.py --date 2026-07-15
+
+# Return exit code 2 when the collected health state is warning or critical.
+python scripts\check-daily-usage-health.py --fail-on-unhealthy
+```
+
+Without `--fail-on-unhealthy`, exit code `0` means collection completed even if
+the report contains a warning; collection/connection failures return `1`.
+
+The lower-level container commands remain available as a manual fallback.
+During the trial, also check recent admin operations at least once per day:
 
 ```bash
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \

@@ -9,6 +9,7 @@ import {
   GatewayError,
   issueAccessCredential,
   issueUnifiedClientKey,
+  storedAllowedPublicModelsAreCorrupt,
   isBillingEventType,
   publicFeaturePolicy,
   validateBillingIdempotencyKey,
@@ -358,6 +359,32 @@ export function registerBillingAdminRoutes(
             })
           );
         }
+        const activeGatewayCredential =
+          options.credentialStore?.getAccessCredentialByPrefix(
+            activeUnifiedKey.codexCredentialPrefix
+          );
+        if (!activeGatewayCredential) {
+          return sendBillingError(
+            request,
+            reply,
+            serviceUnavailable(
+              "Prior Gateway credential authorization cannot be loaded; rotation was not performed."
+            )
+          );
+        }
+        if (
+          storedAllowedPublicModelsAreCorrupt(
+            activeGatewayCredential.allowedPublicModels
+          )
+        ) {
+          return sendBillingError(
+            request,
+            reply,
+            serviceUnavailable(
+              "Prior Gateway credential authorization is invalid; repair its public-model allowlist before rotation."
+            )
+          );
+        }
 
         const now = billingNow(options);
         const expiresAt = addDays(now, 365);
@@ -371,6 +398,13 @@ export function registerBillingAdminRoutes(
         });
         const gatewayRecord = {
           ...gatewayCredential.record,
+          // Rotation preserves the already-stored authorization snapshot. It
+          // must not depend on the current process registry, which may no
+          // longer advertise a previously authorized model.
+          allowedPublicModels:
+            activeGatewayCredential.allowedPublicModels === null
+              ? null
+              : [...activeGatewayCredential.allowedPublicModels],
           tokenCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret)
         };
         const unified = issueUnifiedClientKey({

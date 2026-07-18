@@ -27,7 +27,10 @@ export function auditCredentialSnapshot(record: AccessCredentialRecord) {
     scope: record.scope,
     expires_at: record.expiresAt.toISOString(),
     revoked_at: record.revokedAt?.toISOString() ?? null,
-    rate: record.rate
+    rate: record.rate,
+    ...(record.allowedPublicModels
+      ? { allowed_public_models: record.allowedPublicModels }
+      : {})
   };
 }
 
@@ -52,6 +55,9 @@ export function publicCredential(
     token_available: Boolean(record.tokenCiphertext),
     token_unavailable_reason: record.tokenCiphertext ? null : "not_stored",
     rate: record.rate,
+    ...(record.allowedPublicModels
+      ? { allowed_public_models: record.allowedPublicModels }
+      : {}),
     created_at: record.createdAt.toISOString(),
     rotates_id: record.rotatesId,
     user: subject ? publicSubject(subject) : null

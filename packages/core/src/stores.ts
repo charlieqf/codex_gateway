@@ -25,6 +25,7 @@ import type { PlanEntitlementStore } from "./plan-entitlement.js";
 export interface CreateGatewaySessionInput {
   subjectId: string;
   upstreamAccountId: string;
+  publicModelId?: string | null;
   now?: Date;
 }
 
@@ -62,6 +63,7 @@ export interface UpdateAccessCredentialInput {
   scope?: Scope;
   expiresAt?: Date;
   rate?: RateLimitPolicy;
+  allowedPublicModels?: string[] | null;
 }
 
 export interface AccessCredentialStore {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  credentialAllowsPublicModel,
+  decodeStoredAllowedPublicModelsJson,
   extractAccessCredentialPrefix,
   hashAccessCredential,
   issueAccessCredential,
@@ -24,10 +26,92 @@ describe("access credentials", () => {
     expect(issued.record.prefix).toMatch(/^[A-Za-z0-9]/);
     expect(issued.record.hash).toBe(hashAccessCredential(issued.token));
     expect(issued.record.hash).not.toContain(issued.token);
+    expect(issued.record.allowedPublicModels).toBeNull();
     expect(extractAccessCredentialPrefix(issued.token)).toBe(issued.record.prefix);
     expect(
       verifyAccessCredentialToken(issued.token, issued.record, new Date("2026-01-01T00:00:00Z"))
     ).toBeNull();
+  });
+
+  it("validates and copies explicit public model allowlists", () => {
+    const allowedPublicModels = ["max"];
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "research",
+      scope: "code",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      allowedPublicModels,
+      knownPublicModelIds: ["max", "standard"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+
+    allowedPublicModels.push("standard");
+    expect(issued.record.allowedPublicModels).toEqual(["max"]);
+    expect(() =>
+      issueAccessCredential({
+        subjectId: "subj_1",
+        label: "unknown model",
+        scope: "code",
+        expiresAt: new Date("2026-01-02T00:00:00Z"),
+        allowedPublicModels: ["unknown"],
+        knownPublicModelIds: ["max"],
+        now: new Date("2026-01-01T00:00:00Z")
+      })
+    ).toThrow("Unknown public model id 'unknown'.");
+    expect(() =>
+      issueAccessCredential({
+        subjectId: "subj_1",
+        label: "duplicate model",
+        scope: "code",
+        expiresAt: new Date("2026-01-02T00:00:00Z"),
+        allowedPublicModels: ["max", "max"],
+        knownPublicModelIds: ["max"],
+        now: new Date("2026-01-01T00:00:00Z")
+      })
+    ).toThrow("must not contain duplicate");
+    expect(() =>
+      issueAccessCredential({
+        subjectId: "subj_1",
+        label: "unchecked model",
+        scope: "code",
+        expiresAt: new Date("2026-01-02T00:00:00Z"),
+        allowedPublicModels: ["max"],
+        now: new Date("2026-01-01T00:00:00Z")
+      })
+    ).toThrow("knownPublicModelIds is required");
+
+    const aliasIssued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "alias model",
+      scope: "code",
+      expiresAt: new Date("2026-01-02T00:00:00Z"),
+      allowedPublicModels: ["medcode"],
+      knownPublicModelIds: ["max", "standard"],
+      publicModelAliases: [{ id: "max", aliases: ["medcode"] }],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(aliasIssued.record.allowedPublicModels).toEqual(["max"]);
+    expect(
+      credentialAllowsPublicModel(
+        ["medcode"],
+        "max",
+        [{ id: "max", aliases: ["medcode"] }]
+      )
+    ).toBe(true);
+    expect(() =>
+      issueAccessCredential({
+        subjectId: "subj_1",
+        label: "duplicate alias",
+        scope: "code",
+        expiresAt: new Date("2026-01-02T00:00:00Z"),
+        allowedPublicModels: ["max", "medcode"],
+        knownPublicModelIds: ["max"],
+        publicModelAliases: [{ id: "max", aliases: ["medcode"] }]
+      })
+    ).toThrow("duplicate canonical model ids");
+    expect(decodeStoredAllowedPublicModelsJson('["max"]')).toEqual(["max"]);
+    expect(decodeStoredAllowedPublicModelsJson("[]")).toEqual([]);
+    expect(decodeStoredAllowedPublicModelsJson("not-json")).toEqual([]);
   });
 
   it("rejects invalid, expired, and revoked tokens", () => {

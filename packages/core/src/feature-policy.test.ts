@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { publicFeaturePolicy, validateFeaturePolicy } from "./feature-policy.js";
+import {
+  decodeStoredFeaturePolicy,
+  publicFeaturePolicy,
+  validateFeaturePolicy
+} from "./feature-policy.js";
 
 describe("feature policy", () => {
   it("preserves medcode_models through validation and public serialization", () => {
@@ -46,5 +50,27 @@ describe("feature policy", () => {
         allowed: ["standard", "medcode", "expert", "pro"]
       }
     });
+  });
+
+  it("accepts doctor_research while preserving and rejecting truly future capabilities at the correct boundaries", () => {
+    const stored = {
+      capabilities: ["chat", "doctor_research", "future_capability"]
+    };
+
+    const decoded = decodeStoredFeaturePolicy(stored);
+    expect(decoded.capabilities).toEqual([
+      "chat",
+      "doctor_research",
+      "future_capability"
+    ]);
+    expect(publicFeaturePolicy(decoded)).toEqual(stored);
+    expect(
+      validateFeaturePolicy({
+        capabilities: ["chat", "doctor_research"]
+      }).capabilities
+    ).toEqual(["chat", "doctor_research"]);
+    expect(() => validateFeaturePolicy(stored)).toThrow(
+      "Unsupported feature capability: future_capability"
+    );
   });
 });

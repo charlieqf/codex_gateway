@@ -1,5 +1,6 @@
 import type { Scope } from "./types.js";
 import {
+  decodeStoredFeaturePolicy,
   defaultFeaturePolicy,
   validateFeaturePolicy,
   type FeaturePolicy
@@ -116,6 +117,10 @@ export function validatePlanPolicy(policy: TokenLimitPolicy): TokenLimitPolicy {
 
 export function validatePlanFeaturePolicy(policy: unknown): FeaturePolicy {
   return validateFeaturePolicy(policy ?? defaultFeaturePolicy());
+}
+
+export function decodePlanFeaturePolicy(policy: unknown): FeaturePolicy {
+  return decodeStoredFeaturePolicy(policy ?? defaultFeaturePolicy());
 }
 
 export function mergeEntitlementTokenPolicy(

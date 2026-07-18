@@ -16,6 +16,7 @@ export function create(
     id: `sess_${randomUUID()}`,
     subjectId: input.subjectId,
     upstreamAccountId: input.upstreamAccountId,
+    publicModelId: input.publicModelId ?? null,
     providerSessionRef: null,
     title: null,
     state: "active",
@@ -25,12 +26,14 @@ export function create(
 
   db.prepare(
     `INSERT INTO sessions (
-      id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      id, subject_id, upstream_account_id, public_model_id, provider_session_ref,
+      title, state, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     session.id,
     session.subjectId,
     session.upstreamAccountId,
+    session.publicModelId,
     session.providerSessionRef,
     session.title,
     session.state,

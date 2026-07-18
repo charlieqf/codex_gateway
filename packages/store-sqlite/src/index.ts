@@ -404,6 +404,12 @@ export {
 
 export { createSqliteClientEventsStore, SqliteClientEventsStore } from "./client-events-store.js";
 export {
+  createResearchSqliteStore,
+  ResearchSqliteStore,
+  type ResearchAdmissionLimits,
+  type ResearchSqliteStoreOptions
+} from "./research-store.js";
+export {
   buildQuotaDashboardData,
   renderQuotaDashboardHtml,
   renderQuotaDashboardPage,

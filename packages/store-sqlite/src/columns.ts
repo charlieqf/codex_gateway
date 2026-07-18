@@ -2,7 +2,7 @@ export const subjectColumns =
   "id, label, name, phone_number, external_provider, external_user_id, display_name, state, created_at";
 
 export const accessCredentialColumns =
-  "id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at, rate_json, created_at, rotates_id";
+  "id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at, rate_json, allowed_public_models_json, created_at, rotates_id";
 
 export const unifiedClientKeyColumns =
   "id, prefix, hash, subject_id, label, expires_at, revoked_at, codex_credential_id, codex_credential_prefix, codex_key_ciphertext, medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json";
@@ -20,7 +20,7 @@ export const adminAuditEventColumns =
   "id, action, target_user_id, target_credential_id, target_credential_prefix, status, params_json, error_message, created_at";
 
 export const sessionColumns =
-  "id, subject_id, upstream_account_id, provider_session_ref, title, state, created_at, updated_at";
+  "id, subject_id, upstream_account_id, public_model_id, provider_session_ref, title, state, created_at, updated_at";
 
 export const requestEventColumns =
   "request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider, public_model_id, upstream_runtime, upstream_model, reasoning_effort, reasoning_tokens, client_turn_id, turn_code, client_session_id, client_message_id, client_app_version, tool_choice, upstream_finish_reason, upstream_request_id, upstream_http_status, upstream_content_chars, upstream_tool_call_count, upstream_tool_names_json, upstream_raw_response_hash, upstream_raw_response_chars, upstream_empty_stop, upstream_attempt_count, upstream_attempts_json, started_at, duration_ms, first_byte_ms, status, error_code, rate_limited, prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens, estimated_tokens, gateway_estimated_prompt_tokens, gateway_prompt_estimate_method, model_context_tokens, model_max_output_tokens, active_tool_count, client_tool_mode, tool_loop_guard_json, usage_source, limit_kind, reservation_id, over_request_limit, identity_guard_hit";

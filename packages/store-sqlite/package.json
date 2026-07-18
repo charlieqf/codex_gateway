@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@codex-gateway/core": "0.1.0"
+    "@codex-gateway/core": "0.1.0",
+    "@codex-gateway/research-agent": "0.1.0"
   }
 }

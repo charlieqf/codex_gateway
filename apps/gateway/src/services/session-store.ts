@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { GatewaySession, GatewayStore } from "@codex-gateway/core";
+import type {
+  CreateGatewaySessionInput,
+  GatewaySession,
+  GatewayStore
+} from "@codex-gateway/core";
 
 export class InMemorySessionStore implements GatewayStore {
   private readonly sessions = new Map<string, GatewaySession>();
@@ -12,12 +16,13 @@ export class InMemorySessionStore implements GatewayStore {
     return;
   }
 
-  create(input: { subjectId: string; upstreamAccountId: string; now?: Date }): GatewaySession {
+  create(input: CreateGatewaySessionInput): GatewaySession {
     const now = input.now ?? new Date();
     const session: GatewaySession = {
       id: `sess_${randomUUID()}`,
       subjectId: input.subjectId,
       upstreamAccountId: input.upstreamAccountId,
+      publicModelId: input.publicModelId ?? null,
       providerSessionRef: null,
       title: null,
       state: "active",

@@ -19,6 +19,7 @@ export const gatewayErrorCodes = [
   "entitlement_already_active",
   "invalid_entitlement_transition",
   "model_not_found",
+  "model_not_allowed_for_credential",
   "rate_limited",
   "forbidden_scope",
   "plan_inactive",
@@ -40,6 +41,18 @@ export const gatewayErrorCodes = [
   // Public compatibility error code; do not rename during upstream account cleanup.
   "subscription_unavailable",
   "provider_reauth_required",
+  "research_capability_required",
+  "resource_access_denied",
+  "run_not_found",
+  "artifact_not_found",
+  "run_not_complete",
+  "identity_selection_not_expected",
+  "invalid_run_transition",
+  "run_expired",
+  "artifact_expired",
+  "research_worker_unavailable",
+  "research_storage_unavailable",
+  "research_backup_stale",
   "service_unavailable"
 ] as const;
 

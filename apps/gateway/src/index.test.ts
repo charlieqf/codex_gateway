@@ -70,6 +70,31 @@ class FakeProvider implements ProviderAdapter {
   }
 }
 
+class SequencedFakeProvider implements ProviderAdapter {
+  readonly kind = "fake";
+  readonly messages: MessageInput[] = [];
+  private sequenceIndex = 0;
+
+  constructor(private readonly eventSequences: StreamEvent[][]) {}
+
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
+    return {
+      state: "healthy",
+      checkedAt: new Date("2026-01-01T00:00:00Z")
+    };
+  }
+
+  async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    this.messages.push(input);
+    const events =
+      this.eventSequences[
+        Math.min(this.sequenceIndex, Math.max(0, this.eventSequences.length - 1))
+      ] ?? [];
+    this.sequenceIndex += 1;
+    yield* events;
+  }
+}
+
 class HangingChatProvider implements ProviderAdapter {
   readonly kind = "fake";
   readonly messages: MessageInput[] = [];
@@ -1934,6 +1959,18 @@ describe("gateway phase 1 routes", () => {
       expect(duplicateExternal.json().error.code).toBe("subject_already_exists");
       expect(upstreamV2Client.calls).toHaveLength(1);
 
+      const activeBeforeRotate = store.getBillingSubjectActiveUnifiedKey(
+        created.json().subject.id
+      );
+      expect(activeBeforeRotate).not.toBeNull();
+      store.database
+        .prepare(
+          `UPDATE access_credentials
+           SET allowed_public_models_json = '["retired-model"]'
+           WHERE prefix = ?`
+        )
+        .run(activeBeforeRotate!.codexCredentialPrefix);
+
       const rotated = await app.inject({
         method: "POST",
         url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/keys`,
@@ -1962,6 +1999,14 @@ describe("gateway phase 1 routes", () => {
       });
       expect(rotated.json().credential.key).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
       expect(rotated.json().credential.key).not.toBe(created.json().credential.key);
+      const activeAfterRotate = store.getBillingSubjectActiveUnifiedKey(
+        created.json().subject.id
+      );
+      expect(
+        store.getAccessCredentialByPrefix(
+          activeAfterRotate?.codexCredentialPrefix ?? ""
+        )?.allowedPublicModels
+      ).toEqual(["retired-model"]);
 
       const rotateReplay = await app.inject({
         method: "POST",
@@ -1980,6 +2025,61 @@ describe("gateway phase 1 routes", () => {
         idempotent_replay: true
       });
       expect(rotateReplay.json().credential).not.toHaveProperty("key");
+
+      const missingPriorCredential =
+        store.getBillingSubjectActiveUnifiedKey(created.json().subject.id);
+      expect(missingPriorCredential).not.toBeNull();
+      const getAccessCredentialByPrefix =
+        store.getAccessCredentialByPrefix.bind(store);
+      store.getAccessCredentialByPrefix = () => null;
+
+      const legacyRotate = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/keys`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key":
+            "medevidence_billing:bu_abc123:rotate_key:missing_gateway_row"
+        },
+        payload: {
+          reason: "legacy_gateway_row_missing"
+        }
+      });
+      store.getAccessCredentialByPrefix = getAccessCredentialByPrefix;
+      expect(legacyRotate.statusCode).toBe(503);
+      expect(legacyRotate.json().error).toMatchObject({
+        code: "service_unavailable",
+        message:
+          "Prior Gateway credential authorization cannot be loaded; rotation was not performed."
+      });
+      const activeAfterLegacyRotate =
+        store.getBillingSubjectActiveUnifiedKey(created.json().subject.id);
+      expect(activeAfterLegacyRotate?.id).toBe(missingPriorCredential?.id);
+      const priorCredential = store.getAccessCredentialByPrefix(
+        activeAfterLegacyRotate?.codexCredentialPrefix ?? ""
+      );
+      expect(priorCredential).not.toBeNull();
+      store.getAccessCredentialByPrefix = () => ({
+        ...priorCredential!,
+        allowedPublicModels: []
+      });
+      const corruptAuthorizationRotate = await app.inject({
+        method: "POST",
+        url: `/gateway/admin/billing/v1/subjects/${created.json().subject.id}/keys`,
+        headers: {
+          ...billingHeaders,
+          "Idempotency-Key":
+            "medevidence_billing:bu_abc123:rotate_key:corrupt_authorization"
+        },
+        payload: {
+          reason: "corrupt_authorization"
+        }
+      });
+      store.getAccessCredentialByPrefix = getAccessCredentialByPrefix;
+      expect(corruptAuthorizationRotate.statusCode).toBe(503);
+      expect(corruptAuthorizationRotate.json().error.message).toContain(
+        "repair its public-model allowlist"
+      );
 
       const disabled = await app.inject({
         method: "POST",
@@ -2000,7 +2100,9 @@ describe("gateway phase 1 routes", () => {
           id: created.json().subject.id,
           state: "disabled"
         },
-        revoked_unified_key_ids: expect.arrayContaining([rotated.json().credential.id])
+        revoked_unified_key_ids: expect.arrayContaining([
+          activeAfterLegacyRotate?.id
+        ])
       });
       expect(upstreamV2Client.disableCalls).toHaveLength(1);
       expect(upstreamV2Client.disableCalls[0]).toMatchObject({
@@ -4308,6 +4410,7 @@ describe("gateway phase 1 routes", () => {
         messages: [{ role: "user", content: "hello" }]
       }
     });
+    const requestId = expectRequestIdHeader(response);
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toEqual({
@@ -4315,12 +4418,234 @@ describe("gateway phase 1 routes", () => {
         message: "Model 'gpt-4' does not exist.",
         type: "invalid_request_error",
         code: "model_not_found",
-        param: null
+        param: null,
+        retryable: false,
+        request_id: requestId
       }
     });
     expect(provider.messages).toHaveLength(0);
 
     await app.close();
+  });
+
+  it("enforces credential model allowlists on canonical public model ids", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+      },
+      async () => {
+        const store = createSqliteStore({ path: ":memory:" });
+        const issued = issueAccessCredential({
+          subjectId: "subj_research",
+          label: "Research worker",
+          scope: "code",
+          expiresAt: new Date("2030-02-01T00:00:00Z"),
+          allowedPublicModels: ["max"],
+          knownPublicModelIds: Object.keys(publicModelRegistryFixture()),
+          now: new Date("2026-01-01T00:00:00Z")
+        });
+        store.upsertSubject({
+          id: "subj_research",
+          label: "Research Worker",
+          state: "active",
+          createdAt: new Date("2026-01-01T00:00:00Z")
+        });
+        store.insertAccessCredential(issued.record);
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "allowed" },
+          { type: "completed", providerSessionRef: "provider_thread_1" }
+        ]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider,
+          sessionStore: store,
+          logger: false
+        });
+        const headers = { authorization: `Bearer ${issued.token}` };
+
+        try {
+          const current = await app.inject({
+            method: "GET",
+            url: "/gateway/credentials/current",
+            headers
+          });
+          const allowedAlias = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "medcode",
+              messages: [{ role: "user", content: "Say allowed." }]
+            }
+          });
+          store.database
+            .prepare(
+              `UPDATE access_credentials
+               SET allowed_public_models_json = '["medcode"]'
+               WHERE id = ?`
+            )
+            .run(issued.record.id);
+          const allowedStoredAlias = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "medcode",
+              messages: [{ role: "user", content: "Allow a stored alias." }]
+            }
+          });
+          const denied = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "standard",
+              messages: [{ role: "user", content: "This must not run." }]
+            }
+          });
+          store.database.exec(
+            "DROP TRIGGER trg_access_credentials_allowed_public_models_update"
+          );
+          store.database
+            .prepare(
+              "UPDATE access_credentials SET allowed_public_models_json = '[]' WHERE id = ?"
+            )
+            .run(issued.record.id);
+          const corruptStoredAllowlist = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "medcode",
+              messages: [
+                {
+                  role: "user",
+                  content: "A corrupt stored allowlist must fail closed."
+                }
+              ]
+            }
+          });
+
+          expect(current.statusCode).toBe(200);
+          expect(current.json().credential.allowed_public_models).toEqual(["max"]);
+          expect(allowedAlias.statusCode).toBe(200);
+          expect(allowedStoredAlias.statusCode).toBe(200);
+          expect(denied.statusCode).toBe(403);
+          expect(denied.json()).toMatchObject({
+            error: {
+              code: "model_not_allowed_for_credential",
+              message: "Credential is not allowed to use this model."
+            }
+          });
+          expect(corruptStoredAllowlist.statusCode).toBe(403);
+          expect(corruptStoredAllowlist.json().error.code).toBe(
+            "model_not_allowed_for_credential"
+          );
+          expect(provider.messages).toHaveLength(2);
+        } finally {
+          await app.close();
+        }
+      }
+    );
+  });
+
+  it("enforces credential model allowlists on native session creation and messages", async () => {
+    const registry = publicModelRegistryFixture();
+    await withTemporaryEnv(
+      {
+        MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+        MEDCODE_PUBLIC_MODEL_ID: "standard",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry)
+      },
+      async () => {
+        const store = createSqliteStore({ path: ":memory:" });
+        const publicModelAliases = Object.entries(registry).map(
+          ([id, model]) => ({
+            id,
+            aliases: "aliases" in model ? model.aliases : []
+          })
+        );
+        const restricted = issueAccessCredential({
+          subjectId: "subj_native_model_guard",
+          label: "Standard-only worker",
+          scope: "code",
+          expiresAt: new Date("2030-02-01T00:00:00Z"),
+          allowedPublicModels: ["standard"],
+          knownPublicModelIds: Object.keys(registry),
+          publicModelAliases,
+          now: new Date("2026-01-01T00:00:00Z")
+        });
+        const unrestricted = issueAccessCredential({
+          subjectId: "subj_native_model_guard",
+          label: "Unrestricted session creator",
+          scope: "code",
+          expiresAt: new Date("2030-02-01T00:00:00Z"),
+          now: new Date("2026-01-01T00:00:00Z")
+        });
+        store.upsertSubject({
+          id: "subj_native_model_guard",
+          label: "Native Session Guard",
+          state: "active",
+          createdAt: new Date("2026-01-01T00:00:00Z")
+        });
+        store.insertAccessCredential(restricted.record);
+        store.insertAccessCredential(unrestricted.record);
+        const provider = new FakeProvider([
+          { type: "message_delta", text: "must not run" },
+          { type: "completed", providerSessionRef: "provider_thread_1" }
+        ]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider,
+          sessionStore: store,
+          logger: false
+        });
+        const restrictedHeaders = {
+          authorization: `Bearer ${restricted.token}`
+        };
+
+        try {
+          const deniedCreate = await app.inject({
+            method: "POST",
+            url: "/sessions",
+            headers: restrictedHeaders
+          });
+          const created = await app.inject({
+            method: "POST",
+            url: "/sessions",
+            headers: { authorization: `Bearer ${unrestricted.token}` }
+          });
+          const deniedMessage = await app.inject({
+            method: "POST",
+            url: `/sessions/${created.json().session.id}/messages`,
+            headers: restrictedHeaders,
+            payload: { message: "Bypass the model allowlist." }
+          });
+
+          expect(deniedCreate.statusCode).toBe(403);
+          expect(deniedCreate.json().error.code).toBe(
+            "model_not_allowed_for_credential"
+          );
+          expect(created.statusCode).toBe(201);
+          expect(
+            store.get(created.json().session.id)?.publicModelId
+          ).toBe("max");
+          expect(deniedMessage.statusCode).toBe(403);
+          expect(deniedMessage.json().error.code).toBe(
+            "model_not_allowed_for_credential"
+          );
+          expect(
+            store
+              .listRequestEvents()
+              .every((event) => event.publicModelId === null)
+          ).toBe(true);
+          expect(provider.messages).toHaveLength(0);
+        } finally {
+          await app.close();
+        }
+      }
+    );
   });
 
   it("applies request-level reasoning_effort to Max and rejects unsupported values", async () => {
@@ -6151,10 +6476,13 @@ describe("gateway phase 1 routes", () => {
                 messages: [{ role: "user", content: "Produce a complete response." }]
               }
             });
+            const requestId = expectRequestIdHeader(response);
 
             expect(response.statusCode).toBe(502);
             expect(response.json().error).toMatchObject({
-              code: "upstream_incomplete_stream"
+              code: "upstream_incomplete_stream",
+              retryable: true,
+              request_id: requestId
             });
             expect(store.listRequestEvents({ limit: 1 })).toEqual([
               expect.objectContaining({
@@ -8516,6 +8844,112 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("repairs a protocol-complete empty strict-tool response once", async () => {
+    const provider = new SequencedFakeProvider([
+      [{ type: "completed", providerSessionRef: "provider_thread_1" }],
+      [
+        {
+          type: "message_delta",
+          text: JSON.stringify({
+            type: "tool_calls",
+            tool_calls: [
+              {
+                name: "medevidence",
+                arguments: { question: "What evidence supports aspirin after MI?" }
+              }
+            ]
+          })
+        },
+        { type: "completed", providerSessionRef: "provider_thread_1" }
+      ]
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use the evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: "required"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().choices[0].finish_reason).toBe("tool_calls");
+    expect(response.json().choices[0].message.tool_calls[0].function.name).toBe(
+      "medevidence"
+    );
+    expect(provider.messages).toHaveLength(2);
+    expect(provider.messages[1].message).toContain("previous output was invalid");
+
+    await app.close();
+  });
+
+  it("returns upstream_empty_response when strict-tool repair is also empty", async () => {
+    const provider = new FakeProvider([
+      { type: "completed", providerSessionRef: "provider_thread_1" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "Use the evidence tool." }],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "medevidence",
+              parameters: {
+                type: "object",
+                properties: { question: { type: "string" } },
+                required: ["question"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: "required"
+      }
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error).toMatchObject({
+      code: "upstream_empty_response",
+      retryable: true
+    });
+    expect(provider.messages).toHaveLength(2);
+
+    await app.close();
+  });
+
   it("rejects strict tool arguments that do not match the client schema", async () => {
     const provider = new FakeProvider([
       {
@@ -9364,12 +9798,15 @@ describe("gateway phase 1 routes", () => {
     });
 
     expect(response.statusCode).toBe(400);
+    const requestId = expectRequestIdHeader(response);
     expect(response.json()).toEqual({
       error: {
         message: "messages must be a non-empty array.",
         type: "invalid_request_error",
         code: "invalid_request",
-        param: null
+        param: null,
+        retryable: false,
+        request_id: requestId
       }
     });
 
@@ -9851,6 +10288,57 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("returns HTTP 502 when an incomplete stream ends before the response starts", async () => {
+    const account = testUpstreamAccount("codex-pro-1");
+    const provider = new FakeProvider([
+      {
+        type: "error",
+        code: "upstream_incomplete_stream",
+        message: "The upstream stream ended early.",
+        responseSummary: {
+          upstreamHttpStatus: 200,
+          terminationKind: "eof_before_terminal"
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: account,
+          provider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(502);
+    expect(response.headers["content-type"]).toContain("application/json");
+    expect(response.json().error).toMatchObject({
+      code: "upstream_incomplete_stream",
+      retryable: true,
+      request_id: requestId
+    });
+    expect(response.payload).not.toContain("data:");
+    expect(response.payload).not.toContain("[DONE]");
+    expect(account.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
   it("persists reauth_required outcome for a stateless provider failure", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const account = testUpstreamAccount("codex-pro-1");
@@ -10038,6 +10526,226 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("retries a completed empty streaming response before the first business chunk", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      {
+        type: "completed",
+        responseSummary: {
+          upstreamHttpStatus: 200,
+          terminationKind: "done"
+        }
+      }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "stream-empty-retry-ok" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("stream-empty-retry-ok");
+    expect(response.payload).not.toContain("upstream_empty_response");
+    expect(response.payload).toContain("data: [DONE]");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
+  it("buffers tool calls so an incomplete attempt can fail over safely", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      {
+        type: "tool_call",
+        callId: "call_must_not_escape",
+        name: "bash",
+        arguments: { command: "touch must-not-run" }
+      },
+      {
+        type: "error",
+        code: "upstream_incomplete_stream",
+        message: "The upstream stream ended early."
+      }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "safe-retry-after-buffered-tool" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Create a file." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("safe-retry-after-buffered-tool");
+    expect(response.payload).not.toContain("call_must_not_escape");
+    expect(response.payload).not.toContain("touch must-not-run");
+    expect(response.payload).toContain("data: [DONE]");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it("ends a partial incomplete stream with one error frame and no done marker", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      { type: "message_delta", text: "partial-before-eof" }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "should-not-run" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toContain("partial-before-eof");
+    expect(response.payload).toContain('"code":"upstream_incomplete_stream"');
+    expect(response.payload).toContain('"retryable":true');
+    expect(response.payload).toContain(`"request_id":"${requestId}"`);
+    expect(response.payload).not.toContain("data: [DONE]");
+    expect(secondProvider.messages).toHaveLength(0);
+    expect(firstAccount.cooldownUntil).toBeInstanceOf(Date);
+
+    await app.close();
+  });
+
+  it("does not retry or cool down content-filtered streaming responses", async () => {
+    const firstAccount = testUpstreamAccount("codex-pro-1");
+    const secondAccount = testUpstreamAccount("codex-pro-2");
+    const firstProvider = new FakeProvider([
+      {
+        type: "completed",
+        responseSummary: {
+          finishReason: "content_filter",
+          terminationKind: "finish_reason_and_done"
+        }
+      }
+    ]);
+    const secondProvider = new FakeProvider([
+      { type: "message_delta", text: "should-not-run" },
+      { type: "completed", providerSessionRef: "provider_thread_2" }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      upstreamAccounts: [
+        {
+          upstreamAccount: firstAccount,
+          provider: firstProvider,
+          maxConcurrent: 1
+        },
+        {
+          upstreamAccount: secondAccount,
+          provider: secondProvider,
+          maxConcurrent: 1
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { authorization: "Bearer secret" },
+      payload: {
+        model: "medcode",
+        stream: true,
+        messages: [{ role: "user", content: "Say ok." }]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toContain('"code":"content_policy_violation"');
+    expect(response.payload).toContain('"retryable":false');
+    expect(response.payload).not.toContain("data: [DONE]");
+    expect(firstProvider.messages).toHaveLength(1);
+    expect(secondProvider.messages).toHaveLength(0);
+    expect(firstAccount.cooldownUntil).toBeNull();
+
+    await app.close();
+  });
+
   it("honors the stateless streaming retry cap before the first business chunk", async () => {
     const accounts = [
       testUpstreamAccount("codex-pro-1"),
@@ -10075,7 +10783,7 @@ describe("gateway phase 1 routes", () => {
       }
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(503);
     expect(response.payload).toContain("service_unavailable");
     expect(providers.map((provider) => provider.messages.length)).toEqual([1, 1, 0]);
     expect(accounts[0].cooldownUntil).toBeInstanceOf(Date);
@@ -10122,7 +10830,7 @@ describe("gateway phase 1 routes", () => {
     });
     const requestId = expectRequestIdHeader(response);
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(429);
     expect(response.payload).toContain('"code":"rate_limited"');
     expect(response.payload).toContain('"limit_kind":null');
     expect(response.payload).toContain('"rate_limit_origin":"upstream"');

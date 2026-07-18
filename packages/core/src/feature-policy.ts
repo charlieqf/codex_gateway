@@ -1,6 +1,11 @@
 import { isRecord } from "./utils.js";
 
-export const gatewayCapabilities = ["chat", "tools", "image_generation"] as const;
+export const gatewayCapabilities = [
+  "chat",
+  "tools",
+  "image_generation",
+  "doctor_research"
+] as const;
 
 export type GatewayCapability = (typeof gatewayCapabilities)[number];
 
@@ -18,7 +23,7 @@ export interface MedCodeModelsFeaturePolicy {
 }
 
 export interface FeaturePolicy {
-  capabilities: GatewayCapability[];
+  capabilities: string[];
   imageGeneration: ImageGenerationFeaturePolicy | null;
   medcodeModels?: MedCodeModelsFeaturePolicy | null;
 }
@@ -43,11 +48,31 @@ export function defaultImageGenerationFeaturePolicy(): ImageGenerationFeaturePol
 }
 
 export function validateFeaturePolicy(input: unknown): FeaturePolicy {
+  return parseFeaturePolicy(input, false);
+}
+
+export function decodeStoredFeaturePolicy(input: unknown): FeaturePolicy {
+  return parseFeaturePolicy(input, true);
+}
+
+export function hasFeatureCapability(
+  policy: FeaturePolicy,
+  capability: string
+): boolean {
+  return policy.capabilities.includes(capability);
+}
+
+function parseFeaturePolicy(
+  input: unknown,
+  allowUnknownCapabilities: boolean
+): FeaturePolicy {
   if (!isRecord(input)) {
     throw new Error("Feature policy must be a JSON object.");
   }
 
-  const capabilities = parseCapabilities(input.capabilities);
+  const capabilities = allowUnknownCapabilities
+    ? parseStoredCapabilities(input.capabilities)
+    : parseCapabilities(input.capabilities);
   const imagePolicyInput = input.imageGeneration ?? input.image_generation;
   const imageGeneration =
     imagePolicyInput === undefined
@@ -107,7 +132,7 @@ function effectivePublicMedCodeModels(allowed: string[]): string[] {
 
 function parseCapabilities(value: unknown): GatewayCapability[] {
   if (value === undefined) {
-    return defaultFeaturePolicy().capabilities;
+    return ["chat", "tools"];
   }
   if (!Array.isArray(value)) {
     throw new Error("Feature policy capabilities must be an array.");
@@ -119,6 +144,30 @@ function parseCapabilities(value: unknown): GatewayCapability[] {
     }
     if (!capabilities.includes(item as GatewayCapability)) {
       capabilities.push(item as GatewayCapability);
+    }
+  }
+  if (capabilities.length === 0) {
+    throw new Error("Feature policy capabilities must not be empty.");
+  }
+  return capabilities;
+}
+
+function parseStoredCapabilities(value: unknown): string[] {
+  if (value === undefined) {
+    return defaultFeaturePolicy().capabilities;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error("Feature policy capabilities must be an array.");
+  }
+  const capabilities: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0) {
+      throw new Error(
+        "Stored feature policy capabilities must contain non-empty strings."
+      );
+    }
+    if (!capabilities.includes(item)) {
+      capabilities.push(item);
     }
   }
   if (capabilities.length === 0) {

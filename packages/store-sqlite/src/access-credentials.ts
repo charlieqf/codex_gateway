@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
+  normalizeAllowedPublicModels,
   normalizeRateLimitPolicy,
   type AccessCredentialRecord,
   type ListAccessCredentialsInput,
@@ -13,11 +14,12 @@ export function insert(
   record: AccessCredentialRecord
 ): AccessCredentialRecord {
   const normalizedRate = normalizeRateLimitPolicy(record.rate);
+  const allowedPublicModels = normalizeAllowedPublicModels(record.allowedPublicModels);
   db.prepare(
     `INSERT INTO access_credentials (
       id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at,
-      rate_json, created_at, rotates_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      rate_json, allowed_public_models_json, created_at, rotates_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     record.id,
     record.prefix,
@@ -29,11 +31,12 @@ export function insert(
     record.expiresAt.toISOString(),
     record.revokedAt?.toISOString() ?? null,
     JSON.stringify(normalizedRate),
+    allowedPublicModels === null ? null : JSON.stringify(allowedPublicModels),
     record.createdAt.toISOString(),
     record.rotatesId
   );
 
-  return { ...record, rate: normalizedRate };
+  return { ...record, rate: normalizedRate, allowedPublicModels };
 }
 
 export function getByPrefix(
@@ -84,18 +87,28 @@ export function updateByPrefix(
   input: UpdateAccessCredentialInput
 ): AccessCredentialRecord | null {
   const normalizedRate = input.rate ? normalizeRateLimitPolicy(input.rate) : null;
+  const updateAllowedPublicModels = input.allowedPublicModels !== undefined;
+  const allowedPublicModels = updateAllowedPublicModels
+    ? normalizeAllowedPublicModels(input.allowedPublicModels)
+    : null;
   db.prepare(
     `UPDATE access_credentials
      SET label = COALESCE(?, label),
          scope = COALESCE(?, scope),
          expires_at = COALESCE(?, expires_at),
-         rate_json = COALESCE(?, rate_json)
+         rate_json = COALESCE(?, rate_json),
+         allowed_public_models_json = CASE
+           WHEN ? = 1 THEN ?
+           ELSE allowed_public_models_json
+         END
      WHERE prefix = ?`
   ).run(
     input.label ?? null,
     input.scope ?? null,
     input.expiresAt?.toISOString() ?? null,
     normalizedRate ? JSON.stringify(normalizedRate) : null,
+    updateAllowedPublicModels ? 1 : 0,
+    allowedPublicModels === null ? null : JSON.stringify(allowedPublicModels),
     prefix
   );
 

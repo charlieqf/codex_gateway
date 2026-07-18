@@ -792,6 +792,7 @@ function session(providerSessionRef: string | null, sessionId = "sess_1"): Gatew
     id: sessionId,
     subjectId: "subject_1",
     upstreamAccountId: "sub_1",
+    publicModelId: null,
     providerSessionRef,
     title: null,
     state: "active",

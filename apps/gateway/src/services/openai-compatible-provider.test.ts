@@ -343,7 +343,154 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
-  it("accepts an explicit finish reason when the provider omits the done marker", async () => {
+  it.each([
+    [
+      "reasoning-only output",
+      { reasoning_content: "internal reasoning" },
+      "stop",
+      "internal reasoning".length
+    ],
+    [
+      "tool calls when native tools are disabled",
+      {
+        tool_calls: [
+          {
+            index: 0,
+            id: "call_not_exposed",
+            type: "function",
+            function: { name: "ignored", arguments: "{}" }
+          }
+        ]
+      },
+      "tool_calls",
+      JSON.stringify([
+        {
+          index: 0,
+          id: "call_not_exposed",
+          type: "function",
+          function: { name: "ignored", arguments: "{}" }
+        }
+      ]).length
+    ]
+  ])(
+    "accepts legitimate empty visible content from %s",
+    async (_description, delta, finishReason, semanticOutputChars) => {
+      const server = await startSseServer(
+        async (_request, _body, response) => {
+          response.writeHead(200, {
+            "content-type": "text/event-stream"
+          });
+          response.write(
+            `data: ${JSON.stringify({
+              choices: [
+                {
+                  delta,
+                  finish_reason: finishReason
+                }
+              ]
+            })}\n\n`
+          );
+          response.end("data: [DONE]\n\n");
+        }
+      );
+
+      try {
+        const result = await collectProviderMessage({
+          provider: openAICompatibleProvider(server.baseUrl),
+          upstreamAccount: openRouterAccount(),
+          subject: testSubject(),
+          scope: "code",
+          session: testSession(),
+          message: "produce a response"
+        });
+
+        expect(result).not.toBeInstanceOf(Error);
+        expect(result).toMatchObject({
+          content: "",
+          toolCalls: [],
+          providerSummary: {
+            finishReason,
+            semanticOutputChars,
+            terminationKind: "finish_reason_and_done"
+          }
+        });
+      } finally {
+        await server.close();
+      }
+    }
+  );
+
+  it("maps refusal deltas to visible assistant content", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: { refusal: "I cannot help with that request." },
+              finish_reason: "stop"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({
+        content: "I cannot help with that request.",
+        providerSummary: {
+          finishReason: "stop",
+          terminationKind: "finish_reason_and_done"
+        }
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("maps content-filter completion to a policy error", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "content_filter" }]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect(result).toMatchObject({
+        code: "content_policy_violation",
+        httpStatus: 400
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("requires the done marker even when the provider sends a finish reason", async () => {
     const server = await startSseServer(async (_request, _body, response) => {
       response.writeHead(200, { "content-type": "text/event-stream" });
       response.write(
@@ -368,14 +515,118 @@ describe("OpenAICompatibleProviderAdapter", () => {
         message: "produce a response"
       });
 
-      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toBeInstanceOf(GatewayError);
       expect(result).toMatchObject({
-        content: "complete",
-        providerSummary: {
+        code: "upstream_incomplete_stream",
+        httpStatus: 502
+      });
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
           finishReason: "stop",
           contentChars: "complete".length,
-          terminationKind: "finish_reason"
-        }
+          terminationKind: "eof_before_terminal"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("normalizes an in-band HTTP 200 SSE error frame", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-openrouter-request-id": "up_req_stream_error"
+      });
+      response.end(
+        `data: ${JSON.stringify({
+          error: {
+            code: 429,
+            type: "rate_limit_error",
+            message: "Provider rate limit reached."
+          }
+        })}\n\n`
+      );
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "produce a response"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect(result).toMatchObject({
+        code: "rate_limited",
+        httpStatus: 429
+      });
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+        upstreamRequestId: "up_req_stream_error",
+        upstreamHttpStatus: 200,
+        errorCode: "rate_limited",
+        terminationKind: "error",
+        rawResponseChars: expect.any(Number)
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("does not release a native tool call before the done marker", async () => {
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_incomplete",
+                    type: "function",
+                    function: { name: "bash", arguments: '{"command":"ls"}' }
+                  }
+                ]
+              }
+            }
+          ]
+        })}\n\n`
+      );
+      response.end(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "tool_calls" }]
+        })}\n\n`
+      );
+    });
+
+    try {
+      const result = await collectProviderMessage({
+        provider: openAICompatibleProvider(server.baseUrl),
+        upstreamAccount: openRouterAccount(),
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "create a file",
+        clientTools: [
+          {
+            type: "function",
+            function: {
+              name: "bash",
+              parameters: { type: "object" }
+            }
+          }
+        ],
+        clientToolChoice: "required"
+      });
+
+      expect(result).toBeInstanceOf(GatewayError);
+      expect((result as GatewayError).code).toBe("upstream_incomplete_stream");
+      expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+        toolCallCount: 0,
+        terminationKind: "eof_before_terminal"
       });
     } finally {
       await server.close();
@@ -551,6 +802,7 @@ function testSession(): GatewaySession {
     id: "sess_test",
     subjectId: "subj_test",
     upstreamAccountId: "openrouter-main",
+    publicModelId: null,
     providerSessionRef: null,
     title: null,
     state: "active",

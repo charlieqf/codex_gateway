@@ -13,6 +13,7 @@ import {
   type UpstreamAccount
 } from "@codex-gateway/core";
 import type { GatewayRequestContext } from "./context.js";
+import { researchErrorPayload } from "./error-response.js";
 import { markGatewayError } from "./observation.js";
 import { openAIErrorPayload } from "../openai-compat.js";
 
@@ -179,7 +180,8 @@ function authenticateCredentialBearer(
       prefix: credential.prefix,
       label: credential.label,
       expiresAt: credential.expiresAt,
-      rate: credential.rate
+      rate: credential.rate,
+      allowedPublicModels: credential.allowedPublicModels
     }
   };
 }
@@ -256,7 +258,8 @@ function authenticateUnifiedClientKey(
       prefix: credential.prefix,
       label: credential.label,
       expiresAt: credential.expiresAt,
-      rate: credential.rate
+      rate: credential.rate,
+      allowedPublicModels: credential.allowedPublicModels
     }
   };
 }
@@ -288,8 +291,15 @@ function safeEqual(received: string, expected: string): boolean {
 }
 
 function errorPayload(request: FastifyRequest, error: GatewayError) {
-  if (request.url.startsWith("/v1/")) {
-    return openAIErrorPayload(error);
+  const dialect = request.routeOptions.config?.responseDialect;
+  if (
+    dialect === "research" ||
+    request.url.startsWith("/gateway/research/v1/")
+  ) {
+    return researchErrorPayload(error, { requestId: request.id });
+  }
+  if (dialect === "openai" || (!dialect && request.url.startsWith("/v1/"))) {
+    return openAIErrorPayload(error, { requestId: request.id });
   }
 
   return {

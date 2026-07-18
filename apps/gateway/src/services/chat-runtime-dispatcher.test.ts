@@ -259,6 +259,7 @@ function createSession(subjectId: string, upstreamAccountId: string): GatewaySes
     id: `sess_${upstreamAccountId}`,
     subjectId,
     upstreamAccountId,
+    publicModelId: null,
     providerSessionRef: null,
     title: null,
     state: "active",

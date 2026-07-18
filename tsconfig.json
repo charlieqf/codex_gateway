@@ -3,9 +3,9 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/provider-codex" },
+    { "path": "./packages/research-agent" },
     { "path": "./packages/store-sqlite" },
     { "path": "./apps/gateway" },
     { "path": "./apps/admin-cli" }
   ]
 }
-

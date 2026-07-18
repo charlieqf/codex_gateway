@@ -35,11 +35,13 @@ export interface CollectedProviderMessage {
 }
 
 export interface ProviderStreamSummary {
+  completed: boolean;
   finishReason: string | null;
   upstreamRequestId: string | null;
   upstreamHttpStatus: number | null;
   errorCode: string | null;
   contentChars: number;
+  semanticOutputChars: number;
   toolCallCount: number;
   toolNames: string[];
   rawResponseHash: string | null;
@@ -61,7 +63,9 @@ export interface ProviderStreamAttemptContext {
 export class ProviderStreamSummaryCollector {
   private readonly normalizedHash = createHash("sha256");
   private normalizedChars = 0;
+  private completed = false;
   private contentChars = 0;
+  private semanticOutputChars = 0;
   private toolCallCount = 0;
   private readonly toolNames = new Set<string>();
   private finishReason: string | null = null;
@@ -76,6 +80,7 @@ export class ProviderStreamSummaryCollector {
   record(event: StreamEvent): void {
     if (event.type === "message_delta") {
       this.contentChars += event.text.length;
+      this.semanticOutputChars += event.text.length;
       this.recordNormalized({ type: event.type, text: event.text });
       return;
     }
@@ -90,6 +95,7 @@ export class ProviderStreamSummaryCollector {
       return;
     }
     if (event.type === "completed") {
+      this.completed = true;
       this.applyProviderSummary(event.responseSummary);
       this.recordNormalized({
         type: event.type,
@@ -112,11 +118,13 @@ export class ProviderStreamSummaryCollector {
   snapshot(attempt?: ProviderStreamAttemptContext): ProviderStreamSummary {
     const finishReason = this.finishReason;
     const summary: ProviderStreamSummary = {
+      completed: this.completed,
       finishReason,
       upstreamRequestId: this.upstreamRequestId,
       upstreamHttpStatus: this.upstreamHttpStatus,
       errorCode: this.errorCode,
       contentChars: this.contentChars,
+      semanticOutputChars: this.semanticOutputChars,
       toolCallCount: this.toolCallCount,
       toolNames: [...this.toolNames].sort(),
       rawResponseHash: this.upstreamRawHash ?? this.normalizedRawHash(),
@@ -159,6 +167,12 @@ export class ProviderStreamSummaryCollector {
     }
     if (summary.upstreamHttpStatus !== undefined) {
       this.upstreamHttpStatus = summary.upstreamHttpStatus;
+    }
+    if (
+      summary.semanticOutputChars !== undefined &&
+      summary.semanticOutputChars !== null
+    ) {
+      this.semanticOutputChars = summary.semanticOutputChars;
     }
     if (summary.rawResponseHash !== undefined) {
       this.upstreamRawHash = summary.rawResponseHash;
@@ -336,6 +350,13 @@ export function streamErrorToGatewayError(event: { code: string; message: string
       httpStatus: 502
     });
   }
+  if (event.code === "content_policy_violation") {
+    return new GatewayError({
+      code: "content_policy_violation",
+      message: event.message,
+      httpStatus: 400
+    });
+  }
   return new GatewayError({
     code: "service_unavailable",
     message: event.message,
@@ -362,6 +383,10 @@ export function combineProviderStreamSummaries(
     }
   }
   const contentChars = present.reduce((total, summary) => total + summary.contentChars, 0);
+  const semanticOutputChars = present.reduce(
+    (total, summary) => total + summary.semanticOutputChars,
+    0
+  );
   const toolCallCount = present.reduce((total, summary) => total + summary.toolCallCount, 0);
   const toolNames = [...new Set(present.flatMap((summary) => summary.toolNames))].sort();
   const finishReason = present[present.length - 1]?.finishReason ?? null;
@@ -369,12 +394,14 @@ export function combineProviderStreamSummaries(
     summary.attempts.length > 0 ? summary.attempts : [providerSummaryToAttempt(summary)]
   );
   return {
+    completed: present[present.length - 1]?.completed ?? false,
     finishReason,
     upstreamRequestId: present.findLast((summary) => summary.upstreamRequestId)?.upstreamRequestId ?? null,
     upstreamHttpStatus:
       present.findLast((summary) => summary.upstreamHttpStatus !== null)?.upstreamHttpStatus ?? null,
     errorCode: present.findLast((summary) => summary.errorCode !== null)?.errorCode ?? null,
     contentChars,
+    semanticOutputChars,
     toolCallCount,
     toolNames,
     rawResponseHash: hash.digest("hex"),
@@ -412,7 +439,7 @@ export function providerTruncatedWithoutOutputError(
 ): GatewayError | null {
   if (
     summary.finishReason !== "length" ||
-    summary.contentChars > 0 ||
+    summary.semanticOutputChars > 0 ||
     summary.toolCallCount > 0
   ) {
     return null;
@@ -436,32 +463,48 @@ export function providerTruncatedWithoutOutputError(
 }
 
 export function providerCompletionError(summary: ProviderStreamSummary): GatewayError | null {
+  if (summary.finishReason === "content_filter") {
+    return providerProtocolError(
+      summary,
+      new GatewayError({
+        code: "content_policy_violation",
+        message: "MedCode upstream filtered the response for content policy reasons.",
+        httpStatus: 400
+      })
+    );
+  }
+  if (!summary.completed) {
+    return providerProtocolError(
+      {
+        ...summary,
+        terminationKind: summary.terminationKind ?? "eof_before_terminal"
+      },
+      new GatewayError({
+        code: "upstream_incomplete_stream",
+        message: "MedCode upstream response ended before completion.",
+        httpStatus: 502
+      })
+    );
+  }
   const truncatedWithoutOutputError = providerTruncatedWithoutOutputError(summary);
   if (truncatedWithoutOutputError) {
     return truncatedWithoutOutputError;
   }
   if (
-    summary.contentChars > 0 ||
-    summary.toolCallCount > 0 ||
-    !providerResponseCompleted(summary)
+    summary.semanticOutputChars > 0 ||
+    summary.toolCallCount > 0
   ) {
     return null;
   }
 
-  const error = new GatewayError({
-    code: "upstream_empty_response",
-    message: "MedCode upstream completed without a usable response.",
-    httpStatus: 502
-  });
-
-  return attachProviderStreamSummary(error, {
-    ...summary,
-    errorCode: error.code,
-    attempts: summary.attempts.map((attempt) => ({
-      ...attempt,
-      errorCode: attempt.errorCode ?? error.code
-    }))
-  });
+  return providerProtocolError(
+    summary,
+    new GatewayError({
+      code: "upstream_empty_response",
+      message: "MedCode upstream completed without a usable response.",
+      httpStatus: 502
+    })
+  );
 }
 
 export function providerStreamSummaryFromError(error: GatewayError): ProviderStreamSummary | null {
@@ -522,7 +565,9 @@ function isProviderStreamSummary(value: unknown): value is ProviderStreamSummary
   }
   const summary = value as Partial<ProviderStreamSummary>;
   return (
+    typeof summary.completed === "boolean" &&
     typeof summary.contentChars === "number" &&
+    typeof summary.semanticOutputChars === "number" &&
     typeof summary.toolCallCount === "number" &&
     Array.isArray(summary.toolNames) &&
     Array.isArray(summary.attempts)
@@ -539,11 +584,13 @@ function safeJson(value: unknown): string {
 
 function emptyProviderStreamSummary(): ProviderStreamSummary {
   return {
+    completed: false,
     finishReason: null,
     upstreamRequestId: null,
     upstreamHttpStatus: null,
     errorCode: null,
     contentChars: 0,
+    semanticOutputChars: 0,
     toolCallCount: 0,
     toolNames: [],
     rawResponseHash: null,
@@ -554,10 +601,21 @@ function emptyProviderStreamSummary(): ProviderStreamSummary {
   };
 }
 
-function providerResponseCompleted(summary: ProviderStreamSummary): boolean {
-  return (
-    summary.finishReason !== null ||
-    (summary.terminationKind !== null &&
-      summary.terminationKind !== "eof_before_terminal")
-  );
+function providerProtocolError(
+  summary: ProviderStreamSummary,
+  error: GatewayError
+): GatewayError {
+  return attachProviderStreamSummary(error, {
+    ...summary,
+    errorCode: error.code,
+    attempts: summary.attempts.map((attempt) => ({
+      ...attempt,
+      errorCode: attempt.errorCode ?? error.code,
+      ...(summary.terminationKind === "eof_before_terminal" &&
+      (attempt.terminationKind === null ||
+        attempt.terminationKind === undefined)
+        ? { terminationKind: "eof_before_terminal" as const }
+        : {})
+    }))
+  });
 }

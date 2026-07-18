@@ -17,6 +17,7 @@ import {
   parseScope
 } from "../parsers.js";
 import { publicCredential } from "../serializers.js";
+import { resolvePublicModelAllowlistOption } from "../public-model-allowlist.js";
 import type { CommandContext, CommandRateOptions } from "./command-context.js";
 import {
   resolveSubjectUserId,
@@ -29,6 +30,7 @@ interface IssueOptions extends SubjectOptions, CommandRateOptions {
   scope: Scope;
   expiresDays: number;
   entitlementCheck?: boolean;
+  allowedPublicModels?: string;
 }
 
 export function registerIssueCommand(program: Command, deps: CommandContext): void {
@@ -54,9 +56,16 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
     .option("--max-total-tokens <n>", "max total reserved tokens per request; use none for unlimited", parseNullableNonNegativeInteger)
     .option("--reserve-tokens <n>", "tokens to reserve per request", parseNonNegativeInteger)
     .option("--missing-usage-charge <mode>", "charge policy when provider usage is missing: none, estimate, or reserve", parseMissingUsageCharge)
+    .option(
+      "--allowed-public-models <ids>",
+      "comma-separated configured public model IDs or aliases; use all for unrestricted"
+    )
     .option("--no-entitlement-check", "allow issuing a key without an active entitlement during compatibility rollout")
     .action((options: IssueOptions) => {
       const targetUserId = issueTargetUserId(options, deps.defaultSubjectId);
+      const modelAllowlist = resolvePublicModelAllowlistOption(
+        options.allowedPublicModels
+      );
       deps.withAuditedStore(
         {
           action: "issue",
@@ -68,6 +77,7 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
             user_name: deps.normalizeOptionalText(options.name),
             user_phone: deps.normalizeOptionalText(options.phone),
             expires_days: options.expiresDays,
+            allowed_public_models: modelAllowlist?.models,
             no_entitlement_check: deps.entitlementCheckBypassed(options),
             rate: deps.rateFromOptions(options)
           }
@@ -87,7 +97,14 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
             label: options.label,
             scope: options.scope,
             expiresAt: deps.addDays(new Date(), options.expiresDays),
-            rate: deps.rateFromOptions(options)
+            rate: deps.rateFromOptions(options),
+            ...(modelAllowlist
+              ? {
+                  allowedPublicModels: modelAllowlist.models,
+                  knownPublicModelIds: modelAllowlist.canonicalIds,
+                  publicModelAliases: modelAllowlist.aliasGroups
+                }
+              : {})
           });
           const record = {
             ...issued.record,
