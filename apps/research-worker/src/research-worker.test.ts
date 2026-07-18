@@ -513,18 +513,21 @@ describe("Research Worker controlled-beta workflow", () => {
       "unsupported_numeric_claims_redacted"
     );
     expect(storedResult.review.markdown).not.toContain("2025 patients");
+    expect(storedResult.review.markdown).toContain("unverified patients");
     expect(storedResult.review.markdown).toContain("[1]");
     expect(storedResult.review.references[0]?.publication_year).toBe(2025);
     expect(existsSync(artifactRoot)).toBe(true);
     store.close();
   });
 
-  it("fails closed when numeric redaction would violate the output contract", async () => {
+  it("does not use numeric redaction to mask another output violation", async () => {
     const fixture = createLeasedWorkflowFixture(
       "numeric_redaction_contract"
     );
     const invalidAfterRedaction = modelOutput();
     invalidAfterRedaction.answers[0]!.answer = "Evidence 2025";
+    invalidAfterRedaction.review.markdown =
+      "The retrieved publication enrolled 2025 patients, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].";
     let modelCalls = 0;
     const validationCodes: string[][] = [];
     const outcome = await executeDoctorResearchWorkflow({
@@ -561,8 +564,8 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     expect(modelCalls).toBe(2);
     expect(validationCodes).toEqual([
-      ["numeric_evidence_closure"],
-      ["numeric_evidence_closure"]
+      ["unsafe_model_markup", "numeric_evidence_closure"],
+      ["unsafe_model_markup", "numeric_evidence_closure"]
     ]);
     expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();

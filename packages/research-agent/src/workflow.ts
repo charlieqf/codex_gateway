@@ -1206,7 +1206,8 @@ function validateGeneratedOutput(
   ) {
     const redacted = redactUnsupportedNarrativeNumbers(
       reparsed.value,
-      unsupportedNumericTokens
+      unsupportedNumericTokens,
+      run.language
     );
     const redactedParsed = parseAndValidateDoctorResearchModelOutput(
       JSON.stringify(redacted)
@@ -1769,9 +1770,11 @@ function unsupportedNarrativeNumericTokens(
 
 function redactUnsupportedNarrativeNumbers(
   output: DoctorResearchModelOutput,
-  unsupportedTokens: ReadonlySet<string>
+  unsupportedTokens: ReadonlySet<string>,
+  language: "zh-CN" | "en"
 ): DoctorResearchModelOutput {
   const redacted = structuredClone(output);
+  const replacement = language === "zh-CN" ? "未核验" : "unverified";
   const redact = (value: string): string =>
     value
       .split(/(\[[0-9,\s-]+\])/gu)
@@ -1780,7 +1783,8 @@ function redactUnsupportedNarrativeNumbers(
           ? part
           : part.replace(
               /[0-9]+(?:\.[0-9]+)?(?:[%％])?/gu,
-              (token) => (unsupportedTokens.has(token) ? "" : token)
+              (token) =>
+                unsupportedTokens.has(token) ? replacement : token
             )
       )
       .join("")
