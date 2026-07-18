@@ -63,7 +63,7 @@ source, and unsupported numeric claims fail closed.
 All model-controlled narrative fields reject HTML, links, URLs and dangerous
 URI schemes. The four-artifact renderer adds only server-verified source links
 and identifiers. The current offline baseline passes build, 473 Vitest tests,
-8 Python tests, script syntax checks, Compose security assertions and a
+9 Python tests, script syntax checks, Compose security assertions and a
 zero-vulnerability production dependency audit.
 
 This does not close Phase 0B or make production ready. The implementation has

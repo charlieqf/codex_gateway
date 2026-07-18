@@ -250,7 +250,7 @@ Validation after the controlled-beta hardening pass:
 - clean `npm ci` lockfile install;
 - `npm run build`;
 - `npm test` (32 test files, 473 tests);
-- `python -m unittest discover -s tests -p "test_*.py"` (8 tests);
+- `python -m unittest discover -s tests -p "test_*.py"` (9 tests);
 - syntax checks for the beta smoke and both container health scripts;
 - staging Compose parse and security assertions;
 - `npm audit --omit=dev` (0 production vulnerabilities);

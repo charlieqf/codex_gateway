@@ -378,13 +378,15 @@ function validatedLoopbackBaseUrl(value) {
   const url = new URL(value);
   if (
     url.protocol !== "http:" ||
-    !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
+    !["127.0.0.1", "[::1]"].includes(url.hostname) ||
     url.username ||
     url.password ||
     url.search ||
     url.hash
   ) {
-    throw new Error("Research smoke base URL must be an unauthenticated HTTP loopback URL.");
+    throw new Error(
+      "Research smoke base URL must use an unauthenticated literal HTTP loopback address."
+    );
   }
   return url;
 }

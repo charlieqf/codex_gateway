@@ -11,6 +11,28 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 
 
 class ResearchHealthScriptTests(unittest.TestCase):
+    def test_beta_smoke_rejects_localhost_before_reading_any_secret(self):
+        environment = {
+            **os.environ,
+            "RESEARCH_SMOKE_BASE_URL": "http://localhost:18788",
+            "RESEARCH_SMOKE_USER_TOKEN_FILE": "must-not-be-read",
+            "RESEARCH_SMOKE_REQUEST_FILE": "must-not-be-read",
+            "RESEARCH_SMOKE_OUTPUT_DIR": "must-not-be-created",
+        }
+        result = subprocess.run(
+            ["node", "scripts/research-beta-smoke.mjs"],
+            cwd=REPOSITORY,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("literal HTTP loopback", result.stderr)
+        self.assertFalse((REPOSITORY / "must-not-be-created").exists())
+
     def test_worker_health_requires_current_ready_heartbeat(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "research.db"

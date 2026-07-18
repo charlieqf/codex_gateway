@@ -254,9 +254,10 @@ Success requires:
 - every downloaded byte count and SHA-256 equals its manifest;
 - the output directory contains exactly the four fixed Markdown/text names.
 
-The smoke script never accepts a non-loopback base URL and never prints the
-Bearer token or doctor request. Treat the emitted run ID and hashes as
-operational metadata.
+The smoke script accepts only literal `127.0.0.1` or `::1` base addresses; it
+never resolves `localhost`, accepts a non-loopback URL, or prints the Bearer
+token or doctor request. Treat the emitted run ID and hashes as operational
+metadata.
 
 ## Negative and recovery checks
 
