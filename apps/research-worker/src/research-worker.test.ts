@@ -485,11 +485,15 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("rejects dangerous URI schemes even when they are not Markdown links", async () => {
-    const fixture = createLeasedWorkflowFixture("unsafe_uri_scheme");
+  it.each([
+    ["unsafe_uri_scheme", "file:///etc/passwd"],
+    ["unsafe_html_entity", "&#x3c;script&#x3e;"],
+    ["unsafe_bidi_control", "evidence\u202Etxt.exe"]
+  ])("rejects model narrative control case %s", async (caseId, injection) => {
+    const fixture = createLeasedWorkflowFixture(caseId);
     const linked = modelOutput();
     linked.review.abstract =
-      "The retrieved evidence must not direct a reader to file:///etc/passwd.";
+      `The retrieved evidence must not contain ${injection}.`;
     let modelCalls = 0;
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
@@ -501,7 +505,7 @@ describe("Research Worker controlled-beta workflow", () => {
           modelCalls += 1;
           return {
             text: JSON.stringify(linked),
-            gatewayRequestId: `req_model_unsafe_uri_${modelCalls}`,
+            gatewayRequestId: `req_model_${caseId}_${modelCalls}`,
             usage: {
               promptTokens: 100,
               completionTokens: 100,

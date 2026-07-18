@@ -1548,6 +1548,12 @@ function containsUnsafeModelMarkup(
     /!\s*\[/u.test(narrative) ||
     /\]\s*\(/u.test(narrative) ||
     /^\s*\[[^\]]+\]:\s*\S+/imu.test(narrative) ||
+    /&(?:#[0-9]{1,7}|#x[0-9a-f]{1,6}|[a-z][a-z0-9]{1,31});/iu.test(
+      narrative
+    ) ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(
+      narrative
+    ) ||
     /\b[a-z][a-z0-9+.-]{1,31}:\/\/|\b(?:javascript|vbscript|data|mailto|file|tel|sms|blob|about|cid):|\bwww\./iu.test(
       narrative
     )

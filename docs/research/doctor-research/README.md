@@ -238,8 +238,9 @@ The final controlled-beta hardening pass also:
 - covers cancellation arriving after the final renewal but before terminal
   commit, repeated evidence IDs across runs, and exactly-four-artifact
   publication in deterministic Worker-loop tests;
-- blocks raw HTML, Markdown links/images, URLs and dangerous URI schemes in
-  all model-controlled narrative fields; the answers artifact renders only
+- blocks raw or entity-encoded HTML, Markdown links/images, URLs, dangerous
+  URI schemes, control bytes and bidirectional text controls in all
+  model-controlled narrative fields; the answers artifact renders only
   server-verified source links and IDs;
 - rejects public proxies and pins allowlisted official-site TLS connections
   to DNS results that exclude special-purpose IPv4, IPv6, mapped and
@@ -249,7 +250,7 @@ Validation after the controlled-beta hardening pass:
 
 - clean `npm ci` lockfile install;
 - `npm run build`;
-- `npm test` (32 test files, 473 tests);
+- `npm test` (32 test files, 475 tests);
 - `python -m unittest discover -s tests -p "test_*.py"` (9 tests);
 - syntax checks for the beta smoke and both container health scripts;
 - staging Compose parse and security assertions;

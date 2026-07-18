@@ -60,9 +60,10 @@ identity anchors in a bounded local window, and publication attribution
 requires both anchors in the matched author's own PubMed affiliation.
 Profile claims must be exact, type-anchored excerpts of their cited official
 source, and unsupported numeric claims fail closed.
-All model-controlled narrative fields reject HTML, links, URLs and dangerous
-URI schemes. The four-artifact renderer adds only server-verified source links
-and identifiers. The current offline baseline passes build, 473 Vitest tests,
+All model-controlled narrative fields reject raw or entity-encoded HTML,
+links, URLs, dangerous URI schemes, control bytes and bidirectional text
+controls. The four-artifact renderer adds only server-verified source links
+and identifiers. The current offline baseline passes build, 475 Vitest tests,
 9 Python tests, script syntax checks, Compose security assertions and a
 zero-vulnerability production dependency audit.
 
