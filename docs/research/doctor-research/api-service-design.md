@@ -367,6 +367,7 @@ Gateway Auth 重新认证，不能仅凭这些 ID 授权。
 ```text
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode
+RESEARCH_LLM_REASONING_EFFORT=none|low|medium|high
 RESEARCH_LLM_BEARER_TOKEN_FILE=/run/secrets/research_llm_bearer
 ```
 
@@ -2217,6 +2218,7 @@ RESEARCH_SKILL_VERSION=1.2.0
 RESEARCH_PROMPT_VERSION=doctor-research-prompt.v2
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode
+RESEARCH_LLM_REASONING_EFFORT=none|low|medium|high
 RESEARCH_LLM_BEARER_TOKEN_FILE=/run/secrets/research_llm_bearer
 RESEARCH_NCBI_API_KEY_FILE=/run/secrets/research_ncbi_api_key
 RESEARCH_CROSSREF_MAILTO=...

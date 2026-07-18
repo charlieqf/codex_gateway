@@ -1750,6 +1750,7 @@ function workerConfig(root: string): ResearchWorkerConfig {
       baseUrl: "http://gateway:8787",
       allowedHosts: ["gateway"],
       model: "test-model",
+      reasoningEffort: "low",
       bearerTokenFile: path.join(root, "unused-llm-secret"),
       timeoutMs: 1_000,
       maximumResponseBytes: 100_000

@@ -25,7 +25,8 @@ describe("Research Worker fail-closed configuration", () => {
       ncbiApiKeyFile: null,
       webSearchApiKeyFile: path.resolve("secrets/web-search"),
       llm: {
-        model: "goldencode"
+        model: "goldencode",
+        reasoningEffort: "low"
       },
       workflowPolicy: {
         maximumArtifactBytes: 1_000_000,
@@ -112,6 +113,20 @@ describe("Research Worker fail-closed configuration", () => {
           "replace-with-operator-contact@example.org"
       })
     ).toThrow("placeholders must be replaced");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_LLM_REASONING_EFFORT: undefined
+      })
+    ).toThrow("RESEARCH_LLM_REASONING_EFFORT is required");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_LLM_REASONING_EFFORT: "xhigh"
+      })
+    ).toThrow("must be none, low, medium, or high");
   });
 
   it("supports explicit direct official retrieval and fail-closed anonymous ORCID policy", () => {
@@ -229,6 +244,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_LLM_BASE_URL: "http://gateway:8787",
     RESEARCH_LLM_ALLOWED_HOSTS: "gateway",
     RESEARCH_LLM_MODEL: "goldencode",
+    RESEARCH_LLM_REASONING_EFFORT: "low",
     RESEARCH_LLM_BEARER_TOKEN_FILE: path.resolve("secrets/llm"),
     RESEARCH_LLM_TIMEOUT_MS: "600000",
     RESEARCH_MAX_LLM_RESPONSE_BYTES: "2000000"

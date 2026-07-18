@@ -49,6 +49,7 @@ describe("Doctor Research structured Gateway model client", () => {
       baseUrl: "http://gateway:8787",
       allowedHosts: ["gateway"],
       model: "medcode",
+      reasoningEffort: "low",
       bearerToken: "secret-staging-token",
       timeoutMs: 5_000,
       maximumResponseBytes: 1_000_000,
@@ -87,6 +88,7 @@ describe("Doctor Research structured Gateway model client", () => {
     const body = JSON.parse(String(request?.init?.body)) as {
       stream: boolean;
       max_tokens: number;
+      reasoning_effort: string;
       messages: Array<{ role: string; content: string }>;
       tools?: unknown;
       tool_choice?: unknown;
@@ -94,6 +96,7 @@ describe("Doctor Research structured Gateway model client", () => {
     };
     expect(body.stream).toBe(false);
     expect(body.max_tokens).toBe(12_000);
+    expect(body.reasoning_effort).toBe("low");
     expect(body.messages).toHaveLength(2);
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("tool_choice");
@@ -110,6 +113,7 @@ describe("Doctor Research structured Gateway model client", () => {
       baseUrl: "http://gateway:8787",
       allowedHosts: ["gateway"],
       model: "medcode",
+      reasoningEffort: "low",
       bearerToken: "secret-staging-token",
       timeoutMs: 5_000,
       maximumResponseBytes: 100_000,
@@ -133,6 +137,7 @@ describe("Doctor Research structured Gateway model client", () => {
           baseUrl: "http://gateway.example:8787",
           allowedHosts: ["gateway.example"],
           model: "medcode",
+          reasoningEffort: "low",
           bearerToken: "secret-staging-token",
           timeoutMs: 5_000,
           maximumResponseBytes: 100_000,
@@ -146,6 +151,7 @@ describe("Doctor Research structured Gateway model client", () => {
       baseUrl: "http://gateway:8787",
       allowedHosts: ["gateway"],
       model: "medcode",
+      reasoningEffort: "low",
       bearerToken: "secret-staging-token",
       timeoutMs: 5_000,
       maximumResponseBytes: 100_000,
@@ -212,6 +218,7 @@ describe("Doctor Research structured Gateway model client", () => {
         baseUrl: `http://127.0.0.1:${address.port}`,
         allowedHosts: ["127.0.0.1"],
         model: "goldencode",
+        reasoningEffort: "low",
         bearerToken: "secret-staging-token",
         timeoutMs: 5_000,
         maximumResponseBytes: 100_000,
@@ -239,6 +246,22 @@ describe("Doctor Research structured Gateway model client", () => {
         server.close((error) => (error ? reject(error) : resolve()))
       );
     }
+  });
+
+  it("rejects an invalid reasoning effort before sending a request", () => {
+    expect(
+      () =>
+        new GatewayResearchModelClient({
+          baseUrl: "http://gateway:8787",
+          allowedHosts: ["gateway"],
+          model: "goldencode",
+          reasoningEffort: "xhigh" as "high",
+          bearerToken: "secret-staging-token",
+          timeoutMs: 5_000,
+          maximumResponseBytes: 100_000,
+          readinessRequirements: readinessRequirements()
+        })
+    ).toThrow("reasoning effort is invalid");
   });
 });
 

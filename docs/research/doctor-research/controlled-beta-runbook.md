@@ -31,7 +31,10 @@ The Worker intentionally fails startup until all of these are present:
 1. Staging-only credentials for the frozen three-member direct GoldenCode
    pool (`qianfan`, `tencent`, `aliyun`) and exact public model ID
    `goldencode`. This path uses GLM-5.2; it does not require Max, a Codex
-   device login, OpenRouter or another public proxy.
+   device login, OpenRouter or another public proxy. The Worker must set an
+   explicit `RESEARCH_LLM_REASONING_EFFORT`; the reviewed beta value is `low`
+   so the pool's general-purpose default cannot silently expand structured
+   generation latency and hidden reasoning-token usage.
 2. A staging-only Gateway service credential with:
    - an active entitlement containing `chat`;
    - an exact non-empty public-model allowlist containing only
@@ -83,6 +86,9 @@ chmod 0444 \
 Replace every `replace-with-...` value.
 The actual Gateway environment file contains a staging-only encryption secret
 and therefore remains untracked with mode `0600`.
+Keep `RESEARCH_LLM_REASONING_EFFORT=low` for the controlled beta unless a new
+live quality/latency review approves another value. Missing or unsupported
+values fail Worker startup.
 
 Create these secret files without printing their values. Local Docker Compose
 implements file-backed secrets as bind mounts, so its `uid`, `gid`, and `mode`

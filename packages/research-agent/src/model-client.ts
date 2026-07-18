@@ -39,6 +39,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       baseUrl: string;
       allowedHosts: readonly string[];
       model: string;
+      reasoningEffort: "none" | "low" | "medium" | "high";
       bearerToken: string;
       timeoutMs: number;
       maximumResponseBytes: number;
@@ -52,6 +53,9 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     }
   ) {
     this.model = requiredIdentifier(options.model, "model");
+    if (!["none", "low", "medium", "high"].includes(options.reasoningEffort)) {
+      throw new Error("Research LLM reasoning effort is invalid.");
+    }
     if (
       options.bearerToken !== options.bearerToken.trim() ||
       options.bearerToken.length < 8 ||
@@ -230,6 +234,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         model: this.model,
         stream: false,
         max_tokens: this.maximumOutputTokensPerCall,
+        reasoning_effort: this.options.reasoningEffort,
         messages: [
           { role: "system", content: input.system },
           { role: "user", content: input.prompt }

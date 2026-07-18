@@ -47,6 +47,7 @@ export interface ResearchWorkerConfig {
     baseUrl: string;
     allowedHosts: string[];
     model: string;
+    reasoningEffort: "none" | "low" | "medium" | "high";
     bearerTokenFile: string;
     timeoutMs: number;
     maximumResponseBytes: number;
@@ -582,6 +583,9 @@ export function loadResearchWorkerConfig(
         env.RESEARCH_LLM_MODEL,
         "RESEARCH_LLM_MODEL"
       ),
+      reasoningEffort: requiredReasoningEffort(
+        env.RESEARCH_LLM_REASONING_EFFORT
+      ),
       bearerTokenFile: requiredString(
         env.RESEARCH_LLM_BEARER_TOKEN_FILE,
         "RESEARCH_LLM_BEARER_TOKEN_FILE"
@@ -819,6 +823,26 @@ function requiredIdentifier(value: string | undefined, name: string): string {
   const normalized = requiredString(value, name);
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/u.test(normalized)) {
     throw new Error(`${name} is invalid.`);
+  }
+  return normalized;
+}
+
+function requiredReasoningEffort(
+  value: string | undefined
+): "none" | "low" | "medium" | "high" {
+  const normalized = requiredString(
+    value,
+    "RESEARCH_LLM_REASONING_EFFORT"
+  ).toLowerCase();
+  if (
+    normalized !== "none" &&
+    normalized !== "low" &&
+    normalized !== "medium" &&
+    normalized !== "high"
+  ) {
+    throw new Error(
+      "RESEARCH_LLM_REASONING_EFFORT must be none, low, medium, or high."
+    );
   }
   return normalized;
 }
