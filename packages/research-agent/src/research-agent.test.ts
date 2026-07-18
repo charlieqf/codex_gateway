@@ -22,6 +22,7 @@ import {
   extractNumericCitations,
   FrozenResearchAdapters,
   parseAndValidateDoctorResearchResult,
+  parseAndValidateDoctorResearchModelOutput,
   probeResearchStorageAdmission,
   ResearchMaintenanceGate,
   recoverOrphanResearchArtifacts,
@@ -203,6 +204,25 @@ describe("Doctor Research production contracts", () => {
       repairSucceeded: false,
       modelContractError: true
     });
+  });
+
+  it("accepts one exact fenced model JSON object but rejects surrounding prose", () => {
+    const valid = JSON.stringify(validModelOutput());
+    expect(
+      parseAndValidateDoctorResearchModelOutput(
+        `\`\`\`json\n${valid}\n\`\`\``
+      )
+    ).toMatchObject({ ok: true });
+    expect(
+      parseAndValidateDoctorResearchModelOutput(
+        `Here is the result:\n\`\`\`json\n${valid}\n\`\`\``
+      )
+    ).toMatchObject({ ok: false, kind: "parse_error" });
+    expect(
+      parseAndValidateDoctorResearchModelOutput(
+        `\`\`\`json\n${valid}\n\`\`\`\n\`\`\`json\n{}\n\`\`\``
+      )
+    ).toMatchObject({ ok: false, kind: "parse_error" });
   });
 
   it("assembles server-owned identifiers and artifact manifests after validation", () => {

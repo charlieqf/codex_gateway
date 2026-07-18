@@ -670,24 +670,22 @@ export function validateDoctorResearchResultValue(
 export function parseAndValidateDoctorResearchModelOutput(
   text: string
 ): DoctorResearchContractResult<DoctorResearchModelOutput> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
+  const parsed = parseStrictModelJson(text);
+  if (!parsed.ok) {
     return {
       ok: false,
       kind: "parse_error",
       errors: ["response must contain exactly one valid JSON value"]
     };
   }
-  if (!validateModelOutput(parsed)) {
+  if (!validateModelOutput(parsed.value)) {
     return {
       ok: false,
       kind: "schema_error",
       errors: sanitizedAjvErrors(validateModelOutput.errors)
     };
   }
-  const semanticErrors = validateContentSemantics(parsed);
+  const semanticErrors = validateContentSemantics(parsed.value);
   if (semanticErrors.length > 0) {
     return {
       ok: false,
@@ -695,7 +693,27 @@ export function parseAndValidateDoctorResearchModelOutput(
       errors: semanticErrors
     };
   }
-  return { ok: true, value: parsed };
+  return { ok: true, value: parsed.value };
+}
+
+function parseStrictModelJson(
+  text: string
+): { ok: true; value: unknown } | { ok: false } {
+  const trimmed = text.trim();
+  try {
+    return { ok: true, value: JSON.parse(trimmed) };
+  } catch {
+    const fenced =
+      /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
+    if (!fenced) {
+      return { ok: false };
+    }
+    try {
+      return { ok: true, value: JSON.parse(fenced[1]!.trim()) };
+    } catch {
+      return { ok: false };
+    }
+  }
 }
 
 export function assembleDoctorResearchResult(input: {
