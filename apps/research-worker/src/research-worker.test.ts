@@ -263,6 +263,8 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "succeeded"
     });
     expect(observedPrompt).toContain("untrusted_publication_abstracts");
+    expect(observedPrompt).toContain("allowed_numeric_contexts");
+    expect(observedPrompt).toContain("year 2025");
     expect(observedPrompt).toContain(
       "untrusted_publication_abstracts[].abstract"
     );

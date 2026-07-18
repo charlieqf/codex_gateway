@@ -1578,6 +1578,7 @@ function buildModelPrompt(
     "Use only the exact source IDs and reference metadata supplied here.",
     "Do not invent PMID, DOI, affiliations, positions, projects, awards, numbers, or clinical advice.",
     "If any narrative uses a number, copy that number together with adjacent factual wording from the closed evidence; never repurpose a year, identifier, or other number into a different measure.",
+    "When a narrative number is necessary, copy one exact two-word phrase from Evidence.allowed_numeric_contexts; otherwise omit the number.",
     "Profile claims may cite only official_web or ORCID source IDs.",
     "For every non-identity profile claim, copy one exact contiguous factual excerpt from every cited untrusted official source after whitespace normalization; do not paraphrase it.",
     "The excerpt must describe the target doctor and occur near that doctor's name in the cited source, not in navigation, another profile, or a generic site section.",
@@ -1605,6 +1606,10 @@ function buildModelPrompt(
       matched_by: identity.matchedBy
     })}`,
     `Evidence: ${JSON.stringify({
+      allowed_numeric_contexts: numericEvidenceContextAllowlist(
+        identity,
+        evidence
+      ),
       untrusted_official_sources: sourceEvidence,
       public_source_metadata: evidence.sources,
       verified_references: evidence.references,
@@ -1627,6 +1632,40 @@ interface PublicationEvidence {
   abstract: string | null;
 }
 
+function numericEvidenceContextAllowlist(
+  identity: NonNullable<ReturnType<typeof resolveIdentity>>,
+  evidence: {
+    publicationEvidence: PublicationEvidence[];
+    references: DoctorResearchReference[];
+    sources: DoctorResearchSource[];
+  }
+): string[] {
+  const words = normalizeNumericContext(
+    closedNumericEvidenceText(identity, evidence)
+  )
+    .split(" ")
+    .filter(Boolean);
+  const contexts = new Set<string>();
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index]!;
+    if (extractNumericTokens(word).length === 0) {
+      continue;
+    }
+    const previous = words[index - 1];
+    const next = words[index + 1];
+    if (previous) {
+      contexts.add(`${previous} ${word}`);
+    }
+    if (next) {
+      contexts.add(`${word} ${next}`);
+    }
+    if (contexts.size >= 2_000) {
+      break;
+    }
+  }
+  return [...contexts];
+}
+
 function numericEvidenceClosed(
   output: DoctorResearchModelOutput,
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
@@ -1636,21 +1675,7 @@ function numericEvidenceClosed(
     sources: DoctorResearchSource[];
   }
 ): boolean {
-  const evidenceText = JSON.stringify({
-    official: identity.sourceEvidence.map((source) => source.untrusted_text),
-    publications: evidence.publicationEvidence.map((publication) => ({
-      title: publication.title,
-      authors: publication.authors,
-      abstract: publication.abstract
-    })),
-    references: evidence.references.map((reference) => ({
-      title: reference.title,
-      journal: reference.journal,
-      publication_year: reference.publication_year,
-      pmid: reference.pmid,
-      doi: reference.doi
-    }))
-  });
+  const evidenceText = closedNumericEvidenceText(identity, evidence);
   const allowed = new Set(extractNumericTokens(evidenceText));
   const normalizedEvidence = normalizeNumericContext(evidenceText);
   for (const narrative of modelNarrativeStrings(output)) {
@@ -1682,6 +1707,31 @@ function numericEvidenceClosed(
     }
   }
   return true;
+}
+
+function closedNumericEvidenceText(
+  identity: NonNullable<ReturnType<typeof resolveIdentity>>,
+  evidence: {
+    publicationEvidence: PublicationEvidence[];
+    references: DoctorResearchReference[];
+    sources: DoctorResearchSource[];
+  }
+): string {
+  return JSON.stringify({
+    official: identity.sourceEvidence.map((source) => source.untrusted_text),
+    publications: evidence.publicationEvidence.map((publication) => ({
+      title: publication.title,
+      authors: publication.authors,
+      abstract: publication.abstract
+    })),
+    references: evidence.references.map((reference) => ({
+      title: reference.title,
+      journal: reference.journal,
+      publication_year: reference.publication_year,
+      pmid: reference.pmid,
+      doi: reference.doi
+    }))
+  });
 }
 
 function containsUnsafeModelMarkup(
