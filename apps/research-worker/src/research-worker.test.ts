@@ -427,7 +427,7 @@ describe("Research Worker controlled-beta workflow", () => {
       }
     ];
     hallucinated.review.markdown =
-      "The retrieved publication supports cautious synthesis, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].";
+      "The retrieved publication enrolled 2025 patients, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].";
     const numericHallucinated = modelOutput();
     numericHallucinated.review.markdown =
       "The retrieved publication enrolled 2025 patients and established a precise effect, repurposing the publication year as an unsupported sample size [1].";
@@ -480,12 +480,16 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(repairPrompt).toContain("Schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
     expect(repairPrompt).toContain("Invented oncology program");
+    expect(repairPrompt).toContain(
+      "remove every unsupported number from all narrative fields"
+    );
     expect(validationEvents).toEqual([
       expect.objectContaining({
         stage: "synthesize_review",
         attempt: 1,
         errorCodes: expect.arrayContaining([
-          "unsafe_model_markup"
+          "unsafe_model_markup",
+          "numeric_evidence_closure"
         ])
       }),
       expect.objectContaining({

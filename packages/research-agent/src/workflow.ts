@@ -1034,10 +1034,19 @@ async function generateAndValidateModelOutput(
     1,
     validation.errorCodes
   );
+  const numericRepairGuidance = validation.errorCodes.includes(
+    "numeric_evidence_closure"
+  )
+    ? [
+        "Numeric evidence repair: remove every unsupported number from all narrative fields instead of estimating, reinterpreting, or replacing it.",
+        "Retain a narrative number only when its exact numeric token and at least one adjacent factual word occur together in the closed evidence; citation markers do not count as evidence."
+      ]
+    : [];
   const repairPrompt = [
     "Repair the candidate JSON. Return exactly one JSON object and no other text.",
     "Do not add sources, identifiers, facts, or references.",
     "Preserve every required field and re-check the complete schema.",
+    ...numericRepairGuidance,
     `Validation errors: ${JSON.stringify(validation.errors.slice(0, 12))}`,
     "Candidate:",
     first.text.slice(0, 300_000),
