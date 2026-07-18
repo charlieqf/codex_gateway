@@ -410,6 +410,11 @@ describe("Research Worker controlled-beta workflow", () => {
     numericHallucinated.review.markdown =
       "The retrieved publication enrolled 2025 patients and established a precise effect, repurposing the publication year as an unsupported sample size [1].";
     let modelCalls = 0;
+    const validationEvents: Array<{
+      stage: string;
+      attempt: number;
+      errorCodes: readonly string[];
+    }> = [];
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
@@ -434,6 +439,9 @@ describe("Research Worker controlled-beta workflow", () => {
       artifactRoot,
       policy: workflowPolicy(),
       signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push(event);
+      },
       now: () => now
     });
 
@@ -442,6 +450,26 @@ describe("Research Worker controlled-beta workflow", () => {
       reason: "model_contract_error"
     });
     expect(modelCalls).toBe(2);
+    expect(validationEvents).toEqual([
+      expect.objectContaining({
+        stage: "synthesize_review",
+        attempt: 1,
+        errorCodes: expect.arrayContaining([
+          "profile_claim_not_exact_source_excerpt"
+        ])
+      }),
+      expect.objectContaining({
+        stage: "validate_outputs",
+        attempt: 2,
+        errorCodes: expect.arrayContaining(["numeric_evidence_closure"])
+      })
+    ]);
+    expect(JSON.stringify(validationEvents)).not.toContain(
+      "clm_research_direction_invented"
+    );
+    expect(JSON.stringify(validationEvents)).not.toContain(
+      "Invented oncology program"
+    );
     expect(existsSync(artifactRoot)).toBe(false);
     store.close();
   });

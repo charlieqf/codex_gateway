@@ -83,6 +83,12 @@ export async function executeDoctorResearchWorkflow(input: {
   artifactRoot: string;
   policy: DoctorResearchWorkflowPolicy;
   signal: AbortSignal;
+  onValidationFailure?: (input: {
+    runId: string;
+    stage: "synthesize_review" | "validate_outputs";
+    attempt: 1 | 2;
+    errorCodes: readonly string[];
+  }) => void;
   now?: () => Date;
 }): Promise<DoctorResearchWorkflowResult> {
   const now = input.now ?? (() => new Date());
@@ -501,6 +507,29 @@ class WorkflowContext {
         }
       }
       throw error;
+    }
+  }
+
+  reportValidationFailure(
+    stage: "synthesize_review" | "validate_outputs",
+    attempt: 1 | 2,
+    errorCodes: readonly string[]
+  ): void {
+    const stableCodes = [
+      ...new Set(
+        errorCodes.filter((code) => /^[a-z][a-z0-9_]{0,127}$/u.test(code))
+      )
+    ].slice(0, 12);
+    try {
+      this.input.onValidationFailure?.({
+        runId: this.run.runId,
+        stage,
+        attempt,
+        errorCodes:
+          stableCodes.length > 0 ? stableCodes : ["model_contract_error"]
+      });
+    } catch {
+      // A diagnostic sink must not change workflow convergence.
     }
   }
 
@@ -1000,6 +1029,11 @@ async function generateAndValidateModelOutput(
   if (validation.ok) {
     return validation.value;
   }
+  context.reportValidationFailure(
+    "synthesize_review",
+    1,
+    validation.errorCodes
+  );
   const repairPrompt = [
     "Repair the candidate JSON. Return exactly one JSON object and no other text.",
     "Do not add sources, identifiers, facts, or references.",
@@ -1020,6 +1054,13 @@ async function generateAndValidateModelOutput(
     evidence,
     context.input.policy
   );
+  if (!validation.ok) {
+    context.reportValidationFailure(
+      "validate_outputs",
+      2,
+      validation.errorCodes
+    );
+  }
   return validation.ok ? validation.value : null;
 }
 
@@ -1036,10 +1077,14 @@ function validateGeneratedOutput(
   policy: DoctorResearchWorkflowPolicy
 ):
   | { ok: true; value: DoctorResearchModelOutput }
-  | { ok: false; errors: string[] } {
+  | { ok: false; errors: string[]; errorCodes: string[] } {
   const parsed = parseAndValidateDoctorResearchModelOutput(text);
   if (!parsed.ok) {
-    return { ok: false, errors: parsed.errors };
+    return {
+      ok: false,
+      errors: parsed.errors,
+      errorCodes: contractFailureCodes(parsed.kind, parsed.errors)
+    };
   }
   const closedProfile = closeProfileToOfficialEvidence(
     parsed.value.profile,
@@ -1047,7 +1092,11 @@ function validateGeneratedOutput(
     run.input.doctor.name
   );
   if (!closedProfile.ok) {
-    return { ok: false, errors: closedProfile.errors };
+    return {
+      ok: false,
+      errors: closedProfile.errors,
+      errorCodes: stableValidationCodes(closedProfile.errors)
+    };
   }
   const candidate: DoctorResearchModelOutput = {
     ...parsed.value,
@@ -1104,7 +1153,13 @@ function validateGeneratedOutput(
     JSON.stringify(candidate)
   );
   if (!reparsed.ok) {
-    return { ok: false, errors: reparsed.errors };
+    return {
+      ok: false,
+      errors: reparsed.errors,
+      errorCodes: contractFailureCodes(reparsed.kind, reparsed.errors).map(
+        (code) => `server_closed_${code}`
+      )
+    };
   }
   const qualityErrors = validateRuntimeQuality(
     reparsed.value,
@@ -1117,7 +1172,42 @@ function validateGeneratedOutput(
   }
   return qualityErrors.length === 0
     ? { ok: true, value: reparsed.value }
-    : { ok: false, errors: qualityErrors };
+    : {
+        ok: false,
+        errors: qualityErrors,
+        errorCodes: stableValidationCodes(qualityErrors)
+      };
+}
+
+function contractFailureCodes(
+  kind: "parse_error" | "schema_error" | "semantic_error",
+  errors: readonly string[]
+): string[] {
+  if (kind !== "schema_error") {
+    return [kind];
+  }
+  const keywords = errors
+    .map((error) => error.split(":").at(-1)?.trim())
+    .filter(
+      (keyword): keyword is string =>
+        typeof keyword === "string" &&
+        /^[a-z][a-zA-Z0-9_-]{0,63}$/u.test(keyword)
+    )
+    .map((keyword) => `schema_${keyword.toLowerCase()}`);
+  return [...new Set(["schema_error", ...keywords])].slice(0, 12);
+}
+
+function stableValidationCodes(errors: readonly string[]): string[] {
+  return [
+    ...new Set(
+      errors.map((error) => {
+        const prefix = error.split(":", 1)[0]!.trim();
+        return /^[a-z][a-z0-9_]{0,99}$/u.test(prefix)
+          ? prefix
+          : "semantic_error";
+      })
+    )
+  ].slice(0, 12);
 }
 
 function validateRuntimeQuality(

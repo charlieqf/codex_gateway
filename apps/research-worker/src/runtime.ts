@@ -293,7 +293,16 @@ export async function runResearchWorker(input: {
               modelClient,
               artifactRoot: config.artifactRoot,
               policy: config.workflowPolicy,
-              signal
+              signal,
+              onValidationFailure(event) {
+                logger.info("research_model_validation_failed", {
+                  run_id: event.runId,
+                  lease_generation: currentToken.generation,
+                  stage: event.stage,
+                  attempt: event.attempt,
+                  error_codes: event.errorCodes
+                });
+              }
             })
         });
         if (guarded.outcome !== "completed") {
