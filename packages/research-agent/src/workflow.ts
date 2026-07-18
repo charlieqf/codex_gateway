@@ -1324,7 +1324,6 @@ function closeProfileToOfficialEvidence(
 ):
   | { ok: true; profile: DoctorResearchModelOutput["profile"] }
   | { ok: false; errors: string[] } {
-  const errors: string[] = [];
   const sources = new Map(
     identity.sourceEvidence.map((source) => [
       source.source_id,
@@ -1336,31 +1335,27 @@ function closeProfileToOfficialEvidence(
       claim.claim_type === "identity" ||
       claim.claim_id === "clm_identity_verified"
     ) {
-      errors.push("model_profile_identity_claim_is_server_owned");
       return false;
     }
+    let accepted = true;
     const normalizedClaim = normalizeEvidenceText(claim.text);
     if (Array.from(normalizedClaim.replaceAll(" ", "")).length < 4) {
-      errors.push(`profile_claim_too_short:${claim.claim_id}`);
+      accepted = false;
     }
     if (!profileClaimHasTypeMarker(claim.claim_type, normalizedClaim)) {
-      errors.push(`profile_claim_type_not_anchored:${claim.claim_id}`);
+      accepted = false;
     }
     for (const sourceId of claim.source_ids) {
       const sourceText = sources.get(sourceId);
       if (!sourceText || !sourceText.includes(normalizedClaim)) {
-        errors.push(
-          `profile_claim_not_exact_source_excerpt:${claim.claim_id}:${sourceId}`
-        );
+        accepted = false;
       } else if (
         !textOccursNearIdentity(sourceText, normalizedClaim, doctorName)
       ) {
-        errors.push(
-          `profile_claim_not_near_identity:${claim.claim_id}:${sourceId}`
-        );
+        accepted = false;
       }
     }
-    return true;
+    return accepted;
   });
   const fieldByClaimType = {
     position: "positions",
@@ -1391,29 +1386,16 @@ function closeProfileToOfficialEvidence(
     const field = fieldByClaimType[claim.claim_type];
     const normalizedClaim = normalizeEvidenceText(claim.text);
     if (seenClaimText.has(normalizedClaim)) {
-      errors.push(`duplicate_profile_claim_text:${claim.claim_id}`);
       continue;
     }
     seenClaimText.add(normalizedClaim);
     rebuilt[field].push(claim.text);
   }
-  for (const field of Object.values(fieldByClaimType)) {
-    if (!arraysEqual(profile[field], rebuilt[field])) {
-      errors.push(`profile_field_claim_mismatch:${field}`);
-    }
-  }
   if (rebuilt.research_directions.length === 0) {
-    errors.push("verified_research_direction_required");
-  }
-  if (
-    profile.primary_public_source_ids.some(
-      (sourceId) => !sources.has(sourceId)
-    )
-  ) {
-    errors.push("profile_primary_source_not_identity_evidence");
-  }
-  if (errors.length > 0) {
-    return { ok: false, errors };
+    return {
+      ok: false,
+      errors: ["verified_research_direction_required"]
+    };
   }
   return {
     ok: true,
@@ -1512,16 +1494,6 @@ function profileClaimHasTypeMarker(
       /\b(?:publication|paper|article|study|project|patent|award|trial)s?\b|论文|文章|研究|项目|专利|奖项|成果/iu
   } as const;
   return markers[claimType].test(normalizedClaim);
-}
-
-function arraysEqual(
-  left: readonly string[],
-  right: readonly string[]
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((value, index) => value === right[index])
-  );
 }
 
 function elapsedMilliseconds(startedMonotonic: number): number {

@@ -217,6 +217,15 @@ describe("Research Worker controlled-beta workflow", () => {
       modelValidation.ok,
       modelValidation.ok ? "" : JSON.stringify(modelValidation.errors)
     ).toBe(true);
+    const closableOutput = modelOutput();
+    closableOutput.profile.expertise = ["Invented unsupported specialty"];
+    closableOutput.profile.claims.push({
+      claim_id: "clm_unsupported_extra",
+      claim_type: "expertise",
+      text: "Invented unsupported specialty",
+      source_ids: ["src_official_1"],
+      verification_status: "verified"
+    });
 
     let observedPrompt = "";
     const modelClient: ResearchModelClient = {
@@ -224,7 +233,7 @@ describe("Research Worker controlled-beta workflow", () => {
       async generate(input) {
         observedPrompt = input.prompt;
         return {
-          text: JSON.stringify(modelOutput()),
+          text: JSON.stringify(closableOutput),
           gatewayRequestId: "req_model_test",
           usage: {
             promptTokens: 100,
@@ -263,6 +272,7 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     const result = stored?.result as unknown as {
       profile: {
+        expertise: string[];
         research_directions: string[];
         claims: Array<{ claim_type: string; text: string }>;
       };
@@ -276,6 +286,10 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(result.profile.research_directions).toEqual([
       "Clinical evidence is the listed research direction"
     ]);
+    expect(result.profile.expertise).toEqual([]);
+    expect(JSON.stringify(result.profile)).not.toContain(
+      "Invented unsupported specialty"
+    );
     expect(result.profile.claims).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ claim_type: "identity" }),
@@ -463,7 +477,7 @@ describe("Research Worker controlled-beta workflow", () => {
         stage: "synthesize_review",
         attempt: 1,
         errorCodes: expect.arrayContaining([
-          "profile_claim_not_exact_source_excerpt"
+          "verified_research_direction_required"
         ])
       }),
       expect.objectContaining({
