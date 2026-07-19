@@ -31,17 +31,20 @@ execution are not part of the Research generation path.
 
 ## Default-closed switches
 
-All three host-side switches default to false:
+All four host-side switches default to false:
 
 ```text
 RESEARCH_PRODUCTION_API_ENABLED
+RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED
 RESEARCH_PRODUCTION_WORKER_ENABLED
 RESEARCH_PRODUCTION_MAINTENANCE_ENABLED
 ```
 
-Do not enable API admission until maintenance has produced a fresh verified
-backup and the Worker has published a ready heartbeat. Never set
-`RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE=true`.
+The LLM-readiness switch registers the authenticated Worker readiness route
+only on the isolated, non-published LLM Gateway. Enable it only after the
+internal service credential exists. Do not enable public API admission until
+maintenance has produced a fresh verified backup and the Worker has published
+a ready heartbeat. Never set `RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE=true`.
 
 ## Required private files
 
@@ -63,7 +66,7 @@ be host owner `999:999`, mode `0400`. Compose local secrets do not enforce the
 declared uid/gid/mode; verify host metadata.
 
 Create the Compose env from
-`config/research.production.compose.example.env`. Its three enable switches
+`config/research.production.compose.example.env`. Its four enable switches
 must remain false until the corresponding start-order gate below passes.
 
 The Worker example deliberately fails production startup until:
@@ -112,7 +115,9 @@ Worker disabled. In its isolated Gateway database:
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.
-5. Verify `/v1/models` from inside the Compose network lists only
+5. Set `RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED=true` and recreate only
+   `research-llm-gateway`.
+6. Verify `/v1/models` from inside the Compose network lists only
    `goldencode`.
 
 ## Start order
@@ -120,7 +125,8 @@ Worker disabled. In its isolated Gateway database:
 Use this order:
 
 1. Build all four services from the clean release.
-2. Start the internal LLM Gateway.
+2. Start the internal LLM Gateway, bootstrap its credential, then enable only
+   its isolated LLM-readiness API switch.
 3. Start maintenance with only
    `RESEARCH_PRODUCTION_MAINTENANCE_ENABLED=true`.
 4. Wait for a successful verified backup and healthy maintenance.

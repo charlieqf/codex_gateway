@@ -120,6 +120,11 @@ class ResearchDockerContractTests(unittest.TestCase):
             compose,
         )
         self.assertIn(
+            "RESEARCH_API_ENABLED: "
+            "${RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED:-false}",
+            compose,
+        )
+        self.assertIn(
             "RESEARCH_MAINTENANCE_ENABLED: ${RESEARCH_PRODUCTION_MAINTENANCE_ENABLED:-false}",
             compose,
         )
@@ -172,6 +177,10 @@ class ResearchDockerContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn("RESEARCH_PRODUCTION_API_ENABLED=false", compose_environment)
+        self.assertIn(
+            "RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED=false",
+            compose_environment,
+        )
         self.assertIn(
             "RESEARCH_PRODUCTION_WORKER_ENABLED=false",
             compose_environment,

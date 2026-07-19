@@ -17,6 +17,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
+      - ${RESEARCH_PRODUCTION_API_ENV_FILE:?set a production Research API env file}
       - ${RESEARCH_PRODUCTION_LLM_GATEWAY_ENV_FILE:?set a production Research LLM Gateway env file}
     environment:
       NODE_ENV: production
@@ -24,7 +25,12 @@ services:
       GATEWAY_PORT: 8787
       GATEWAY_AUTH_MODE: credential
       GATEWAY_SQLITE_PATH: /var/lib/codex-gateway/gateway.db
-      RESEARCH_API_ENABLED: "false"
+      # Registers the authenticated Worker readiness route on this isolated,
+      # non-published service. User admission remains controlled separately on
+      # the public Gateway.
+      RESEARCH_API_ENABLED: ${RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED:-false}
+      RESEARCH_DB_PATH: /var/lib/codex-gateway/research-readiness.db
+      RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway/research-readiness-artifacts
     volumes:
       - research_production_llm_gateway_state:/var/lib/codex-gateway
       - research_production_llm_gateway_logs:/var/log/codex-gateway
