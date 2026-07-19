@@ -1736,7 +1736,12 @@ function unsupportedNarrativeNumericTokens(
   const allowed = new Set(extractNumericTokens(evidenceText));
   const normalizedEvidence = normalizeNumericContext(evidenceText);
   const unsupported = new Set<string>();
-  for (const narrative of modelNarrativeStrings(output)) {
+  // Profile arrays are rebuilt exclusively from exact, contiguous official
+  // source claims by closeProfileToOfficialEvidence above. Re-applying the
+  // free-narrative adjacent-word rule here can falsely reject a closed
+  // one-token claim such as "research3dprogram", and the numeric redactor
+  // intentionally cannot rewrite an exact-source profile claim.
+  for (const narrative of numericNarrativeStrings(output)) {
     const withoutCitations = narrative.replace(/\[[0-9,\s-]+\]/gu, "");
     const normalizedNarrative = normalizeNumericContext(withoutCitations);
     const words = normalizedNarrative.split(" ").filter(Boolean);
@@ -1868,6 +1873,26 @@ function modelNarrativeStrings(
     ...output.profile.research_directions,
     ...output.profile.representative_outputs,
     ...output.profile.claims.map((claim) => claim.text),
+    output.review.title,
+    output.review.abstract,
+    ...output.review.keywords,
+    output.review.markdown,
+    ...output.review.core_evidence.flatMap((item) => [
+      item.study_type,
+      item.sample_and_source,
+      item.methods,
+      item.key_results,
+      item.limitations
+    ]),
+    ...output.predicted_questions,
+    ...output.answers.map((answer) => answer.answer)
+  ];
+}
+
+function numericNarrativeStrings(
+  output: DoctorResearchModelOutput
+): string[] {
+  return [
     output.review.title,
     output.review.abstract,
     ...output.review.keywords,

@@ -520,6 +520,80 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
+  it("does not apply free-narrative numeric rules to exact official profile claims", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "official_numeric_profile_claim"
+    );
+    const numericProfileAdapters = adapters();
+    numericProfileAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/example",
+      title: "Example Hospital Doctor Profile",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "Example Doctor works in Cardiology at Example Hospital. " +
+        "research3dprogram"
+    });
+    const output = modelOutput();
+    output.profile.research_directions = ["research3dprogram"];
+    output.profile.claims = [
+      {
+        claim_id: "clm_research_direction_numeric_official",
+        claim_type: "research_direction",
+        text: "research3dprogram",
+        source_ids: ["src_official_1"],
+        verification_status: "verified"
+      }
+    ];
+    let modelCalls = 0;
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: numericProfileAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: `req_model_official_numeric_${modelCalls}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(1);
+    expect(validationCodes).toEqual([]);
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toMatchObject({
+      result: {
+        profile: {
+          research_directions: ["research3dprogram"]
+        }
+      }
+    });
+    fixture.store.close();
+  });
+
   it("does not use numeric redaction to mask another output violation", async () => {
     const fixture = createLeasedWorkflowFixture(
       "numeric_redaction_contract"
