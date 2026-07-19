@@ -13,7 +13,8 @@ gateway is also running for domestic-only GLM-5.2 validation.
 Completed:
 
 - Doctor Research controlled beta is enabled on the production Azure Gateway:
-  - runtime commit `4397420c0f25851131cee0c83580e96df6b54281`
+  - runtime checkout commit
+    `71df0fac7047000f88a057a79ef649e2cad0a819`
     from clean release
     `/home/qian/codex-gateway-release-499241c-20260718T234851Z`;
   - the public Gateway remains loopback-only on `127.0.0.1:18787`; Nginx and
@@ -26,14 +27,29 @@ Completed:
     `goldencode`, backed by direct Qianfan, Tencent and Aliyun GLM-5.2
     members; Max, Codex, OpenRouter, public proxies, Google Scholar and
     dynamic third-party Skill execution are absent from this path;
-  - production run `drr_3d65d1ca83c34eee883679cea27fd116`
-    completed real official-source, PubMed, Crossref, structured GLM-5.2
-    generation, validation and terminal fencing, followed by public HTTPS
-    result retrieval and four authenticated hash-verified downloads;
-  - the verified result contains exactly three Markdown documents and one
-    five-line text document. Production stale-heartbeat `503`, exact
+  - Skill `1.3.0` / input schema `doctor_research_run_input.v2` adds a
+    fail-closed bilingual literature identity: an allowlisted official source
+    must co-locate the Chinese display name and PubMed name, then every
+    retained publication must attribute the configured English hospital and
+    department to the matching author;
+  - production run `drr_da23489a80ae4d51b43f0850fdfd369d` used the display
+    name `陆清声`, two complementary first-party official pages, PubMed,
+    Crossref and direct Qianfan `goldencode` / `glm-5.2`; it completed
+    structured generation, validation and terminal fencing, followed by
+    public HTTPS result retrieval and four authenticated hash-verified
+    downloads;
+  - the verified localized result contains exactly
+    `陆清声_基础信息与研究方向.md`,
+    `陆清声_相关领域前沿综述.md`,
+    `陆清声_医生可能问机器人问题.txt`, and
+    `陆清声_问题与答案.md`; the txt contains exactly five non-empty lines.
+    Production stale-heartbeat `503`, exact
     cancellation replay/convergence, subject isolation, encoded traversal and
     networkless isolated backup/restore drills passed;
+  - the post-deploy public model surface remained exactly the expected eight
+    models. A temporary-key `goldencode` Chat Completions smoke completed with
+    `upstream_account_id=goldencode-openrouter`,
+    `upstream_model=z-ai/glm-5.2`, `reasoning_effort=medium` and `status=ok`;
   - public OpenAI, strict-tools and public `goldencode` native-tools
     compatibility smokes passed after the final Gateway recreation;
   - admission limits remain conservative: Worker concurrency 1, global queued
@@ -43,9 +59,9 @@ Completed:
   - beta access is granted only through the dedicated
     `plan_research_beta_production_v1` plan. A real user handoff still requires
     that user's name and phone number; no existing shared user plan received
-    `doctor_research`. Both production E2E credentials were revoked, their
+    `doctor_research`. All deployment/E2E credentials were revoked, their
     users disabled, and their token files removed after final verification;
-    neither is available for user handoff.
+    none is available for user handoff.
 
 - Codex SDK child-process cancellation crash hardening:
   - the live 2026-07-17 incident was traced to an unhandled

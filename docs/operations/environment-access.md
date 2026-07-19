@@ -141,11 +141,16 @@ The current live gateway is operated from a clean release checkout:
 /home/qian/codex-gateway-release-499241c-20260718T234851Z
 ```
 
-This checkout is detached at runtime commit
-`4397420c0f25851131cee0c83580e96df6b54281`. The former
+This checkout is detached at runtime checkout commit
+`71df0fac7047000f88a057a79ef649e2cad0a819`. The former
 `/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z` checkout and
 `codex_gateway_test-gateway:rollback-ccccf1c-20260718T235210Z` image tag are
 the pre-Research rollback boundary.
+
+The current Gateway image is
+`sha256:767ec751ed70295caf9981e0f0f69a8c14b2c53f198ff0fecab4d621a61d6be1`;
+the current Research Worker image is
+`sha256:6fb896a282ea8d9ae24b66d7f1365027183edac207fd08980d71b4ffc20bb801`.
 
 Production Compose mutations must now use the base file, Research overlay and
 private Compose env together:

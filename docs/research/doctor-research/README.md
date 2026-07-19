@@ -58,6 +58,7 @@ python scripts/doctor-research-demo.py `
   --literature-department "Vascular Surgery" `
   --title "教授、主任医师" `
   --city "上海" `
+  --official-profile-url "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html" `
   --official-profile-url "https://www.qk.sjtu.edu.cn/jscp/CN/10.16139/j.1007-9610.2022.04.008" `
   --api-key-file "C:\private\doctor-research.key" `
   --output-dir ".\doctor-research-output"
@@ -72,7 +73,10 @@ The three `--literature-*` values are optional as a group. When supplied, an
 allowlisted official page must place the display name and literature name in
 the same bounded identity block, and each retained PubMed record must
 independently attribute both the literature hospital and department to the
-matching author. The run fails closed if either link is missing.
+matching author. A separate allowlisted official profile URL may provide the
+doctor's position, expertise and research-direction evidence. The run fails
+closed if the identity bridge, publication attribution or required profile
+evidence is missing.
 
 ## Phase 0 status
 

@@ -57,6 +57,19 @@ Last updated: 2026-07-19
   drill, initialize only that scratch volume with a one-shot container granted
   `CHOWN`, then run the actual backup verification as UID/GID `999:999` with
   all capabilities dropped.
+- Exclude `secrets/`, smoke output and temporary operator scripts in
+  `.dockerignore`. A Dockerfile that never copies a secret can still send it
+  to the local daemon as part of the build context unless it is ignored.
+- Do not transliterate Chinese doctor names inside the Worker or relax author
+  matching. Accept an explicit PubMed-indexed literature identity only when an
+  allowlisted official source co-locates the display and literature names, and
+  still verify the matching author's same affiliation contains both the
+  literature hospital and department.
+- A bilingual journal page can close the Chinese/English name bridge without
+  supplying a usable doctor research-direction claim. For a controlled run,
+  allow a second first-party profile page with explicit position/expertise/
+  research text; retain fail-closed `verified_research_direction_required`
+  behavior instead of treating an article abstract as a doctor profile.
 
 ## Operator Vocabulary
 
