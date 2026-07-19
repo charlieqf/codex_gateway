@@ -12,6 +12,34 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
+- Native-tool recovery for GoldenCode/ABS compatibility was deployed on
+  2026-07-19:
+  - public Gateway runtime commit
+    `857d45330081adbb3f46a942b78a413349b51a5e` was built from clean release
+    `/home/qian/codex-gateway-release-857d453-20260719T134615Z`;
+  - when an upstream returns no native tool call and its entire body is the
+    serialized `[assistant tool_calls]` envelope, the Gateway now recovers it
+    through the existing declared-tool-name and JSON Schema validation path.
+    It does not add a provider attempt or expose the serialized envelope as
+    assistant text;
+  - online backups are retained under
+    `/home/qian/codex-gateway-backups/857d453/20260719T134822Z`. Both
+    `gateway.db` and `client-events.db` passed SQLite integrity checks with
+    zero foreign-key violations;
+  - rollback image
+    `codex_gateway_test-gateway:rollback-857d453-20260719T134822Z` is retained.
+    The deployed Gateway image is
+    `sha256:e685f308424c0840219658f478ed1a1ffa575957c0ced73c0c1fa377f3b27413`;
+  - public health, the exact eight-model surface, four protected provider-key
+    names, OpenAI chat, strict tools, GoldenCode native tools and an ABS-like
+    Qianfan tool continuation all passed. The native-tool request
+    `req-0404a550-d5ce-4d14-92b1-0bc45e2f5341` and continuation request
+    `req-f23a650c-2608-4056-9cd2-4d7469f8b7f0` each recorded one upstream
+    attempt;
+  - the Gateway remained bound only to `127.0.0.1:18787` with zero restarts.
+    Research LLM Gateway, Worker and maintenance container identities, start
+    times and restart counts were unchanged.
+
 - Doctor Research controlled beta is enabled on the production Azure Gateway:
   - runtime checkout commit
     `71df0fac7047000f88a057a79ef649e2cad0a819`

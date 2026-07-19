@@ -7,26 +7,34 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-19, the controlled beta is enabled at runtime commit
-`4397420c0f25851131cee0c83580e96df6b54281` from:
+As of 2026-07-19, the public Gateway runs runtime commit
+`857d45330081adbb3f46a942b78a413349b51a5e` from:
 
 ```text
-/home/qian/codex-gateway-release-499241c-20260718T234851Z
+/home/qian/codex-gateway-release-857d453-20260719T134615Z
 ```
 
-All four switches are enabled after their gates passed. The public Gateway,
-internal direct-GLM Gateway, Worker and maintenance containers are healthy
-with zero restarts. Production run
+This Gateway-only recreation added validated recovery for a fully serialized
+`[assistant tool_calls]` response without adding another provider attempt.
+The internal direct-GLM Gateway, Worker and maintenance containers were not
+recreated; their container identities and start times remained unchanged.
+All four switches remain enabled after their gates passed, and all four
+containers are healthy with zero restarts. Production run
 `drr_3d65d1ca83c34eee883679cea27fd116` succeeded and public HTTPS returned
 exactly three Markdown artifacts plus one five-line text artifact with
 manifest-matching hashes.
 
-The pre-Research release and rollback image remain:
+The current online database backup and Gateway rollback image are:
 
 ```text
-/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z
-codex_gateway_test-gateway:rollback-ccccf1c-20260718T235210Z
+/home/qian/codex-gateway-backups/857d453/20260719T134822Z
+codex_gateway_test-gateway:rollback-857d453-20260719T134822Z
 ```
+
+Both SQLite backups passed integrity checks with zero foreign-key violations.
+The pre-Research clean release
+`/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z` remains retained
+as the older compatibility boundary.
 
 The separate backup volume is encrypted at rest by the Azure managed-disk
 platform and has passed a networkless scratch-volume restore drill. It is on
