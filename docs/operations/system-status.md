@@ -549,7 +549,9 @@ Most recent Azure VM validation:
 - DNS `gw.instmarket.com.au` resolves to `4.242.58.89`.
 - Existing host Nginx owns public `80` and `443`; the gateway container does not bind public ports.
 - Nginx has a dedicated `gw.instmarket.com.au` server that proxies HTTPS traffic to `http://127.0.0.1:18787`.
-- Let's Encrypt certificate for `gw.instmarket.com.au` was issued with certbot and expires on 2026-07-21; certbot installed its automatic renewal task.
+- Let's Encrypt certificate for `gw.instmarket.com.au` is managed by certbot.
+  The live certificate checked on 2026-07-19 is valid from 2026-06-21 through
+  2026-09-19, confirming automatic renewal replaced the earlier certificate.
 - Public `https://gw.instmarket.com.au/gateway/health` returns gateway health with `auth_mode: credential`, SQLite session store, and observation enabled.
 - HTTP `http://gw.instmarket.com.au/gateway/health` redirects to HTTPS.
 - Public `GET /gateway/credentials/current` smoke passed with a temporary API key, including success metadata, missing credential `401 missing_credential`, wrong credential `401 invalid_credential`, `X-Request-Id` headers, and cleanup by revoking the temporary key and disabling the temporary smoke user.
