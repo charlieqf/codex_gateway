@@ -945,6 +945,212 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("bridges a Chinese display identity to verified PubMed metadata without changing localized artifacts", async () => {
+    const input = runInput();
+    input.language = "zh-CN";
+    input.doctor = {
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科",
+      title: "教授、主任医师",
+      city: "上海",
+      orcid: null,
+      literatureIdentity: {
+        name: "Lu Qingsheng",
+        hospital: "Changhai Hospital",
+        department: "Vascular Surgery"
+      }
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "verified_literature_identity",
+      input
+    );
+    const bilingualAdapters = adapters(0);
+    let observedQuery = "";
+    bilingualAdapters.searchPubMed = async (query) => {
+      observedQuery = query;
+      return ["1001"];
+    };
+    bilingualAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/lu",
+      title: "陆清声",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "陆清声 海军军医大学第一附属医院 血管外科。LU Qingsheng。" +
+        "研究方向为血管外科临床证据。"
+    });
+    bilingualAdapters.getPubMedMetadata = async () => ({
+      referenceId: "ref_pubmed_1001",
+      pmid: "1001",
+      doi: null,
+      title: "Retrieved Clinical Evidence",
+      journal: "Evidence Journal",
+      publicationYear: 2025,
+      authors: ["Lu Q"],
+      authorAffiliations: [
+        {
+          author: "Qingsheng Lu",
+          affiliations: [
+            "Department of Vascular Surgery, Changhai Hospital, Naval Medical University, Shanghai, China."
+          ]
+        }
+      ],
+      abstractText:
+        "Randomized evidence from the retrieved abstract supports cautious synthesis.",
+      sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "b".repeat(64)
+    });
+    const localizedOutput = modelOutput();
+    localizedOutput.profile.research_directions = [
+      "研究方向为血管外科临床证据"
+    ];
+    localizedOutput.profile.claims = [
+      {
+        claim_id: "clm_research_direction_1",
+        claim_type: "research_direction",
+        text: "研究方向为血管外科临床证据",
+        source_ids: ["src_official_1"],
+        verification_status: "verified"
+      }
+    ];
+    localizedOutput.review.title = "公开证据综述";
+    localizedOutput.review.abstract = "基于已核验公开资料进行谨慎综合。";
+    localizedOutput.review.keywords = ["血管外科", "公开证据"];
+    localizedOutput.review.markdown =
+      "检索到的公开文献支持谨慎综合现有证据，同时仍需明确研究方法与公开资料本身存在的局限性，并避免超出来源范围推断结论。[1]";
+    localizedOutput.review.core_evidence = [
+      {
+        reference_id: "ref_pmid_1001",
+        study_type: "公开文献",
+        sample_and_source: "公开摘要",
+        methods: "根据已检索摘要概括研究方法。",
+        key_results: "公开摘要支持谨慎综合证据。",
+        limitations: "仅使用公开元数据与摘要证据。"
+      }
+    ];
+    localizedOutput.predicted_questions = [
+      "检索到了哪些公开证据？",
+      "医生身份是怎样核验的？",
+      "现有证据还存在哪些局限？",
+      "哪些来源支持这份综述？",
+      "应当怎样谨慎理解这些结果？"
+    ];
+    localizedOutput.answers = localizedOutput.answers.map(
+      (answer, index) => ({
+        ...answer,
+        question_index: index + 1,
+        answer: "回答严格限于已经检索并核验的公开证据。"
+      })
+    );
+    const validationErrors: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: bilingualAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          return {
+            text: JSON.stringify(localizedOutput),
+            gatewayRequestId: "req_model_literature_identity",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 1_000,
+              totalTokens: 1_100
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationErrors.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome, JSON.stringify(validationErrors)).toEqual({
+      outcome: "succeeded"
+    });
+    expect(observedQuery).toBe(
+      '("Lu Qingsheng"[Author] AND "Changhai Hospital"[Affiliation] AND "Vascular Surgery"[Affiliation]) AND (2022:2026[Date - Publication])'
+    );
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      "subj_verified_literature_identity"
+    );
+    const filenames = (
+      stored?.result as unknown as {
+        artifacts: Array<{ filename: string }>;
+      }
+    ).artifacts.map((artifact) => artifact.filename);
+    expect(filenames).toEqual([
+      "陆清声_基础信息与研究方向.md",
+      "陆清声_相关领域前沿综述.md",
+      "陆清声_医生可能问机器人问题.txt",
+      "陆清声_问题与答案.md"
+    ]);
+    fixture.store.close();
+  });
+
+  it("rejects a PubMed identity alias that is not co-located with the display identity on an official source", async () => {
+    const input = runInput();
+    input.doctor = {
+      ...input.doctor,
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科",
+      literatureIdentity: {
+        name: "Lu Qingsheng",
+        hospital: "Changhai Hospital",
+        department: "Vascular Surgery"
+      }
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "unbridged_literature_identity",
+      input
+    );
+    const unbridgedAdapters = adapters(0);
+    unbridgedAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/lu",
+      title: "陆清声",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "陆清声 海军军医大学第一附属医院 血管外科。Clinical evidence is the listed research direction."
+    });
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: unbridgedAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run for an unbridged identity.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "identity_not_resolved"
+    });
+    expect(modelCalls).toBe(0);
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
   it("rejects a publication when only another department is attributed to the target author", async () => {
     const fixture = createLeasedWorkflowFixture("wrong_department");
     const mismatchedAdapters = adapters();

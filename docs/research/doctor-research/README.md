@@ -40,6 +40,8 @@ the asynchronous production API. It:
   same-origin paths, and checks content type, length and SHA-256;
 - preserves safe localized server filenames such as
   `陆清声_基础信息与研究方向.md`;
+- accepts a separately verified PubMed literature identity for bilingual
+  profiles while keeping the supplied Chinese display identity and filenames;
 - atomically publishes a run directory containing exactly three Markdown
   files and one five-line text file. Partial downloads remain unpublished and
   are removed.
@@ -51,9 +53,12 @@ python scripts/doctor-research-demo.py `
   --doctor-name "陆清声" `
   --hospital "海军军医大学第一附属医院" `
   --department "血管外科" `
+  --literature-name "Lu Qingsheng" `
+  --literature-hospital "Changhai Hospital" `
+  --literature-department "Vascular Surgery" `
   --title "教授、主任医师" `
   --city "上海" `
-  --official-profile-url "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html" `
+  --official-profile-url "https://www.qk.sjtu.edu.cn/jscp/CN/10.16139/j.1007-9610.2022.04.008" `
   --api-key-file "C:\private\doctor-research.key" `
   --output-dir ".\doctor-research-output"
 ```
@@ -62,6 +67,12 @@ The API key must belong to a named user on the dedicated Doctor Research beta
 plan. On POSIX, the key file must be mode `0600` or stricter. If create returns
 an uncertain network outcome, rerun with the `idempotency_key` printed before
 the POST instead of generating a second run.
+
+The three `--literature-*` values are optional as a group. When supplied, an
+allowlisted official page must place the display name and literature name in
+the same bounded identity block, and each retained PubMed record must
+independently attribute both the literature hospital and department to the
+matching author. The run fails closed if either link is missing.
 
 ## Phase 0 status
 

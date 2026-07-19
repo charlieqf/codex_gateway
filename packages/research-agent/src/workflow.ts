@@ -763,6 +763,19 @@ function resolveIdentity(
   const matchingOfficialSources = evidence.officialSources.filter((source) =>
     officialSourceMatchesIdentity(source.untrustedText, doctor)
   );
+  const literatureIdentity = doctor.literatureIdentity;
+  if (
+    literatureIdentity &&
+    !matchingOfficialSources.some((source) =>
+      officialSourceBridgesLiteratureIdentity(
+        source.untrustedText,
+        doctor.name,
+        literatureIdentity.name
+      )
+    )
+  ) {
+    return null;
+  }
   if (matchingOfficialSources.length > 0) {
     matched.add("institution");
     matched.add("department");
@@ -862,6 +875,9 @@ async function collectLiterature(
   publicationEvidence: PublicationEvidence[];
   databases: Array<"pubmed" | "crossref">;
 }> {
+  const literatureIdentity =
+    context.run.input.doctor.literatureIdentity ??
+    context.run.input.doctor;
   context.chargeExternal(3);
   const pmids = await context.input.adapters.searchPubMed(
     query,
@@ -882,10 +898,10 @@ async function collectLiterature(
     }
     const matchingAuthorAffiliations =
       pubmed.authorAffiliations?.filter((author) =>
-        namesCompatible(context.run.input.doctor.name, author.author)
+        namesCompatible(literatureIdentity.name, author.author)
       ) ?? [];
     const authorNameMatched = pubmed.authors.some((author) =>
-      namesCompatible(context.run.input.doctor.name, author)
+      namesCompatible(literatureIdentity.name, author)
     );
     if (!authorNameMatched) {
       continue;
@@ -896,11 +912,11 @@ async function collectLiterature(
           (affiliation) =>
             textContains(
               affiliation,
-              context.run.input.doctor.hospital ?? ""
+              literatureIdentity.hospital ?? ""
             ) &&
             textContains(
               affiliation,
-              context.run.input.doctor.department ?? ""
+              literatureIdentity.department ?? ""
             )
         )
       )
@@ -949,7 +965,7 @@ async function collectLiterature(
       authors: uniqueBy(
         [
           ...pubmed.authors.filter((author) =>
-            namesCompatible(context.run.input.doctor.name, author)
+            namesCompatible(literatureIdentity.name, author)
           ),
           ...pubmed.authors.slice(0, 20)
         ],
@@ -1552,6 +1568,41 @@ function officialSourceMatchesIdentity(
   return officialIdentityEvidenceWindow(sourceText, doctor) !== null;
 }
 
+function officialSourceBridgesLiteratureIdentity(
+  sourceText: string,
+  displayName: string,
+  literatureName: string
+): boolean {
+  const source = normalizeEvidenceText(sourceText);
+  const display = normalizeEvidenceText(displayName);
+  const literature = normalizeEvidenceText(literatureName);
+  if (display.length < 2 || literature.length < 2) {
+    return false;
+  }
+  let displayAt = evidencePhraseIndexOf(source, display);
+  while (displayAt >= 0) {
+    const windowStart = Math.max(0, displayAt - 1_000);
+    const windowEnd = Math.min(
+      source.length,
+      displayAt + display.length + 1_000
+    );
+    if (
+      evidencePhraseContains(
+        source.slice(windowStart, windowEnd),
+        literature
+      )
+    ) {
+      return true;
+    }
+    displayAt = evidencePhraseIndexOf(
+      source,
+      display,
+      displayAt + display.length
+    );
+  }
+  return false;
+}
+
 function officialIdentityEvidenceWindow(
   sourceText: string,
   doctor: ResearchRunRecord["input"]["doctor"]
@@ -1923,7 +1974,8 @@ function extractNumericTokens(value: string): string[] {
 }
 
 function buildPubMedSearchQuery(run: ResearchRunRecord): string {
-  const doctor = run.input.doctor;
+  const doctor =
+    run.input.doctor.literatureIdentity ?? run.input.doctor;
   const currentYear = run.createdAt.getUTCFullYear();
   const startYear = currentYear - run.input.options.publicationYears + 1;
   const name = doctor.name.replace(/["()[\]{}]/gu, " ").trim();

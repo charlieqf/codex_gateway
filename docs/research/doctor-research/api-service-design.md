@@ -692,7 +692,12 @@ Idempotency-Key: research:<client-generated-id>
     "orcid": null,
     "official_profile_urls": [
       "https://www.shsmu.edu.cn/english/info/1336/2980.htm"
-    ]
+    ],
+    "literature_identity": {
+      "name": "Baiyong Shen",
+      "hospital": "Ruijin Hospital",
+      "department": "Surgery"
+    }
   },
   "mode": "brief",
   "language": "zh-CN",
@@ -712,6 +717,10 @@ Idempotency-Key: research:<client-generated-id>
 - `official_profile_urls` 可包含 1 至 3 个 HTTPS URL，只允许命中配置中的官网
   域名；`direct` 官网来源模式下必填，Gateway 在排队前拒绝缺失、跨域、带
   credential、非 HTTPS、非 443 或含 fragment 的 URL；
+- `literature_identity` 仅用于官网已明确桥接展示姓名与 PubMed 英文姓名的
+  双语身份；出现时 `name`、`hospital`、`department` 三项必须同时提供。
+  Worker 要求展示姓名与文献姓名在同一有界官网身份片段内共现，并逐篇验证
+  匹配作者的同一条 affiliation 同时包含文献医院和科室，否则失败关闭；
 - `mode` 为 `brief` 或 `full`，首版只允许 `brief`；
 - `language` 首版允许 `zh-CN` 和 `en`；
 - `publication_years` 为 1 至 10；
@@ -734,7 +743,7 @@ Idempotency-Key: research:<client-generated-id>
   "mode": "brief",
   "skill": {
     "name": "doctor-research-query",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "created_at": "2026-07-17T01:30:00Z",
   "status_url": "/gateway/research/v1/doctor-runs/drr_...",
@@ -2214,7 +2223,7 @@ RESEARCH_MIN_FREE_PERCENT=...
 RESEARCH_BACKUP_ROOT=<approved-separate-backup-target>
 RESEARCH_BACKUP_INTERVAL_SECONDS=...
 RESEARCH_BACKUP_MAX_AGE_SECONDS=...
-RESEARCH_SKILL_VERSION=1.2.0
+RESEARCH_SKILL_VERSION=1.3.0
 RESEARCH_PROMPT_VERSION=doctor-research-prompt.v2
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode

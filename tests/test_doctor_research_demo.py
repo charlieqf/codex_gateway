@@ -47,6 +47,11 @@ class DemoHandler(BaseHTTPRequestHandler):
         assert self.headers["Idempotency-Key"].startswith("research:")
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         assert body["doctor"]["name"] == DOCTOR_NAME
+        assert body["doctor"]["literature_identity"] == {
+            "name": "Lu Qingsheng",
+            "hospital": "Changhai Hospital",
+            "department": "Vascular Surgery",
+        }
         self.send_json({"run_id": RUN_ID, "status": "queued"}, status=202)
 
     def do_GET(self):
@@ -147,6 +152,12 @@ class DoctorResearchDemoTests(unittest.TestCase):
                             "上海长海医院",
                             "--department",
                             "血管外科",
+                            "--literature-name",
+                            "Lu Qingsheng",
+                            "--literature-hospital",
+                            "Changhai Hospital",
+                            "--literature-department",
+                            "Vascular Surgery",
                             "--official-profile-url",
                             "https://hospital.example/doctor/lu",
                             "--api-key-file",
@@ -172,6 +183,26 @@ class DoctorResearchDemoTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_requires_all_three_literature_identity_anchors(self):
+        args = DEMO.parse_args(
+            [
+                "--doctor-name",
+                DOCTOR_NAME,
+                "--hospital",
+                "上海长海医院",
+                "--department",
+                "血管外科",
+                "--literature-name",
+                "Lu Qingsheng",
+                "--official-profile-url",
+                "https://hospital.example/doctor/lu",
+            ]
+        )
+        with self.assertRaisesRegex(
+            DEMO.DemoError, "must be supplied together"
+        ):
+            DEMO.build_payload(args)
 
     def test_rejects_traversal_in_server_filename(self):
         manifest = artifact_manifest()

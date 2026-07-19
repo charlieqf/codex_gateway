@@ -13,6 +13,7 @@ import {
   type DoctorResearchRunInput,
   type PlanEntitlementStore,
   type RateLimitPolicy,
+  type ResearchDoctorInput,
   type ResearchIdentityCandidate,
   type ResearchRunRecord,
   type ResearchRunStatus,
@@ -772,7 +773,8 @@ export function parseDoctorResearchRunRequest(
     "title",
     "city",
     "orcid",
-    "official_profile_urls"
+    "official_profile_urls",
+    "literature_identity"
   ]);
   assertOnlyKeys(body.options, ["publication_years", "citation_style"]);
 
@@ -790,6 +792,9 @@ export function parseDoctorResearchRunRequest(
     officialProfileUrls: parseOfficialProfileUrls(
       body.doctor.official_profile_urls,
       policy.officialWebAllowedDomains ?? []
+    ),
+    literatureIdentity: parseLiteratureIdentity(
+      body.doctor.literature_identity
     )
   };
   if (!doctor.hospital || !doctor.department) {
@@ -827,6 +832,24 @@ export function parseDoctorResearchRunRequest(
         "The doctor identity anchors are too long for controlled official-site search.",
       httpStatus: 400
     });
+  }
+  if (doctor.literatureIdentity) {
+    const literatureSearchQuery = [
+      doctor.literatureIdentity.name,
+      doctor.literatureIdentity.hospital,
+      doctor.literatureIdentity.department
+    ].join(" ");
+    if (
+      literatureSearchQuery.length > 280 ||
+      literatureSearchQuery.split(/\s+/u).length > 40
+    ) {
+      throw new GatewayError({
+        code: "invalid_request",
+        message:
+          "The literature identity anchors are too long for controlled PubMed search.",
+        httpStatus: 400
+      });
+    }
   }
   if (body.mode !== "brief") {
     throw new GatewayError({
@@ -1309,6 +1332,51 @@ function optionalOrcid(value: unknown): string | null {
     });
   }
   return normalized;
+}
+
+function parseLiteratureIdentity(
+  value: unknown
+): ResearchDoctorInput["literatureIdentity"] {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw invalidLiteratureIdentity();
+  }
+  assertOnlyKeys(value, ["name", "hospital", "department"]);
+  try {
+    return {
+      name: normalizedText(
+        value.name,
+        "doctor.literature_identity.name",
+        2,
+        100
+      ),
+      hospital: normalizedText(
+        value.hospital,
+        "doctor.literature_identity.hospital",
+        2,
+        200
+      ),
+      department: normalizedText(
+        value.department,
+        "doctor.literature_identity.department",
+        2,
+        200
+      )
+    };
+  } catch {
+    throw invalidLiteratureIdentity();
+  }
+}
+
+function invalidLiteratureIdentity(): GatewayError {
+  return new GatewayError({
+    code: "invalid_request",
+    message:
+      "doctor.literature_identity requires only name, hospital, and department.",
+    httpStatus: 400
+  });
 }
 
 function parseOfficialProfileUrls(

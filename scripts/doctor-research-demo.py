@@ -214,6 +214,15 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--doctor-name", required=True)
     parser.add_argument("--hospital", required=True)
     parser.add_argument("--department", required=True)
+    parser.add_argument(
+        "--literature-name",
+        help=(
+            "Verified PubMed-indexed name, for example 'Lu Qingsheng'. "
+            "Requires the other two --literature-* arguments."
+        ),
+    )
+    parser.add_argument("--literature-hospital")
+    parser.add_argument("--literature-department")
     parser.add_argument("--title")
     parser.add_argument("--city")
     parser.add_argument(
@@ -363,6 +372,27 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
         value = getattr(args, key)
         if value:
             doctor[key] = unicodedata.normalize("NFC", value.strip())
+    literature_values = (
+        args.literature_name,
+        args.literature_hospital,
+        args.literature_department,
+    )
+    if any(literature_values) and not all(literature_values):
+        raise DemoError(
+            "The three --literature-* arguments must be supplied together."
+        )
+    if all(literature_values):
+        doctor["literature_identity"] = {
+            "name": normalized_required(
+                args.literature_name, "literature name"
+            ),
+            "hospital": normalized_required(
+                args.literature_hospital, "literature hospital"
+            ),
+            "department": normalized_required(
+                args.literature_department, "literature department"
+            ),
+        }
     payload: dict[str, Any] = {
         "doctor": doctor,
         "mode": "brief",

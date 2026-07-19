@@ -61,6 +61,11 @@ export interface ResearchDoctorInput {
   city: string | null;
   orcid: string | null;
   officialProfileUrls?: string[];
+  literatureIdentity?: {
+    name: string;
+    hospital: string;
+    department: string;
+  };
 }
 
 export interface DoctorResearchRunInput {

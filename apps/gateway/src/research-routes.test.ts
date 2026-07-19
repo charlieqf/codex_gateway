@@ -680,7 +680,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.2.0"
+        version: "1.3.0"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1569,6 +1569,40 @@ describe("Doctor Research control-plane routes", () => {
       })
     ).toThrow("not allowed");
   });
+
+  it("accepts only a complete, bounded literature identity", () => {
+    const request = validRequest("陆清声");
+    request.doctor.literature_identity = {
+      name: "Lu Qingsheng",
+      hospital: "Changhai Hospital",
+      department: "Vascular Surgery"
+    };
+    const parsed = parseDoctorResearchRunRequest(request);
+    expect(parsed.input.doctor.literatureIdentity).toEqual({
+      name: "Lu Qingsheng",
+      hospital: "Changhai Hospital",
+      department: "Vascular Surgery"
+    });
+
+    const partial = validRequest("陆清声");
+    partial.doctor.literature_identity = {
+      name: "Lu Qingsheng"
+    } as typeof partial.doctor.literature_identity;
+    expect(() => parseDoctorResearchRunRequest(partial)).toThrow(
+      "requires only name, hospital, and department"
+    );
+
+    const unexpected = validRequest("陆清声");
+    unexpected.doctor.literature_identity = {
+      name: "Lu Qingsheng",
+      hospital: "Changhai Hospital",
+      department: "Vascular Surgery",
+      query: "Lu Q"
+    } as typeof unexpected.doctor.literature_identity;
+    expect(() => parseDoctorResearchRunRequest(unexpected)).toThrow(
+      "Invalid Doctor Research request"
+    );
+  });
 });
 
 function createFixture(input: {
@@ -1969,7 +2003,14 @@ function validRequest(name: string) {
       title: null,
       city: "Sydney",
       orcid: null,
-      official_profile_urls: undefined as string[] | undefined
+      official_profile_urls: undefined as string[] | undefined,
+      literature_identity: undefined as
+        | {
+            name: string;
+            hospital: string;
+            department: string;
+          }
+        | undefined
     },
     mode: "brief",
     language: "en",
