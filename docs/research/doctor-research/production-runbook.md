@@ -5,6 +5,33 @@ existing Azure `codex_gateway_test` Compose project. It keeps the public
 Gateway on `127.0.0.1:18787`, uses the existing Nginx route, and adds no public
 Docker listener.
 
+## Current production deployment
+
+As of 2026-07-19, the controlled beta is enabled at runtime commit
+`4397420c0f25851131cee0c83580e96df6b54281` from:
+
+```text
+/home/qian/codex-gateway-release-499241c-20260718T234851Z
+```
+
+All four switches are enabled after their gates passed. The public Gateway,
+internal direct-GLM Gateway, Worker and maintenance containers are healthy
+with zero restarts. Production run
+`drr_3d65d1ca83c34eee883679cea27fd116` succeeded and public HTTPS returned
+exactly three Markdown artifacts plus one five-line text artifact with
+manifest-matching hashes.
+
+The pre-Research release and rollback image remain:
+
+```text
+/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z
+codex_gateway_test-gateway:rollback-ccccf1c-20260718T235210Z
+```
+
+The separate backup volume is encrypted at rest by the Azure managed-disk
+platform and has passed a networkless scratch-volume restore drill. It is on
+the same OS disk, so it is not an off-host disaster-recovery copy.
+
 ## Production shape
 
 Compose must always be invoked with both files and the explicit project name:
@@ -162,6 +189,11 @@ paths. Success requires:
 Then verify the public HTTPS status/result/download path, foreign-subject
 uniform `404`, encoded traversal rejection, cancellation convergence,
 stale-heartbeat `503`, backup creation and isolated restore.
+
+After collecting the release evidence, revoke the E2E credential, disable its
+temporary user and remove its mode-`0600` token/request files. Never hand an
+E2E credential to a beta user; provision a new named credential with recorded
+phone metadata instead.
 
 ## Rollback
 

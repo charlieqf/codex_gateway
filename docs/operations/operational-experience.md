@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-18
+Last updated: 2026-07-19
 
 ## Safety Rules That Worked
 
@@ -43,6 +43,20 @@ Last updated: 2026-07-18
   run repo Bash scripts there. Windows PowerShell should only open SSH or run
   simple one-line read-only commands; it should not be the business logic layer
   for remote Bash/Docker commands.
+- Once the production Research overlay is active, every Gateway recreate must
+  include `compose.azure.yml`, `compose.research-production.yml` and
+  `config/research.production.compose.env`. A base-only recreate silently
+  drops the Research env and state mount.
+- Local Compose secrets ignore requested uid/gid/mode. Keep the host provider
+  and Worker token files owned by `999:999` and mode `0400`, then verify the
+  running non-root service can read them without printing their values.
+- A mode-`0600` host smoke token must be read by a one-off container using the
+  host owner's numeric UID/GID. Do not weaken the token file mode to make the
+  default Node image user work.
+- A scratch Docker volume is root-owned initially. For a networkless restore
+  drill, initialize only that scratch volume with a one-shot container granted
+  `CHOWN`, then run the actual backup verification as UID/GID `999:999` with
+  all capabilities dropped.
 
 ## Operator Vocabulary
 
@@ -96,6 +110,26 @@ Last updated: 2026-07-18
 - Public smoke scripts that issue/revoke temporary API keys should run
   sequentially. Running them in parallel can hit transient SQLite write locks
   in admin audit/key writes.
+- The isolated Research LLM Gateway needs its authenticated Worker readiness
+  route, but it must not make public admission available. Keep the separate
+  `RESEARCH_PRODUCTION_LLM_READINESS_API_ENABLED` switch default-off, enable it
+  only after the chat-only service credential exists, and publish no port for
+  that service.
+- Profile claim arrays are rebuilt only from exact contiguous official-source
+  claims. Do not reapply the free-narrative adjacent-word numeric rule to those
+  already closed claims; it falsely rejects one-token official phrases such as
+  an alphanumeric research-program name. Review, core evidence, questions and
+  answers must retain the stricter numeric evidence-closure and safe-redaction
+  checks.
+- Direct GLM-5.2 structured calls can take 8-14 minutes before the first byte
+  for large evidence prompts. Keep lease renewal independent of the model
+  request and preserve the 15-minute per-call and 30-minute per-run hard
+  bounds; never replay the same non-idempotent model call across providers.
+- The production Research backup volume is separate and Azure-managed disks
+  are encrypted at rest, but both live and backup volumes currently reside on
+  the same OS disk. The verified backup supports application rollback, not
+  host-loss disaster recovery. Keep the 512 MiB storage ceiling and 10 GiB
+  admission floor until an off-host backup target is approved.
 - For P4 account-pool changes, preserve the legacy account id
   `sub_openai_codex_dev` so existing sessions remain sticky and continue to
   resolve after enabling `GATEWAY_UPSTREAM_ACCOUNTS_JSON`.

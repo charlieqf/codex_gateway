@@ -138,12 +138,31 @@ chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 The current live gateway is operated from a clean release checkout:
 
 ```text
-/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z
+/home/qian/codex-gateway-release-499241c-20260718T234851Z
 ```
 
-This checkout is detached at runtime commit `ccccf1c`. Use this directory for
-`compose.azure.yml`, public smoke scripts, and protected env-file operations
-unless a newer release checkout has been created deliberately.
+This checkout is detached at runtime commit
+`4397420c0f25851131cee0c83580e96df6b54281`. The former
+`/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z` checkout and
+`codex_gateway_test-gateway:rollback-ccccf1c-20260718T235210Z` image tag are
+the pre-Research rollback boundary.
+
+Production Compose mutations must now use the base file, Research overlay and
+private Compose env together:
+
+```bash
+cd /home/qian/codex-gateway-release-499241c-20260718T234851Z
+sudo docker compose \
+  --env-file config/research.production.compose.env \
+  -p codex_gateway_test \
+  -f compose.azure.yml \
+  -f compose.research-production.yml \
+  --profile research-production <command>
+```
+
+Do not recreate `gateway` with only `compose.azure.yml`: that would omit the
+Research API env and Research state mount. Read-only/admin `exec` commands
+against the already-running Gateway may continue to use the base file alone.
 
 The live Azure env file in that checkout must be treated as a protected runtime
 artifact. On 2026-07-03, recreating the live container from a stale
@@ -186,6 +205,24 @@ Those container paths are backed on the host by Docker volume
 directory. For production admin CLI queries, run the CLI inside the running
 container with `sudo docker compose -p codex_gateway_test -f compose.azure.yml
 exec -T gateway ...`.
+
+Production Doctor Research uses these additional non-public services and
+separate Docker volumes:
+
+```text
+codex_gateway_test-research-llm-gateway-1
+codex_gateway_test-research-worker-1
+codex_gateway_test-research-maintenance-1
+
+codex_gateway_test_research_production_state
+codex_gateway_test_research_production_backups
+codex_gateway_test_research_production_llm_gateway_state
+codex_gateway_test_research_production_llm_gateway_logs
+```
+
+Only the public Gateway publishes a Docker port, still exactly
+`127.0.0.1:18787->8787`. The Research LLM Gateway, Worker and maintenance
+services publish none.
 
 ## Production Upstream Account Pool
 
