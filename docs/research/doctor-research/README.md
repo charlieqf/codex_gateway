@@ -25,6 +25,44 @@ The production Worker must use a reviewed, versioned `SkillDefinition`; it must
 not load `SKILL.md`, `.skill` archives, samples, or scripts dynamically from
 this documentation tree.
 
+## Python API demo
+
+`scripts/doctor-research-demo.py` is the dependency-free end-user example for
+the asynchronous production API. It:
+
+- reads the bearer credential from a private file or
+  `DOCTOR_RESEARCH_API_KEY`, never from a command-line token argument;
+- sends create with a reusable `Idempotency-Key`, polls bounded status, and
+  stops without guessing if human identity selection is required;
+- refuses redirects and non-loopback plain HTTP so the bearer credential is
+  not forwarded to an untrusted endpoint;
+- validates the exact four-kind manifest, downloads through authenticated
+  same-origin paths, and checks content type, length and SHA-256;
+- preserves safe localized server filenames such as
+  `陆清声_基础信息与研究方向.md`;
+- atomically publishes a run directory containing exactly three Markdown
+  files and one five-line text file. Partial downloads remain unpublished and
+  are removed.
+
+Example:
+
+```powershell
+python scripts/doctor-research-demo.py `
+  --doctor-name "陆清声" `
+  --hospital "海军军医大学第一附属医院" `
+  --department "血管外科" `
+  --title "教授、主任医师" `
+  --city "上海" `
+  --official-profile-url "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html" `
+  --api-key-file "C:\private\doctor-research.key" `
+  --output-dir ".\doctor-research-output"
+```
+
+The API key must belong to a named user on the dedicated Doctor Research beta
+plan. On POSIX, the key file must be mode `0600` or stricter. If create returns
+an uncertain network outcome, rerun with the `idempotency_key` printed before
+the POST instead of generating a second run.
+
 ## Phase 0 status
 
 The repository-path entry gate is complete:
