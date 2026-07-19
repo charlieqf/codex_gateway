@@ -7633,6 +7633,153 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("recovers a Qianfan native tool call serialized as an assistant transcript without another attempt", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-bce-request-id": "qianfan_serialized_tool_call"
+      });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content:
+                  '[assistant tool_calls]\n[{"id":"call_analyze_step","type":"function","function":{"name":"abs_report_analyze","arguments":"{\\"revision\\":5,\\"runID\\":\\"abs_run_1\\"}"}}]'
+              },
+              finish_reason: "stop"
+            }
+          ],
+          usage: {
+            prompt_tokens: 120,
+            completion_tokens: 24,
+            total_tokens: 144
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_QIANFAN_API_KEY: "bce-v3/test-redacted",
+          MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["specialist"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "specialist",
+                stream: true,
+                messages: [
+                  { role: "user", content: "Generate the ABS report." },
+                  {
+                    role: "assistant",
+                    content: null,
+                    tool_calls: [
+                      {
+                        id: "call_create_step",
+                        type: "function",
+                        function: {
+                          name: "abs_report_create",
+                          arguments: '{"inputs":[]}'
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    role: "tool",
+                    tool_call_id: "call_create_step",
+                    content: '{"id":"abs_run_1","revision":5}'
+                  }
+                ],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "abs_report_analyze",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          revision: { type: "number" },
+                          runID: { type: "string" }
+                        },
+                        required: ["revision", "runID"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(captured).toHaveLength(1);
+            expect(captured[0]).toMatchObject({
+              model: "glm-5.2",
+              tool_choice: "auto"
+            });
+            const frames = parseOpenAISseData(response.payload);
+            expect(frames).toContainEqual(
+              expect.objectContaining({
+                choices: [
+                  expect.objectContaining({
+                    delta: {
+                      tool_calls: [
+                        expect.objectContaining({
+                          id: "call_analyze_step",
+                          function: {
+                            name: "abs_report_analyze",
+                            arguments: '{"revision":5,"runID":"abs_run_1"}'
+                          }
+                        })
+                      ]
+                    }
+                  })
+                ]
+              })
+            );
+            expect(frames).toContainEqual(
+              expect.objectContaining({
+                choices: [expect.objectContaining({ finish_reason: "tool_calls" })]
+              })
+            );
+            expect(response.payload).not.toContain("[assistant tool_calls]");
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              publicModelId: "specialist",
+              upstreamRuntime: "qianfan",
+              upstreamFinishReason: "stop",
+              upstreamToolCallCount: 0,
+              upstreamAttemptCount: 1,
+              status: "ok"
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("retries Pro native tool acknowledgements with auto because GLM turbo rejects required", async () => {
     const captured: Array<Record<string, unknown>> = [];
     const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {

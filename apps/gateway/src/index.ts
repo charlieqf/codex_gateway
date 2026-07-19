@@ -2999,12 +2999,16 @@ function nativeCollectionToResult(
   providerSummary: ProviderStreamSummary | null = collected.providerSummary
 ): StrictClientToolsResult | GatewayError {
   const toolCalls = collected.toolCalls.map(providerToolCallToOpenAI);
+  const serializedToolCalls =
+    toolCalls.length === 0 ? serializedAssistantToolCalls(collected.content) : null;
   const parsed = parseStrictToolDecision({
-    text: JSON.stringify(
-      toolCalls.length > 0
-        ? { type: "tool_calls", tool_calls: toolCalls }
-        : { type: "message", content: collected.content }
-    ),
+    text:
+      serializedToolCalls ??
+      JSON.stringify(
+        toolCalls.length > 0
+          ? { type: "tool_calls", tool_calls: toolCalls }
+          : { type: "message", content: collected.content }
+      ),
     tools: input.request.tools ?? [],
     toolChoice,
     createToolCallId
@@ -3015,10 +3019,35 @@ function nativeCollectionToResult(
       : parsed;
   }
   const result = strictDecisionToResult(parsed, usage, providerSummary);
-  if (result.toolCalls.length > 0 && collected.content.length > 0) {
+  if (serializedToolCalls && result.toolCalls.length > 0) {
+    input.log?.info(
+      {
+        request_id: input.requestId,
+        native_tools_recovered: "assistant_tool_calls_transcript",
+        recovered_tool_call_count: result.toolCalls.length
+      },
+      "Recovered a schema-valid native tool call from the upstream assistant transcript."
+    );
+  } else if (result.toolCalls.length > 0 && collected.content.length > 0) {
     result.content = collected.content;
   }
   return result;
+}
+
+function serializedAssistantToolCalls(content: string): string | null {
+  const match = content.trim().match(/^\[assistant tool_calls\]\s+([\s\S]+)$/);
+  if (!match) {
+    return null;
+  }
+
+  try {
+    return JSON.stringify({
+      type: "tool_calls",
+      tool_calls: JSON.parse(match[1])
+    });
+  } catch {
+    return match[1];
+  }
 }
 
 interface NativeAutoToolRetryPlan {
