@@ -1,7 +1,39 @@
 # Doctor Research
 
-This directory is the ASCII-only home for the first-party Doctor Research
-design and Phase 0 implementation material.
+This directory contains the production Doctor Research API guide, deployment
+runbooks, and historical implementation records. The public production target
+is the Azure VM deployment at `https://gw.instmarket.com.au`; CN1 is a
+separate loopback-only GoldenCode environment and is not a Doctor Research
+deployment target.
+
+## Current production contract
+
+The medical team's authoritative business source is
+`docs/research/采访skill/`. The service does not edit or maintain a fork of
+those files. The production image copies the source directory byte-for-byte,
+loads exactly these four files as a bounded read-only bundle, and records a
+SHA-256 bundle digest at Worker startup and in every run's first checkpoint:
+
+1. `doctor-research-query/SKILL.md`
+2. `literature-review/SKILL.md`
+3. `citation-management/SKILL.md`
+4. `scientific-writing/SKILL.md`
+
+The Worker applies the parent Skill and the three child Skills in their
+declared order. Platform code supplies the safe adapters, closed evidence set,
+JSON contract, budgets, citation/number/evidence-grade gates, artifact
+rendering, and mandatory peer-review pass. It never executes Python or shell
+scripts from the Skill tree. Medical-team updates therefore require replacing
+the source folder, rebuilding the immutable image, reviewing the new bundle
+digest, and rerunning the regression and live E2E gates; no business-text
+"optimization" should be made in this repository unless correcting an
+unambiguous error agreed with the medical team.
+
+The request field remains `"mode": "brief"` for v1 wire compatibility. That
+label does not waive the medical Skill's current 6000-character review and
+40-reference search target: production now enforces the length floor, searches
+up to 40 verified field references, and reports the actual count and evidence
+boundary when fewer relevant verified records are available.
 
 ## Contents
 
@@ -14,16 +46,60 @@ design and Phase 0 implementation material.
   enablement, E2E and rollback sequence.
 - `phase0.5-compatibility.md`: pinned rollback image and capability
   compatibility gate.
-- `doctor-research-query/`: first-party source Skill retained as design input.
+- `../采访skill/`: authoritative medical-team Skill bundle used by production.
+- `doctor-research-query/`: superseded adapted design copy retained only for
+  historical comparison; it is not loaded by production.
 - `doctor-research-query/doctor-research-query.skill`: archive rebuilt from
   and byte-matched to the reviewed adjacent `SKILL.md`.
 - `doctor-research-query/samples/known-invalid/`: quarantined historical
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker must use a reviewed, versioned `SkillDefinition`; it must
-not load `SKILL.md`, `.skill` archives, samples, or scripts dynamically from
-this documentation tree.
+The production Worker uses frozen `SkillDefinition` `1.4.0` together with the
+hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
+files; `.skill` archives, samples, assets, references, and scripts are not
+executed or dynamically discovered.
+
+## API quick reference
+
+All routes require a Doctor Research credential as
+`Authorization: Bearer <key>`. Create also requires a unique, reusable
+`Idempotency-Key`.
+
+```http
+POST /gateway/research/v1/doctor-runs
+Authorization: Bearer <key>
+Idempotency-Key: research:<stable-client-id>
+Content-Type: application/json
+
+{
+  "doctor": {
+    "name": "陆清声",
+    "hospital": "海军军医大学第一附属医院",
+    "department": "血管外科",
+    "official_profile_urls": [
+      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html"
+    ],
+    "literature_identity": {
+      "name": "Lu Qingsheng",
+      "hospital": "Changhai Hospital",
+      "department": "Vascular Surgery"
+    }
+  },
+  "mode": "brief",
+  "language": "zh-CN",
+  "options": {
+    "publication_years": 5,
+    "citation_style": "vancouver"
+  }
+}
+```
+
+Poll `GET /gateway/research/v1/doctor-runs/{run_id}` until `succeeded`, then
+read `GET /gateway/research/v1/doctor-runs/{run_id}/result`. Download each
+manifest entry through its authenticated `download_url`; verify both
+`size_bytes` and `sha256`. The supported end-user client is
+`scripts/doctor-research-demo.py`, documented below.
 
 ## Python API demo
 
@@ -78,9 +154,11 @@ doctor's position, expertise and research-direction evidence. The run fails
 closed if the identity bridge, publication attribution or required profile
 evidence is missing.
 
-## Phase 0 status
+## Historical Phase 0 status
 
-The repository-path entry gate is complete:
+The following records describe the earlier Phase 0 baseline and are retained
+for audit history; they do not override the current production contract above.
+At that time, the repository-path entry gate reported:
 
 - the former `docs/采访skill/` tree has been removed;
 - every repository path in this migrated tree is ASCII-only;

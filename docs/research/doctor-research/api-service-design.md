@@ -1,5 +1,14 @@
 # Doctor Research Agent API：Azure Codex Gateway 服务化设计方案
 
+> 2026-07-20 实现勘误：医学团队提供的
+> `docs/research/采访skill/` 现为权威业务规范。生产镜像原样携带并通过固定白名单
+> 加载四个 `SKILL.md`，记录 bundle SHA-256；平台只负责安全适配器、编排、契约与
+> 质量门禁，不再以硬编码摘要 Prompt 代替 Skill。`brief` 名称因 v1 API 兼容保留，
+> 但当前生产配置执行 6000 字符正文下限和最多 40 篇可核验领域文献目标，并强制
+> 第二次 peer-review 自检。本文后续关于“SKILL.md 不进入镜像”“Phase 1 不执行
+> 40 篇/6000 字目标”的段落属于早期设计记录，已由本勘误和
+> `README.md` 的 Current production contract 取代。
+
 > 文档状态：实施前审核稿<br>
 > 版本：v0.7<br>
 > 更新日期：2026-07-17<br>
@@ -743,7 +752,7 @@ Idempotency-Key: research:<client-generated-id>
   "mode": "brief",
   "skill": {
     "name": "doctor-research-query",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "created_at": "2026-07-17T01:30:00Z",
   "status_url": "/gateway/research/v1/doctor-runs/drr_...",
@@ -2223,8 +2232,8 @@ RESEARCH_MIN_FREE_PERCENT=...
 RESEARCH_BACKUP_ROOT=<approved-separate-backup-target>
 RESEARCH_BACKUP_INTERVAL_SECONDS=...
 RESEARCH_BACKUP_MAX_AGE_SECONDS=...
-RESEARCH_SKILL_VERSION=1.3.0
-RESEARCH_PROMPT_VERSION=doctor-research-prompt.v2
+RESEARCH_SKILL_VERSION=1.4.0
+RESEARCH_PROMPT_VERSION=doctor-research-prompt.v3
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode
 RESEARCH_LLM_REASONING_EFFORT=none|low|medium|high

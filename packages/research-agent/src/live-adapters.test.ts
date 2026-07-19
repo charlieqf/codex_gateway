@@ -33,6 +33,8 @@ describe("Doctor Research live first-party adapters", () => {
               title: "Verified PubMed Study",
               fulljournalname: "Verified Journal",
               sortpubdate: "2025/01/02 00:00",
+              pubdate: "2024",
+              epubdate: "2023/12/15",
               authors: [{ name: "Example Doctor" }],
               articleids: [
                 { idtype: "doi", value: "10.1234/Verified.Study" }
@@ -56,7 +58,7 @@ describe("Doctor Research live first-party adapters", () => {
             title: ["Verified PubMed Study"],
             "container-title": ["Verified Journal"],
             author: [{ given: "Example", family: "Doctor" }],
-            published: { "date-parts": [[2025, 1, 2]] }
+            published: { "date-parts": [[2024, 1, 2]] }
           }
         });
       }
@@ -143,7 +145,7 @@ describe("Doctor Research live first-party adapters", () => {
       doi: "10.1234/verified.study",
       title: "Verified PubMed Study",
       journal: "Verified Journal",
-      publicationYear: 2025,
+      publicationYear: 2024,
       authors: ["Example Doctor"],
       authorAffiliations: [
         {
@@ -163,7 +165,7 @@ describe("Doctor Research live first-party adapters", () => {
       doi: "10.1234/verified.study",
       title: "Verified PubMed Study",
       journal: "Verified Journal",
-      publicationYear: 2025,
+      publicationYear: 2024,
       sourceUrl:
         "https://api.crossref.org/v1/works/10.1234%2Fverified.study"
     });

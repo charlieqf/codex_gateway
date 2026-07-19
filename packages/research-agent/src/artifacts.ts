@@ -311,27 +311,29 @@ export function renderDoctorResearchArtifacts(
   const review = [
     `# ${markdownInline(result.review.title)}`,
     "",
-    "## Abstract",
+    `## ${language === "zh-CN" ? "摘要" : "Abstract"}`,
     "",
     markdownInline(result.review.abstract),
     "",
-    "## Keywords",
+    `## ${language === "zh-CN" ? "关键词" : "Keywords"}`,
     "",
     result.review.keywords.map(markdownInline).join("; "),
     "",
     result.review.markdown.trim(),
     "",
-    "## References",
+    `## ${language === "zh-CN" ? "参考文献" : "References"}`,
     "",
     ...references,
     "",
-    "## Search Report",
+    `## ${language === "zh-CN" ? "检索报告" : "Search Report"}`,
     "",
-    `- Databases: ${result.review.search_report.databases.map(markdownInline).join(", ")}`,
-    `- Searched at: ${markdownInline(result.review.search_report.searched_at)}`,
-    `- Included: ${result.review.search_report.included_count}`,
+    `- ${language === "zh-CN" ? "数据库" : "Databases"}: ${result.review.search_report.databases.map(markdownInline).join(", ")}`,
+    `- ${language === "zh-CN" ? "检索时间" : "Searched at"}: ${markdownInline(result.review.search_report.searched_at)}`,
+    `- ${language === "zh-CN" ? "纳入数量" : "Included"}: ${result.review.search_report.included_count}`,
+    `- ${language === "zh-CN" ? "证据边界：仅使用公开元数据与摘要，未声称完成全文核验" : "Evidence boundary: public metadata and abstracts only; full-text verification was not claimed"}`,
     ...result.review.search_report.queries.map(
-      (query) => `- Query: ${markdownInline(query)}`
+      (query) =>
+        `- ${language === "zh-CN" ? "检索式" : "Query"}: ${markdownInline(query)}`
     ),
     ""
   ].join("\n");
@@ -645,6 +647,9 @@ function rendered(
 }
 
 function section(title: string, values: readonly string[]): string {
+  if (values.length === 0) {
+    return "";
+  }
   return [
     `## ${title}`,
     "",

@@ -6,6 +6,7 @@ export * from "./eval-runner.js";
 export * from "./lease-guard.js";
 export * from "./live-adapters.js";
 export * from "./maintenance.js";
+export * from "./medical-skill-bundle.js";
 export * from "./model-client.js";
 export * from "./safe-http.js";
 export * from "./skill-definition.js";

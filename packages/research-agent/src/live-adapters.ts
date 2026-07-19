@@ -206,7 +206,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         )?.value ?? null
       : null;
     const publicationYear = parsePublicationYear(
-      firstString(record.sortpubdate, record.pubdate, record.epubdate)
+      firstString(record.pubdate, record.epubdate, record.sortpubdate)
     );
     const title = requiredBoundedString(record.title, "PubMed title", 500);
     const journal = requiredBoundedString(

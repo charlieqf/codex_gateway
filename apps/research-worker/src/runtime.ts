@@ -14,6 +14,7 @@ import {
   deleteResearchArtifactFiles,
   executeDoctorResearchWorkflow,
   GatewayResearchModelClient,
+  getDefaultMedicalSkillBundle,
   LiveResearchAdapters,
   probeResearchStorageAdmission,
   recoverOrphanResearchArtifacts,
@@ -22,6 +23,7 @@ import {
   verifyResearchBackupSnapshot,
   fetchBoundedJson,
   type ResearchAdapterBundle,
+  type MedicalSkillBundle,
   type ResearchModelClient
 } from "@codex-gateway/research-agent";
 import {
@@ -45,6 +47,7 @@ export interface ResearchWorkerDependencies {
   modelClient: ResearchModelClient & {
     assertModelAvailable(signal: AbortSignal): Promise<void>;
   };
+  medicalSkillBundle?: MedicalSkillBundle;
 }
 
 export async function runResearchWorker(input: {
@@ -110,6 +113,13 @@ export async function runResearchWorker(input: {
       input.dependencies ??
       (await createLiveDependencies(config, input.fetchImpl));
     const { adapters, modelClient } = dependencies;
+    const medicalSkillBundle =
+      dependencies.medicalSkillBundle ??
+      getDefaultMedicalSkillBundle();
+    logger.info("research_medical_skill_bundle_loaded", {
+      bundle_sha256: medicalSkillBundle.digest,
+      document_count: medicalSkillBundle.documents.length
+    });
     await adapters.assertAvailable(workerSignal);
     await modelClient.assertModelAvailable(workerSignal);
     if (config.embeddedMaintenanceEnabled) {
@@ -293,6 +303,7 @@ export async function runResearchWorker(input: {
               modelClient,
               artifactRoot: config.artifactRoot,
               policy: config.workflowPolicy,
+              medicalSkillBundle,
               signal,
               onValidationFailure(event) {
                 logger.info("research_model_validation_failed", {
@@ -583,6 +594,7 @@ async function createLiveDependencies(
 ): Promise<ResearchWorkerDependencies> {
   const secrets = await loadRuntimeSecrets(config, fetchImpl);
   return {
+    medicalSkillBundle: getDefaultMedicalSkillBundle(),
     adapters: new LiveResearchAdapters({
       ...config.adapterOptions,
       ncbi: {

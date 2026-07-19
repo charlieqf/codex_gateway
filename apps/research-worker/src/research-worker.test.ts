@@ -264,7 +264,7 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     expect(observedPrompt).toContain("untrusted_publication_abstracts");
     expect(observedPrompt).toContain("allowed_numeric_contexts");
-    expect(observedPrompt).toContain("year 2025");
+    expect(observedPrompt).toContain('"publication_year":2025');
     expect(observedPrompt).toContain(
       "untrusted_publication_abstracts[].abstract"
     );
@@ -320,6 +320,14 @@ describe("Research Worker controlled-beta workflow", () => {
       {
         stage: "synthesize_review",
         attempt: 1,
+        gateway_request_id: "req_model_test",
+        prompt_tokens: 100,
+        completion_tokens: 3_500,
+        error_code: null
+      },
+      {
+        stage: "validate_outputs",
+        attempt: 2,
         gateway_request_id: "req_model_test",
         prompt_tokens: 100,
         completion_tokens: 3_500,
@@ -380,7 +388,7 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
-  it("redacts a transposed numeric claim after repairing unsafe markup", async () => {
+  it("fails closed when peer review retains a transposed numeric claim", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -473,14 +481,17 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => now
     });
 
-    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
     expect(modelCalls).toBe(2);
     expect(repairPrompt).toContain("Preserve every required field");
     expect(repairPrompt).toContain("Schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
     expect(repairPrompt).toContain("Invented oncology program");
     expect(repairPrompt).toContain(
-      "remove every unsupported number from all narrative fields"
+      "Remove every unsupported narrative number"
     );
     expect(validationEvents).toEqual([
       expect.objectContaining({
@@ -490,6 +501,11 @@ describe("Research Worker controlled-beta workflow", () => {
           "unsafe_model_markup",
           "numeric_evidence_closure"
         ])
+      }),
+      expect.objectContaining({
+        stage: "validate_outputs",
+        attempt: 2,
+        errorCodes: ["numeric_evidence_closure"]
       })
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
@@ -502,21 +518,8 @@ describe("Research Worker controlled-beta workflow", () => {
       lease.run.runId,
       "subj_profile_closure"
     );
-    const storedResult = stored?.result as unknown as {
-      quality: { warnings: string[] };
-      review: {
-        markdown: string;
-        references: Array<{ publication_year: number }>;
-      };
-    };
-    expect(storedResult.quality.warnings).toContain(
-      "unsupported_numeric_claims_redacted"
-    );
-    expect(storedResult.review.markdown).not.toContain("2025 patients");
-    expect(storedResult.review.markdown).toContain("unverified patients");
-    expect(storedResult.review.markdown).toContain("[1]");
-    expect(storedResult.review.references[0]?.publication_year).toBe(2025);
-    expect(existsSync(artifactRoot)).toBe(true);
+    expect(stored).toBeNull();
+    expect(existsSync(artifactRoot)).toBe(false);
     store.close();
   });
 
@@ -577,7 +580,7 @@ describe("Research Worker controlled-beta workflow", () => {
     });
 
     expect(outcome).toEqual({ outcome: "succeeded" });
-    expect(modelCalls).toBe(1);
+    expect(modelCalls).toBe(2);
     expect(validationCodes).toEqual([]);
     expect(
       fixture.store.getRunResultForSubject(
@@ -591,6 +594,115 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       }
     });
+    fixture.store.close();
+  });
+
+  it("rejects unverified placeholders instead of publishing them as facts", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "unverified_placeholder"
+    );
+    const output = modelOutput();
+    output.answers[0]!.answer =
+      "The requested claim remains unverified within the retrieved public evidence.";
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_unverified_placeholder",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(validationCodes).toEqual([
+      ["unverified_placeholder"],
+      ["unverified_placeholder"]
+    ]);
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
+  it("rejects causal overclaiming from observational evidence", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "observational_causality"
+    );
+    const observationalAdapters = adapters();
+    const originalMetadata =
+      observationalAdapters.getPubMedMetadata.bind(
+        observationalAdapters
+      );
+    observationalAdapters.getPubMedMetadata = async (pmid, signal) => {
+      const metadata = await originalMetadata(pmid, signal);
+      return metadata
+        ? {
+            ...metadata,
+            abstractText:
+              "This retrospective cohort observed an association between treatment and mortality."
+          }
+        : null;
+    };
+    const output = modelOutput();
+    output.review.markdown =
+      "The retrospective study proves that the treatment directly reduces mortality and prevents adverse outcomes [1].";
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: observationalAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_observational_causality",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(validationCodes).toEqual([
+      ["causal_claim_evidence_grade"],
+      ["causal_claim_evidence_grade"]
+    ]);
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
 
@@ -966,9 +1078,9 @@ describe("Research Worker controlled-beta workflow", () => {
       input
     );
     const bilingualAdapters = adapters(0);
-    let observedQuery = "";
+    const observedQueries: string[] = [];
     bilingualAdapters.searchPubMed = async (query) => {
-      observedQuery = query;
+      observedQueries.push(query);
       return ["1001"];
     };
     bilingualAdapters.fetchApprovedSource = async () => ({
@@ -1076,9 +1188,10 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome, JSON.stringify(validationErrors)).toEqual({
       outcome: "succeeded"
     });
-    expect(observedQuery).toBe(
-      '("Lu Qingsheng"[Author] AND "Changhai Hospital"[Affiliation] AND "Vascular Surgery"[Affiliation]) AND (2022:2026[Date - Publication])'
-    );
+    expect(observedQueries).toEqual([
+      '("Lu Qingsheng"[Author] AND "Changhai Hospital"[Affiliation] AND "Vascular Surgery"[Affiliation]) AND (2022:2026[Date - Publication])',
+      '("vascular"[Title/Abstract]) AND (2022:2026[Date - Publication])'
+    ]);
     const stored = fixture.store.getRunResultForSubject(
       fixture.lease.run.runId,
       "subj_verified_literature_identity"
@@ -1094,6 +1207,131 @@ describe("Research Worker controlled-beta workflow", () => {
       "陆清声_医生可能问机器人问题.txt",
       "陆清声_问题与答案.md"
     ]);
+    fixture.store.close();
+  });
+
+  it("uses attributed doctor papers for topic extraction and unrelated field papers for the review", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "doctor_and_field_literature"
+    );
+    const separatedAdapters = adapters();
+    const queries: string[] = [];
+    separatedAdapters.searchPubMed = async (query) => {
+      queries.push(query);
+      return queries.length === 1 ? ["1001"] : ["2002"];
+    };
+    separatedAdapters.getPubMedMetadata = async (pmid) =>
+      pmid === "1001"
+        ? {
+            referenceId: "ref_pubmed_1001",
+            pmid: "1001",
+            doi: null,
+            title: "Endovascular Aortic Repair Outcomes",
+            journal: "Vascular Journal",
+            publicationYear: 2025,
+            authors: ["Example Doctor"],
+            authorAffiliations: [
+              {
+                author: "Example Doctor",
+                affiliations: ["Cardiology, Example Hospital."]
+              }
+            ],
+            abstractText:
+              "Endovascular aortic repair outcomes were described.",
+            sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
+            accessedAt: "2026-07-18T03:00:00.000Z",
+            contentSha256: "b".repeat(64)
+          }
+        : {
+            referenceId: "ref_pubmed_2002",
+            pmid: "2002",
+            doi: null,
+            title: "Contemporary Aortic Evidence",
+            journal: "Field Evidence Journal",
+            publicationYear: 2026,
+            authors: ["Different Researcher"],
+            authorAffiliations: [
+              {
+                author: "Different Researcher",
+                affiliations: ["Another Department, Another Hospital."]
+              }
+            ],
+            abstractText:
+              "Contemporary aortic evidence supports cautious synthesis.",
+            sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/2002/",
+            accessedAt: "2026-07-18T03:00:00.000Z",
+            contentSha256: "c".repeat(64)
+          };
+    const output = modelOutput();
+    output.review.core_evidence[0]!.reference_id = "ref_pmid_2002";
+    output.review.references[0] = {
+      reference_id: "ref_pmid_2002",
+      title: "Contemporary Aortic Evidence",
+      journal: "Field Evidence Journal",
+      publication_year: 2026,
+      pmid: "2002",
+      doi: null,
+      verification_status: "verified"
+    };
+    output.sources[1] = {
+      source_id: "src_pubmed_2002",
+      source_type: "pubmed",
+      title: "Contemporary Aortic Evidence",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2002/",
+      accessed_at: "2026-07-18T03:00:00.000Z",
+      content_sha256: "c".repeat(64)
+    };
+    output.answers = output.answers.map((answer) => ({
+      ...answer,
+      source_ids: ["src_pubmed_2002"]
+    }));
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: separatedAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_doctor_and_field",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(queries).toHaveLength(2);
+    expect(queries[0]).toContain('"Example Doctor"[Author]');
+    expect(queries[1]).toContain('"endovascular"[Title/Abstract]');
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toMatchObject({
+      result: {
+        profile: {
+          representative_outputs: [
+            expect.stringContaining("Endovascular Aortic Repair Outcomes")
+          ]
+        },
+        review: {
+          references: [
+            expect.objectContaining({ pmid: "2002" })
+          ]
+        }
+      }
+    });
     fixture.store.close();
   });
 
@@ -1797,7 +2035,7 @@ describe("Research Worker controlled-beta workflow", () => {
                (SELECT COUNT(*) FROM research_artifacts WHERE run_id = ?) AS artifacts`
           )
           .get(runId, runId, runId, runId)
-      ).toEqual({ sources: 2, claims: 2, refs: 1, artifacts: 4 });
+      ).toEqual({ sources: 2, claims: 3, refs: 1, artifacts: 4 });
     } finally {
       controller.abort(new Error("HTTP controlled-beta E2E drain."));
       await Promise.allSettled([runtime]);
@@ -2109,11 +2347,11 @@ function workflowPolicy(): ResearchWorkerConfig["workflowPolicy"] {
     maximumOutputTokensPerCall: 2_000,
     hardDeadlineMs: 600_000,
     budgets: {
-      externalRequests: 40,
-      externalResponseBytes: 80_000_000,
+      externalRequests: 80,
+      externalResponseBytes: 160_000_000,
       llmCalls: 3,
       inputTokens: 300_000,
-      outputTokens: 6_000
+      outputTokens: 12_000
     },
     forbiddenOutputFragments: ["ignore all prior instructions"]
   };

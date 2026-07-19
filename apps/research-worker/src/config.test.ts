@@ -34,7 +34,7 @@ describe("Research Worker fail-closed configuration", () => {
         minimumReferences: 3,
         maximumInputTokensPerCall: 200_000,
         budgets: {
-          externalRequests: 370,
+          externalRequests: 466,
           llmCalls: 3
         }
       }
@@ -80,14 +80,14 @@ describe("Research Worker fail-closed configuration", () => {
     expect(() =>
       loadResearchWorkerConfig({
         ...validEnvironment(),
-        RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "369"
+        RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "465"
       })
     ).toThrow("must reserve two full workflow attempts");
 
     expect(() =>
       loadResearchWorkerConfig({
         ...validEnvironment(),
-        RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "739999999"
+        RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "931999999"
       })
     ).toThrow("must reserve two full workflow attempts");
 
@@ -233,8 +233,8 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "5",
     RESEARCH_MAX_QUEUED_RUNS: "5",
     RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "2",
-    RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "370",
-    RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "740000000",
+    RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "466",
+    RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "932000000",
     RESEARCH_MAX_LLM_CALLS_PER_RUN: "3",
     RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "200000",
     RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "600000",

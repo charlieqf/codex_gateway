@@ -148,7 +148,7 @@ export function loadResearchWorkerConfig(
     externalResponseBytes: boundedInteger(
       env.RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN,
       "RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN",
-      1_000_000_000
+      2_000_000_000
     ),
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
@@ -413,6 +413,8 @@ export function loadResearchWorkerConfig(
     6 +
     (webProvider === "brave" ? allowedDomains.length * 2 : 0) +
     maximumOfficialResults * 8 +
+    3 +
+    Math.min(maximumPublications, 5) * 9 +
     maximumPublications * 9;
   const reservedExternalRequestUnits =
     singleAttemptExternalRequestUnits * 2;
@@ -621,7 +623,7 @@ export function loadResearchWorkerConfig(
       maximumSourceTextCharacters: boundedInteger(
         env.RESEARCH_MAX_SOURCE_TEXT_CHARACTERS,
         "RESEARCH_MAX_SOURCE_TEXT_CHARACTERS",
-        100_000
+        500_000
       ),
       maximumPublications,
       minimumReferences,
