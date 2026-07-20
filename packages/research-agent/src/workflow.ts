@@ -1808,7 +1808,7 @@ async function generateAndValidateShardedModelOutput(
       throw failed.reason;
     }
   }
-  const [foundationResponse, middleResponse, closingResponse] = responses;
+  let [foundationResponse, middleResponse, closingResponse] = responses;
   if (!foundationResponse || !middleResponse || !closingResponse) {
     const failed = settled[failedIndexes[0]!]!;
     if (failed?.status === "rejected") {
@@ -1817,34 +1817,79 @@ async function generateAndValidateShardedModelOutput(
     throw new Error("Research synthesis shard response is missing.");
   }
 
-  const foundationFragment = parseFoundationFragment(
+  let foundationFragment = parseFoundationFragment(
     foundationResponse.text
   );
-  if (!foundationFragment) {
+  let middleFragment = parseBodyFragment(middleResponse.text);
+  let closingFragment = parseReviewFragment(closingResponse.text);
+  const contractFailureIndexes = [
+    ...(foundationFragment ? [] : [0]),
+    ...(middleFragment ? [] : [1]),
+    ...(closingFragment ? [] : [2])
+  ];
+  let shardContractRetryCompleted = false;
+  if (
+    contractFailureIndexes.length === 1 &&
+    !shardTransportRetryCompleted
+  ) {
+    const retryIndex = contractFailureIndexes[0]!;
+    const retryInput = shardInputs[retryIndex]!;
+    responses[retryIndex] = await context.generateModel({
+      ...retryInput,
+      attempt: 4,
+      prompt: [
+        retryInput.prompt,
+        "FORMAT-ONLY RETRY",
+        "The prior response was rejected only because its transport object did not match the exact fragment contract. Repeat the same bounded assignment, but return exactly the requested JSON object with exactly the requested fields. Do not add a Markdown fence, commentary, alternate schema, or extra field."
+      ].join("\n\n")
+    });
+    shardContractRetryCompleted = true;
+    [foundationResponse, middleResponse, closingResponse] = responses;
+    foundationFragment = foundationResponse
+      ? parseFoundationFragment(foundationResponse.text)
+      : null;
+    middleFragment = middleResponse
+      ? parseBodyFragment(middleResponse.text)
+      : null;
+    closingFragment = closingResponse
+      ? parseReviewFragment(closingResponse.text)
+      : null;
+  }
+  const remainingContractFailure = [
+    ...(!foundationFragment
+      ? [
+          {
+            attempt: 1 as const,
+            code: "foundation_fragment_contract_error"
+          }
+        ]
+      : []),
+    ...(!middleFragment
+      ? [
+          {
+            attempt: 2 as const,
+            code: "body_fragment_contract_error"
+          }
+        ]
+      : []),
+    ...(!closingFragment
+      ? [{ attempt: 3 as const, code: "fragment_contract_error" }]
+      : [])
+  ][0];
+  if (remainingContractFailure) {
     context.reportValidationFailure(
       "synthesize_review",
-      1,
-      ["foundation_fragment_contract_error"]
+      shardContractRetryCompleted
+        ? 4
+        : remainingContractFailure.attempt,
+      [remainingContractFailure.code]
     );
     return null;
   }
-  const middleFragment = parseBodyFragment(middleResponse.text);
-  if (!middleFragment) {
-    context.reportValidationFailure(
-      "synthesize_review",
-      2,
-      ["body_fragment_contract_error"]
+  if (!foundationFragment || !middleFragment || !closingFragment) {
+    throw new Error(
+      "Research fragment contract state is inconsistent after validation."
     );
-    return null;
-  }
-  const closingFragment = parseReviewFragment(closingResponse.text);
-  if (!closingFragment) {
-    context.reportValidationFailure(
-      "synthesize_review",
-      3,
-      ["fragment_contract_error"]
-    );
-    return null;
   }
   const assembledDraft: DoctorResearchModelDraft = {
     schema_version: "doctor_research_model_draft.v1",
@@ -1888,7 +1933,8 @@ async function generateAndValidateShardedModelOutput(
     validationErrors: validation.ok ? [] : validation.errors,
     medicalSkillBundle
   });
-  const peerReviewAttempt = shardTransportRetryCompleted ? 5 : 4;
+  const peerReviewAttempt =
+    shardTransportRetryCompleted || shardContractRetryCompleted ? 5 : 4;
   const peerReviewResponse = await context.generateModel({
     stage: "validate_outputs",
     attempt: peerReviewAttempt,
@@ -1942,6 +1988,9 @@ async function generateAndValidateShardedModelOutput(
       "peer_review_model_completed",
       ...(shardTransportRetryCompleted
         ? ["bounded_shard_transport_retry_completed"]
+        : []),
+      ...(shardContractRetryCompleted
+        ? ["bounded_shard_contract_retry_completed"]
         : []),
       ...(peerReview.replacements.length > 0
         ? ["peer_review_patch_applied"]

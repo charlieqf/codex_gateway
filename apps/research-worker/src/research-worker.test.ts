@@ -387,13 +387,18 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
-  it("runs concurrent synthesis shards, retries one transport failure, and peer reviews", async () => {
+  it.each([
+    ["transport", "bounded_shard_transport_retry_completed"],
+    ["contract", "bounded_shard_contract_retry_completed"]
+  ] as const)(
+    "runs concurrent synthesis shards, retries one %s failure, and peer reviews",
+    async (retryKind, retryWarning) => {
     const input = {
       ...runInput(),
       language: "zh-CN" as const
     };
     const fixture = createLeasedWorkflowFixture(
-      "sharded_synthesis",
+      `sharded_synthesis_${retryKind}`,
       input
     );
     const shardedAdapters = adapters(0);
@@ -451,6 +456,7 @@ describe("Research Worker controlled-beta workflow", () => {
       }
     };
     const fragments = new Map<number, string>([
+      [1, JSON.stringify(foundationFragment)],
       [
         2,
         [
@@ -514,12 +520,29 @@ describe("Research Worker controlled-beta workflow", () => {
             }
             await barrier;
             activeSynthesisCalls -= 1;
-            if (modelInput.attempt === 1) {
+            if (
+              retryKind === "transport" &&
+              modelInput.attempt === 1
+            ) {
               throw new ResearchModelClientError(
                 "upstream_error",
                 503,
                 "req_sharded_1"
               );
+            }
+            if (
+              retryKind === "contract" &&
+              modelInput.attempt === 3
+            ) {
+              return {
+                text: "not a fragment JSON object",
+                gatewayRequestId: "req_sharded_contract_failure",
+                usage: {
+                  promptTokens: 100,
+                  completionTokens: 100,
+                  totalTokens: 200
+                }
+              };
             }
             return {
               text: fragments.get(modelInput.attempt)!,
@@ -533,7 +556,10 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           if (modelInput.attempt === 4) {
             return {
-              text: JSON.stringify(foundationFragment),
+              text:
+                retryKind === "transport"
+                  ? JSON.stringify(foundationFragment)
+                  : fragments.get(3)!,
               gatewayRequestId: "req_sharded_retry",
               usage: {
                 promptTokens: 100,
@@ -643,10 +669,11 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         "peer_review_model_completed",
-        "bounded_shard_transport_retry_completed"
+        retryWarning
       ])
     );
-  });
+    }
+  );
 
   it("enforces the overall deadline from API creation time, including queue wait", async () => {
     const fixture = createLeasedWorkflowFixture("wall_deadline");
