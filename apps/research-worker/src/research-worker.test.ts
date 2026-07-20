@@ -390,7 +390,7 @@ describe("Research Worker controlled-beta workflow", () => {
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
-    ["body", "bounded_body_contract_retry_completed"]
+    ["body", "bounded_qa_contract_retry_completed"]
   ] as const)(
     "runs concurrent synthesis shards, retries one %s failure, and peer reviews",
     async (retryKind, retryWarning) => {
@@ -500,6 +500,7 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     const attempts: number[] = [];
     const synthesisPrompts = new Map<number, string>();
+    let retryPrompt: string | null = null;
     const validationEvents: Array<{
       stage: string;
       attempt: number;
@@ -563,6 +564,7 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (modelInput.attempt === 4) {
+            retryPrompt = modelInput.prompt;
             return {
               text:
                 retryKind === "transport"
@@ -571,11 +573,7 @@ describe("Research Worker controlled-beta workflow", () => {
                     ? fragments.get(3)!
                     : JSON.stringify({
                         schema_version:
-                          "doctor_research_body_fragment.v1",
-                        markdown: longChineseReviewFragment(
-                          "方法与证据比较",
-                          55
-                        ),
+                          "doctor_research_qa_fragment.v1",
                         predicted_questions:
                           foundation.predicted_questions,
                         answers: foundation.answers
@@ -638,6 +636,14 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(synthesisPrompts.get(1)).not.toContain(
       "\"profile\""
     );
+    if (retryKind === "body") {
+      expect(retryPrompt).toContain(
+        "doctor_research_qa_fragment.v1"
+      );
+      expect(retryPrompt).not.toContain(
+        "Prior body fragment"
+      );
+    }
     const stored = fixture.store.getRunResultForSubject(
       fixture.lease.run.runId,
       fixture.lease.run.subjectId
