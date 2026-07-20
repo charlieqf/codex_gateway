@@ -94,7 +94,7 @@ export async function executeDoctorResearchWorkflow(input: {
   onValidationFailure?: (input: {
     runId: string;
     stage: "synthesize_review" | "validate_outputs";
-    attempt: 1 | 2;
+    attempt: 1 | 2 | 3;
     errorCodes: readonly string[];
   }) => void;
   now?: () => Date;
@@ -601,7 +601,7 @@ class WorkflowContext {
 
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
-    attempt: 1 | 2,
+    attempt: 1 | 2 | 3,
     errorCodes: readonly string[]
   ): void {
     const stableCodes = [
@@ -1203,13 +1203,51 @@ async function generateAndValidateModelOutput(
       2,
       validation.errorCodes
     );
+    const finalRepairPrompt = [
+      "Perform one final bounded correction after the mandatory peer review. Return the corrected complete draft JSON object and no other text.",
+      "All validation gates remain mandatory; do not remove content merely to make an error disappear.",
+      `Exact remaining validation diagnostics: ${JSON.stringify(
+        validation.errors.slice(0, 24)
+      )}`,
+      `The review.markdown field must contain at least ${context.input.policy.minimumReviewContent} Han characters and must not become shorter than that threshold.`,
+      "Every blank-line-separated substantive review paragraph must contain at least one applicable numeric citation.",
+      "For every narrative number, either cite an abstract containing that exact number or remove the unsupported numerical claim.",
+      "When a cited abstract is in-vitro or cell-line evidence, explicitly label that paragraph as 体外 or 细胞研究 evidence.",
+      "Do not add sources, identifiers, facts, references, or placeholders.",
+      "Candidate returned by the mandatory peer review:",
+      reviewed.text.slice(0, 300_000),
+      "The original task, schema, closed evidence set, and medical-team Skill execution projection remain authoritative:",
+      prompt
+    ].join("\n\n");
+    const repaired = await context.generateModel({
+      stage: "validate_outputs",
+      attempt: 3,
+      prompt: finalRepairPrompt
+    });
+    validation = validateGeneratedOutput(
+      repaired.text,
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    if (!validation.ok) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        3,
+        validation.errorCodes
+      );
+    }
   }
   return validation.ok
     ? {
         output: validation.value,
         warnings: [
           ...validation.warnings,
-          "peer_review_model_completed"
+          "peer_review_model_completed",
+          ...(context.modelCallsStarted === 3
+            ? ["bounded_model_repair_completed"]
+            : [])
         ]
       }
     : null;
@@ -1383,7 +1421,11 @@ function validateGeneratedOutput(
     evidence
   );
   if (unsupportedNumericTokens.size > 0) {
-    qualityErrors.push("numeric_evidence_closure");
+    qualityErrors.push(
+      `numeric_evidence_closure:${[...unsupportedNumericTokens]
+        .slice(0, 40)
+        .join("|")}`
+    );
   }
   qualityErrors.push(
     ...validateEvidenceScopeAndCausality(reparsed.value, evidence)
@@ -1441,8 +1483,11 @@ function validateRuntimeQuality(
 ): string[] {
   const errors: string[] = [];
   const count = language === "zh-CN" ? countHanCharacters : countEnglishWords;
-  if (count(output.review.markdown) < policy.minimumReviewContent) {
-    errors.push("review_content_minimum");
+  const reviewContentCount = count(output.review.markdown);
+  if (reviewContentCount < policy.minimumReviewContent) {
+    errors.push(
+      `review_content_minimum:${reviewContentCount}/${policy.minimumReviewContent}`
+    );
   }
   if (output.review.references.length < policy.minimumReferences) {
     errors.push("reference_count_minimum");
@@ -1467,13 +1512,23 @@ function validateRuntimeQuality(
         !/^#{1,6}\s/u.test(paragraph) &&
         count(paragraph) >= (language === "zh-CN" ? 20 : 10)
     );
-  if (
-    citedParagraphs.length === 0 ||
-    citedParagraphs.some(
-      (paragraph) => extractNumericCitations(paragraph).length === 0
+  const uncitedParagraphs = citedParagraphs
+    .map((paragraph, index) => ({
+      paragraph,
+      index: index + 1
+    }))
+    .filter(
+      ({ paragraph }) => extractNumericCitations(paragraph).length === 0
     )
-  ) {
-    errors.push("paragraph_citation_coverage");
+    .map(({ index }) => index);
+  if (citedParagraphs.length === 0 || uncitedParagraphs.length > 0) {
+    errors.push(
+      `paragraph_citation_coverage:${
+        citedParagraphs.length === 0
+          ? "no_substantive_paragraphs"
+          : `paragraphs=${uncitedParagraphs.slice(0, 40).join(",")}`
+      }`
+    );
   }
   const coreEvidenceIds = new Set(
     output.review.core_evidence.map((item) => item.reference_id)
@@ -2136,7 +2191,9 @@ function validateEvidenceScopeAndCausality(
       reference.reference_id
     ])
   );
-  for (const paragraph of output.review.markdown.split(/\n\s*\n/gu)) {
+  for (const [paragraphIndex, paragraph] of output.review.markdown
+    .split(/\n\s*\n/gu)
+    .entries()) {
     const citedAbstracts = extractNumericCitations(paragraph)
       .map((citation) => referenceIdByCitation.get(citation))
       .filter((referenceId): referenceId is string => Boolean(referenceId))
@@ -2159,13 +2216,17 @@ function validateEvidenceScopeAndCausality(
         source
       );
     if (causalClaim && observationalOnly) {
-      errors.add("causal_claim_evidence_grade");
+      errors.add(
+        `causal_claim_evidence_grade:paragraph=${paragraphIndex + 1}`
+      );
     }
     if (
       /\b(?:in vitro|cell line|cultured cells?)\b/u.test(source) &&
       !/\b(?:in vitro|cell|cellular)\b|体外|细胞/u.test(claim)
     ) {
-      errors.add("in_vitro_scope_required");
+      errors.add(
+        `in_vitro_scope_required:paragraph=${paragraphIndex + 1}`
+      );
     }
     if (
       /\b(?:case report|case series)\b/u.test(source) &&
@@ -2173,7 +2234,9 @@ function validateEvidenceScopeAndCausality(
         claim
       )
     ) {
-      errors.add("case_evidence_scope_required");
+      errors.add(
+        `case_evidence_scope_required:paragraph=${paragraphIndex + 1}`
+      );
     }
   }
   return [...errors];

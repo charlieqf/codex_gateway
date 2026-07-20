@@ -447,6 +447,7 @@ describe("Research Worker controlled-beta workflow", () => {
       errorCodes: readonly string[];
     }> = [];
     let repairPrompt = "";
+    let finalRepairPrompt = "";
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
@@ -457,6 +458,8 @@ describe("Research Worker controlled-beta workflow", () => {
           modelCalls += 1;
           if (modelCalls === 2) {
             repairPrompt = input.prompt;
+          } else if (modelCalls === 3) {
+            finalRepairPrompt = input.prompt;
           }
           return {
             text: JSON.stringify(
@@ -484,13 +487,19 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "failed",
       reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
+    expect(modelCalls).toBe(3);
     expect(repairPrompt).toContain("Preserve every required draft field");
     expect(repairPrompt).toContain("Draft schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
     expect(repairPrompt).toContain("Invented oncology program");
     expect(repairPrompt).toContain(
       "Remove every unsupported narrative number"
+    );
+    expect(finalRepairPrompt).toContain(
+      "Perform one final bounded correction"
+    );
+    expect(finalRepairPrompt).toContain(
+      "numeric_evidence_closure:review_1:2025"
     );
     expect(validationEvents).toEqual([
       expect.objectContaining({
@@ -504,6 +513,11 @@ describe("Research Worker controlled-beta workflow", () => {
       expect.objectContaining({
         stage: "validate_outputs",
         attempt: 2,
+        errorCodes: ["numeric_evidence_closure"]
+      }),
+      expect.objectContaining({
+        stage: "validate_outputs",
+        attempt: 3,
         errorCodes: ["numeric_evidence_closure"]
       })
     ]);
@@ -596,6 +610,73 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("uses one bounded third correction when peer review still fails quality gates", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "bounded_third_model_correction"
+    );
+    const invalid = modelOutput();
+    invalid.review.markdown =
+      "The retrieved publication enrolled 2025 patients, repurposing the publication year as an unsupported sample size [1].";
+    const valid = modelOutput();
+    let modelCalls = 0;
+    const validationEvents: Array<{
+      attempt: number;
+      errorCodes: readonly string[];
+    }> = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate(input) {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(modelCalls < 3 ? invalid : valid),
+            gatewayRequestId: `req_model_third_correction_${input.attempt}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push({
+          attempt: event.attempt,
+          errorCodes: event.errorCodes
+        });
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(3);
+    expect(validationEvents).toEqual([
+      { attempt: 1, errorCodes: ["numeric_evidence_closure"] },
+      { attempt: 2, errorCodes: ["numeric_evidence_closure"] }
+    ]);
+    expect(
+      fixture.store.database
+        .prepare(
+          `SELECT stage, attempt
+           FROM research_stage_runs
+           WHERE run_id = ?
+           ORDER BY attempt`
+        )
+        .all(fixture.lease.run.runId)
+    ).toEqual([
+      { stage: "synthesize_review", attempt: 1 },
+      { stage: "validate_outputs", attempt: 2 },
+      { stage: "validate_outputs", attempt: 3 }
+    ]);
+    fixture.store.close();
+  });
+
   it("rejects unverified placeholders instead of publishing them as facts", async () => {
     const fixture = createLeasedWorkflowFixture(
       "unverified_placeholder"
@@ -636,6 +717,7 @@ describe("Research Worker controlled-beta workflow", () => {
       reason: "model_contract_error"
     });
     expect(validationCodes).toEqual([
+      ["unverified_placeholder"],
       ["unverified_placeholder"],
       ["unverified_placeholder"]
     ]);
@@ -699,6 +781,7 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     expect(validationCodes).toEqual([
       ["causal_claim_evidence_grade"],
+      ["causal_claim_evidence_grade"],
       ["causal_claim_evidence_grade"]
     ]);
     expect(existsSync(fixture.artifactRoot)).toBe(false);
@@ -747,8 +830,9 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "failed",
       reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
+    expect(modelCalls).toBe(3);
     expect(validationCodes).toEqual([
+      ["unsafe_model_markup", "numeric_evidence_closure"],
       ["unsafe_model_markup", "numeric_evidence_closure"],
       ["unsafe_model_markup", "numeric_evidence_closure"]
     ]);
@@ -817,8 +901,9 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "failed",
       reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
+    expect(modelCalls).toBe(3);
     expect(validationCodes).toEqual([
+      ["verified_research_direction_required"],
       ["verified_research_direction_required"],
       ["verified_research_direction_required"]
     ]);
@@ -861,7 +946,7 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "failed",
       reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
+    expect(modelCalls).toBe(3);
     expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
@@ -905,7 +990,7 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "failed",
       reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
+    expect(modelCalls).toBe(3);
     expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
