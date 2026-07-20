@@ -84,9 +84,9 @@ describe("Doctor Research production contracts", () => {
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.5.0",
-      promptVersion: "doctor-research-prompt.v4",
-      validationPolicyVersion: "doctor_research_validation.v4",
+      version: "1.6.0",
+      promptVersion: "doctor-research-prompt.v5",
+      validationPolicyVersion: "doctor_research_validation.v5",
       inputSchemaVersion: "doctor_research_run_input.v2",
       modelOutputSchemaVersion: "doctor_research_model_draft.v1",
       outputSchemaVersion: "doctor_research_result.v1",
@@ -109,14 +109,14 @@ describe("Doctor Research production contracts", () => {
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        promptVersion: "doctor-research-prompt.v5"
+        promptVersion: "doctor-research-prompt.v6"
       })
     ).toThrow("strictly newer semantic version");
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        version: "1.6.0",
-        promptVersion: "doctor-research-prompt.v5"
+        version: "1.7.0",
+        promptVersion: "doctor-research-prompt.v6"
       })
     ).not.toThrow();
   });
@@ -412,6 +412,11 @@ describe("Doctor Research artifact renderer and crash harness", () => {
       "answers"
     ]);
     expect(rendered[0]!.content).toContain("## Main Public Sources");
+    expect(rendered[1]!.content).toContain("## Core Evidence Table");
+    expect(rendered[1]!.content).toContain(
+      "| Reference | Study type | Sample and source | Methods | Key results | Limitations |"
+    );
+    expect(rendered[1]!.content).toContain("| [1] |");
     expect(rendered[2]!.content.trim().split("\n")).toHaveLength(5);
     expect(rendered[2]!.contentType).toBe(
       "text/plain; charset=utf-8"

@@ -33,6 +33,7 @@ describe("Research Worker fail-closed configuration", () => {
         maximumRunArtifactBytes: 4_000_000,
         minimumReferences: 3,
         maximumInputTokensPerCall: 200_000,
+        synthesisShardCount: 3,
         budgets: {
           externalRequests: 466,
           llmCalls: 4
@@ -83,7 +84,21 @@ describe("Research Worker fail-closed configuration", () => {
         ...validEnvironment(),
         RESEARCH_MAX_LLM_CALLS_PER_RUN: "2"
       })
-    ).toThrow("must cover one initial transport failure");
+    ).toThrow("must cover three bounded synthesis shards");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_HARD_DEADLINE_SECONDS: "601"
+      })
+    ).toThrow("cannot exceed the 10-minute API SLA");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_SYNTHESIS_SHARD_COUNT: "2"
+      })
+    ).toThrow("must be 1 or 3");
 
     expect(() =>
       loadResearchWorkerConfig({
@@ -251,6 +266,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "466",
     RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "932000000",
     RESEARCH_MAX_LLM_CALLS_PER_RUN: "4",
+    RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
     RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "200000",
     RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "800000",
     RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "48000",
@@ -263,7 +279,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_QUESTION_CONTENT: "80",
     RESEARCH_MIN_ANSWER_CONTENT: "80",
     RESEARCH_MAX_ANSWER_CONTENT: "800",
-    RESEARCH_HARD_DEADLINE_SECONDS: "900",
+    RESEARCH_HARD_DEADLINE_SECONDS: "570",
     RESEARCH_FORBIDDEN_OUTPUT_FRAGMENTS:
       "ignore all prior instructions,reveal api key",
     RESEARCH_NCBI_EMAIL: "operator@example.org",
@@ -283,7 +299,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_LLM_MODEL: "goldencode",
     RESEARCH_LLM_REASONING_EFFORT: "low",
     RESEARCH_LLM_BEARER_TOKEN_FILE: path.resolve("secrets/llm"),
-    RESEARCH_LLM_TIMEOUT_MS: "600000",
+    RESEARCH_LLM_TIMEOUT_MS: "240000",
     RESEARCH_MAX_LLM_RESPONSE_BYTES: "2000000"
   };
 }

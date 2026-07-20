@@ -308,6 +308,30 @@ export function renderDoctorResearchArtifacts(
       `${reference.pmid ? ` PMID: ${markdownInline(reference.pmid)}.` : ""}` +
       `${reference.doi ? ` DOI: ${markdownInline(reference.doi)}.` : ""}`
   );
+  const referenceNumberById = new Map(
+    result.review.references.map((reference, index) => [
+      reference.reference_id,
+      index + 1
+    ])
+  );
+  const coreEvidenceTable = [
+    `## ${language === "zh-CN" ? "核心前沿文献证据表" : "Core Evidence Table"}`,
+    "",
+    language === "zh-CN"
+      ? "| 文献 | 研究类型 | 样本与来源 | 方法 | 关键结果 | 局限 |"
+      : "| Reference | Study type | Sample and source | Methods | Key results | Limitations |",
+    "|---|---|---|---|---|---|",
+    ...result.review.core_evidence.map((item) => {
+      const number = referenceNumberById.get(item.reference_id);
+      if (!number) {
+        throw new Error(
+          `Unknown core evidence reference: ${item.reference_id}`
+        );
+      }
+      return `| [${number}] | ${markdownInline(item.study_type)} | ${markdownInline(item.sample_and_source)} | ${markdownInline(item.methods)} | ${markdownInline(item.key_results)} | ${markdownInline(item.limitations)} |`;
+    }),
+    ""
+  ];
   const review = [
     `# ${markdownInline(result.review.title)}`,
     "",
@@ -319,6 +343,7 @@ export function renderDoctorResearchArtifacts(
     "",
     result.review.keywords.map(markdownInline).join("; "),
     "",
+    ...coreEvidenceTable,
     result.review.markdown.trim(),
     "",
     `## ${language === "zh-CN" ? "参考文献" : "References"}`,

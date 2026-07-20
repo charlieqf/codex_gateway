@@ -41,6 +41,7 @@ const researchLlmReadinessQuery =
   "?maximum_prompt_tokens_per_call=180000" +
   "&maximum_output_tokens_per_call=12000" +
   "&calls_per_run=4" +
+  "&concurrent_calls=3" +
   "&maximum_tokens_per_run=576000";
 
 afterEach(() => {
@@ -692,7 +693,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.5.0"
+        version: "1.6.0"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1991,7 +1992,7 @@ function addSubject(
           rate: {
             requestsPerMinute: 4,
             requestsPerDay: 100,
-            concurrentRequests: 1
+            concurrentRequests: 3
           }
         }
       : {})

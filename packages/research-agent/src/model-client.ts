@@ -48,6 +48,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         maximumPromptTokensPerCall: number;
         maximumOutputTokensPerCall: number;
         callsPerRun: number;
+        concurrentCalls?: number;
         maximumTokensPerRun: number;
       };
       fetchImpl?: typeof fetch;
@@ -85,12 +86,18 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       readiness.callsPerRun,
       "readinessRequirements.callsPerRun"
     );
+    const concurrentCalls = readiness.concurrentCalls ?? 1;
+    positiveInteger(
+      concurrentCalls,
+      "readinessRequirements.concurrentCalls"
+    );
     positiveInteger(
       readiness.maximumTokensPerRun,
       "readinessRequirements.maximumTokensPerRun"
     );
     if (
       readiness.callsPerRun > 4 ||
+      concurrentCalls > readiness.callsPerRun ||
       !Number.isSafeInteger(
         readiness.maximumPromptTokensPerCall +
           readiness.maximumOutputTokensPerCall
@@ -146,6 +153,10 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     this.readinessEndpoint.searchParams.set(
       "calls_per_run",
       String(readiness.callsPerRun)
+    );
+    this.readinessEndpoint.searchParams.set(
+      "concurrent_calls",
+      String(concurrentCalls)
     );
     this.readinessEndpoint.searchParams.set(
       "maximum_tokens_per_run",
@@ -228,7 +239,8 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         accept: "application/json",
         authorization: `Bearer ${this.options.bearerToken}`,
         "content-type": "application/json",
-        "x-medcode-client-session-id": input.runId,
+        "x-medcode-client-session-id":
+          `${input.runId}:${stage}:${input.attempt}`,
         "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
       };
       const body = JSON.stringify({

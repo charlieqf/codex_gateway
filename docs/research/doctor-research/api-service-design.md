@@ -5,13 +5,21 @@
 > 加载四个 `SKILL.md`，记录 bundle SHA-256；平台只负责安全适配器、编排、契约与
 > 质量门禁，不再以硬编码摘要 Prompt 代替 Skill。`brief` 名称因 v1 API 兼容保留，
 > 但当前生产配置执行 6000 字符正文下限和最多 40 篇可核验领域文献目标，并强制
-> 第二次 peer-review 自检。执行层 `1.5.0` 只做可逆的工程投影和精简草稿协议：
+> 第二次 peer-review 自检。执行层 `1.6.0` 只做可逆的工程投影和精简草稿协议：
 > 原始四个 Skill 文件与完整 bundle hash 不变；运行时保留业务、检索、证据、引用、
 > 写作和质控章节，排除本四文本 API 无法执行的安装命令、外部工具、图/PDF、示例
 > 和资产；已核验身份、来源、参考文献和检索报告由 Worker 确定性回填。本文后续关于
 > “SKILL.md 不进入镜像”“Phase 1 不执行
 > 40 篇/6000 字目标”的段落属于早期设计记录，已由本勘误和
 > `README.md` 的 Current production contract 取代。
+
+> 2026-07-20 时延勘误：API 的整体墙钟耗时从创建任务时起不得超过 10 分钟，
+> 包括排队和 Worker 重试。生产执行层采用三个受限综述分片并发生成，第四次调用
+> 仅返回精简 peer-review 诊断与精确文本修订，不再串行重写整篇 6000 字综述。
+> 生产硬截止为 570 秒，单模型调用截止为 240 秒，客户端等待上限为 600 秒；
+> 超时必须以 `deadline_exceeded` 失败闭合，不发布部分文件。该变更只修改工程
+> 编排、内部并发额度、超时和服务端组装，不修改
+> `docs/research/采访skill/` 的任何业务文件。
 
 > 文档状态：实施前审核稿<br>
 > 版本：v0.7<br>
@@ -756,7 +764,7 @@ Idempotency-Key: research:<client-generated-id>
   "mode": "brief",
   "skill": {
     "name": "doctor-research-query",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "created_at": "2026-07-17T01:30:00Z",
   "status_url": "/gateway/research/v1/doctor-runs/drr_...",
@@ -2236,8 +2244,8 @@ RESEARCH_MIN_FREE_PERCENT=...
 RESEARCH_BACKUP_ROOT=<approved-separate-backup-target>
 RESEARCH_BACKUP_INTERVAL_SECONDS=...
 RESEARCH_BACKUP_MAX_AGE_SECONDS=...
-RESEARCH_SKILL_VERSION=1.5.0
-RESEARCH_PROMPT_VERSION=doctor-research-prompt.v4
+RESEARCH_SKILL_VERSION=1.6.0
+RESEARCH_PROMPT_VERSION=doctor-research-prompt.v5
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode
 RESEARCH_LLM_REASONING_EFFORT=none|low|medium|high

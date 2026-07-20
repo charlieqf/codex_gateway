@@ -16,7 +16,9 @@ describe("medical-team Research Skill bundle", () => {
     expect(bundle.documents.map((document) => document.relativePath)).toEqual(
       medicalSkillRelativePaths
     );
-    expect(bundle.digest).toMatch(/^[a-f0-9]{64}$/u);
+    expect(bundle.digest).toBe(
+      "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351"
+    );
     for (const document of bundle.documents) {
       const bytes = readFileSync(path.resolve(root, document.relativePath));
       expect(document.content).toBe(bytes.toString("utf8"));

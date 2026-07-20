@@ -64,6 +64,13 @@ The overlay adds:
 Max, Codex, OpenRouter, public HTTP proxies, Google Scholar and dynamic Skill
 execution are not part of the Research generation path.
 
+The production SLA is a hard ten-minute wall-clock ceiling from API run
+creation, not merely Worker active time. The protected Worker environment must
+keep `RESEARCH_HARD_DEADLINE_SECONDS` at `570` or lower,
+`RESEARCH_LLM_TIMEOUT_MS` below that deadline (currently `240000`), and
+`RESEARCH_SYNTHESIS_SHARD_COUNT=3`. Configuration loading fails closed if the
+deadline exceeds 600 seconds.
+
 ## Default-closed switches
 
 All four host-side switches default to false:
@@ -146,7 +153,9 @@ Worker disabled. In its isolated Gateway database:
    `research.production.token-policy.example.json` and
    `research.production.service-feature-policy.example.json`.
 2. Issue a service credential with exactly the `goldencode` public-model
-   allowlist and no `doctor_research`, image or admin capability.
+   allowlist and no `doctor_research`, image or admin capability. Its bounded
+   rate must cover four calls per run and three concurrent synthesis calls
+   (`rpm >= 4`, `rpd >= 4`, `concurrent >= 3`).
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.
@@ -193,6 +202,10 @@ paths. Success requires:
 - exactly four manifest entries and downloads;
 - exactly three Markdown files and one five-line text file;
 - downloaded sizes and SHA-256 values equal the manifest.
+- measured create-to-terminal wall time below 600 seconds;
+- one three-call concurrent synthesis fan-out followed by exactly one compact
+  peer-review call;
+- a rendered 3-8-row core evidence table and no partial artifact publication.
 
 Then verify the public HTTPS status/result/download path, foreign-subject
 uniform `404`, encoded traversal rejection, cancellation convergence,

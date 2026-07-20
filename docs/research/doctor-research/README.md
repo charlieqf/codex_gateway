@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.5.0` together with the
+The production Worker uses frozen execution contract `1.6.0` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,11 +66,24 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, the model returns only a compact narrative draft. The Worker
-deterministically adds verified identity, sources, all reference metadata,
-search report, coverage and quality fields, then validates the unchanged
-public result schema. Up to 40 verified references and the mandatory second
-peer-review pass remain in force.
+For latency, execution `1.6.0` splits synthesis into three bounded independent
+fragments, routes them with separate internal session affinity, and starts
+them concurrently against the three direct GLM pool members. A fourth call
+performs only the medical Skill's concise peer-review self-check and returns
+bounded exact-text corrections instead of rewriting the complete article.
+The Worker assembles the fragments, renders the 3-8-paper core evidence table
+from structured data, deterministically adds verified identity, sources, all
+reference metadata, search report, coverage and quality fields, and validates
+the unchanged public result schema. Up to 40 verified references, the
+6000-character floor, and the mandatory peer-review pass remain in force.
+
+The API has a non-negotiable ten-minute wall-clock ceiling measured from run
+creation, including queue wait and retries. Production is configured with a
+570-second Worker deadline and a 240-second per-model-call timeout so terminal
+state can be observed before the client reaches its 600-second wait bound.
+Work that cannot close its evidence and output contracts in that window fails
+with `deadline_exceeded`; the service never publishes a partial four-file
+result.
 
 ## API quick reference
 
@@ -111,7 +124,8 @@ Poll `GET /gateway/research/v1/doctor-runs/{run_id}` until `succeeded`, then
 read `GET /gateway/research/v1/doctor-runs/{run_id}/result`. Download each
 manifest entry through its authenticated `download_url`; verify both
 `size_bytes` and `sha256`. The supported end-user client is
-`scripts/doctor-research-demo.py`, documented below.
+`scripts/doctor-research-demo.py`, documented below. Its default and maximum
+polling window is 600 seconds, matching the public API ceiling.
 
 ## Python API demo
 

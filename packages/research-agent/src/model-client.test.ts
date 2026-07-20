@@ -56,7 +56,10 @@ describe("Doctor Research structured Gateway model client", () => {
       bearerToken: "secret-staging-token",
       timeoutMs: 5_000,
       maximumResponseBytes: 1_000_000,
-      readinessRequirements: readinessRequirements(),
+      readinessRequirements: {
+        ...readinessRequirements(),
+        concurrentCalls: 3
+      },
       fetchImpl
     });
     const signal = new AbortController().signal;
@@ -86,6 +89,7 @@ describe("Doctor Research structured Gateway model client", () => {
       maximum_prompt_tokens_per_call: "200000",
       maximum_output_tokens_per_call: "12000",
       calls_per_run: "4",
+      concurrent_calls: "3",
       maximum_tokens_per_run: "848000"
     });
     const request = requests[1];
@@ -107,7 +111,8 @@ describe("Doctor Research structured Gateway model client", () => {
     expect(body).not.toHaveProperty("response_format");
     expect(request?.init?.headers).toMatchObject({
       authorization: "Bearer secret-staging-token",
-      "x-medcode-client-session-id": `drr_${"a".repeat(32)}`,
+      "x-medcode-client-session-id":
+        `drr_${"a".repeat(32)}:synthesize_review:1`,
       "x-medcode-client-turn-code": "research:synthesize_review:1"
     });
   });

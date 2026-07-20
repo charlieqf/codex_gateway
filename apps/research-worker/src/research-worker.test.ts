@@ -387,6 +387,185 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
+  it("runs three bounded synthesis shards concurrently and applies one concise peer review", async () => {
+    const input = {
+      ...runInput(),
+      language: "zh-CN" as const
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "sharded_synthesis",
+      input
+    );
+    const foundation = modelOutput();
+    foundation.review.title = "公开摘要证据的规范综合";
+    foundation.review.abstract =
+      "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。";
+    foundation.review.keywords = ["证据综合", "研究设计", "方法学"];
+    foundation.review.markdown = longChineseReviewFragment(
+      "引言",
+      55
+    );
+    foundation.predicted_questions = [
+      "摘要证据能支持什么？",
+      "如何区分相关与因果？",
+      "研究设计差异怎么看？",
+      "哪些结果需要全文核验？",
+      "证据局限应如何表达？"
+    ];
+    foundation.answers = foundation.predicted_questions.map(
+      (_, index) => ({
+        question_index: index + 1,
+        answer:
+          "应把结论限定在已核验的公开摘要证据范围内，比较研究设计、方法与结果的一致性，同时明确摘要不能替代全文评价，也不能据此扩大临床解释。",
+        source_ids: ["src_pubmed_1001"]
+      })
+    );
+    const fragments = new Map<number, string>([
+      [
+        2,
+        JSON.stringify({
+          schema_version: "doctor_research_review_fragment.v1",
+          markdown: longChineseReviewFragment(
+            "方法与证据比较",
+            55
+          )
+        })
+      ],
+      [
+        3,
+        JSON.stringify({
+          schema_version: "doctor_research_review_fragment.v1",
+          markdown: longChineseReviewFragment(
+            "证据综合、局限与结论",
+            70
+          )
+        })
+      ]
+    ]);
+    let activeSynthesisCalls = 0;
+    let maximumActiveSynthesisCalls = 0;
+    let releaseBarrier: (() => void) | null = null;
+    const barrier = new Promise<void>((resolve) => {
+      releaseBarrier = resolve;
+    });
+    const attempts: number[] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(0),
+      modelClient: {
+        model: "test-model",
+        async generate(modelInput) {
+          attempts.push(modelInput.attempt);
+          if (modelInput.attempt <= 3) {
+            activeSynthesisCalls += 1;
+            maximumActiveSynthesisCalls = Math.max(
+              maximumActiveSynthesisCalls,
+              activeSynthesisCalls
+            );
+            if (activeSynthesisCalls === 3) {
+              releaseBarrier?.();
+            }
+            await barrier;
+            activeSynthesisCalls -= 1;
+            return {
+              text:
+                modelInput.attempt === 1
+                  ? JSON.stringify(foundation)
+                  : fragments.get(modelInput.attempt)!,
+              gatewayRequestId: `req_sharded_${modelInput.attempt}`,
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          return {
+            text: JSON.stringify({
+              schema_version: "doctor_research_peer_review.v1",
+              approved: true,
+              replacements: [],
+              warnings: []
+            }),
+            gatewayRequestId: "req_sharded_peer_review",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: {
+        ...workflowPolicy(),
+        synthesisShardCount: 3,
+        budgets: {
+          ...workflowPolicy().budgets,
+          llmCalls: 4,
+          inputTokens: 400_000
+        }
+      },
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(maximumActiveSynthesisCalls).toBe(3);
+    expect(attempts).toEqual([1, 2, 3, 4]);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as unknown as {
+      quality: { warnings: string[] };
+    };
+    expect(result.quality.warnings).toEqual(
+      expect.arrayContaining([
+        "sharded_synthesis_completed",
+        "peer_review_model_completed"
+      ])
+    );
+  });
+
+  it("enforces the overall deadline from API creation time, including queue wait", async () => {
+    const fixture = createLeasedWorkflowFixture("wall_deadline");
+    let adapterCalled = false;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: {
+        ...adapters(0),
+        async searchOfficialSources() {
+          adapterCalled = true;
+          return [];
+        }
+      },
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          throw new Error("Model must not run after the wall deadline.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () =>
+        new Date(
+          fixture.now.getTime() +
+            workflowPolicy().hardDeadlineMs +
+            1
+        )
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "deadline_exceeded"
+    });
+    expect(adapterCalled).toBe(false);
+  });
+
   it("fails closed when peer review retains a transposed numeric claim", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
@@ -2788,6 +2967,18 @@ function runInput(): DoctorResearchRunInput {
     },
     clientReference: null
   };
+}
+
+function longChineseReviewFragment(
+  heading: string,
+  repetitions: number
+): string {
+  const sentence =
+    "本段仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制";
+  return `## ${heading}\n\n${Array.from(
+    { length: repetitions },
+    () => sentence
+  ).join("。")}。[1]`;
 }
 
 function modelOutput(): DoctorResearchModelOutput {

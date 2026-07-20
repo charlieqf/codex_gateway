@@ -780,7 +780,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           serviceRate.requestsPerDay === null ||
           serviceRate.requestsPerDay < requirements.callsPerRun ||
           serviceRate.concurrentRequests === null ||
-          serviceRate.concurrentRequests <= 0 ||
+          serviceRate.concurrentRequests <
+            requirements.concurrentCalls ||
           !serviceTokenPolicy ||
           serviceTokenPolicy.tokensPerMinute === null ||
           serviceTokenPolicy.tokensPerMinute <
@@ -4727,6 +4728,7 @@ interface ResearchLlmReadinessRequirements {
   maximumPromptTokensPerCall: number;
   maximumOutputTokensPerCall: number;
   callsPerRun: number;
+  concurrentCalls: number;
   maximumTokensPerRun: number;
 }
 
@@ -4734,6 +4736,7 @@ function parseResearchLlmReadinessRequirements(input: {
   maximum_prompt_tokens_per_call?: string;
   maximum_output_tokens_per_call?: string;
   calls_per_run?: string;
+  concurrent_calls?: string;
   maximum_tokens_per_run?: string;
 }): ResearchLlmReadinessRequirements {
   const maximumPromptTokensPerCall = boundedReadinessInteger(
@@ -4751,23 +4754,33 @@ function parseResearchLlmReadinessRequirements(input: {
     "calls_per_run",
     4
   );
+  const concurrentCalls =
+    input.concurrent_calls === undefined
+      ? 1
+      : boundedReadinessInteger(
+          input.concurrent_calls,
+          "concurrent_calls",
+          4
+        );
   const maximumTokensPerRun = boundedReadinessInteger(
     input.maximum_tokens_per_run,
     "maximum_tokens_per_run",
     1_100_000
   );
   if (
+    concurrentCalls > callsPerRun ||
     maximumTokensPerRun <
       maximumPromptTokensPerCall + maximumOutputTokensPerCall
   ) {
     throw researchReadinessInvalidRequest(
-      "maximum_tokens_per_run must cover one maximum-size model call."
+      "Research LLM readiness concurrency or token requirements are inconsistent."
     );
   }
   return {
     maximumPromptTokensPerCall,
     maximumOutputTokensPerCall,
     callsPerRun,
+    concurrentCalls,
     maximumTokensPerRun
   };
 }

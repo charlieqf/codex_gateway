@@ -453,6 +453,16 @@ export function loadResearchWorkerConfig(
     "RESEARCH_MAX_INPUT_TOKENS_PER_CALL",
     500_000
   );
+  const synthesisShardCount = boundedInteger(
+    env.RESEARCH_SYNTHESIS_SHARD_COUNT ?? "1",
+    "RESEARCH_SYNTHESIS_SHARD_COUNT",
+    3
+  );
+  if (synthesisShardCount !== 1 && synthesisShardCount !== 3) {
+    throw new Error(
+      "RESEARCH_SYNTHESIS_SHARD_COUNT must be 1 or 3."
+    );
+  }
   if (
     budgets.llmCalls !== 4 ||
     !Number.isSafeInteger(
@@ -467,7 +477,25 @@ export function loadResearchWorkerConfig(
       budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover one initial transport failure plus generation, peer review, and one bounded repair."
+      "Research LLM budgets must cover three bounded synthesis shards and one concise peer-review call."
+    );
+  }
+  const llmTimeoutMs = requiredTimerMilliseconds(
+    env.RESEARCH_LLM_TIMEOUT_MS,
+    "RESEARCH_LLM_TIMEOUT_MS"
+  );
+  const hardDeadlineMs = requiredTimerMillisecondsFromSeconds(
+    env.RESEARCH_HARD_DEADLINE_SECONDS,
+    "RESEARCH_HARD_DEADLINE_SECONDS"
+  );
+  if (hardDeadlineMs > 600_000) {
+    throw new Error(
+      "RESEARCH_HARD_DEADLINE_SECONDS cannot exceed the 10-minute API SLA."
+    );
+  }
+  if (llmTimeoutMs >= hardDeadlineMs) {
+    throw new Error(
+      "RESEARCH_LLM_TIMEOUT_MS must be shorter than the overall Research API deadline."
     );
   }
   const minimumFreePercent = requiredPositiveInteger(
@@ -605,10 +633,7 @@ export function loadResearchWorkerConfig(
         env.RESEARCH_LLM_BEARER_TOKEN_FILE,
         "RESEARCH_LLM_BEARER_TOKEN_FILE"
       ),
-      timeoutMs: requiredTimerMilliseconds(
-        env.RESEARCH_LLM_TIMEOUT_MS,
-        "RESEARCH_LLM_TIMEOUT_MS"
-      ),
+      timeoutMs: llmTimeoutMs,
       maximumResponseBytes: boundedInteger(
         env.RESEARCH_MAX_LLM_RESPONSE_BYTES,
         "RESEARCH_MAX_LLM_RESPONSE_BYTES",
@@ -639,10 +664,8 @@ export function loadResearchWorkerConfig(
       maximumAnswerContent,
       maximumInputTokensPerCall,
       maximumOutputTokensPerCall,
-      hardDeadlineMs: requiredTimerMillisecondsFromSeconds(
-        env.RESEARCH_HARD_DEADLINE_SECONDS,
-        "RESEARCH_HARD_DEADLINE_SECONDS"
-      ),
+      hardDeadlineMs,
+      synthesisShardCount,
       budgets,
       forbiddenOutputFragments
     },

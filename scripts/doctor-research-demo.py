@@ -274,8 +274,8 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--max-wait-seconds",
-        type=bounded_integer("maximum wait seconds", 60, 7_200),
-        default=3600,
+        type=bounded_integer("maximum wait seconds", 60, 600),
+        default=600,
     )
     parser.add_argument(
         "--request-timeout-seconds",
