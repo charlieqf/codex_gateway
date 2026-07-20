@@ -391,6 +391,14 @@ describe("Research Worker controlled-beta workflow", () => {
     ["transport", "bounded_shard_transport_retry_completed"],
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
+    [
+      "skill-contract",
+      "bounded_shard_skill_contract_retry_completed"
+    ],
+    [
+      "skill-prose",
+      "bounded_shard_skill_contract_retry_completed"
+    ],
     ["body", "bounded_qa_contract_retry_completed"],
     ["content", "bounded_review_content_correction_completed"],
     [
@@ -445,11 +453,10 @@ describe("Research Worker controlled-beta workflow", () => {
     const foundation = modelOutput();
     foundation.review.title = "公开摘要证据的规范综合";
     foundation.review.abstract =
-      "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。";
+      "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。针对不同研究对象、数据来源、观察终点和随访框架，本文逐项比较其一致性与差异，并把样本选择、测量误差、偏倚控制及外部适用性纳入证据分级。对于病例报告、观察性队列和其他非随机证据，只描述其技术可行性或统计关联，不将其写成普遍临床获益。对摘要没有披露的统计方法、缺失数据处理和敏感性分析保持沉默，避免以题名或期刊信息补写事实。综述进一步梳理各主题之间的逻辑联系，说明哪些结论得到直接数据支持，哪些仅构成趋势或研究假设，并提出需要前瞻性验证、外部验证和长期患者结局研究的问题。";
     foundation.review.keywords = ["证据综合", "研究设计", "方法学"];
-    foundation.review.markdown = longChineseReviewFragment(
-      "引言",
-      retryKind === "content" ? 8 : 55
+    foundation.review.markdown = skillFoundationFragment(
+      retryKind === "content" ? 25 : 55
     );
     foundation.predicted_questions = [
       "摘要证据能支持什么？",
@@ -484,16 +491,30 @@ describe("Research Worker controlled-beta workflow", () => {
           }))
         : foundation.answers;
     const fragments = new Map<number, string>([
-      [1, JSON.stringify(foundationFragment)],
+      [
+        1,
+        JSON.stringify(
+          retryKind === "skill-contract"
+            ? {
+                review: {
+                  ...foundationFragment.review,
+                  title: "English-only review title",
+                  abstract: "Short English abstract.",
+                  markdown:
+                    "## Introduction\n\nShort English introduction."
+                }
+              }
+            : foundationFragment
+        )
+      ],
       [
         2,
         [
           "```json",
           JSON.stringify({
             schema_version: "doctor_research_body_fragment.v1",
-            markdown: longChineseReviewFragment(
-              "方法与证据比较",
-              retryKind === "content" ? 8 : 55
+            markdown: skillBodyFragment(
+              20
             ),
             predicted_questions: foundation.predicted_questions,
             answers: initialBodyAnswers
@@ -505,24 +526,37 @@ describe("Research Worker controlled-beta workflow", () => {
         3,
         retryKind === "peer-timeout"
           ? `{"schema_version":"doctor_research_review_fragment.v1","markdown":"${longChineseReviewFragment(
-                "transport normalization",
-                70
-              ).replace(/^##[^\n]*\n\n/u, "")}"}`
+                "传输规范化过渡主题",
+                20
+              )}\n\n${skillClosingFragment(26, 20, 7, false).replaceAll(
+                "\n",
+                "\\n"
+              )}"}`
+          : retryKind === "skill-prose"
+            ? JSON.stringify({
+                schema_version:
+                  "doctor_research_review_fragment.v1",
+                markdown: [
+                  skillClosingFragment(26, 20, 7, true),
+                  "本段用于验证重复内容不会被当作有效篇幅，医学综述必须保留不同研究之间的真实比较、边界说明与可核验引文，而不能机械复制相同段落补足长度。[1]",
+                  "本段用于验证重复内容不会被当作有效篇幅，医学综述必须保留不同研究之间的真实比较、边界说明与可核验引文，而不能机械复制相同段落补足长度。[1]",
+                  "术后2."
+                ].join("\n\n")
+              })
           : retryKind === "citation-closure"
             ? [
                 "```markdown",
-                longChineseReviewFragment(
-                  "bare transport normalization",
-                  70
-                ),
+                skillClosingFragment(26, 20, 7, true),
                 "```"
               ].join("\n")
           : JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
-              markdown: longChineseReviewFragment(
-                "证据综合、局限与结论",
-                retryKind === "content" ? 8 : 70
+              markdown: skillClosingFragment(
+                26,
+                20,
+                7,
+                retryKind !== "content"
               )
             })
       ]
@@ -678,6 +712,19 @@ describe("Research Worker controlled-beta workflow", () => {
               text:
                 retryKind === "transport"
                   ? JSON.stringify(foundationFragment)
+                  : retryKind === "skill-contract"
+                    ? JSON.stringify(foundationFragment)
+                    : retryKind === "skill-prose"
+                      ? JSON.stringify({
+                          schema_version:
+                            "doctor_research_review_fragment.v1",
+                          markdown: skillClosingFragment(
+                            26,
+                            20,
+                            7,
+                            true
+                          )
+                        })
                   : retryKind === "admission"
                     ? fragments.get(2)!
                   : retryKind === "contract"
@@ -785,7 +832,8 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     expect(attempts).toEqual(
       retryKind === "citation-closure" ||
-      retryKind === "peer-contract"
+      retryKind === "peer-contract" ||
+      retryKind === "peer-timeout"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
@@ -834,6 +882,28 @@ describe("Research Worker controlled-beta workflow", () => {
         "Prior body fragment"
       );
     }
+    if (retryKind === "skill-contract") {
+      expect(retryPrompt).toContain(
+        "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
+      );
+      expect(retryPrompt).toContain(
+        "review_title_language_contract"
+      );
+      expect(retryPrompt).toContain(
+        "review_abstract_length_contract:0/300-500"
+      );
+    }
+    if (retryKind === "skill-prose") {
+      expect(retryPrompt).toContain(
+        "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
+      );
+      expect(retryPrompt).toContain(
+        "review_duplicate_paragraph"
+      );
+      expect(retryPrompt).toContain(
+        "review_truncated_numeric_prose"
+      );
+    }
     const stored = fixture.store.getRunResultForSubject(
       fixture.lease.run.runId,
       fixture.lease.run.subjectId
@@ -874,8 +944,8 @@ describe("Research Worker controlled-beta workflow", () => {
         reference_id: "ref_pmid_1001",
         study_type: expect.stringContaining(
           retryKind === "peer-timeout"
-            ? "case report"
-            : "prospective cohort"
+            ? "病例报告"
+            : "前瞻性队列研究"
         ),
         sample_and_source: expect.stringContaining("42 samples"),
         methods: expect.stringContaining(
@@ -3395,11 +3465,63 @@ function longChineseReviewFragment(
   repetitions: number
 ): string {
   const sentence =
-    "本段仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制";
+    `${heading}部分仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制`;
   return `## ${heading}\n\n${Array.from(
     { length: repetitions },
     () => sentence
   ).join("。")}。[1]`;
+}
+
+function skillFoundationFragment(repetitions: number): string {
+  return longChineseReviewFragment("引言", repetitions);
+}
+
+function skillBodyFragment(repetitionsPerSection: number): string {
+  return [
+    longChineseReviewFragment(
+      "研究设计与人群差异",
+      repetitionsPerSection
+    ),
+    longChineseReviewFragment(
+      "方法路径与评价终点",
+      repetitionsPerSection
+    ),
+    longChineseReviewFragment(
+      "结果一致性与证据强度",
+      repetitionsPerSection
+    ),
+    longChineseReviewFragment(
+      "转化边界与研究缺口",
+      repetitionsPerSection
+    )
+  ].join("\n\n");
+}
+
+function skillClosingFragment(
+  synthesisRepetitions: number,
+  limitationRepetitions: number,
+  conclusionRepetitions: number,
+  includeTopic: boolean
+): string {
+  return [
+    ...(includeTopic
+      ? [
+          longChineseReviewFragment(
+            "转化路径与后续研究",
+            20
+          )
+        ]
+      : []),
+    longChineseReviewFragment(
+      "证据综合与未解争议",
+      synthesisRepetitions
+    ),
+    longChineseReviewFragment(
+      "局限性与展望",
+      limitationRepetitions
+    ),
+    longChineseReviewFragment("结论", conclusionRepetitions)
+  ].join("\n\n");
 }
 
 function modelOutput(): DoctorResearchModelOutput {

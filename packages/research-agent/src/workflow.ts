@@ -1187,15 +1187,6 @@ function buildDeterministicCoreEvidence(
           limitations:
             "Only public metadata and abstract-level evidence were verified; this does not replace full-text appraisal."
         };
-  const select = (
-    sentences: readonly string[],
-    patterns: readonly RegExp[],
-    fallbackValue: string
-  ): string =>
-    sentences.find((sentence) =>
-      patterns.some((pattern) => pattern.test(sentence))
-    ) ?? fallbackValue;
-
   return evidence.references.slice(0, 5).map((reference) => {
     const publication = publicationByReferenceId.get(
       reference.reference_id
@@ -1203,53 +1194,190 @@ function buildDeterministicCoreEvidence(
     const sentences = safePublicationEvidenceSentences(
       publication?.abstract ?? ""
     );
+    const used = new Set<string>();
+    const select = (
+      patterns: readonly RegExp[],
+      fallbackValue: string
+    ): string => {
+      const selected = sentences.find(
+        (sentence) =>
+          !used.has(sentence) &&
+          patterns.some((pattern) => pattern.test(sentence))
+      );
+      if (!selected) {
+        return fallbackValue;
+      }
+      used.add(selected);
+      return selected;
+    };
+    const methods = select(
+      [
+        /^(?:methods?|materials? and methods?|design)\s*:/iu,
+        /\b(?:we (?:conducted|performed|analy[sz]ed|evaluated|examined|assessed)|was conducted|were analy[sz]ed|methodology|protocol)\b/iu,
+        /^(?:方法|研究方法|设计)\s*[：:]/u
+      ],
+      fallback.methods
+    );
+    const keyResults = select(
+      [
+        /^(?:results?|findings?)\s*:/iu,
+        /\b(?:results? (?:showed|demonstrated|indicated)|we (?:found|observed)|was associated with|were associated with)\b/iu,
+        /^(?:结果|研究结果|主要结果)\s*[：:]/u
+      ],
+      fallback.key_results
+    );
+    const sampleAndSource =
+      extractPublicationSampleAndSource(sentences, language) ??
+      fallback.sample_and_source;
+    const limitations = select(
+      [
+        /^(?:limitations?|strengths? and limitations?)\s*:/iu,
+        /\b(?:limitations?|limited by|caution|cannot be (?:generalized|inferred)|further research)\b/iu,
+        /(?:局限|限制|谨慎解释|不能外推|尚需进一步研究)/u
+      ],
+      fallback.limitations
+    );
     return {
       reference_id: reference.reference_id,
-      study_type: select(
+      study_type: classifyPublicationStudyType(
         sentences,
-        [
-          /\b(?:study design|systematic review|meta-analysis|randomi[sz]ed|controlled trial|clinical trial|cohort|case-control|cross-sectional|retrospective|prospective|registry|case report|case series|in vitro|cell line|animal model)\b/iu,
-          /(?:研究设计|系统综述|荟萃分析|随机|对照试验|队列|病例对照|横断面|回顾性|前瞻性|登记研究|病例报告|病例系列|体外|细胞|动物模型)/u
-        ],
+        language,
         fallback.study_type
       ),
-      sample_and_source: select(
-        sentences,
-        [
-          /\b(?:participants?|patients?|subjects?|samples?|population|cohort|registry|database|records?|cells?|mice|rats?|hospital|cent(?:er|re)s?)\b/iu,
-          /(?:受试者|参与者|患者|样本|人群|队列|登记|数据库|病历|细胞|小鼠|大鼠|医院|中心)/u
-        ],
-        fallback.sample_and_source
-      ),
-      methods: select(
-        sentences,
-        [
-          /^(?:methods?|materials? and methods?|design)\s*:/iu,
-          /\b(?:we (?:conducted|performed|analy[sz]ed|evaluated|examined|assessed)|was conducted|were analy[sz]ed|methodology|protocol)\b/iu,
-          /^(?:方法|研究方法|设计)\s*[：:]/u
-        ],
-        fallback.methods
-      ),
-      key_results: select(
-        sentences,
-        [
-          /^(?:results?|findings?)\s*:/iu,
-          /\b(?:results? (?:showed|demonstrated|indicated)|we (?:found|observed)|was associated with|were associated with)\b/iu,
-          /^(?:结果|研究结果|主要结果)\s*[：:]/u
-        ],
-        fallback.key_results
-      ),
-      limitations: select(
-        sentences,
-        [
-          /^(?:limitations?|strengths? and limitations?)\s*:/iu,
-          /\b(?:limitations?|limited by|caution|cannot be (?:generalized|inferred)|further research)\b/iu,
-          /(?:局限|限制|谨慎解释|不能外推|尚需进一步研究)/u
-        ],
-        fallback.limitations
-      )
+      sample_and_source: sampleAndSource,
+      methods,
+      key_results: keyResults,
+      limitations
     };
   });
+}
+
+function extractPublicationSampleAndSource(
+  sentences: readonly string[],
+  language: ResearchRunRecord["language"]
+): string | null {
+  const candidates = sentences
+    .map((sentence) => {
+      const match =
+        /\b(?:[0-9][0-9,.\s-]{0,24}\s+)?(?:participants?|patients?|subjects?|samples?|records?|cells?|mice|rats?)(?:\s+(?:from|across|at|in)\s+[^.;。]{1,120})?/iu.exec(
+          sentence
+        ) ??
+        /(?:[0-9][0-9,.\s-]{0,24}\s*)?(?:例患者|名患者|例受试者|名受试者|份样本|个样本|条记录|只小鼠|只大鼠)(?:来自[^。；]{1,120})?/u.exec(
+          sentence
+        );
+      return match?.[0]?.trim() ?? null;
+    })
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => {
+      const numeric =
+        Number(/[0-9]/u.test(right)) -
+        Number(/[0-9]/u.test(left));
+      return numeric !== 0 ? numeric : right.length - left.length;
+    });
+  const selected = candidates[0];
+  if (!selected) {
+    return null;
+  }
+  return language === "zh-CN"
+    ? `公开摘要报告的样本与来源：${selected}`
+    : `Sample and source reported in the public abstract: ${selected}`;
+}
+
+function classifyPublicationStudyType(
+  sentences: readonly string[],
+  language: ResearchRunRecord["language"],
+  fallback: string
+): string {
+  const text = sentences.join(" ").toLowerCase();
+  const classifications: Array<{
+    pattern: RegExp;
+    zh: string;
+    en: string;
+  }> = [
+    {
+      pattern: /\bsystematic review\b.*\bmeta-analysis\b|\bmeta-analysis\b.*\bsystematic review\b|系统综述.*荟萃分析/u,
+      zh: "系统综述与荟萃分析",
+      en: "Systematic review and meta-analysis"
+    },
+    {
+      pattern: /\brandomi[sz]ed\b.*\b(?:controlled )?trial\b|随机对照试验/u,
+      zh: "随机对照试验",
+      en: "Randomized controlled trial"
+    },
+    {
+      pattern: /\bprospective\b.*\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b.*\bprospective\b|多中心前瞻/u,
+      zh: "多中心前瞻性研究",
+      en: "Prospective multicenter study"
+    },
+    {
+      pattern: /\bretrospective\b.*\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b.*\bretrospective\b|多中心回顾/u,
+      zh: "多中心回顾性研究",
+      en: "Retrospective multicenter study"
+    },
+    {
+      pattern: /\bmulticent(?:er|re)\b.*\bregistry\b|\bregistry\b.*\bmulticent(?:er|re)\b|多中心登记/u,
+      zh: "多中心登记研究",
+      en: "Multicenter registry study"
+    },
+    {
+      pattern: /\bprospective\b.*\bcohort\b|\bcohort\b.*\bprospective\b|前瞻性队列/u,
+      zh: "前瞻性队列研究",
+      en: "Prospective cohort study"
+    },
+    {
+      pattern: /\bretrospective\b.*\bcohort\b|\bcohort\b.*\bretrospective\b|回顾性队列/u,
+      zh: "回顾性队列研究",
+      en: "Retrospective cohort study"
+    },
+    {
+      pattern: /\bcase series\b|病例系列/u,
+      zh: "病例系列",
+      en: "Case series"
+    },
+    {
+      pattern: /\bcase report\b|病例报告/u,
+      zh: "病例报告",
+      en: "Case report"
+    },
+    {
+      pattern: /\bprospective\b|前瞻性/u,
+      zh: "前瞻性研究",
+      en: "Prospective study"
+    },
+    {
+      pattern: /\bretrospective\b|回顾性/u,
+      zh: "回顾性研究",
+      en: "Retrospective study"
+    },
+    {
+      pattern: /\bregistry\b|登记研究/u,
+      zh: "登记研究",
+      en: "Registry study"
+    },
+    {
+      pattern: /\bcohort\b|队列研究/u,
+      zh: "队列研究",
+      en: "Cohort study"
+    },
+    {
+      pattern: /\bin vitro\b|\bcell line\b|体外|细胞/u,
+      zh: "体外或细胞研究",
+      en: "In-vitro or cellular study"
+    },
+    {
+      pattern: /\banimal model\b|\bmice\b|\brats?\b|动物模型|小鼠|大鼠/u,
+      zh: "动物研究",
+      en: "Animal study"
+    }
+  ];
+  const match = classifications.find((item) =>
+    item.pattern.test(text)
+  );
+  return match
+    ? language === "zh-CN"
+      ? match.zh
+      : match.en
+    : fallback;
 }
 
 function safePublicationEvidenceSentences(value: string): string[] {
@@ -1786,7 +1914,7 @@ async function generateAndValidateShardedModelOutput(
     referenceIndexes: middleIndexes,
     minimumContent: middleMinimum,
     assignment:
-      "Write the middle body of the review as three or four topic-specific sections. Compare methods, study designs, populations, results, evidence strength, and disagreement. Begin by continuing the introduction and end by leading into evidence synthesis. Do not write an abstract, evidence table, references, search report, final evidence-synthesis section, limitations section, or conclusion.",
+      "Write the middle body of the review as exactly four complete topic-specific sections. Compare methods, study designs, populations, results, evidence strength, and disagreement, and end by leading into evidence synthesis. Do not continue or repeat the introduction. Do not write an abstract, evidence table, references, search report, final evidence-synthesis section, limitations section, or conclusion.",
     maximumQuestionContent:
       context.input.policy.maximumQuestionContent,
     minimumAnswerContent:
@@ -1911,6 +2039,7 @@ async function generateAndValidateShardedModelOutput(
     ...(closingFragment ? [] : [2])
   ];
   let shardContractRetryCompleted = false;
+  let shardSkillContractRetryCompleted = false;
   if (
     contractFailureIndexes.length === 1 &&
     !shardTransportRetryCompleted
@@ -1974,6 +2103,93 @@ async function generateAndValidateShardedModelOutput(
       "Research fragment contract state is inconsistent after validation."
     );
   }
+  const fragmentSkillErrors = (): Array<{
+    index: number;
+    errors: string[];
+  }> =>
+    [
+      {
+        index: 0,
+        errors: validateFoundationFragmentSkillContract(
+          foundationFragment!,
+          context.run.language
+        )
+      },
+      {
+        index: 1,
+        errors: validateBodyFragmentSkillContract(
+          middleFragment!,
+          context.run.language
+        )
+      },
+      {
+        index: 2,
+        errors: validateClosingFragmentSkillContract(
+          closingFragment!,
+          context.run.language
+        )
+      }
+    ].filter((entry) => entry.errors.length > 0);
+  let remainingFragmentSkillErrors = fragmentSkillErrors();
+  if (
+    remainingFragmentSkillErrors.length === 1 &&
+    !shardTransportRetryCompleted &&
+    !shardContractRetryCompleted
+  ) {
+    const failure = remainingFragmentSkillErrors[0]!;
+    const retryInput = shardInputs[failure.index]!;
+    responses[failure.index] = await context.generateModel({
+      ...retryInput,
+      attempt: 4,
+      prompt: [
+        retryInput.prompt,
+        "BOUNDED MEDICAL-SKILL CONTRACT RETRY",
+        `The prior fragment was parseable but failed these deterministic medical-team Skill diagnostics: ${JSON.stringify(
+          failure.errors
+        )}.`,
+        "Rewrite the same bounded assignment in full. Correct every diagnostic, preserve the exact requested fragment schema, and do not add commentary or fields."
+      ].join("\n\n")
+    });
+    shardSkillContractRetryCompleted = true;
+    [foundationResponse, middleResponse, closingResponse] = responses;
+    foundationFragment = foundationResponse
+      ? parseFoundationFragment(foundationResponse.text)
+      : null;
+    middleFragment = middleResponse
+      ? parseBodyFragment(middleResponse.text)
+      : null;
+    closingFragment = closingResponse
+      ? parseReviewFragment(closingResponse.text)
+      : null;
+    if (!foundationFragment || !middleFragment || !closingFragment) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        ["fragment_contract_error"]
+      );
+      return null;
+    }
+    remainingFragmentSkillErrors = fragmentSkillErrors();
+  }
+  if (remainingFragmentSkillErrors.length > 0) {
+    context.reportValidationFailure(
+      "synthesize_review",
+      shardSkillContractRetryCompleted ? 4 : 3,
+      [
+        ...new Set(
+          remainingFragmentSkillErrors.flatMap((entry) =>
+            entry.errors.map((error) => error.split(":", 1)[0]!)
+          )
+        )
+      ],
+      remainingFragmentSkillErrors.flatMap((entry) =>
+        entry.errors.map(
+          (error) => `fragment_${entry.index + 1}:${error}`
+        )
+      )
+    );
+    return null;
+  }
   const acceptedFoundationFragment = foundationFragment;
   let acceptedMiddleFragment = middleFragment;
   let acceptedClosingFragment = closingFragment;
@@ -2019,6 +2235,7 @@ async function generateAndValidateShardedModelOutput(
     !validation.ok &&
     !shardTransportRetryCompleted &&
     !shardContractRetryCompleted &&
+    !shardSkillContractRetryCompleted &&
     validation.errorCodes.some((code) =>
       [
         "answer_length_contract",
@@ -2029,6 +2246,7 @@ async function generateAndValidateShardedModelOutput(
     !validation.ok &&
     !shardTransportRetryCompleted &&
     !shardContractRetryCompleted &&
+    !shardSkillContractRetryCompleted &&
     !qaContractRetryRequired &&
     validation.errorCodes.includes("review_content_minimum");
   const reviewContentCount =
@@ -2097,6 +2315,7 @@ async function generateAndValidateShardedModelOutput(
   const peerReviewAttempt =
     shardTransportRetryCompleted ||
     shardContractRetryCompleted ||
+    shardSkillContractRetryCompleted ||
     qaContractRetryRequired ||
     reviewContentCorrectionRequired
       ? 5
@@ -2284,6 +2503,9 @@ async function generateAndValidateShardedModelOutput(
         ...(shardContractRetryCompleted
           ? ["bounded_shard_contract_retry_completed"]
           : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
         ...(qaContractRetryCompleted
           ? ["bounded_qa_contract_retry_completed"]
           : []),
@@ -2355,6 +2577,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(shardContractRetryCompleted
         ? ["bounded_shard_contract_retry_completed"]
+        : []),
+      ...(shardSkillContractRetryCompleted
+        ? ["bounded_shard_skill_contract_retry_completed"]
         : []),
       ...(qaContractRetryCompleted
         ? ["bounded_qa_contract_retry_completed"]
@@ -2459,7 +2684,12 @@ function buildFoundationFragmentPrompt(input: {
     "SHARDED SYNTHESIS ASSIGNMENT 1 OF 3",
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_foundation_fragment.v3\",\"review\":{\"title\":\"...\",\"abstract\":\"...\",\"keywords\":[\"...\"],\"markdown\":\"...\"}}.",
     "This call owns only the academic title, 300-500-character abstract, keywords, and introduction. The Worker constructs the verified doctor profile and 3-5-row core evidence table deterministically from closed evidence. Do not return profile fields, core evidence, questions, or answers.",
-    `review.markdown must contain only a coherent introduction of at least ${input.minimumContent} content characters, use complete paragraphs, cite every supplied reference at least once, and end with a transition into the first thematic section.`,
+    reviewLanguageInstruction(input.run.language),
+    `review.markdown must begin with ${
+      input.run.language === "zh-CN"
+        ? "\"## 引言\""
+        : "\"## Introduction\""
+    }, contain only a coherent introduction of at least ${input.minimumContent} content characters, use complete paragraphs, cite every supplied reference at least once, and end with a transition into the first thematic section.`,
     "Do not place a core evidence table inside review.markdown. Do not write thematic body sections, evidence synthesis, limitations, conclusion, references, or search report.",
     "A narrative number is allowed only when the exact number occurs in an abstract cited by that paragraph.",
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only evidence.",
@@ -2527,6 +2757,8 @@ function buildBodyFragmentPrompt(input: {
       doctorResearchModelDraftSchema.properties.answers
     )}`,
     `Language: ${input.run.language}. The markdown must contain at least ${input.minimumContent} content characters and use complete scientific-review paragraphs rather than bullet lists.`,
+    reviewLanguageInstruction(input.run.language),
+    "The markdown must contain exactly four level-two (##) topic-specific sections, each with at least 600 content characters. Do not leave any heading without substantive prose.",
     input.assignment,
     "Also generate exactly five short, conversational, shallow academic questions from the research topic and five directly corresponding answers. Do not ask about the doctor's identity, administration, patient care, publicity, business, or branding.",
     `Each question must stay within ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}. Each answer must contain ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, directly answer its question, remain academically accurate, and cite one or more supplied source_id values.`,
@@ -2659,6 +2891,10 @@ function buildReviewFragmentPrompt(input: {
     ),
     "Return exactly this fragment schema and no other fields: {\"schema_version\":\"doctor_research_review_fragment.v1\",\"markdown\":\"...\"}.",
     `Language: ${input.run.language}. The markdown must contain at least ${input.minimumContent} content characters and use complete scientific-review paragraphs rather than bullet lists.`,
+    reviewLanguageInstruction(input.run.language),
+    input.run.language === "zh-CN"
+      ? "Use explicit level-two headings for “证据综合与未解争议”, “局限性与展望”, and “结论”. The evidence-synthesis section must contain at least 800 Han characters, limitations and outlook at least 600 Han characters, and conclusion at least 200 Han characters. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value."
+      : "Use explicit level-two headings for “Evidence synthesis and unresolved controversies”, “Limitations and outlook”, and “Conclusion”. The evidence-synthesis section must contain at least 800 words, limitations and outlook at least 600 words, and conclusion at least 200 words. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value.",
     input.assignment,
     "Use every supplied reference at least once with its global numeric citation, and put at least one applicable citation in every substantive paragraph.",
     "Each section must synthesize at least three supplied papers when at least three are available; do not mechanically summarize one paper at a time.",
@@ -2742,6 +2978,14 @@ function compactMedicalSkillExecutionContract(
     "Required auxiliary outputs: exactly five short, conversational, shallow academic questions no longer than the configured bound, and five directly corresponding evidence-grounded answers. Peer review applies only to the review document.",
     "END MEDICAL TEAM SKILL EXECUTION CONTRACT"
   ].join("\n");
+}
+
+function reviewLanguageInstruction(
+  language: ResearchRunRecord["language"]
+): string {
+  return language === "zh-CN"
+    ? "Write the academic title, abstract, keywords, every heading, every table-facing field, all review prose, questions, and answers in Chinese. English is allowed only for established abbreviations, proper names, article titles, and unavoidable technical terms; English prose must not substitute for Chinese content."
+    : "Write the academic title, abstract, keywords, every heading, every table-facing field, all review prose, questions, and answers in English.";
 }
 
 function parseFoundationFragment(
@@ -2840,6 +3084,338 @@ function parseQaFragment(text: string): QaFragment | null {
     answers:
       value.answers as DoctorResearchModelDraft["answers"]
   };
+}
+
+interface SkillReviewSection {
+  heading: string;
+  body: string;
+  kind:
+    | "introduction"
+    | "topic"
+    | "synthesis"
+    | "limitations"
+    | "conclusion";
+}
+
+function validateFoundationFragmentSkillContract(
+  fragment: FoundationFragment,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors = validateReviewHeaderSkillContract(
+    fragment.review,
+    language
+  );
+  const sections = parseSkillReviewSections(
+    fragment.review.markdown
+  );
+  if (
+    sections.length !== 1 ||
+    sections[0]?.kind !== "introduction"
+  ) {
+    errors.push("foundation_introduction_section_contract");
+  } else if (
+    countReviewLanguageContent(sections[0].body, language) < 800
+  ) {
+    errors.push("foundation_introduction_minimum:800");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(
+      fragment.review.markdown,
+      language
+    )
+  );
+  return [...new Set(errors)];
+}
+
+function validateBodyFragmentSkillContract(
+  fragment: BodyFragment,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  const sections = parseSkillReviewSections(fragment.markdown);
+  if (
+    sections.length !== 4 ||
+    sections.some((section) => section.kind !== "topic")
+  ) {
+    errors.push("body_topic_section_contract:expected=4");
+  }
+  if (
+    sections.some(
+      (section) =>
+        countReviewLanguageContent(section.body, language) < 600
+    )
+  ) {
+    errors.push("body_topic_section_minimum:600");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(fragment.markdown, language)
+  );
+  return [...new Set(errors)];
+}
+
+function validateClosingFragmentSkillContract(
+  fragment: ReviewFragment,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  const sections = parseSkillReviewSections(fragment.markdown);
+  const synthesis = sections.filter(
+    (section) => section.kind === "synthesis"
+  );
+  const limitations = sections.filter(
+    (section) => section.kind === "limitations"
+  );
+  const conclusion = sections.filter(
+    (section) => section.kind === "conclusion"
+  );
+  const topics = sections.filter(
+    (section) => section.kind === "topic"
+  );
+  if (
+    synthesis.length !== 1 ||
+    limitations.length !== 1 ||
+    conclusion.length !== 1 ||
+    topics.length > 1 ||
+    sections.length !==
+      synthesis.length +
+        limitations.length +
+        conclusion.length +
+        topics.length
+  ) {
+    errors.push("closing_section_contract");
+  }
+  if (
+    synthesis[0] &&
+    countReviewLanguageContent(synthesis[0].body, language) < 800
+  ) {
+    errors.push("closing_synthesis_minimum:800");
+  }
+  if (
+    limitations[0] &&
+    countReviewLanguageContent(limitations[0].body, language) < 600
+  ) {
+    errors.push("closing_limitations_minimum:600");
+  }
+  if (
+    conclusion[0] &&
+    countReviewLanguageContent(conclusion[0].body, language) < 200
+  ) {
+    errors.push("closing_conclusion_minimum:200");
+  }
+  if (
+    topics.some(
+      (section) =>
+        countReviewLanguageContent(section.body, language) < 600
+    )
+  ) {
+    errors.push("closing_topic_section_minimum:600");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(fragment.markdown, language)
+  );
+  return [...new Set(errors)];
+}
+
+function validateReviewHeaderSkillContract(
+  review: Pick<
+    FoundationFragment["review"],
+    "title" | "abstract" | "keywords"
+  >,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  if (language === "zh-CN") {
+    const titleContent = countHanCharacters(review.title);
+    const abstractContent = countHanCharacters(review.abstract);
+    if (titleContent < 8) {
+      errors.push("review_title_language_contract");
+    }
+    if (
+      abstractContent < 300 ||
+      abstractContent > 500
+    ) {
+      errors.push(
+        `review_abstract_length_contract:${abstractContent}/300-500`
+      );
+    }
+  } else {
+    const titleWords = countEnglishWords(review.title);
+    const abstractWords = countEnglishWords(review.abstract);
+    if (titleWords < 6) {
+      errors.push("review_title_language_contract");
+    }
+    if (abstractWords < 120 || abstractWords > 350) {
+      errors.push(
+        `review_abstract_length_contract:${abstractWords}/120-350`
+      );
+    }
+  }
+  if (
+    review.keywords.length < 3 ||
+    review.keywords.length > 12 ||
+    review.keywords.some((keyword) => keyword.trim().length === 0)
+  ) {
+    errors.push("review_keywords_contract");
+  }
+  return errors;
+}
+
+function parseSkillReviewSections(
+  markdown: string
+): SkillReviewSection[] {
+  const sections: SkillReviewSection[] = [];
+  let heading: string | null = null;
+  let body: string[] = [];
+  const finish = (): void => {
+    const content = body.join("\n").trim();
+    if (heading === null) {
+      if (content !== "") {
+        sections.push({
+          heading: "",
+          body: content,
+          kind: "topic"
+        });
+      }
+    } else {
+      sections.push({
+        heading,
+        body: content,
+        kind: classifySkillReviewHeading(heading)
+      });
+    }
+    body = [];
+  };
+  for (const line of markdown.split(/\r?\n/u)) {
+    const match = /^##(?!#)\s+(.+?)\s*$/u.exec(line);
+    if (match) {
+      finish();
+      heading = match[1]!;
+    } else {
+      body.push(line);
+    }
+  }
+  finish();
+  return sections;
+}
+
+function classifySkillReviewHeading(
+  heading: string
+): SkillReviewSection["kind"] {
+  const normalized = heading
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/gu, " ")
+    .trim();
+  if (
+    /(?:^|[\s：:])(?:引言|前言)(?:$|[\s：:])|\bintroduction\b/u.test(
+      normalized
+    )
+  ) {
+    return "introduction";
+  }
+  if (
+    /证据综合|未解争议|争议与证据|综合与争议|\bevidence synthesis\b|\bcontrovers/u.test(
+      normalized
+    )
+  ) {
+    return "synthesis";
+  }
+  if (
+    /局限|展望|\blimitations?\b|\boutlook\b|\bfuture directions?\b/u.test(
+      normalized
+    )
+  ) {
+    return "limitations";
+  }
+  if (
+    /(?:^|[\s：:])(?:结论|总结)(?:$|[\s：:])|\bconclusions?\b/u.test(
+      normalized
+    )
+  ) {
+    return "conclusion";
+  }
+  return "topic";
+}
+
+function countReviewLanguageContent(
+  value: string,
+  language: ResearchRunRecord["language"]
+): number {
+  return language === "zh-CN"
+    ? countHanCharacters(value)
+    : countEnglishWords(value);
+}
+
+function validateReviewProseIntegrity(
+  markdown: string,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  const seen = new Set<string>();
+  for (const [index, paragraph] of markdown
+    .split(/\n\s*\n/gu)
+    .entries()) {
+    const trimmed = paragraph.trim();
+    if (trimmed === "" || /^#{1,6}\s/u.test(trimmed)) {
+      continue;
+    }
+    const normalized = trimmed
+      .normalize("NFKC")
+      .replace(/\[[0-9,\s-]+\]/gu, "")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .toLowerCase();
+    if (
+      countReviewLanguageContent(normalized, language) >=
+      (language === "zh-CN" ? 40 : 20)
+    ) {
+      if (seen.has(normalized)) {
+        errors.push(
+          `review_duplicate_paragraph:paragraph=${index + 1}`
+        );
+      }
+      seen.add(normalized);
+    }
+    if (
+      !hasBalancedDelimiter(trimmed, "(", ")") ||
+      !hasBalancedDelimiter(trimmed, "（", "）") ||
+      !hasBalancedDelimiter(trimmed, "[", "]")
+    ) {
+      errors.push(
+        `review_unbalanced_delimiter:paragraph=${index + 1}`
+      );
+    }
+    if (
+      language === "zh-CN" &&
+      /(?:率|比例|占|为|达|至|约|术后|随访|纳入|共)\s*[0-9]+[.。](?![0-9])/u.test(
+        trimmed
+      )
+    ) {
+      errors.push(
+        `review_truncated_numeric_prose:paragraph=${index + 1}`
+      );
+    }
+  }
+  return [...new Set(errors)];
+}
+
+function hasBalancedDelimiter(
+  value: string,
+  opening: string,
+  closing: string
+): boolean {
+  let depth = 0;
+  for (const character of Array.from(value)) {
+    if (character === opening) {
+      depth += 1;
+    } else if (character === closing) {
+      depth -= 1;
+      if (depth < 0) {
+        return false;
+      }
+    }
+  }
+  return depth === 0;
 }
 
 function parseReviewFragment(text: string): ReviewFragment | null {
@@ -3545,6 +4121,14 @@ function validateRuntimeQuality(
       }`
     );
   }
+  if (policy.synthesisShardCount === 3) {
+    errors.push(
+      ...validateCompleteReviewSkillContract(
+        output.review,
+        language
+      )
+    );
+  }
   const coreEvidenceIds = new Set(
     output.review.core_evidence.map((item) => item.reference_id)
   );
@@ -3622,6 +4206,122 @@ function validateRuntimeQuality(
     )
   ) {
     errors.push("forbidden_output_fragment");
+  }
+  return [...new Set(errors)];
+}
+
+function validateCompleteReviewSkillContract(
+  review: DoctorResearchModelOutput["review"],
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors = validateReviewHeaderSkillContract(review, language);
+  const sections = parseSkillReviewSections(review.markdown);
+  const introductions = sections.filter(
+    (section) => section.kind === "introduction"
+  );
+  const topics = sections.filter(
+    (section) => section.kind === "topic"
+  );
+  const synthesis = sections.filter(
+    (section) => section.kind === "synthesis"
+  );
+  const limitations = sections.filter(
+    (section) => section.kind === "limitations"
+  );
+  const conclusions = sections.filter(
+    (section) => section.kind === "conclusion"
+  );
+  if (
+    introductions.length !== 1 ||
+    topics.length < 4 ||
+    topics.length > 7 ||
+    synthesis.length !== 1 ||
+    limitations.length !== 1 ||
+    conclusions.length !== 1 ||
+    sections.some((section) => section.heading === "")
+  ) {
+    errors.push(
+      `review_section_contract:introduction=${introductions.length},topics=${topics.length},synthesis=${synthesis.length},limitations=${limitations.length},conclusion=${conclusions.length}`
+    );
+  }
+  if (
+    introductions[0] &&
+    countReviewLanguageContent(
+      introductions[0].body,
+      language
+    ) < 800
+  ) {
+    errors.push("review_introduction_minimum:800");
+  }
+  if (
+    topics.some(
+      (section) =>
+        countReviewLanguageContent(section.body, language) < 600
+    )
+  ) {
+    errors.push("review_topic_section_minimum:600");
+  }
+  if (
+    synthesis[0] &&
+    countReviewLanguageContent(synthesis[0].body, language) < 800
+  ) {
+    errors.push("review_synthesis_minimum:800");
+  }
+  if (
+    limitations[0] &&
+    countReviewLanguageContent(limitations[0].body, language) < 600
+  ) {
+    errors.push("review_limitations_minimum:600");
+  }
+  if (
+    conclusions[0] &&
+    countReviewLanguageContent(conclusions[0].body, language) < 200
+  ) {
+    errors.push("review_conclusion_minimum:200");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(review.markdown, language)
+  );
+
+  const fallbackPattern =
+    /以所引\s*PubMed\s*摘要|当前证据限于公开|摘要的原始报告为准|摘要概括|study design is limited|evidence is limited to public|methods are summarized only|reported findings remain limited/iu;
+  let informativeCoreFields = 0;
+  let duplicateCoreRows = 0;
+  for (const item of review.core_evidence) {
+    const fields = [
+      item.study_type,
+      item.sample_and_source,
+      item.methods,
+      item.key_results
+    ].map((field) =>
+      field.normalize("NFKC").replace(/\s+/gu, " ").trim()
+    );
+    informativeCoreFields += fields.filter(
+      (field) =>
+        (language === "zh-CN"
+          ? countHanCharacters(field) >= 4 ||
+            countEnglishWords(field) >= 3
+          : countEnglishWords(field) >= 3) &&
+        !fallbackPattern.test(field)
+    ).length;
+    if (
+      new Set(fields.map((field) => field.toLowerCase())).size !==
+      fields.length
+    ) {
+      duplicateCoreRows += 1;
+    }
+  }
+  const requiredInformativeCoreFields = Math.min(
+    12,
+    review.core_evidence.length * 3
+  );
+  if (
+    informativeCoreFields < requiredInformativeCoreFields ||
+    duplicateCoreRows > 0
+  ) {
+    errors.push(
+      `core_evidence_field_quality:informative=${informativeCoreFields}/${requiredInformativeCoreFields},duplicates=${duplicateCoreRows}`
+    );
   }
   return [...new Set(errors)];
 }
@@ -4817,7 +5517,8 @@ function supplementReviewEvidenceBoundary(input: {
   for (
     let index = 0;
     count(paragraphs.join("\n\n")) < input.minimumContent &&
-    supplemented < maximumSupplement;
+    supplemented < maximumSupplement &&
+    index < templates.length;
     index += 1
   ) {
     const start = (index * 5) % input.referenceCount + 1;
@@ -4914,12 +5615,13 @@ function removeUnsupportedNumericSentences(
   language: ResearchRunRecord["language"]
 ): string {
   const allowed = new Set(extractNumericTokens(allowedEvidence));
-  // Chinese scientific prose often places several evidence claims in one
-  // long comma-delimited sentence. Remove only the clause carrying an
-  // unsupported number so adjacent qualitative evidence is not discarded.
-  const clauses = value.split(/(?<=[。！？.!?；;，])\s*/u);
-  const retained = clauses.filter((clause) =>
-    extractNarrativeNumericTokens(clause).every((token) =>
+  // Remove a complete sentence or semicolon-delimited claim when one of its
+  // narrative numbers is unsupported. Cutting at a Chinese comma can leave
+  // orphaned units, unmatched parentheses, and misleading sentence
+  // fragments even when each retained token is independently supported.
+  const sentences = value.split(/(?<=[。！？.!?；;])\s*/u);
+  const retained = sentences.filter((sentence) =>
+    extractNarrativeNumericTokens(sentence).every((token) =>
       allowed.has(token)
     )
   );
