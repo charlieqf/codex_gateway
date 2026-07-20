@@ -460,7 +460,7 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       abstractText:
         retryKind === "peer-timeout"
-          ? "METHODS: This case report examined 42 samples with follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
+          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
           : retryKind === "content"
             ? "METHODS: This is a retrospective single-center cohort study of 42 samples. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. CONCLUSIONS: These findings require prospective validation before clinical deployment."
           : retryKind === "citation-closure"
@@ -521,7 +521,7 @@ describe("Research Worker controlled-beta workflow", () => {
               ...answer,
               answer:
                 index === 0
-                  ? "该病例报告检查了四十二份样本，随访二点七年；这些信息只用于说明公开摘要中的病例级观察，不能据此推断普遍临床疗效。"
+                  ? "该病例报告检查了四十二份样本，中位随访二点七年；这些信息只用于说明公开摘要中的病例级观察，不能据此推断普遍临床疗效。"
                   : answer.answer
             }))
         : foundation.answers;
@@ -597,7 +597,7 @@ describe("Research Worker controlled-beta workflow", () => {
                 ...(retryKind === "peer-timeout"
                   ? [
                     crossShardNumericParagraph,
-                    "所引病例报告包含42个样本，随访为2.7年；这些数据只在对应公开摘要的证据边界内解释。[1]",
+                    "所引病例报告包含42个样本，中位随访为2.7年；这些数据只在对应公开摘要的证据边界内解释。[1]",
                     "该研究纳入2025例患者，评估公开摘要证据与主要不良临床结局及长期预后之间的关联[1]。",
                     "---\n\n**学术问答**\n\n这一分片混入的辅助输出必须删除，但其后独立分片中的闭合章节必须保留[1]。"
                   ]
@@ -1212,6 +1212,12 @@ describe("Research Worker controlled-beta workflow", () => {
         "该段所引证据包括病例报告或病例系列"
       );
       expect(result.review.markdown).toContain("随访为2.7年");
+      expect(result.review.markdown).toContain(
+        "平均随访为2.7年"
+      );
+      expect(result.review.markdown).not.toContain(
+        "中位随访为2.7年"
+      );
       expect(result.review.markdown).not.toContain("2025例");
       expect(
         result.review.markdown.match(
@@ -1242,8 +1248,24 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.answers[0]?.answer).toContain("42份样本");
       expect(result.answers[0]?.answer).toContain("2.7年");
+      expect(result.answers[0]?.answer).toContain("平均随访2.7年");
       expect(result.answers[0]?.answer).not.toContain("四十二份");
       expect(result.answers[0]?.answer).not.toContain("二点七年");
+      expect(
+        result.answers.every(
+          (answer) =>
+            (
+              answer.answer.match(
+                /上述回答仅基于已核验的公开摘要/gu
+              ) ?? []
+            ).length <= 1
+        )
+      ).toBe(true);
+      expect(
+        result.review.core_evidence.every(
+          (item) => !/^发现/u.test(item.key_results)
+        )
+      ).toBe(true);
       expect(
         result.answers.every((answer) =>
           answer.answer.includes("不能直接外推")

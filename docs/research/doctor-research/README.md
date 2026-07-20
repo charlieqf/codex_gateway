@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.32` together with the
+The production Worker uses frozen execution contract `1.6.33` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.32` splits synthesis into three bounded independent
+For latency, execution `1.6.33` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -95,9 +95,11 @@ core-evidence fields are rejected. The deterministic core table obtains study
 type and sample size only from the verified PubMed title/abstract, and reuses
 evidence-closed Chinese sentences from the validated introduction for methods
 and results where available. A combined method/result sentence is split only
-at an explicit result marker; otherwise the methods cell uses the conservative
-study-design fallback while the complete evidence sentence remains available
-to the results cell. Study-design matching is sentence-bounded, so a
+at an explicit result or reported-rate marker; otherwise the methods cell uses
+the conservative study-design fallback while the complete evidence sentence
+remains available to the results cell. Subjectless result starts in the
+deterministic core table are repaired with evidence-neutral study attribution.
+Study-design matching is sentence-bounded, so a
 retrospective study is not mislabeled as prospective merely because its
 conclusion asks for prospective validation. Safety normalization treats decimal
 points as part of a number rather than a sentence boundary, repairs a bounded
@@ -117,6 +119,10 @@ Chinese factual quantities in answers are normalized to Arabic digits before
 the exact-number evidence gate, so spelled-out quantities cannot bypass
 closure against their cited abstracts. A case-report-only or case-series-only
 answer also receives and validates an explicit non-generalization boundary.
+Repeated evidence-boundary sentences are removed, and repeated length closure
+is idempotent. Mean-versus-median follow-up labels are checked against the
+cited abstract and deterministically corrected when the exact statistic and
+unit identify an unambiguous mismatch.
 After the concise peer-review patch, the Worker first validates the corrected
 draft without rewriting it and invokes deterministic safety normalization only
 when a gate still fails. If that normalization would leave a medical-Skill

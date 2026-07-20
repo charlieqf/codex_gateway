@@ -1278,7 +1278,7 @@ function buildDeterministicCoreEvidence(
       language === "zh-CN"
         ? selectLocalizedReviewSentence(
             [
-              /(?:研究|队列|登记|纳入|分析|探讨|比较|评估|采用|报告)/u
+              /(?:回顾性|前瞻性|队列|登记|纳入|分析|探讨|比较|评估|采用|开展|收集|随机|研究对象|受试者)/u
             ],
             localizedCoreMethodFallback(studyType, language)
           )
@@ -1290,7 +1290,7 @@ function buildDeterministicCoreEvidence(
             localizedCoreMethodFallback(studyType, language)
           )
         : selectedMethods;
-    const keyResults =
+    const selectedKeyResults =
       language === "zh-CN"
         ? selectLocalizedReviewSentence(
             [
@@ -1299,6 +1299,16 @@ function buildDeterministicCoreEvidence(
             localizedCoreResultFallback(language)
           )
         : abstractKeyResults;
+    const keyResults =
+      language === "zh-CN"
+        ? closeLocalizedCoreResultProseStart(
+            normalizeEvidenceStatisticLabels(
+              selectedKeyResults,
+              publication?.abstract ?? "",
+              language
+            )
+          )
+        : selectedKeyResults;
     const limitations =
       language === "zh-CN"
         ? localizedCoreLimitation(studyType, language)
@@ -1322,7 +1332,7 @@ function localizedCoreMethodFromReviewSentence(
     return fallback;
   }
   const resultMarker =
-    /(?:，|；)(?:该研究|研究|结果)?(?:发现|显示|表明|提示|报告)|(?:研究|结果)(?:发现|显示|表明|提示)/u;
+    /(?:，|；)(?:(?:该研究|研究|结果)?(?:发现|显示|表明|提示|报告)|(?:技术|临床)?成功率|靶血管通畅率|主要结局|不良事件发生率)|(?:研究|结果)(?:发现|显示|表明|提示)/u;
   const match = resultMarker.exec(value);
   if (!match) {
     return fallback;
@@ -1331,6 +1341,19 @@ function localizedCoreMethodFromReviewSentence(
   return countHanCharacters(method) >= 12
     ? `${method.replace(/[。！？]+$/u, "")}。`
     : fallback;
+}
+
+function closeLocalizedCoreResultProseStart(value: string): string {
+  return value
+    .replace(
+      /^(发现|评估|比较|分析|探讨|考察)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于))/u,
+      "一项研究$1"
+    )
+    .replace(/^该系统/u, "所引研究中的器械系统")
+    .replace(
+      /^(在[^。！？]{2,48}方面，)(较[^。！？]{4,120}(?:减少|增加|降低|提高))/u,
+      "所引研究显示，$1$2"
+    );
 }
 
 function extractPublicationSampleAndSource(
@@ -1653,6 +1676,8 @@ async function generateAndValidateModelOutput(
           "case_evidence_scope_required",
           "case_evidence_answer_scope_required",
           "case_evidence_prescriptive_claim",
+          "statistic_label_evidence_closure",
+          "answer_duplicate_sentence",
           "review_embedded_auxiliary_output",
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
@@ -1761,6 +1786,8 @@ async function generateAndValidateModelOutput(
           "case_evidence_scope_required",
           "case_evidence_answer_scope_required",
           "case_evidence_prescriptive_claim",
+          "statistic_label_evidence_closure",
+          "answer_duplicate_sentence",
           "review_embedded_auxiliary_output",
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
@@ -1803,6 +1830,8 @@ async function generateAndValidateModelOutput(
           "case_evidence_scope_required",
           "case_evidence_answer_scope_required",
           "case_evidence_prescriptive_claim",
+          "statistic_label_evidence_closure",
+          "answer_duplicate_sentence",
           "review_embedded_auxiliary_output",
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
@@ -1875,6 +1904,8 @@ async function generateAndValidateModelOutput(
             "case_evidence_scope_required",
             "case_evidence_answer_scope_required",
             "case_evidence_prescriptive_claim",
+            "statistic_label_evidence_closure",
+            "answer_duplicate_sentence",
             "review_embedded_auxiliary_output",
             "review_orphaned_prose_start",
             "review_orphaned_demonstrative_start",
@@ -4890,6 +4921,13 @@ function validateRuntimeQuality(
     errors.push("answer_length_contract");
   }
   if (
+    output.answers.some((answer) =>
+      hasDuplicateAnswerSentence(answer.answer)
+    )
+  ) {
+    errors.push("answer_duplicate_sentence");
+  }
+  if (
     output.profile.primary_public_source_ids.length === 0 ||
     output.profile.primary_public_source_ids.some(
       (sourceId) => !profileSourceIds.has(sourceId)
@@ -6082,6 +6120,17 @@ function normalizeFinalModelOutputForSafety(
       }
       paragraph = next;
     }
+    scope = paragraphEvidence(paragraph);
+    const statisticLabelsClosed =
+      normalizeEvidenceStatisticLabels(
+        paragraph,
+        scope.text,
+        language
+      );
+    if (statisticLabelsClosed !== paragraph) {
+      changed = true;
+      paragraph = statisticLabelsClosed;
+    }
     const proseClosed = closeReviewProseStart(paragraph);
     if (proseClosed !== paragraph) {
       changed = true;
@@ -6162,6 +6211,21 @@ function normalizeFinalModelOutputForSafety(
           output.review.core_evidence.map((item) => {
             const source =
               abstractByReferenceId.get(item.reference_id) ?? "";
+            const sanitizedKeyResults = sanitize(
+              item.key_results,
+              source
+            );
+            const normalizedKeyResults =
+              closeLocalizedCoreResultProseStart(
+                normalizeEvidenceStatisticLabels(
+                  sanitizedKeyResults,
+                  source,
+                  language
+                )
+              );
+            if (normalizedKeyResults !== item.key_results) {
+              changed = true;
+            }
             return {
               ...item,
               study_type: sanitize(item.study_type, source),
@@ -6170,7 +6234,7 @@ function normalizeFinalModelOutputForSafety(
                 source
               ),
               methods: sanitize(item.methods, source),
-              key_results: sanitize(item.key_results, source),
+              key_results: normalizedKeyResults,
               limitations: sanitize(item.limitations, source)
             };
           }),
@@ -6196,7 +6260,16 @@ function normalizeFinalModelOutputForSafety(
           language === "zh-CN"
             ? normalizeChineseQuantitiesToArabic(answer.answer)
             : answer.answer;
-        const sanitized = sanitize(normalizedAnswer, source);
+        const sanitized = deduplicateAnswerSentences(
+          normalizeEvidenceStatisticLabels(
+            sanitize(normalizedAnswer, source),
+            source,
+            language
+          )
+        );
+        if (sanitized !== normalizedAnswer) {
+          changed = true;
+        }
         let bounded = boundAnswerContent(
           sanitized,
           language,
@@ -6679,6 +6752,86 @@ function normalizeChineseQuantitiesToArabic(value: string): string {
   );
 }
 
+function normalizeEvidenceStatisticLabels(
+  value: string,
+  allowedEvidence: string,
+  language: ResearchRunRecord["language"]
+): string {
+  if (language !== "zh-CN" || allowedEvidence.trim() === "") {
+    return value;
+  }
+  const evidence = allowedEvidence
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ");
+  return value.replace(
+    /(中位|平均)(随访(?:时间|期)?(?:为)?\s*)([0-9]+(?:\.[0-9]+)?)\s*(个月|月|年)/gu,
+    (
+      match,
+      statistic: string,
+      label: string,
+      numericValue: string,
+      unit: string
+    ) => {
+      const escapedValue = numericValue.replace(".", "\\.");
+      const englishUnit = unit.includes("年")
+        ? "years?"
+        : "months?";
+      const mean = new RegExp(
+        `\\bmean\\s+follow-up(?:\\s+(?:period|time))?(?:\\s+(?:was|of))?[^.;]{0,24}\\b${escapedValue}\\s*${englishUnit}\\b`,
+        "iu"
+      ).test(evidence);
+      const median = new RegExp(
+        `\\bmedian\\s+follow-up(?:\\s+(?:period|time))?(?:\\s+(?:was|of))?[^.;]{0,24}\\b${escapedValue}\\s*${englishUnit}\\b`,
+        "iu"
+      ).test(evidence);
+      if (mean && !median && statistic === "中位") {
+        return `平均${label}${numericValue}${unit}`;
+      }
+      if (median && !mean && statistic === "平均") {
+        return `中位${label}${numericValue}${unit}`;
+      }
+      return match;
+    }
+  );
+}
+
+function deduplicateAnswerSentences(value: string): string {
+  const sentences = value
+    .split(
+      /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s+/u
+    )
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  return sentences
+    .filter((sentence) => {
+      const normalized = normalizeEvidenceText(sentence);
+      if (seen.has(normalized)) {
+        return false;
+      }
+      seen.add(normalized);
+      return true;
+    })
+    .join(" ");
+}
+
+function hasDuplicateAnswerSentence(value: string): boolean {
+  const seen = new Set<string>();
+  for (const sentence of value
+    .split(
+      /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s+/u
+    )
+    .map((item) => item.trim())
+    .filter(Boolean)) {
+    const normalized = normalizeEvidenceText(sentence);
+    if (seen.has(normalized)) {
+      return true;
+    }
+    seen.add(normalized);
+  }
+  return false;
+}
+
 function boundAnswerContent(
   value: string,
   language: ResearchRunRecord["language"],
@@ -6699,23 +6852,28 @@ function boundAnswerContent(
       ? [
           "上述回答仅基于已核验的公开摘要，具体方法、适用范围与结论强度仍需结合原文核对，不能直接外推为确定的临床获益。",
           "解读时还应区分研究设计、研究对象和观察终点，避免把相关性写成因果关系。",
-          "若用于正式学术判断，应回到所引文献全文复核。"
+          "若用于正式学术判断，应回到所引文献全文复核。",
+          "摘要没有披露的纳入标准、统计细节和亚组结果不应被补写为已知事实。",
+          "不同中心、器械和随访框架之间的结果不能在缺少可比性评价时直接合并。",
+          "任何临床应用都需结合患者特征、完整证据和专业判断重新评估。"
         ]
       : [
           "This answer is limited to verified public abstracts; methods, applicability, and strength of inference still require confirmation against the full papers.",
           "Interpretation should distinguish study design, population, and endpoints, and should not convert an association into a causal conclusion.",
-          "A formal academic judgment should return to the cited full texts for verification."
+          "A formal academic judgment should return to the cited full texts for verification.",
+          "Eligibility criteria, statistical details, and subgroup findings absent from the abstracts must not be treated as established facts.",
+          "Results from different centers, devices, populations, and follow-up frameworks should not be combined without a direct comparability assessment.",
+          "Any clinical application requires a new assessment of patient characteristics, complete evidence, uncertainty, and professional judgment.",
+          "The cited findings describe the reported study setting and do not independently establish effectiveness, safety, or routine treatment value."
         ];
   for (const clause of evidenceBoundaryClauses) {
+    if (bounded.includes(clause)) {
+      continue;
+    }
     bounded = [bounded, clause].filter(Boolean).join(" ");
     if (count(bounded) >= minimumContent) {
       break;
     }
-  }
-  while (count(bounded) < minimumContent) {
-    bounded = [bounded, evidenceBoundaryClauses.at(-1)!]
-      .filter(Boolean)
-      .join(" ");
   }
   return truncateAnswerContent(
     bounded,
@@ -6969,6 +7127,17 @@ function validateEvidenceScopeAndCausality(
     const source = citedAbstracts.join(" ").toLowerCase();
     const claim = paragraph.toLowerCase();
     if (
+      normalizeEvidenceStatisticLabels(
+        paragraph,
+        citedAbstracts.join(" "),
+        language
+      ) !== paragraph
+    ) {
+      errors.add(
+        `statistic_label_evidence_closure:paragraph=${paragraphIndex + 1}`
+      );
+    }
+    if (
       hasCausalClaim(claim) &&
       isObservationalOnlyEvidence(source) &&
       !hasExplicitNonCausalQualification(claim)
@@ -7024,6 +7193,24 @@ function validateEvidenceScopeAndCausality(
         reference.reference_id
       ])
   );
+  for (const item of output.review.core_evidence) {
+    const source =
+      abstractByReferenceId.get(item.reference_id) ?? "";
+    if (
+      [item.methods, item.key_results].some(
+        (field) =>
+          normalizeEvidenceStatisticLabels(
+            field,
+            source,
+            language
+          ) !== field
+      )
+    ) {
+      errors.add(
+        `statistic_label_evidence_closure:core=${item.reference_id}`
+      );
+    }
+  }
   for (const answer of output.answers) {
     const citedAbstracts = answer.source_ids
       .map((sourceId) => referenceByPubMedSource.get(sourceId))
@@ -7032,6 +7219,18 @@ function validateEvidenceScopeAndCausality(
       )
       .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
       .filter(Boolean);
+    if (
+      citedAbstracts.length > 0 &&
+      normalizeEvidenceStatisticLabels(
+        answer.answer,
+        citedAbstracts.join(" "),
+        language
+      ) !== answer.answer
+    ) {
+      errors.add(
+        `statistic_label_evidence_closure:answer=${answer.question_index}`
+      );
+    }
     if (
       citedAbstracts.length > 0 &&
       citedAbstracts.every((abstract) =>
