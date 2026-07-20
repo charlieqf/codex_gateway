@@ -55,10 +55,22 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen `SkillDefinition` `1.4.0` together with the
+The production Worker uses frozen execution contract `1.5.0` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
-executed or dynamically discovered.
+executed or dynamically discovered. The source files remain byte-exact and
+read-only. At prompt time, the Worker mechanically retains the parent
+business rules/output templates and the child Skills' workflow, evidence,
+citation, writing, and quality sections, while omitting packaging-only
+examples, install commands, optional visual/PDF deliverables, external-tool
+instructions, resources, dependencies, and assets outside this four-text-file
+API. The full bundle hash and derived projection hash are both recorded.
+
+For latency, the model returns only a compact narrative draft. The Worker
+deterministically adds verified identity, sources, all reference metadata,
+search report, coverage and quality fields, then validates the unchanged
+public result schema. Up to 40 verified references and the mandatory second
+peer-review pass remain in force.
 
 ## API quick reference
 

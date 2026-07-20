@@ -5,7 +5,11 @@
 > 加载四个 `SKILL.md`，记录 bundle SHA-256；平台只负责安全适配器、编排、契约与
 > 质量门禁，不再以硬编码摘要 Prompt 代替 Skill。`brief` 名称因 v1 API 兼容保留，
 > 但当前生产配置执行 6000 字符正文下限和最多 40 篇可核验领域文献目标，并强制
-> 第二次 peer-review 自检。本文后续关于“SKILL.md 不进入镜像”“Phase 1 不执行
+> 第二次 peer-review 自检。执行层 `1.5.0` 只做可逆的工程投影和精简草稿协议：
+> 原始四个 Skill 文件与完整 bundle hash 不变；运行时保留业务、检索、证据、引用、
+> 写作和质控章节，排除本四文本 API 无法执行的安装命令、外部工具、图/PDF、示例
+> 和资产；已核验身份、来源、参考文献和检索报告由 Worker 确定性回填。本文后续关于
+> “SKILL.md 不进入镜像”“Phase 1 不执行
 > 40 篇/6000 字目标”的段落属于早期设计记录，已由本勘误和
 > `README.md` 的 Current production contract 取代。
 
@@ -752,7 +756,7 @@ Idempotency-Key: research:<client-generated-id>
   "mode": "brief",
   "skill": {
     "name": "doctor-research-query",
-    "version": "1.4.0"
+    "version": "1.5.0"
   },
   "created_at": "2026-07-17T01:30:00Z",
   "status_url": "/gateway/research/v1/doctor-runs/drr_...",
@@ -2232,8 +2236,8 @@ RESEARCH_MIN_FREE_PERCENT=...
 RESEARCH_BACKUP_ROOT=<approved-separate-backup-target>
 RESEARCH_BACKUP_INTERVAL_SECONDS=...
 RESEARCH_BACKUP_MAX_AGE_SECONDS=...
-RESEARCH_SKILL_VERSION=1.4.0
-RESEARCH_PROMPT_VERSION=doctor-research-prompt.v3
+RESEARCH_SKILL_VERSION=1.5.0
+RESEARCH_PROMPT_VERSION=doctor-research-prompt.v4
 RESEARCH_LLM_BASE_URL=http://gateway:8787
 RESEARCH_LLM_MODEL=goldencode
 RESEARCH_LLM_REASONING_EFFORT=none|low|medium|high

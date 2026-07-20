@@ -26,10 +26,21 @@ describe("medical-team Research Skill bundle", () => {
       expect(Object.isFrozen(document)).toBe(true);
     }
     const prompt = renderMedicalSkillBundleForPrompt(bundle);
-    expect(prompt).toContain("BEGIN MEDICAL TEAM SKILL BUNDLE");
+    expect(prompt).toContain(
+      "BEGIN MEDICAL TEAM SKILL EXECUTION PROJECTION"
+    );
+    expect(prompt).toContain(`bundle_sha256: ${bundle.digest}`);
+    expect(prompt).toMatch(/projection_sha256: [a-f0-9]{64}/u);
     expect(prompt).toContain("doctor-research-query/SKILL.md");
     expect(prompt).toContain("literature-review/SKILL.md");
     expect(prompt).toContain("citation-management/SKILL.md");
     expect(prompt).toContain("scientific-writing/SKILL.md");
+    expect(prompt).toContain("Core Workflow");
+    expect(prompt).toContain("Common Pitfalls to Avoid");
+    expect(prompt).not.toContain(
+      "Visual Enhancement with Scientific Schematics"
+    );
+    expect(prompt).not.toContain("Required Python Packages");
+    expect(prompt).not.toContain("七、完整输出示例（参考样例）");
   });
 });

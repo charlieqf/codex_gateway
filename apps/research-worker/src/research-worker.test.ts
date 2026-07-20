@@ -238,7 +238,6 @@ describe("Research Worker controlled-beta workflow", () => {
           usage: {
             promptTokens: 100,
             completionTokens: 3_500,
-            reasoningTokens: 2_000,
             totalTokens: 3_600
           }
         };
@@ -262,11 +261,11 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome, JSON.stringify(validationErrors)).toEqual({
       outcome: "succeeded"
     });
-    expect(observedPrompt).toContain("untrusted_publication_abstracts");
-    expect(observedPrompt).toContain("allowed_numeric_contexts");
+    expect(observedPrompt).toContain("verified_publications");
+    expect(observedPrompt).not.toContain("allowed_numeric_contexts");
     expect(observedPrompt).toContain('"publication_year":2025');
     expect(observedPrompt).toContain(
-      "untrusted_publication_abstracts[].abstract"
+      "verified_publications"
     );
     expect(observedPrompt).toContain("Randomized evidence from the retrieved abstract");
     const run = store.getRunForSubject(created.receipt.run_id, "subj_worker_e2e");
@@ -486,8 +485,8 @@ describe("Research Worker controlled-beta workflow", () => {
       reason: "model_contract_error"
     });
     expect(modelCalls).toBe(2);
-    expect(repairPrompt).toContain("Preserve every required field");
-    expect(repairPrompt).toContain("Schema:");
+    expect(repairPrompt).toContain("Preserve every required draft field");
+    expect(repairPrompt).toContain("Draft schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
     expect(repairPrompt).toContain("Invented oncology program");
     expect(repairPrompt).toContain(

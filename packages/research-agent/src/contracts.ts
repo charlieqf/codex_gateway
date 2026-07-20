@@ -3,6 +3,8 @@ import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
 export const doctorResearchRunSchemaVersion = "doctor_research_run.v1";
 export const doctorResearchModelOutputSchemaVersion =
   "doctor_research_model_output.v1";
+export const doctorResearchModelDraftSchemaVersion =
+  "doctor_research_model_draft.v1";
 export const doctorResearchResultSchemaVersion =
   "doctor_research_result.v1";
 
@@ -151,6 +153,17 @@ export interface DoctorResearchModelOutput extends DoctorResearchContent {
   schema_version: "doctor_research_model_output.v1";
 }
 
+export interface DoctorResearchModelDraft {
+  schema_version: "doctor_research_model_draft.v1";
+  profile: DoctorResearchContent["profile"];
+  review: Omit<
+    DoctorResearchContent["review"],
+    "references" | "search_report"
+  >;
+  predicted_questions: DoctorResearchContent["predicted_questions"];
+  answers: DoctorResearchContent["answers"];
+}
+
 export interface DoctorResearchResult extends DoctorResearchContent {
   schema_version: "doctor_research_result.v1";
   request_id: string;
@@ -164,7 +177,7 @@ export type DoctorResearchContractFailureKind =
   | "semantic_error";
 
 export type DoctorResearchContractResult<
-  T extends DoctorResearchContent = DoctorResearchResult
+  T = DoctorResearchResult
 > =
   | { ok: true; value: T }
   | {
@@ -589,6 +602,39 @@ export const doctorResearchModelOutputSchema = {
   }
 } as const;
 
+const {
+  references: _draftReferencesProperty,
+  search_report: _draftSearchReportProperty,
+  ...doctorResearchModelDraftReviewProperties
+} = doctorResearchResultSchema.properties.review.properties;
+
+export const doctorResearchModelDraftSchema = {
+  $id: doctorResearchModelDraftSchemaVersion,
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema_version",
+    "profile",
+    "review",
+    "predicted_questions",
+    "answers"
+  ],
+  properties: {
+    schema_version: { const: doctorResearchModelDraftSchemaVersion },
+    profile: doctorResearchResultSchema.properties.profile,
+    review: {
+      ...doctorResearchResultSchema.properties.review,
+      required: doctorResearchResultSchema.properties.review.required.filter(
+        (name) => name !== "references" && name !== "search_report"
+      ),
+      properties: doctorResearchModelDraftReviewProperties
+    },
+    predicted_questions:
+      doctorResearchResultSchema.properties.predicted_questions,
+    answers: doctorResearchResultSchema.properties.answers
+  }
+} as const;
+
 const ajv = new Ajv({
   allErrors: true,
   strict: true,
@@ -600,6 +646,9 @@ const validateResult = ajv.compile(
 const validateModelOutput = ajv.compile(
   doctorResearchModelOutputSchema
 ) as ValidateFunction<DoctorResearchModelOutput>;
+const validateModelDraft = ajv.compile(
+  doctorResearchModelDraftSchema
+) as ValidateFunction<DoctorResearchModelDraft>;
 const validateRunReceipt = ajv.compile(
   doctorResearchRunReceiptSchema
 ) as ValidateFunction<DoctorResearchRunReceipt>;
@@ -686,6 +735,51 @@ export function parseAndValidateDoctorResearchModelOutput(
     };
   }
   const semanticErrors = validateContentSemantics(parsed.value);
+  if (semanticErrors.length > 0) {
+    return {
+      ok: false,
+      kind: "semantic_error",
+      errors: semanticErrors
+    };
+  }
+  return { ok: true, value: parsed.value };
+}
+
+export function parseAndValidateDoctorResearchModelDraft(
+  text: string
+): DoctorResearchContractResult<DoctorResearchModelDraft> {
+  const parsed = parseStrictModelJson(text);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      kind: "parse_error",
+      errors: ["response must contain exactly one valid JSON value"]
+    };
+  }
+  if (!validateModelDraft(parsed.value)) {
+    return {
+      ok: false,
+      kind: "schema_error",
+      errors: sanitizedAjvErrors(validateModelDraft.errors)
+    };
+  }
+  const semanticErrors: string[] = [];
+  const claimIds = new Set<string>();
+  for (const claim of parsed.value.profile.claims) {
+    if (claimIds.has(claim.claim_id)) {
+      semanticErrors.push(`duplicate claim_id: ${claim.claim_id}`);
+    }
+    claimIds.add(claim.claim_id);
+  }
+  if (
+    parsed.value.answers.some(
+      (answer, index) => answer.question_index !== index + 1
+    )
+  ) {
+    semanticErrors.push(
+      "answers must use question_index 1 through 5 in order"
+    );
+  }
   if (semanticErrors.length > 0) {
     return {
       ok: false,
