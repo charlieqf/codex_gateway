@@ -418,6 +418,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "peer_review_model_unavailable_deterministic_fallback"
     ],
     [
+      "peer-convergence",
+      "bounded_peer_review_convergence_completed"
+    ],
+    [
       "citation-closure",
       "peer_review_model_unavailable_deterministic_fallback"
     ],
@@ -513,6 +517,36 @@ describe("Research Worker controlled-beta workflow", () => {
             answer: "短"
           }))
         : foundation.answers;
+    const initialBodyQuestions =
+      retryKind === "body"
+        ? foundation.predicted_questions.map((question, index) =>
+            index === 0 ? question.repeat(8) : question
+          )
+        : foundation.predicted_questions;
+    const convergenceUnsafeParagraph = [
+      ...Array.from(
+        { length: 18 },
+        () =>
+          "该段错误写入2025例无法由所引摘要闭合的样本陈述，同时比较研究设计、方法差异、观察终点、证据强度与适用边界"
+      ),
+      "[1]"
+    ].join("。");
+    const convergenceShortParagraph =
+      "本节仍需在摘要证据边界内完成修复。[1]";
+    const convergenceSafeParagraph = [
+      ...Array.from(
+        { length: 18 },
+        () =>
+          "本节只综合所引公开摘要证据，比较研究设计、方法差异、观察终点、证据强度与适用边界，不把摘要未报告的信息写成事实"
+      ),
+      "[1]"
+    ].join("。");
+    const convergenceBody = [
+      `## 研究设计与人群差异\n\n${convergenceUnsafeParagraph}`,
+      longChineseReviewFragment("方法路径与评价终点", 20),
+      longChineseReviewFragment("结果一致性与证据强度", 20),
+      longChineseReviewFragment("转化边界与研究缺口", 20)
+    ].join("\n\n");
     const fragments = new Map<number, string>([
       [
         1,
@@ -549,7 +583,9 @@ describe("Research Worker controlled-beta workflow", () => {
           JSON.stringify({
             schema_version: "doctor_research_body_fragment.v1",
               markdown: [
-                skillBodyFragment(20),
+                retryKind === "peer-convergence"
+                  ? convergenceBody
+                  : skillBodyFragment(20),
                 ...(retryKind === "peer-timeout"
                   ? [
                     crossShardNumericParagraph,
@@ -558,7 +594,7 @@ describe("Research Worker controlled-beta workflow", () => {
                   ]
                   : [])
             ].join("\n\n"),
-            predicted_questions: foundation.predicted_questions,
+            predicted_questions: initialBodyQuestions,
             answers: initialBodyAnswers
           }),
           "```"
@@ -772,6 +808,39 @@ describe("Research Worker controlled-beta workflow", () => {
             );
           }
           if (
+            retryKind === "peer-convergence" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [
+                  modelInput.attempt === 4
+                    ? {
+                        target: "markdown",
+                        old_text: convergenceUnsafeParagraph,
+                        new_text: convergenceShortParagraph
+                      }
+                    : {
+                        target: "markdown",
+                        old_text: convergenceShortParagraph,
+                        new_text: convergenceSafeParagraph
+                      }
+                ],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_peer_convergence",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
             retryKind === "grace" &&
             modelInput.stage === "validate_outputs"
           ) {
@@ -926,7 +995,10 @@ describe("Research Worker controlled-beta workflow", () => {
       attempts.length,
       JSON.stringify({ outcome, validationEvents })
     ).toBeGreaterThan(0);
-    expect(outcome, JSON.stringify(validationEvents)).toEqual({
+    expect(
+      outcome,
+      JSON.stringify({ attempts, validationEvents })
+    ).toEqual({
       outcome: "succeeded"
     });
     expect(maximumActiveSynthesisCalls).toBe(
@@ -1126,6 +1198,14 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toHaveLength(1);
       expect(result.quality.warnings).toContain(
         "deterministic_safety_normalization_applied"
+      );
+    }
+    if (retryKind === "peer-convergence") {
+      expect(result.review.markdown).toContain(
+        convergenceSafeParagraph
+      );
+      expect(result.review.markdown).not.toContain(
+        convergenceShortParagraph
       );
     }
     if (retryKind === "citation-closure") {

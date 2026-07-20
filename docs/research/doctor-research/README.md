@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.29` together with the
+The production Worker uses frozen execution contract `1.6.30` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.29` splits synthesis into three bounded independent
+For latency, execution `1.6.30` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -103,6 +103,18 @@ removes duplicate substantive paragraphs that arise only after unsupported
 numerical sentences are closed. A prescriptive treatment sentence supported
 only by case reports or case series is removed instead of being promoted into a
 general recommendation.
+
+Answer length is closed deterministically with evidence-neutral boundary
+language before the Worker decides whether to spend its one bounded correction
+slot. This avoids an unnecessary model rewrite of otherwise valid Q&A content.
+After the concise peer-review patch, the Worker first validates the corrected
+draft without rewriting it and invokes deterministic safety normalization only
+when a gate still fails. If that normalization would leave a medical-Skill
+section under its explicit length floor, and the fifth model-call slot is still
+available, one 90-second exact-text convergence pass may repair only the
+remaining review diagnostics. Case-report or case-series evidence that is used
+to recommend routine, standard, or preferred treatment is now a direct
+validation error as well as a deterministic removal rule.
 
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend

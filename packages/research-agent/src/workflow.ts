@@ -2445,7 +2445,19 @@ async function generateAndValidateShardedModelOutput(
       )
     },
     predicted_questions: acceptedMiddleFragment.predicted_questions,
-    answers: acceptedMiddleFragment.answers
+    // Answer-length closure is deterministic and evidence-neutral. Applying
+    // the same bounded closure before deciding whether a model correction is
+    // needed preserves the fifth call for a rare review convergence failure
+    // instead of spending it on generic answer-length padding.
+    answers: acceptedMiddleFragment.answers.map((answer) => ({
+      ...answer,
+      answer: boundAnswerContent(
+        answer.answer,
+        context.run.language,
+        context.input.policy.minimumAnswerContent,
+        context.input.policy.maximumAnswerContent
+      )
+    }))
   });
   let assembledDraft = assembleDraft();
   let validation = validateGeneratedOutput(
@@ -2770,14 +2782,29 @@ async function generateAndValidateShardedModelOutput(
     );
     return null;
   }
-  validation = validateGeneratedOutput(
+  // A peer-reviewed draft that already passes every deterministic gate should
+  // remain intact. Safety normalization is a bounded repair path, not a
+  // mandatory rewrite: running it unconditionally can remove enough unsafe
+  // clauses from an otherwise corrected, borderline section to put that
+  // section below the medical Skill's explicit length floor.
+  let rawPatchedValidation = validateGeneratedOutput(
     JSON.stringify(patchedDraft),
     context.run,
     identity,
     evidence,
-    context.input.policy,
-    { deterministicSafetyNormalization: true }
+    context.input.policy
   );
+  validation = rawPatchedValidation;
+  if (!validation.ok) {
+    validation = validateGeneratedOutput(
+      JSON.stringify(patchedDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy,
+      { deterministicSafetyNormalization: true }
+    );
+  }
   let peerReviewPatchFallbackApplied = false;
   if (!validation.ok && peerReview.replacements.length > 0) {
     const unpatchedValidation = validateGeneratedOutput(
@@ -2785,13 +2812,92 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy,
-      { deterministicSafetyNormalization: true }
+      context.input.policy
     );
-    if (unpatchedValidation.ok) {
-      validation = unpatchedValidation;
+    const normalizedUnpatchedValidation = unpatchedValidation.ok
+      ? unpatchedValidation
+      : validateGeneratedOutput(
+          JSON.stringify(assembledDraft),
+          context.run,
+          identity,
+          evidence,
+          context.input.policy,
+          { deterministicSafetyNormalization: true }
+        );
+    if (normalizedUnpatchedValidation.ok) {
+      validation = normalizedUnpatchedValidation;
       peerReviewPatchFallbackApplied = true;
     }
+  }
+  let peerReviewConvergenceCompleted = false;
+  if (
+    !validation.ok &&
+    peerReviewAttempt === 4
+  ) {
+    const convergenceResponse = await context.generateModel({
+      stage: "validate_outputs",
+      attempt: 5,
+      maximumDurationMs: 90_000,
+      prompt: [
+        buildPeerReviewPatchPrompt({
+          run: context.run,
+          evidence,
+          draft: patchedDraft,
+          validationErrors: [
+            ...(rawPatchedValidation.ok
+              ? []
+              : rawPatchedValidation.errors),
+            ...validation.errors
+          ],
+          medicalSkillBundle
+        }),
+        "BOUNDED CONVERGENCE RETRY",
+        "The prior peer-review patch still failed the listed deterministic gates after evidence-safety normalization. Return a new complete patch decision against this exact candidate. Repair every remaining diagnostic while preserving all per-section medical-Skill length floors. Do not replace a long evidence-bearing paragraph with a short summary."
+      ].join("\n\n"),
+      system: doctorResearchPeerReviewSystemPolicy
+    });
+    const convergenceDecision = parsePeerReviewDecision(
+      convergenceResponse.text
+    );
+    if (!convergenceDecision) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        ["peer_review_convergence_contract_error"]
+      );
+      return null;
+    }
+    const convergedDraft = applyPeerReviewPatches(
+      patchedDraft,
+      convergenceDecision
+    );
+    if (!convergedDraft) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        ["peer_review_convergence_patch_error"]
+      );
+      return null;
+    }
+    rawPatchedValidation = validateGeneratedOutput(
+      JSON.stringify(convergedDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    validation = rawPatchedValidation;
+    if (!validation.ok) {
+      validation = validateGeneratedOutput(
+        JSON.stringify(convergedDraft),
+        context.run,
+        identity,
+        evidence,
+        context.input.policy,
+        { deterministicSafetyNormalization: true }
+      );
+    }
+    peerReviewConvergenceCompleted = true;
   }
   if (!validation.ok) {
     context.reportValidationFailure(
@@ -2835,6 +2941,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(peerReviewPatchFallbackApplied
         ? ["peer_review_patch_fallback_to_deterministic_safety"]
+        : []),
+      ...(peerReviewConvergenceCompleted
+        ? ["bounded_peer_review_convergence_completed"]
         : []),
       ...peerReview.warnings.map(
         (warning) => `peer_review_${warning}`
@@ -3191,7 +3300,8 @@ function buildPeerReviewPatchPrompt(input: {
     "Check title and abstract accuracy, evidence grading, exact numeric support, paragraph citations, evidence scope, causal language, formal review depth, length, conclusion support, and the target of at least 40 verified references.",
     "Return only a compact patch decision with this exact shape: {\"schema_version\":\"doctor_research_peer_review.v1\",\"approved\":true,\"replacements\":[{\"target\":\"title|abstract|markdown\",\"old_text\":\"exact existing substring\",\"new_text\":\"corrected replacement\"}],\"warnings\":[\"short_machine_code\"]}.",
     "Use at most 12 replacements. Each old_text must be an exact unique substring of its target. Do not return the complete draft.",
-    "A replacement must not add a source, citation number, identifier, fact, or narrative number absent from the closed evidence. Preserve length and coherence; do not shorten the review below its required minimum.",
+    "A replacement must not add a source, citation number, identifier, fact, or narrative number absent from the closed evidence. Preserve length and coherence; after all replacements, the introduction must still contain at least 800 content characters, every topic-specific section at least 600, evidence synthesis at least 800, limitations and outlook at least 600, and the conclusion at least 200.",
+    "Correct the smallest unsafe clause or sentence instead of replacing a complete long paragraph with a short summary. Case reports and case series must not be promoted into routine, standard, or preferred treatment recommendations.",
     "If no correction is needed, set approved=true with an empty replacements array. If corrections are supplied, set approved to whether the corrected review passes the self-check.",
     `Language: ${input.run.language}. Deterministic server diagnostics: ${JSON.stringify(
       input.validationErrors.slice(0, 24)
@@ -6476,6 +6586,21 @@ function validateEvidenceScopeAndCausality(
     ) {
       errors.add(
         `case_evidence_scope_required:paragraph=${paragraphIndex + 1}`
+      );
+    }
+    if (
+      citedAbstracts.every((abstract) =>
+        /\b(?:case report|case series)\b/iu.test(abstract)
+      ) &&
+      /(?:\u5e94|\u5e94\u8be5|\u5fc5\u987b|\u52a1\u5fc5)(?:\u88ab)?(?:\u5b9a\u4f4d|\u89c6\u4e3a|\u4f5c\u4e3a|\u91c7\u7528)|(?:\u9996\u9009|\u5e38\u89c4|\u6807\u51c6)\u6cbb\u7597/u.test(
+        paragraph
+      ) &&
+      !/(?:\u4e0d\u80fd|\u4e0d\u53ef|\u4e0d\u5e94|\u5c1a\u4e0d\u80fd|\u65e0\u6cd5|\u4ec5\u80fd|\u4e0d\u5b9c).{0,24}(?:\u63a8\u5e7f|\u5916\u63a8|\u5efa\u8bae|\u6cbb\u7597|\u65b9\u6848)/u.test(
+        paragraph
+      )
+    ) {
+      errors.add(
+        `case_evidence_prescriptive_claim:paragraph=${paragraphIndex + 1}`
       );
     }
   }
