@@ -1231,6 +1231,25 @@ async function generateAndValidateModelOutput(
       evidence,
       context.input.policy
     );
+    if (
+      !validation.ok &&
+      validation.errorCodes.every((code) =>
+        [
+          "paragraph_citation_coverage",
+          "numeric_evidence_closure",
+          "in_vitro_scope_required"
+        ].includes(code)
+      )
+    ) {
+      validation = validateGeneratedOutput(
+        repaired.text,
+        context.run,
+        identity,
+        evidence,
+        context.input.policy,
+        { deterministicSafetyNormalization: true }
+      );
+    }
     if (!validation.ok) {
       context.reportValidationFailure(
         "validate_outputs",
@@ -1258,7 +1277,8 @@ function validateGeneratedOutput(
   run: ResearchRunRecord,
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
   evidence: WorkflowEvidence,
-  policy: DoctorResearchWorkflowPolicy
+  policy: DoctorResearchWorkflowPolicy,
+  options: { deterministicSafetyNormalization?: boolean } = {}
 ):
   | {
       ok: true;
@@ -1332,7 +1352,7 @@ function validateGeneratedOutput(
     ],
     (sourceId) => sourceId
   );
-  const candidate: DoctorResearchModelOutput = {
+  let candidate: DoctorResearchModelOutput = {
     schema_version: "doctor_research_model_output.v1",
     doctor: {
       name: run.input.doctor.name,
@@ -1398,6 +1418,16 @@ function validateGeneratedOutput(
       warnings: []
     }
   };
+  let deterministicSafetyNormalizationApplied = false;
+  if (options.deterministicSafetyNormalization) {
+    const normalized = normalizeFinalModelOutputForSafety(
+      candidate,
+      evidence,
+      run.language
+    );
+    candidate = normalized.value;
+    deterministicSafetyNormalizationApplied = normalized.changed;
+  }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
   );
@@ -1435,7 +1465,11 @@ function validateGeneratedOutput(
         ok: true,
         value: reparsed.value,
         draft,
-        warnings: []
+        warnings: [
+          ...(deterministicSafetyNormalizationApplied
+            ? ["deterministic_safety_normalization_applied"]
+            : [])
+        ]
       }
     : {
         ok: false,
@@ -2076,6 +2110,159 @@ function buildModelPrompt(
     })}`,
     "END PLATFORM EXECUTION CONTRACT"
   ].join("\n\n");
+}
+
+function normalizeFinalModelOutputForSafety(
+  output: DoctorResearchModelOutput,
+  evidence: WorkflowEvidence,
+  language: ResearchRunRecord["language"]
+): { value: DoctorResearchModelOutput; changed: boolean } {
+  let changed = false;
+  const abstractByReferenceId = new Map(
+    evidence.publicationEvidence.map((publication) => [
+      publication.reference_id,
+      publication.abstract ?? ""
+    ])
+  );
+  const referenceIdByCitation = new Map(
+    output.review.references.map((reference, index) => [
+      index + 1,
+      reference.reference_id
+    ])
+  );
+  const sanitize = (value: string, allowedEvidence: string): string => {
+    const normalized = removeUnsupportedNumericSentences(
+      value,
+      allowedEvidence,
+      language
+    );
+    if (normalized !== value) {
+      changed = true;
+    }
+    return normalized;
+  };
+  const count = language === "zh-CN" ? countHanCharacters : countEnglishWords;
+  const normalizedParagraphs: string[] = [];
+  for (const originalParagraph of output.review.markdown.split(
+    /\n\s*\n/gu
+  )) {
+    const citedReferenceIds = extractNumericCitations(originalParagraph)
+      .map((citation) => referenceIdByCitation.get(citation))
+      .filter((referenceId): referenceId is string => Boolean(referenceId));
+    const citedEvidence = citedReferenceIds
+      .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
+      .join("\n");
+    let paragraph = sanitize(originalParagraph, citedEvidence);
+    const isHeading = /^#{1,6}\s/u.test(paragraph);
+    const isSubstantive =
+      !isHeading &&
+      count(paragraph) >= (language === "zh-CN" ? 20 : 10);
+    if (
+      isSubstantive &&
+      extractNumericCitations(paragraph).length === 0
+    ) {
+      changed = true;
+      continue;
+    }
+    const normalizedCitedEvidence = citedEvidence.toLowerCase();
+    if (
+      isSubstantive &&
+      /\b(?:in vitro|cell line|cultured cells?)\b/u.test(
+        normalizedCitedEvidence
+      ) &&
+      !/\b(?:in vitro|cell|cellular)\b|体外|细胞/u.test(
+        paragraph.toLowerCase()
+      )
+    ) {
+      paragraph = `${paragraph}${
+        language === "zh-CN"
+          ? " 该段所引证据包含体外或细胞研究，不能直接外推为临床效果。"
+          : " The cited evidence includes in-vitro or cellular research and cannot be directly extrapolated to clinical effects."
+      }`;
+      changed = true;
+    }
+    if (paragraph.trim() !== "") {
+      normalizedParagraphs.push(paragraph);
+    }
+  }
+  const allAbstracts = evidence.publicationEvidence
+    .map((publication) => publication.abstract ?? "")
+    .join("\n");
+  const referenceByPubMedSource = new Map(
+    evidence.references
+      .filter(
+        (
+          reference
+        ): reference is DoctorResearchReference & { pmid: string } =>
+          reference.pmid !== null
+      )
+      .map((reference) => [
+        `src_pubmed_${reference.pmid}`,
+        reference.reference_id
+      ])
+  );
+  return {
+    value: {
+      ...output,
+      review: {
+        ...output.review,
+        title: sanitize(output.review.title, allAbstracts),
+        abstract: sanitize(output.review.abstract, allAbstracts),
+        keywords: output.review.keywords.map((keyword) =>
+          sanitize(keyword, allAbstracts)
+        ),
+        markdown: normalizedParagraphs.join("\n\n"),
+        core_evidence: output.review.core_evidence.map((item) => {
+          const source = abstractByReferenceId.get(item.reference_id) ?? "";
+          return {
+            ...item,
+            study_type: sanitize(item.study_type, source),
+            sample_and_source: sanitize(item.sample_and_source, source),
+            methods: sanitize(item.methods, source),
+            key_results: sanitize(item.key_results, source),
+            limitations: sanitize(item.limitations, source)
+          };
+        })
+      },
+      predicted_questions: output.predicted_questions.map((question) =>
+        sanitize(question, allAbstracts)
+      ),
+      answers: output.answers.map((answer) => {
+        const source = answer.source_ids
+          .map((sourceId) => referenceByPubMedSource.get(sourceId))
+          .filter((referenceId): referenceId is string =>
+            Boolean(referenceId)
+          )
+          .map(
+            (referenceId) =>
+              abstractByReferenceId.get(referenceId) ?? ""
+          )
+          .join("\n");
+        return {
+          ...answer,
+          answer: sanitize(answer.answer, source)
+        };
+      })
+    },
+    changed
+  };
+}
+
+function removeUnsupportedNumericSentences(
+  value: string,
+  allowedEvidence: string,
+  language: ResearchRunRecord["language"]
+): string {
+  const allowed = new Set(extractNumericTokens(allowedEvidence));
+  const sentences = value.split(/(?<=[。！？!?；;])\s*/u);
+  const retained = sentences.filter((sentence) =>
+    extractNarrativeNumericTokens(sentence).every((token) =>
+      allowed.has(token)
+    )
+  );
+  return retained
+    .join(language === "zh-CN" ? "" : " ")
+    .trim();
 }
 
 function unsupportedNarrativeNumericTokens(

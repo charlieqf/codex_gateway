@@ -518,7 +518,10 @@ describe("Research Worker controlled-beta workflow", () => {
       expect.objectContaining({
         stage: "validate_outputs",
         attempt: 3,
-        errorCodes: ["numeric_evidence_closure"]
+        errorCodes: [
+          "server_closed_schema_error",
+          "server_closed_schema_minlength"
+        ]
       })
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
@@ -674,6 +677,106 @@ describe("Research Worker controlled-beta workflow", () => {
       { stage: "validate_outputs", attempt: 2 },
       { stage: "validate_outputs", attempt: 3 }
     ]);
+    fixture.store.close();
+  });
+
+  it("applies only conservative evidence-closure normalization after the final bounded correction", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "final_evidence_closure_normalization"
+    );
+    const inVitroAdapters = adapters();
+    inVitroAdapters.getPubMedMetadata = async () => ({
+      referenceId: "ref_pubmed_1001",
+      pmid: "1001",
+      doi: null,
+      title: "Retrieved Clinical Evidence",
+      journal: "Evidence Journal",
+      publicationYear: 2025,
+      authors: ["Example Doctor"],
+      authorAffiliations: [
+        {
+          author: "Example Doctor",
+          affiliations: ["Cardiology, Example Hospital."]
+        }
+      ],
+      abstractText:
+        "This in vitro cell line study included 42 samples and supports cautious synthesis.",
+      sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "b".repeat(64)
+    });
+    const invalid = modelOutput();
+    invalid.review.markdown = [
+      "## Findings",
+      "The cited study included 42 samples and supports cautious synthesis [1].",
+      "This uncited contextual paragraph contains enough words to require direct evidence coverage before publication.",
+      "An unsupported claim enrolled 2025 patients. The abstract supports cautious synthesis [1]."
+    ].join("\n\n");
+    let modelCalls = 0;
+    const validationEvents: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: inVitroAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate(input) {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(invalid),
+            gatewayRequestId: `req_model_final_normalization_${input.attempt}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(3);
+    expect(validationEvents).toEqual([
+      [
+        "paragraph_citation_coverage",
+        "numeric_evidence_closure",
+        "in_vitro_scope_required"
+      ],
+      [
+        "paragraph_citation_coverage",
+        "numeric_evidence_closure",
+        "in_vitro_scope_required"
+      ]
+    ]);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as
+      | {
+          review: { markdown: string };
+          quality: { warnings: string[] };
+        }
+      | undefined;
+    expect(result?.review.markdown).toContain(
+      "included 42 samples"
+    );
+    expect(result?.review.markdown).toContain(
+      "cannot be directly extrapolated to clinical effects"
+    );
+    expect(result?.review.markdown).not.toContain("uncited contextual");
+    expect(result?.review.markdown).not.toContain("2025 patients");
+    expect(result?.quality.warnings).toContain(
+      "deterministic_safety_normalization_applied"
+    );
     fixture.store.close();
   });
 
