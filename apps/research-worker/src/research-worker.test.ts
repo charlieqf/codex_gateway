@@ -394,6 +394,10 @@ describe("Research Worker controlled-beta workflow", () => {
     ["body", "bounded_qa_contract_retry_completed"],
     ["content", "bounded_review_content_correction_completed"],
     [
+      "peer-contract",
+      "peer_review_contract_unusable_deterministic_fallback"
+    ],
+    [
       "peer-timeout",
       "peer_review_model_unavailable_deterministic_fallback"
     ],
@@ -500,14 +504,19 @@ describe("Research Worker controlled-beta workflow", () => {
       [
         3,
         retryKind === "peer-timeout"
-          ? [
-              "```markdown",
-              longChineseReviewFragment(
+          ? `{"schema_version":"doctor_research_review_fragment.v1","markdown":"${longChineseReviewFragment(
                 "transport normalization",
                 70
-              ).replace(/^##[^\n]*\n\n/u, ""),
-              "```"
-            ].join("\n")
+              ).replace(/^##[^\n]*\n\n/u, "")}"}`
+          : retryKind === "citation-closure"
+            ? [
+                "```markdown",
+                longChineseReviewFragment(
+                  "bare transport normalization",
+                  70
+                ),
+                "```"
+              ].join("\n")
           : JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
@@ -699,21 +708,26 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           return {
-            text: JSON.stringify({
-              schema_version: "doctor_research_peer_review.v1",
-              approved: true,
-              replacements:
-                retryKind === "body"
-                  ? [
-                      {
-                        target: "title",
-                        old_text: foundation.review.title,
-                        new_text: "Unsupported 2027 claim"
-                      }
-                    ]
-                  : [],
-              warnings: []
-            }),
+            text:
+              retryKind === "peer-contract"
+                ? "not a peer-review decision"
+                : JSON.stringify({
+                    schema_version:
+                      "doctor_research_peer_review.v1",
+                    approved: true,
+                    replacements:
+                      retryKind === "body"
+                        ? [
+                            {
+                              target: "title",
+                              old_text: foundation.review.title,
+                              new_text:
+                                "Unsupported 2027 claim"
+                            }
+                          ]
+                        : [],
+                    warnings: []
+                  }),
             gatewayRequestId: "req_sharded_peer_review",
             usage: {
               promptTokens: 100,
@@ -770,7 +784,8 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
     expect(attempts).toEqual(
-      retryKind === "citation-closure"
+      retryKind === "citation-closure" ||
+      retryKind === "peer-contract"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
@@ -934,7 +949,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         retryKind === "peer-timeout" ||
-        retryKind === "citation-closure"
+        retryKind === "citation-closure" ||
+        retryKind === "peer-contract"
           ? "peer_review_model_attempted"
           : "peer_review_model_completed",
         retryWarning

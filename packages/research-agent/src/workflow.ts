@@ -2227,7 +2227,31 @@ async function generateAndValidateShardedModelOutput(
       );
     }
   }
-  if (peerReviewUnavailableFallbackApplied) {
+  if (!peerReviewUnavailableFallbackApplied && !peerReviewResponse) {
+    throw new Error(
+      "Peer review response state is inconsistent after model settlement."
+    );
+  }
+  const peerReview = peerReviewResponse
+    ? parsePeerReviewDecision(peerReviewResponse.text)
+    : null;
+  if (
+    peerReviewResponse !== null &&
+    peerReview === null
+  ) {
+    context.reportValidationFailure(
+      "validate_outputs",
+      peerReviewAttempt,
+      ["peer_review_contract_error"]
+    );
+  }
+  const peerReviewFallbackWarning =
+    peerReviewUnavailableFallbackApplied
+      ? "peer_review_model_unavailable_deterministic_fallback"
+      : peerReview === null
+        ? "peer_review_contract_unusable_deterministic_fallback"
+        : null;
+  if (peerReviewFallbackWarning !== null) {
     validation = validateGeneratedOutput(
       JSON.stringify(assembledDraft),
       context.run,
@@ -2253,7 +2277,7 @@ async function generateAndValidateShardedModelOutput(
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         "peer_review_model_attempted",
-        "peer_review_model_unavailable_deterministic_fallback",
+        peerReviewFallbackWarning,
         ...(shardTransportRetryCompleted
           ? ["bounded_shard_transport_retry_completed"]
           : []),
@@ -2269,19 +2293,10 @@ async function generateAndValidateShardedModelOutput(
       ]
     };
   }
-  if (!peerReviewResponse) {
-    throw new Error(
-      "Peer review response state is inconsistent after model settlement."
-    );
-  }
-  const peerReview = parsePeerReviewDecision(peerReviewResponse.text);
   if (!peerReview) {
-    context.reportValidationFailure(
-      "validate_outputs",
-      peerReviewAttempt,
-      ["peer_review_contract_error"]
+    throw new Error(
+      "Peer review decision state is inconsistent after fallback."
     );
-    return null;
   }
   const patchedDraft = applyPeerReviewPatches(
     assembledDraft,
@@ -2830,7 +2845,9 @@ function parseQaFragment(text: string): QaFragment | null {
 function parseReviewFragment(text: string): ReviewFragment | null {
   const parsed = parseStrictFragmentJson(text);
   if (!parsed.ok) {
-    const markdown = parseBareMarkdownFragment(text);
+    const markdown =
+      parseMalformedReviewMarkdownField(text) ??
+      parseBareMarkdownFragment(text);
     return markdown === null
       ? null
       : {
@@ -2991,15 +3008,93 @@ function parseBareMarkdownFragment(text: string): string | null {
       trimmed
     );
   const markdown = (fenced?.[1] ?? trimmed).trim();
+  return isUsableReviewMarkdownFragment(markdown)
+    ? markdown
+    : null;
+}
+
+function parseMalformedReviewMarkdownField(
+  text: string
+): string | null {
+  const trimmed = text.trim().replace(/^\uFEFF/u, "");
+  const fenced =
+    /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
+  const candidate = (fenced?.[1] ?? trimmed).trim();
+  const marker = /"markdown"\s*:\s*"/iu.exec(candidate);
+  if (!marker) {
+    return null;
+  }
+  const objectEnd = candidate.lastIndexOf("}");
+  if (objectEnd < marker.index + marker[0].length) {
+    return null;
+  }
+  let closingQuote = objectEnd - 1;
+  while (
+    closingQuote >= 0 &&
+    /\s/u.test(candidate[closingQuote]!)
+  ) {
+    closingQuote -= 1;
+  }
+  if (candidate[closingQuote] !== '"') {
+    return null;
+  }
+  const raw = candidate.slice(
+    marker.index + marker[0].length,
+    closingQuote
+  );
+  const markdown = decodeTolerantJsonStringContent(raw).trim();
+  return isUsableReviewMarkdownFragment(markdown)
+    ? markdown
+    : null;
+}
+
+function decodeTolerantJsonStringContent(value: string): string {
+  let decoded = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]!;
+    if (character !== "\\" || index + 1 >= value.length) {
+      decoded += character;
+      continue;
+    }
+    const escaped = value[index + 1]!;
+    if (escaped === "u") {
+      const hex = value.slice(index + 2, index + 6);
+      if (/^[a-f0-9]{4}$/iu.test(hex)) {
+        decoded += String.fromCharCode(
+          Number.parseInt(hex, 16)
+        );
+        index += 5;
+        continue;
+      }
+    }
+    const replacement = {
+      '"': '"',
+      "\\": "\\",
+      "/": "/",
+      b: "\b",
+      f: "\f",
+      n: "\n",
+      r: "\r",
+      t: "\t"
+    }[escaped];
+    decoded += replacement ?? escaped;
+    index += 1;
+  }
+  return decoded;
+}
+
+function isUsableReviewMarkdownFragment(
+  markdown: string
+): boolean {
   if (
     markdown.length < 256 ||
     markdown.length > 100_000 ||
     /^(?:\{|\[)/u.test(markdown) ||
     !/\[[1-9][0-9]*(?:[-–,][1-9][0-9]*)*\]/u.test(markdown)
   ) {
-    return null;
+    return false;
   }
-  return markdown;
+  return true;
 }
 
 function applyPeerReviewPatches(

@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.21` together with the
+The production Worker uses frozen execution contract `1.6.22` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.21` splits synthesis into three bounded independent
+For latency, execution `1.6.22` splits synthesis into three bounded independent
 fragments, routes them with separate internal session affinity, and starts at
 most two concurrently against isolated direct-GLM capacity. The third starts
 as soon as one slot settles. If provider admission temporarily exposes only
@@ -94,6 +94,12 @@ deterministically adds verified identity, sources, all reference metadata,
 search report, coverage and quality fields, and validates the unchanged public
 result schema. Up to 40 verified references, the 6000-character floor, and the
 mandatory peer-review pass remain in force.
+
+The peer-review model is always attempted. If that bounded call times out or
+returns an unusable patch envelope, the Worker records a transparent warning
+and applies the same deterministic safety, citation, number, evidence-grade
+and length gates to the unpatched assembled draft. It never treats an
+unparseable peer-review response as approval.
 
 The API has a non-negotiable ten-minute wall-clock ceiling measured from run
 creation, including queue wait and retries. Production is configured with a
