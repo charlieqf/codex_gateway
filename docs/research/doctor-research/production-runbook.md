@@ -157,8 +157,9 @@ Worker disabled. In its isolated Gateway database:
    allowlist and no `doctor_research`, image or admin capability. Its bounded
    rate must cover five calls per run and three concurrent synthesis calls
    (`rpm >= 5`, `rpd >= 5`, `concurrent >= 3`). The fifth call is reserved
-   for one transport-only synthesis retry; content-contract failures are not
-   retried.
+   for one bounded shard retry after a retryable transport failure or a
+   remaining unusable fragment contract. Common harmless envelope differences
+   are normalized deterministically and do not consume that retry.
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.

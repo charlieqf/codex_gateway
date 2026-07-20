@@ -392,6 +392,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     ["body", "bounded_qa_contract_retry_completed"],
+    ["content", "bounded_review_content_correction_completed"],
     [
       "peer-timeout",
       "peer_review_model_unavailable_deterministic_fallback"
@@ -444,7 +445,7 @@ describe("Research Worker controlled-beta workflow", () => {
     foundation.review.keywords = ["证据综合", "研究设计", "方法学"];
     foundation.review.markdown = longChineseReviewFragment(
       "引言",
-      55
+      retryKind === "content" ? 8 : 55
     );
     foundation.predicted_questions = [
       "摘要证据能支持什么？",
@@ -462,7 +463,6 @@ describe("Research Worker controlled-beta workflow", () => {
       })
     );
     const foundationFragment = {
-      schema_version: "doctor_research_foundation_fragment.v3",
       review: {
         title: foundation.review.title,
         abstract: foundation.review.abstract,
@@ -489,7 +489,7 @@ describe("Research Worker controlled-beta workflow", () => {
             schema_version: "doctor_research_body_fragment.v1",
             markdown: longChineseReviewFragment(
               "方法与证据比较",
-              55
+              retryKind === "content" ? 8 : 55
             ),
             predicted_questions: foundation.predicted_questions,
             answers: initialBodyAnswers
@@ -505,7 +505,7 @@ describe("Research Worker controlled-beta workflow", () => {
               longChineseReviewFragment(
                 "transport normalization",
                 70
-              ),
+              ).replace(/^##[^\n]*\n\n/u, ""),
               "```"
             ].join("\n")
           : JSON.stringify({
@@ -513,7 +513,7 @@ describe("Research Worker controlled-beta workflow", () => {
                 "doctor_research_review_fragment.v1",
               markdown: longChineseReviewFragment(
                 "证据综合、局限与结论",
-                70
+                retryKind === "content" ? 8 : 70
               )
             })
       ]
@@ -673,13 +673,23 @@ describe("Research Worker controlled-beta workflow", () => {
                     ? fragments.get(2)!
                   : retryKind === "contract"
                     ? fragments.get(3)!
-                    : JSON.stringify({
-                        schema_version:
-                          "doctor_research_qa_fragment.v1",
-                        predicted_questions:
-                          foundation.predicted_questions,
-                        answers: foundation.answers
-                      }),
+                    : retryKind === "content" ||
+                        retryKind === "peer-timeout"
+                      ? JSON.stringify({
+                          schema_version:
+                            "doctor_research_review_fragment.v1",
+                          markdown: longChineseReviewFragment(
+                            "content correction",
+                            160
+                          )
+                        })
+                      : JSON.stringify({
+                          schema_version:
+                            "doctor_research_qa_fragment.v1",
+                          predicted_questions:
+                            foundation.predicted_questions,
+                          answers: foundation.answers
+                        }),
               gatewayRequestId: "req_sharded_retry",
               usage: {
                 promptTokens: 100,
@@ -723,7 +733,8 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumAnswerContent: 300
             }
           : {}),
-        ...(retryKind === "peer-timeout"
+        ...(retryKind === "peer-timeout" ||
+          retryKind === "content"
           ? {
               minimumReviewContent: 7_000
             }
@@ -759,8 +770,7 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
     expect(attempts).toEqual(
-      retryKind === "peer-timeout"
-        || retryKind === "citation-closure"
+      retryKind === "citation-closure"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
@@ -778,17 +788,26 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     expect(synthesisPrompts.get(1)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 2380 : 2000
+        retryKind === "peer-timeout" ||
+        retryKind === "content"
+          ? 2380
+          : 2000
       } content characters`
     );
     expect(synthesisPrompts.get(2)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 5880 : 5000
+        retryKind === "peer-timeout" ||
+        retryKind === "content"
+          ? 5880
+          : 5000
       } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 6440 : 5500
+        retryKind === "peer-timeout" ||
+        retryKind === "content"
+          ? 6440
+          : 5500
       } content characters`
     );
     if (retryKind === "body") {
@@ -888,19 +907,10 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (retryKind === "peer-timeout") {
       expect(result.review.markdown).toContain(
-        "本组证据的可核验范围限于公开元数据与摘要"
-      );
-      expect(result.review.markdown).toContain(
         "该段所引证据包括病例报告或病例系列"
       );
       expect(result.quality.warnings).toContain(
         "deterministic_safety_normalization_applied"
-      );
-      expect(
-        result.quality.warnings,
-        JSON.stringify(result.quality.warnings)
-      ).toContain(
-        "deterministic_evidence_boundary_supplement_applied"
       );
     }
     if (retryKind === "citation-closure") {

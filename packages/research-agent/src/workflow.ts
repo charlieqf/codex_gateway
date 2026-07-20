@@ -1976,7 +1976,7 @@ async function generateAndValidateShardedModelOutput(
   }
   const acceptedFoundationFragment = foundationFragment;
   let acceptedMiddleFragment = middleFragment;
-  const acceptedClosingFragment = closingFragment;
+  let acceptedClosingFragment = closingFragment;
   const assembleDraft = (): DoctorResearchModelDraft => ({
     schema_version: "doctor_research_model_draft.v1",
     profile: deterministicProfile,
@@ -2025,6 +2025,44 @@ async function generateAndValidateShardedModelOutput(
         "question_length_contract"
       ].includes(code)
     );
+  const reviewContentCorrectionRequired =
+    !validation.ok &&
+    !shardTransportRetryCompleted &&
+    !shardContractRetryCompleted &&
+    !qaContractRetryRequired &&
+    validation.errorCodes.includes("review_content_minimum");
+  const reviewContentCount =
+    context.run.language === "zh-CN"
+      ? countHanCharacters(assembledDraft.review.markdown)
+      : countEnglishWords(assembledDraft.review.markdown);
+  const reviewContentCorrectionPrompt =
+    reviewContentCorrectionRequired
+      ? buildReviewFragmentPrompt({
+          run: context.run,
+          evidence,
+          referenceIndexes: closingIndexes,
+          minimumContent: Math.max(
+            context.input.policy.minimumReviewContent * 2,
+            3 *
+              Math.max(
+                1,
+                context.input.policy.minimumReviewContent -
+                  reviewContentCount
+              )
+          ),
+          assignment: [
+            "Write only a supplementary continuation for the existing review; the server appends this fragment and does not replace prior text.",
+            "Add two to four coherent sections that deepen cross-study synthesis, disagreements and unresolved questions, evidence limitations and outlook, and the conclusion.",
+            "Do not repeat an abstract, introduction, core evidence table, references, or search report.",
+            `The existing review contains ${reviewContentCount} ${
+              context.run.language === "zh-CN"
+                ? "Han characters"
+                : "words"
+            }; the assembled review must reach at least ${context.input.policy.minimumReviewContent}.`
+          ].join(" "),
+          medicalSkillBundle
+        })
+      : null;
   const qaContractRetryPromise = qaContractRetryRequired
     ? context.generateModel({
         stage: "synthesize_review",
@@ -2045,10 +2083,22 @@ async function generateAndValidateShardedModelOutput(
         })
       })
     : null;
+  const reviewContentCorrectionPromise =
+    reviewContentCorrectionPrompt === null
+      ? null
+      : context.generateModel({
+          stage: "synthesize_review",
+          attempt: 4,
+          system: doctorResearchFragmentSystemPolicy,
+          prompt: reviewContentCorrectionPrompt
+        });
+  const boundedCorrectionPromise =
+    qaContractRetryPromise ?? reviewContentCorrectionPromise;
   const peerReviewAttempt =
     shardTransportRetryCompleted ||
     shardContractRetryCompleted ||
-    qaContractRetryRequired
+    qaContractRetryRequired ||
+    reviewContentCorrectionRequired
       ? 5
       : 4;
   const peerReviewPromise = context.generateModel({
@@ -2065,17 +2115,23 @@ async function generateAndValidateShardedModelOutput(
     system: doctorResearchPeerReviewSystemPolicy
   });
   let correctedQaResponse: ResearchModelResponse | null = null;
+  let correctedReviewResponse: ResearchModelResponse | null = null;
   let peerReviewResponse: ResearchModelResponse | null = null;
   let peerReviewUnavailableFallbackApplied = false;
-  if (qaContractRetryPromise) {
-    const [qaResult, peerReviewResult] = await Promise.allSettled([
-      qaContractRetryPromise,
-      peerReviewPromise
-    ]);
-    if (qaResult.status === "rejected") {
-      throw qaResult.reason;
+  if (boundedCorrectionPromise) {
+    const [correctionResult, peerReviewResult] =
+      await Promise.allSettled([
+        boundedCorrectionPromise,
+        peerReviewPromise
+      ]);
+    if (correctionResult.status === "rejected") {
+      throw correctionResult.reason;
     }
-    correctedQaResponse = qaResult.value;
+    if (qaContractRetryPromise) {
+      correctedQaResponse = correctionResult.value;
+    } else {
+      correctedReviewResponse = correctionResult.value;
+    }
     if (peerReviewResult.status === "fulfilled") {
       peerReviewResponse = peerReviewResult.value;
     } else if (isRecoverablePeerReviewError(peerReviewResult.reason)) {
@@ -2099,6 +2155,7 @@ async function generateAndValidateShardedModelOutput(
     }
   }
   let qaContractRetryCompleted = false;
+  let reviewContentCorrectionCompleted = false;
   if (correctedQaResponse) {
     const correctedQaFragment = parseQaFragment(
       correctedQaResponse.text
@@ -2118,6 +2175,42 @@ async function generateAndValidateShardedModelOutput(
       answers: correctedQaFragment.answers
     };
     qaContractRetryCompleted = true;
+    assembledDraft = assembleDraft();
+    validation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    if (!validation.ok) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        validation.errorCodes
+      );
+    }
+  }
+  if (correctedReviewResponse) {
+    const correctedReviewFragment = parseReviewFragment(
+      correctedReviewResponse.text
+    );
+    if (!correctedReviewFragment) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        ["review_content_fragment_contract_error"]
+      );
+      return null;
+    }
+    acceptedClosingFragment = {
+      schema_version: "doctor_research_review_fragment.v1",
+      markdown: [
+        acceptedClosingFragment.markdown.trim(),
+        correctedReviewFragment.markdown.trim()
+      ].join("\n\n")
+    };
+    reviewContentCorrectionCompleted = true;
     assembledDraft = assembleDraft();
     validation = validateGeneratedOutput(
       JSON.stringify(assembledDraft),
@@ -2169,6 +2262,9 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(qaContractRetryCompleted
           ? ["bounded_qa_contract_retry_completed"]
+          : []),
+        ...(reviewContentCorrectionCompleted
+          ? ["bounded_review_content_correction_completed"]
           : [])
       ]
     };
@@ -2247,6 +2343,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(qaContractRetryCompleted
         ? ["bounded_qa_contract_retry_completed"]
+        : []),
+      ...(reviewContentCorrectionCompleted
+        ? ["bounded_review_content_correction_completed"]
         : []),
       ...(peerReview.replacements.length > 0 &&
       !peerReviewPatchFallbackApplied
@@ -2640,8 +2739,6 @@ function parseFoundationFragment(
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    value.schema_version !==
-      "doctor_research_foundation_fragment.v3" ||
     !isJsonRecord(value.review) ||
     typeof value.review.title !== "string" ||
     typeof value.review.abstract !== "string" ||
@@ -2669,7 +2766,6 @@ function parseBodyFragment(text: string): BodyFragment | null {
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    value.schema_version !== "doctor_research_body_fragment.v1" ||
     typeof value.markdown !== "string" ||
     value.markdown.trim().length === 0 ||
     value.markdown.length > 100_000 ||
@@ -2696,7 +2792,6 @@ function parseQaFragment(text: string): QaFragment | null {
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    value.schema_version !== "doctor_research_qa_fragment.v1" ||
     !Array.isArray(value.predicted_questions) ||
     value.predicted_questions.length !== 5 ||
     value.predicted_questions.some(
@@ -2746,7 +2841,6 @@ function parseReviewFragment(text: string): ReviewFragment | null {
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    value.schema_version !== "doctor_research_review_fragment.v1" ||
     typeof value.markdown !== "string" ||
     value.markdown.trim().length === 0 ||
     value.markdown.length > 100_000
@@ -2769,7 +2863,6 @@ function parsePeerReviewDecision(
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    value.schema_version !== "doctor_research_peer_review.v1" ||
     value.approved !== true ||
     !Array.isArray(value.replacements) ||
     value.replacements.length > 12 ||
@@ -2899,10 +2992,10 @@ function parseBareMarkdownFragment(text: string): string | null {
     );
   const markdown = (fenced?.[1] ?? trimmed).trim();
   if (
-    markdown.length === 0 ||
+    markdown.length < 256 ||
     markdown.length > 100_000 ||
     /^(?:\{|\[)/u.test(markdown) ||
-    !/^#{1,6}[ \t]+\S/mu.test(markdown)
+    !/\[[1-9][0-9]*(?:[-–,][1-9][0-9]*)*\]/u.test(markdown)
   ) {
     return null;
   }
