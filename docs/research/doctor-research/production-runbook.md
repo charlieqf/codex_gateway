@@ -55,8 +55,9 @@ The overlay adds:
 
 - the Research API configuration and Research state volume to the existing
   public Gateway;
-- an internal, non-published LLM Gateway exposing only the three direct
-  GoldenCode/GLM-5.2 members;
+- an internal, non-published LLM Gateway whose production GoldenCode pool
+  currently enables only direct Aliyun GLM-5.2 with three-call concurrency;
+  Qianfan and Tencent remain disabled rollback entries;
 - one Worker and one independent maintenance process;
 - separate Research state, verified-backup, internal-LLM-state and log
   volumes.

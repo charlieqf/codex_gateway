@@ -421,8 +421,7 @@ describe("Research Worker controlled-beta workflow", () => {
       })
     );
     const foundationFragment = {
-      schema_version: "doctor_research_foundation_fragment.v1",
-      profile: foundation.profile,
+      schema_version: "doctor_research_foundation_fragment.v2",
       review: {
         title: foundation.review.title,
         abstract: foundation.review.abstract,
@@ -462,6 +461,7 @@ describe("Research Worker controlled-beta workflow", () => {
       releaseBarrier = resolve;
     });
     const attempts: number[] = [];
+    const synthesisPrompts = new Map<number, string>();
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -471,6 +471,10 @@ describe("Research Worker controlled-beta workflow", () => {
         async generate(modelInput) {
           attempts.push(modelInput.attempt);
           if (modelInput.attempt <= 3) {
+            synthesisPrompts.set(
+              modelInput.attempt,
+              modelInput.prompt
+            );
             activeSynthesisCalls += 1;
             maximumActiveSynthesisCalls = Math.max(
               maximumActiveSynthesisCalls,
@@ -527,16 +531,41 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(maximumActiveSynthesisCalls).toBe(3);
     expect(attempts).toEqual([1, 2, 3, 4]);
+    expect(synthesisPrompts.get(1)).toContain(
+      "doctor_research_foundation_fragment.v2"
+    );
+    expect(synthesisPrompts.get(1)).not.toContain(
+      "Untrusted official sources"
+    );
+    expect(synthesisPrompts.get(1)).not.toContain(
+      "\"profile\""
+    );
     const stored = fixture.store.getRunResultForSubject(
       fixture.lease.run.runId,
       fixture.lease.run.subjectId
     );
     const result = stored?.result as unknown as {
       quality: { warnings: string[] };
+      profile: {
+        research_directions: string[];
+        claims: Array<{ claim_type: string; text: string }>;
+      };
     };
+    expect(result.profile.research_directions).toEqual([
+      "research area cardiology"
+    ]);
+    expect(result.profile.claims).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          claim_type: "research_direction",
+          text: "research area cardiology"
+        })
+      ])
+    );
     expect(result.quality.warnings).toEqual(
       expect.arrayContaining([
         "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
         "peer_review_model_completed"
       ])
     );

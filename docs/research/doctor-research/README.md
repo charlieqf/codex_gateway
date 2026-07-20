@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.1` together with the
+The production Worker uses frozen execution contract `1.6.2` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,9 +66,11 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.1` splits synthesis into three bounded independent
+For latency, execution `1.6.2` splits synthesis into three bounded independent
 fragments, routes them with separate internal session affinity, and starts
-them concurrently against the three direct GLM pool members. A fourth call
+them concurrently against isolated direct-GLM capacity. The verified doctor
+profile is projected deterministically from exact official-source excerpts,
+so the model does not receive or regenerate that profile. A fourth call
 performs only the medical Skill's concise peer-review self-check and returns
 bounded exact-text corrections instead of rewriting the complete article.
 The Worker assembles the fragments, renders the 3-8-paper core evidence table
@@ -84,6 +86,12 @@ state can be observed before the client reaches its 600-second wait bound.
 Work that cannot close its evidence and output contracts in that window fails
 with `deadline_exceeded`; the service never publishes a partial four-file
 result.
+
+Production currently enables only the Aliyun direct GLM member with capacity
+for the three synthesis calls. Qianfan and Tencent remain explicit disabled
+configuration entries for reversible operator rollback; repeated live
+validation showed that a required long fragment could otherwise reach the
+240-second call limit without a response.
 
 ## API quick reference
 
