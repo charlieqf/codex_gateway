@@ -1593,6 +1593,10 @@ function validateGeneratedOutput(
     },
     review: {
       ...draft.review,
+      core_evidence: closeEmptyCoreEvidenceFields(
+        draft.review.core_evidence,
+        run.language
+      ),
       references: evidence.references,
       search_report: {
         databases: evidence.literatureDatabases,
@@ -1685,6 +1689,42 @@ function validateGeneratedOutput(
         errors: qualityErrors,
         errorCodes: stableValidationCodes(qualityErrors)
       };
+}
+
+function closeEmptyCoreEvidenceFields(
+  items: DoctorResearchModelDraft["review"]["core_evidence"],
+  language: ResearchRunRecord["language"]
+): DoctorResearchModelDraft["review"]["core_evidence"] {
+  const fallback =
+    language === "zh-CN"
+      ? {
+          study_type: "研究设计以所引 PubMed 摘要的原始表述为准。",
+          sample_and_source: "证据来源为公开 PubMed 元数据与摘要。",
+          methods: "方法信息仅按所引摘要概括。",
+          key_results: "研究结果请以所引 PubMed 摘要的原始报告为准。",
+          limitations: "当前仅核验公开元数据与摘要，不能替代全文评价。"
+        }
+      : {
+          study_type:
+            "The study design is limited to the description in the cited PubMed abstract.",
+          sample_and_source:
+            "Evidence is limited to public PubMed metadata and the abstract.",
+          methods:
+            "Methods are summarized only at the level reported in the cited abstract.",
+          key_results:
+            "Reported findings remain limited to the cited PubMed abstract.",
+          limitations:
+            "Only public metadata and abstract-level evidence were verified; this does not replace full-text appraisal."
+        };
+  return items.map((item) => ({
+    ...item,
+    study_type: item.study_type.trim() || fallback.study_type,
+    sample_and_source:
+      item.sample_and_source.trim() || fallback.sample_and_source,
+    methods: item.methods.trim() || fallback.methods,
+    key_results: item.key_results.trim() || fallback.key_results,
+    limitations: item.limitations.trim() || fallback.limitations
+  }));
 }
 
 function contractFailureCodes(
@@ -2476,17 +2516,24 @@ function normalizeFinalModelOutputForSafety(
           sanitize(keyword, allAbstracts)
         ),
         markdown: normalizedParagraphs.join("\n\n"),
-        core_evidence: output.review.core_evidence.map((item) => {
-          const source = abstractByReferenceId.get(item.reference_id) ?? "";
-          return {
-            ...item,
-            study_type: sanitize(item.study_type, source),
-            sample_and_source: sanitize(item.sample_and_source, source),
-            methods: sanitize(item.methods, source),
-            key_results: sanitize(item.key_results, source),
-            limitations: sanitize(item.limitations, source)
-          };
-        })
+        core_evidence: closeEmptyCoreEvidenceFields(
+          output.review.core_evidence.map((item) => {
+            const source =
+              abstractByReferenceId.get(item.reference_id) ?? "";
+            return {
+              ...item,
+              study_type: sanitize(item.study_type, source),
+              sample_and_source: sanitize(
+                item.sample_and_source,
+                source
+              ),
+              methods: sanitize(item.methods, source),
+              key_results: sanitize(item.key_results, source),
+              limitations: sanitize(item.limitations, source)
+            };
+          }),
+          language
+        )
       },
       predicted_questions: output.predicted_questions.map((question) =>
         sanitize(question, allAbstracts)

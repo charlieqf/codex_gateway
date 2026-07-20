@@ -993,12 +993,27 @@ describe("Research Worker controlled-beta workflow", () => {
       contentSha256: "b".repeat(64)
     });
     const invalid = modelOutput();
+    invalid.review.core_evidence[0]!.key_results =
+      "The unsupported result enrolled 2025 patients.";
     invalid.review.markdown = [
       "## Findings",
       "The cited study included 42 samples and supports cautious synthesis [1].",
       "This uncited contextual paragraph contains enough words to require direct evidence coverage before publication.",
       "An unsupported claim enrolled 2025 patients，while the abstract supports cautious synthesis [1]."
     ].join("\n\n");
+    const invalidDraft = {
+      schema_version: "doctor_research_model_draft.v1" as const,
+      profile: invalid.profile,
+      review: {
+        title: invalid.review.title,
+        abstract: invalid.review.abstract,
+        keywords: invalid.review.keywords,
+        markdown: invalid.review.markdown,
+        core_evidence: invalid.review.core_evidence
+      },
+      predicted_questions: invalid.predicted_questions,
+      answers: invalid.answers
+    };
     let modelCalls = 0;
     const validationEvents: string[][] = [];
     const outcome = await executeDoctorResearchWorkflow({
@@ -1010,7 +1025,7 @@ describe("Research Worker controlled-beta workflow", () => {
         async generate(input) {
           modelCalls += 1;
           return {
-            text: JSON.stringify(invalid),
+            text: JSON.stringify(invalidDraft),
             gatewayRequestId: `req_model_final_normalization_${input.attempt}`,
             usage: {
               promptTokens: 100,
@@ -1053,7 +1068,10 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     const result = stored?.result as
       | {
-          review: { markdown: string };
+          review: {
+            markdown: string;
+            core_evidence: Array<{ key_results: string }>;
+          };
           quality: { warnings: string[] };
         }
       | undefined;
@@ -1065,6 +1083,9 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     expect(result?.review.markdown).toContain(
       "reflects experience in specific patients"
+    );
+    expect(result?.review.core_evidence[0]?.key_results).toContain(
+      "Reported findings remain limited to the cited PubMed abstract"
     );
     expect(result?.review.markdown).not.toContain("uncited contextual");
     expect(result?.review.markdown).not.toContain("2025 patients");
