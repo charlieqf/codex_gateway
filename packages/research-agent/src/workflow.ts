@@ -1824,62 +1824,79 @@ async function generateAndValidateShardedModelOutput(
         system: doctorResearchFragmentSystemPolicy
     }
   ] as const;
-  // The provider has two dependable concurrent slots in production. Let the
-  // first completed worker immediately pick up the third shard so synthesis
-  // stays overlapped without provoking a third simultaneous admission.
-  const settled: PromiseSettledResult<ResearchModelResponse>[] =
-    new Array(shardInputs.length);
-  let nextShardIndex = 0;
-  const runShardWorker = async (): Promise<void> => {
-    while (nextShardIndex < shardInputs.length) {
-      const index = nextShardIndex;
-      nextShardIndex += 1;
-      const shardInput = shardInputs[index]!;
-      try {
-        settled[index] = {
-          status: "fulfilled",
-          value: await context.generateModel(shardInput)
-        };
-      } catch (reason) {
-        settled[index] = { status: "rejected", reason };
+  // Start optimistically with two provider slots. If either admission is
+  // rate-limited, keep the accepted call, stop launching new concurrent work,
+  // finish the untouched third shard, and then spend the one bounded retry on
+  // the rejected shard. This adapts to transient one-slot provider capacity
+  // without wasting the retry on another immediate concurrent admission.
+  type ShardSettlement =
+    | {
+        index: number;
+        status: "fulfilled";
+        value: ResearchModelResponse;
       }
-    }
-  };
-  await Promise.all([runShardWorker(), runShardWorker()]);
-  const responses = settled.map((result) =>
-    result.status === "fulfilled" ? result.value : null
-  );
-  const failedIndexes = settled.flatMap((result, index) =>
-    result.status === "rejected" ? [index] : []
-  );
-  const singleFailure =
-    failedIndexes.length === 1
-      ? settled[failedIndexes[0]!]!
-      : null;
+    | { index: number; status: "rejected"; reason: unknown };
+  const responses: Array<ResearchModelResponse | null> =
+    Array.from({ length: shardInputs.length }, () => null);
+  const pendingIndexes = shardInputs.map((_, index) => index);
+  const active = new Map<number, Promise<ShardSettlement>>();
+  let maximumConcurrency = 2;
+  let nextAttempt = 1;
   let shardTransportRetryCompleted = false;
-  if (
-    singleFailure?.status === "rejected" &&
-    isRetryableShardTransportError(singleFailure.reason)
+  let terminalShardError: unknown = null;
+  const launchShard = (index: number): void => {
+    const input = shardInputs[index]!;
+    const attempt = nextAttempt;
+    nextAttempt += 1;
+    active.set(
+      index,
+      context.generateModel({ ...input, attempt }).then(
+        (value): ShardSettlement => ({
+          index,
+          status: "fulfilled",
+          value
+        }),
+        (reason): ShardSettlement => ({
+          index,
+          status: "rejected",
+          reason
+        })
+      )
+    );
+  };
+  while (
+    terminalShardError === null &&
+    (pendingIndexes.length > 0 || active.size > 0)
   ) {
-    const retryIndex = failedIndexes[0]!;
-    const retryInput = shardInputs[retryIndex]!;
-    responses[retryIndex] = await context.generateModel({
-      ...retryInput,
-      attempt: 4
-    });
-    shardTransportRetryCompleted = true;
-  } else if (failedIndexes.length > 0) {
-    const failed = settled[failedIndexes[0]!]!;
-    if (failed.status === "rejected") {
-      throw failed.reason;
+    while (
+      pendingIndexes.length > 0 &&
+      active.size < maximumConcurrency
+    ) {
+      launchShard(pendingIndexes.shift()!);
     }
+    const settlement = await Promise.race(active.values());
+    active.delete(settlement.index);
+    if (settlement.status === "fulfilled") {
+      responses[settlement.index] = settlement.value;
+      continue;
+    }
+    if (
+      !shardTransportRetryCompleted &&
+      isRetryableShardTransportError(settlement.reason)
+    ) {
+      shardTransportRetryCompleted = true;
+      maximumConcurrency = 1;
+      pendingIndexes.push(settlement.index);
+      continue;
+    }
+    terminalShardError = settlement.reason;
+  }
+  if (terminalShardError !== null) {
+    await Promise.all(active.values());
+    throw terminalShardError;
   }
   let [foundationResponse, middleResponse, closingResponse] = responses;
   if (!foundationResponse || !middleResponse || !closingResponse) {
-    const failed = settled[failedIndexes[0]!]!;
-    if (failed?.status === "rejected") {
-      throw failed.reason;
-    }
     throw new Error("Research synthesis shard response is missing.");
   }
 

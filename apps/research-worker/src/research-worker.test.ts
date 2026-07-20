@@ -389,6 +389,7 @@ describe("Research Worker controlled-beta workflow", () => {
 
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
+    ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     ["body", "bounded_qa_contract_retry_completed"],
     [
@@ -511,6 +512,12 @@ describe("Research Worker controlled-beta workflow", () => {
     const barrier = new Promise<void>((resolve) => {
       releaseBarrier = resolve;
     });
+    let releaseAdmissionBarrier: (() => void) | null = null;
+    const admissionBarrier = new Promise<void>((resolve) => {
+      releaseAdmissionBarrier = resolve;
+    });
+    let acceptedAdmissionCallCompleted = false;
+    let thirdShardStartedAfterAdmissionCompletion = false;
     let activeCorrectionCalls = 0;
     let maximumActiveCorrectionCalls = 0;
     let releaseCorrectionBarrier: (() => void) | null = null;
@@ -543,6 +550,43 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumActiveSynthesisCalls,
               activeSynthesisCalls
             );
+            if (retryKind === "admission") {
+              if (modelInput.attempt === 1) {
+                await admissionBarrier;
+                activeSynthesisCalls -= 1;
+                acceptedAdmissionCallCompleted = true;
+                return {
+                  text: fragments.get(1)!,
+                  gatewayRequestId: "req_sharded_admission_1",
+                  usage: {
+                    promptTokens: 100,
+                    completionTokens: 1_000,
+                    totalTokens: 1_100
+                  }
+                };
+              }
+              if (modelInput.attempt === 2) {
+                activeSynthesisCalls -= 1;
+                setImmediate(() => releaseAdmissionBarrier?.());
+                throw new ResearchModelClientError(
+                  "rate_limited",
+                  429,
+                  "req_sharded_admission_2"
+                );
+              }
+              thirdShardStartedAfterAdmissionCompletion =
+                acceptedAdmissionCallCompleted;
+              activeSynthesisCalls -= 1;
+              return {
+                text: fragments.get(3)!,
+                gatewayRequestId: "req_sharded_admission_3",
+                usage: {
+                  promptTokens: 100,
+                  completionTokens: 1_000,
+                  totalTokens: 1_100
+                }
+              };
+            }
             if (activeSynthesisCalls === 2) {
               releaseBarrier?.();
             }
@@ -613,6 +657,8 @@ describe("Research Worker controlled-beta workflow", () => {
               text:
                 retryKind === "transport"
                   ? JSON.stringify(foundationFragment)
+                  : retryKind === "admission"
+                    ? fragments.get(2)!
                   : retryKind === "contract"
                     ? fragments.get(3)!
                     : JSON.stringify({
@@ -697,6 +743,9 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "succeeded"
     });
     expect(maximumActiveSynthesisCalls).toBe(2);
+    if (retryKind === "admission") {
+      expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
+    }
     expect(attempts).toEqual(
       retryKind === "peer-timeout"
         || retryKind === "citation-closure"
