@@ -1212,6 +1212,7 @@ async function generateAndValidateModelOutput(
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
           "in_vitro_scope_required",
+          "case_evidence_scope_required",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1312,6 +1313,7 @@ async function generateAndValidateModelOutput(
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
           "in_vitro_scope_required",
+          "case_evidence_scope_required",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1346,6 +1348,7 @@ async function generateAndValidateModelOutput(
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
           "in_vitro_scope_required",
+          "case_evidence_scope_required",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1410,6 +1413,7 @@ async function generateAndValidateModelOutput(
             "paragraph_citation_coverage",
             "numeric_evidence_closure",
             "in_vitro_scope_required",
+            "case_evidence_scope_required",
             "causal_claim_evidence_grade"
           ].includes(code)
         )
@@ -2424,6 +2428,20 @@ function normalizeFinalModelOutputForSafety(
         language === "zh-CN"
           ? " 该段所引证据为观察性资料；上述表述仅指关联，不能推断因果。"
           : " The cited evidence is observational; this describes an association and cannot establish causality."
+      }`;
+      changed = true;
+    }
+    if (
+      citedReferenceIds.length > 0 &&
+      /\b(?:case report|case series)\b/u.test(normalizedCitedEvidence) &&
+      !/\b(?:case report|case series|patient|patients)\b|病例|患者/u.test(
+        paragraph.toLowerCase()
+      )
+    ) {
+      paragraph = `${paragraph}${
+        language === "zh-CN"
+          ? " 该段所引证据包括病例报告或病例系列，仅反映特定患者经验，不能直接外推。"
+          : " The cited evidence includes a case report or case series, reflects experience in specific patients, and cannot be directly generalized."
       }`;
       changed = true;
     }

@@ -987,7 +987,7 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       ],
       abstractText:
-        "This in vitro cell line study included 42 samples and supports cautious synthesis.",
+        "This in vitro cell line case report included 42 samples and supports cautious synthesis.",
       sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
       accessedAt: "2026-07-18T03:00:00.000Z",
       contentSha256: "b".repeat(64)
@@ -1037,12 +1037,14 @@ describe("Research Worker controlled-beta workflow", () => {
       [
         "paragraph_citation_coverage",
         "numeric_evidence_closure",
-        "in_vitro_scope_required"
+        "in_vitro_scope_required",
+        "case_evidence_scope_required"
       ],
       [
         "paragraph_citation_coverage",
         "numeric_evidence_closure",
-        "in_vitro_scope_required"
+        "in_vitro_scope_required",
+        "case_evidence_scope_required"
       ]
     ]);
     const stored = fixture.store.getRunResultForSubject(
@@ -1060,6 +1062,9 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     expect(result?.review.markdown).toContain(
       "cannot be directly extrapolated to clinical effects"
+    );
+    expect(result?.review.markdown).toContain(
+      "reflects experience in specific patients"
     );
     expect(result?.review.markdown).not.toContain("uncited contextual");
     expect(result?.review.markdown).not.toContain("2025 patients");
