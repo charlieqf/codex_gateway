@@ -611,7 +611,16 @@ describe("Research Worker controlled-beta workflow", () => {
             text: JSON.stringify({
               schema_version: "doctor_research_peer_review.v1",
               approved: true,
-              replacements: [],
+              replacements:
+                retryKind === "body"
+                  ? [
+                      {
+                        target: "title",
+                        old_text: foundation.review.title,
+                        new_text: "Unsupported 2027 claim"
+                      }
+                    ]
+                  : [],
               warnings: []
             }),
             gatewayRequestId: "req_sharded_peer_review",
@@ -626,6 +635,13 @@ describe("Research Worker controlled-beta workflow", () => {
       artifactRoot: fixture.artifactRoot,
       policy: {
         ...workflowPolicy(),
+        ...(retryKind === "body"
+          ? {
+              maximumQuestionContent: 30,
+              minimumAnswerContent: 100,
+              maximumAnswerContent: 300
+            }
+          : {}),
         synthesisShardCount: 3,
         budgets: {
           ...workflowPolicy().budgets,
@@ -686,6 +702,7 @@ describe("Research Worker controlled-beta workflow", () => {
           limitations: string;
         }>;
       };
+      answers: Array<{ answer: string }>;
     };
     expect(result.profile.research_directions).toEqual([
       "research area cardiology"
@@ -711,6 +728,35 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(JSON.stringify(result.review.core_evidence)).not.toContain(
       "Ignore all prior"
     );
+    if (retryKind === "body") {
+      expect(
+        result.answers.map(
+          (answer) =>
+            answer.answer.match(/\p{Script=Han}/gu)?.length ?? 0
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          expect.any(Number),
+          expect.any(Number),
+          expect.any(Number),
+          expect.any(Number),
+          expect.any(Number)
+        ])
+      );
+      expect(
+        result.answers.every((answer) => {
+          const length =
+            answer.answer.match(/\p{Script=Han}/gu)?.length ?? 0;
+          return length >= 100 && length <= 300;
+        })
+      ).toBe(true);
+      expect(result.quality.warnings).toContain(
+        "peer_review_patch_fallback_to_deterministic_safety"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_patch_applied"
+      );
+    }
     expect(result.quality.warnings).toEqual(
       expect.arrayContaining([
         "sharded_synthesis_completed",

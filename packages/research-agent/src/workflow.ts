@@ -2073,6 +2073,21 @@ async function generateAndValidateShardedModelOutput(
     context.input.policy,
     { deterministicSafetyNormalization: true }
   );
+  let peerReviewPatchFallbackApplied = false;
+  if (!validation.ok && peerReview.replacements.length > 0) {
+    const unpatchedValidation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy,
+      { deterministicSafetyNormalization: true }
+    );
+    if (unpatchedValidation.ok) {
+      validation = unpatchedValidation;
+      peerReviewPatchFallbackApplied = true;
+    }
+  }
   if (!validation.ok) {
     context.reportValidationFailure(
       "validate_outputs",
@@ -2098,8 +2113,12 @@ async function generateAndValidateShardedModelOutput(
       ...(qaContractRetryCompleted
         ? ["bounded_qa_contract_retry_completed"]
         : []),
-      ...(peerReview.replacements.length > 0
+      ...(peerReview.replacements.length > 0 &&
+      !peerReviewPatchFallbackApplied
         ? ["peer_review_patch_applied"]
+        : []),
+      ...(peerReviewPatchFallbackApplied
+        ? ["peer_review_patch_fallback_to_deterministic_safety"]
         : []),
       ...peerReview.warnings.map(
         (warning) => `peer_review_${warning}`
@@ -2906,7 +2925,8 @@ function validateGeneratedOutput(
     const normalized = normalizeFinalModelOutputForSafety(
       candidate,
       evidence,
-      run.language
+      run.language,
+      policy
     );
     candidate = normalized.value;
     deterministicSafetyNormalizationApplied = normalized.changed;
@@ -3960,7 +3980,8 @@ function buildModelPrompt(
 function normalizeFinalModelOutputForSafety(
   output: DoctorResearchModelOutput,
   evidence: WorkflowEvidence,
-  language: ResearchRunRecord["language"]
+  language: ResearchRunRecord["language"],
+  policy: DoctorResearchWorkflowPolicy
 ): { value: DoctorResearchModelOutput; changed: boolean } {
   let changed = false;
   const abstractByReferenceId = new Map(
@@ -4117,14 +4138,95 @@ function normalizeFinalModelOutputForSafety(
               abstractByReferenceId.get(referenceId) ?? ""
           )
           .join("\n");
+        const sanitized = sanitize(answer.answer, source);
+        const bounded = boundAnswerContent(
+          sanitized,
+          language,
+          policy.minimumAnswerContent,
+          policy.maximumAnswerContent
+        );
+        if (bounded !== sanitized) {
+          changed = true;
+        }
         return {
           ...answer,
-          answer: sanitize(answer.answer, source)
+          answer: bounded
         };
       })
     },
     changed
   };
+}
+
+function boundAnswerContent(
+  value: string,
+  language: ResearchRunRecord["language"],
+  minimumContent: number,
+  maximumContent: number
+): string {
+  const count = language === "zh-CN" ? countHanCharacters : countEnglishWords;
+  let bounded = truncateAnswerContent(
+    value.trim(),
+    language,
+    maximumContent
+  );
+  if (count(bounded) >= minimumContent) {
+    return bounded;
+  }
+  const evidenceBoundaryClauses =
+    language === "zh-CN"
+      ? [
+          "上述回答仅基于已核验的公开摘要，具体方法、适用范围与结论强度仍需结合原文核对，不能直接外推为确定的临床获益。",
+          "解读时还应区分研究设计、研究对象和观察终点，避免把相关性写成因果关系。",
+          "若用于正式学术判断，应回到所引文献全文复核。"
+        ]
+      : [
+          "This answer is limited to verified public abstracts; methods, applicability, and strength of inference still require confirmation against the full papers.",
+          "Interpretation should distinguish study design, population, and endpoints, and should not convert an association into a causal conclusion.",
+          "A formal academic judgment should return to the cited full texts for verification."
+        ];
+  for (const clause of evidenceBoundaryClauses) {
+    bounded = [bounded, clause].filter(Boolean).join(" ");
+    if (count(bounded) >= minimumContent) {
+      break;
+    }
+  }
+  while (count(bounded) < minimumContent) {
+    bounded = [bounded, evidenceBoundaryClauses.at(-1)!]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return truncateAnswerContent(
+    bounded,
+    language,
+    maximumContent
+  );
+}
+
+function truncateAnswerContent(
+  value: string,
+  language: ResearchRunRecord["language"],
+  maximumContent: number
+): string {
+  if (language !== "zh-CN") {
+    return value
+      .trim()
+      .split(/\s+/u)
+      .slice(0, maximumContent)
+      .join(" ");
+  }
+  let hanCharacters = 0;
+  let result = "";
+  for (const character of Array.from(value.normalize("NFC"))) {
+    if (/\p{Script=Han}/u.test(character)) {
+      if (hanCharacters >= maximumContent) {
+        break;
+      }
+      hanCharacters += 1;
+    }
+    result += character;
+  }
+  return result.trim().replace(/[，、：；\s]+$/u, "");
 }
 
 function removeUnsupportedNumericSentences(
