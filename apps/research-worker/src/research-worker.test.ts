@@ -468,7 +468,9 @@ describe("Research Worker controlled-beta workflow", () => {
         abstract: foundation.review.abstract,
         keywords: foundation.review.keywords,
         markdown: foundation.review.markdown
-      }
+      },
+      ignored_transport_field:
+        "deterministically projected away"
     };
     const initialBodyAnswers =
       retryKind === "body"
@@ -497,13 +499,23 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         3,
-        JSON.stringify({
-          schema_version: "doctor_research_review_fragment.v1",
-          markdown: longChineseReviewFragment(
-            "证据综合、局限与结论",
-            70
-          )
-        })
+        retryKind === "peer-timeout"
+          ? [
+              "```markdown",
+              longChineseReviewFragment(
+                "transport normalization",
+                70
+              ),
+              "```"
+            ].join("\n")
+          : JSON.stringify({
+              schema_version:
+                "doctor_research_review_fragment.v1",
+              markdown: longChineseReviewFragment(
+                "证据综合、局限与结论",
+                70
+              )
+            })
       ]
     ]);
     let activeSynthesisCalls = 0;

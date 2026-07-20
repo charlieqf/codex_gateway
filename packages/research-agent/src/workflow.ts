@@ -2640,16 +2640,15 @@ function parseFoundationFragment(
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "review,schema_version" ||
     value.schema_version !==
       "doctor_research_foundation_fragment.v3" ||
     !isJsonRecord(value.review) ||
-    Object.keys(value.review).sort().join(",") !==
-      "abstract,keywords,markdown,title" ||
     typeof value.review.title !== "string" ||
     typeof value.review.abstract !== "string" ||
     !Array.isArray(value.review.keywords) ||
+    value.review.keywords.some(
+      (keyword) => typeof keyword !== "string"
+    ) ||
     typeof value.review.markdown !== "string" ||
     value.review.markdown.trim().length === 0 ||
     value.review.markdown.length > 100_000
@@ -2670,8 +2669,6 @@ function parseBodyFragment(text: string): BodyFragment | null {
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "answers,markdown,predicted_questions,schema_version" ||
     value.schema_version !== "doctor_research_body_fragment.v1" ||
     typeof value.markdown !== "string" ||
     value.markdown.trim().length === 0 ||
@@ -2699,8 +2696,6 @@ function parseQaFragment(text: string): QaFragment | null {
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "answers,predicted_questions,schema_version" ||
     value.schema_version !== "doctor_research_qa_fragment.v1" ||
     !Array.isArray(value.predicted_questions) ||
     value.predicted_questions.length !== 5 ||
@@ -2714,8 +2709,6 @@ function parseQaFragment(text: string): QaFragment | null {
     value.answers.some(
       (answer, index) =>
         !isJsonRecord(answer) ||
-        Object.keys(answer).sort().join(",") !==
-          "answer,question_index,source_ids" ||
         answer.question_index !== index + 1 ||
         typeof answer.answer !== "string" ||
         answer.answer.trim().length === 0 ||
@@ -2742,12 +2735,17 @@ function parseQaFragment(text: string): QaFragment | null {
 function parseReviewFragment(text: string): ReviewFragment | null {
   const parsed = parseStrictFragmentJson(text);
   if (!parsed.ok) {
-    return null;
+    const markdown = parseBareMarkdownFragment(text);
+    return markdown === null
+      ? null
+      : {
+          schema_version: "doctor_research_review_fragment.v1",
+          markdown
+        };
   }
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    Object.keys(value).sort().join(",") !== "markdown,schema_version" ||
     value.schema_version !== "doctor_research_review_fragment.v1" ||
     typeof value.markdown !== "string" ||
     value.markdown.trim().length === 0 ||
@@ -2771,8 +2769,6 @@ function parsePeerReviewDecision(
   const value = parsed.value;
   if (
     !isJsonRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "approved,replacements,schema_version,warnings" ||
     value.schema_version !== "doctor_research_peer_review.v1" ||
     value.approved !== true ||
     !Array.isArray(value.replacements) ||
@@ -2786,8 +2782,6 @@ function parsePeerReviewDecision(
   for (const replacement of value.replacements) {
     if (
       !isJsonRecord(replacement) ||
-      Object.keys(replacement).sort().join(",") !==
-        "new_text,old_text,target" ||
       !["title", "abstract", "markdown"].includes(
         String(replacement.target)
       ) ||
@@ -2827,21 +2821,92 @@ function parsePeerReviewDecision(
 function parseStrictFragmentJson(
   text: string
 ): { ok: true; value: unknown } | { ok: false } {
-  const trimmed = text.trim();
+  const trimmed = text.trim().replace(/^\uFEFF/u, "");
   try {
     return { ok: true, value: JSON.parse(trimmed) };
   } catch {
     const fenced =
       /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
-    if (!fenced) {
-      return { ok: false };
-    }
-    try {
-      return { ok: true, value: JSON.parse(fenced[1]!.trim()) };
-    } catch {
-      return { ok: false };
+    if (fenced) {
+      try {
+        return { ok: true, value: JSON.parse(fenced[1]!.trim()) };
+      } catch {
+        // Continue to the bounded object extractor below.
+      }
     }
   }
+  const objectText = extractSingleJsonObject(trimmed);
+  if (objectText === null) {
+    return { ok: false };
+  }
+  try {
+    return { ok: true, value: JSON.parse(objectText) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function extractSingleJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) {
+    return null;
+  }
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index]!;
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+    if (character === "{") {
+      depth += 1;
+      continue;
+    }
+    if (character !== "}") {
+      continue;
+    }
+    depth -= 1;
+    if (depth !== 0) {
+      continue;
+    }
+    const prefix = text.slice(0, start);
+    const suffix = text.slice(index + 1);
+    if (/[{}]/u.test(prefix) || /[{}]/u.test(suffix)) {
+      return null;
+    }
+    return text.slice(start, index + 1);
+  }
+  return null;
+}
+
+function parseBareMarkdownFragment(text: string): string | null {
+  const trimmed = text.trim().replace(/^\uFEFF/u, "");
+  const fenced =
+    /^```(?:markdown|md)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(
+      trimmed
+    );
+  const markdown = (fenced?.[1] ?? trimmed).trim();
+  if (
+    markdown.length === 0 ||
+    markdown.length > 100_000 ||
+    /^(?:\{|\[)/u.test(markdown) ||
+    !/^#{1,6}[ \t]+\S/mu.test(markdown)
+  ) {
+    return null;
+  }
+  return markdown;
 }
 
 function applyPeerReviewPatches(
