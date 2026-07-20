@@ -389,7 +389,8 @@ describe("Research Worker controlled-beta workflow", () => {
 
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
-    ["contract", "bounded_shard_contract_retry_completed"]
+    ["contract", "bounded_shard_contract_retry_completed"],
+    ["body", "bounded_body_contract_retry_completed"]
   ] as const)(
     "runs concurrent synthesis shards, retries one %s failure, and peer reviews",
     async (retryKind, retryWarning) => {
@@ -455,6 +456,13 @@ describe("Research Worker controlled-beta workflow", () => {
         markdown: foundation.review.markdown
       }
     };
+    const initialBodyAnswers =
+      retryKind === "body"
+        ? foundation.answers.map((answer) => ({
+            ...answer,
+            answer: "短"
+          }))
+        : foundation.answers;
     const fragments = new Map<number, string>([
       [1, JSON.stringify(foundationFragment)],
       [
@@ -468,7 +476,7 @@ describe("Research Worker controlled-beta workflow", () => {
               55
             ),
             predicted_questions: foundation.predicted_questions,
-            answers: foundation.answers
+            answers: initialBodyAnswers
           }),
           "```"
         ].join("\n")
@@ -559,7 +567,19 @@ describe("Research Worker controlled-beta workflow", () => {
               text:
                 retryKind === "transport"
                   ? JSON.stringify(foundationFragment)
-                  : fragments.get(3)!,
+                  : retryKind === "contract"
+                    ? fragments.get(3)!
+                    : JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: longChineseReviewFragment(
+                          "方法与证据比较",
+                          55
+                        ),
+                        predicted_questions:
+                          foundation.predicted_questions,
+                        answers: foundation.answers
+                      }),
               gatewayRequestId: "req_sharded_retry",
               usage: {
                 promptTokens: 100,

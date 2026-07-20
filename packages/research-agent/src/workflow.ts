@@ -1891,26 +1891,30 @@ async function generateAndValidateShardedModelOutput(
       "Research fragment contract state is inconsistent after validation."
     );
   }
-  const assembledDraft: DoctorResearchModelDraft = {
+  const acceptedFoundationFragment = foundationFragment;
+  let acceptedMiddleFragment = middleFragment;
+  const acceptedClosingFragment = closingFragment;
+  const assembleDraft = (): DoctorResearchModelDraft => ({
     schema_version: "doctor_research_model_draft.v1",
     profile: deterministicProfile,
     review: {
-      title: foundationFragment.review.title,
-      abstract: foundationFragment.review.abstract,
-      keywords: foundationFragment.review.keywords,
+      title: acceptedFoundationFragment.review.title,
+      abstract: acceptedFoundationFragment.review.abstract,
+      keywords: acceptedFoundationFragment.review.keywords,
       markdown: [
-        foundationFragment.review.markdown.trim(),
-        middleFragment.markdown.trim(),
-        closingFragment.markdown.trim()
+        acceptedFoundationFragment.review.markdown.trim(),
+        acceptedMiddleFragment.markdown.trim(),
+        acceptedClosingFragment.markdown.trim()
       ].join("\n\n"),
       core_evidence: buildDeterministicCoreEvidence(
         foundationEvidence,
         context.run.language
       )
     },
-    predicted_questions: middleFragment.predicted_questions,
-    answers: middleFragment.answers
-  };
+    predicted_questions: acceptedMiddleFragment.predicted_questions,
+    answers: acceptedMiddleFragment.answers
+  });
+  let assembledDraft = assembleDraft();
   let validation = validateGeneratedOutput(
     JSON.stringify(assembledDraft),
     context.run,
@@ -1925,6 +1929,65 @@ async function generateAndValidateShardedModelOutput(
       validation.errorCodes
     );
   }
+  let bodyContractRetryCompleted = false;
+  if (
+    !validation.ok &&
+    !shardTransportRetryCompleted &&
+    !shardContractRetryCompleted &&
+    validation.errorCodes.some((code) =>
+      [
+        "answer_length_contract",
+        "question_length_contract"
+      ].includes(code)
+    )
+  ) {
+    const correctedBodyResponse = await context.generateModel({
+      stage: "synthesize_review",
+      attempt: 4,
+      system: doctorResearchBodySystemPolicy,
+      prompt: [
+        middlePrompt,
+        "BOUNDED BODY AND Q&A CONTRACT CORRECTION",
+        "The prior body fragment passed transport parsing but failed deterministic body or Q&A limits. Return one corrected doctor_research_body_fragment.v1 object with exactly the requested fields.",
+        `Each of the five answers must contain ${context.input.policy.minimumAnswerContent}-${context.input.policy.maximumAnswerContent} content characters. Each question must contain at most ${context.input.policy.maximumQuestionContent} content characters.`,
+        "Preserve exactly five question-answer pairs in order. Use only supplied source IDs. Remove every unsupported number; a number in an answer is allowed only when it occurs in an abstract named by that answer's source_ids.",
+        `Deterministic diagnostics: ${JSON.stringify(
+          validation.errors.slice(0, 24)
+        )}`,
+        `Prior body fragment: ${JSON.stringify(
+          acceptedMiddleFragment
+        )}`
+      ].join("\n\n")
+    });
+    const correctedBodyFragment = parseBodyFragment(
+      correctedBodyResponse.text
+    );
+    if (!correctedBodyFragment) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        ["body_fragment_contract_error"]
+      );
+      return null;
+    }
+    acceptedMiddleFragment = correctedBodyFragment;
+    bodyContractRetryCompleted = true;
+    assembledDraft = assembleDraft();
+    validation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    if (!validation.ok) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        validation.errorCodes
+      );
+    }
+  }
 
   const peerReviewPrompt = buildPeerReviewPatchPrompt({
     run: context.run,
@@ -1934,7 +1997,11 @@ async function generateAndValidateShardedModelOutput(
     medicalSkillBundle
   });
   const peerReviewAttempt =
-    shardTransportRetryCompleted || shardContractRetryCompleted ? 5 : 4;
+    shardTransportRetryCompleted ||
+    shardContractRetryCompleted ||
+    bodyContractRetryCompleted
+      ? 5
+      : 4;
   const peerReviewResponse = await context.generateModel({
     stage: "validate_outputs",
     attempt: peerReviewAttempt,
@@ -1991,6 +2058,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(shardContractRetryCompleted
         ? ["bounded_shard_contract_retry_completed"]
+        : []),
+      ...(bodyContractRetryCompleted
+        ? ["bounded_body_contract_retry_completed"]
         : []),
       ...(peerReview.replacements.length > 0
         ? ["peer_review_patch_applied"]
