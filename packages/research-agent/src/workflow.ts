@@ -1929,7 +1929,7 @@ async function generateAndValidateShardedModelOutput(
     referenceIndexes: closingIndexes,
     minimumContent: closingMinimum,
     assignment:
-      "Write the closing body of the review. Include one topic-specific transition section when the evidence supports it, then sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Evidence synthesis must be at least 800 characters, limitations and outlook at least 600 characters, and the conclusion one or two full paragraphs. Do not write an abstract, evidence table, references, or search report.",
+      "Write the closing body of the review. Include one topic-specific transition section only when the evidence supports at least 600 content characters for it; otherwise omit that optional section. Then write sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Evidence synthesis must be at least 800 characters, limitations and outlook at least 600 characters, and the conclusion one or two full paragraphs. Do not write an abstract, evidence table, references, or search report.",
     medicalSkillBundle
   });
   const shardInputs = [
@@ -2103,6 +2103,29 @@ async function generateAndValidateShardedModelOutput(
       "Research fragment contract state is inconsistent after validation."
     );
   }
+  const shardSkillNormalizationWarnings: string[] = [];
+  const normalizedFoundation =
+    normalizeNearMinimumFoundationAbstract(
+      foundationFragment,
+      context.run.language
+    );
+  foundationFragment = normalizedFoundation.fragment;
+  if (normalizedFoundation.changed) {
+    shardSkillNormalizationWarnings.push(
+      "deterministic_abstract_evidence_boundary_supplement_applied"
+    );
+  }
+  const normalizedClosing =
+    dropUnderfilledOptionalClosingTopic(
+      closingFragment,
+      context.run.language
+    );
+  closingFragment = normalizedClosing.fragment;
+  if (normalizedClosing.changed) {
+    shardSkillNormalizationWarnings.push(
+      "deterministic_underfilled_optional_topic_removed"
+    );
+  }
   const fragmentSkillErrors = (): Array<{
     index: number;
     errors: string[];
@@ -2168,6 +2191,38 @@ async function generateAndValidateShardedModelOutput(
         ["fragment_contract_error"]
       );
       return null;
+    }
+    const normalizedRetryFoundation =
+      normalizeNearMinimumFoundationAbstract(
+        foundationFragment,
+        context.run.language
+      );
+    foundationFragment = normalizedRetryFoundation.fragment;
+    if (
+      normalizedRetryFoundation.changed &&
+      !shardSkillNormalizationWarnings.includes(
+        "deterministic_abstract_evidence_boundary_supplement_applied"
+      )
+    ) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_abstract_evidence_boundary_supplement_applied"
+      );
+    }
+    const normalizedRetryClosing =
+      dropUnderfilledOptionalClosingTopic(
+        closingFragment,
+        context.run.language
+      );
+    closingFragment = normalizedRetryClosing.fragment;
+    if (
+      normalizedRetryClosing.changed &&
+      !shardSkillNormalizationWarnings.includes(
+        "deterministic_underfilled_optional_topic_removed"
+      )
+    ) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_underfilled_optional_topic_removed"
+      );
     }
     remainingFragmentSkillErrors = fragmentSkillErrors();
   }
@@ -2497,6 +2552,7 @@ async function generateAndValidateShardedModelOutput(
         "deterministic_core_evidence_projection_completed",
         "peer_review_model_attempted",
         peerReviewFallbackWarning,
+        ...shardSkillNormalizationWarnings,
         ...(shardTransportRetryCompleted
           ? ["bounded_shard_transport_retry_completed"]
           : []),
@@ -2572,6 +2628,7 @@ async function generateAndValidateShardedModelOutput(
       "deterministic_profile_projection_completed",
       "deterministic_core_evidence_projection_completed",
       "peer_review_model_completed",
+      ...shardSkillNormalizationWarnings,
       ...(shardTransportRetryCompleted
         ? ["bounded_shard_transport_retry_completed"]
         : []),
@@ -2685,6 +2742,9 @@ function buildFoundationFragmentPrompt(input: {
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_foundation_fragment.v3\",\"review\":{\"title\":\"...\",\"abstract\":\"...\",\"keywords\":[\"...\"],\"markdown\":\"...\"}}.",
     "This call owns only the academic title, 300-500-character abstract, keywords, and introduction. The Worker constructs the verified doctor profile and 3-5-row core evidence table deterministically from closed evidence. Do not return profile fields, core evidence, questions, or answers.",
     reviewLanguageInstruction(input.run.language),
+    input.run.language === "zh-CN"
+      ? "The final abstract contract remains 300-500 Han characters; aim for 340-450 Han characters so deterministic counting does not fall just below the medical Skill minimum."
+      : "Keep the abstract within the configured English contract; aim comfortably above its minimum so deterministic word counting does not fall just below it.",
     `review.markdown must begin with ${
       input.run.language === "zh-CN"
         ? "\"## 引言\""
@@ -3095,6 +3155,91 @@ interface SkillReviewSection {
     | "synthesis"
     | "limitations"
     | "conclusion";
+}
+
+function normalizeNearMinimumFoundationAbstract(
+  fragment: FoundationFragment,
+  language: ResearchRunRecord["language"]
+): { fragment: FoundationFragment; changed: boolean } {
+  const current = countReviewLanguageContent(
+    fragment.review.abstract,
+    language
+  );
+  const minimum = language === "zh-CN" ? 300 : 120;
+  const maximum = language === "zh-CN" ? 500 : 350;
+  const nearMinimum = language === "zh-CN" ? 260 : 100;
+  if (current < nearMinimum || current >= minimum) {
+    return { fragment, changed: false };
+  }
+  const boundary =
+    language === "zh-CN"
+      ? "全部结论仅限于本次核验的公开摘要证据，研究设计、样本来源和结果解释仍需结合文献全文进一步评价。"
+      : "All conclusions remain limited to the verified public abstracts; study design, sample provenance, and interpretation still require full-text appraisal.";
+  const abstract = `${fragment.review.abstract.trim()}${language === "zh-CN" ? "" : " "}${boundary}`;
+  const normalizedCount = countReviewLanguageContent(
+    abstract,
+    language
+  );
+  if (
+    normalizedCount < minimum ||
+    normalizedCount > maximum
+  ) {
+    return { fragment, changed: false };
+  }
+  return {
+    fragment: {
+      ...fragment,
+      review: {
+        ...fragment.review,
+        abstract
+      }
+    },
+    changed: true
+  };
+}
+
+function dropUnderfilledOptionalClosingTopic(
+  fragment: ReviewFragment,
+  language: ResearchRunRecord["language"]
+): { fragment: ReviewFragment; changed: boolean } {
+  const sections = parseSkillReviewSections(fragment.markdown);
+  const topics = sections.filter(
+    (section) => section.kind === "topic"
+  );
+  if (
+    topics.length !== 1 ||
+    topics[0]!.heading === "" ||
+    countReviewLanguageContent(topics[0]!.body, language) >= 600
+  ) {
+    return { fragment, changed: false };
+  }
+  const requiredKinds: SkillReviewSection["kind"][] = [
+    "synthesis",
+    "limitations",
+    "conclusion"
+  ];
+  if (
+    requiredKinds.some(
+      (kind) =>
+        sections.filter((section) => section.kind === kind)
+          .length !== 1
+    )
+  ) {
+    return { fragment, changed: false };
+  }
+  return {
+    fragment: {
+      ...fragment,
+      markdown: sections
+        .filter((section) => section !== topics[0])
+        .map(
+          (section) =>
+            `## ${section.heading}\n\n${section.body.trim()}`
+        )
+        .join("\n\n")
+    },
+    changed: true
+  };
 }
 
 function validateFoundationFragmentSkillContract(

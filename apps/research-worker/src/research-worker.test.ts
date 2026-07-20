@@ -399,6 +399,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "skill-prose",
       "bounded_shard_skill_contract_retry_completed"
     ],
+    [
+      "skill-normalization",
+      "peer_review_contract_unusable_deterministic_fallback"
+    ],
     ["body", "bounded_qa_contract_retry_completed"],
     ["content", "bounded_review_content_correction_completed"],
     [
@@ -504,6 +508,16 @@ describe("Research Worker controlled-beta workflow", () => {
                     "## Introduction\n\nShort English introduction."
                 }
               }
+            : retryKind === "skill-normalization"
+              ? {
+                  review: {
+                    ...foundationFragment.review,
+                    abstract: Array.from(
+                      { length: 289 },
+                      () => "证"
+                    ).join("")
+                  }
+                }
             : foundationFragment
         )
       ],
@@ -532,6 +546,18 @@ describe("Research Worker controlled-beta workflow", () => {
                 "\n",
                 "\\n"
               )}"}`
+          : retryKind === "skill-normalization"
+            ? JSON.stringify({
+                schema_version:
+                  "doctor_research_review_fragment.v1",
+                markdown: [
+                  longChineseReviewFragment(
+                    "可选转化主题",
+                    3
+                  ),
+                  skillClosingFragment(26, 20, 7, false)
+                ].join("\n\n")
+              })
           : retryKind === "skill-prose"
             ? JSON.stringify({
                 schema_version:
@@ -833,7 +859,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(attempts).toEqual(
       retryKind === "citation-closure" ||
       retryKind === "peer-contract" ||
-      retryKind === "peer-timeout"
+      retryKind === "peer-timeout" ||
+      retryKind === "skill-normalization"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
@@ -1013,6 +1040,17 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_evidence_boundary_supplement_applied"
       );
     }
+    if (retryKind === "skill-normalization") {
+      expect(result.quality.warnings).toContain(
+        "deterministic_abstract_evidence_boundary_supplement_applied"
+      );
+      expect(result.quality.warnings).toContain(
+        "deterministic_underfilled_optional_topic_removed"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "bounded_shard_skill_contract_retry_completed"
+      );
+    }
     expect(result.quality.warnings).toEqual(
       expect.arrayContaining([
         "sharded_synthesis_completed",
@@ -1020,7 +1058,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_core_evidence_projection_completed",
         retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
-        retryKind === "peer-contract"
+        retryKind === "peer-contract" ||
+        retryKind === "skill-normalization"
           ? "peer_review_model_attempted"
           : "peer_review_model_completed",
         retryWarning
