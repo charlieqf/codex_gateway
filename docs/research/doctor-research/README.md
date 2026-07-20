@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.28` together with the
+The production Worker uses frozen execution contract `1.6.29` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.28` splits synthesis into three bounded independent
+For latency, execution `1.6.29` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -90,10 +90,19 @@ topic sections, and the closing shard may add one evidence-supported topic,
 followed by one evidence-synthesis/controversy section, one
 limitations/outlook section, and one conclusion. Empty sections,
 duplicate substantive paragraphs, unbalanced delimiters, truncated numeric
-prose, and low-information or duplicated core-evidence fields are rejected.
-Safety normalization treats decimal points as part of a number rather than a
-sentence boundary, and removes duplicate substantive paragraphs that arise
-only after unsupported numerical sentences are closed.
+prose, and low-information, English-substituted, or duplicated Chinese
+core-evidence fields are rejected. The deterministic core table obtains study
+type and sample size only from the verified PubMed title/abstract, and reuses
+evidence-closed Chinese sentences from the validated introduction for methods
+and results where available. Study-design matching is sentence-bounded, so a
+retrospective study is not mislabeled as prospective merely because its
+conclusion asks for prospective validation. Safety normalization treats decimal
+points as part of a number rather than a sentence boundary, repairs a bounded
+set of subjectless Chinese sentence starts left by safe clause deletion, and
+removes duplicate substantive paragraphs that arise only after unsupported
+numerical sentences are closed. A prescriptive treatment sentence supported
+only by case reports or case series is removed instead of being promoted into a
+general recommendation.
 
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend
@@ -190,6 +199,9 @@ the asynchronous production API. It:
   `DOCTOR_RESEARCH_API_KEY`, never from a command-line token argument;
 - sends create with a reusable `Idempotency-Key`, polls bounded status, and
   stops without guessing if human identity selection is required;
+- honors integer `Retry-After` guidance for rate-limited authenticated GETs,
+  with at most four retries and no more than 60 seconds of added wait for each
+  result or artifact request;
 - refuses redirects and non-loopback plain HTTP so the bearer credential is
   not forwarded to an untrusted endpoint;
 - validates the exact four-kind manifest, downloads through authenticated

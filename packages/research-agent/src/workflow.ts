@@ -1157,7 +1157,8 @@ function compactPublicationAbstract(
 
 function buildDeterministicCoreEvidence(
   evidence: WorkflowEvidence,
-  language: ResearchRunRecord["language"]
+  language: ResearchRunRecord["language"],
+  reviewMarkdown = ""
 ): DoctorResearchModelDraft["review"]["core_evidence"] {
   const publicationByReferenceId = new Map(
     evidence.publicationEvidence.map((publication) => [
@@ -1187,12 +1188,21 @@ function buildDeterministicCoreEvidence(
           limitations:
             "Only public metadata and abstract-level evidence were verified; this does not replace full-text appraisal."
         };
-  return evidence.references.slice(0, 5).map((reference) => {
+  const reviewSentences = completeReviewSentences(
+    reviewMarkdown,
+    language
+  );
+  return evidence.references.slice(0, 5).map((reference, index) => {
     const publication = publicationByReferenceId.get(
       reference.reference_id
     );
     const sentences = safePublicationEvidenceSentences(
-      publication?.abstract ?? ""
+      [reference.title, publication?.abstract ?? ""].join("\n")
+    );
+    const studyType = classifyPublicationStudyType(
+      sentences,
+      language,
+      fallback.study_type
     );
     const used = new Set<string>();
     const select = (
@@ -1210,7 +1220,7 @@ function buildDeterministicCoreEvidence(
       used.add(selected);
       return selected;
     };
-    const methods = select(
+    const abstractMethods = select(
       [
         /^(?:methods?|materials? and methods?|design)\s*:/iu,
         /\b(?:we (?:conducted|performed|analy[sz]ed|evaluated|examined|assessed)|was conducted|were analy[sz]ed|methodology|protocol)\b/iu,
@@ -1218,7 +1228,7 @@ function buildDeterministicCoreEvidence(
       ],
       fallback.methods
     );
-    const keyResults = select(
+    const abstractKeyResults = select(
       [
         /^(?:results?|findings?)\s*:/iu,
         /\b(?:results? (?:showed|demonstrated|indicated)|we (?:found|observed)|was associated with|were associated with)\b/iu,
@@ -1227,9 +1237,13 @@ function buildDeterministicCoreEvidence(
       fallback.key_results
     );
     const sampleAndSource =
-      extractPublicationSampleAndSource(sentences, language) ??
+      extractPublicationSampleAndSource(
+        sentences,
+        language,
+        studyType
+      ) ??
       fallback.sample_and_source;
-    const limitations = select(
+    const abstractLimitations = select(
       [
         /^(?:limitations?|strengths? and limitations?)\s*:/iu,
         /\b(?:limitations?|limited by|caution|cannot be (?:generalized|inferred)|further research)\b/iu,
@@ -1237,13 +1251,62 @@ function buildDeterministicCoreEvidence(
       ],
       fallback.limitations
     );
+    const citation = index + 1;
+    const citedReviewSentences = reviewSentences.filter((sentence) => {
+      const citations = extractNumericCitations(sentence);
+      return (
+        citations.length === 1 &&
+        citations[0] === citation
+      );
+    });
+    const usedReviewSentences = new Set<string>();
+    const selectLocalizedReviewSentence = (
+      patterns: readonly RegExp[],
+      fallbackValue: string
+    ): string => {
+      const selected =
+        citedReviewSentences.find(
+          (sentence) =>
+            !usedReviewSentences.has(sentence) &&
+            patterns.some((pattern) => pattern.test(sentence))
+        ) ??
+        citedReviewSentences.find(
+          (sentence) => !usedReviewSentences.has(sentence)
+        );
+      if (!selected) {
+        return fallbackValue;
+      }
+      usedReviewSentences.add(selected);
+      return selected
+        .replace(/\[[0-9,\s-]+\]/gu, "")
+        .replace(/\s+/gu, " ")
+        .trim();
+    };
+    const methods =
+      language === "zh-CN"
+        ? selectLocalizedReviewSentence(
+            [
+              /(?:研究|队列|登记|纳入|分析|探讨|比较|评估|采用|报告)/u
+            ],
+            localizedCoreMethodFallback(studyType, language)
+          )
+        : abstractMethods;
+    const keyResults =
+      language === "zh-CN"
+        ? selectLocalizedReviewSentence(
+            [
+              /(?:结果|发现|显示|表明|提示|关联|技术成功|通畅|风险)/u
+            ],
+            localizedCoreResultFallback(language)
+          )
+        : abstractKeyResults;
+    const limitations =
+      language === "zh-CN"
+        ? localizedCoreLimitation(studyType, language)
+        : abstractLimitations;
     return {
       reference_id: reference.reference_id,
-      study_type: classifyPublicationStudyType(
-        sentences,
-        language,
-        fallback.study_type
-      ),
+      study_type: studyType,
       sample_and_source: sampleAndSource,
       methods,
       key_results: keyResults,
@@ -1254,33 +1317,94 @@ function buildDeterministicCoreEvidence(
 
 function extractPublicationSampleAndSource(
   sentences: readonly string[],
-  language: ResearchRunRecord["language"]
+  language: ResearchRunRecord["language"],
+  studyType = ""
 ): string | null {
   const candidates = sentences
     .map((sentence) => {
       const match =
-        /\b(?:[0-9][0-9,.\s-]{0,24}\s+)?(?:participants?|patients?|subjects?|samples?|records?|cells?|mice|rats?)(?:\s+(?:from|across|at|in)\s+[^.;。]{1,120})?/iu.exec(
+        /\b([0-9][0-9,]*(?:\.[0-9]+)?)\s+(participants?|patients?|subjects?|samples?|records?|cells?|mice|rats?)\b/iu.exec(
           sentence
         ) ??
-        /(?:[0-9][0-9,.\s-]{0,24}\s*)?(?:例患者|名患者|例受试者|名受试者|份样本|个样本|条记录|只小鼠|只大鼠)(?:来自[^。；]{1,120})?/u.exec(
+        /([0-9][0-9,]*(?:\.[0-9]+)?)\s*(例患者|名患者|例受试者|名受试者|份样本|个样本|条记录|只小鼠|只大鼠)/u.exec(
           sentence
         );
-      return match?.[0]?.trim() ?? null;
+      return match
+        ? {
+            count: match[1]!,
+            population: match[2]!.toLowerCase()
+          }
+        : null;
     })
-    .filter((value): value is string => Boolean(value))
+    .filter(
+      (
+        value
+      ): value is { count: string; population: string } =>
+        Boolean(value)
+    )
     .sort((left, right) => {
-      const numeric =
-        Number(/[0-9]/u.test(right)) -
-        Number(/[0-9]/u.test(left));
-      return numeric !== 0 ? numeric : right.length - left.length;
+      return (
+        Number.parseFloat(right.count.replace(/,/gu, "")) -
+        Number.parseFloat(left.count.replace(/,/gu, ""))
+      );
     });
   const selected = candidates[0];
   if (!selected) {
+    if (/病例报告|case report/iu.test(studyType)) {
+      return language === "zh-CN"
+        ? "公开摘要报告单例患者；证据来源为病例报告摘要。"
+        : "The public abstract reports a single patient in a case report.";
+    }
     return null;
   }
+  if (language !== "zh-CN") {
+    return `Sample size reported in the public abstract: ${selected.count} ${selected.population}.`;
+  }
+  const populationUnit = /participants?|patients?|subjects?|例患者|名患者|例受试者|名受试者/iu.test(
+    selected.population
+  )
+    ? "例患者或受试者"
+    : /samples?|份样本|个样本/iu.test(selected.population)
+      ? "份样本"
+      : /records?|条记录/iu.test(selected.population)
+        ? "条记录"
+        : /cells?/iu.test(selected.population)
+          ? "份细胞样本"
+          : "只实验动物";
+  return `公开摘要报告的样本量为${selected.count}${populationUnit}；样本来源限于所引摘要。`;
+}
+
+function localizedCoreMethodFallback(
+  studyType: string,
+  language: ResearchRunRecord["language"]
+): string {
   return language === "zh-CN"
-    ? `公开摘要报告的样本与来源：${selected}`
-    : `Sample and source reported in the public abstract: ${selected}`;
+    ? `公开摘要采用${studyType}设计；具体方法、终点与分析范围以所引摘要为限。`
+    : "Methods are summarized only at the level reported in the cited abstract.";
+}
+
+function localizedCoreResultFallback(
+  language: ResearchRunRecord["language"]
+): string {
+  return language === "zh-CN"
+    ? "公开摘要报告了与研究问题相关的观察结果；未披露的信息不作补写。"
+    : "Reported findings remain limited to the cited PubMed abstract.";
+}
+
+function localizedCoreLimitation(
+  studyType: string,
+  language: ResearchRunRecord["language"]
+): string {
+  if (language !== "zh-CN") {
+    return "Only public metadata and abstract-level evidence were verified; this does not replace full-text appraisal.";
+  }
+  if (/病例/u.test(studyType)) {
+    return "病例级证据仅能说明特定患者经验或技术可行性，不能据此外推普遍疗效。";
+  }
+  if (/回顾性|登记|队列|观察/u.test(studyType)) {
+    return "观察性设计存在混杂、选择偏倚与外推性限制，摘要级证据不能支持因果推断。";
+  }
+  return "当前仅核验公开元数据与摘要，研究质量和结果解释仍需结合全文评价。";
 }
 
 function classifyPublicationStudyType(
@@ -1295,37 +1419,37 @@ function classifyPublicationStudyType(
     en: string;
   }> = [
     {
-      pattern: /\bsystematic review\b.*\bmeta-analysis\b|\bmeta-analysis\b.*\bsystematic review\b|系统综述.*荟萃分析/u,
+      pattern: /\bsystematic review\b[^.!?。！？]{0,160}\bmeta-analysis\b|\bmeta-analysis\b[^.!?。！？]{0,160}\bsystematic review\b|系统综述[^。！？]{0,160}荟萃分析/u,
       zh: "系统综述与荟萃分析",
       en: "Systematic review and meta-analysis"
     },
     {
-      pattern: /\brandomi[sz]ed\b.*\b(?:controlled )?trial\b|随机对照试验/u,
+      pattern: /\brandomi[sz]ed\b[^.!?。！？]{0,160}\b(?:controlled )?trial\b|随机对照试验/u,
       zh: "随机对照试验",
       en: "Randomized controlled trial"
     },
     {
-      pattern: /\bprospective\b.*\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b.*\bprospective\b|多中心前瞻/u,
+      pattern: /\bprospective\b[^.!?。！？]{0,160}\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b[^.!?。！？]{0,160}\bprospective\b|多中心前瞻/u,
       zh: "多中心前瞻性研究",
       en: "Prospective multicenter study"
     },
     {
-      pattern: /\bretrospective\b.*\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b.*\bretrospective\b|多中心回顾/u,
+      pattern: /\bretrospective\b[^.!?。！？]{0,160}\bmulticent(?:er|re)\b|\bmulticent(?:er|re)\b[^.!?。！？]{0,160}\bretrospective\b|多中心回顾/u,
       zh: "多中心回顾性研究",
       en: "Retrospective multicenter study"
     },
     {
-      pattern: /\bmulticent(?:er|re)\b.*\bregistry\b|\bregistry\b.*\bmulticent(?:er|re)\b|多中心登记/u,
+      pattern: /\bmulticent(?:er|re)\b[^.!?。！？]{0,160}\bregistry\b|\bregistry\b[^.!?。！？]{0,160}\bmulticent(?:er|re)\b|多中心登记/u,
       zh: "多中心登记研究",
       en: "Multicenter registry study"
     },
     {
-      pattern: /\bprospective\b.*\bcohort\b|\bcohort\b.*\bprospective\b|前瞻性队列/u,
+      pattern: /\bprospective\b[^.!?。！？]{0,160}\bcohort\b|\bcohort\b[^.!?。！？]{0,160}\bprospective\b|前瞻性队列/u,
       zh: "前瞻性队列研究",
       en: "Prospective cohort study"
     },
     {
-      pattern: /\bretrospective\b.*\bcohort\b|\bcohort\b.*\bretrospective\b|回顾性队列/u,
+      pattern: /\bretrospective\b[^.!?。！？]{0,160}\bcohort\b|\bcohort\b[^.!?。！？]{0,160}\bretrospective\b|回顾性队列/u,
       zh: "回顾性队列研究",
       en: "Retrospective cohort study"
     },
@@ -2316,7 +2440,8 @@ async function generateAndValidateShardedModelOutput(
       ].join("\n\n"),
       core_evidence: buildDeterministicCoreEvidence(
         foundationEvidence,
-        context.run.language
+        context.run.language,
+        acceptedFoundationFragment.review.markdown
       )
     },
     predicted_questions: acceptedMiddleFragment.predicted_questions,
@@ -3681,6 +3806,21 @@ function validateReviewProseIntegrity(
         `review_truncated_numeric_prose:paragraph=${index + 1}`
       );
     }
+    if (
+      language === "zh-CN" &&
+      /^(?:评估|比较|分析|探讨|考察)(?=.{4,180}(?:的关联|的价值|的影响)\s*\[[0-9,\s-]+\][。！？])/u.test(
+        trimmed
+      )
+    ) {
+      errors.push(
+        `review_orphaned_prose_start:paragraph=${index + 1}`
+      );
+    }
+    if (language === "zh-CN" && /^该系统/u.test(trimmed)) {
+      errors.push(
+        `review_orphaned_demonstrative_start:paragraph=${index + 1}`
+      );
+    }
   }
   return [...new Set(errors)];
 }
@@ -4273,7 +4413,11 @@ function validateGeneratedOutput(
     );
   }
   qualityErrors.push(
-    ...validateEvidenceScopeAndCausality(reparsed.value, evidence)
+    ...validateEvidenceScopeAndCausality(
+      reparsed.value,
+      evidence,
+      run.language
+    )
   );
   return qualityErrors.length === 0
     ? {
@@ -4678,6 +4822,30 @@ function validateCompleteReviewSkillContract(
     errors.push(
       `core_evidence_field_quality:informative=${informativeCoreFields}/${requiredInformativeCoreFields},duplicates=${duplicateCoreRows}`
     );
+  }
+  if (language === "zh-CN") {
+    for (const item of review.core_evidence) {
+      const fields = [
+        [item.study_type, 2],
+        [item.sample_and_source, 8],
+        [item.methods, 12],
+        [item.key_results, 12],
+        [item.limitations, 12]
+      ] as const;
+      if (
+        fields.some(
+          ([field, minimum]) =>
+            countHanCharacters(field) < minimum
+        ) ||
+        /\b(?:patients?|participants?|subjects?|samples?|records?)\b/iu.test(
+          item.sample_and_source
+        )
+      ) {
+        errors.push(
+          `core_evidence_language_quality:reference=${item.reference_id}`
+        );
+      }
+    }
   }
   return [...new Set(errors)];
 }
@@ -5486,6 +5654,20 @@ function normalizeFinalModelOutputForSafety(
     }
     return normalized;
   };
+  const sanitizeAbstract = (
+    value: string,
+    allowedEvidence: string
+  ): string => {
+    const sanitized = sanitize(value, allowedEvidence);
+    const normalized = normalizeObservationalAbstractLanguage(
+      sanitized,
+      language
+    );
+    if (normalized !== sanitized) {
+      changed = true;
+    }
+    return normalized;
+  };
   const count = language === "zh-CN" ? countHanCharacters : countEnglishWords;
   const paragraphEvidence = (paragraph: string) => {
     const referenceIds = extractNumericCitations(paragraph)
@@ -5549,6 +5731,65 @@ function normalizeFinalModelOutputForSafety(
     }
     return paragraph;
   };
+  const closeReviewProseStart = (value: string): string => {
+    if (language !== "zh-CN") {
+      return value;
+    }
+    return value
+      .replace(
+        /^(评估|比较|分析|探讨|考察)(?=.{4,180}(?:的关联|的价值|的影响)\s*\[[0-9,\s-]+\][。！？])/u,
+        "一项研究$1"
+      )
+      .replace(/^该系统/u, "所引研究中的器械系统");
+  };
+  const removeCaseOnlyPrescriptiveSentences = (
+    value: string
+  ): string => {
+    if (language !== "zh-CN") {
+      return value;
+    }
+    const referenceById = new Map(
+      output.review.references.map((reference) => [
+        reference.reference_id,
+        reference
+      ])
+    );
+    return value.replace(/[^。！？]*[。！？]/gu, (sentence) => {
+      if (
+        !/(?:应|应该|必须|务必)(?:被)?(?:定位|视为|作为|采用)|(?:首选|常规|标准)治疗/u.test(
+          sentence
+        ) ||
+        /(?:不能|不可|不应|尚不能|无法|仅能|不宜).{0,24}(?:推广|外推|建议|治疗|方案)/u.test(
+          sentence
+        )
+      ) {
+        return sentence;
+      }
+      const referenceIds = extractNumericCitations(sentence)
+        .map((citation) => referenceIdByCitation.get(citation))
+        .filter((referenceId): referenceId is string =>
+          Boolean(referenceId)
+        );
+      if (referenceIds.length === 0) {
+        return sentence;
+      }
+      const caseOnly = referenceIds.every((referenceId) => {
+        const reference = referenceById.get(referenceId);
+        const evidenceText = [
+          reference?.title ?? "",
+          abstractByReferenceId.get(referenceId) ?? ""
+        ].join(" ");
+        return /\bcase report\b|\bcase series\b|病例报告|病例系列/iu.test(
+          evidenceText
+        );
+      });
+      if (!caseOnly) {
+        return sentence;
+      }
+      changed = true;
+      return "";
+    });
+  };
   const normalizedParagraphs: string[] = [];
   for (const originalParagraph of output.review.markdown.split(
     /\n\s*\n/gu
@@ -5572,6 +5813,12 @@ function normalizeFinalModelOutputForSafety(
       }
       paragraph = next;
     }
+    const proseClosed = closeReviewProseStart(paragraph);
+    if (proseClosed !== paragraph) {
+      changed = true;
+      paragraph = proseClosed;
+    }
+    paragraph = removeCaseOnlyPrescriptiveSentences(paragraph);
     scope = paragraphEvidence(paragraph);
     const isHeading = /^#{1,6}\s/u.test(paragraph);
     const isSubstantive =
@@ -5637,7 +5884,7 @@ function normalizeFinalModelOutputForSafety(
       review: {
         ...output.review,
         title: sanitize(output.review.title, allAbstracts),
-        abstract: sanitize(output.review.abstract, allAbstracts),
+        abstract: sanitizeAbstract(output.review.abstract, allAbstracts),
         keywords: output.review.keywords.map((keyword) =>
           sanitize(keyword, allAbstracts)
         ),
@@ -6166,7 +6413,8 @@ function extractNarrativeNumericTokens(value: string): string[] {
 
 function validateEvidenceScopeAndCausality(
   output: DoctorResearchModelOutput,
-  evidence: WorkflowEvidence
+  evidence: WorkflowEvidence,
+  language: ResearchRunRecord["language"]
 ): string[] {
   const errors = new Set<string>();
   const abstractByReferenceId = new Map(
@@ -6181,6 +6429,15 @@ function validateEvidenceScopeAndCausality(
       reference.reference_id
     ])
   );
+  if (
+    output.review.abstract !==
+    normalizeObservationalAbstractLanguage(
+      output.review.abstract,
+      language
+    )
+  ) {
+    errors.add("causal_claim_evidence_grade:abstract");
+  }
   for (const [paragraphIndex, paragraph] of output.review.markdown
     .split(/\n\s*\n/gu)
     .entries()) {
@@ -6223,6 +6480,19 @@ function validateEvidenceScopeAndCausality(
     }
   }
   return [...errors];
+}
+
+function normalizeObservationalAbstractLanguage(
+  value: string,
+  language: ResearchRunRecord["language"]
+): string {
+  if (language !== "zh-CN") {
+    return value;
+  }
+  return value
+    .replace(/(?:已经|已)?被证实为/gu, "在所引研究中被识别为")
+    .replace(/(?:已经|已)?证实了/gu, "提示")
+    .replace(/(?:已经|已)?证明了/gu, "提示");
 }
 
 function hasCausalClaim(value: string): boolean {

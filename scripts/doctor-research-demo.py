@@ -29,6 +29,8 @@ from urllib.request import (
 DEFAULT_BASE_URL = "https://gw.instmarket.com.au"
 MAXIMUM_JSON_BYTES = 5_000_000
 MAXIMUM_ARTIFACT_BYTES = 1_048_576
+MAXIMUM_RATE_LIMIT_RETRIES = 4
+MAXIMUM_RATE_LIMIT_WAIT_SECONDS = 60
 RUN_ID_PATTERN = re.compile(r"^drr_[a-f0-9]{32}$")
 ARTIFACT_ID_PATTERN = re.compile(r"^dra_[a-f0-9]{32}$")
 SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
@@ -54,6 +56,21 @@ class DemoError(RuntimeError):
 
 class NeedsInputError(DemoError):
     """The service requires a human identity decision."""
+
+
+class ApiError(DemoError):
+    """A structured API error that may carry bounded retry guidance."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int,
+        retry_after_seconds: int | None,
+    ) -> None:
+        super().__init__(message)
+        self.status = status
+        self.retry_after_seconds = retry_after_seconds
 
 
 @dataclass(frozen=True)
@@ -109,23 +126,37 @@ class ResearchClient:
                 body, ensure_ascii=False, separators=(",", ":")
             ).encode("utf-8")
             request_headers["Content-Type"] = "application/json"
-        request = Request(
-            self._url(path),
-            data=data,
-            headers=request_headers,
-            method=method,
-        )
-        try:
-            with self.opener.open(
-                request, timeout=self.timeout_seconds
-            ) as response:
-                payload = read_bounded(response, MAXIMUM_JSON_BYTES)
-                return parse_json_object(payload)
-        except HTTPError as error:
-            payload = read_bounded(error, MAXIMUM_JSON_BYTES)
-            raise api_error(error.code, error.headers, payload) from None
-        except URLError as error:
-            raise DemoError(f"Network request failed: {error.reason}") from None
+        started = time.monotonic()
+        attempt = 0
+        while True:
+            attempt += 1
+            request = Request(
+                self._url(path),
+                data=data,
+                headers=request_headers,
+                method=method,
+            )
+            try:
+                with self.opener.open(
+                    request, timeout=self.timeout_seconds
+                ) as response:
+                    payload = read_bounded(response, MAXIMUM_JSON_BYTES)
+                    return parse_json_object(payload)
+            except HTTPError as error:
+                payload = read_http_error(error)
+                parsed = api_error(error.code, error.headers, payload)
+                if method != "GET":
+                    raise parsed from None
+                self._wait_for_rate_limit_retry(
+                    parsed,
+                    path=path,
+                    attempt=attempt,
+                    started=started,
+                )
+            except URLError as error:
+                raise DemoError(
+                    f"Network request failed: {error.reason}"
+                ) from None
 
     def download(self, artifact: Artifact, destination: Path) -> None:
         expected_path = (
@@ -133,63 +164,75 @@ class ResearchClient:
         )
         if artifact.download_url != expected_path:
             raise DemoError("Artifact download URL did not match its ID.")
-        request = Request(
-            self._url(expected_path),
-            headers={
-                "Accept": (
-                    "text/plain"
-                    if artifact.kind == "questions"
-                    else "text/markdown"
-                ),
-                "Authorization": f"Bearer {self.api_key}",
-                "User-Agent": (
-                    "codex-gateway-doctor-research-python-demo/1.0"
-                ),
-            },
-            method="GET",
-        )
-        try:
-            with self.opener.open(
-                request, timeout=self.timeout_seconds
-            ) as response:
-                content_type = response.headers.get("Content-Type", "").lower()
-                content_length = response.headers.get("Content-Length")
-                if (
-                    content_type != artifact.content_type
-                    or content_length != str(artifact.size_bytes)
-                    or response.headers.get("Cache-Control")
-                    != "private, no-store"
-                    or response.headers.get("X-Content-Type-Options")
-                    != "nosniff"
-                ):
-                    raise DemoError(
-                        f"Artifact response headers were invalid for "
-                        f"{artifact.kind}."
-                    )
-                digest = hashlib.sha256()
-                size = 0
-                with destination.open("xb") as output:
-                    while True:
-                        chunk = response.read(64 * 1024)
-                        if not chunk:
-                            break
-                        size += len(chunk)
-                        if size > MAXIMUM_ARTIFACT_BYTES:
-                            raise DemoError(
-                                f"Artifact {artifact.kind} exceeded the "
-                                "client size limit."
-                            )
-                        output.write(chunk)
-                        digest.update(chunk)
-                    output.flush()
-                    os.fsync(output.fileno())
-        except HTTPError as error:
-            payload = read_bounded(error, MAXIMUM_JSON_BYTES)
-            raise api_error(error.code, error.headers, payload) from None
-        except URLError as error:
-            raise DemoError(
-                f"Artifact download failed: {error.reason}"
-            ) from None
+        request_headers = {
+            "Accept": (
+                "text/plain"
+                if artifact.kind == "questions"
+                else "text/markdown"
+            ),
+            "Authorization": f"Bearer {self.api_key}",
+            "User-Agent": "codex-gateway-doctor-research-python-demo/1.0",
+        }
+        started = time.monotonic()
+        attempt = 0
+        while True:
+            attempt += 1
+            request = Request(
+                self._url(expected_path),
+                headers=request_headers,
+                method="GET",
+            )
+            try:
+                with self.opener.open(
+                    request, timeout=self.timeout_seconds
+                ) as response:
+                    content_type = response.headers.get(
+                        "Content-Type", ""
+                    ).lower()
+                    content_length = response.headers.get("Content-Length")
+                    if (
+                        content_type != artifact.content_type
+                        or content_length != str(artifact.size_bytes)
+                        or response.headers.get("Cache-Control")
+                        != "private, no-store"
+                        or response.headers.get("X-Content-Type-Options")
+                        != "nosniff"
+                    ):
+                        raise DemoError(
+                            f"Artifact response headers were invalid for "
+                            f"{artifact.kind}."
+                        )
+                    digest = hashlib.sha256()
+                    size = 0
+                    with destination.open("xb") as output:
+                        while True:
+                            chunk = response.read(64 * 1024)
+                            if not chunk:
+                                break
+                            size += len(chunk)
+                            if size > MAXIMUM_ARTIFACT_BYTES:
+                                raise DemoError(
+                                    f"Artifact {artifact.kind} exceeded the "
+                                    "client size limit."
+                                )
+                            output.write(chunk)
+                            digest.update(chunk)
+                        output.flush()
+                        os.fsync(output.fileno())
+                break
+            except HTTPError as error:
+                payload = read_http_error(error)
+                parsed = api_error(error.code, error.headers, payload)
+                self._wait_for_rate_limit_retry(
+                    parsed,
+                    path=expected_path,
+                    attempt=attempt,
+                    started=started,
+                )
+            except URLError as error:
+                raise DemoError(
+                    f"Artifact download failed: {error.reason}"
+                ) from None
 
         if size != artifact.size_bytes or digest.hexdigest() != artifact.sha256:
             raise DemoError(
@@ -202,6 +245,37 @@ class ResearchClient:
         if not path.startswith("/") or "://" in path:
             raise DemoError("Client attempted to use an invalid API path.")
         return f"{self.base_url}{path}"
+
+    def _wait_for_rate_limit_retry(
+        self,
+        error: ApiError,
+        *,
+        path: str,
+        attempt: int,
+        started: float,
+    ) -> None:
+        if error.status != 429 or attempt > MAXIMUM_RATE_LIMIT_RETRIES:
+            raise error
+        wait_seconds = (
+            error.retry_after_seconds
+            if error.retry_after_seconds is not None
+            else 1
+        )
+        elapsed = time.monotonic() - started
+        if (
+            wait_seconds < 0
+            or elapsed + wait_seconds > MAXIMUM_RATE_LIMIT_WAIT_SECONDS
+        ):
+            raise error
+        emit(
+            {
+                "event": "rate_limit_retry",
+                "path": path,
+                "attempt": attempt,
+                "retry_after_seconds": wait_seconds,
+            }
+        )
+        time.sleep(wait_seconds)
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
@@ -753,6 +827,13 @@ def read_bounded(response: Any, maximum_bytes: int) -> bytes:
     return payload
 
 
+def read_http_error(error: HTTPError) -> bytes:
+    try:
+        return read_bounded(error, MAXIMUM_JSON_BYTES)
+    finally:
+        error.close()
+
+
 def parse_json_object(payload: bytes) -> dict[str, Any]:
     try:
         value = json.loads(payload.decode("utf-8"))
@@ -763,7 +844,7 @@ def parse_json_object(payload: bytes) -> dict[str, Any]:
     return value
 
 
-def api_error(status: int, headers: Any, payload: bytes) -> DemoError:
+def api_error(status: int, headers: Any, payload: bytes) -> ApiError:
     code = "http_error"
     message = "Request was rejected."
     try:
@@ -783,7 +864,14 @@ def api_error(status: int, headers: Any, payload: bytes) -> DemoError:
         suffix += f", retry_after={retry_after}"
     if request_id:
         suffix += f", request_id={request_id}"
-    return DemoError(f"HTTP {status} {code}: {message}{suffix}")
+    retry_after_seconds = None
+    if isinstance(retry_after, str) and re.fullmatch(r"[0-9]{1,6}", retry_after):
+        retry_after_seconds = int(retry_after)
+    return ApiError(
+        f"HTTP {status} {code}: {message}{suffix}",
+        status=status,
+        retry_after_seconds=retry_after_seconds,
+    )
 
 
 def safe_message(error: BaseException, api_key: str) -> str:

@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -38,6 +39,8 @@ FILES = {
 
 class DemoHandler(BaseHTTPRequestHandler):
     artifacts = {}
+    rate_limit_result_remaining = 0
+    rate_limit_download_remaining = 0
 
     def do_POST(self):
         if self.path != "/gateway/research/v1/doctor-runs":
@@ -67,6 +70,10 @@ class DemoHandler(BaseHTTPRequestHandler):
             )
             return
         if self.path == f"/gateway/research/v1/doctor-runs/{RUN_ID}/result":
+            if self.rate_limit_result_remaining > 0:
+                type(self).rate_limit_result_remaining -= 1
+                self.send_rate_limit()
+                return
             self.send_json(
                 {
                     "schema_version": "doctor_research_result.v1",
@@ -77,6 +84,10 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         for artifact in self.artifacts.values():
             if self.path == artifact["download_url"]:
+                if self.rate_limit_download_remaining > 0:
+                    type(self).rate_limit_download_remaining -= 1
+                    self.send_rate_limit()
+                    return
                 content = FILES[artifact["kind"]][1]
                 self.send_response(200)
                 self.send_header("Content-Type", artifact["content_type"])
@@ -96,6 +107,22 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def send_rate_limit(self):
+        payload = json.dumps(
+            {
+                "error": {
+                    "code": "rate_limit_exceeded",
+                    "message": "Read rate limit exceeded.",
+                }
+            }
+        ).encode()
+        self.send_response(429)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Retry-After", "1")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -129,6 +156,8 @@ def artifact_manifest():
 class DoctorResearchDemoTests(unittest.TestCase):
     def setUp(self):
         DemoHandler.artifacts = artifact_manifest()
+        DemoHandler.rate_limit_result_remaining = 0
+        DemoHandler.rate_limit_download_remaining = 0
 
     def test_end_to_end_preserves_four_localized_filenames(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
@@ -203,6 +232,64 @@ class DoctorResearchDemoTests(unittest.TestCase):
             DEMO.DemoError, "must be supplied together"
         ):
             DEMO.build_payload(args)
+
+    def test_retries_bounded_result_and_artifact_gets_after_429(self):
+        DemoHandler.rate_limit_result_remaining = 1
+        DemoHandler.rate_limit_download_remaining = 1
+        server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                key_file = root / "research.key"
+                key_file.write_text(TOKEN, encoding="utf-8")
+                if os.name != "nt":
+                    key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+                stdout = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    mock.patch.object(DEMO.time, "sleep", return_value=None),
+                ):
+                    status = DEMO.main(
+                        [
+                            "--doctor-name",
+                            DOCTOR_NAME,
+                            "--hospital",
+                            "上海长海医院",
+                            "--department",
+                            "血管外科",
+                            "--literature-name",
+                            "Lu Qingsheng",
+                            "--literature-hospital",
+                            "Changhai Hospital",
+                            "--literature-department",
+                            "Vascular Surgery",
+                            "--official-profile-url",
+                            "https://hospital.example/doctor/lu",
+                            "--api-key-file",
+                            str(key_file),
+                            "--base-url",
+                            f"http://127.0.0.1:{server.server_port}",
+                            "--output-dir",
+                            str(root / "output"),
+                        ]
+                    )
+                self.assertEqual(status, 0, stdout.getvalue())
+                events = [
+                    json.loads(line) for line in stdout.getvalue().splitlines()
+                ]
+                retries = [
+                    event
+                    for event in events
+                    if event.get("event") == "rate_limit_retry"
+                ]
+                self.assertEqual(len(retries), 2)
+                self.assertTrue((root / "output" / RUN_ID).is_dir())
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
 
     def test_rejects_traversal_in_server_filename(self):
         manifest = artifact_manifest()
