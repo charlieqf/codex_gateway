@@ -4752,7 +4752,7 @@ function parseResearchLlmReadinessRequirements(input: {
   const callsPerRun = boundedReadinessInteger(
     input.calls_per_run,
     "calls_per_run",
-    4
+    5
   );
   const concurrentCalls =
     input.concurrent_calls === undefined

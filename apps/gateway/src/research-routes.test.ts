@@ -40,7 +40,7 @@ const cleanupDirectories: string[] = [];
 const researchLlmReadinessQuery =
   "?maximum_prompt_tokens_per_call=180000" +
   "&maximum_output_tokens_per_call=12000" +
-  "&calls_per_run=4" +
+  "&calls_per_run=5" +
   "&concurrent_calls=3" +
   "&maximum_tokens_per_run=576000";
 
@@ -299,7 +299,7 @@ describe("Doctor Research control-plane routes", () => {
         "/gateway/research/v1/worker/llm-readiness/medcode" +
         "?maximum_prompt_tokens_per_call=180000" +
         "&maximum_output_tokens_per_call=12000" +
-        "&calls_per_run=5" +
+        "&calls_per_run=6" +
         "&maximum_tokens_per_run=576000",
       headers: { authorization: `Bearer ${fixture.token}` }
     });
@@ -1990,7 +1990,7 @@ function addSubject(
     ...(boundedServicePolicy
       ? {
           rate: {
-            requestsPerMinute: 4,
+            requestsPerMinute: 5,
             requestsPerDay: 100,
             concurrentRequests: 3
           }
