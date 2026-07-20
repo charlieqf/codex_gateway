@@ -2108,12 +2108,12 @@ async function generateAndValidateShardedModelOutput(
     normalizeNearMinimumFoundationAbstract(
       foundationFragment,
       context.run.language
-    );
+  );
   foundationFragment = normalizedFoundation.fragment;
-  if (normalizedFoundation.changed) {
-    shardSkillNormalizationWarnings.push(
-      "deterministic_abstract_evidence_boundary_supplement_applied"
-    );
+  for (const warning of normalizedFoundation.warnings) {
+    if (!shardSkillNormalizationWarnings.includes(warning)) {
+      shardSkillNormalizationWarnings.push(warning);
+    }
   }
   const normalizedClosing =
     dropUnderfilledOptionalClosingTopic(
@@ -2196,17 +2196,12 @@ async function generateAndValidateShardedModelOutput(
       normalizeNearMinimumFoundationAbstract(
         foundationFragment,
         context.run.language
-      );
+    );
     foundationFragment = normalizedRetryFoundation.fragment;
-    if (
-      normalizedRetryFoundation.changed &&
-      !shardSkillNormalizationWarnings.includes(
-        "deterministic_abstract_evidence_boundary_supplement_applied"
-      )
-    ) {
-      shardSkillNormalizationWarnings.push(
-        "deterministic_abstract_evidence_boundary_supplement_applied"
-      );
+    for (const warning of normalizedRetryFoundation.warnings) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
     }
     const normalizedRetryClosing =
       dropUnderfilledOptionalClosingTopic(
@@ -3160,31 +3155,84 @@ interface SkillReviewSection {
 function normalizeNearMinimumFoundationAbstract(
   fragment: FoundationFragment,
   language: ResearchRunRecord["language"]
-): { fragment: FoundationFragment; changed: boolean } {
-  const current = countReviewLanguageContent(
+): {
+  fragment: FoundationFragment;
+  changed: boolean;
+  warnings: string[];
+} {
+  const originalCount = countReviewLanguageContent(
     fragment.review.abstract,
     language
   );
   const minimum = language === "zh-CN" ? 300 : 120;
   const maximum = language === "zh-CN" ? 500 : 350;
   const nearMinimum = language === "zh-CN" ? 260 : 100;
-  if (current < nearMinimum || current >= minimum) {
-    return { fragment, changed: false };
+  const closedIntroductionMinimum =
+    language === "zh-CN" ? 150 : 60;
+  if (
+    originalCount < closedIntroductionMinimum ||
+    originalCount >= minimum
+  ) {
+    return { fragment, changed: false, warnings: [] };
+  }
+  let abstract = fragment.review.abstract.trim();
+  let current = originalCount;
+  let introductionSupplemented = false;
+  if (current < nearMinimum) {
+    for (const sentence of completeReviewSentences(
+      fragment.review.markdown,
+      language
+    )) {
+      const normalizedSentence = sentence
+        .replace(/\[[0-9,\s-]+\]/gu, "")
+        .replace(/\s+/gu, " ")
+        .trim();
+      if (
+        normalizedSentence === "" ||
+        normalizeEvidenceText(abstract).includes(
+          normalizeEvidenceText(normalizedSentence)
+        )
+      ) {
+        continue;
+      }
+      const candidate = `${abstract}${language === "zh-CN" ? "" : " "}${normalizedSentence}`;
+      const candidateCount = countReviewLanguageContent(
+        candidate,
+        language
+      );
+      if (candidateCount > maximum) {
+        continue;
+      }
+      abstract = candidate;
+      current = candidateCount;
+      introductionSupplemented = true;
+      if (current >= minimum) {
+        break;
+      }
+    }
   }
   const boundary =
     language === "zh-CN"
       ? "全部结论仅限于本次核验的公开摘要证据，研究设计、样本来源和结果解释仍需结合文献全文进一步评价。"
       : "All conclusions remain limited to the verified public abstracts; study design, sample provenance, and interpretation still require full-text appraisal.";
-  const abstract = `${fragment.review.abstract.trim()}${language === "zh-CN" ? "" : " "}${boundary}`;
-  const normalizedCount = countReviewLanguageContent(
-    abstract,
-    language
-  );
+  let boundarySupplemented = false;
+  if (current < minimum) {
+    const candidate = `${abstract}${language === "zh-CN" ? "" : " "}${boundary}`;
+    const candidateCount = countReviewLanguageContent(
+      candidate,
+      language
+    );
+    if (candidateCount <= maximum) {
+      abstract = candidate;
+      current = candidateCount;
+      boundarySupplemented = true;
+    }
+  }
   if (
-    normalizedCount < minimum ||
-    normalizedCount > maximum
+    current < minimum ||
+    current > maximum
   ) {
-    return { fragment, changed: false };
+    return { fragment, changed: false, warnings: [] };
   }
   return {
     fragment: {
@@ -3194,8 +3242,39 @@ function normalizeNearMinimumFoundationAbstract(
         abstract
       }
     },
-    changed: true
+    changed: true,
+    warnings: [
+      ...(introductionSupplemented
+        ? [
+            "deterministic_abstract_closed_introduction_supplement_applied"
+          ]
+        : []),
+      ...(boundarySupplemented
+        ? [
+            "deterministic_abstract_evidence_boundary_supplement_applied"
+          ]
+        : [])
+    ]
   };
+}
+
+function completeReviewSentences(
+  markdown: string,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const prose = markdown
+    .split(/\r?\n/gu)
+    .filter((line) => !/^#{1,6}\s/u.test(line))
+    .join("\n");
+  const matches =
+    language === "zh-CN"
+      ? prose.match(/[^。！？\r\n]+[。！？]/gu) ?? []
+      : prose.match(/[^.!?\r\n]+[.!?]/gu) ?? [];
+  return matches.filter(
+    (sentence) =>
+      countReviewLanguageContent(sentence, language) >=
+      (language === "zh-CN" ? 20 : 10)
+  );
 }
 
 function dropUnderfilledOptionalClosingTopic(

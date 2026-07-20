@@ -392,6 +392,10 @@ describe("Research Worker controlled-beta workflow", () => {
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     [
+      "contract-short-abstract",
+      "bounded_shard_contract_retry_completed"
+    ],
+    [
       "skill-contract",
       "bounded_shard_skill_contract_retry_completed"
     ],
@@ -497,29 +501,31 @@ describe("Research Worker controlled-beta workflow", () => {
     const fragments = new Map<number, string>([
       [
         1,
-        JSON.stringify(
-          retryKind === "skill-contract"
-            ? {
-                review: {
-                  ...foundationFragment.review,
-                  title: "English-only review title",
-                  abstract: "Short English abstract.",
-                  markdown:
-                    "## Introduction\n\nShort English introduction."
-                }
-              }
-            : retryKind === "skill-normalization"
-              ? {
+        retryKind === "contract-short-abstract"
+          ? "not a foundation fragment JSON object"
+          : JSON.stringify(
+              retryKind === "skill-contract"
+                ? {
                   review: {
                     ...foundationFragment.review,
-                    abstract: Array.from(
-                      { length: 289 },
-                      () => "证"
-                    ).join("")
+                    title: "English-only review title",
+                    abstract: "Short English abstract.",
+                    markdown:
+                      "## Introduction\n\nShort English introduction."
                   }
                 }
-            : foundationFragment
-        )
+                : retryKind === "skill-normalization"
+                  ? {
+                      review: {
+                        ...foundationFragment.review,
+                        abstract: Array.from(
+                          { length: 289 },
+                          () => "证"
+                        ).join("")
+                      }
+                    }
+                  : foundationFragment
+            )
       ],
       [
         2,
@@ -684,8 +690,10 @@ describe("Research Worker controlled-beta workflow", () => {
               );
             }
             if (
-              retryKind === "contract" &&
-              modelInput.attempt === 3
+              (retryKind === "contract" &&
+                modelInput.attempt === 3) ||
+              (retryKind === "contract-short-abstract" &&
+                modelInput.attempt === 1)
             ) {
               return {
                 text: "not a fragment JSON object",
@@ -738,6 +746,18 @@ describe("Research Worker controlled-beta workflow", () => {
               text:
                 retryKind === "transport"
                   ? JSON.stringify(foundationFragment)
+                  : retryKind === "contract-short-abstract"
+                    ? JSON.stringify({
+                        review: {
+                          ...foundationFragment.review,
+                          abstract: Array.from(
+                            { length: 188 },
+                            () => "证"
+                          ).join(""),
+                          markdown:
+                            closedIntroductionSupplementFoundationFragment()
+                        }
+                      })
                   : retryKind === "skill-contract"
                     ? JSON.stringify(foundationFragment)
                     : retryKind === "skill-prose"
@@ -1049,6 +1069,14 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.quality.warnings).not.toContain(
         "bounded_shard_skill_contract_retry_completed"
+      );
+    }
+    if (retryKind === "contract-short-abstract") {
+      expect(result.quality.warnings).toContain(
+        "deterministic_abstract_closed_introduction_supplement_applied"
+      );
+      expect(result.quality.warnings).toContain(
+        "bounded_shard_contract_retry_completed"
       );
     }
     expect(result.quality.warnings).toEqual(
@@ -3513,6 +3541,18 @@ function longChineseReviewFragment(
 
 function skillFoundationFragment(repetitions: number): string {
   return longChineseReviewFragment("引言", repetitions);
+}
+
+function closedIntroductionSupplementFoundationFragment(): string {
+  const sentences = [
+    "本综述围绕公开摘要能够直接支持的研究设计与结果展开，并把不同证据等级的解释边界置于同一分析框架",
+    "现有研究在人群来源、技术路径、评价终点和随访方式上存在差异，因此比较时必须区分一致发现与间接推断",
+    "摘要没有披露的方法细节仍需结合全文核验，后续研究还应重视前瞻性验证、外部验证和患者结局"
+  ];
+  return `## 引言\n\n${Array.from(
+    { length: 24 },
+    (_, index) => sentences[index % sentences.length]
+  ).join("。")}。[1]`;
 }
 
 function skillBodyFragment(repetitionsPerSection: number): string {
