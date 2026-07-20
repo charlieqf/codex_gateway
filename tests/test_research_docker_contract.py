@@ -161,6 +161,20 @@ class ResearchDockerContractTests(unittest.TestCase):
                 ("aliyun", "glm-5.2"),
             ],
         )
+        self.assertEqual(
+            {
+                member["runtime"]: (
+                    member["enabled"],
+                    member["maxConcurrent"],
+                )
+                for member in members
+            },
+            {
+                "qianfan": (False, 1),
+                "tencent": (False, 1),
+                "aliyun": (True, 3),
+            },
+        )
         serialized = json.dumps(registry).lower()
         self.assertNotIn("openrouter", serialized)
         self.assertNotIn('"runtime": "codex"', serialized)

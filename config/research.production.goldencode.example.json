@@ -26,20 +26,20 @@
           "runtime": "qianfan",
           "upstreamModel": "glm-5.2",
           "maxConcurrent": 1,
-          "enabled": true
+          "enabled": false
         },
         {
           "id": "goldencode-tencent",
           "runtime": "tencent",
           "upstreamModel": "glm-5.2",
           "maxConcurrent": 1,
-          "enabled": true
+          "enabled": false
         },
         {
           "id": "goldencode-aliyun",
           "runtime": "aliyun",
           "upstreamModel": "glm-5.2",
-          "maxConcurrent": 1,
+          "maxConcurrent": 3,
           "enabled": true
         }
       ]
