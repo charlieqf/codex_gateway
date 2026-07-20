@@ -690,6 +690,15 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(synthesisPrompts.get(1)).not.toContain(
       "\"profile\""
     );
+    expect(synthesisPrompts.get(1)).toContain(
+      "at least 1500 content characters"
+    );
+    expect(synthesisPrompts.get(2)).toContain(
+      "at least 3700 content characters"
+    );
+    expect(synthesisPrompts.get(3)).toContain(
+      "at least 4300 content characters"
+    );
     if (retryKind === "body") {
       expect(maximumActiveCorrectionCalls).toBe(2);
       expect(retryPrompt).toContain(

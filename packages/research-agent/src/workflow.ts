@@ -526,6 +526,7 @@ class WorkflowContext {
     attempt: number;
     prompt: string;
     system?: string;
+    maximumDurationMs?: number;
   }): Promise<ResearchModelResponse> {
     const system = input.system ?? doctorResearchSystemPolicy;
     const reservedInputTokens = this.reserveModel(
@@ -557,7 +558,7 @@ class WorkflowContext {
         attempt: input.attempt,
         system,
         prompt: input.prompt,
-        signal: this.callSignal()
+        signal: this.callSignal(input.maximumDurationMs)
       });
       const completed = this.input.store.completeStageRun({
         token: this.token,
@@ -689,12 +690,28 @@ class WorkflowContext {
     // run-total usage, final schema and artifact byte limits remain enforced.
   }
 
-  callSignal(): AbortSignal {
+  callSignal(maximumDurationMs?: number): AbortSignal {
     this.checkActiveDeadline();
     const remaining = this.remainingActiveMs();
+    if (
+      maximumDurationMs !== undefined &&
+      (!Number.isSafeInteger(maximumDurationMs) ||
+        maximumDurationMs <= 0)
+    ) {
+      throw new Error(
+        "Research model call maximum duration must be a positive integer."
+      );
+    }
     return AbortSignal.any([
       this.input.signal,
-      AbortSignal.timeout(Math.max(1, remaining))
+      AbortSignal.timeout(
+        Math.max(
+          1,
+          maximumDurationMs === undefined
+            ? remaining
+            : Math.min(remaining, maximumDurationMs)
+        )
+      )
     ]);
   }
 
@@ -1736,16 +1753,16 @@ async function generateAndValidateShardedModelOutput(
   }
   const minimumReviewContent = context.input.policy.minimumReviewContent;
   const foundationMinimum = Math.max(
-    1_000,
-    Math.ceil(minimumReviewContent * 0.18)
+    1_500,
+    Math.ceil(minimumReviewContent * 0.25)
   );
   const middleMinimum = Math.max(
-    2_700,
-    Math.ceil(minimumReviewContent * 0.45)
+    3_700,
+    Math.ceil(minimumReviewContent * 0.62)
   );
   const closingMinimum = Math.max(
-    3_300,
-    Math.ceil(minimumReviewContent * 0.55)
+    4_300,
+    Math.ceil(minimumReviewContent * 0.72)
   );
   const foundationPrompt = buildFoundationFragmentPrompt({
     run: context.run,
@@ -1992,6 +2009,7 @@ async function generateAndValidateShardedModelOutput(
   const peerReviewPromise = context.generateModel({
     stage: "validate_outputs",
     attempt: peerReviewAttempt,
+    maximumDurationMs: 180_000,
     prompt: buildPeerReviewPatchPrompt({
       run: context.run,
       evidence,
@@ -2519,7 +2537,7 @@ function buildPeerReviewPatchPrompt(input: {
       title: reference.title,
       study_evidence: compactPublicationAbstract(
         publication?.abstract ?? "",
-        480
+        320
       )
     };
   });
@@ -4085,17 +4103,29 @@ function normalizeFinalModelOutputForSafety(
     return normalized;
   };
   const count = language === "zh-CN" ? countHanCharacters : countEnglishWords;
+  const paragraphEvidence = (paragraph: string) => {
+    const referenceIds = extractNumericCitations(paragraph)
+      .map((citation) => referenceIdByCitation.get(citation))
+      .filter((referenceId): referenceId is string => Boolean(referenceId));
+    return {
+      referenceIds,
+      text: referenceIds
+        .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
+        .join("\n")
+    };
+  };
   const normalizedParagraphs: string[] = [];
   for (const originalParagraph of output.review.markdown.split(
     /\n\s*\n/gu
   )) {
-    const citedReferenceIds = extractNumericCitations(originalParagraph)
-      .map((citation) => referenceIdByCitation.get(citation))
-      .filter((referenceId): referenceId is string => Boolean(referenceId));
-    const citedEvidence = citedReferenceIds
-      .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
-      .join("\n");
-    let paragraph = sanitize(originalParagraph, citedEvidence);
+    let scope = paragraphEvidence(originalParagraph);
+    let paragraph = sanitize(originalParagraph, scope.text);
+    // Removing an unsupported numeric clause may also remove one of the
+    // paragraph's citations. Re-close numbers and evidence-grade language
+    // against the citations that actually remain in the publishable text.
+    scope = paragraphEvidence(paragraph);
+    paragraph = sanitize(paragraph, scope.text);
+    scope = paragraphEvidence(paragraph);
     const isHeading = /^#{1,6}\s/u.test(paragraph);
     const isSubstantive =
       !isHeading &&
@@ -4107,9 +4137,9 @@ function normalizeFinalModelOutputForSafety(
       changed = true;
       continue;
     }
-    const normalizedCitedEvidence = citedEvidence.toLowerCase();
+    const normalizedCitedEvidence = scope.text.toLowerCase();
     if (
-      citedReferenceIds.length > 0 &&
+      scope.referenceIds.length > 0 &&
       /\b(?:in vitro|cell line|cultured cells?)\b/u.test(
         normalizedCitedEvidence
       ) &&
@@ -4125,9 +4155,9 @@ function normalizeFinalModelOutputForSafety(
       changed = true;
     }
     if (
-      citedReferenceIds.length > 0 &&
+      scope.referenceIds.length > 0 &&
       hasCausalClaim(paragraph) &&
-      isObservationalOnlyEvidence(citedEvidence) &&
+      isObservationalOnlyEvidence(scope.text) &&
       !hasExplicitNonCausalQualification(paragraph)
     ) {
       paragraph = `${paragraph}${
@@ -4138,7 +4168,7 @@ function normalizeFinalModelOutputForSafety(
       changed = true;
     }
     if (
-      citedReferenceIds.length > 0 &&
+      scope.referenceIds.length > 0 &&
       /\b(?:case report|case series)\b/u.test(normalizedCitedEvidence) &&
       !/\b(?:case report|case series|patient|patients)\b|病例|患者/u.test(
         paragraph.toLowerCase()
