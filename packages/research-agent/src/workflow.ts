@@ -4583,33 +4583,57 @@ function validateCompleteReviewSkillContract(
       language
     ) < 800
   ) {
-    errors.push("review_introduction_minimum:800");
+    errors.push(
+      `review_introduction_minimum:${countReviewLanguageContent(
+        introductions[0].body,
+        language
+      )}/800`
+    );
   }
-  if (
-    topics.some(
-      (section) =>
-        countReviewLanguageContent(section.body, language) < 600
+  const underfilledTopicCounts = topics
+    .map((section) =>
+      countReviewLanguageContent(section.body, language)
     )
-  ) {
-    errors.push("review_topic_section_minimum:600");
+    .filter((count) => count < 600);
+  if (underfilledTopicCounts.length > 0) {
+    errors.push(
+      `review_topic_section_minimum:${underfilledTopicCounts.join(
+        ","
+      )}/600`
+    );
   }
   if (
     synthesis[0] &&
     countReviewLanguageContent(synthesis[0].body, language) < 800
   ) {
-    errors.push("review_synthesis_minimum:800");
+    errors.push(
+      `review_synthesis_minimum:${countReviewLanguageContent(
+        synthesis[0].body,
+        language
+      )}/800`
+    );
   }
   if (
     limitations[0] &&
     countReviewLanguageContent(limitations[0].body, language) < 600
   ) {
-    errors.push("review_limitations_minimum:600");
+    errors.push(
+      `review_limitations_minimum:${countReviewLanguageContent(
+        limitations[0].body,
+        language
+      )}/600`
+    );
   }
   if (
     conclusions[0] &&
     countReviewLanguageContent(conclusions[0].body, language) < 200
   ) {
-    errors.push("review_conclusion_minimum:200");
+    errors.push(
+      `review_conclusion_minimum:${countReviewLanguageContent(
+        conclusions[0].body,
+        language
+      )}/200`
+    );
   }
   errors.push(
     ...validateReviewProseIntegrity(review.markdown, language)
@@ -5754,11 +5778,18 @@ function normalizeFinalModelOutputForSafety(
   });
   if (citationClosedReview.changed) {
     changed = true;
+    const scopedCitationClosedReview = deduplicateReviewParagraphs(
+      citationClosedReview.markdown
+        .split(/\n\s*\n/gu)
+        .map(applyRequiredEvidenceScope)
+        .join("\n\n"),
+      language
+    );
     normalizedValue = {
       ...normalizedValue,
       review: {
         ...normalizedValue.review,
-        markdown: citationClosedReview.markdown
+        markdown: scopedCitationClosedReview.markdown
       }
     };
   }
@@ -5971,11 +6002,67 @@ function removeUnsupportedNumericSentences(
   const sentences = value.split(
     /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s*/u
   );
-  const retained = sentences.filter((sentence) =>
-    extractNarrativeNumericTokens(sentence).every((token) =>
-      allowed.has(token)
-    )
-  );
+  const retained = sentences
+    .map((sentence) => {
+      if (
+        extractNarrativeNumericTokens(sentence).every((token) =>
+          allowed.has(token)
+        )
+      ) {
+        return sentence;
+      }
+      if (language !== "zh-CN") {
+        return null;
+      }
+      const terminal =
+        /[。！？；;!?.]$/u.exec(sentence.trim())?.[0] ?? "。";
+      const body = sentence.trim().replace(/[。！？；;!?.]+$/u, "");
+      const clauses = body
+        .split(/[，,]/u)
+        .map((clause) =>
+          clause
+            .trim()
+            .replace(
+              /^(?:但是|但|而且|而|并且|且|同时|其中|因此|然而)[，,\s]*/u,
+              ""
+            )
+        )
+        .filter(
+          (clause) =>
+            countHanCharacters(clause) >= 12 &&
+            extractNarrativeNumericTokens(clause).every((token) =>
+              allowed.has(token)
+            )
+        );
+      if (clauses.length === 0) {
+        return null;
+      }
+      let candidate = clauses.join("，");
+      const citations =
+        sentence.match(/\[[0-9,\s-]+\]/gu) ?? [];
+      if (
+        citations.length > 0 &&
+        extractNumericCitations(candidate).length === 0
+      ) {
+        candidate = `${candidate} ${[
+          ...new Set(citations)
+        ].join("")}`;
+      }
+      candidate = `${candidate}${terminal}`;
+      if (
+        countHanCharacters(candidate) < 20 ||
+        !hasBalancedDelimiter(candidate, "(", ")") ||
+        !hasBalancedDelimiter(candidate, "（", "）") ||
+        !hasBalancedDelimiter(candidate, "[", "]") ||
+        /(?:率|比例|占|为|达|至|约|术后|随访|纳入|共)\s*[0-9]+[.。](?![0-9])/u.test(
+          candidate
+        )
+      ) {
+        return null;
+      }
+      return candidate;
+    })
+    .filter((sentence): sentence is string => sentence !== null);
   return retained
     .join(language === "zh-CN" ? "" : " ")
     .trim();

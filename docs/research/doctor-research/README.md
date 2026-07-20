@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.27` together with the
+The production Worker uses frozen execution contract `1.6.28` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.27` splits synthesis into three bounded independent
+For latency, execution `1.6.28` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -105,10 +105,14 @@ introduction, followed when needed by one fixed claim-free evidence-boundary
 sentence. An underfilled optional closing topic is removed because the four
 mandatory topic sections are already complete. These actions are recorded as
 warnings; neither lowers a medical Skill length gate nor consumes another
-model call. Numeric safety normalization removes the complete unsupported
-sentence rather than clipping a comma-delimited fragment, and deterministic
-evidence-boundary supplements are never repeated merely to reach the length
-floor. The Worker then assembles the fragments, renders the
+model call. Numeric safety normalization first preserves only complete,
+substantive Chinese clauses from the model's original sentence whose numbers
+are all closed against the cited abstracts. It removes the complete sentence
+when no such clause is safe, never splits decimal points, and rejects
+unbalanced or truncated results. Citation-closure paragraphs are rechecked for
+case, in-vitro, and observational scope. Deterministic evidence-boundary
+supplements are never repeated merely to reach the length floor. The Worker
+then assembles the fragments, renders the
 3-8-paper core evidence table from verified publication metadata and
 abstracts, adds verified identity, sources, all reference metadata, search
 report, coverage and quality fields, and validates the unchanged public result
