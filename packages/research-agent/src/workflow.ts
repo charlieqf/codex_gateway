@@ -1950,8 +1950,10 @@ async function generateAndValidateShardedModelOutput(
       validation.errorCodes
     );
   }
-  let qaContractRetryCompleted = false;
-  if (
+  const initialValidationErrors = validation.ok
+    ? []
+    : validation.errors;
+  const qaContractRetryRequired =
     !validation.ok &&
     !shardTransportRetryCompleted &&
     !shardContractRetryCompleted &&
@@ -1960,26 +1962,54 @@ async function generateAndValidateShardedModelOutput(
         "answer_length_contract",
         "question_length_contract"
       ].includes(code)
-    )
-  ) {
-    const correctedQaResponse = await context.generateModel({
-      stage: "synthesize_review",
-      attempt: 4,
-      system: doctorResearchQaSystemPolicy,
-      prompt: buildQaContractCorrectionPrompt({
-        run: context.run,
-        evidence,
-        fragment: acceptedMiddleFragment,
-        validationErrors: validation.errors,
-        maximumQuestionContent:
-          context.input.policy.maximumQuestionContent,
-        minimumAnswerContent:
-          context.input.policy.minimumAnswerContent,
-        maximumAnswerContent:
-          context.input.policy.maximumAnswerContent,
-        medicalSkillBundle
+    );
+  const qaContractRetryPromise = qaContractRetryRequired
+    ? context.generateModel({
+        stage: "synthesize_review",
+        attempt: 4,
+        system: doctorResearchQaSystemPolicy,
+        prompt: buildQaContractCorrectionPrompt({
+          run: context.run,
+          evidence,
+          fragment: acceptedMiddleFragment,
+          validationErrors: initialValidationErrors,
+          maximumQuestionContent:
+            context.input.policy.maximumQuestionContent,
+          minimumAnswerContent:
+            context.input.policy.minimumAnswerContent,
+          maximumAnswerContent:
+            context.input.policy.maximumAnswerContent,
+          medicalSkillBundle
+        })
       })
-    });
+    : null;
+  const peerReviewAttempt =
+    shardTransportRetryCompleted ||
+    shardContractRetryCompleted ||
+    qaContractRetryRequired
+      ? 5
+      : 4;
+  const peerReviewPromise = context.generateModel({
+    stage: "validate_outputs",
+    attempt: peerReviewAttempt,
+    prompt: buildPeerReviewPatchPrompt({
+      run: context.run,
+      evidence,
+      draft: assembledDraft,
+      validationErrors: initialValidationErrors,
+      medicalSkillBundle
+    }),
+    system: doctorResearchPeerReviewSystemPolicy
+  });
+  const [correctedQaResponse, peerReviewResponse] =
+    qaContractRetryPromise
+      ? await Promise.all([
+          qaContractRetryPromise,
+          peerReviewPromise
+        ])
+      : [null, await peerReviewPromise];
+  let qaContractRetryCompleted = false;
+  if (correctedQaResponse) {
     const correctedQaFragment = parseQaFragment(
       correctedQaResponse.text
     );
@@ -2014,26 +2044,6 @@ async function generateAndValidateShardedModelOutput(
       );
     }
   }
-
-  const peerReviewPrompt = buildPeerReviewPatchPrompt({
-    run: context.run,
-    evidence,
-    draft: assembledDraft,
-    validationErrors: validation.ok ? [] : validation.errors,
-    medicalSkillBundle
-  });
-  const peerReviewAttempt =
-    shardTransportRetryCompleted ||
-    shardContractRetryCompleted ||
-    qaContractRetryCompleted
-      ? 5
-      : 4;
-  const peerReviewResponse = await context.generateModel({
-    stage: "validate_outputs",
-    attempt: peerReviewAttempt,
-    prompt: peerReviewPrompt,
-    system: doctorResearchPeerReviewSystemPolicy
-  });
   const peerReview = parsePeerReviewDecision(peerReviewResponse.text);
   if (!peerReview) {
     context.reportValidationFailure(

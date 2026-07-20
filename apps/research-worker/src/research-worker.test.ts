@@ -498,6 +498,12 @@ describe("Research Worker controlled-beta workflow", () => {
     const barrier = new Promise<void>((resolve) => {
       releaseBarrier = resolve;
     });
+    let activeCorrectionCalls = 0;
+    let maximumActiveCorrectionCalls = 0;
+    let releaseCorrectionBarrier: (() => void) | null = null;
+    const correctionBarrier = new Promise<void>((resolve) => {
+      releaseCorrectionBarrier = resolve;
+    });
     const attempts: number[] = [];
     const synthesisPrompts = new Map<number, string>();
     let retryPrompt: string | null = null;
@@ -562,6 +568,21 @@ describe("Research Worker controlled-beta workflow", () => {
                 totalTokens: 1_100
               }
             };
+          }
+          if (
+            retryKind === "body" &&
+            modelInput.attempt >= 4
+          ) {
+            activeCorrectionCalls += 1;
+            maximumActiveCorrectionCalls = Math.max(
+              maximumActiveCorrectionCalls,
+              activeCorrectionCalls
+            );
+            if (activeCorrectionCalls === 2) {
+              releaseCorrectionBarrier?.();
+            }
+            await correctionBarrier;
+            activeCorrectionCalls -= 1;
           }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
@@ -637,6 +658,7 @@ describe("Research Worker controlled-beta workflow", () => {
       "\"profile\""
     );
     if (retryKind === "body") {
+      expect(maximumActiveCorrectionCalls).toBe(2);
       expect(retryPrompt).toContain(
         "doctor_research_qa_fragment.v1"
       );
