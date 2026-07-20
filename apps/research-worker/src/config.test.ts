@@ -35,7 +35,7 @@ describe("Research Worker fail-closed configuration", () => {
         maximumInputTokensPerCall: 200_000,
         budgets: {
           externalRequests: 466,
-          llmCalls: 3
+          llmCalls: 4
         }
       }
     });
@@ -83,7 +83,7 @@ describe("Research Worker fail-closed configuration", () => {
         ...validEnvironment(),
         RESEARCH_MAX_LLM_CALLS_PER_RUN: "2"
       })
-    ).toThrow("must cover two run attempts");
+    ).toThrow("must cover one initial transport failure");
 
     expect(() =>
       loadResearchWorkerConfig({
@@ -250,10 +250,10 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "2",
     RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "466",
     RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "932000000",
-    RESEARCH_MAX_LLM_CALLS_PER_RUN: "3",
+    RESEARCH_MAX_LLM_CALLS_PER_RUN: "4",
     RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "200000",
-    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "600000",
-    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "36000",
+    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "800000",
+    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "48000",
     RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "12000",
     RESEARCH_MAX_EXTERNAL_RESPONSE_BYTES_PER_CALL: "2000000",
     RESEARCH_MAX_SOURCE_TEXT_CHARACTERS: "100000",

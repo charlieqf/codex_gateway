@@ -153,7 +153,7 @@ export function loadResearchWorkerConfig(
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
       "RESEARCH_MAX_LLM_CALLS_PER_RUN",
-      3
+      4
     ),
     inputTokens: boundedInteger(
       env.RESEARCH_MAX_INPUT_TOKENS_PER_RUN,
@@ -454,7 +454,7 @@ export function loadResearchWorkerConfig(
     500_000
   );
   if (
-    budgets.llmCalls !== 3 ||
+    budgets.llmCalls !== 4 ||
     !Number.isSafeInteger(
       maximumOutputTokensPerCall * budgets.llmCalls
     ) ||
@@ -467,7 +467,7 @@ export function loadResearchWorkerConfig(
       budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover two run attempts plus one bounded repair."
+      "Research LLM budgets must cover one initial transport failure plus generation, peer review, and one bounded repair."
     );
   }
   const minimumFreePercent = requiredPositiveInteger(
