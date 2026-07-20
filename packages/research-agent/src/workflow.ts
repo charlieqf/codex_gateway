@@ -4126,35 +4126,9 @@ function normalizeFinalModelOutputForSafety(
         .join("\n")
     };
   };
-  const normalizedParagraphs: string[] = [];
-  for (const originalParagraph of output.review.markdown.split(
-    /\n\s*\n/gu
-  )) {
-    let paragraph = originalParagraph;
-    let scope = paragraphEvidence(paragraph);
-    // Removing an unsupported numeric clause may also remove one of the
-    // paragraph's citations. Re-close against the citations that actually
-    // remain until the monotonic clause removal reaches a fixed point.
-    for (let iteration = 0; iteration < 64; iteration += 1) {
-      scope = paragraphEvidence(paragraph);
-      const next = sanitize(paragraph, scope.text);
-      if (next === paragraph) {
-        break;
-      }
-      paragraph = next;
-    }
-    scope = paragraphEvidence(paragraph);
-    const isHeading = /^#{1,6}\s/u.test(paragraph);
-    const isSubstantive =
-      !isHeading &&
-      count(paragraph) >= (language === "zh-CN" ? 20 : 10);
-    if (
-      isSubstantive &&
-      extractNumericCitations(paragraph).length === 0
-    ) {
-      changed = true;
-      continue;
-    }
+  const applyRequiredEvidenceScope = (value: string): string => {
+    let paragraph = value;
+    const scope = paragraphEvidence(paragraph);
     const normalizedCitedEvidence = scope.text.toLowerCase();
     if (
       scope.referenceIds.length > 0 &&
@@ -4187,7 +4161,9 @@ function normalizeFinalModelOutputForSafety(
     }
     if (
       scope.referenceIds.length > 0 &&
-      /\b(?:case report|case series)\b/u.test(normalizedCitedEvidence) &&
+      /\b(?:case report|case series)\b/u.test(
+        normalizedCitedEvidence
+      ) &&
       !/\b(?:case report|case series|patient|patients)\b|病例|患者/u.test(
         paragraph.toLowerCase()
       )
@@ -4199,11 +4175,43 @@ function normalizeFinalModelOutputForSafety(
       }`;
       changed = true;
     }
+    return paragraph;
+  };
+  const normalizedParagraphs: string[] = [];
+  for (const originalParagraph of output.review.markdown.split(
+    /\n\s*\n/gu
+  )) {
+    let paragraph = originalParagraph;
+    let scope = paragraphEvidence(paragraph);
+    // Removing an unsupported numeric clause may also remove one of the
+    // paragraph's citations. Re-close against the citations that actually
+    // remain until the monotonic clause removal reaches a fixed point.
+    for (let iteration = 0; iteration < 64; iteration += 1) {
+      scope = paragraphEvidence(paragraph);
+      const next = sanitize(paragraph, scope.text);
+      if (next === paragraph) {
+        break;
+      }
+      paragraph = next;
+    }
+    scope = paragraphEvidence(paragraph);
+    const isHeading = /^#{1,6}\s/u.test(paragraph);
+    const isSubstantive =
+      !isHeading &&
+      count(paragraph) >= (language === "zh-CN" ? 20 : 10);
+    if (
+      isSubstantive &&
+      extractNumericCitations(paragraph).length === 0
+    ) {
+      changed = true;
+      continue;
+    }
+    paragraph = applyRequiredEvidenceScope(paragraph);
     if (paragraph.trim() !== "") {
       normalizedParagraphs.push(paragraph);
     }
   }
-  const supplementedReview = supplementReviewEvidenceBoundary({
+  let supplementedReview = supplementReviewEvidenceBoundary({
     markdown: normalizedParagraphs.join("\n\n"),
     referenceCount: output.review.references.length,
     language,
@@ -4212,6 +4220,13 @@ function normalizeFinalModelOutputForSafety(
   if (supplementedReview.changed) {
     changed = true;
   }
+  supplementedReview = {
+    ...supplementedReview,
+    markdown: supplementedReview.markdown
+      .split(/\n\s*\n/gu)
+      .map(applyRequiredEvidenceScope)
+      .join("\n\n")
+  };
   const allAbstracts = evidence.publicationEvidence
     .map((publication) => publication.abstract ?? "")
     .join("\n");
@@ -4228,8 +4243,7 @@ function normalizeFinalModelOutputForSafety(
         reference.reference_id
       ])
   );
-  return {
-    value: {
+  let normalizedValue: DoctorResearchModelOutput = {
       ...output,
       review: {
         ...output.review,
@@ -4287,7 +4301,41 @@ function normalizeFinalModelOutputForSafety(
           answer: bounded
         };
       })
-    },
+    };
+  const residualReviewParagraphs = new Set(
+    [...unsupportedNarrativeNumericTokens(normalizedValue, evidence)]
+      .map((error) => /^review_([0-9]+):/u.exec(error)?.[1])
+      .filter((index): index is string => Boolean(index))
+      .map(Number)
+  );
+  if (residualReviewParagraphs.size > 0) {
+    changed = true;
+    const retained = normalizedValue.review.markdown
+      .split(/\n\s*\n/gu)
+      .filter((_, index) => !residualReviewParagraphs.has(index + 1))
+      .join("\n\n");
+    const resupplemented = supplementReviewEvidenceBoundary({
+      markdown: retained,
+      referenceCount: normalizedValue.review.references.length,
+      language,
+      minimumContent: policy.minimumReviewContent
+    });
+    normalizedValue = {
+      ...normalizedValue,
+      review: {
+        ...normalizedValue.review,
+        markdown: resupplemented.markdown
+          .split(/\n\s*\n/gu)
+          .map(applyRequiredEvidenceScope)
+          .join("\n\n")
+      }
+    };
+    if (resupplemented.changed) {
+      supplementedReview = resupplemented;
+    }
+  }
+  return {
+    value: normalizedValue,
     changed,
     evidenceBoundarySupplemented: supplementedReview.changed
   };
