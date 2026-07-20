@@ -569,11 +569,7 @@ class WorkflowContext {
         throw new WorkflowFencedError();
       }
       completionRecorded = true;
-      this.settleModelUsage(
-        reservedInputTokens,
-        response.usage,
-        response.text
-      );
+      this.settleModelUsage(reservedInputTokens, response.usage);
       return response;
     } catch (error) {
       if (!completionRecorded && !(error instanceof WorkflowFencedError)) {
@@ -649,8 +645,7 @@ class WorkflowContext {
 
   private settleModelUsage(
     reservedInputTokens: number,
-    usage: ResearchModelUsage,
-    responseText: string
+    usage: ResearchModelUsage
   ): void {
     let additionalInputTokens =
       usage.promptTokens === null
@@ -681,12 +676,11 @@ class WorkflowContext {
         outputTokens: additionalOutputTokens
       });
     }
-    if (
-      estimateResearchInputTokens(responseText) >
-      this.input.policy.maximumOutputTokensPerCall
-    ) {
-      throw new WorkflowBudgetError("per_call_output_tokens");
-    }
+    // The model client sends maximumOutputTokensPerCall as max_tokens and
+    // readiness verifies that provider limit. Some reasoning providers report
+    // hidden reasoning inside completion_tokens without a separate detail.
+    // Do not guess visible tokens from UTF-8 bytes here; response bytes,
+    // run-total usage, final schema and artifact byte limits remain enforced.
   }
 
   callSignal(): AbortSignal {
