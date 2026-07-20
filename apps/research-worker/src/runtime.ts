@@ -311,7 +311,8 @@ export async function runResearchWorker(input: {
                   lease_generation: currentToken.generation,
                   stage: event.stage,
                   attempt: event.attempt,
-                  error_codes: event.errorCodes
+                  error_codes: event.errorCodes,
+                  error_details: event.errorDetails ?? []
                 });
               }
             })

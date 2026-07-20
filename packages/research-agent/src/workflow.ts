@@ -97,6 +97,7 @@ export async function executeDoctorResearchWorkflow(input: {
     stage: "synthesize_review" | "validate_outputs";
     attempt: 1 | 2 | 3 | 4 | 5;
     errorCodes: readonly string[];
+    errorDetails?: readonly string[];
   }) => void;
   now?: () => Date;
 }): Promise<DoctorResearchWorkflowResult> {
@@ -609,7 +610,8 @@ class WorkflowContext {
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
     attempt: 1 | 2 | 3 | 4 | 5,
-    errorCodes: readonly string[]
+    errorCodes: readonly string[],
+    errorDetails: readonly string[] = []
   ): void {
     const stableCodes = [
       ...new Set(
@@ -622,7 +624,14 @@ class WorkflowContext {
         stage,
         attempt,
         errorCodes:
-          stableCodes.length > 0 ? stableCodes : ["model_contract_error"]
+          stableCodes.length > 0 ? stableCodes : ["model_contract_error"],
+        errorDetails: errorDetails
+          .filter(
+            (detail) =>
+              detail.length <= 512 &&
+              /^[a-z0-9_:/|.=+%()-]+$/u.test(detail)
+          )
+          .slice(0, 40)
       });
     } catch {
       // A diagnostic sink must not change workflow convergence.
@@ -2102,7 +2111,8 @@ async function generateAndValidateShardedModelOutput(
       context.reportValidationFailure(
         "validate_outputs",
         peerReviewAttempt,
-        validation.errorCodes
+        validation.errorCodes,
+        validation.errors
       );
       return null;
     }
@@ -2180,7 +2190,8 @@ async function generateAndValidateShardedModelOutput(
     context.reportValidationFailure(
       "validate_outputs",
       peerReviewAttempt,
-      validation.errorCodes
+      validation.errorCodes,
+      validation.errors
     );
     return null;
   }
