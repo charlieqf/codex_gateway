@@ -1211,7 +1211,8 @@ async function generateAndValidateModelOutput(
         [
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
-          "in_vitro_scope_required"
+          "in_vitro_scope_required",
+          "causal_claim_evidence_grade"
         ].includes(code)
       )
     ) {
@@ -1310,7 +1311,8 @@ async function generateAndValidateModelOutput(
         [
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
-          "in_vitro_scope_required"
+          "in_vitro_scope_required",
+          "causal_claim_evidence_grade"
         ].includes(code)
       )
     ) {
@@ -1407,7 +1409,8 @@ async function generateAndValidateModelOutput(
           [
             "paragraph_citation_coverage",
             "numeric_evidence_closure",
-            "in_vitro_scope_required"
+            "in_vitro_scope_required",
+            "causal_claim_evidence_grade"
           ].includes(code)
         )
       ) {
@@ -2411,6 +2414,19 @@ function normalizeFinalModelOutputForSafety(
       }`;
       changed = true;
     }
+    if (
+      citedReferenceIds.length > 0 &&
+      hasCausalClaim(paragraph) &&
+      isObservationalOnlyEvidence(citedEvidence) &&
+      !hasExplicitNonCausalQualification(paragraph)
+    ) {
+      paragraph = `${paragraph}${
+        language === "zh-CN"
+          ? " 该段所引证据为观察性资料；上述表述仅指关联，不能推断因果。"
+          : " The cited evidence is observational; this describes an association and cannot establish causality."
+      }`;
+      changed = true;
+    }
     if (paragraph.trim() !== "") {
       normalizedParagraphs.push(paragraph);
     }
@@ -2624,22 +2640,11 @@ function validateEvidenceScopeAndCausality(
     }
     const source = citedAbstracts.join(" ").toLowerCase();
     const claim = paragraph.toLowerCase();
-    const causalClaim =
-      /\b(?:cause[sd]?|causal|led to|resulted in|improves?|reduces?|increases?|prevents?|proves?|demonstrates?)\b|证明|证实|导致|使得|改善|降低|提高|预防/u.test(
-        claim
-      );
-    const explicitlyNonCausal =
-      /\b(?:cannot infer causality|cannot establish causality|does not establish causality|not establish causality|association rather than causation|non-causal association)\b|不能推断因果|无法推断因果|不支持因果|不代表因果|并非因果/u.test(
-        claim
-      );
-    const observationalOnly =
-      /\b(?:observational|retrospective|registry|cohort|cross-sectional|case-control)\b/u.test(
-        source
-      ) &&
-      !/\b(?:randomi[sz]ed|controlled trial|intervention|in vitro|animal model)\b/u.test(
-        source
-      );
-    if (causalClaim && observationalOnly && !explicitlyNonCausal) {
+    if (
+      hasCausalClaim(claim) &&
+      isObservationalOnlyEvidence(source) &&
+      !hasExplicitNonCausalQualification(claim)
+    ) {
       errors.add(
         `causal_claim_evidence_grade:paragraph=${paragraphIndex + 1}`
       );
@@ -2664,6 +2669,30 @@ function validateEvidenceScopeAndCausality(
     }
   }
   return [...errors];
+}
+
+function hasCausalClaim(value: string): boolean {
+  return /\b(?:cause[sd]?|causal|led to|resulted in|improves?|reduces?|increases?|prevents?|proves?|demonstrates?)\b|证明|证实|导致|使得|改善|降低|提高|预防/u.test(
+    value.toLowerCase()
+  );
+}
+
+function hasExplicitNonCausalQualification(value: string): boolean {
+  return /\b(?:cannot infer causality|cannot establish causality|does not establish causality|not establish causality|association rather than causation|non-causal association)\b|不能推断因果|无法推断因果|不支持因果|不代表因果|并非因果/u.test(
+    value.toLowerCase()
+  );
+}
+
+function isObservationalOnlyEvidence(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    /\b(?:observational|retrospective|registry|cohort|cross-sectional|case-control)\b/u.test(
+      normalized
+    ) &&
+    !/\b(?:randomi[sz]ed|controlled trial|intervention|in vitro|animal model)\b/u.test(
+      normalized
+    )
+  );
 }
 
 function containsUnsafeModelMarkup(

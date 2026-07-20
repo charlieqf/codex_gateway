@@ -894,24 +894,8 @@ describe("Research Worker controlled-beta workflow", () => {
     const fixture = createLeasedWorkflowFixture(
       "late_format_repair_retry"
     );
-    const observationalAdapters = adapters();
-    const originalMetadata =
-      observationalAdapters.getPubMedMetadata.bind(
-        observationalAdapters
-      );
-    observationalAdapters.getPubMedMetadata = async (pmid, signal) => {
-      const metadata = await originalMetadata(pmid, signal);
-      return metadata
-        ? {
-            ...metadata,
-            abstractText:
-              "This retrospective cohort observed an association between treatment and mortality."
-          }
-        : null;
-    };
-    const causal = modelOutput();
-    causal.review.markdown =
-      "The retrospective study proves that treatment directly reduces mortality [1].";
+    const invalid = modelOutput();
+    invalid.predicted_questions[0] = "word ".repeat(101).trim();
     const valid = modelOutput();
     let modelCalls = 0;
     const validationEvents: Array<{
@@ -922,7 +906,7 @@ describe("Research Worker controlled-beta workflow", () => {
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
-      adapters: observationalAdapters,
+      adapters: adapters(),
       modelClient: {
         model: "test-model",
         async generate(input) {
@@ -931,7 +915,7 @@ describe("Research Worker controlled-beta workflow", () => {
             text:
               modelCalls === 3
                 ? "malformed non-JSON repair"
-                : JSON.stringify(modelCalls < 4 ? causal : valid),
+                : JSON.stringify(modelCalls < 4 ? invalid : valid),
             gatewayRequestId: `req_model_format_retry_${input.attempt}`,
             usage: {
               promptTokens: 100,
@@ -966,8 +950,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(modelCalls).toBe(4);
     expect(validationEvents).toEqual([
-      { attempt: 1, errorCodes: ["causal_claim_evidence_grade"] },
-      { attempt: 2, errorCodes: ["causal_claim_evidence_grade"] },
+      { attempt: 1, errorCodes: ["question_length_contract"] },
+      { attempt: 2, errorCodes: ["question_length_contract"] },
       { attempt: 3, errorCodes: ["parse_error"] }
     ]);
     const stored = fixture.store.getRunResultForSubject(
@@ -1133,7 +1117,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("rejects causal overclaiming from observational evidence", async () => {
+  it("qualifies causal overclaiming from observational evidence after peer review", async () => {
     const fixture = createLeasedWorkflowFixture(
       "observational_causality"
     );
@@ -1183,16 +1167,27 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "model_contract_error"
-    });
+    expect(outcome).toEqual({ outcome: "succeeded" });
     expect(validationCodes).toEqual([
-      ["causal_claim_evidence_grade"],
       ["causal_claim_evidence_grade"],
       ["causal_claim_evidence_grade"]
     ]);
-    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as
+      | {
+          review: { markdown: string };
+          quality: { warnings: string[] };
+        }
+      | undefined;
+    expect(result?.review.markdown).toContain(
+      "this describes an association and cannot establish causality"
+    );
+    expect(result?.quality.warnings).toContain(
+      "deterministic_safety_normalization_applied"
+    );
     fixture.store.close();
   });
 
