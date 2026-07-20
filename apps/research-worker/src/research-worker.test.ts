@@ -420,6 +420,10 @@ describe("Research Worker controlled-beta workflow", () => {
     [
       "citation-closure",
       "peer_review_model_unavailable_deterministic_fallback"
+    ],
+    [
+      "grace",
+      "bounded_initial_shard_admission_grace_elapsed"
     ]
   ] as const)(
     "runs concurrent synthesis shards, bounded corrections, and peer review fallback for %s",
@@ -692,7 +696,10 @@ describe("Research Worker controlled-beta workflow", () => {
                 }
               };
             }
-            if (activeSynthesisCalls === 2) {
+            if (
+              activeSynthesisCalls ===
+              (retryKind === "grace" ? 3 : 2)
+            ) {
               releaseBarrier?.();
             }
             await barrier;
@@ -757,6 +764,27 @@ describe("Research Worker controlled-beta workflow", () => {
               "Peer review model timed out.",
               "TimeoutError"
             );
+          }
+          if (
+            retryKind === "grace" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_grace_peer_review",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
           }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
@@ -869,6 +897,11 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumPublications: 2
             }
           : {}),
+        ...(retryKind === "grace"
+          ? {
+              hardDeadlineMs: 4_000
+            }
+          : {}),
         synthesisShardCount: 3,
         budgets: {
           ...workflowPolicy().budgets,
@@ -890,7 +923,9 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome, JSON.stringify(validationEvents)).toEqual({
       outcome: "succeeded"
     });
-    expect(maximumActiveSynthesisCalls).toBe(2);
+    expect(maximumActiveSynthesisCalls).toBe(
+      retryKind === "grace" ? 3 : 2
+    );
     if (retryKind === "admission") {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
@@ -898,7 +933,8 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "citation-closure" ||
       retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
-      retryKind === "skill-normalization"
+      retryKind === "skill-normalization" ||
+      retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );

@@ -1937,33 +1937,37 @@ async function generateAndValidateShardedModelOutput(
         stage: "synthesize_review",
         attempt: 1,
         prompt: foundationPrompt,
-        system: doctorResearchFoundationSystemPolicy
+        system: doctorResearchFoundationSystemPolicy,
+        maximumDurationMs: 180_000
     },
     {
         stage: "synthesize_review",
         attempt: 2,
         prompt: middlePrompt,
-        system: doctorResearchBodySystemPolicy
+        system: doctorResearchBodySystemPolicy,
+        maximumDurationMs: 180_000
     },
     {
         stage: "synthesize_review",
         attempt: 3,
         prompt: closingPrompt,
-        system: doctorResearchFragmentSystemPolicy
+        system: doctorResearchFragmentSystemPolicy,
+        maximumDurationMs: 180_000
     }
   ] as const;
-  // Start optimistically with two provider slots. If either admission is
-  // rate-limited, keep the accepted call, stop launching new concurrent work,
-  // finish the untouched third shard, and then spend the one bounded retry on
-  // the rejected shard. This adapts to transient one-slot provider capacity
-  // without wasting the retry on another immediate concurrent admission.
+  // Start with two provider slots and allow a short observation window for a
+  // fast admission rejection. If neither call is rejected during that window,
+  // launch the third shard concurrently so one slow response cannot consume
+  // most of the ten-minute wall budget. A quick rejection retains the prior
+  // conservative one-slot fallback.
   type ShardSettlement =
     | {
         index: number;
         status: "fulfilled";
         value: ResearchModelResponse;
       }
-    | { index: number; status: "rejected"; reason: unknown };
+    | { index: number; status: "rejected"; reason: unknown }
+    | { index: -1; status: "admission_grace_elapsed" };
   const responses: Array<ResearchModelResponse | null> =
     Array.from({ length: shardInputs.length }, () => null);
   const pendingIndexes = shardInputs.map((_, index) => index);
@@ -1971,7 +1975,28 @@ async function generateAndValidateShardedModelOutput(
   let maximumConcurrency = 2;
   let nextAttempt = 1;
   let shardTransportRetryCompleted = false;
+  let shardAdmissionGraceElapsed = false;
   let terminalShardError: unknown = null;
+  const shardAdmissionGraceMs = Math.min(
+    15_000,
+    Math.max(
+      25,
+      Math.floor(context.input.policy.hardDeadlineMs / 40)
+    )
+  );
+  let admissionGrace:
+    | {
+        promise: Promise<ShardSettlement>;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    | null = null;
+  let admissionGraceAvailable = true;
+  const cancelAdmissionGrace = (): void => {
+    if (admissionGrace !== null) {
+      clearTimeout(admissionGrace.timer);
+      admissionGrace = null;
+    }
+  };
   const launchShard = (index: number): void => {
     const input = shardInputs[index]!;
     const attempt = nextAttempt;
@@ -2002,7 +2027,41 @@ async function generateAndValidateShardedModelOutput(
     ) {
       launchShard(pendingIndexes.shift()!);
     }
-    const settlement = await Promise.race(active.values());
+    if (
+      admissionGraceAvailable &&
+      maximumConcurrency === 2 &&
+      active.size === 2 &&
+      pendingIndexes.length > 0 &&
+      admissionGrace === null
+    ) {
+      let timer!: ReturnType<typeof setTimeout>;
+      const promise = new Promise<ShardSettlement>((resolve) => {
+        timer = setTimeout(
+          () =>
+            resolve({
+              index: -1,
+              status: "admission_grace_elapsed"
+            }),
+          shardAdmissionGraceMs
+        );
+      });
+      admissionGrace = { promise, timer };
+    }
+    const settlement = await Promise.race([
+      ...active.values(),
+      ...(admissionGrace === null
+        ? []
+        : [admissionGrace.promise])
+    ]);
+    if (settlement.status === "admission_grace_elapsed") {
+      admissionGrace = null;
+      admissionGraceAvailable = false;
+      shardAdmissionGraceElapsed = true;
+      maximumConcurrency = 3;
+      continue;
+    }
+    cancelAdmissionGrace();
+    admissionGraceAvailable = false;
     active.delete(settlement.index);
     if (settlement.status === "fulfilled") {
       responses[settlement.index] = settlement.value;
@@ -2551,6 +2610,9 @@ async function generateAndValidateShardedModelOutput(
         ...(shardTransportRetryCompleted
           ? ["bounded_shard_transport_retry_completed"]
           : []),
+        ...(shardAdmissionGraceElapsed
+          ? ["bounded_initial_shard_admission_grace_elapsed"]
+          : []),
         ...(shardContractRetryCompleted
           ? ["bounded_shard_contract_retry_completed"]
           : []),
@@ -2626,6 +2688,9 @@ async function generateAndValidateShardedModelOutput(
       ...shardSkillNormalizationWarnings,
       ...(shardTransportRetryCompleted
         ? ["bounded_shard_transport_retry_completed"]
+        : []),
+      ...(shardAdmissionGraceElapsed
+        ? ["bounded_initial_shard_admission_grace_elapsed"]
         : []),
       ...(shardContractRetryCompleted
         ? ["bounded_shard_contract_retry_completed"]
