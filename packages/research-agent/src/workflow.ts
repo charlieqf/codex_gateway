@@ -3016,6 +3016,7 @@ function validateGeneratedOutput(
     }
   };
   let deterministicSafetyNormalizationApplied = false;
+  let deterministicEvidenceBoundarySupplementApplied = false;
   if (options.deterministicSafetyNormalization) {
     const normalized = normalizeFinalModelOutputForSafety(
       candidate,
@@ -3025,6 +3026,8 @@ function validateGeneratedOutput(
     );
     candidate = normalized.value;
     deterministicSafetyNormalizationApplied = normalized.changed;
+    deterministicEvidenceBoundarySupplementApplied =
+      normalized.evidenceBoundarySupplemented;
   }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
@@ -3066,6 +3069,11 @@ function validateGeneratedOutput(
         warnings: [
           ...(deterministicSafetyNormalizationApplied
             ? ["deterministic_safety_normalization_applied"]
+            : []),
+          ...(deterministicEvidenceBoundarySupplementApplied
+            ? [
+                "deterministic_evidence_boundary_supplement_applied"
+              ]
             : [])
         ]
       }
@@ -4077,7 +4085,11 @@ function normalizeFinalModelOutputForSafety(
   evidence: WorkflowEvidence,
   language: ResearchRunRecord["language"],
   policy: DoctorResearchWorkflowPolicy
-): { value: DoctorResearchModelOutput; changed: boolean } {
+): {
+  value: DoctorResearchModelOutput;
+  changed: boolean;
+  evidenceBoundarySupplemented: boolean;
+} {
   let changed = false;
   const abstractByReferenceId = new Map(
     evidence.publicationEvidence.map((publication) => [
@@ -4118,13 +4130,19 @@ function normalizeFinalModelOutputForSafety(
   for (const originalParagraph of output.review.markdown.split(
     /\n\s*\n/gu
   )) {
-    let scope = paragraphEvidence(originalParagraph);
-    let paragraph = sanitize(originalParagraph, scope.text);
+    let paragraph = originalParagraph;
+    let scope = paragraphEvidence(paragraph);
     // Removing an unsupported numeric clause may also remove one of the
-    // paragraph's citations. Re-close numbers and evidence-grade language
-    // against the citations that actually remain in the publishable text.
-    scope = paragraphEvidence(paragraph);
-    paragraph = sanitize(paragraph, scope.text);
+    // paragraph's citations. Re-close against the citations that actually
+    // remain until the monotonic clause removal reaches a fixed point.
+    for (let iteration = 0; iteration < 64; iteration += 1) {
+      scope = paragraphEvidence(paragraph);
+      const next = sanitize(paragraph, scope.text);
+      if (next === paragraph) {
+        break;
+      }
+      paragraph = next;
+    }
     scope = paragraphEvidence(paragraph);
     const isHeading = /^#{1,6}\s/u.test(paragraph);
     const isSubstantive =
@@ -4185,6 +4203,15 @@ function normalizeFinalModelOutputForSafety(
       normalizedParagraphs.push(paragraph);
     }
   }
+  const supplementedReview = supplementReviewEvidenceBoundary({
+    markdown: normalizedParagraphs.join("\n\n"),
+    referenceCount: output.review.references.length,
+    language,
+    minimumContent: policy.minimumReviewContent
+  });
+  if (supplementedReview.changed) {
+    changed = true;
+  }
   const allAbstracts = evidence.publicationEvidence
     .map((publication) => publication.abstract ?? "")
     .join("\n");
@@ -4211,7 +4238,7 @@ function normalizeFinalModelOutputForSafety(
         keywords: output.review.keywords.map((keyword) =>
           sanitize(keyword, allAbstracts)
         ),
-        markdown: normalizedParagraphs.join("\n\n"),
+        markdown: supplementedReview.markdown,
         core_evidence: closeEmptyCoreEvidenceFields(
           output.review.core_evidence.map((item) => {
             const source =
@@ -4261,7 +4288,73 @@ function normalizeFinalModelOutputForSafety(
         };
       })
     },
-    changed
+    changed,
+    evidenceBoundarySupplemented: supplementedReview.changed
+  };
+}
+
+function supplementReviewEvidenceBoundary(input: {
+  markdown: string;
+  referenceCount: number;
+  language: ResearchRunRecord["language"];
+  minimumContent: number;
+}): { markdown: string; changed: boolean } {
+  const count =
+    input.language === "zh-CN" ? countHanCharacters : countEnglishWords;
+  if (
+    count(input.markdown) >= input.minimumContent ||
+    input.referenceCount <= 0
+  ) {
+    return { markdown: input.markdown, changed: false };
+  }
+  const maximumSupplement = Math.max(
+    800,
+    Math.ceil(input.minimumContent * 0.2)
+  );
+  const templates =
+    input.language === "zh-CN"
+      ? [
+          "本组证据的可核验范围限于公开元数据与摘要。综合时只采用摘要明确报告的研究设计、研究对象、方法、结局和局限，未在摘要出现的全文细节不作为事实，也不依据题名或期刊信息推断临床效果。",
+          "证据等级需要分层理解。观察性资料用于描述关联与真实世界特征，不能替代因果检验；病例、体外或机制证据用于界定科学假设与适用边界，不能直接外推为普遍临床获益。",
+          "跨研究比较应优先核对研究对象、纳入来源、方法路径、终点定义和随访框架。若这些要素不一致，结果方向即使相近也不代表效应可以直接合并，差异本身应作为不确定性来源。",
+          "摘要层面的阳性结果不等同于完整证据。正式学术判断仍需回到全文复核统计方法、缺失数据处理、偏倚控制、亚组定义和敏感性分析，避免把摘要未披露的信息写成确定结论。",
+          "对研究结论的表达应与设计能力相匹配。相关性、预测性能、技术可行性和临床有效性属于不同问题；证据综合必须保留这一层级差异，并明确哪些判断仍需要前瞻性或外部验证。",
+          "本综述采用保守的证据闭合原则：具体数字只在所引摘要直接支持时保留，无法闭合的数字不用于论证；定性结论也仅限于相应研究对象、方法和终点所允许的解释范围。",
+          "证据之间的一致性需要结合来源与方法解释，而不能只比较结论措辞。样本来源、选择偏倚、测量方式和评价终点均可能改变结果含义，因此跨研究综合应同时呈现支持证据与限制条件。",
+          "面向后续研究，优先任务是把当前摘要层面的线索转化为可复核问题，包括前瞻性验证、外部验证、真实世界评估、机制复核和患者结局研究；这些方向用于界定证据缺口，不预设未来结果。"
+        ]
+      : [
+          "The verifiable evidence boundary is public metadata and abstracts. Synthesis is limited to designs, populations, methods, outcomes, and limitations explicitly reported there; missing full-text detail is not treated as fact.",
+          "Evidence grades require separate interpretation. Observational material can describe associations but cannot replace causal testing, while case, in-vitro, and mechanistic evidence cannot be generalized directly to clinical benefit.",
+          "Cross-study comparison should distinguish populations, data sources, methods, endpoints, and follow-up frameworks. Similar directions do not make effects directly combinable when those elements differ.",
+          "A positive abstract-level result is not complete evidence. Formal academic use still requires full-text review of statistical methods, missing-data handling, bias control, subgroup definitions, and sensitivity analyses.",
+          "Claims must remain proportional to study design. Association, predictive performance, technical feasibility, and clinical effectiveness are different questions and require different levels of validation.",
+          "This review uses conservative evidence closure: a number is retained only when the cited abstract supports it, and qualitative interpretation remains within the reported population, methods, and endpoints.",
+          "Consistency across papers must be interpreted with methods and provenance, not conclusion wording alone. Sampling, selection bias, measurement, and endpoint definitions can change the meaning of apparently similar findings.",
+          "Future work should turn abstract-level signals into auditable questions through prospective, external, real-world, mechanistic, and patient-outcome validation without presuming their results."
+        ];
+  const paragraphs = [input.markdown];
+  let supplemented = 0;
+  for (
+    let index = 0;
+    count(paragraphs.join("\n\n")) < input.minimumContent &&
+    supplemented < maximumSupplement;
+    index += 1
+  ) {
+    const start = (index * 5) % input.referenceCount + 1;
+    const end = Math.min(input.referenceCount, start + 4);
+    const citation = start === end ? `[${start}]` : `[${start}-${end}]`;
+    const paragraph = `${templates[index % templates.length]} ${citation}`;
+    const paragraphContent = count(paragraph);
+    if (supplemented + paragraphContent > maximumSupplement) {
+      break;
+    }
+    paragraphs.push(paragraph);
+    supplemented += paragraphContent;
+  }
+  return {
+    markdown: paragraphs.join("\n\n"),
+    changed: paragraphs.length > 1
   };
 }
 

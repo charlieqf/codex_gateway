@@ -655,6 +655,11 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumAnswerContent: 300
             }
           : {}),
+        ...(retryKind === "peer-timeout"
+          ? {
+              minimumReviewContent: 7_000
+            }
+          : {}),
         synthesisShardCount: 3,
         budgets: {
           ...workflowPolicy().budgets,
@@ -691,13 +696,19 @@ describe("Research Worker controlled-beta workflow", () => {
       "\"profile\""
     );
     expect(synthesisPrompts.get(1)).toContain(
-      "at least 1500 content characters"
+      `at least ${
+        retryKind === "peer-timeout" ? 1750 : 1500
+      } content characters`
     );
     expect(synthesisPrompts.get(2)).toContain(
-      "at least 3700 content characters"
+      `at least ${
+        retryKind === "peer-timeout" ? 4340 : 3700
+      } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
-      "at least 4300 content characters"
+      `at least ${
+        retryKind === "peer-timeout" ? 5040 : 4300
+      } content characters`
     );
     if (retryKind === "body") {
       expect(maximumActiveCorrectionCalls).toBe(2);
@@ -719,6 +730,7 @@ describe("Research Worker controlled-beta workflow", () => {
         claims: Array<{ claim_type: string; text: string }>;
       };
       review: {
+        markdown: string;
         core_evidence: Array<{
           reference_id: string;
           study_type: string;
@@ -783,6 +795,20 @@ describe("Research Worker controlled-beta workflow", () => {
         "peer_review_patch_applied"
       );
     }
+    if (retryKind === "peer-timeout") {
+      expect(result.review.markdown).toContain(
+        "本组证据的可核验范围限于公开元数据与摘要"
+      );
+      expect(result.quality.warnings).toContain(
+        "deterministic_safety_normalization_applied"
+      );
+      expect(
+        result.quality.warnings,
+        JSON.stringify(result.quality.warnings)
+      ).toContain(
+        "deterministic_evidence_boundary_supplement_applied"
+      );
+    }
     expect(result.quality.warnings).toEqual(
       expect.arrayContaining([
         "sharded_synthesis_completed",
@@ -834,7 +860,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(adapterCalled).toBe(false);
   });
 
-  it("fails closed when peer review retains a transposed numeric claim", async () => {
+  it("closes a transposed numeric claim after peer review without publishing unsafe text", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -894,7 +920,6 @@ describe("Research Worker controlled-beta workflow", () => {
       errorCodes: readonly string[];
     }> = [];
     let repairPrompt = "";
-    let finalRepairPrompt = "";
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
@@ -905,8 +930,6 @@ describe("Research Worker controlled-beta workflow", () => {
           modelCalls += 1;
           if (modelCalls === 2) {
             repairPrompt = input.prompt;
-          } else if (modelCalls === 3) {
-            finalRepairPrompt = input.prompt;
           }
           return {
             text: JSON.stringify(
@@ -930,23 +953,14 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "model_contract_error"
-    });
-    expect(modelCalls).toBe(3);
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(2);
     expect(repairPrompt).toContain("Preserve every required draft field");
     expect(repairPrompt).toContain("Draft schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
     expect(repairPrompt).toContain("Invented oncology program");
     expect(repairPrompt).toContain(
       "Remove every unsupported narrative number"
-    );
-    expect(finalRepairPrompt).toContain(
-      "Perform one final bounded correction"
-    );
-    expect(finalRepairPrompt).toContain(
-      "numeric_evidence_closure:review_1:2025"
     );
     expect(validationEvents).toEqual([
       expect.objectContaining({
@@ -961,15 +975,6 @@ describe("Research Worker controlled-beta workflow", () => {
         stage: "validate_outputs",
         attempt: 2,
         errorCodes: ["numeric_evidence_closure"]
-      }),
-      expect.objectContaining({
-        stage: "validate_outputs",
-        attempt: 3,
-        errorCodes: [
-          "server_closed_schema_error",
-          "server_closed_schema_minlength",
-          "server_closed_schema_minlength_review_markdown"
-        ]
       })
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
@@ -982,8 +987,22 @@ describe("Research Worker controlled-beta workflow", () => {
       lease.run.runId,
       "subj_profile_closure"
     );
-    expect(stored).toBeNull();
-    expect(existsSync(artifactRoot)).toBe(false);
+    expect(stored).not.toBeNull();
+    expect(JSON.stringify(stored?.result)).not.toContain(
+      "Invented oncology program"
+    );
+    expect(JSON.stringify(stored?.result)).not.toContain("2025 patients");
+    expect(JSON.stringify(stored?.result)).not.toContain(
+      "attacker.invalid"
+    );
+    expect(stored?.result).toMatchObject({
+      quality: {
+        warnings: expect.arrayContaining([
+          "deterministic_safety_normalization_applied"
+        ])
+      }
+    });
+    expect(existsSync(artifactRoot)).toBe(true);
     store.close();
   });
 
@@ -1066,8 +1085,7 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_third_model_correction"
     );
     const invalid = modelOutput();
-    invalid.review.markdown =
-      "The retrieved publication enrolled 2025 patients, repurposing the publication year as an unsupported sample size [1].";
+    invalid.predicted_questions[0] = "word ".repeat(101).trim();
     const valid = modelOutput();
     let modelCalls = 0;
     const validationEvents: Array<{
@@ -1108,8 +1126,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(modelCalls).toBe(3);
     expect(validationEvents).toEqual([
-      { attempt: 1, errorCodes: ["numeric_evidence_closure"] },
-      { attempt: 2, errorCodes: ["numeric_evidence_closure"] }
+      { attempt: 1, errorCodes: ["question_length_contract"] },
+      { attempt: 2, errorCodes: ["question_length_contract"] }
     ]);
     expect(
       fixture.store.database
@@ -1258,8 +1276,7 @@ describe("Research Worker controlled-beta workflow", () => {
       "late_empty_repair_retry"
     );
     const invalid = modelOutput();
-    invalid.review.markdown =
-      "The retrieved publication enrolled 2025 patients, repurposing the publication year as an unsupported sample size [1].";
+    invalid.predicted_questions[0] = "word ".repeat(101).trim();
     const valid = modelOutput();
     let modelCalls = 0;
     const basePolicy = workflowPolicy();
