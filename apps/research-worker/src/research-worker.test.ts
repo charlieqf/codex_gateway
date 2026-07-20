@@ -676,6 +676,10 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
+    expect(
+      attempts.length,
+      JSON.stringify({ outcome, validationEvents })
+    ).toBeGreaterThan(0);
     expect(outcome, JSON.stringify(validationEvents)).toEqual({
       outcome: "succeeded"
     });
@@ -699,17 +703,17 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     expect(synthesisPrompts.get(1)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 1750 : 1500
+        retryKind === "peer-timeout" ? 2380 : 2000
       } content characters`
     );
     expect(synthesisPrompts.get(2)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 4340 : 3700
+        retryKind === "peer-timeout" ? 5880 : 5000
       } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
       `at least ${
-        retryKind === "peer-timeout" ? 5040 : 4300
+        retryKind === "peer-timeout" ? 6440 : 5500
       } content characters`
     );
     if (retryKind === "body") {

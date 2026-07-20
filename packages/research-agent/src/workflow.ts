@@ -1762,16 +1762,16 @@ async function generateAndValidateShardedModelOutput(
   }
   const minimumReviewContent = context.input.policy.minimumReviewContent;
   const foundationMinimum = Math.max(
-    1_500,
-    Math.ceil(minimumReviewContent * 0.25)
+    2_000,
+    Math.ceil(minimumReviewContent * 0.34)
   );
   const middleMinimum = Math.max(
-    3_700,
-    Math.ceil(minimumReviewContent * 0.62)
+    5_000,
+    Math.ceil(minimumReviewContent * 0.84)
   );
   const closingMinimum = Math.max(
-    4_300,
-    Math.ceil(minimumReviewContent * 0.72)
+    5_500,
+    Math.ceil(minimumReviewContent * 0.92)
   );
   const foundationPrompt = buildFoundationFragmentPrompt({
     run: context.run,
@@ -3028,6 +3028,7 @@ function validateGeneratedOutput(
   };
   let deterministicSafetyNormalizationApplied = false;
   let deterministicEvidenceBoundarySupplementApplied = false;
+  let deterministicCoreNumericFallbackApplied = false;
   if (options.deterministicSafetyNormalization) {
     const normalized = normalizeFinalModelOutputForSafety(
       candidate,
@@ -3039,6 +3040,8 @@ function validateGeneratedOutput(
     deterministicSafetyNormalizationApplied = normalized.changed;
     deterministicEvidenceBoundarySupplementApplied =
       normalized.evidenceBoundarySupplemented;
+    deterministicCoreNumericFallbackApplied =
+      normalized.coreNumericFallbackApplied;
   }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
@@ -3085,6 +3088,9 @@ function validateGeneratedOutput(
             ? [
                 "deterministic_evidence_boundary_supplement_applied"
               ]
+            : []),
+          ...(deterministicCoreNumericFallbackApplied
+            ? ["deterministic_core_numeric_fallback_applied"]
             : [])
         ]
       }
@@ -4100,6 +4106,7 @@ function normalizeFinalModelOutputForSafety(
   value: DoctorResearchModelOutput;
   changed: boolean;
   evidenceBoundarySupplemented: boolean;
+  coreNumericFallbackApplied: boolean;
 } {
   let changed = false;
   const abstractByReferenceId = new Map(
@@ -4345,10 +4352,56 @@ function normalizeFinalModelOutputForSafety(
       supplementedReview = resupplemented;
     }
   }
+  let coreNumericFallbackApplied = false;
+  const residualCoreReferenceIds = new Set(
+    [...unsupportedNarrativeNumericTokens(normalizedValue, evidence)]
+      .map((error) => /^core_(.+):[^:]+$/u.exec(error)?.[1])
+      .filter((referenceId): referenceId is string =>
+        Boolean(referenceId)
+      )
+  );
+  if (residualCoreReferenceIds.size > 0) {
+    coreNumericFallbackApplied = true;
+    changed = true;
+    normalizedValue = {
+      ...normalizedValue,
+      review: {
+        ...normalizedValue.review,
+        core_evidence: closeEmptyCoreEvidenceFields(
+          normalizedValue.review.core_evidence.map((item) => {
+            if (!residualCoreReferenceIds.has(item.reference_id)) {
+              return item;
+            }
+            const allowed = new Set(
+              extractNumericTokens(
+                abstractByReferenceId.get(item.reference_id) ?? ""
+              )
+            );
+            const closeField = (value: string): string =>
+              extractNarrativeNumericTokens(value).every((token) =>
+                allowed.has(token)
+              )
+                ? value
+                : "";
+            return {
+              ...item,
+              study_type: closeField(item.study_type),
+              sample_and_source: closeField(item.sample_and_source),
+              methods: closeField(item.methods),
+              key_results: closeField(item.key_results),
+              limitations: closeField(item.limitations)
+            };
+          }),
+          language
+        )
+      }
+    };
+  }
   return {
     value: normalizedValue,
     changed,
-    evidenceBoundarySupplemented: supplementedReview.changed
+    evidenceBoundarySupplemented: supplementedReview.changed,
+    coreNumericFallbackApplied
   };
 }
 
