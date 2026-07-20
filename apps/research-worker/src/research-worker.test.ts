@@ -387,7 +387,7 @@ describe("Research Worker controlled-beta workflow", () => {
     store.close();
   });
 
-  it("runs three bounded synthesis shards concurrently and applies one concise peer review", async () => {
+  it("runs concurrent synthesis shards, retries one transport failure, and peer reviews", async () => {
     const input = {
       ...runInput(),
       language: "zh-CN" as const
@@ -489,12 +489,27 @@ describe("Research Worker controlled-beta workflow", () => {
             }
             await barrier;
             activeSynthesisCalls -= 1;
+            if (modelInput.attempt === 1) {
+              throw new ResearchModelClientError(
+                "upstream_error",
+                503,
+                "req_sharded_1"
+              );
+            }
             return {
-              text:
-                modelInput.attempt === 1
-                  ? JSON.stringify(foundationFragment)
-                  : fragments.get(modelInput.attempt)!,
+              text: fragments.get(modelInput.attempt)!,
               gatewayRequestId: `req_sharded_${modelInput.attempt}`,
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          if (modelInput.attempt === 4) {
+            return {
+              text: JSON.stringify(foundationFragment),
+              gatewayRequestId: "req_sharded_retry",
               usage: {
                 promptTokens: 100,
                 completionTokens: 1_000,
@@ -524,8 +539,8 @@ describe("Research Worker controlled-beta workflow", () => {
         synthesisShardCount: 3,
         budgets: {
           ...workflowPolicy().budgets,
-          llmCalls: 4,
-          inputTokens: 400_000
+          llmCalls: 5,
+          inputTokens: 500_000
         }
       },
       signal: new AbortController().signal,
@@ -534,7 +549,7 @@ describe("Research Worker controlled-beta workflow", () => {
 
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(maximumActiveSynthesisCalls).toBe(3);
-    expect(attempts).toEqual([1, 2, 3, 4]);
+    expect(attempts).toEqual([1, 2, 3, 4, 5]);
     expect(synthesisPrompts.get(1)).toContain(
       "doctor_research_foundation_fragment.v2"
     );
@@ -570,7 +585,8 @@ describe("Research Worker controlled-beta workflow", () => {
       expect.arrayContaining([
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
-        "peer_review_model_completed"
+        "peer_review_model_completed",
+        "bounded_shard_transport_retry_completed"
       ])
     );
   });

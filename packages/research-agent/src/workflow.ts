@@ -95,7 +95,7 @@ export async function executeDoctorResearchWorkflow(input: {
   onValidationFailure?: (input: {
     runId: string;
     stage: "synthesize_review" | "validate_outputs";
-    attempt: 1 | 2 | 3 | 4;
+    attempt: 1 | 2 | 3 | 4 | 5;
     errorCodes: readonly string[];
   }) => void;
   now?: () => Date;
@@ -607,7 +607,7 @@ class WorkflowContext {
 
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
-    attempt: 1 | 2 | 3 | 4,
+    attempt: 1 | 2 | 3 | 4 | 5,
     errorCodes: readonly string[]
   ): void {
     const stableCodes = [
@@ -1626,27 +1626,65 @@ async function generateAndValidateShardedModelOutput(
       "Write the closing body of the review. Include one topic-specific transition section when the evidence supports it, then sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Evidence synthesis must be at least 800 characters, limitations and outlook at least 600 characters, and the conclusion one or two full paragraphs. Do not write an abstract, evidence table, references, or search report.",
     medicalSkillBundle
   });
-  const [foundationResponse, middleResponse, closingResponse] =
-    await Promise.all([
-      context.generateModel({
+  const shardInputs = [
+    {
         stage: "synthesize_review",
         attempt: 1,
         prompt: foundationPrompt,
         system: doctorResearchFoundationSystemPolicy
-      }),
-      context.generateModel({
+    },
+    {
         stage: "synthesize_review",
         attempt: 2,
         prompt: middlePrompt,
         system: doctorResearchBodySystemPolicy
-      }),
-      context.generateModel({
+    },
+    {
         stage: "synthesize_review",
         attempt: 3,
         prompt: closingPrompt,
         system: doctorResearchFragmentSystemPolicy
-      })
-    ]);
+    }
+  ] as const;
+  const settled = await Promise.allSettled(
+    shardInputs.map((input) => context.generateModel(input))
+  );
+  const responses = settled.map((result) =>
+    result.status === "fulfilled" ? result.value : null
+  );
+  const failedIndexes = settled.flatMap((result, index) =>
+    result.status === "rejected" ? [index] : []
+  );
+  const singleFailure =
+    failedIndexes.length === 1
+      ? settled[failedIndexes[0]!]!
+      : null;
+  let shardTransportRetryCompleted = false;
+  if (
+    singleFailure?.status === "rejected" &&
+    isRetryableShardTransportError(singleFailure.reason)
+  ) {
+    const retryIndex = failedIndexes[0]!;
+    const retryInput = shardInputs[retryIndex]!;
+    responses[retryIndex] = await context.generateModel({
+      ...retryInput,
+      attempt: 4
+    });
+    shardTransportRetryCompleted = true;
+  } else if (failedIndexes.length > 0) {
+    const failed = settled[failedIndexes[0]!]!;
+    if (failed.status === "rejected") {
+      throw failed.reason;
+    }
+  }
+  const [foundationResponse, middleResponse, closingResponse] = responses;
+  if (!foundationResponse || !middleResponse || !closingResponse) {
+    const failed = settled[failedIndexes[0]!]!;
+    if (failed?.status === "rejected") {
+      throw failed.reason;
+    }
+    throw new Error("Research synthesis shard response is missing.");
+  }
 
   const foundationFragment = parseFoundationFragment(
     foundationResponse.text
@@ -1716,9 +1754,10 @@ async function generateAndValidateShardedModelOutput(
     validationErrors: validation.ok ? [] : validation.errors,
     medicalSkillBundle
   });
+  const peerReviewAttempt = shardTransportRetryCompleted ? 5 : 4;
   const peerReviewResponse = await context.generateModel({
     stage: "validate_outputs",
-    attempt: 4,
+    attempt: peerReviewAttempt,
     prompt: peerReviewPrompt,
     system: doctorResearchPeerReviewSystemPolicy
   });
@@ -1726,7 +1765,7 @@ async function generateAndValidateShardedModelOutput(
   if (!peerReview) {
     context.reportValidationFailure(
       "validate_outputs",
-      4,
+      peerReviewAttempt,
       ["peer_review_contract_error"]
     );
     return null;
@@ -1738,7 +1777,7 @@ async function generateAndValidateShardedModelOutput(
   if (!patchedDraft) {
     context.reportValidationFailure(
       "validate_outputs",
-      4,
+      peerReviewAttempt,
       ["peer_review_patch_error"]
     );
     return null;
@@ -1754,7 +1793,7 @@ async function generateAndValidateShardedModelOutput(
   if (!validation.ok) {
     context.reportValidationFailure(
       "validate_outputs",
-      4,
+      peerReviewAttempt,
       validation.errorCodes
     );
     return null;
@@ -1766,6 +1805,9 @@ async function generateAndValidateShardedModelOutput(
       "sharded_synthesis_completed",
       "deterministic_profile_projection_completed",
       "peer_review_model_completed",
+      ...(shardTransportRetryCompleted
+        ? ["bounded_shard_transport_retry_completed"]
+        : []),
       ...(peerReview.replacements.length > 0
         ? ["peer_review_patch_applied"]
         : []),
@@ -2285,6 +2327,16 @@ function isRetryableLateModelError(
       error.code === "rate_limited" ||
       (error.code === "upstream_error" &&
         (error.statusCode === 0 || error.statusCode >= 500)))
+  );
+}
+
+function isRetryableShardTransportError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "TimeoutError") ||
+    (error instanceof ResearchModelClientError &&
+      (error.code === "rate_limited" ||
+        (error.code === "upstream_error" &&
+          (error.statusCode === 0 || error.statusCode >= 500))))
   );
 }
 

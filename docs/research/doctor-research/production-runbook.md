@@ -155,8 +155,10 @@ Worker disabled. In its isolated Gateway database:
    `research.production.service-feature-policy.example.json`.
 2. Issue a service credential with exactly the `goldencode` public-model
    allowlist and no `doctor_research`, image or admin capability. Its bounded
-   rate must cover four calls per run and three concurrent synthesis calls
-   (`rpm >= 4`, `rpd >= 4`, `concurrent >= 3`).
+   rate must cover five calls per run and three concurrent synthesis calls
+   (`rpm >= 5`, `rpd >= 5`, `concurrent >= 3`). The fifth call is reserved
+   for one transport-only synthesis retry; content-contract failures are not
+   retried.
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.
@@ -204,8 +206,8 @@ paths. Success requires:
 - exactly three Markdown files and one five-line text file;
 - downloaded sizes and SHA-256 values equal the manifest.
 - measured create-to-terminal wall time below 600 seconds;
-- one three-call concurrent synthesis fan-out followed by exactly one compact
-  peer-review call;
+- one three-call concurrent synthesis fan-out, at most one bounded retry for
+  a transport/upstream failure, and exactly one compact peer-review call;
 - a rendered 3-8-row core evidence table and no partial artifact publication.
 
 Then verify the public HTTPS status/result/download path, foreign-subject

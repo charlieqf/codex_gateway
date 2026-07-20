@@ -153,7 +153,7 @@ export function loadResearchWorkerConfig(
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
       "RESEARCH_MAX_LLM_CALLS_PER_RUN",
-      4
+      5
     ),
     inputTokens: boundedInteger(
       env.RESEARCH_MAX_INPUT_TOKENS_PER_RUN,
@@ -464,7 +464,7 @@ export function loadResearchWorkerConfig(
     );
   }
   if (
-    budgets.llmCalls !== 4 ||
+    budgets.llmCalls !== 5 ||
     !Number.isSafeInteger(
       maximumOutputTokensPerCall * budgets.llmCalls
     ) ||
@@ -477,7 +477,7 @@ export function loadResearchWorkerConfig(
       budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover three bounded synthesis shards and one concise peer-review call."
+      "Research LLM budgets must cover three bounded synthesis shards, one bounded transport retry, and one concise peer-review call."
     );
   }
   const llmTimeoutMs = requiredTimerMilliseconds(
