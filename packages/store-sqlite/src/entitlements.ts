@@ -179,9 +179,28 @@ function insertFromPlan(
 ): Entitlement {
   const period = entitlementPeriod(input.periodKind, input.periodStart, input.periodEnd, now);
   const state: EntitlementState = period.start.getTime() > now.getTime() ? "scheduled" : "active";
+  if (input.carryCurrentUsage && (!input.replace || state !== "active")) {
+    throw new Error(
+      "Carrying current entitlement usage requires an active replacement entitlement."
+    );
+  }
 
+  let replacedEntitlementId: string | null = null;
   if (state === "active") {
     if (input.replace) {
+      if (input.carryCurrentUsage) {
+        const current = activeForSubjectInTransaction(
+          db,
+          input.subjectId,
+          now
+        );
+        if (!current) {
+          throw new Error(
+            `No active entitlement usage found to carry for user: ${input.subjectId}`
+          );
+        }
+        replacedEntitlementId = current.id;
+      }
       cancelCurrent(db, input.subjectId, now, "replaced");
       cancelScheduled(db, input.subjectId, now, "replaced");
     } else if (entitlementQueries.currentExists(db, input.subjectId)) {
@@ -234,6 +253,20 @@ function insertFromPlan(
     entitlement.cancelledReason,
     entitlement.notes
   );
+  if (replacedEntitlementId) {
+    db.prepare(
+      `INSERT INTO entitlement_token_windows (
+         entitlement_id, window_kind, window_start, prompt_tokens,
+         completion_tokens, total_tokens, cached_prompt_tokens,
+         estimated_tokens, requests, updated_at
+       )
+       SELECT ?, window_kind, window_start, prompt_tokens,
+              completion_tokens, total_tokens, cached_prompt_tokens,
+              estimated_tokens, requests, updated_at
+         FROM entitlement_token_windows
+        WHERE entitlement_id = ?`
+    ).run(entitlement.id, replacedEntitlementId);
+  }
 
   return entitlement;
 }

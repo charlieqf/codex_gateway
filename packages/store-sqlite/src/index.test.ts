@@ -1988,6 +1988,89 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
+  it("carries token windows into an audited replacement entitlement", () => {
+    const store = createSeededStore(":memory:");
+    const basePolicy = {
+      tokensPerMinute: 1_000,
+      tokensPerDay: 5_000,
+      tokensPerMonth: 20_000,
+      maxPromptTokensPerRequest: 500,
+      maxTotalTokensPerRequest: 800,
+      reserveTokensPerRequest: 100,
+      missingUsageCharge: "reserve" as const
+    };
+    store.createPlan({
+      id: "plan_carry_v1",
+      displayName: "Carry v1",
+      policy: basePolicy,
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.createPlan({
+      id: "plan_carry_v2",
+      displayName: "Carry v2",
+      policy: {
+        ...basePolicy,
+        tokensPerDay: 6_000
+      },
+      scopeAllowlist: ["code"],
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    const current = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_carry_v1",
+      periodKind: "unlimited",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.database
+      .prepare(
+        `INSERT INTO entitlement_token_windows (
+           entitlement_id, window_kind, window_start, prompt_tokens,
+           completion_tokens, total_tokens, cached_prompt_tokens,
+           estimated_tokens, requests, updated_at
+         ) VALUES (?, 'day', ?, 1200, 2300, 3500, 40, 50, 6, ?)`
+      )
+      .run(
+        current.id,
+        "2026-01-20T00:00:00.000Z",
+        "2026-01-20T12:00:00.000Z"
+      );
+
+    const replacement = store.grantEntitlement({
+      subjectId: "subj_1",
+      planId: "plan_carry_v2",
+      periodKind: "unlimited",
+      replace: true,
+      carryCurrentUsage: true,
+      now: new Date("2026-01-20T12:30:00Z")
+    });
+
+    expect(store.getEntitlement(current.id)?.state).toBe("cancelled");
+    expect(
+      store.database
+        .prepare(
+          `SELECT prompt_tokens, completion_tokens, total_tokens,
+                  cached_prompt_tokens, estimated_tokens, requests,
+                  updated_at
+             FROM entitlement_token_windows
+            WHERE entitlement_id = ?
+              AND window_kind = 'day'
+              AND window_start = ?`
+        )
+        .get(replacement.id, "2026-01-20T00:00:00.000Z")
+    ).toEqual({
+      prompt_tokens: 1200,
+      completion_tokens: 2300,
+      total_tokens: 3500,
+      cached_prompt_tokens: 40,
+      estimated_tokens: 50,
+      requests: 6,
+      updated_at: "2026-01-20T12:00:00.000Z"
+    });
+
+    store.close();
+  });
+
   it("cleans up stale soft-write reservations without charging tokens", async () => {
     const store = createSeededStore(":memory:");
     const issued = issueAccessCredential({

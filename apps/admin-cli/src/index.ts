@@ -699,6 +699,10 @@ entitlementCommand
   .option("--duration <duration>", "one_off duration such as 1h, 30m, or 7d", parseDurationMs)
   .option("--end <iso>", "period end for one_off", parseDate)
   .option("--replace", "cancel conflicting current/scheduled entitlement before grant")
+  .option(
+    "--carry-current-usage",
+    "copy current entitlement token windows into the replacement; requires --replace"
+  )
   .option("--notes <text>", "operator notes")
   .action((options) => {
     withAuditedStore(
@@ -716,6 +720,7 @@ entitlementCommand
           periodStart: options.start,
           periodEnd,
           replace: Boolean(options.replace),
+          carryCurrentUsage: Boolean(options.carryCurrentUsage),
           notes: normalizeOptionalText(options.notes)
         });
         return {
@@ -2480,6 +2485,7 @@ function entitlementGrantAuditParams(options: {
   end?: Date;
   duration?: number;
   replace?: boolean;
+  carryCurrentUsage?: boolean;
   notes?: string;
 }): Record<string, unknown> {
   return {
@@ -2489,6 +2495,7 @@ function entitlementGrantAuditParams(options: {
     end: options.end?.toISOString(),
     duration_ms: options.duration,
     replace: Boolean(options.replace),
+    carry_current_usage: Boolean(options.carryCurrentUsage),
     notes: normalizeOptionalText(options.notes)
   };
 }

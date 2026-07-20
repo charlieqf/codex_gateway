@@ -65,6 +65,7 @@ export interface GrantEntitlementInput {
   periodStart?: Date;
   periodEnd?: Date | null;
   replace?: boolean;
+  carryCurrentUsage?: boolean;
   notes?: string | null;
   now?: Date;
 }
