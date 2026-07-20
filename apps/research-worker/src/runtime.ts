@@ -625,8 +625,10 @@ async function createLiveDependencies(
         maximumOutputTokensPerCall:
           config.workflowPolicy.maximumOutputTokensPerCall,
         callsPerRun: config.workflowPolicy.budgets.llmCalls,
-        concurrentCalls:
+        concurrentCalls: Math.min(
           config.workflowPolicy.synthesisShardCount ?? 1,
+          2
+        ),
         maximumTokensPerRun:
           config.workflowPolicy.budgets.inputTokens +
           config.workflowPolicy.budgets.outputTokens

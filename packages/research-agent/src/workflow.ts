@@ -1824,9 +1824,28 @@ async function generateAndValidateShardedModelOutput(
         system: doctorResearchFragmentSystemPolicy
     }
   ] as const;
-  const settled = await Promise.allSettled(
-    shardInputs.map((input) => context.generateModel(input))
-  );
+  // The provider has two dependable concurrent slots in production. Let the
+  // first completed worker immediately pick up the third shard so synthesis
+  // stays overlapped without provoking a third simultaneous admission.
+  const settled: PromiseSettledResult<ResearchModelResponse>[] =
+    new Array(shardInputs.length);
+  let nextShardIndex = 0;
+  const runShardWorker = async (): Promise<void> => {
+    while (nextShardIndex < shardInputs.length) {
+      const index = nextShardIndex;
+      nextShardIndex += 1;
+      const shardInput = shardInputs[index]!;
+      try {
+        settled[index] = {
+          status: "fulfilled",
+          value: await context.generateModel(shardInput)
+        };
+      } catch (reason) {
+        settled[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  await Promise.all([runShardWorker(), runShardWorker()]);
   const responses = settled.map((result) =>
     result.status === "fulfilled" ? result.value : null
   );
@@ -3029,6 +3048,7 @@ function validateGeneratedOutput(
   let deterministicSafetyNormalizationApplied = false;
   let deterministicEvidenceBoundarySupplementApplied = false;
   let deterministicCoreNumericFallbackApplied = false;
+  let deterministicReferenceCitationClosureApplied = false;
   if (options.deterministicSafetyNormalization) {
     const normalized = normalizeFinalModelOutputForSafety(
       candidate,
@@ -3042,6 +3062,8 @@ function validateGeneratedOutput(
       normalized.evidenceBoundarySupplemented;
     deterministicCoreNumericFallbackApplied =
       normalized.coreNumericFallbackApplied;
+    deterministicReferenceCitationClosureApplied =
+      normalized.referenceCitationClosureApplied;
   }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
@@ -3091,6 +3113,11 @@ function validateGeneratedOutput(
             : []),
           ...(deterministicCoreNumericFallbackApplied
             ? ["deterministic_core_numeric_fallback_applied"]
+            : []),
+          ...(deterministicReferenceCitationClosureApplied
+            ? [
+                "deterministic_reference_citation_closure_applied"
+              ]
             : [])
         ]
       }
@@ -4107,6 +4134,7 @@ function normalizeFinalModelOutputForSafety(
   changed: boolean;
   evidenceBoundarySupplemented: boolean;
   coreNumericFallbackApplied: boolean;
+  referenceCitationClosureApplied: boolean;
 } {
   let changed = false;
   const abstractByReferenceId = new Map(
@@ -4199,7 +4227,13 @@ function normalizeFinalModelOutputForSafety(
   for (const originalParagraph of output.review.markdown.split(
     /\n\s*\n/gu
   )) {
-    let paragraph = originalParagraph;
+    let paragraph = normalizeReviewCitationMarkers(
+      originalParagraph,
+      output.review.references.length
+    );
+    if (paragraph !== originalParagraph) {
+      changed = true;
+    }
     let scope = paragraphEvidence(paragraph);
     // Removing an unsupported numeric clause may also remove one of the
     // paragraph's citations. Re-close against the citations that actually
@@ -4397,11 +4431,74 @@ function normalizeFinalModelOutputForSafety(
       }
     };
   }
+  const citationClosedReview = closeReviewReferenceCitations({
+    markdown: normalizedValue.review.markdown,
+    referenceCount: normalizedValue.review.references.length,
+    language
+  });
+  if (citationClosedReview.changed) {
+    changed = true;
+    normalizedValue = {
+      ...normalizedValue,
+      review: {
+        ...normalizedValue.review,
+        markdown: citationClosedReview.markdown
+      }
+    };
+  }
   return {
     value: normalizedValue,
     changed,
     evidenceBoundarySupplemented: supplementedReview.changed,
-    coreNumericFallbackApplied
+    coreNumericFallbackApplied,
+    referenceCitationClosureApplied: citationClosedReview.changed
+  };
+}
+
+function normalizeReviewCitationMarkers(
+  value: string,
+  referenceCount: number
+): string {
+  return value.replace(/\[([0-9,\s-]+)\]/gu, (marker: string) => {
+    const citations = [
+      ...new Set(
+        extractNumericCitations(marker).filter(
+          (citation) =>
+            Number.isSafeInteger(citation) &&
+            citation >= 1 &&
+            citation <= referenceCount
+        )
+      )
+    ];
+    return citations.length > 0 ? `[${citations.join(",")}]` : "";
+  });
+}
+
+function closeReviewReferenceCitations(input: {
+  markdown: string;
+  referenceCount: number;
+  language: ResearchRunRecord["language"];
+}): { markdown: string; changed: boolean } {
+  const cited = new Set(extractNumericCitations(input.markdown));
+  const missing = Array.from(
+    { length: input.referenceCount },
+    (_, index) => index + 1
+  ).filter((citation) => !cited.has(citation));
+  if (missing.length === 0) {
+    return { markdown: input.markdown, changed: false };
+  }
+  const evidenceBoundary =
+    input.language === "zh-CN"
+      ? "为保持纳入证据与参考文献编号闭合，以下编号仅表示相应文献已进入本综述的公开元数据和摘要级证据集；对公开摘要未披露的信息不作推断。"
+      : "To close the included evidence set against the reference numbering, the following identifiers mean only that the corresponding records are part of the verified public metadata and abstract-level evidence set; no inference is made about information absent from the public abstracts.";
+  return {
+    markdown: [
+      input.markdown.trim(),
+      `${evidenceBoundary} [${missing.join(",")}]`
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    changed: true
   };
 }
 
