@@ -1259,30 +1259,22 @@ function buildDeterministicCoreEvidence(
         citations[0] === citation
       );
     });
-    const usedReviewSentences = new Set<string>();
     const selectLocalizedReviewSentence = (
       patterns: readonly RegExp[],
       fallbackValue: string
     ): string => {
-      const selected =
-        citedReviewSentences.find(
-          (sentence) =>
-            !usedReviewSentences.has(sentence) &&
-            patterns.some((pattern) => pattern.test(sentence))
-        ) ??
-        citedReviewSentences.find(
-          (sentence) => !usedReviewSentences.has(sentence)
-        );
+      const selected = citedReviewSentences.find((sentence) =>
+        patterns.some((pattern) => pattern.test(sentence))
+      );
       if (!selected) {
         return fallbackValue;
       }
-      usedReviewSentences.add(selected);
       return selected
         .replace(/\[[0-9,\s-]+\]/gu, "")
         .replace(/\s+/gu, " ")
         .trim();
     };
-    const methods =
+    const selectedMethods =
       language === "zh-CN"
         ? selectLocalizedReviewSentence(
             [
@@ -1291,6 +1283,13 @@ function buildDeterministicCoreEvidence(
             localizedCoreMethodFallback(studyType, language)
           )
         : abstractMethods;
+    const methods =
+      language === "zh-CN"
+        ? localizedCoreMethodFromReviewSentence(
+            selectedMethods,
+            localizedCoreMethodFallback(studyType, language)
+          )
+        : selectedMethods;
     const keyResults =
       language === "zh-CN"
         ? selectLocalizedReviewSentence(
@@ -1313,6 +1312,25 @@ function buildDeterministicCoreEvidence(
       limitations
     };
   });
+}
+
+function localizedCoreMethodFromReviewSentence(
+  value: string,
+  fallback: string
+): string {
+  if (value === fallback) {
+    return fallback;
+  }
+  const resultMarker =
+    /(?:，|；)(?:该研究|研究|结果)?(?:发现|显示|表明|提示|报告)|(?:研究|结果)(?:发现|显示|表明|提示)/u;
+  const match = resultMarker.exec(value);
+  if (!match) {
+    return fallback;
+  }
+  const method = value.slice(0, match.index).trim();
+  return countHanCharacters(method) >= 12
+    ? `${method.replace(/[。！？]+$/u, "")}。`
+    : fallback;
 }
 
 function extractPublicationSampleAndSource(
@@ -1633,6 +1651,13 @@ async function generateAndValidateModelOutput(
           "numeric_evidence_closure",
           "in_vitro_scope_required",
           "case_evidence_scope_required",
+          "case_evidence_answer_scope_required",
+          "case_evidence_prescriptive_claim",
+          "review_embedded_auxiliary_output",
+          "review_orphaned_prose_start",
+          "review_orphaned_demonstrative_start",
+          "review_orphaned_comparative_start",
+          "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1734,6 +1759,13 @@ async function generateAndValidateModelOutput(
           "numeric_evidence_closure",
           "in_vitro_scope_required",
           "case_evidence_scope_required",
+          "case_evidence_answer_scope_required",
+          "case_evidence_prescriptive_claim",
+          "review_embedded_auxiliary_output",
+          "review_orphaned_prose_start",
+          "review_orphaned_demonstrative_start",
+          "review_orphaned_comparative_start",
+          "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1769,6 +1801,13 @@ async function generateAndValidateModelOutput(
           "numeric_evidence_closure",
           "in_vitro_scope_required",
           "case_evidence_scope_required",
+          "case_evidence_answer_scope_required",
+          "case_evidence_prescriptive_claim",
+          "review_embedded_auxiliary_output",
+          "review_orphaned_prose_start",
+          "review_orphaned_demonstrative_start",
+          "review_orphaned_comparative_start",
+          "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
       )
@@ -1834,6 +1873,13 @@ async function generateAndValidateModelOutput(
             "numeric_evidence_closure",
             "in_vitro_scope_required",
             "case_evidence_scope_required",
+            "case_evidence_answer_scope_required",
+            "case_evidence_prescriptive_claim",
+            "review_embedded_auxiliary_output",
+            "review_orphaned_prose_start",
+            "review_orphaned_demonstrative_start",
+            "review_orphaned_comparative_start",
+            "review_inline_enumeration_sequence",
             "causal_claim_evidence_grade"
           ].includes(code)
         )
@@ -2445,14 +2491,16 @@ async function generateAndValidateShardedModelOutput(
       )
     },
     predicted_questions: acceptedMiddleFragment.predicted_questions,
-    // Answer-length closure is deterministic and evidence-neutral. Applying
-    // the same bounded closure before deciding whether a model correction is
-    // needed preserves the fifth call for a rare review convergence failure
-    // instead of spending it on generic answer-length padding.
+    // Answer formatting and length closure are deterministic and
+    // evidence-neutral. Arabic notation makes factual quantities visible to
+    // the exact-number evidence gate instead of allowing spelled-out Chinese
+    // quantities to bypass it.
     answers: acceptedMiddleFragment.answers.map((answer) => ({
       ...answer,
       answer: boundAnswerContent(
-        answer.answer,
+        context.run.language === "zh-CN"
+          ? normalizeChineseQuantitiesToArabic(answer.answer)
+          : answer.answer,
         context.run.language,
         context.input.policy.minimumAnswerContent,
         context.input.policy.maximumAnswerContent
@@ -2482,11 +2530,18 @@ async function generateAndValidateShardedModelOutput(
     !shardTransportRetryCompleted &&
     !shardContractRetryCompleted &&
     !shardSkillContractRetryCompleted &&
-    validation.errorCodes.some((code) =>
-      [
-        "answer_length_contract",
-        "question_length_contract"
-      ].includes(code)
+    (
+      validation.errorCodes.some((code) =>
+        [
+          "answer_length_contract",
+          "question_length_contract"
+        ].includes(code)
+      ) ||
+      initialValidationErrors.some(
+        (error) =>
+          error.startsWith("numeric_evidence_closure:") &&
+          /(?:^|[|:])answer_[1-5]:/u.test(error)
+      )
     );
   const reviewContentCorrectionRequired =
     !validation.ok &&
@@ -3116,6 +3171,9 @@ function buildBodyFragmentPrompt(input: {
     input.assignment,
     "Also generate exactly five short, conversational, shallow academic questions from the research topic and five directly corresponding answers. Do not ask about the doctor's identity, administration, patient care, publicity, business, or branding.",
     `Each question must stay within ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}. Each answer must contain ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, directly answer its question, remain academically accurate, and cite one or more supplied source_id values.`,
+    input.run.language === "zh-CN"
+      ? "Write every factual quantity in answers with Arabic digits (for example 14, 26.1, or 36.0%); do not spell quantities with Chinese numerals. This is required for exact server-side evidence closure."
+      : "Write every factual quantity in answers with Arabic digits so the server can close it exactly against the cited abstracts.",
     "Use every supplied reference at least once with its global numeric citation, and put at least one applicable citation in every substantive markdown paragraph.",
     "Each section must synthesize at least three supplied papers when at least three are available; do not mechanically summarize one paper at a time.",
     "Use only the supplied evidence. A narrative number is allowed only when the exact number occurs in an abstract cited by that paragraph or answer.",
@@ -3187,6 +3245,9 @@ function buildQaContractCorrectionPrompt(input: {
     "Correct only the five question-answer pairs; the research review is owned by a separate peer-review step and is not included in this request.",
     `Language: ${input.run.language}. Preserve exactly five pairs in order. Every question must be short, conversational, shallow, academic, and no longer than ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}.`,
     `Every answer must directly answer its question in ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, remain academically accurate, and cite one or more supplied source_id values.`,
+    input.run.language === "zh-CN"
+      ? "Write every factual quantity with Arabic digits (for example 14, 26.1, or 36.0%); do not spell quantities with Chinese numerals. This is required for exact server-side evidence closure."
+      : "Write every factual quantity with Arabic digits so the server can close it exactly against the cited abstracts.",
     "Use only the supplied source IDs. A numeric claim in an answer is allowed only when the exact number occurs in the abstract named by that answer's source_ids. Remove unsupported numbers or restate the point qualitatively; do not invent replacement numbers.",
     "Do not ask about doctor identity, administration, patient care, publicity, business, branding, sample-size planning, eligibility criteria, or a heavy study design.",
     `Deterministic diagnostics: ${JSON.stringify(
@@ -3935,6 +3996,68 @@ function validateReviewProseIntegrity(
   return [...new Set(errors)];
 }
 
+function validateCompleteReviewPresentationIntegrity(
+  markdown: string,
+  language: ResearchRunRecord["language"]
+): string[] {
+  if (language !== "zh-CN") {
+    return stripEmbeddedAuxiliaryReviewOutput(markdown, language) ===
+      markdown
+      ? []
+      : ["review_embedded_auxiliary_output"];
+  }
+  const errors: string[] = [];
+  if (
+    stripEmbeddedAuxiliaryReviewOutput(markdown, language) !==
+    markdown
+  ) {
+    errors.push("review_embedded_auxiliary_output");
+  }
+  for (const [index, paragraph] of markdown
+    .split(/\n\s*\n/gu)
+    .entries()) {
+    const trimmed = paragraph.trim();
+    if (trimmed === "" || /^#{1,6}\s/u.test(trimmed)) {
+      continue;
+    }
+    if (
+      /(?:^|[。！？]\s*)(?:发现|评估|比较|分析|探讨|考察)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果))/u.test(
+        trimmed
+      )
+    ) {
+      errors.push(
+        `review_orphaned_prose_start:paragraph=${index + 1}`
+      );
+    }
+    if (/(?:^|[。！？]\s*)该系统/u.test(trimmed)) {
+      errors.push(
+        `review_orphaned_demonstrative_start:paragraph=${index + 1}`
+      );
+    }
+    if (
+      /(?:^|[。！？]\s*)在[^。！？]{2,48}方面，较[^。！？]{4,120}(?:减少|增加|降低|提高)/u.test(
+        trimmed
+      )
+    ) {
+      errors.push(
+        `review_orphaned_comparative_start:paragraph=${index + 1}`
+      );
+    }
+    const enumeration = [
+      ...trimmed.matchAll(/（([0-9]{1,2})）/gu)
+    ].map((match) => Number.parseInt(match[1]!, 10));
+    if (
+      enumeration.length >= 2 &&
+      enumeration.some((value, itemIndex) => value !== itemIndex + 1)
+    ) {
+      errors.push(
+        `review_inline_enumeration_sequence:paragraph=${index + 1}`
+      );
+    }
+  }
+  return [...new Set(errors)];
+}
+
 function normalizeReviewParagraphForDuplicateCheck(
   value: string
 ): string {
@@ -4466,7 +4589,13 @@ function validateGeneratedOutput(
       ]
     },
     predicted_questions: draft.predicted_questions,
-    answers: draft.answers,
+    answers: draft.answers.map((answer) => ({
+      ...answer,
+      answer:
+        run.language === "zh-CN"
+          ? normalizeChineseQuantitiesToArabic(answer.answer)
+          : answer.answer
+    })),
     quality: {
       status: "passed_with_warnings",
       checks: ["pending_server_validation"],
@@ -4891,6 +5020,12 @@ function validateCompleteReviewSkillContract(
   }
   errors.push(
     ...validateReviewProseIntegrity(review.markdown, language)
+  );
+  errors.push(
+    ...validateCompleteReviewPresentationIntegrity(
+      review.markdown,
+      language
+    )
   );
 
   const fallbackPattern =
@@ -5741,6 +5876,17 @@ function normalizeFinalModelOutputForSafety(
   referenceCitationClosureApplied: boolean;
 } {
   let changed = false;
+  const reviewWithoutEmbeddedAuxiliaryOutput =
+    stripEmbeddedAuxiliaryReviewOutput(
+      output.review.markdown,
+      language
+    );
+  if (
+    reviewWithoutEmbeddedAuxiliaryOutput !==
+    output.review.markdown
+  ) {
+    changed = true;
+  }
   const abstractByReferenceId = new Map(
     evidence.publicationEvidence.map((publication) => [
       publication.reference_id,
@@ -5847,10 +5993,17 @@ function normalizeFinalModelOutputForSafety(
     }
     return value
       .replace(
-        /^(评估|比较|分析|探讨|考察)(?=.{4,180}(?:的关联|的价值|的影响)\s*\[[0-9,\s-]+\][。！？])/u,
-        "一项研究$1"
+        /(^|[。！？]\s*)(发现|评估|比较|分析|探讨|考察)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果))/gu,
+        "$1一项研究$2"
       )
-      .replace(/^该系统/u, "所引研究中的器械系统");
+      .replace(
+        /(^|[。！？]\s*)该系统/gu,
+        "$1所引研究中的器械系统"
+      )
+      .replace(
+        /(^|[。！？]\s*)(在[^。！？]{2,48}方面，)(较[^。！？]{4,120}(?:减少|增加|降低|提高))/gu,
+        "$1所引研究显示，$2$3"
+      );
   };
   const removeCaseOnlyPrescriptiveSentences = (
     value: string
@@ -5901,7 +6054,7 @@ function normalizeFinalModelOutputForSafety(
     });
   };
   const normalizedParagraphs: string[] = [];
-  for (const originalParagraph of output.review.markdown.split(
+  for (const originalParagraph of reviewWithoutEmbeddedAuxiliaryOutput.split(
     /\n\s*\n/gu
   )) {
     let paragraph = normalizeReviewCitationMarkers(
@@ -5910,6 +6063,12 @@ function normalizeFinalModelOutputForSafety(
     );
     if (paragraph !== originalParagraph) {
       changed = true;
+    }
+    const enumerationClosed =
+      normalizeInlineChineseEnumeration(paragraph);
+    if (enumerationClosed !== paragraph) {
+      changed = true;
+      paragraph = enumerationClosed;
     }
     let scope = paragraphEvidence(paragraph);
     // Removing an unsupported numeric clause may also remove one of the
@@ -6022,7 +6181,7 @@ function normalizeFinalModelOutputForSafety(
         sanitize(question, allAbstracts)
       ),
       answers: output.answers.map((answer) => {
-        const source = answer.source_ids
+        const sourceAbstracts = answer.source_ids
           .map((sourceId) => referenceByPubMedSource.get(sourceId))
           .filter((referenceId): referenceId is string =>
             Boolean(referenceId)
@@ -6031,14 +6190,53 @@ function normalizeFinalModelOutputForSafety(
             (referenceId) =>
               abstractByReferenceId.get(referenceId) ?? ""
           )
-          .join("\n");
-        const sanitized = sanitize(answer.answer, source);
-        const bounded = boundAnswerContent(
+          .filter(Boolean);
+        const source = sourceAbstracts.join("\n");
+        const normalizedAnswer =
+          language === "zh-CN"
+            ? normalizeChineseQuantitiesToArabic(answer.answer)
+            : answer.answer;
+        const sanitized = sanitize(normalizedAnswer, source);
+        let bounded = boundAnswerContent(
           sanitized,
           language,
           policy.minimumAnswerContent,
           policy.maximumAnswerContent
         );
+        const caseOnly =
+          sourceAbstracts.length > 0 &&
+          sourceAbstracts.every((abstract) =>
+            /\b(?:case report|case series)\b/iu.test(abstract)
+          );
+        const hasCaseBoundary =
+          /\b(?:cannot be generalized|cannot be directly generalized|case-level evidence|specific patients?)\b|不能(?:直接)?外推|病例级证据|特定患者经验/iu.test(
+            bounded
+          );
+        if (caseOnly && !hasCaseBoundary) {
+          const boundary =
+            language === "zh-CN"
+              ? "该回答依据病例报告或病例系列，仅反映特定患者经验，不能直接外推为普遍疗效或常规治疗建议。"
+              : "This answer is based on a case report or case series, reflects experience in specific patients, and cannot be directly generalized to routine treatment.";
+          const countAnswer =
+            language === "zh-CN"
+              ? countHanCharacters
+              : countEnglishWords;
+          const maximumBase = Math.max(
+            1,
+            policy.maximumAnswerContent - countAnswer(boundary)
+          );
+          bounded = [
+            truncateAnswerContent(
+              bounded,
+              language,
+              maximumBase
+            ),
+            boundary
+          ]
+            .filter(Boolean)
+            .join(" ");
+          changed = true;
+        }
         if (bounded !== sanitized) {
           changed = true;
         }
@@ -6178,6 +6376,58 @@ function normalizeReviewCitationMarkers(
   });
 }
 
+function stripEmbeddedAuxiliaryReviewOutput(
+  value: string,
+  language: ResearchRunRecord["language"]
+): string {
+  const marker =
+    language === "zh-CN"
+      ? /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:学术问答|问题与答案|常见问题)(?:\*\*)?\s*(?:\r?\n|$)/iu
+      : /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:academic questions?(?: and answers?)?|questions? and answers?|q\s*&\s*a)(?:\*\*)?\s*(?:\r?\n|$)/iu;
+  const match = marker.exec(value);
+  return match ? value.slice(0, match.index).trim() : value;
+}
+
+function normalizeInlineChineseEnumeration(value: string): string {
+  const markers = [...value.matchAll(/（([0-9]{1,2})）/gu)];
+  if (
+    markers.length < 2 ||
+    markers.every(
+      (match, index) => Number.parseInt(match[1]!, 10) === index + 1
+    )
+  ) {
+    return value;
+  }
+  const ordinals = [
+    "一",
+    "二",
+    "三",
+    "四",
+    "五",
+    "六",
+    "七",
+    "八",
+    "九",
+    "十",
+    "十一",
+    "十二",
+    "十三",
+    "十四",
+    "十五",
+    "十六",
+    "十七",
+    "十八",
+    "十九",
+    "二十"
+  ];
+  let index = 0;
+  return value.replace(/（[0-9]{1,2}）/gu, () => {
+    const ordinal = ordinals[index] ?? String(index + 1);
+    index += 1;
+    return `（${ordinal}）`;
+  });
+}
+
 function closeReviewReferenceCitations(input: {
   markdown: string;
   referenceCount: number;
@@ -6270,6 +6520,132 @@ function supplementReviewEvidenceBoundary(input: {
     markdown: paragraphs.join("\n\n"),
     changed: paragraphs.length > 1
   };
+}
+
+function normalizeChineseQuantitiesToArabic(value: string): string {
+  const numeric =
+    "[零〇一二两三四五六七八九十百千万]+";
+  const parseInteger = (raw: string): number | null => {
+    const normalized = raw.replaceAll("两", "二");
+    const digits: Record<string, number> = {
+      零: 0,
+      〇: 0,
+      一: 1,
+      二: 2,
+      三: 3,
+      四: 4,
+      五: 5,
+      六: 6,
+      七: 7,
+      八: 8,
+      九: 9
+    };
+    if (!/[十百千万]/u.test(normalized)) {
+      const joined = Array.from(normalized)
+        .map((character) => digits[character])
+        .filter((digit): digit is number => digit !== undefined)
+        .join("");
+      return joined === "" ? null : Number.parseInt(joined, 10);
+    }
+    const parseSection = (section: string): number => {
+      let total = 0;
+      let pending = 0;
+      for (const character of Array.from(section)) {
+        const digit = digits[character];
+        if (digit !== undefined) {
+          pending = digit;
+          continue;
+        }
+        const unit =
+          character === "十"
+            ? 10
+            : character === "百"
+              ? 100
+              : character === "千"
+                ? 1_000
+                : 0;
+        if (unit > 0) {
+          total += (pending || 1) * unit;
+          pending = 0;
+        }
+      }
+      return total + pending;
+    };
+    const tenThousands = normalized.split("万");
+    if (tenThousands.length > 2) {
+      return null;
+    }
+    return tenThousands.length === 2
+      ? parseSection(tenThousands[0]!) * 10_000 +
+          parseSection(tenThousands[1]!)
+      : parseSection(normalized);
+  };
+  const parseDecimal = (
+    integerRaw: string,
+    decimalRaw: string
+  ): string | null => {
+    const integer = parseInteger(integerRaw);
+    const decimal = Array.from(decimalRaw)
+      .map((character) =>
+        ({
+          零: "0",
+          〇: "0",
+          一: "1",
+          二: "2",
+          两: "2",
+          三: "3",
+          四: "4",
+          五: "5",
+          六: "6",
+          七: "7",
+          八: "8",
+          九: "9"
+        })[character]
+      )
+      .filter((digit): digit is string => digit !== undefined)
+      .join("");
+    return integer === null || decimal === ""
+      ? null
+      : `${integer}.${decimal}`;
+  };
+  let normalized = value.replace(
+    new RegExp(
+      `百分之(${numeric})(?:点([零〇一二两三四五六七八九]+))?`,
+      "gu"
+    ),
+    (match, integerRaw: string, decimalRaw?: string) => {
+      const parsed = decimalRaw
+        ? parseDecimal(integerRaw, decimalRaw)
+        : parseInteger(integerRaw)?.toString() ?? null;
+      return parsed === null ? match : `${parsed}%`;
+    }
+  );
+  normalized = normalized.replace(
+    /([一二两三四五六七八九])成([零〇一二两三四五六七八九])?/gu,
+    (match, tensRaw: string, onesRaw?: string) => {
+      const tens = parseInteger(tensRaw);
+      const ones = onesRaw ? parseInteger(onesRaw) : 0;
+      return tens === null || ones === null
+        ? match
+        : `${tens * 10 + ones}%`;
+    }
+  );
+  normalized = normalized.replace(
+    new RegExp(
+      `(${numeric})点([零〇一二两三四五六七八九]+)`,
+      "gu"
+    ),
+    (match, integerRaw: string, decimalRaw: string) =>
+      parseDecimal(integerRaw, decimalRaw) ?? match
+  );
+  return normalized.replace(
+    new RegExp(
+      `(${numeric})(?=\\s*(?:至|到|[-—]|例|名|位|份|个月|月|年|天|小时|分钟|枚|千电子伏特|电子伏特|keV))`,
+      "giu"
+    ),
+    (match, integerRaw: string) =>
+      parseInteger(integerRaw)?.toString() ?? match
+  );
 }
 
 function boundAnswerContent(
@@ -6601,6 +6977,41 @@ function validateEvidenceScopeAndCausality(
     ) {
       errors.add(
         `case_evidence_prescriptive_claim:paragraph=${paragraphIndex + 1}`
+      );
+    }
+  }
+  const referenceByPubMedSource = new Map(
+    output.review.references
+      .filter(
+        (
+          reference
+        ): reference is DoctorResearchReference & { pmid: string } =>
+          reference.pmid !== null
+      )
+      .map((reference) => [
+        `src_pubmed_${reference.pmid}`,
+        reference.reference_id
+      ])
+  );
+  for (const answer of output.answers) {
+    const citedAbstracts = answer.source_ids
+      .map((sourceId) => referenceByPubMedSource.get(sourceId))
+      .filter((referenceId): referenceId is string =>
+        Boolean(referenceId)
+      )
+      .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
+      .filter(Boolean);
+    if (
+      citedAbstracts.length > 0 &&
+      citedAbstracts.every((abstract) =>
+        /\b(?:case report|case series)\b/iu.test(abstract)
+      ) &&
+      !/\b(?:cannot be generalized|cannot be directly generalized|case-level evidence|specific patients?)\b|不能(?:直接)?外推|病例级证据|特定患者经验/iu.test(
+        answer.answer
+      )
+    ) {
+      errors.add(
+        `case_evidence_answer_scope_required:answer=${answer.question_index}`
       );
     }
   }

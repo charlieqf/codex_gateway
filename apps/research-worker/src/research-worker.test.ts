@@ -512,10 +512,18 @@ describe("Research Worker controlled-beta workflow", () => {
     };
     const initialBodyAnswers =
       retryKind === "body"
-        ? foundation.answers.map((answer) => ({
+        ? foundation.answers.map((answer, index) => ({
             ...answer,
-            answer: "短"
+            answer: index === 0 ? "七例" : "短"
           }))
+        : retryKind === "peer-timeout"
+          ? foundation.answers.map((answer, index) => ({
+              ...answer,
+              answer:
+                index === 0
+                  ? "该病例报告检查了四十二份样本，随访二点七年；这些信息只用于说明公开摘要中的病例级观察，不能据此推断普遍临床疗效。"
+                  : answer.answer
+            }))
         : foundation.answers;
     const initialBodyQuestions =
       retryKind === "body"
@@ -613,7 +621,11 @@ describe("Research Worker controlled-beta workflow", () => {
                 ),
                 skillClosingFragment(26, 20, 7, false),
                 "所引病例报告提示该方法应被视为常规治疗[1]。",
-                crossShardNumericParagraph
+                crossShardNumericParagraph,
+                "现有段落先说明摘要边界。发现公开摘要证据与观察结果相关[1]。",
+                "在影像引导方面，较常规路径减少资源使用[1]。",
+                "未来方向包括：（1）前瞻性验证[1]；（2）外部验证[1]；（5）患者结局研究[1]。",
+                "---\n\n**学术问答**\n\n这一残缺辅助输出不属于综述正文[1]。"
               ].join("\n\n")
             })
           : retryKind === "skill-normalization"
@@ -1057,6 +1069,12 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(retryPrompt).toContain(
         "doctor_research_qa_fragment.v1"
       );
+      expect(retryPrompt).toContain(
+        "Write every factual quantity with Arabic digits"
+      );
+      expect(retryPrompt).toContain(
+        "numeric_evidence_closure:answer_1:7"
+      );
       expect(retryPrompt).not.toContain(
         "Prior body fragment"
       );
@@ -1178,6 +1196,9 @@ describe("Research Worker controlled-beta workflow", () => {
           return length >= 100 && length <= 300;
         })
       ).toBe(true);
+      expect(
+        result.answers.some((answer) => answer.answer.includes("7例"))
+      ).toBe(false);
       expect(result.quality.warnings).toContain(
         "peer_review_patch_fallback_to_deterministic_safety"
       );
@@ -1199,6 +1220,31 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.quality.warnings).toContain(
         "deterministic_safety_normalization_applied"
       );
+      expect(result.review.markdown).toContain(
+        "一项研究发现公开摘要证据与观察结果相关"
+      );
+      expect(result.review.markdown).toContain(
+        "所引研究显示，在影像引导方面，较常规路径减少资源使用"
+      );
+      expect(result.review.markdown).toContain(
+        "（一）前瞻性验证"
+      );
+      expect(result.review.markdown).toContain(
+        "（三）患者结局研究"
+      );
+      expect(result.review.markdown).not.toContain(
+        "（5）患者结局研究"
+      );
+      expect(result.review.markdown).not.toContain("学术问答");
+      expect(result.answers[0]?.answer).toContain("42份样本");
+      expect(result.answers[0]?.answer).toContain("2.7年");
+      expect(result.answers[0]?.answer).not.toContain("四十二份");
+      expect(result.answers[0]?.answer).not.toContain("二点七年");
+      expect(
+        result.answers.every((answer) =>
+          answer.answer.includes("不能直接外推")
+        )
+      ).toBe(true);
     }
     if (retryKind === "peer-convergence") {
       expect(result.review.markdown).toContain(
@@ -1962,13 +2008,15 @@ describe("Research Worker controlled-beta workflow", () => {
         "paragraph_citation_coverage",
         "numeric_evidence_closure",
         "in_vitro_scope_required",
-        "case_evidence_scope_required"
+        "case_evidence_scope_required",
+        "case_evidence_answer_scope_required"
       ],
       [
         "paragraph_citation_coverage",
         "numeric_evidence_closure",
         "in_vitro_scope_required",
-        "case_evidence_scope_required"
+        "case_evidence_scope_required",
+        "case_evidence_answer_scope_required"
       ]
     ]);
     const stored = fixture.store.getRunResultForSubject(
