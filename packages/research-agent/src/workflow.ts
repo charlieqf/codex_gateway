@@ -6384,8 +6384,39 @@ function stripEmbeddedAuxiliaryReviewOutput(
     language === "zh-CN"
       ? /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:学术问答|问题与答案|常见问题)(?:\*\*)?\s*(?:\r?\n|$)/iu
       : /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:academic questions?(?: and answers?)?|questions? and answers?|q\s*&\s*a)(?:\*\*)?\s*(?:\r?\n|$)/iu;
-  const match = marker.exec(value);
-  return match ? value.slice(0, match.index).trim() : value;
+  let normalized = value;
+  for (let iteration = 0; iteration < 8; iteration += 1) {
+    const match = marker.exec(normalized);
+    if (!match) {
+      return normalized;
+    }
+    const prefix = normalized.slice(0, match.index).trimEnd();
+    const remainder = normalized.slice(match.index + match[0].length);
+    let resumeAt: number | null = null;
+    for (const heading of remainder.matchAll(
+      /^##(?!#)\s+(.+?)\s*$/gmu
+    )) {
+      const kind = classifySkillReviewHeading(heading[1]!);
+      if (
+        kind === "synthesis" ||
+        kind === "limitations" ||
+        kind === "conclusion"
+      ) {
+        resumeAt = heading.index;
+        break;
+      }
+    }
+    normalized = [
+      prefix,
+      resumeAt === null
+        ? ""
+        : remainder.slice(resumeAt).trimStart()
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+  }
+  return normalized;
 }
 
 function normalizeInlineChineseEnumeration(value: string): string {

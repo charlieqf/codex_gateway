@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.31` together with the
+The production Worker uses frozen execution contract `1.6.32` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.31` splits synthesis into three bounded independent
+For latency, execution `1.6.32` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -103,11 +103,12 @@ conclusion asks for prospective validation. Safety normalization treats decimal
 points as part of a number rather than a sentence boundary, repairs a bounded
 set of subjectless or comparison-only Chinese sentence starts left by safe
 clause deletion, renumbers damaged inline outlook enumerations, strips an
-accidentally appended Q&A block from the review, and removes duplicate
-substantive paragraphs that arise only after unsupported numerical sentences
-are closed. A prescriptive treatment sentence supported only by case reports
-or case series is removed instead of being promoted into a general
-recommendation.
+accidentally appended Q&A block from the review while preserving any later
+independently generated synthesis, limitations, and conclusion sections, and
+removes duplicate substantive paragraphs that arise only after unsupported
+numerical sentences are closed. A prescriptive treatment sentence supported
+only by case reports or case series is removed instead of being promoted into
+a general recommendation.
 
 Answer length is closed deterministically with evidence-neutral boundary
 language before the Worker decides whether to spend its one bounded correction

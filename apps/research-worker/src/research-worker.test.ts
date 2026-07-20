@@ -598,7 +598,8 @@ describe("Research Worker controlled-beta workflow", () => {
                   ? [
                     crossShardNumericParagraph,
                     "所引病例报告包含42个样本，随访为2.7年；这些数据只在对应公开摘要的证据边界内解释。[1]",
-                    "该研究纳入2025例患者，评估公开摘要证据与主要不良临床结局及长期预后之间的关联[1]。"
+                    "该研究纳入2025例患者，评估公开摘要证据与主要不良临床结局及长期预后之间的关联[1]。",
+                    "---\n\n**学术问答**\n\n这一分片混入的辅助输出必须删除，但其后独立分片中的闭合章节必须保留[1]。"
                   ]
                   : [])
             ].join("\n\n"),
@@ -1236,6 +1237,9 @@ describe("Research Worker controlled-beta workflow", () => {
         "（5）患者结局研究"
       );
       expect(result.review.markdown).not.toContain("学术问答");
+      expect(result.review.markdown).not.toContain(
+        "这一分片混入的辅助输出"
+      );
       expect(result.answers[0]?.answer).toContain("42份样本");
       expect(result.answers[0]?.answer).toContain("2.7年");
       expect(result.answers[0]?.answer).not.toContain("四十二份");
