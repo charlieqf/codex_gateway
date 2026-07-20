@@ -680,6 +680,131 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("uses the available fourth call for focused evidence-preserving convergence", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "focused_fourth_model_convergence"
+    );
+    const tooShort = modelOutput();
+    tooShort.review.markdown = "Brief evidence [1].";
+    const valid = modelOutput();
+    let modelCalls = 0;
+    let convergencePrompt = "";
+    const validationEvents: Array<{
+      attempt: number;
+      errorCodes: readonly string[];
+    }> = [];
+    const basePolicy = workflowPolicy();
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate(input) {
+          modelCalls += 1;
+          if (modelCalls === 4) {
+            convergencePrompt = input.prompt;
+          }
+          return {
+            text: JSON.stringify(modelCalls < 4 ? tooShort : valid),
+            gatewayRequestId: `req_model_fourth_convergence_${input.attempt}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: {
+        ...basePolicy,
+        maximumInputTokensPerCall: 120_000,
+        maximumOutputTokensPerCall: 18_000,
+        budgets: {
+          ...basePolicy.budgets,
+          llmCalls: 4,
+          inputTokens: 480_000,
+          outputTokens: 200_000
+        }
+      },
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push({
+          attempt: event.attempt,
+          errorCodes: event.errorCodes
+        });
+      },
+      now: () => fixture.now
+    });
+
+    const budget = fixture.store.database
+      .prepare(
+        `SELECT llm_calls, input_tokens, output_tokens
+         FROM research_run_budgets
+         WHERE run_id = ?`
+      )
+      .get(fixture.lease.run.runId);
+    expect({ outcome, modelCalls, validationEvents, budget }).toEqual({
+      outcome: { outcome: "succeeded" },
+      modelCalls: 4,
+      validationEvents: [
+        {
+          attempt: 1,
+          errorCodes: [
+            "review_content_minimum",
+            "paragraph_citation_coverage"
+          ]
+        },
+        {
+          attempt: 2,
+          errorCodes: [
+            "review_content_minimum",
+            "paragraph_citation_coverage"
+          ]
+        },
+        {
+          attempt: 3,
+          errorCodes: [
+            "review_content_minimum",
+            "paragraph_citation_coverage"
+          ]
+        }
+      ],
+      budget: expect.objectContaining({ llm_calls: 4 })
+    });
+    expect(convergencePrompt).toContain(
+      "evidence-preserving convergence correction"
+    );
+    expect(convergencePrompt).toContain("review_content_minimum");
+    expect(
+      fixture.store.database
+        .prepare(
+          `SELECT stage, attempt
+           FROM research_stage_runs
+           WHERE run_id = ?
+           ORDER BY attempt`
+        )
+        .all(fixture.lease.run.runId)
+    ).toEqual([
+      { stage: "synthesize_review", attempt: 1 },
+      { stage: "validate_outputs", attempt: 2 },
+      { stage: "validate_outputs", attempt: 3 },
+      { stage: "validate_outputs", attempt: 4 }
+    ]);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as
+      | { quality: { warnings: string[] } }
+      | undefined;
+    expect(result?.quality.warnings).toContain(
+      "focused_model_convergence_completed"
+    );
+    fixture.store.close();
+  });
+
   it("applies only conservative evidence-closure normalization after the final bounded correction", async () => {
     const fixture = createLeasedWorkflowFixture(
       "final_evidence_closure_normalization"
