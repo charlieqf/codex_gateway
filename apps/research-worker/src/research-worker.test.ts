@@ -805,6 +805,90 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("uses the fourth call to retry a late empty repair response", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "late_empty_repair_retry"
+    );
+    const invalid = modelOutput();
+    invalid.review.markdown =
+      "The retrieved publication enrolled 2025 patients, repurposing the publication year as an unsupported sample size [1].";
+    const valid = modelOutput();
+    let modelCalls = 0;
+    const basePolicy = workflowPolicy();
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate(input) {
+          modelCalls += 1;
+          if (modelCalls === 3) {
+            throw new ResearchModelClientError(
+              "empty_response",
+              502,
+              "req_model_late_empty"
+            );
+          }
+          return {
+            text: JSON.stringify(modelCalls < 4 ? invalid : valid),
+            gatewayRequestId: `req_model_late_retry_${input.attempt}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: {
+        ...basePolicy,
+        maximumInputTokensPerCall: 120_000,
+        maximumOutputTokensPerCall: 18_000,
+        budgets: {
+          ...basePolicy.budgets,
+          llmCalls: 4,
+          inputTokens: 480_000,
+          outputTokens: 200_000
+        }
+      },
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(4);
+    expect(
+      fixture.store.database
+        .prepare(
+          `SELECT attempt, error_code
+           FROM research_stage_runs
+           WHERE run_id = ? AND stage = 'validate_outputs'
+           ORDER BY attempt`
+        )
+        .all(fixture.lease.run.runId)
+    ).toEqual([
+      { attempt: 2, error_code: null },
+      { attempt: 3, error_code: "model_empty_response" },
+      { attempt: 4, error_code: null }
+    ]);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as
+      | { quality: { warnings: string[] } }
+      | undefined;
+    expect(result?.quality.warnings).toContain(
+      "transport_model_repair_retry_completed"
+    );
+    expect(result?.quality.warnings).not.toContain(
+      "focused_model_convergence_completed"
+    );
+    fixture.store.close();
+  });
+
   it("applies only conservative evidence-closure normalization after the final bounded correction", async () => {
     const fixture = createLeasedWorkflowFixture(
       "final_evidence_closure_normalization"

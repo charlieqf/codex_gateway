@@ -1137,6 +1137,8 @@ async function generateAndValidateModelOutput(
   output: DoctorResearchModelOutput;
   warnings: string[];
 } | null> {
+  let transportRepairRetryCompleted = false;
+  let focusedModelConvergenceCompleted = false;
   const prompt = buildModelPrompt(
     context.run,
     identity,
@@ -1219,11 +1221,26 @@ async function generateAndValidateModelOutput(
       "The original task, schema, closed evidence set, and medical-team Skill execution projection remain authoritative:",
       prompt
     ].join("\n\n");
-    const repaired = await context.generateModel({
-      stage: "validate_outputs",
-      attempt: 3,
-      prompt: finalRepairPrompt
-    });
+    let repairedAttempt: 3 | 4 = 3;
+    let repaired: ResearchModelResponse;
+    try {
+      repaired = await context.generateModel({
+        stage: "validate_outputs",
+        attempt: repairedAttempt,
+        prompt: finalRepairPrompt
+      });
+    } catch (error) {
+      if (!isRetryableLateModelError(error)) {
+        throw error;
+      }
+      repairedAttempt = 4;
+      repaired = await context.generateModel({
+        stage: "validate_outputs",
+        attempt: repairedAttempt,
+        prompt: finalRepairPrompt
+      });
+      transportRepairRetryCompleted = true;
+    }
     validation = validateGeneratedOutput(
       repaired.text,
       context.run,
@@ -1250,9 +1267,10 @@ async function generateAndValidateModelOutput(
         { deterministicSafetyNormalization: true }
       );
     }
-    let attemptThreeReported = false;
+    let repairValidationReported = false;
     if (
       !validation.ok &&
+      repairedAttempt === 3 &&
       validation.errorCodes.every((code) =>
         [
           "review_content_minimum",
@@ -1268,7 +1286,7 @@ async function generateAndValidateModelOutput(
         3,
         validation.errorCodes
       );
-      attemptThreeReported = true;
+      repairValidationReported = true;
       const convergencePrompt = [
         "Perform one evidence-preserving convergence correction using only the closed evidence and the existing draft. Return the corrected complete draft JSON object and no other text.",
         `Exact remaining validation diagnostics: ${JSON.stringify(
@@ -1307,6 +1325,7 @@ async function generateAndValidateModelOutput(
         attempt: 4,
         prompt: convergencePrompt
       });
+      focusedModelConvergenceCompleted = true;
       validation = validateGeneratedOutput(
         converged.text,
         context.run,
@@ -1342,10 +1361,10 @@ async function generateAndValidateModelOutput(
       }
     }
     if (!validation.ok) {
-      if (!attemptThreeReported) {
+      if (!repairValidationReported) {
         context.reportValidationFailure(
           "validate_outputs",
-          3,
+          repairedAttempt,
           validation.errorCodes
         );
       }
@@ -1360,12 +1379,28 @@ async function generateAndValidateModelOutput(
           ...(context.modelCallsStarted >= 3
             ? ["bounded_model_repair_completed"]
             : []),
-          ...(context.modelCallsStarted === 4
+          ...(focusedModelConvergenceCompleted
             ? ["focused_model_convergence_completed"]
+            : []),
+          ...(transportRepairRetryCompleted
+            ? ["transport_model_repair_retry_completed"]
             : [])
         ]
       }
     : null;
+}
+
+function isRetryableLateModelError(
+  error: unknown
+): error is ResearchModelClientError {
+  return (
+    error instanceof ResearchModelClientError &&
+    (error.code === "empty_response" ||
+      error.code === "invalid_response" ||
+      error.code === "rate_limited" ||
+      (error.code === "upstream_error" &&
+        (error.statusCode === 0 || error.statusCode >= 500)))
+  );
 }
 
 function validateGeneratedOutput(
