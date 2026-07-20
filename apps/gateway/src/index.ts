@@ -4749,7 +4749,7 @@ function parseResearchLlmReadinessRequirements(input: {
   const callsPerRun = boundedReadinessInteger(
     input.calls_per_run,
     "calls_per_run",
-    3
+    4
   );
   const maximumTokensPerRun = boundedReadinessInteger(
     input.maximum_tokens_per_run,

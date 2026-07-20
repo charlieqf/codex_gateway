@@ -90,7 +90,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       "readinessRequirements.maximumTokensPerRun"
     );
     if (
-      readiness.callsPerRun > 3 ||
+      readiness.callsPerRun > 4 ||
       !Number.isSafeInteger(
         readiness.maximumPromptTokensPerCall +
           readiness.maximumOutputTokensPerCall

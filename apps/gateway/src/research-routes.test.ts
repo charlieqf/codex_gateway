@@ -40,7 +40,7 @@ const cleanupDirectories: string[] = [];
 const researchLlmReadinessQuery =
   "?maximum_prompt_tokens_per_call=180000" +
   "&maximum_output_tokens_per_call=12000" +
-  "&calls_per_run=3" +
+  "&calls_per_run=4" +
   "&maximum_tokens_per_run=576000";
 
 afterEach(() => {
@@ -292,6 +292,16 @@ describe("Doctor Research control-plane routes", () => {
         "&maximum_tokens_per_run=412000",
       headers: { authorization: `Bearer ${fixture.token}` }
     });
+    const overCallBound = await fixture.app.inject({
+      method: "GET",
+      url:
+        "/gateway/research/v1/worker/llm-readiness/medcode" +
+        "?maximum_prompt_tokens_per_call=180000" +
+        "&maximum_output_tokens_per_call=12000" +
+        "&calls_per_run=5" +
+        "&maximum_tokens_per_run=576000",
+      headers: { authorization: `Bearer ${fixture.token}` }
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
@@ -307,6 +317,8 @@ describe("Doctor Research control-plane routes", () => {
     );
     expect(overContext.statusCode).toBe(400);
     expect(overContext.json().error.code).toBe("context_length_exceeded");
+    expect(overCallBound.statusCode).toBe(400);
+    expect(overCallBound.json().error.code).toBe("invalid_request");
     await fixture.app.close();
 
     const overbroad = createFixture({

@@ -85,8 +85,8 @@ describe("Doctor Research structured Gateway model client", () => {
     expect(Object.fromEntries(readinessUrl.searchParams)).toEqual({
       maximum_prompt_tokens_per_call: "200000",
       maximum_output_tokens_per_call: "12000",
-      calls_per_run: "3",
-      maximum_tokens_per_run: "636000"
+      calls_per_run: "4",
+      maximum_tokens_per_run: "848000"
     });
     const request = requests[1];
     const body = JSON.parse(String(request?.init?.body)) as {
@@ -277,8 +277,8 @@ function readinessRequirements() {
   return {
     maximumPromptTokensPerCall: 200_000,
     maximumOutputTokensPerCall: 12_000,
-    callsPerRun: 3,
-    maximumTokensPerRun: 636_000
+    callsPerRun: 4,
+    maximumTokensPerRun: 848_000
   };
 }
 
