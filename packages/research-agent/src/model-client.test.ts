@@ -139,6 +139,69 @@ describe("Doctor Research structured Gateway model client", () => {
     ).rejects.toThrow("Research LLM request failed");
   });
 
+  it("retries a rate-limited admission inside the same model attempt", async () => {
+    let requests = 0;
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () => {
+        requests += 1;
+        if (requests === 1) {
+          return new Response(
+            JSON.stringify({ retry_after_seconds: 0 }),
+            {
+              status: 429,
+              headers: {
+                "content-type": "application/json",
+                "retry-after": "0",
+                "x-request-id": "req_admission_limited"
+              }
+            }
+          );
+        }
+        return jsonResponse(
+          {
+            choices: [
+              {
+                message: {
+                  role: "assistant",
+                  content: "{\"admitted\":true}"
+                }
+              }
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 5,
+              total_tokens: 15
+            }
+          },
+          { "x-request-id": "req_admission_completed" }
+        );
+      }
+    });
+
+    await expect(
+      client.generate({
+        runId: `drr_${"d".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal
+      })
+    ).resolves.toMatchObject({
+      text: "{\"admitted\":true}",
+      gatewayRequestId: "req_admission_completed"
+    });
+    expect(requests).toBe(2);
+  });
+
   it("does not send a bearer token over cleartext HTTP to a public hostname", () => {
     expect(
       () =>

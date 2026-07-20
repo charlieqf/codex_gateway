@@ -229,12 +229,13 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     ) {
       throw new Error("Research LLM prompt is empty or exceeds its bound.");
     }
-    const signal = AbortSignal.any([
-      input.signal,
-      AbortSignal.timeout(this.timeoutMs)
-    ]);
-    let response: Response;
-    try {
+    for (let admissionRetry = 0; ; admissionRetry += 1) {
+      const signal = AbortSignal.any([
+        input.signal,
+        AbortSignal.timeout(this.timeoutMs)
+      ]);
+      let response: Response;
+      try {
       const headers = {
         accept: "application/json",
         authorization: `Bearer ${this.options.bearerToken}`,
@@ -253,91 +254,118 @@ export class GatewayResearchModelClient implements ResearchModelClient {
           { role: "user", content: input.prompt }
         ]
       });
-      response = this.options.fetchImpl
-        ? await this.options.fetchImpl(this.endpoint, {
-            method: "POST",
-            headers,
-            body,
-            redirect: "error",
-            signal
-          })
-        : await requestBoundedModelResponse({
-            url: this.endpoint,
-            headers,
-            body,
-            signal,
-            timeoutMs: this.timeoutMs,
-            maximumBytes: this.maximumResponseBytes
+        response = this.options.fetchImpl
+          ? await this.options.fetchImpl(this.endpoint, {
+              method: "POST",
+              headers,
+              body,
+              redirect: "error",
+              signal
+            })
+          : await requestBoundedModelResponse({
+              url: this.endpoint,
+              headers,
+              body,
+              signal,
+              timeoutMs: this.timeoutMs,
+              maximumBytes: this.maximumResponseBytes
+            });
+      } catch (error) {
+        if (input.signal.aborted) {
+          throw input.signal.reason ?? error;
+        }
+        if (signal.aborted) {
+          throw signal.reason ?? error;
+        }
+        throw new ResearchModelClientError("upstream_error", 0, null);
+      }
+      const requestId = boundedHeader(
+        response.headers.get("x-request-id")
+      );
+      const bytes = await readBoundedResponseBody(
+        response.body,
+        this.maximumResponseBytes
+      );
+      let payload: unknown;
+      try {
+        payload = JSON.parse(bytes.toString("utf8"));
+      } catch {
+        throw new ResearchModelClientError(
+          "invalid_response",
+          response.status,
+          requestId
+        );
+      }
+      if (!response.ok) {
+        const retryAfterSeconds =
+          response.status === 429
+            ? modelRetryAfterSeconds(response.headers, payload)
+            : null;
+        if (
+          response.status === 429 &&
+          admissionRetry < 6 &&
+          !input.signal.aborted
+        ) {
+          await waitForModelAdmission({
+            retryIndex: admissionRetry,
+            retryAfterSeconds,
+            attempt: input.attempt,
+            signal: input.signal
           });
-    } catch (error) {
-      if (input.signal.aborted) {
-        throw input.signal.reason ?? error;
+          continue;
+        }
+        throw new ResearchModelClientError(
+          response.status === 429 ? "rate_limited" : "upstream_error",
+          response.status,
+          requestId,
+          retryAfterSeconds
+        );
       }
-      if (signal.aborted) {
-        throw signal.reason ?? error;
+      if (!isRecord(payload)) {
+        throw new ResearchModelClientError(
+          "invalid_response",
+          response.status,
+          requestId
+        );
       }
-      throw new ResearchModelClientError("upstream_error", 0, null);
-    }
-    const requestId = boundedHeader(response.headers.get("x-request-id"));
-    const bytes = await readBoundedResponseBody(
-      response.body,
-      this.maximumResponseBytes
-    );
-    let payload: unknown;
-    try {
-      payload = JSON.parse(bytes.toString("utf8"));
-    } catch {
-      throw new ResearchModelClientError(
-        "invalid_response",
-        response.status,
-        requestId
-      );
-    }
-    if (!response.ok) {
-      throw new ResearchModelClientError(
-        response.status === 429 ? "rate_limited" : "upstream_error",
-        response.status,
-        requestId
-      );
-    }
-    if (!isRecord(payload)) {
-      throw new ResearchModelClientError(
-        "invalid_response",
-        response.status,
-        requestId
-      );
-    }
-    const choices = payload.choices;
-    const first =
-      Array.isArray(choices) && choices.length === 1 && isRecord(choices[0])
-        ? choices[0]
-        : null;
-    const message = first && isRecord(first.message) ? first.message : null;
-    const text = typeof message?.content === "string" ? message.content : null;
-    if (text === null || text.trim() === "") {
-      throw new ResearchModelClientError(
-        "empty_response",
-        response.status,
-        requestId
-      );
-    }
-    const usage = isRecord(payload.usage) ? payload.usage : null;
-    const completionDetails =
-      usage && isRecord(usage.completion_tokens_details)
-        ? usage.completion_tokens_details
-        : null;
-    return {
-      text,
-      gatewayRequestId: requestId,
-      usage: {
-        promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
-        completionTokens: nonNegativeIntegerOrNull(usage?.completion_tokens),
-        reasoningTokens: nonNegativeIntegerOrNull(
-          completionDetails?.reasoning_tokens
-        ),
-        totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
+      const choices = payload.choices;
+      const first =
+        Array.isArray(choices) &&
+        choices.length === 1 &&
+        isRecord(choices[0])
+          ? choices[0]
+          : null;
+      const message =
+        first && isRecord(first.message) ? first.message : null;
+      const text =
+        typeof message?.content === "string" ? message.content : null;
+      if (text === null || text.trim() === "") {
+        throw new ResearchModelClientError(
+          "empty_response",
+          response.status,
+          requestId
+        );
       }
-    };
+      const usage = isRecord(payload.usage) ? payload.usage : null;
+      const completionDetails =
+        usage && isRecord(usage.completion_tokens_details)
+          ? usage.completion_tokens_details
+          : null;
+      return {
+        text,
+        gatewayRequestId: requestId,
+        usage: {
+          promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
+          completionTokens: nonNegativeIntegerOrNull(
+            usage?.completion_tokens
+          ),
+          reasoningTokens: nonNegativeIntegerOrNull(
+            completionDetails?.reasoning_tokens
+          ),
+          totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
+        }
+      };
+    }
   }
 }
 
@@ -447,11 +475,72 @@ export class ResearchModelClientError extends Error {
       | "invalid_response"
       | "empty_response",
     readonly statusCode: number,
-    readonly gatewayRequestId: string | null
+    readonly gatewayRequestId: string | null,
+    readonly retryAfterSeconds: number | null = null
   ) {
     super("Research LLM request failed.");
     this.name = "ResearchModelClientError";
   }
+}
+
+function modelRetryAfterSeconds(
+  headers: Headers,
+  payload: unknown
+): number | null {
+  if (isRecord(payload)) {
+    const nestedError = isRecord(payload.error) ? payload.error : null;
+    const value =
+      payload.retry_after_seconds ?? nestedError?.retry_after_seconds;
+    if (
+      typeof value === "number" &&
+      Number.isSafeInteger(value) &&
+      value >= 0 &&
+      value <= 3_600
+    ) {
+      return value;
+    }
+  }
+  const value = headers.get("retry-after")?.trim();
+  if (value && /^[0-9]{1,4}$/u.test(value)) {
+    const seconds = Number.parseInt(value, 10);
+    return seconds <= 3_600 ? seconds : null;
+  }
+  return null;
+}
+
+async function waitForModelAdmission(input: {
+  retryIndex: number;
+  retryAfterSeconds: number | null;
+  attempt: number;
+  signal: AbortSignal;
+}): Promise<void> {
+  const exponentialMs = Math.min(
+    15_000,
+    250 * 2 ** input.retryIndex
+  );
+  const serverMs = Math.min(
+    15_000,
+    (input.retryAfterSeconds ?? 0) * 1_000
+  );
+  const staggerMs = Math.min(750, input.attempt * 100);
+  const delayMs = Math.max(exponentialMs, serverMs) + staggerMs;
+  if (input.signal.aborted) {
+    throw input.signal.reason;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      input.signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(input.signal.reason);
+    };
+    input.signal.addEventListener("abort", onAbort, { once: true });
+    if (input.signal.aborted) {
+      onAbort();
+    }
+  });
 }
 
 export function estimateResearchInputTokens(value: string): number {
