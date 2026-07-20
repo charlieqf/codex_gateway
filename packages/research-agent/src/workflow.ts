@@ -2072,12 +2072,11 @@ function compactMedicalSkillExecutionContract(
 function parseFoundationFragment(
   text: string
 ): FoundationFragment | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text.trim());
-  } catch {
+  const parsed = parseStrictFragmentJson(text);
+  if (!parsed.ok) {
     return null;
   }
+  const value = parsed.value;
   if (
     !isJsonRecord(value) ||
     Object.keys(value).sort().join(",") !==
@@ -2105,12 +2104,11 @@ function parseFoundationFragment(
 }
 
 function parseBodyFragment(text: string): BodyFragment | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text.trim());
-  } catch {
+  const parsed = parseStrictFragmentJson(text);
+  if (!parsed.ok) {
     return null;
   }
+  const value = parsed.value;
   if (
     !isJsonRecord(value) ||
     Object.keys(value).sort().join(",") !==
@@ -2135,12 +2133,11 @@ function parseBodyFragment(text: string): BodyFragment | null {
 }
 
 function parseReviewFragment(text: string): ReviewFragment | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text.trim());
-  } catch {
+  const parsed = parseStrictFragmentJson(text);
+  if (!parsed.ok) {
     return null;
   }
+  const value = parsed.value;
   if (
     !isJsonRecord(value) ||
     Object.keys(value).sort().join(",") !== "markdown,schema_version" ||
@@ -2160,12 +2157,11 @@ function parseReviewFragment(text: string): ReviewFragment | null {
 function parsePeerReviewDecision(
   text: string
 ): PeerReviewDecision | null {
-  let value: unknown;
-  try {
-    value = JSON.parse(text.trim());
-  } catch {
+  const parsed = parseStrictFragmentJson(text);
+  if (!parsed.ok) {
     return null;
   }
+  const value = parsed.value;
   if (
     !isJsonRecord(value) ||
     Object.keys(value).sort().join(",") !==
@@ -2219,6 +2215,26 @@ function parsePeerReviewDecision(
     replacements,
     warnings
   };
+}
+
+function parseStrictFragmentJson(
+  text: string
+): { ok: true; value: unknown } | { ok: false } {
+  const trimmed = text.trim();
+  try {
+    return { ok: true, value: JSON.parse(trimmed) };
+  } catch {
+    const fenced =
+      /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
+    if (!fenced) {
+      return { ok: false };
+    }
+    try {
+      return { ok: true, value: JSON.parse(fenced[1]!.trim()) };
+    } catch {
+      return { ok: false };
+    }
+  }
 }
 
 function applyPeerReviewPatches(

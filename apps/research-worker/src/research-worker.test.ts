@@ -433,15 +433,19 @@ describe("Research Worker controlled-beta workflow", () => {
     const fragments = new Map<number, string>([
       [
         2,
-        JSON.stringify({
-          schema_version: "doctor_research_body_fragment.v1",
-          markdown: longChineseReviewFragment(
-            "方法与证据比较",
-            55
-          ),
-          predicted_questions: foundation.predicted_questions,
-          answers: foundation.answers
-        })
+        [
+          "```json",
+          JSON.stringify({
+            schema_version: "doctor_research_body_fragment.v1",
+            markdown: longChineseReviewFragment(
+              "方法与证据比较",
+              55
+            ),
+            predicted_questions: foundation.predicted_questions,
+            answers: foundation.answers
+          }),
+          "```"
+        ].join("\n")
       ],
       [
         3,
