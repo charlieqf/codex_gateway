@@ -390,9 +390,13 @@ describe("Research Worker controlled-beta workflow", () => {
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
-    ["body", "bounded_qa_contract_retry_completed"]
+    ["body", "bounded_qa_contract_retry_completed"],
+    [
+      "peer-timeout",
+      "peer_review_model_unavailable_deterministic_fallback"
+    ]
   ] as const)(
-    "runs concurrent synthesis shards, retries one %s failure, and peer reviews",
+    "runs concurrent synthesis shards, bounded corrections, and peer review fallback for %s",
     async (retryKind, retryWarning) => {
     const input = {
       ...runInput(),
@@ -584,6 +588,15 @@ describe("Research Worker controlled-beta workflow", () => {
             await correctionBarrier;
             activeCorrectionCalls -= 1;
           }
+          if (
+            retryKind === "peer-timeout" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            throw new DOMException(
+              "Peer review model timed out.",
+              "TimeoutError"
+            );
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -660,7 +673,11 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "succeeded"
     });
     expect(maximumActiveSynthesisCalls).toBe(3);
-    expect(attempts).toEqual([1, 2, 3, 4, 5]);
+    expect(attempts).toEqual(
+      retryKind === "peer-timeout"
+        ? [1, 2, 3, 4]
+        : [1, 2, 3, 4, 5]
+    );
     expect(synthesisPrompts.get(1)).toContain(
       "doctor_research_foundation_fragment.v3"
     );
@@ -762,7 +779,9 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        "peer_review_model_completed",
+        retryKind === "peer-timeout"
+          ? "peer_review_model_attempted"
+          : "peer_review_model_completed",
         retryWarning
       ])
     );

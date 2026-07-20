@@ -2001,13 +2001,40 @@ async function generateAndValidateShardedModelOutput(
     }),
     system: doctorResearchPeerReviewSystemPolicy
   });
-  const [correctedQaResponse, peerReviewResponse] =
-    qaContractRetryPromise
-      ? await Promise.all([
-          qaContractRetryPromise,
-          peerReviewPromise
-        ])
-      : [null, await peerReviewPromise];
+  let correctedQaResponse: ResearchModelResponse | null = null;
+  let peerReviewResponse: ResearchModelResponse | null = null;
+  let peerReviewUnavailableFallbackApplied = false;
+  if (qaContractRetryPromise) {
+    const [qaResult, peerReviewResult] = await Promise.allSettled([
+      qaContractRetryPromise,
+      peerReviewPromise
+    ]);
+    if (qaResult.status === "rejected") {
+      throw qaResult.reason;
+    }
+    correctedQaResponse = qaResult.value;
+    if (peerReviewResult.status === "fulfilled") {
+      peerReviewResponse = peerReviewResult.value;
+    } else if (isRecoverablePeerReviewError(peerReviewResult.reason)) {
+      peerReviewUnavailableFallbackApplied = true;
+    } else {
+      throw peerReviewResult.reason;
+    }
+  } else {
+    const [peerReviewResult] = await Promise.allSettled([
+      peerReviewPromise
+    ]);
+    if (peerReviewResult?.status === "fulfilled") {
+      peerReviewResponse = peerReviewResult.value;
+    } else if (
+      peerReviewResult?.status === "rejected" &&
+      isRecoverablePeerReviewError(peerReviewResult.reason)
+    ) {
+      peerReviewUnavailableFallbackApplied = true;
+    } else if (peerReviewResult?.status === "rejected") {
+      throw peerReviewResult.reason;
+    }
+  }
   let qaContractRetryCompleted = false;
   if (correctedQaResponse) {
     const correctedQaFragment = parseQaFragment(
@@ -2043,6 +2070,49 @@ async function generateAndValidateShardedModelOutput(
         validation.errorCodes
       );
     }
+  }
+  if (peerReviewUnavailableFallbackApplied) {
+    validation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy,
+      { deterministicSafetyNormalization: true }
+    );
+    if (!validation.ok) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        peerReviewAttempt,
+        validation.errorCodes
+      );
+      return null;
+    }
+    return {
+      output: validation.value,
+      warnings: [
+        ...validation.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_model_attempted",
+        "peer_review_model_unavailable_deterministic_fallback",
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(qaContractRetryCompleted
+          ? ["bounded_qa_contract_retry_completed"]
+          : [])
+      ]
+    };
+  }
+  if (!peerReviewResponse) {
+    throw new Error(
+      "Peer review response state is inconsistent after model settlement."
+    );
   }
   const peerReview = parsePeerReviewDecision(peerReviewResponse.text);
   if (!peerReview) {
@@ -2767,6 +2837,13 @@ function isRetryableShardTransportError(error: unknown): boolean {
       (error.code === "rate_limited" ||
         (error.code === "upstream_error" &&
           (error.statusCode === 0 || error.statusCode >= 500))))
+  );
+}
+
+function isRecoverablePeerReviewError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "TimeoutError") ||
+    isRetryableLateModelError(error)
   );
 }
 
