@@ -1616,15 +1616,40 @@ function contractFailureCodes(
   if (kind !== "schema_error") {
     return [kind];
   }
-  const keywords = errors
-    .map((error) => error.split(":").at(-1)?.trim())
-    .filter(
-      (keyword): keyword is string =>
-        typeof keyword === "string" &&
-        /^[a-z][a-zA-Z0-9_-]{0,63}$/u.test(keyword)
-    )
-    .map((keyword) => `schema_${keyword.toLowerCase()}`);
-  return [...new Set(["schema_error", ...keywords])].slice(0, 12);
+  const keywords: string[] = [];
+  const locations: string[] = [];
+  for (const error of errors) {
+    const separator = error.lastIndexOf(":");
+    const path = separator >= 0 ? error.slice(0, separator).trim() : "/";
+    const keyword =
+      separator >= 0 ? error.slice(separator + 1).trim() : "";
+    if (!/^[a-z][a-zA-Z0-9_-]{0,63}$/u.test(keyword)) {
+      continue;
+    }
+    const normalizedKeyword = keyword.toLowerCase();
+    keywords.push(`schema_${normalizedKeyword}`);
+    const normalizedPath = path
+      .split("/")
+      .filter(Boolean)
+      .map((segment) =>
+        /^[0-9]+$/u.test(segment)
+          ? "item"
+          : segment
+              .replace(/[^a-zA-Z0-9]+/gu, "_")
+              .replace(/^_+|_+$/gu, "")
+              .toLowerCase()
+      )
+      .filter(Boolean)
+      .join("_");
+    if (normalizedPath) {
+      locations.push(
+        `schema_${normalizedKeyword}_${normalizedPath}`.slice(0, 120)
+      );
+    }
+  }
+  return [
+    ...new Set(["schema_error", ...keywords, ...locations])
+  ].slice(0, 12);
 }
 
 function stableValidationCodes(errors: readonly string[]): string[] {
@@ -1971,6 +1996,9 @@ function inferResearchTopicTerms(
     "patient",
     "patients",
     "prospective",
+    "reduce",
+    "reduced",
+    "reduces",
     "report",
     "research",
     "retrieved",
@@ -2297,7 +2325,7 @@ function normalizeFinalModelOutputForSafety(
     }
     const normalizedCitedEvidence = citedEvidence.toLowerCase();
     if (
-      isSubstantive &&
+      citedReferenceIds.length > 0 &&
       /\b(?:in vitro|cell line|cultured cells?)\b/u.test(
         normalizedCitedEvidence
       ) &&
@@ -2385,9 +2413,12 @@ function removeUnsupportedNumericSentences(
   language: ResearchRunRecord["language"]
 ): string {
   const allowed = new Set(extractNumericTokens(allowedEvidence));
-  const sentences = value.split(/(?<=[。！？!?；;])\s*/u);
-  const retained = sentences.filter((sentence) =>
-    extractNarrativeNumericTokens(sentence).every((token) =>
+  // Chinese scientific prose often places several evidence claims in one
+  // long comma-delimited sentence. Remove only the clause carrying an
+  // unsupported number so adjacent qualitative evidence is not discarded.
+  const clauses = value.split(/(?<=[。！？.!?；;，])\s*/u);
+  const retained = clauses.filter((clause) =>
+    extractNarrativeNumericTokens(clause).every((token) =>
       allowed.has(token)
     )
   );
@@ -2641,7 +2672,7 @@ function buildFieldPubMedSearchQuery(
     topicTerms
       .map((term) => term.toLowerCase().trim())
       .filter((term) => /^[a-z][a-z-]{2,39}$/u.test(term))
-      .slice(0, 8),
+      .slice(0, 3),
     (term) => term
   );
   if (safeTerms.length === 0) {
@@ -2649,7 +2680,7 @@ function buildFieldPubMedSearchQuery(
   }
   const topicQuery = safeTerms
     .map((term) => `"${term}"[Title/Abstract]`)
-    .join(" OR ");
+    .join(" AND ");
   return `(${topicQuery}) AND (${startYear}:${currentYear}[Date - Publication])`;
 }
 

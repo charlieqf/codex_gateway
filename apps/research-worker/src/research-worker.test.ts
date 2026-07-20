@@ -520,7 +520,8 @@ describe("Research Worker controlled-beta workflow", () => {
         attempt: 3,
         errorCodes: [
           "server_closed_schema_error",
-          "server_closed_schema_minlength"
+          "server_closed_schema_minlength",
+          "server_closed_schema_minlength_review_markdown"
         ]
       })
     ]);
@@ -919,7 +920,7 @@ describe("Research Worker controlled-beta workflow", () => {
       "## Findings",
       "The cited study included 42 samples and supports cautious synthesis [1].",
       "This uncited contextual paragraph contains enough words to require direct evidence coverage before publication.",
-      "An unsupported claim enrolled 2025 patients. The abstract supports cautious synthesis [1]."
+      "An unsupported claim enrolled 2025 patients，while the abstract supports cautious synthesis [1]."
     ].join("\n\n");
     let modelCalls = 0;
     const validationEvents: string[][] = [];
@@ -951,7 +952,9 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(outcome, JSON.stringify(validationEvents)).toEqual({
+      outcome: "succeeded"
+    });
     expect(modelCalls).toBe(3);
     expect(validationEvents).toEqual([
       [
@@ -1708,7 +1711,10 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(queries).toHaveLength(2);
     expect(queries[0]).toContain('"Example Doctor"[Author]');
-    expect(queries[1]).toContain('"endovascular"[Title/Abstract]');
+    expect(queries[1]).toContain(
+      '"endovascular"[Title/Abstract] AND "aortic"[Title/Abstract] AND "repair"[Title/Abstract]'
+    );
+    expect(queries[1]).not.toContain(" OR ");
     expect(
       fixture.store.getRunResultForSubject(
         fixture.lease.run.runId,
