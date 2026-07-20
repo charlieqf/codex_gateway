@@ -2420,7 +2420,7 @@ function buildPeerReviewPatchPrompt(input: {
       title: reference.title,
       study_evidence: compactPublicationAbstract(
         publication?.abstract ?? "",
-        1_600
+        480
       )
     };
   });
