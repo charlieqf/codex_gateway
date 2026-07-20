@@ -1138,6 +1138,7 @@ async function generateAndValidateModelOutput(
   warnings: string[];
 } | null> {
   let transportRepairRetryCompleted = false;
+  let formatRepairRetryCompleted = false;
   let focusedModelConvergenceCompleted = false;
   const prompt = buildModelPrompt(
     context.run,
@@ -1205,6 +1206,33 @@ async function generateAndValidateModelOutput(
       2,
       validation.errorCodes
     );
+    if (
+      validation.errorCodes.every((code) =>
+        [
+          "paragraph_citation_coverage",
+          "numeric_evidence_closure",
+          "in_vitro_scope_required"
+        ].includes(code)
+      )
+    ) {
+      const normalizedValidation = validateGeneratedOutput(
+        reviewed.text,
+        context.run,
+        identity,
+        evidence,
+        context.input.policy,
+        { deterministicSafetyNormalization: true }
+      );
+      if (normalizedValidation.ok) {
+        return {
+          output: normalizedValidation.value,
+          warnings: [
+            ...normalizedValidation.warnings,
+            "peer_review_model_completed"
+          ]
+        };
+      }
+    }
     const finalRepairPrompt = [
       "Perform one final bounded correction after the mandatory peer review. Return the corrected complete draft JSON object and no other text.",
       "All validation gates remain mandatory; do not remove content merely to make an error disappear.",
@@ -1215,6 +1243,7 @@ async function generateAndValidateModelOutput(
       "Every blank-line-separated substantive review paragraph must contain at least one applicable numeric citation.",
       "For every narrative number, either cite an abstract containing that exact number or remove the unsupported numerical claim.",
       "When a cited abstract is in-vitro or cell-line evidence, explicitly label that paragraph as 体外 or 细胞研究 evidence.",
+      "For observational evidence, replace causal wording with association wording and explicitly state that causality cannot be inferred.",
       "Do not add sources, identifiers, facts, references, or placeholders.",
       "Candidate returned by the mandatory peer review:",
       reviewed.text.slice(0, 300_000),
@@ -1248,6 +1277,33 @@ async function generateAndValidateModelOutput(
       evidence,
       context.input.policy
     );
+    let repairValidationReported = false;
+    if (
+      !validation.ok &&
+      repairedAttempt === 3 &&
+      validation.errorCodes.length === 1 &&
+      validation.errorCodes[0] === "parse_error"
+    ) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        3,
+        validation.errorCodes
+      );
+      repairedAttempt = 4;
+      repaired = await context.generateModel({
+        stage: "validate_outputs",
+        attempt: repairedAttempt,
+        prompt: finalRepairPrompt
+      });
+      formatRepairRetryCompleted = true;
+      validation = validateGeneratedOutput(
+        repaired.text,
+        context.run,
+        identity,
+        evidence,
+        context.input.policy
+      );
+    }
     if (
       !validation.ok &&
       validation.errorCodes.every((code) =>
@@ -1267,7 +1323,17 @@ async function generateAndValidateModelOutput(
         { deterministicSafetyNormalization: true }
       );
     }
-    let repairValidationReported = false;
+    if (
+      !validation.ok &&
+      formatRepairRetryCompleted
+    ) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        4,
+        validation.errorCodes
+      );
+      repairValidationReported = true;
+    }
     if (
       !validation.ok &&
       repairedAttempt === 3 &&
@@ -1277,7 +1343,8 @@ async function generateAndValidateModelOutput(
           "citation_reference_closure",
           "paragraph_citation_coverage",
           "numeric_evidence_closure",
-          "in_vitro_scope_required"
+          "in_vitro_scope_required",
+          "causal_claim_evidence_grade"
         ].includes(code)
       )
     ) {
@@ -1297,6 +1364,7 @@ async function generateAndValidateModelOutput(
         "Every blank-line-separated substantive review paragraph must contain at least one applicable numeric citation.",
         "For every narrative number, either cite an abstract containing that exact number or remove the unsupported numerical claim.",
         "Keep in-vitro and cell-line evidence explicitly scoped and never extrapolate it directly to clinical effects.",
+        "For observational evidence, replace causal wording with association wording and explicitly state that causality cannot be inferred.",
         "Do not add sources, identifiers, facts, references, or placeholders.",
         "Preserve the candidate profile, questions, and answers unless a specific remaining diagnostic requires removing an unsupported number.",
         "Candidate returned by the prior bounded correction:",
@@ -1384,6 +1452,9 @@ async function generateAndValidateModelOutput(
             : []),
           ...(transportRepairRetryCompleted
             ? ["transport_model_repair_retry_completed"]
+            : []),
+          ...(formatRepairRetryCompleted
+            ? ["format_model_repair_retry_completed"]
             : [])
         ]
       }
@@ -2557,6 +2628,10 @@ function validateEvidenceScopeAndCausality(
       /\b(?:cause[sd]?|causal|led to|resulted in|improves?|reduces?|increases?|prevents?|proves?|demonstrates?)\b|证明|证实|导致|使得|改善|降低|提高|预防/u.test(
         claim
       );
+    const explicitlyNonCausal =
+      /\b(?:cannot infer causality|cannot establish causality|does not establish causality|not establish causality|association rather than causation|non-causal association)\b|不能推断因果|无法推断因果|不支持因果|不代表因果|并非因果/u.test(
+        claim
+      );
     const observationalOnly =
       /\b(?:observational|retrospective|registry|cohort|cross-sectional|case-control)\b/u.test(
         source
@@ -2564,7 +2639,7 @@ function validateEvidenceScopeAndCausality(
       !/\b(?:randomi[sz]ed|controlled trial|intervention|in vitro|animal model)\b/u.test(
         source
       );
-    if (causalClaim && observationalOnly) {
+    if (causalClaim && observationalOnly && !explicitlyNonCausal) {
       errors.add(
         `causal_claim_evidence_grade:paragraph=${paragraphIndex + 1}`
       );

@@ -890,6 +890,99 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("uses the fourth call to retry a malformed late repair response", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "late_format_repair_retry"
+    );
+    const observationalAdapters = adapters();
+    const originalMetadata =
+      observationalAdapters.getPubMedMetadata.bind(
+        observationalAdapters
+      );
+    observationalAdapters.getPubMedMetadata = async (pmid, signal) => {
+      const metadata = await originalMetadata(pmid, signal);
+      return metadata
+        ? {
+            ...metadata,
+            abstractText:
+              "This retrospective cohort observed an association between treatment and mortality."
+          }
+        : null;
+    };
+    const causal = modelOutput();
+    causal.review.markdown =
+      "The retrospective study proves that treatment directly reduces mortality [1].";
+    const valid = modelOutput();
+    let modelCalls = 0;
+    const validationEvents: Array<{
+      attempt: number;
+      errorCodes: readonly string[];
+    }> = [];
+    const basePolicy = workflowPolicy();
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: observationalAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate(input) {
+          modelCalls += 1;
+          return {
+            text:
+              modelCalls === 3
+                ? "malformed non-JSON repair"
+                : JSON.stringify(modelCalls < 4 ? causal : valid),
+            gatewayRequestId: `req_model_format_retry_${input.attempt}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: {
+        ...basePolicy,
+        maximumInputTokensPerCall: 120_000,
+        maximumOutputTokensPerCall: 18_000,
+        budgets: {
+          ...basePolicy.budgets,
+          llmCalls: 4,
+          inputTokens: 480_000,
+          outputTokens: 200_000
+        }
+      },
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push({
+          attempt: event.attempt,
+          errorCodes: event.errorCodes
+        });
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(4);
+    expect(validationEvents).toEqual([
+      { attempt: 1, errorCodes: ["causal_claim_evidence_grade"] },
+      { attempt: 2, errorCodes: ["causal_claim_evidence_grade"] },
+      { attempt: 3, errorCodes: ["parse_error"] }
+    ]);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as
+      | { quality: { warnings: string[] } }
+      | undefined;
+    expect(result?.quality.warnings).toContain(
+      "format_model_repair_retry_completed"
+    );
+    fixture.store.close();
+  });
+
   it("applies only conservative evidence-closure normalization after the final bounded correction", async () => {
     const fixture = createLeasedWorkflowFixture(
       "final_evidence_closure_normalization"
@@ -955,7 +1048,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome, JSON.stringify(validationEvents)).toEqual({
       outcome: "succeeded"
     });
-    expect(modelCalls).toBe(3);
+    expect(modelCalls).toBe(2);
     expect(validationEvents).toEqual([
       [
         "paragraph_citation_coverage",
@@ -1100,6 +1193,61 @@ describe("Research Worker controlled-beta workflow", () => {
       ["causal_claim_evidence_grade"]
     ]);
     expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
+  it("accepts explicit non-causal qualification of observational evidence", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "observational_association_qualified"
+    );
+    const observationalAdapters = adapters();
+    const originalMetadata =
+      observationalAdapters.getPubMedMetadata.bind(
+        observationalAdapters
+      );
+    observationalAdapters.getPubMedMetadata = async (pmid, signal) => {
+      const metadata = await originalMetadata(pmid, signal);
+      return metadata
+        ? {
+            ...metadata,
+            abstractText:
+              "This retrospective cohort observed an association between treatment and mortality."
+          }
+        : null;
+    };
+    const output = modelOutput();
+    output.review.markdown =
+      "The retrospective study reports that treatment reduces mortality; this is an association and does not establish causality [1].";
+    const validationCodes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: observationalAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_observational_association",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationCodes.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(validationCodes).toEqual([]);
     fixture.store.close();
   });
 
