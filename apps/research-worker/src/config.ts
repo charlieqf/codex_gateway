@@ -163,7 +163,7 @@ export function loadResearchWorkerConfig(
     outputTokens: boundedInteger(
       env.RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN,
       "RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN",
-      100_000
+      300_000
     )
   };
   const orcidBearerTokenFile = optionalString(

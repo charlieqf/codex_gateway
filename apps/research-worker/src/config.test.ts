@@ -41,6 +41,21 @@ describe("Research Worker fail-closed configuration", () => {
     });
   });
 
+  it("allows the run budget to account for provider-reported hidden reasoning", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "200000"
+    });
+    expect(config?.workflowPolicy.budgets.outputTokens).toBe(200_000);
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300001"
+      })
+    ).toThrow("cannot exceed 300000");
+  });
+
   it("rejects proxy use and unsafe cross-field limits before starting", () => {
     expect(() =>
       loadResearchWorkerConfig({
