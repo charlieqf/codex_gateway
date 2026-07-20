@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.0` together with the
+The production Worker uses frozen execution contract `1.6.1` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.0` splits synthesis into three bounded independent
+For latency, execution `1.6.1` splits synthesis into three bounded independent
 fragments, routes them with separate internal session affinity, and starts
 them concurrently against the three direct GLM pool members. A fourth call
 performs only the medical Skill's concise peer-review self-check and returns

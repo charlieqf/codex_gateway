@@ -420,15 +420,28 @@ describe("Research Worker controlled-beta workflow", () => {
         source_ids: ["src_pubmed_1001"]
       })
     );
+    const foundationFragment = {
+      schema_version: "doctor_research_foundation_fragment.v1",
+      profile: foundation.profile,
+      review: {
+        title: foundation.review.title,
+        abstract: foundation.review.abstract,
+        keywords: foundation.review.keywords,
+        markdown: foundation.review.markdown,
+        core_evidence: foundation.review.core_evidence
+      }
+    };
     const fragments = new Map<number, string>([
       [
         2,
         JSON.stringify({
-          schema_version: "doctor_research_review_fragment.v1",
+          schema_version: "doctor_research_body_fragment.v1",
           markdown: longChineseReviewFragment(
             "方法与证据比较",
             55
-          )
+          ),
+          predicted_questions: foundation.predicted_questions,
+          answers: foundation.answers
         })
       ],
       [
@@ -471,7 +484,7 @@ describe("Research Worker controlled-beta workflow", () => {
             return {
               text:
                 modelInput.attempt === 1
-                  ? JSON.stringify(foundation)
+                  ? JSON.stringify(foundationFragment)
                   : fragments.get(modelInput.attempt)!,
               gatewayRequestId: `req_sharded_${modelInput.attempt}`,
               usage: {
