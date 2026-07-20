@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.25` together with the
+The production Worker uses frozen execution contract `1.6.26` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.25` splits synthesis into three bounded independent
+For latency, execution `1.6.26` splits synthesis into three bounded independent
 fragments, routes them with separate internal session affinity, and starts at
 most two concurrently against isolated direct-GLM capacity. The third starts
 as soon as one slot settles. If provider admission temporarily exposes only
@@ -75,7 +75,9 @@ doctor profile is projected deterministically from exact official-source
 excerpts, so the model does not receive or regenerate that profile. A final
 call performs only the medical Skill's concise peer-review self-check and
 returns bounded exact-text corrections instead of rewriting the complete
-article.
+article. That compact peer-review call has a 120-second engineering deadline;
+if its transport is unavailable, deterministic evidence-closure may accept
+the assembled draft only when every medical Skill content gate still passes.
 
 The Worker projects only the required fields from model fragment envelopes and
 accepts a closing fragment returned directly as bounded Markdown. This
@@ -87,6 +89,9 @@ followed by one evidence-synthesis/controversy section, one
 limitations/outlook section, and one conclusion. Empty sections,
 duplicate substantive paragraphs, unbalanced delimiters, truncated numeric
 prose, and low-information or duplicated core-evidence fields are rejected.
+Safety normalization treats decimal points as part of a number rather than a
+sentence boundary, and removes duplicate substantive paragraphs that arise
+only after unsupported numerical sentences are closed.
 
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend

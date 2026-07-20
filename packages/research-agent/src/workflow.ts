@@ -2373,7 +2373,7 @@ async function generateAndValidateShardedModelOutput(
   const peerReviewPromise = context.generateModel({
     stage: "validate_outputs",
     attempt: peerReviewAttempt,
-    maximumDurationMs: 180_000,
+    maximumDurationMs: 120_000,
     prompt: buildPeerReviewPatchPrompt({
       run: context.run,
       evidence,
@@ -3583,12 +3583,9 @@ function validateReviewProseIntegrity(
     if (trimmed === "" || /^#{1,6}\s/u.test(trimmed)) {
       continue;
     }
-    const normalized = trimmed
-      .normalize("NFKC")
-      .replace(/\[[0-9,\s-]+\]/gu, "")
-      .replace(/\s+/gu, " ")
-      .trim()
-      .toLowerCase();
+    const normalized = normalizeReviewParagraphForDuplicateCheck(
+      trimmed
+    );
     if (
       countReviewLanguageContent(normalized, language) >=
       (language === "zh-CN" ? 40 : 20)
@@ -3621,6 +3618,52 @@ function validateReviewProseIntegrity(
     }
   }
   return [...new Set(errors)];
+}
+
+function normalizeReviewParagraphForDuplicateCheck(
+  value: string
+): string {
+  return value
+    .normalize("NFKC")
+    .replace(/\[[0-9,\s-]+\]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function deduplicateReviewParagraphs(
+  markdown: string,
+  language: ResearchRunRecord["language"]
+): { markdown: string; changed: boolean } {
+  const retained: string[] = [];
+  const seen = new Set<string>();
+  let changed = false;
+  for (const paragraph of markdown.split(/\n\s*\n/gu)) {
+    const trimmed = paragraph.trim();
+    if (
+      trimmed === "" ||
+      /^#{1,6}\s/u.test(trimmed) ||
+      countReviewLanguageContent(trimmed, language) <
+        (language === "zh-CN" ? 40 : 20)
+    ) {
+      if (trimmed !== "") {
+        retained.push(trimmed);
+      }
+      continue;
+    }
+    const normalized =
+      normalizeReviewParagraphForDuplicateCheck(trimmed);
+    if (seen.has(normalized)) {
+      changed = true;
+      continue;
+    }
+    seen.add(normalized);
+    retained.push(trimmed);
+  }
+  return {
+    markdown: retained.join("\n\n"),
+    changed
+  };
 }
 
 function hasBalancedDelimiter(
@@ -5473,6 +5516,17 @@ function normalizeFinalModelOutputForSafety(
       .map(applyRequiredEvidenceScope)
       .join("\n\n")
   };
+  const deduplicatedReview = deduplicateReviewParagraphs(
+    supplementedReview.markdown,
+    language
+  );
+  if (deduplicatedReview.changed) {
+    changed = true;
+    supplementedReview = {
+      ...supplementedReview,
+      markdown: deduplicatedReview.markdown
+    };
+  }
   const allAbstracts = evidence.publicationEvidence
     .map((publication) => publication.abstract ?? "")
     .join("\n");
@@ -5570,10 +5624,13 @@ function normalizeFinalModelOutputForSafety(
       ...normalizedValue,
       review: {
         ...normalizedValue.review,
-        markdown: resupplemented.markdown
-          .split(/\n\s*\n/gu)
-          .map(applyRequiredEvidenceScope)
-          .join("\n\n")
+        markdown: deduplicateReviewParagraphs(
+          resupplemented.markdown
+            .split(/\n\s*\n/gu)
+            .map(applyRequiredEvidenceScope)
+            .join("\n\n"),
+          language
+        ).markdown
       }
     };
     if (resupplemented.changed) {
@@ -5843,7 +5900,12 @@ function removeUnsupportedNumericSentences(
   // narrative numbers is unsupported. Cutting at a Chinese comma can leave
   // orphaned units, unmatched parentheses, and misleading sentence
   // fragments even when each retained token is independently supported.
-  const sentences = value.split(/(?<=[。！？.!?；;])\s*/u);
+  // A decimal point is not a sentence boundary. Splitting `2.7` into `2.`
+  // and `7` can preserve a misleading truncated fragment when those integer
+  // tokens happen to occur elsewhere in the cited abstract.
+  const sentences = value.split(
+    /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s*/u
+  );
   const retained = sentences.filter((sentence) =>
     extractNarrativeNumericTokens(sentence).every((token) =>
       allowed.has(token)
