@@ -394,6 +394,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_shard_transport_retry_completed"
     ],
     [
+      "transport-skill",
+      "deterministic_peer_review_self_check_completed"
+    ],
+    [
       "introduction-safety",
       "bounded_introduction_correction_completed"
     ],
@@ -845,7 +849,8 @@ describe("Research Worker controlled-beta workflow", () => {
             if (
               (retryKind === "transport" &&
                 modelInput.attempt === 1) ||
-              (retryKind === "transport-body-near-minimum" &&
+              ((retryKind === "transport-body-near-minimum" ||
+                retryKind === "transport-skill") &&
                 modelInput.attempt === 2)
             ) {
               throw new ResearchModelClientError(
@@ -960,6 +965,29 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "transport-skill" &&
+            modelInput.attempt === 5 &&
+            modelInput.stage === "synthesize_review"
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_body_fragment.v1",
+                markdown: skillBodyFragment(20),
+                predicted_questions: initialBodyQuestions,
+                answers: initialBodyAnswers
+              }),
+              gatewayRequestId:
+                "req_sharded_transport_skill_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -972,6 +1000,25 @@ describe("Research Worker controlled-beta workflow", () => {
                           "doctor_research_body_fragment.v1",
                         markdown:
                           nearMinimumSkillBodyFragment(),
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers
+                      })
+                  : retryKind === "transport-skill"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: [
+                          longChineseReviewFragment(
+                            "研究设计与人群差异",
+                            20
+                          ),
+                          longChineseReviewFragment(
+                            "方法路径与评价终点",
+                            20
+                          ),
+                          "## 结果一致性与证据强度\n\n短段落。[1]"
+                        ].join("\n\n"),
                         predicted_questions:
                           initialBodyQuestions,
                         answers: initialBodyAnswers
@@ -1224,6 +1271,17 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "Numeric citation markers such as [1] are the only allowed digits"
+      );
+    }
+    if (retryKind === "transport-skill") {
+      expect(retryPrompt).toContain(
+        "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
+      );
+      expect(retryPrompt).toContain(
+        "body_topic_section_contract:expected=4"
+      );
+      expect(retryPrompt).toContain(
+        "body_topic_section_minimum:600"
       );
     }
     const stored = fixture.store.getRunResultForSubject(
@@ -1510,6 +1568,22 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_body_section_boundary_supplement_applied"
       );
     }
+    if (retryKind === "transport-skill") {
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "bounded_shard_transport_retry_completed",
+          "bounded_shard_skill_contract_retry_completed",
+          "peer_review_call_reallocated_to_transport_skill_repair",
+          "deterministic_peer_review_self_check_completed"
+        ])
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_attempted"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_completed"
+      );
+    }
     if (retryKind === "contract-short-abstract") {
       expect(result.quality.warnings).toContain(
         "deterministic_abstract_closed_introduction_supplement_applied"
@@ -1523,7 +1597,9 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        retryKind === "peer-timeout" ||
+        retryKind === "transport-skill"
+          ? "deterministic_peer_review_self_check_completed"
+        : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
         retryKind === "section-closure" ||
         retryKind === "peer-contract" ||

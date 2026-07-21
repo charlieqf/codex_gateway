@@ -2326,6 +2326,7 @@ async function generateAndValidateShardedModelOutput(
   ];
   let shardContractRetryCompleted = false;
   let shardSkillContractRetryCompleted = false;
+  let shardSkillContractRetryAttempt: 4 | 5 | null = null;
   if (
     contractFailureIndexes.length === 1 &&
     !shardTransportRetryCompleted
@@ -2452,14 +2453,15 @@ async function generateAndValidateShardedModelOutput(
   let remainingFragmentSkillErrors = fragmentSkillErrors();
   if (
     remainingFragmentSkillErrors.length === 1 &&
-    !shardTransportRetryCompleted &&
     !shardContractRetryCompleted
   ) {
     const failure = remainingFragmentSkillErrors[0]!;
     const retryInput = shardInputs[failure.index]!;
+    shardSkillContractRetryAttempt =
+      shardTransportRetryCompleted ? 5 : 4;
     responses[failure.index] = await context.generateModel({
       ...retryInput,
-      attempt: 4,
+      attempt: shardSkillContractRetryAttempt,
       prompt: [
         retryInput.prompt,
         "BOUNDED MEDICAL-SKILL CONTRACT RETRY",
@@ -2535,7 +2537,7 @@ async function generateAndValidateShardedModelOutput(
   if (remainingFragmentSkillErrors.length > 0) {
     context.reportValidationFailure(
       "synthesize_review",
-      shardSkillContractRetryCompleted ? 4 : 3,
+      shardSkillContractRetryAttempt ?? 3,
       [
         ...new Set(
           remainingFragmentSkillErrors.flatMap((entry) =>
@@ -2650,6 +2652,38 @@ async function generateAndValidateShardedModelOutput(
     deterministicSafetyPreview.errorCodes.includes(
       "review_introduction_minimum"
     );
+  const peerReviewCallBudgetConsumedByTransportRepair =
+    shardTransportRetryCompleted &&
+    shardSkillContractRetryCompleted &&
+    shardSkillContractRetryAttempt === 5;
+  if (peerReviewCallBudgetConsumedByTransportRepair) {
+    const deterministicSelfReview = validation.ok
+      ? validation
+      : deterministicSafetyPreview;
+    if (!deterministicSelfReview.ok) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        deterministicSelfReview.errorCodes,
+        deterministicSelfReview.errors
+      );
+      return null;
+    }
+    return {
+      output: deterministicSelfReview.value,
+      warnings: [
+        ...deterministicSelfReview.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_call_reallocated_to_transport_skill_repair",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        "bounded_shard_transport_retry_completed",
+        "bounded_shard_skill_contract_retry_completed"
+      ]
+    };
+  }
   const reviewContentCount =
     context.run.language === "zh-CN"
       ? countHanCharacters(assembledDraft.review.markdown)
