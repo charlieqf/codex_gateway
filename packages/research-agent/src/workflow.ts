@@ -6926,11 +6926,11 @@ function normalizeFinalModelOutputForSafety(
         "$1所引研究中的器械系统"
       )
       .replace(
-        /^(\s*)该(?:个案|病例)/gu,
+        /(^|[。！？]\s*)该(?:个案|病例)/gu,
         "$1所引病例"
       )
       .replace(
-        /^(\s*)该(?:发现|结果|趋势)/gu,
+        /(^|[。！？]\s*)该(?:发现|结果|趋势)/gu,
         "$1所引研究的发现"
       )
       .replace(
@@ -7039,12 +7039,19 @@ function normalizeFinalModelOutputForSafety(
       changed = true;
       paragraph = evidenceAligned.value;
     }
-    const proseClosed = closeReviewProseStart(paragraph);
-    if (proseClosed !== paragraph) {
+    // Sentence removal can expose a formerly internal demonstrative as the
+    // new paragraph start. Re-run the presentation closure to a bounded fixed
+    // point so the repair rule is at least as broad as the final validator.
+    for (let iteration = 0; iteration < 8; iteration += 1) {
+      const next = closeReviewProseStart(
+        removeCaseOnlyPrescriptiveSentences(paragraph)
+      );
+      if (next === paragraph) {
+        break;
+      }
       changed = true;
-      paragraph = proseClosed;
+      paragraph = next;
     }
-    paragraph = removeCaseOnlyPrescriptiveSentences(paragraph);
     scope = paragraphEvidence(paragraph);
     const isHeading = /^#{1,6}\s/u.test(paragraph);
     const isSubstantive =
