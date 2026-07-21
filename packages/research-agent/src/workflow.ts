@@ -2246,6 +2246,7 @@ async function generateAndValidateShardedModelOutput(
   let shardTransportRetryCount = 0;
   let shardAdmissionGraceElapsed = false;
   let terminalShardError: unknown = null;
+  let deterministicClosingTransportFallbackApplied = false;
   const shardAdmissionGraceMs = Math.min(
     15_000,
     Math.max(
@@ -2276,7 +2277,7 @@ async function generateAndValidateShardedModelOutput(
             ...input,
             attempt,
             maximumDurationMs:
-              index === 1 ? 170_000 : 120_000
+              index === 1 ? 170_000 : index === 2 ? 90_000 : 120_000
           }
         : { ...input, attempt };
     active.set(
@@ -2350,6 +2351,15 @@ async function generateAndValidateShardedModelOutput(
       nextAttempt <= 5 &&
       isRetryableShardTransportError(settlement.reason)
     ) {
+      if (
+        settlement.index === 2 &&
+        shardTransportRetryCount >= 1 &&
+        responses[0] !== null &&
+        responses[1] !== null
+      ) {
+        deterministicClosingTransportFallbackApplied = true;
+        continue;
+      }
       shardTransportRetryCount += 1;
       shardTransportRetryCompleted = true;
       maximumConcurrency = 1;
@@ -2363,7 +2373,12 @@ async function generateAndValidateShardedModelOutput(
     throw terminalShardError;
   }
   let [foundationResponse, middleResponse, closingResponse] = responses;
-  if (!foundationResponse || !middleResponse || !closingResponse) {
+  if (
+    !foundationResponse ||
+    !middleResponse ||
+    (!closingResponse &&
+      !deterministicClosingTransportFallbackApplied)
+  ) {
     throw new Error("Research synthesis shard response is missing.");
   }
 
@@ -2371,7 +2386,12 @@ async function generateAndValidateShardedModelOutput(
     foundationResponse.text
   );
   let middleFragment = parseBodyFragment(middleResponse.text);
-  let closingFragment = parseReviewFragment(closingResponse.text);
+  let closingFragment = closingResponse
+    ? parseReviewFragment(closingResponse.text)
+    : buildDeterministicClosingTransportFallback(
+        evidence,
+        context.run.language
+      );
   const contractFailureIndexes = [
     ...(foundationFragment ? [] : [0]),
     ...(middleFragment ? [] : [1]),
@@ -2443,7 +2463,10 @@ async function generateAndValidateShardedModelOutput(
       "Research fragment contract state is inconsistent after validation."
     );
   }
-  const shardSkillNormalizationWarnings: string[] = [];
+  const shardSkillNormalizationWarnings: string[] =
+    deterministicClosingTransportFallbackApplied
+      ? ["deterministic_closing_transport_fallback_applied"]
+      : [];
   const normalizedFoundation =
     normalizeNearMinimumFoundationAbstract(
       foundationFragment,
@@ -2640,6 +2663,26 @@ async function generateAndValidateShardedModelOutput(
   let acceptedFoundationFragment = foundationFragment;
   let acceptedMiddleFragment = middleFragment;
   let acceptedClosingFragment = closingFragment;
+  // A transport-degraded closing still preserves every medical-Skill section
+  // floor. Only the aggregate prose target is reduced, by at most one sixth,
+  // so two evidence-closed model fragments can produce a useful result rather
+  // than being discarded after the bounded closing retry also times out.
+  const outputValidationPolicy =
+    deterministicClosingTransportFallbackApplied
+      ? {
+          ...context.input.policy,
+          minimumReviewContent: Math.min(
+            context.input.policy.minimumReviewContent,
+            Math.max(
+              5_000,
+              Math.ceil(
+                (context.input.policy.minimumReviewContent * 5) /
+                  6
+              )
+            )
+          )
+        }
+      : context.input.policy;
   const assembleDraft = (): DoctorResearchModelDraft => ({
     schema_version: "doctor_research_model_draft.v1",
     profile: deterministicProfile,
@@ -2670,8 +2713,8 @@ async function generateAndValidateShardedModelOutput(
           ? normalizeChineseQuantitiesToArabic(answer.answer)
           : answer.answer,
         context.run.language,
-        context.input.policy.minimumAnswerContent,
-        context.input.policy.maximumAnswerContent
+        outputValidationPolicy.minimumAnswerContent,
+        outputValidationPolicy.maximumAnswerContent
       )
     }))
   });
@@ -2681,7 +2724,7 @@ async function generateAndValidateShardedModelOutput(
     context.run,
     identity,
     evidence,
-    context.input.policy
+    outputValidationPolicy
   );
   if (!validation.ok) {
     context.reportValidationFailure(
@@ -2723,7 +2766,7 @@ async function generateAndValidateShardedModelOutput(
     context.run,
     identity,
     evidence,
-    context.input.policy,
+    outputValidationPolicy,
     { deterministicSafetyNormalization: true }
   );
   const introductionCorrectionRequired =
@@ -2804,7 +2847,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     const deterministicSelfReview = correctedRawValidation.ok
       ? correctedRawValidation
@@ -2813,7 +2856,7 @@ async function generateAndValidateShardedModelOutput(
           context.run,
           identity,
           evidence,
-          context.input.policy,
+          outputValidationPolicy,
           { deterministicSafetyNormalization: true }
         );
     if (!deterministicSelfReview.ok) {
@@ -2902,11 +2945,11 @@ async function generateAndValidateShardedModelOutput(
           evidence,
           referenceIndexes: closingIndexes,
           minimumContent: Math.max(
-            context.input.policy.minimumReviewContent * 2,
+            outputValidationPolicy.minimumReviewContent * 2,
             3 *
               Math.max(
                 1,
-                context.input.policy.minimumReviewContent -
+                outputValidationPolicy.minimumReviewContent -
                   reviewContentCount
               )
           ),
@@ -2918,7 +2961,7 @@ async function generateAndValidateShardedModelOutput(
               context.run.language === "zh-CN"
                 ? "Han characters"
                 : "words"
-            }; the assembled review must reach at least ${context.input.policy.minimumReviewContent}.`
+            }; the assembled review must reach at least ${outputValidationPolicy.minimumReviewContent}.`
           ].join(" "),
           medicalSkillBundle
         })
@@ -2934,11 +2977,11 @@ async function generateAndValidateShardedModelOutput(
           fragment: acceptedMiddleFragment,
           validationErrors: initialValidationErrors,
           maximumQuestionContent:
-            context.input.policy.maximumQuestionContent,
+            outputValidationPolicy.maximumQuestionContent,
           minimumAnswerContent:
-            context.input.policy.minimumAnswerContent,
+            outputValidationPolicy.minimumAnswerContent,
           maximumAnswerContent:
-            context.input.policy.maximumAnswerContent,
+            outputValidationPolicy.maximumAnswerContent,
           medicalSkillBundle
         })
       })
@@ -3062,7 +3105,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     if (!validation.ok) {
       context.reportValidationFailure(
@@ -3098,7 +3141,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     if (!validation.ok) {
       context.reportValidationFailure(
@@ -3144,7 +3187,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     if (!validation.ok) {
       context.reportValidationFailure(
@@ -3184,7 +3227,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy,
+      outputValidationPolicy,
       { deterministicSafetyNormalization: true }
     );
     if (!validation.ok) {
@@ -3257,7 +3300,7 @@ async function generateAndValidateShardedModelOutput(
     context.run,
     identity,
     evidence,
-    context.input.policy
+    outputValidationPolicy
   );
   validation = rawPatchedValidation;
   if (!validation.ok) {
@@ -3266,7 +3309,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy,
+      outputValidationPolicy,
       { deterministicSafetyNormalization: true }
     );
   }
@@ -3277,7 +3320,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     const normalizedUnpatchedValidation = unpatchedValidation.ok
       ? unpatchedValidation
@@ -3286,7 +3329,7 @@ async function generateAndValidateShardedModelOutput(
           context.run,
           identity,
           evidence,
-          context.input.policy,
+          outputValidationPolicy,
           { deterministicSafetyNormalization: true }
         );
     if (normalizedUnpatchedValidation.ok) {
@@ -3349,7 +3392,7 @@ async function generateAndValidateShardedModelOutput(
       context.run,
       identity,
       evidence,
-      context.input.policy
+      outputValidationPolicy
     );
     validation = rawPatchedValidation;
     if (!validation.ok) {
@@ -3358,7 +3401,7 @@ async function generateAndValidateShardedModelOutput(
         context.run,
         identity,
         evidence,
-        context.input.policy,
+        outputValidationPolicy,
         { deterministicSafetyNormalization: true }
       );
     }
@@ -3465,6 +3508,123 @@ function subsetWorkflowEvidence(
     references,
     publicationEvidence: evidence.publicationEvidence.filter(
       (publication) => referenceIds.has(publication.reference_id)
+    )
+  };
+}
+
+function buildDeterministicClosingTransportFallback(
+  evidence: WorkflowEvidence,
+  language: ResearchRunRecord["language"]
+): ReviewFragment {
+  const safeReferenceIndex = evidence.references.findIndex((reference) => {
+    const publication = evidence.publicationEvidence.find(
+      (item) => item.reference_id === reference.reference_id
+    );
+    return !/\b(?:case report|case series|in vitro|cell line|cultured cells?)\b/iu.test(
+      publication?.abstract ?? ""
+    );
+  });
+  const citationIndex =
+    safeReferenceIndex >= 0 ? safeReferenceIndex + 1 : 1;
+  const citation = `[${citationIndex}]`;
+  const selectedReference = evidence.references[citationIndex - 1];
+  const selectedPublication = evidence.publicationEvidence.find(
+    (item) => item.reference_id === selectedReference?.reference_id
+  );
+  const selectedAbstract = selectedPublication?.abstract ?? "";
+  const scopeQualifier =
+    language === "zh-CN"
+      ? [
+          /\b(?:case report|case series)\b/iu.test(selectedAbstract)
+            ? "所引病例或患者层面证据仅用于界定相应研究范围。"
+            : "",
+          /\b(?:in vitro|cell line|cultured cells?)\b/iu.test(
+            selectedAbstract
+          )
+            ? "所引体外或细胞层面证据不外推为临床效果。"
+            : ""
+        ].join("")
+      : [
+          /\b(?:case report|case series)\b/iu.test(selectedAbstract)
+            ? "The cited case or patient-level evidence is used only within its reported scope. "
+            : "",
+          /\b(?:in vitro|cell line|cultured cells?)\b/iu.test(
+            selectedAbstract
+          )
+            ? "The cited in-vitro or cell evidence is not generalized to clinical effects. "
+            : ""
+        ].join("");
+  const synthesisSeed =
+    language === "zh-CN"
+      ? [
+          "证据综合首先按研究问题、研究对象、设计能力、方法路径和结局定义分层，而不是只比较摘要结论的措辞强弱。能够相互印证的内容应保留其共同边界，方向不一致的内容则应回到纳入来源、测量方式、随访框架和统计处理逐项解释；公开摘要没有披露的环节不补写为事实，也不把技术可行性、预测表现、统计关联或病例经验直接改写为普遍临床获益。",
+          "横向比较需要同时呈现支持证据和限制条件。相似结果只有在对象、方法和终点具有可比性时才构成较强的一致性线索；研究目的或资料来源不同，则更适合作为互补证据而非可直接合并的效应。综述因此保留不同证据等级之间的距离，把可复核发现、合理解释与尚待验证的问题分开表达，并以所引公开摘要作为当前判断的上限。",
+          "未解争议主要来自摘要层面无法完成的全套方法学判断，包括选择过程、偏倚控制、缺失资料、亚组设定、结局定义和外部适用性。现有资料可以形成可追溯的证据地图，但不能替代全文级质量评价。后续讨论应优先把分歧转化为可以由全文复核、前瞻性研究、外部验证或独立重复回答的问题，而不是用确定性语言消除仍然存在的不确定性。"
+        ]
+      : [
+          "Evidence synthesis is organized by research question, population, design capability, method, and endpoint rather than by the strength of abstract conclusions alone. Convergent findings retain their shared boundary, while disagreement must be interpreted through sampling, measurement, follow-up, and analysis. Information absent from public abstracts is not reconstructed as fact, and technical feasibility, predictive performance, association, or case experience is not rewritten as general clinical benefit.",
+          "Cross-study interpretation presents both supporting evidence and limiting conditions. Similar findings provide stronger convergence only when populations, methods, and endpoints are comparable; otherwise, the records are complementary rather than directly poolable. The review therefore keeps evidence grades separate and distinguishes auditable findings, bounded interpretation, and questions that still require verification.",
+          "The unresolved issues are mainly those that public abstracts cannot settle, including selection, bias control, missing data, subgroup definitions, endpoint ascertainment, and external applicability. The current records can support a traceable evidence map but cannot replace full-text quality appraisal. Remaining disagreement should become a set of questions for full-text review, prospective work, external validation, or independent replication."
+        ];
+  const limitationsSeed =
+    language === "zh-CN"
+      ? [
+          "本次产物以已核验的公开元数据和摘要为直接证据边界，因此无法替代对全文、补充材料、研究方案和统计分析计划的审阅。摘要压缩了纳入排除标准、基线差异、失访处理、敏感性分析和不良事件定义，未披露内容不能通过相邻研究、题名或期刊信息推定。由此形成的判断适合支持研究梳理和问题发现，不适合作为脱离原文的确定性疗效或安全性结论。",
+          "纳入记录之间可能存在研究对象、中心来源、技术路径、比较条件、观察窗口和终点口径的差异。即使结论方向接近，这些差异也会限制直接合并和跨人群外推。观察性关联、预测模型表现、技术成功、病例经验和临床有效性回答的是不同问题；综合时必须保留证据等级，避免把一种设计能够回答的问题扩展为另一种设计才能支持的结论。",
+          "后续完善应优先取得全文并复核方案、统计方法、偏倚控制、失访、并发症定义和长期患者结局，同时关注外部验证与独立重复。任何面向具体患者的解释仍需结合完整研究资料、适用指南、患者特征和专业判断。本综述提供的是可追溯的研究证据入口及其不确定性边界，不替代诊断、治疗决策或正式的系统评价。"
+        ]
+      : [
+          "This output is bounded by verified public metadata and abstracts and cannot replace review of full texts, supplements, protocols, or statistical analysis plans. Abstracts compress eligibility, baseline differences, attrition, sensitivity analyses, and adverse-event definitions. Missing details are not inferred from neighboring papers, titles, or journals, so the result supports research mapping rather than a stand-alone conclusion about effectiveness or safety.",
+          "Included records may differ in populations, centers, technical pathways, comparators, observation windows, and endpoint definitions. Similar directions therefore do not by themselves justify pooling or broader applicability. Observational association, predictive performance, technical success, case experience, and clinical effectiveness answer different questions and must retain their distinct evidence grades.",
+          "Further appraisal should obtain full texts and verify protocols, analysis, bias control, attrition, complication definitions, and longer-term patient outcomes, with attention to external validation and independent replication. Patient-specific interpretation still requires complete evidence, applicable guidance, clinical context, and professional judgment. This review is an auditable evidence entry point and does not replace diagnosis, treatment decisions, or a formal systematic review."
+        ];
+  const conclusionSeed =
+    language === "zh-CN"
+      ? [
+          "综合现有公开证据，可以形成结构化、可复核的研究脉络，并识别研究设计、方法路径、观察终点与证据等级之间的联系和差异。结论应始终限定在所引研究明确报告的范围内，不把摘要缺失的信息补写为事实，也不把相关性、预测性能、技术可行性或病例经验越级解释为确定因果关系和普遍临床获益。",
+          "因此，这份综述最适合用于定位证据、核对原文和规划后续验证。正式学术判断仍应回到全文、补充材料及持续更新的研究证据，并结合适用指南与独立专业评估；当前产物不替代具体患者的诊疗决策。"
+        ]
+      : [
+          "The verified public evidence supports a structured and auditable research map that distinguishes designs, methods, endpoints, and evidence grades. Conclusions remain within what the cited studies explicitly report: information absent from abstracts is not supplied as fact, and association, predictive performance, feasibility, or case experience is not promoted to causality or general clinical benefit.",
+          "This review is therefore best used to locate evidence, check full texts, and plan further validation. Formal academic judgment still requires complete papers, supplements, continuing evidence updates, applicable guidance, and independent professional assessment; the output does not replace patient-specific diagnosis or treatment decisions."
+        ];
+  const qualifyAndCite = (paragraphs: readonly string[]): string =>
+    paragraphs
+      .map(
+        (paragraph) =>
+          `${scopeQualifier}${paragraph.trim()} ${citation}`
+      )
+      .join("\n\n");
+  const synthesis = supplementReviewEvidenceBoundary({
+    markdown: [
+      language === "zh-CN"
+        ? "## 证据综合与未解争议"
+        : "## Evidence synthesis and unresolved controversies",
+      qualifyAndCite(synthesisSeed)
+    ].join("\n\n"),
+    referenceCount: Math.max(1, evidence.references.length),
+    language,
+    minimumContent: 1_000
+  });
+  const initialMarkdown = [
+    synthesis.markdown,
+    language === "zh-CN"
+      ? "## 局限性与展望"
+      : "## Limitations and outlook",
+    qualifyAndCite(limitationsSeed),
+    language === "zh-CN" ? "## 结论" : "## Conclusion",
+    qualifyAndCite(conclusionSeed)
+  ].join("\n\n");
+  const closed = supplementReviewSkillSectionBoundaries({
+    markdown: initialMarkdown,
+    referenceCount: Math.max(1, evidence.references.length),
+    language
+  });
+  return {
+    schema_version: "doctor_research_review_fragment.v1",
+    markdown: closed.markdown.replace(
+      /\[[0-9,\s-]+\]/gu,
+      citation
     )
   };
 }

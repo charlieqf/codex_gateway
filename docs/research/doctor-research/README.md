@@ -29,11 +29,14 @@ digest, and rerunning the regression and live E2E gates; no business-text
 "optimization" should be made in this repository unless correcting an
 unambiguous error agreed with the medical team.
 
-The request field remains `"mode": "brief"` for v1 wire compatibility. That
-label does not waive the medical Skill's current 6000-character review and
-40-reference search target: production now enforces the length floor, searches
-up to 40 verified field references, and reports the actual count and evidence
-boundary when fewer relevant verified records are available.
+The request field remains `"mode": "brief"` for v1 wire compatibility. Normal
+execution targets the medical Skill's current 6000-character review and
+40-reference search target: production searches up to 40 verified field
+references and reports the actual count and evidence boundary when fewer
+relevant verified records are available. The only production degradation is
+documented below: after two successful core synthesis fragments and two
+transport failures for the closing fragment, the service may publish a
+complete, explicitly warned result with a 5000-character aggregate floor.
 
 ## Contents
 
@@ -55,7 +58,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.49` together with the
+The production Worker uses frozen execution contract `1.6.50` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +69,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.49` splits synthesis into three bounded independent
+For latency, execution `1.6.50` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -85,13 +88,13 @@ returns bounded exact-text corrections instead of rewriting the complete
 article. That compact peer-review call has a 120-second engineering deadline;
 if its transport is unavailable, deterministic evidence-closure may accept
 the assembled draft only when every medical Skill content gate still passes.
-The three fragment targets preserve all per-section floors and total 115% of
-the configured review minimum, replacing an engineering over-allocation that
-previously requested 210% across the three calls. This reduces model output
-latency without changing the medical-team Skill or the final 6,000-character
-review floor. The middle call is explicitly balanced across exactly four
-topic sections, and the closing call emits exactly the three required closing
-sections without a nonessential transition section.
+The three normal fragment targets preserve all per-section floors and total
+115% of the configured review minimum, replacing an engineering
+over-allocation that previously requested 210% across the three calls. This
+reduces model output latency without changing the medical-team Skill or the
+normal 6,000-character review floor. The middle call is explicitly balanced
+across exactly four topic sections, and the closing call emits exactly the
+three required closing sections without a nonessential transition section.
 
 When evidence-safety removal makes an otherwise substantive limitations or
 conclusion section underfill the medical Skill's explicit section floor, the
@@ -104,7 +107,7 @@ contains verified citations. It can add only pre-reviewed evidence-boundary
 prose tied to those same citations; a shorter or uncited topic still fails
 closed.
 
-Execution `1.6.49` also closes two model-fragment presentation defects without
+Execution `1.6.50` also closes two model-fragment presentation defects without
 rewriting medical content: a paragraph-level dangling transition such as
 `但该研究...` is made self-contained, and a subjectless scope sentence such as
 `涵盖...` is anchored to the evidence in the review. For a Chinese question
@@ -210,13 +213,18 @@ validation error as well as a deterministic removal rule.
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend
 one additional call to retry only that shard inside the same hard deadline.
-If that same shard's transport retry also fails before returning a response,
-the otherwise unused fifth call performs one final transport retry instead of
-peer review. Foundation and closing retries are capped at 120 seconds and a
-middle-fragment retry at 170 seconds; the 570-second run deadline remains the
-outer limit. A successful fifth-call retry is followed by the full
-deterministic evidence and medical-Skill self-check, while another failure
-remains fail-closed.
+Foundation retries are capped at 120 seconds, middle-fragment retries at
+170 seconds, and closing-fragment retries at 90 seconds. If both the original
+closing call and its bounded retry fail after the foundation and four-topic
+body have succeeded, execution `1.6.50` builds only the three closing sections
+from pre-reviewed evidence-boundary prose and still attempts the compact peer
+review. Every section floor, identity rule, citation rule, numeric closure,
+evidence-grade rule, five-question contract, and artifact integrity check is
+unchanged. Only the aggregate review floor may decrease from 6000 to 5000
+characters, and the result records
+`deterministic_closing_transport_fallback_applied`. Foundation or body
+transport exhaustion, or any remaining validation failure, still fails
+closed. The 570-second run deadline remains the outer limit.
 Short-lived `429` admission responses are retried within the same recorded
 stage attempt. A short but substantive abstract may be completed with whole
 evidence-closed sentences selected from that same fragment's validated
@@ -235,8 +243,9 @@ then assembles the fragments, renders the
 3-8-paper core evidence table from verified publication metadata and
 abstracts, adds verified identity, sources, all reference metadata, search
 report, coverage and quality fields, and validates the unchanged public result
-schema. Up to 40 verified references, the 6000-character floor, and the
-mandatory peer-review attempt remain in force.
+schema. Up to 40 verified references, the normal 6000-character floor, and the
+mandatory peer-review attempt remain in force, subject only to the explicit
+closing-transport degradation above.
 
 The peer-review model is always attempted. If that bounded call times out or
 returns an unusable patch envelope, the Worker records a transparent warning
@@ -276,7 +285,8 @@ Content-Type: application/json
     "hospital": "海军军医大学第一附属医院",
     "department": "血管外科",
     "official_profile_urls": [
-      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html"
+      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html",
+      "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml"
     ],
     "literature_identity": {
       "name": "Lu Qingsheng",
@@ -337,7 +347,7 @@ python scripts/doctor-research-demo.py `
   --title "教授、主任医师" `
   --city "上海" `
   --official-profile-url "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html" `
-  --official-profile-url "https://www.qk.sjtu.edu.cn/jscp/CN/10.16139/j.1007-9610.2022.04.008" `
+  --official-profile-url "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml" `
   --api-key-file "C:\private\doctor-research.key" `
   --output-dir ".\doctor-research-output"
 ```

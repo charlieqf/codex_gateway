@@ -391,7 +391,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ["transport", "bounded_shard_transport_retry_completed"],
     [
       "transport-double",
-      "peer_review_call_reallocated_to_second_transport_retry"
+      "deterministic_closing_transport_fallback_applied"
     ],
     [
       "transport-body-near-minimum",
@@ -1093,7 +1093,8 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           if (
             retryKind === "transport-double" &&
-            modelInput.attempt === 5
+            modelInput.attempt === 5 &&
+            modelInput.stage === "synthesize_review"
           ) {
             return {
               text: fragments.get(3)!,
@@ -1834,7 +1835,6 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        retryKind === "transport-double" ||
         retryKind === "transport-skill" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety"
