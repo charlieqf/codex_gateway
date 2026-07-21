@@ -8081,6 +8081,70 @@ function normalizeAnswerEvidenceAlignment(
         .join(" ");
     }
   }
+  if (/(?:通畅率|通畅性)/u.test(question)) {
+    const patencyMetrics = [
+      [
+        "靶血管通畅率",
+        /\btarget vessel patency(?: rate)? (?:was|of) ([0-9]+(?:\.[0-9]+)?\s*%)/u
+      ],
+      [
+        "原发性通畅率",
+        /\bprimary patency(?: rate)? (?:was|of) ([0-9]+(?:\.[0-9]+)?\s*%)/u
+      ]
+    ] as const;
+    const metricClauses: string[] = [];
+    for (const [label, pattern] of patencyMetrics) {
+      const match = pattern.exec(evidence);
+      const rate = match?.[1]?.replace(/\s+/gu, "");
+      if (rate && !normalized.includes(rate)) {
+        metricClauses.push(`${label}为${rate}`);
+      }
+    }
+    if (metricClauses.length > 0) {
+      normalized = [
+        `所引摘要报告${metricClauses.join("、")}。`,
+        normalized
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
+  if (
+    /(?:预测价值|预后价值|风险分层)/u.test(question) &&
+    /\beasix\b/u.test(evidence)
+  ) {
+    const compositeOdds =
+      /\bcomposite endpoints?\b.{0,160}\b(?:or|odds ratio)\s*=?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+        evidence
+      );
+    const mortalityHazard =
+      /\ball-cause mortality\b.{0,160}\b(?:hr|hazard ratio)\s*=?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+        evidence
+      );
+    const metricClauses: string[] = [];
+    if (compositeOdds) {
+      const clause =
+        `较高EASIX与复合终点风险升高相关（OR ${compositeOdds[1]}，95% CI ${compositeOdds[2]}-${compositeOdds[3]}）`;
+      if (!normalized.includes(clause)) {
+        metricClauses.push(clause);
+      }
+    }
+    if (mortalityHazard) {
+      const clause =
+        `EASIX被识别为全因死亡的独立预测指标（HR ${mortalityHazard[1]}，95% CI ${mortalityHazard[2]}-${mortalityHazard[3]}）`;
+      if (!normalized.includes(clause)) {
+        metricClauses.push(clause);
+      }
+    }
+    if (metricClauses.length > 0) {
+      normalized = [
+        `所引回顾性观察研究报告${metricClauses.join("；")}。`,
+        normalized
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
   const asksSexComparison =
     /(?:女性.{0,24}男性|男性.{0,24}女性|男女|性别).{0,32}(?:相当|相近|可比|比较|差异|结局|效果)|(?:相当|相近|可比|比较|差异|结局|效果).{0,32}(?:女性|男性|男女|性别)/u.test(
       question

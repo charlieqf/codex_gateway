@@ -492,7 +492,7 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       abstractText:
         retryKind === "peer-timeout"
-          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. The technical success rate was 100%, and the immediate angiographic success rate was 91.7%. The mean false lumen shrinkage was 40.0 ± 28.6%. Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
+          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. The technical success rate was 100%, and the immediate angiographic success rate was 91.7%. The mean false lumen shrinkage was 40.0 ± 28.6%. The target vessel patency rate was 98.6%. Higher EASIX levels were associated with an increased risk of composite endpoints (OR 1.69, 95% CI 1.37-2.08). EASIX was identified as an independent predictor of all-cause mortality (HR 1.43, 95% CI 1.23-1.68). Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
           : retryKind === "content"
             ? "METHODS: This is a retrospective single-center cohort study of 42 samples. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. CONCLUSIONS: These findings require prospective validation before clinical deployment."
           : retryKind === "citation-closure"
@@ -581,8 +581,12 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "peer-timeout"
         ? "所引治疗的有效率如何？"
         : "摘要证据能支持什么？",
-      "如何区分相关与因果？",
-      "研究设计差异怎么看？",
+      retryKind === "peer-timeout"
+        ? "iCover桥接支架的通畅率如何？"
+        : "如何区分相关与因果？",
+      retryKind === "peer-timeout"
+        ? "EASIX对术后预后有何预测价值？"
+        : "研究设计差异怎么看？",
       "哪些结果需要全文核验？",
       retryKind === "peer-timeout"
         ? "女性术后效果与男性是否相当？"
@@ -1646,6 +1650,15 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.answers[0]?.answer).toContain(
         "平均假腔缩小幅度为40.0±28.6%"
+      );
+      expect(result.answers[1]?.answer).toContain(
+        "靶血管通畅率为98.6%"
+      );
+      expect(result.answers[2]?.answer).toContain(
+        "较高EASIX与复合终点风险升高相关（OR 1.69，95% CI 1.37-2.08）"
+      );
+      expect(result.answers[2]?.answer).toContain(
+        "EASIX被识别为全因死亡的独立预测指标（HR 1.43，95% CI 1.23-1.68）"
       );
       expect(result.answers[0]?.answer).not.toContain("四十二份");
       expect(result.answers[0]?.answer).not.toContain("二点七年");
