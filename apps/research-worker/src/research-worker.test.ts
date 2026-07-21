@@ -390,6 +390,10 @@ describe("Research Worker controlled-beta workflow", () => {
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
     [
+      "transport-double",
+      "peer_review_call_reallocated_to_second_transport_retry"
+    ],
+    [
       "transport-body-near-minimum",
       "bounded_shard_transport_retry_completed"
     ],
@@ -908,6 +912,8 @@ describe("Research Worker controlled-beta workflow", () => {
             if (
               (retryKind === "transport" &&
                 modelInput.attempt === 1) ||
+              (retryKind === "transport-double" &&
+                modelInput.attempt === 3) ||
               ((retryKind === "transport-body-near-minimum" ||
                 retryKind === "transport-skill" ||
                 retryKind === "transport-conclusion-safety") &&
@@ -1064,6 +1070,31 @@ describe("Research Worker controlled-beta workflow", () => {
               }),
               gatewayRequestId:
                 "req_sharded_transport_conclusion_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          if (
+            retryKind === "transport-double" &&
+            modelInput.attempt === 4
+          ) {
+            throw new ResearchModelClientError(
+              "upstream_error",
+              503,
+              "req_sharded_double_transport_retry"
+            );
+          }
+          if (
+            retryKind === "transport-double" &&
+            modelInput.attempt === 5
+          ) {
+            return {
+              text: fragments.get(3)!,
+              gatewayRequestId:
+                "req_sharded_second_transport_retry",
               usage: {
                 promptTokens: 100,
                 completionTokens: 1_000,
@@ -1781,6 +1812,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
+        retryKind === "transport-double" ||
         retryKind === "transport-skill" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety"

@@ -2243,6 +2243,7 @@ async function generateAndValidateShardedModelOutput(
   let maximumConcurrency = 2;
   let nextAttempt = 1;
   let shardTransportRetryCompleted = false;
+  let shardTransportRetryCount = 0;
   let shardAdmissionGraceElapsed = false;
   let terminalShardError: unknown = null;
   const shardAdmissionGraceMs = Math.min(
@@ -2269,9 +2270,18 @@ async function generateAndValidateShardedModelOutput(
     const input = shardInputs[index]!;
     const attempt = nextAttempt;
     nextAttempt += 1;
+    const request =
+      attempt > shardInputs.length
+        ? {
+            ...input,
+            attempt,
+            maximumDurationMs:
+              index === 1 ? 170_000 : 120_000
+          }
+        : { ...input, attempt };
     active.set(
       index,
-      context.generateModel({ ...input, attempt }).then(
+      context.generateModel(request).then(
         (value): ShardSettlement => ({
           index,
           status: "fulfilled",
@@ -2336,9 +2346,11 @@ async function generateAndValidateShardedModelOutput(
       continue;
     }
     if (
-      !shardTransportRetryCompleted &&
+      shardTransportRetryCount < 2 &&
+      nextAttempt <= 5 &&
       isRetryableShardTransportError(settlement.reason)
     ) {
+      shardTransportRetryCount += 1;
       shardTransportRetryCompleted = true;
       maximumConcurrency = 1;
       pendingIndexes.push(settlement.index);
@@ -2837,9 +2849,12 @@ async function generateAndValidateShardedModelOutput(
     };
   }
   const peerReviewCallBudgetConsumedByTransportRepair =
-    shardTransportRetryCompleted &&
-    shardSkillContractRetryCompleted &&
-    shardSkillContractRetryAttempt === 5;
+    shardTransportRetryCount >= 2 ||
+    (
+      shardTransportRetryCompleted &&
+      shardSkillContractRetryCompleted &&
+      shardSkillContractRetryAttempt === 5
+    );
   if (peerReviewCallBudgetConsumedByTransportRepair) {
     const deterministicSelfReview = validation.ok
       ? validation
@@ -2860,11 +2875,19 @@ async function generateAndValidateShardedModelOutput(
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        "peer_review_call_reallocated_to_transport_skill_repair",
+        ...(shardTransportRetryCount >= 2
+          ? [
+              "peer_review_call_reallocated_to_second_transport_retry"
+            ]
+          : [
+              "peer_review_call_reallocated_to_transport_skill_repair"
+            ]),
         "deterministic_peer_review_self_check_completed",
         ...shardSkillNormalizationWarnings,
         "bounded_shard_transport_retry_completed",
-        "bounded_shard_skill_contract_retry_completed"
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : [])
       ]
     };
   }

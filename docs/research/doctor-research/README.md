@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.47` together with the
+The production Worker uses frozen execution contract `1.6.48` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.47` splits synthesis into three bounded independent
+For latency, execution `1.6.48` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -200,6 +200,13 @@ validation error as well as a deterministic removal rule.
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend
 one additional call to retry only that shard inside the same hard deadline.
+If that same shard's transport retry also fails before returning a response,
+the otherwise unused fifth call performs one final transport retry instead of
+peer review. Foundation and closing retries are capped at 120 seconds and a
+middle-fragment retry at 170 seconds; the 570-second run deadline remains the
+outer limit. A successful fifth-call retry is followed by the full
+deterministic evidence and medical-Skill self-check, while another failure
+remains fail-closed.
 Short-lived `429` admission responses are retried within the same recorded
 stage attempt. A short but substantive abstract may be completed with whole
 evidence-closed sentences selected from that same fragment's validated
