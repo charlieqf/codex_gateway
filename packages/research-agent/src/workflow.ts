@@ -2112,20 +2112,21 @@ async function generateAndValidateShardedModelOutput(
   const minimumReviewContent = context.input.policy.minimumReviewContent;
   // Preserve every medical-Skill section floor while avoiding the former
   // engineering over-allocation that independently asked the three shards
-  // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer
-  // leaves room for evidence-safety removal without making the closing shard
-  // produce almost a second complete review.
+  // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer,
+  // weighted toward the four-section body, leaves room for evidence-safety
+  // removal without making the closing shard produce almost a second complete
+  // review.
   const foundationMinimum = Math.max(
     1_200,
-    Math.ceil((minimumReviewContent * 22) / 100)
+    Math.ceil((minimumReviewContent * 20) / 100)
   );
   const middleMinimum = Math.max(
-    3_000,
-    Math.ceil((minimumReviewContent * 55) / 100)
+    3_200,
+    Math.ceil((minimumReviewContent * 60) / 100)
   );
   const closingMinimum = Math.max(
     1_800,
-    Math.ceil((minimumReviewContent * 38) / 100)
+    Math.ceil((minimumReviewContent * 35) / 100)
   );
   const foundationPrompt = buildFoundationFragmentPrompt({
     run: context.run,
@@ -2140,7 +2141,7 @@ async function generateAndValidateShardedModelOutput(
     referenceIndexes: middleIndexes,
     minimumContent: middleMinimum,
     assignment:
-      "Write the middle body of the review as exactly four complete topic-specific sections. Compare methods, study designs, populations, results, evidence strength, and disagreement, and end by leading into evidence synthesis. Do not continue or repeat the introduction. Do not write an abstract, evidence table, references, search report, final evidence-synthesis section, limitations section, or conclusion.",
+      "Write the middle body of the review as exactly four complete and balanced topic-specific sections. Each section must independently reach at least 750 content characters; do not concentrate most of the requested total in only two or three sections. Compare methods, study designs, populations, results, evidence strength, and disagreement, and end by leading into evidence synthesis. Do not continue or repeat the introduction. Do not write an abstract, evidence table, references, search report, final evidence-synthesis section, limitations section, or conclusion.",
     maximumQuestionContent:
       context.input.policy.maximumQuestionContent,
     minimumAnswerContent:
@@ -2155,7 +2156,7 @@ async function generateAndValidateShardedModelOutput(
     referenceIndexes: closingIndexes,
     minimumContent: closingMinimum,
     assignment:
-      "Write the closing body of the review. Include one topic-specific transition section only when the evidence supports at least 600 content characters for it; otherwise omit that optional section. Then write sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Evidence synthesis must be at least 800 characters, limitations and outlook at least 600 characters, and the conclusion one or two full paragraphs. Do not write an abstract, evidence table, references, or search report.",
+      "Write the closing body of the review as exactly three level-two sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Do not add a topic-specific transition section or any other level-two section. Evidence synthesis must be at least 800 characters, limitations and outlook at least 600 characters, and the conclusion one or two full paragraphs with at least 200 characters. Do not write an abstract, evidence table, references, or search report.",
     medicalSkillBundle
   });
   const shardInputs = [

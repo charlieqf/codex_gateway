@@ -1109,7 +1109,7 @@ describe("Research Worker controlled-beta workflow", () => {
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 1540
+          ? 1400
           : 1200
       } content characters`
     );
@@ -1117,17 +1117,29 @@ describe("Research Worker controlled-beta workflow", () => {
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 3850
-          : 3000
+          ? 4200
+          : 3200
       } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 2660
+          ? 2450
           : 1800
       } content characters`
+    );
+    expect(synthesisPrompts.get(2)).toContain(
+      "exactly four complete and balanced topic-specific sections"
+    );
+    expect(synthesisPrompts.get(2)).toContain(
+      "Each section must independently reach at least 750 content characters"
+    );
+    expect(synthesisPrompts.get(3)).toContain(
+      "exactly three level-two sections"
+    );
+    expect(synthesisPrompts.get(3)).toContain(
+      "Do not add a topic-specific transition section"
     );
     if (retryKind === "body") {
       expect(maximumActiveCorrectionCalls).toBe(2);
