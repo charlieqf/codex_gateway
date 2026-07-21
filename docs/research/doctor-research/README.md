@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.45` together with the
+The production Worker uses frozen execution contract `1.6.46` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,13 +66,18 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.45` splits synthesis into three bounded independent
+For latency, execution `1.6.46` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
 remain active. A fast rejection retains the accepted call and reduces
 concurrency before continuing. Each synthesis call has a 180-second
-engineering deadline inside the 570-second run deadline. The verified
+engineering deadline inside the 570-second run deadline. The foundation,
+middle, and closing fragments additionally use output ceilings of 8,000,
+10,000, and 8,000 tokens, respectively, below the provider-wide 18,000-token
+ceiling. These engineering ceilings prevent a bounded fragment from consuming
+its whole time budget through unnecessary continuation without changing any
+medical-Skill section or evidence floor. The verified
 doctor profile is projected deterministically from exact official-source
 excerpts, so the model does not receive or regenerate that profile. A final
 call performs only the medical Skill's concise peer-review self-check and

@@ -24,6 +24,7 @@ export interface ResearchModelClient {
     system: string;
     prompt: string;
     signal: AbortSignal;
+    maximumOutputTokens?: number;
   }): Promise<ResearchModelResponse>;
 }
 
@@ -213,6 +214,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     system: string;
     prompt: string;
     signal: AbortSignal;
+    maximumOutputTokens?: number;
   }): Promise<ResearchModelResponse> {
     if (!/^drr_[a-f0-9]{32}$/.test(input.runId)) {
       throw new Error("Research LLM run ID is invalid.");
@@ -228,6 +230,17 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       input.prompt.length > 500_000
     ) {
       throw new Error("Research LLM prompt is empty or exceeds its bound.");
+    }
+    const maximumOutputTokens =
+      input.maximumOutputTokens ?? this.maximumOutputTokensPerCall;
+    if (
+      !Number.isSafeInteger(maximumOutputTokens) ||
+      maximumOutputTokens <= 0 ||
+      maximumOutputTokens > this.maximumOutputTokensPerCall
+    ) {
+      throw new Error(
+        "Research LLM request output token limit is invalid."
+      );
     }
     for (let admissionRetry = 0; ; admissionRetry += 1) {
       const signal = AbortSignal.any([
@@ -247,7 +260,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       const body = JSON.stringify({
         model: this.model,
         stream: false,
-        max_tokens: this.maximumOutputTokensPerCall,
+        max_tokens: maximumOutputTokens,
         reasoning_effort: this.options.reasoningEffort,
         messages: [
           { role: "system", content: input.system },

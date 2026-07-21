@@ -528,11 +528,13 @@ class WorkflowContext {
     prompt: string;
     system?: string;
     maximumDurationMs?: number;
+    maximumOutputTokens?: number;
   }): Promise<ResearchModelResponse> {
     const system = input.system ?? doctorResearchSystemPolicy;
     const reservedInputTokens = this.reserveModel(
       system,
-      input.prompt
+      input.prompt,
+      input.maximumOutputTokens
     );
     const startedAt = this.now();
     const startedMonotonic = performance.now();
@@ -543,7 +545,10 @@ class WorkflowContext {
       inputSha256: sha256(
         JSON.stringify({
           system,
-          prompt: input.prompt
+          prompt: input.prompt,
+          maximumOutputTokens:
+            input.maximumOutputTokens ??
+            this.input.policy.maximumOutputTokensPerCall
         })
       ),
       now: startedAt
@@ -559,7 +564,10 @@ class WorkflowContext {
         attempt: input.attempt,
         system,
         prompt: input.prompt,
-        signal: this.callSignal(input.maximumDurationMs)
+        signal: this.callSignal(input.maximumDurationMs),
+        ...(input.maximumOutputTokens === undefined
+          ? {}
+          : { maximumOutputTokens: input.maximumOutputTokens })
       });
       const completed = this.input.store.completeStageRun({
         token: this.token,
@@ -577,7 +585,12 @@ class WorkflowContext {
         throw new WorkflowFencedError();
       }
       completionRecorded = true;
-      this.settleModelUsage(reservedInputTokens, response.usage);
+      this.settleModelUsage(
+        reservedInputTokens,
+        input.maximumOutputTokens ??
+          this.input.policy.maximumOutputTokensPerCall,
+        response.usage
+      );
       return response;
     } catch (error) {
       if (!completionRecorded && !(error instanceof WorkflowFencedError)) {
@@ -638,7 +651,11 @@ class WorkflowContext {
     }
   }
 
-  private reserveModel(system: string, prompt: string): number {
+  private reserveModel(
+    system: string,
+    prompt: string,
+    maximumOutputTokens?: number
+  ): number {
     const reservedInputTokens = estimateResearchInputTokens(
       `${system}\n${prompt}`
     );
@@ -648,12 +665,23 @@ class WorkflowContext {
     ) {
       throw new WorkflowBudgetError("per_call_input_tokens");
     }
+    const reservedOutputTokens =
+      maximumOutputTokens ??
+      this.input.policy.maximumOutputTokensPerCall;
+    if (
+      !Number.isSafeInteger(reservedOutputTokens) ||
+      reservedOutputTokens <= 0 ||
+      reservedOutputTokens >
+        this.input.policy.maximumOutputTokensPerCall
+    ) {
+      throw new WorkflowBudgetError("per_call_output_tokens");
+    }
     this.charge({
       externalRequests: 0,
       externalResponseBytes: 0,
       llmCalls: 1,
       inputTokens: reservedInputTokens,
-      outputTokens: this.input.policy.maximumOutputTokensPerCall
+      outputTokens: reservedOutputTokens
     });
     this.modelCallsStarted += 1;
     return reservedInputTokens;
@@ -661,6 +689,7 @@ class WorkflowContext {
 
   private settleModelUsage(
     reservedInputTokens: number,
+    reservedOutputTokens: number,
     usage: ResearchModelUsage
   ): void {
     let additionalInputTokens =
@@ -672,12 +701,11 @@ class WorkflowContext {
         ? 0
         : Math.max(
             0,
-            usage.completionTokens -
-              this.input.policy.maximumOutputTokensPerCall
+            usage.completionTokens - reservedOutputTokens
           );
     const chargedTotal =
       reservedInputTokens +
-      this.input.policy.maximumOutputTokensPerCall +
+      reservedOutputTokens +
       additionalInputTokens +
       additionalOutputTokens;
     if (usage.totalTokens !== null && usage.totalTokens > chargedTotal) {
@@ -692,9 +720,10 @@ class WorkflowContext {
         outputTokens: additionalOutputTokens
       });
     }
-    // The model client sends maximumOutputTokensPerCall as max_tokens and
-    // readiness verifies that provider limit. Some reasoning providers report
-    // hidden reasoning inside completion_tokens without a separate detail.
+    // The model client sends the bounded per-call reservation as max_tokens;
+    // readiness verifies that the provider accepts the configured upper limit.
+    // Some reasoning providers report hidden reasoning inside completion_tokens
+    // without a separate detail.
     // Do not guess visible tokens from UTF-8 bytes here; response bytes,
     // run-total usage, final schema and artifact byte limits remain enforced.
   }
@@ -2165,21 +2194,33 @@ async function generateAndValidateShardedModelOutput(
         attempt: 1,
         prompt: foundationPrompt,
         system: doctorResearchFoundationSystemPolicy,
-        maximumDurationMs: 180_000
+        maximumDurationMs: 180_000,
+        maximumOutputTokens: Math.min(
+          8_000,
+          context.input.policy.maximumOutputTokensPerCall
+        )
     },
     {
         stage: "synthesize_review",
         attempt: 2,
         prompt: middlePrompt,
         system: doctorResearchBodySystemPolicy,
-        maximumDurationMs: 180_000
+        maximumDurationMs: 180_000,
+        maximumOutputTokens: Math.min(
+          10_000,
+          context.input.policy.maximumOutputTokensPerCall
+        )
     },
     {
         stage: "synthesize_review",
         attempt: 3,
         prompt: closingPrompt,
         system: doctorResearchFragmentSystemPolicy,
-        maximumDurationMs: 180_000
+        maximumDurationMs: 180_000,
+        maximumOutputTokens: Math.min(
+          8_000,
+          context.input.policy.maximumOutputTokensPerCall
+        )
     }
   ] as const;
   // Start with two provider slots and allow a short observation window for a

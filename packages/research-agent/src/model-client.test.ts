@@ -71,7 +71,8 @@ describe("Doctor Research structured Gateway model client", () => {
       attempt: 1,
       system: "Return structured evidence.",
       prompt: "Use the closed evidence set.",
-      signal
+      signal,
+      maximumOutputTokens: 8_000
     });
 
     expect(response).toEqual({
@@ -103,7 +104,7 @@ describe("Doctor Research structured Gateway model client", () => {
       response_format?: unknown;
     };
     expect(body.stream).toBe(false);
-    expect(body.max_tokens).toBe(12_000);
+    expect(body.max_tokens).toBe(8_000);
     expect(body.reasoning_effort).toBe("low");
     expect(body.messages).toHaveLength(2);
     expect(body).not.toHaveProperty("tools");

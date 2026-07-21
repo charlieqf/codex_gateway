@@ -819,6 +819,7 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     const attempts: number[] = [];
     const synthesisPrompts = new Map<number, string>();
+    const synthesisOutputTokenLimits = new Map<number, number | undefined>();
     let retryPrompt: string | null = null;
     const validationEvents: Array<{
       stage: string;
@@ -834,6 +835,10 @@ describe("Research Worker controlled-beta workflow", () => {
         async generate(modelInput) {
           attempts.push(modelInput.attempt);
           if (modelInput.attempt <= 3) {
+            synthesisOutputTokenLimits.set(
+              modelInput.attempt,
+              modelInput.maximumOutputTokens
+            );
             synthesisPrompts.set(
               modelInput.attempt,
               modelInput.prompt
@@ -1224,10 +1229,12 @@ describe("Research Worker controlled-beta workflow", () => {
             }
           : {}),
         synthesisShardCount: 3,
+        maximumOutputTokensPerCall: 18_000,
         budgets: {
           ...workflowPolicy().budgets,
           llmCalls: 5,
-          inputTokens: 500_000
+          inputTokens: 500_000,
+          outputTokens: 90_000
         }
       },
       signal: new AbortController().signal,
@@ -1250,6 +1257,11 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(maximumActiveSynthesisCalls).toBe(
       retryKind === "grace" ? 3 : 2
     );
+    expect(Object.fromEntries(synthesisOutputTokenLimits)).toEqual({
+      1: 8_000,
+      2: 10_000,
+      3: 8_000
+    });
     if (retryKind === "admission") {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
