@@ -431,6 +431,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "skill-normalization",
       "peer_review_contract_unusable_deterministic_fallback"
     ],
+    [
+      "skill-closing-normalization",
+      "deterministic_closing_section_boundary_supplement_applied"
+    ],
     ["body", "bounded_qa_contract_retry_completed"],
     ["content", "bounded_review_content_correction_completed"],
     [
@@ -777,6 +781,12 @@ describe("Research Worker controlled-beta workflow", () => {
                 "---\n\n**\n\n**\n\n答：尾部问答答案一不属于正式学术综述正文[1]。\n\n**\n\n答：尾部问答答案二也不属于正式学术综述正文[1]。"
               ].join("\n\n")
             })
+          : retryKind === "skill-closing-normalization"
+            ? JSON.stringify({
+                schema_version:
+                  "doctor_research_review_fragment.v1",
+                markdown: skillClosingFragment(26, 10, 7, true)
+              })
           : retryKind === "skill-normalization"
             ? JSON.stringify({
                 schema_version:
@@ -1028,6 +1038,27 @@ describe("Research Worker controlled-beta workflow", () => {
               }),
               gatewayRequestId:
                 "req_sharded_grace_peer_review",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
+            retryKind === "skill-closing-normalization" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_closing_normalization_peer",
               usage: {
                 promptTokens: 100,
                 completionTokens: 100,
@@ -1318,6 +1349,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
       retryKind === "section-closure" ||
+      retryKind === "skill-closing-normalization" ||
       retryKind === "skill-normalization" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
