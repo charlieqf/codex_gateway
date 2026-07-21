@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.44` together with the
+The production Worker uses frozen execution contract `1.6.45` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.44` splits synthesis into three bounded independent
+For latency, execution `1.6.45` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -121,7 +121,8 @@ normalization used by the duplicate-prose validator. It then recomputes every
 section floor and all evidence gates, so repeated model text cannot be counted
 as substantive length and removal cannot waive a medical Skill requirement.
 
-When a transport retry has consumed the fourth call, the Worker previews its
+When any transport, format, or Skill retry has consumed the fourth call, the
+Worker previews its
 deterministic evidence closure before allocating the fifth call. If that
 preview shows an otherwise present conclusion would be removed entirely, the
 fifth call regenerates only the conclusion from five verified abstracts,

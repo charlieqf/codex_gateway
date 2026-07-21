@@ -402,6 +402,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_peer_review_self_check_completed"
     ],
     [
+      "skill-conclusion-safety",
+      "deterministic_peer_review_self_check_completed"
+    ],
+    [
       "introduction-safety",
       "bounded_introduction_correction_completed"
     ],
@@ -765,7 +769,8 @@ describe("Research Worker controlled-beta workflow", () => {
                   skillClosingFragment(26, 20, 7, false)
                 ].join("\n\n")
               })
-          : retryKind === "skill-prose"
+          : retryKind === "skill-prose" ||
+              retryKind === "skill-conclusion-safety"
             ? JSON.stringify({
                 schema_version:
                   "doctor_research_review_fragment.v1",
@@ -1027,7 +1032,8 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
-            retryKind === "transport-conclusion-safety" &&
+            (retryKind === "transport-conclusion-safety" ||
+              retryKind === "skill-conclusion-safety") &&
             modelInput.attempt === 5 &&
             modelInput.stage === "synthesize_review"
           ) {
@@ -1114,7 +1120,14 @@ describe("Research Worker controlled-beta workflow", () => {
                       })
                   : retryKind === "skill-contract"
                     ? JSON.stringify(foundationFragment)
-                    : retryKind === "skill-prose"
+                  : retryKind === "skill-conclusion-safety"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_review_fragment.v1",
+                        markdown:
+                          transportUnsafeConclusionClosingFragment
+                      })
+                  : retryKind === "skill-prose"
                       ? JSON.stringify({
                           schema_version:
                             "doctor_research_review_fragment.v1",
@@ -1354,7 +1367,10 @@ describe("Research Worker controlled-beta workflow", () => {
         "body_topic_section_minimum:600"
       );
     }
-    if (retryKind === "transport-conclusion-safety") {
+    if (
+      retryKind === "transport-conclusion-safety" ||
+      retryKind === "skill-conclusion-safety"
+    ) {
       expect(retryPrompt).toContain(
         "BOUNDED CONCLUSION EVIDENCE-CLOSURE CORRECTION"
       );
@@ -1680,7 +1696,27 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.quality.warnings).toEqual(
         expect.arrayContaining([
           "bounded_shard_transport_retry_completed",
-          "peer_review_call_reallocated_to_transport_conclusion_repair",
+          "peer_review_call_reallocated_to_conclusion_repair",
+          "bounded_conclusion_evidence_closure_correction_completed",
+          "deterministic_peer_review_self_check_completed"
+        ])
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_attempted"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_completed"
+      );
+    }
+    if (retryKind === "skill-conclusion-safety") {
+      expect(result.review.markdown).toContain(
+        "现有公开摘要支持对研究对象"
+      );
+      expect(result.review.markdown).not.toContain("999999");
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "bounded_shard_skill_contract_retry_completed",
+          "peer_review_call_reallocated_to_conclusion_repair",
           "bounded_conclusion_evidence_closure_correction_completed",
           "deterministic_peer_review_self_check_completed"
         ])
@@ -1706,7 +1742,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         retryKind === "transport-skill" ||
-        retryKind === "transport-conclusion-safety"
+        retryKind === "transport-conclusion-safety" ||
+        retryKind === "skill-conclusion-safety"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||

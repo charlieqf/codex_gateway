@@ -2683,17 +2683,20 @@ async function generateAndValidateShardedModelOutput(
     deterministicSafetyPreview.errorCodes.includes(
       "review_introduction_minimum"
     );
-  const conclusionCorrectionRequiredAfterTransport =
-    shardTransportRetryCompleted &&
-    !shardContractRetryCompleted &&
-    !shardSkillContractRetryCompleted &&
+  const priorRepairConsumedFourthCall =
+    shardTransportRetryCompleted ||
+    shardContractRetryCompleted ||
+    shardSkillContractRetryCompleted;
+  const conclusionCorrectionRequiredAfterPriorRepair =
+    priorRepairConsumedFourthCall &&
+    shardSkillContractRetryAttempt !== 5 &&
     !qaContractRetryRequired &&
     !reviewContentCorrectionRequired &&
     !deterministicSafetyPreview.ok &&
     deterministicSafetyPreview.errorCodes.includes(
       "review_conclusion_minimum"
     );
-  if (conclusionCorrectionRequiredAfterTransport) {
+  if (conclusionCorrectionRequiredAfterPriorRepair) {
     const correctedConclusionResponse = await context.generateModel({
       stage: "synthesize_review",
       attempt: 5,
@@ -2776,11 +2779,19 @@ async function generateAndValidateShardedModelOutput(
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        "peer_review_call_reallocated_to_transport_conclusion_repair",
+        "peer_review_call_reallocated_to_conclusion_repair",
         "bounded_conclusion_evidence_closure_correction_completed",
         "deterministic_peer_review_self_check_completed",
         ...shardSkillNormalizationWarnings,
-        "bounded_shard_transport_retry_completed"
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : [])
       ]
     };
   }
