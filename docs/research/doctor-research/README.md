@@ -58,7 +58,7 @@ complete, explicitly warned result with a 5000-character aggregate floor.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.54` together with the
+The production Worker uses frozen execution contract `1.6.55` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -69,7 +69,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.54` splits synthesis into three bounded independent
+For latency, execution `1.6.55` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -107,15 +107,20 @@ contains verified citations. It can add only pre-reviewed evidence-boundary
 prose tied to those same citations; a shorter or uncited topic still fails
 closed.
 
-Execution `1.6.54` also closes model-fragment presentation defects without
+Execution `1.6.55` also closes model-fragment presentation defects without
 rewriting medical content: a paragraph-level dangling transition such as
 `但该研究...` is made self-contained, and a subjectless scope sentence such as
 `涵盖...` is anchored to the evidence in the review. Dangling post-safety
-phrases such as `该关联`, `该趋势`, `该个案`, or `该发现` are removed or given an
-explicit source referent. A single leaked question/answer marker, a horizontal
-rule, and anything following it after the conclusion are removed; deterministic
-length or reference-closure paragraphs are inserted into the evidence-synthesis
-section instead of being appended after the conclusion. For a Chinese question
+phrases such as `该关联`, `该趋势`, `该个案`, `该发现`, or a paragraph-leading
+`该大样本研究` are removed or given an explicit source referent. A single
+leaked question/answer marker, a heading such as `简短学术问答`, a horizontal
+rule, and anything following it after the conclusion are removed. A comparison
+sentence that ends at `相比` and a result sentence that ends at bare `显示 [n]`
+are treated as incomplete rather than published, and a claim inferred only
+from a paper title is replaced by an explicit abstract-availability boundary.
+Deterministic length or reference-closure paragraphs are inserted into the
+evidence-synthesis section instead of being appended after the conclusion.
+For a Chinese question
 that explicitly asks for an effectiveness or success rate, the deterministic
 answer check may add only explicitly labelled rate or shrinkage metrics found
 in that answer's already-bound PubMed abstract. It never searches for or
@@ -123,19 +128,25 @@ invents a replacement fact, and the normal numeric evidence-closure and
 100-300-character answer gates still apply.
 If evidence-safety removal leaves a Chinese question about target-vessel
 patency or EASIX prognostic value with only boundary language, execution
-`1.6.54` may copy only the explicitly labelled patency, odds-ratio, or
+`1.6.55` may copy only the explicitly labelled patency, odds-ratio, or
 hazard-ratio values from that answer's already-bound PubMed abstract. The
 mapping is keyword-limited, idempotent, and remains subject to the same numeric
 and statistic-label evidence closure; it does not infer a clinical
 recommendation or use another reference's values. The same exact-source rule
 closes an AVP/endoleak effectiveness question with the abstract's explicitly
 labelled technical-success, immediate angiographic-success, and shrinkage
-metrics. Core-evidence sample flow also retains both the source-cohort and
+metrics. It also closes a D-dimer surveillance answer or review paragraph with
+the abstract's explicitly labelled adjusted hazard ratio and sensitivity odds
+ratio when model prose was truncated, and can restore the two explicitly
+labelled EASIX prognostic estimates when a fragment dropped their subject.
+Core-evidence sample flow also retains both the source-cohort and
 actually included counts when the abstract reports both, instead of selecting
-only the larger number.
+only the larger number. An abstract that does not expose a specific study
+design now receives a neutral methods boundary rather than a duplicated
+`原始表述为准。设计` phrase.
 
 When several near-minimum body sections require deterministic boundary
-completion, execution `1.6.54` rotates distinct pre-reviewed paragraphs across
+completion, execution `1.6.55` rotates distinct pre-reviewed paragraphs across
 sections so the completion step cannot create duplicate prose. It repeats the
 unchanged section-floor check after whole-review paragraph deduplication, since
 a shared model paragraph may otherwise leave a section just below its floor.
@@ -246,7 +257,7 @@ one additional call to retry only that shard inside the same hard deadline.
 Foundation retries are capped at 120 seconds, middle-fragment retries at
 170 seconds, and closing-fragment retries at 90 seconds. If both the original
 closing call and its bounded retry fail after the foundation and four-topic
-body have succeeded, execution `1.6.54` builds only the three closing sections
+body have succeeded, execution `1.6.55` builds only the three closing sections
 from pre-reviewed evidence-boundary prose and still attempts the compact peer
 review. Every section floor, identity rule, citation rule, numeric closure,
 evidence-grade rule, five-question contract, and artifact integrity check is

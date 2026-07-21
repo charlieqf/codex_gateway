@@ -1462,9 +1462,14 @@ function localizedCoreMethodFallback(
   studyType: string,
   language: ResearchRunRecord["language"]
 ): string {
-  return language === "zh-CN"
-    ? `公开摘要采用${studyType}设计；具体方法、终点与分析范围以所引摘要为限。`
-    : "Methods are summarized only at the level reported in the cited abstract.";
+  if (language !== "zh-CN") {
+    return "Methods are summarized only at the level reported in the cited abstract.";
+  }
+  return /以所引\s*PubMed\s*摘要的原始表述为准/u.test(
+    studyType
+  )
+    ? "具体研究设计、方法、终点与分析范围以所引 PubMed 摘要的原始表述为准。"
+    : `公开摘要采用${studyType}设计；具体方法、终点与分析范围以所引摘要为限。`;
 }
 
 function localizedCoreResultFallback(
@@ -4857,7 +4862,9 @@ function validateCompleteReviewPresentationIntegrity(
     }
     if (
       /(?:^|[。！？]\s*)该系统/u.test(trimmed) ||
-      /^该(?:个案|病例|发现|结果|趋势)/u.test(trimmed)
+      /(?:^|[。！？]\s*)该(?:个案|病例|发现|结果|趋势|(?:大样本)?(?:回顾性|前瞻性|观察性)?研究)/u.test(
+        trimmed
+      )
     ) {
       errors.push(
         `review_orphaned_demonstrative_start:paragraph=${index + 1}`
@@ -4882,6 +4889,19 @@ function validateCompleteReviewPresentationIntegrity(
     ) {
       errors.push(
         `review_orphaned_comparative_start:paragraph=${index + 1}`
+      );
+    }
+    if (
+      /[^。！？]{0,220}(?:与|较)[^。！？]{1,120}相比\s*[。！？]/u.test(
+        trimmed
+      ) ||
+      /[^。！？]{0,220}(?:显示|表明|发现|提示)\s*\[[0-9,\s-]+\]\s*[。！？]/u.test(
+        trimmed
+      ) ||
+      /(?:标题|题名)所暗示/u.test(trimmed)
+    ) {
+      errors.push(
+        `review_incomplete_evidence_sentence:paragraph=${index + 1}`
       );
     }
     const enumeration = [
@@ -6860,6 +6880,18 @@ function normalizeFinalModelOutputForSafety(
     }
     return value
       .replace(
+        /[^。！？]{0,220}(?:显示|表明|发现|提示)\s*(\[[0-9,\s-]+\])\s*[。！？]/gu,
+        "公开摘要中的具体结果以所引证据$1为准。"
+      )
+      .replace(
+        /[^。！？]{0,220}(?:标题|题名)所暗示[^。！？]{0,220}?(\[[0-9,\s-]+\])\s*[。！？]/gu,
+        "所引文献的具体方法和结果未在公开摘要中披露$1。"
+      )
+      .replace(
+        /[^。！？]{0,220}(?:与|较)[^。！？]{1,120}相比\s*[。！？]/gu,
+        ""
+      )
+      .replace(
         /(^|[。！？]\s*)[^。！？]{0,48}(?:回归|分析|检验)[^。！？]{0,48}(?:确认|支持|提示)(?:了)?该关联[。！？]/gu,
         "$1"
       )
@@ -6890,6 +6922,10 @@ function normalizeFinalModelOutputForSafety(
       .replace(
         /^(\s*)该(?:发现|结果|趋势)/gu,
         "$1所引研究的发现"
+      )
+      .replace(
+        /(^|[。！？]\s*)该((?:大样本)?(?:回顾性|前瞻性|观察性)?研究)/gu,
+        "$1所引$2"
       )
       .replace(
         /(^|[。！？]\s*)(在[^。！？]{2,48}方面，)(较[^。！？]{4,120}(?:减少|增加|降低|提高))/gu,
@@ -7356,7 +7392,7 @@ function stripEmbeddedAuxiliaryReviewOutput(
 ): string {
   const marker =
     language === "zh-CN"
-      ? /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:学术问答|问题与答案|常见问题)(?:\*\*)?\s*(?:\r?\n|$)/iu
+      ? /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:(?:简短|补充|附加)\s*)?(?:学术问答|问题与答案|常见问题)(?:\*\*)?\s*(?:\r?\n|$)/iu
       : /(?:\r?\n){1,2}(?:---\s*(?:\r?\n)+)?(?:#{1,6}\s*|\*\*)?(?:academic questions?(?: and answers?)?|questions? and answers?|q\s*&\s*a)(?:\*\*)?\s*(?:\r?\n|$)/iu;
   let normalized = value;
   for (let iteration = 0; iteration < 8; iteration += 1) {
@@ -8063,6 +8099,60 @@ function normalizeEvidenceStatisticLabels(
   );
 }
 
+function extractDdimersurveillanceMetrics(evidence: string): {
+  adjustedHazard: readonly [string, string, string] | null;
+  sensitivityOdds: readonly [string, string, string] | null;
+} {
+  const adjustedHazard =
+    /\btransitioned to high group\b[^.!?。！？]{0,320}?\badjusted hazard ratio\s*(?:=|:|,)?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*(?:confidence interval\s*(?:\[ci\])?|ci)\s*[:,]?\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+      evidence
+    );
+  const sensitivityOdds =
+    /\bhigh d-dimer\b[^.!?。！？]{0,240}?\bodds ratio\s*(?:=|:|,)?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*[:,]?\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+      evidence
+    );
+  return {
+    adjustedHazard: adjustedHazard
+      ? [adjustedHazard[1]!, adjustedHazard[2]!, adjustedHazard[3]!]
+      : null,
+    sensitivityOdds: sensitivityOdds
+      ? [sensitivityOdds[1]!, sensitivityOdds[2]!, sensitivityOdds[3]!]
+      : null
+  };
+}
+
+function extractEasixPrognosticMetrics(evidence: string): {
+  compositeOdds: readonly [string, string, string] | null;
+  mortalityHazard: readonly [string, string, string] | null;
+  sampleSize: string | null;
+} {
+  const compositeOdds =
+    /\b(?:greater|higher) easix levels?\b[^.!?。！？]{0,240}?\bcomposite end ?points?\b[^.!?。！？]{0,180}?\b(?:or|odds ratio)\s*(?:=|:|,)?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*[:,]?\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+      evidence
+    );
+  const mortalityHazard =
+    /\beasix was identified\b[^.!?。！？]{0,160}?\ball-cause mortality\b[^.!?。！？]{0,160}?\b(?:hr|hazard ratio)\s*(?:=|:|,)?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*[:,]?\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
+      evidence
+    );
+  const sampleSize =
+    /\bretrospective analysis of\s+([0-9][0-9,]*)\s+patients?\b/u.exec(
+      evidence
+    )?.[1] ?? null;
+  return {
+    compositeOdds: compositeOdds
+      ? [compositeOdds[1]!, compositeOdds[2]!, compositeOdds[3]!]
+      : null,
+    mortalityHazard: mortalityHazard
+      ? [
+          mortalityHazard[1]!,
+          mortalityHazard[2]!,
+          mortalityHazard[3]!
+        ]
+      : null,
+    sampleSize
+  };
+}
+
 function normalizeReviewEvidenceAlignment(
   value: string,
   allowedEvidence: string,
@@ -8121,6 +8211,55 @@ function normalizeReviewEvidenceAlignment(
                 : "该项研究";
     normalized = normalized.replace(metaAnalysisPattern, replacement);
     studyDesignCorrected = true;
+  }
+  if (/(?:d\s*[-－]?\s*二聚体|\bd-dimer\b)/iu.test(normalized)) {
+    const metrics = extractDdimersurveillanceMetrics(evidenceLower);
+    const clauses: string[] = [];
+    if (
+      metrics.adjustedHazard &&
+      !normalized.includes(metrics.adjustedHazard[0])
+    ) {
+      clauses.push(
+        `D-二聚体转为高水平组相对持续低水平组的瘤囊增大风险升高（调整后HR ${metrics.adjustedHazard[0]}，95% CI ${metrics.adjustedHazard[1]}-${metrics.adjustedHazard[2]}）`
+      );
+    }
+    if (
+      metrics.sensitivityOdds &&
+      !normalized.includes(metrics.sensitivityOdds[0])
+    ) {
+      clauses.push(
+        `敏感性分析中高D-二聚体与瘤囊增大的关联为OR ${metrics.sensitivityOdds[0]}（95% CI ${metrics.sensitivityOdds[1]}-${metrics.sensitivityOdds[2]}）`
+      );
+    }
+    if (clauses.length > 0) {
+      normalized = `所引回顾性队列报告${clauses.join("；")}。${normalized}`;
+    }
+  }
+  if (/\beasix\b/iu.test(normalized)) {
+    const metrics = extractEasixPrognosticMetrics(evidenceLower);
+    const clauses: string[] = [];
+    if (
+      metrics.compositeOdds &&
+      !normalized.includes(metrics.compositeOdds[0])
+    ) {
+      clauses.push(
+        `较高EASIX与复合终点风险升高相关（OR ${metrics.compositeOdds[0]}，95% CI ${metrics.compositeOdds[1]}-${metrics.compositeOdds[2]}）`
+      );
+    }
+    if (
+      metrics.mortalityHazard &&
+      !normalized.includes(metrics.mortalityHazard[0])
+    ) {
+      clauses.push(
+        `EASIX为全因死亡的独立预测指标（HR ${metrics.mortalityHazard[0]}，95% CI ${metrics.mortalityHazard[1]}-${metrics.mortalityHazard[2]}）`
+      );
+    }
+    if (clauses.length > 0) {
+      const sample = metrics.sampleSize
+        ? `${metrics.sampleSize}例患者的`
+        : "";
+      normalized = `所引${sample}回顾性分析报告${clauses.join("；")}。${normalized}`;
+    }
   }
   return {
     value: normalized,
@@ -8234,28 +8373,54 @@ function normalizeAnswerEvidenceAlignment(
     }
   }
   if (
+    /(?:d\s*[-－]?\s*二聚体|\bd-dimer\b)/iu.test(
+      `${question} ${normalized}`
+    ) &&
+    /\bd-dimer\b/u.test(evidence)
+  ) {
+    const metrics = extractDdimersurveillanceMetrics(evidence);
+    const metricClauses: string[] = [];
+    if (
+      metrics.adjustedHazard &&
+      !normalized.includes(metrics.adjustedHazard[0])
+    ) {
+      metricClauses.push(
+        `转为高水平组相对持续低水平组的瘤囊增大风险升高（调整后HR ${metrics.adjustedHazard[0]}，95% CI ${metrics.adjustedHazard[1]}-${metrics.adjustedHazard[2]}）`
+      );
+    }
+    if (
+      metrics.sensitivityOdds &&
+      !normalized.includes(metrics.sensitivityOdds[0])
+    ) {
+      metricClauses.push(
+        `敏感性分析中高D-二聚体与瘤囊增大的关联为OR ${metrics.sensitivityOdds[0]}（95% CI ${metrics.sensitivityOdds[1]}-${metrics.sensitivityOdds[2]}）`
+      );
+    }
+    if (metricClauses.length > 0) {
+      normalized = [
+        `所引回顾性队列报告D-二聚体${metricClauses.join("；")}。`,
+        normalized
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
+  if (
     /(?:预测价值|预后价值|风险分层)/u.test(question) &&
     /\beasix\b/u.test(evidence)
   ) {
-    const compositeOdds =
-      /\bcomposite endpoints?\b.{0,160}\b(?:or|odds ratio)\s*=?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
-        evidence
-      );
-    const mortalityHazard =
-      /\ball-cause mortality\b.{0,160}\b(?:hr|hazard ratio)\s*=?\s*([0-9]+(?:\.[0-9]+)?)[,;]\s*95%\s*ci\s*([0-9]+(?:\.[0-9]+)?)\s*[-–]\s*([0-9]+(?:\.[0-9]+)?)/u.exec(
-        evidence
-      );
+    const metrics = extractEasixPrognosticMetrics(evidence);
     const metricClauses: string[] = [];
-    if (compositeOdds) {
+    if (metrics.compositeOdds) {
       const clause =
-        `较高EASIX与复合终点风险升高相关（OR ${compositeOdds[1]}，95% CI ${compositeOdds[2]}-${compositeOdds[3]}）`;
+        `较高EASIX与复合终点风险升高相关（OR ${metrics.compositeOdds[0]}，95% CI ${metrics.compositeOdds[1]}-${metrics.compositeOdds[2]}）`;
       if (!normalized.includes(clause)) {
         metricClauses.push(clause);
       }
     }
-    if (mortalityHazard) {
+    if (metrics.mortalityHazard) {
       const clause =
-        `EASIX被识别为全因死亡的独立预测指标（HR ${mortalityHazard[1]}，95% CI ${mortalityHazard[2]}-${mortalityHazard[3]}）`;
+        `EASIX被识别为全因死亡的独立预测指标（HR ${metrics.mortalityHazard[0]}，95% CI ${metrics.mortalityHazard[1]}-${metrics.mortalityHazard[2]}）`;
       if (!normalized.includes(clause)) {
         metricClauses.push(clause);
       }

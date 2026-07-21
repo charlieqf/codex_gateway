@@ -492,7 +492,7 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       abstractText:
         retryKind === "peer-timeout"
-          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. The technical success rate was 100%, and the immediate angiographic success rate was 91.7%. The mean false lumen shrinkage was 40.0 ± 28.6%. The iCover target vessel patency rate was 98.6%. Higher EASIX levels were associated with an increased risk of composite endpoints (OR 1.69, 95% CI 1.37-2.08). EASIX was identified as an independent predictor of all-cause mortality (HR 1.43, 95% CI 1.23-1.68). Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
+          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. The technical success rate was 100%, and the immediate angiographic success rate was 91.7%. The mean false lumen shrinkage was 40.0 ± 28.6%. The iCover target vessel patency rate was 98.6%. The transitioned to high group had significantly increased aneurysm enlargement risk versus the consistently low group (adjusted hazard ratio = 4.76, 95% confidence interval [CI]: 1.62-14.00). High D-dimer showed the strongest association (odds ratio 3.45, 95% CI: 1.69-7.05). Higher EASIX levels were associated with an increased risk of composite endpoints (odds ratio, 1.69; 95% CI, 1.37-2.08). EASIX was identified as an independent predictor of all-cause mortality (hazard ratio, 1.43; 95% CI, 1.23-1.68). Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
           : retryKind === "content"
             ? "METHODS: This is a retrospective single-center cohort study. A source cohort of 146 patients underwent screening, 56 had the target condition and were included in the analysis. RESULTS: We found that the retrieved evidence supports cautious synthesis in 56 patients. CONCLUSIONS: These findings require prospective validation before clinical deployment."
           : retryKind === "citation-closure"
@@ -623,7 +623,7 @@ describe("Research Worker controlled-beta workflow", () => {
                 index === 0
                   ? "该病例报告检查了四十二份样本，中位随访二点七年；这些信息只用于说明公开摘要中的病例级观察，不能据此推断普遍临床疗效。"
                   : index === 3
-                    ? "发现公开摘要证据与观察结果相关，但病例级资料不能直接外推为普遍临床疗效。"
+                    ? "发现D-二聚体公开摘要证据与观察结果相关，但病例级资料不能直接外推为普遍临床疗效。"
                     : index === 4
                       ? "研究支持该术式在女性中的可行性，但女性样本有限，需更多数据支持。"
                   : answer.answer
@@ -784,6 +784,9 @@ describe("Research Worker controlled-beta workflow", () => {
                 "该发现支持在摘要证据边界内提出后续研究问题[1]。",
                 "所引摘要描述观察性结果[1]。轨迹校正Cox回归进一步确认了该关联。",
                 "然而，该趋势未达到统计学显著性[1]。",
+                "D-二聚体动态分析显示，转为高水平组与持续低水平组相比。时间依赖模型支持继续随访[1]。",
+                "预后指标用于风险分层。该大样本回顾性研究支持EASIX作为术前补充指标，但不能据此推断因果[1]。",
+                "基于多中心注册库的分析显示 [1]。另一项研究虽缺乏摘要细节，但其标题所暗示的改进空间表明仍有未解问题[1]。",
                 "未来方向包括：（1）前瞻性验证[1]；（2）外部验证[1]；（5）患者结局研究[1]。",
                 "---\n\n**学术问答**\n\n这一残缺辅助输出不属于综述正文[1]。",
                 "---\n\n**\n\n**\n\n答：尾部问答答案一不属于正式学术综述正文[1]。\n\n**\n\n答：尾部问答答案二也不属于正式学术综述正文[1]。"
@@ -823,6 +826,7 @@ describe("Research Worker controlled-beta workflow", () => {
             ? [
                 "```markdown",
                 skillClosingFragment(26, 20, 7, true),
+                "### 简短学术问答",
                 "**回答5：** 这一条孤立问答不属于正式学术综述正文[1]。",
                 "```"
               ].join("\n")
@@ -1649,6 +1653,27 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.review.markdown).not.toContain(
         "该趋势未达到统计学显著性"
       );
+      expect(result.review.markdown).not.toContain(
+        "转为高水平组与持续低水平组相比。"
+      );
+      expect(result.review.markdown).toContain(
+        "调整后HR 4.76，95% CI 1.62-14.00"
+      );
+      expect(result.review.markdown).toContain(
+        "高D-二聚体与瘤囊增大的关联为OR 3.45"
+      );
+      expect(result.review.markdown).toContain(
+        "较高EASIX与复合终点风险升高相关（OR 1.69，95% CI 1.37-2.08）"
+      );
+      expect(result.review.markdown).not.toContain(
+        "该大样本回顾性研究"
+      );
+      expect(result.review.markdown).not.toContain(
+        "分析显示 [1]"
+      );
+      expect(result.review.markdown).not.toContain(
+        "标题所暗示"
+      );
       expect(result.review.markdown).toContain(
         "所引病例报告基于观察性研究"
       );
@@ -1679,6 +1704,12 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.answers[2]?.answer).toContain(
         "EASIX被识别为全因死亡的独立预测指标（HR 1.43，95% CI 1.23-1.68）"
       );
+      expect(result.answers[3]?.answer).toContain(
+        "调整后HR 4.76，95% CI 1.62-14.00"
+      );
+      expect(result.answers[3]?.answer).toContain(
+        "高D-二聚体与瘤囊增大的关联为OR 3.45"
+      );
       expect(result.answers[0]?.answer).not.toContain("四十二份");
       expect(result.answers[0]?.answer).not.toContain("二点七年");
       expect(
@@ -1692,7 +1723,7 @@ describe("Research Worker controlled-beta workflow", () => {
         )
       ).toBe(true);
       expect(result.answers[3]?.answer).toContain(
-        "所引研究发现公开摘要证据"
+        "所引研究发现D-二聚体公开摘要证据"
       );
       expect(result.answers[4]?.answer).toContain(
         "女性与男性患者的中期结局相近"
@@ -1714,6 +1745,9 @@ describe("Research Worker controlled-beta workflow", () => {
     if (retryKind === "citation-closure") {
       expect(result.review.markdown).not.toContain(
         "孤立问答不属于正式学术综述正文"
+      );
+      expect(result.review.markdown).not.toContain(
+        "简短学术问答"
       );
       expect(
         result.review.markdown.indexOf(
@@ -1810,6 +1844,14 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.quality.warnings).not.toContain(
         "bounded_shard_skill_contract_retry_completed"
       );
+      expect(
+        result.review.core_evidence.every(
+          (item) =>
+            !item.methods.includes(
+              "原始表述为准。设计"
+            )
+        )
+      ).toBe(true);
     }
     if (retryKind === "transport-body-near-minimum") {
       const topicSections = result.review.markdown
