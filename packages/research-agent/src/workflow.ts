@@ -1682,6 +1682,10 @@ async function generateAndValidateModelOutput(
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
           "review_orphaned_comparative_start",
+          "review_evidence_topic_mismatch",
+          "review_study_design_label_mismatch",
+          "answer_orphaned_prose_start",
+          "answer_question_evidence_coverage",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1792,6 +1796,10 @@ async function generateAndValidateModelOutput(
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
           "review_orphaned_comparative_start",
+          "review_evidence_topic_mismatch",
+          "review_study_design_label_mismatch",
+          "answer_orphaned_prose_start",
+          "answer_question_evidence_coverage",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1836,6 +1844,10 @@ async function generateAndValidateModelOutput(
           "review_orphaned_prose_start",
           "review_orphaned_demonstrative_start",
           "review_orphaned_comparative_start",
+          "review_evidence_topic_mismatch",
+          "review_study_design_label_mismatch",
+          "answer_orphaned_prose_start",
+          "answer_question_evidence_coverage",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1910,6 +1922,10 @@ async function generateAndValidateModelOutput(
             "review_orphaned_prose_start",
             "review_orphaned_demonstrative_start",
             "review_orphaned_comparative_start",
+            "review_evidence_topic_mismatch",
+            "review_study_design_label_mismatch",
+            "answer_orphaned_prose_start",
+            "answer_question_evidence_coverage",
             "review_inline_enumeration_sequence",
             "causal_claim_evidence_grade"
           ].includes(code)
@@ -4928,6 +4944,16 @@ function validateRuntimeQuality(
     errors.push("answer_duplicate_sentence");
   }
   if (
+    language === "zh-CN" &&
+    output.answers.some((answer) =>
+      /(?:^|[。！？；]\s*)(?:发现|显示|表明|提示)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于|相近|相当|检出|转为))/u.test(
+        answer.answer
+      )
+    )
+  ) {
+    errors.push("answer_orphaned_prose_start");
+  }
+  if (
     output.profile.primary_public_source_ids.length === 0 ||
     output.profile.primary_public_source_ids.some(
       (sourceId) => !profileSourceIds.has(sourceId)
@@ -6131,6 +6157,15 @@ function normalizeFinalModelOutputForSafety(
       changed = true;
       paragraph = statisticLabelsClosed;
     }
+    const evidenceAligned = normalizeReviewEvidenceAlignment(
+      paragraph,
+      scope.text,
+      language
+    );
+    if (evidenceAligned.value !== paragraph) {
+      changed = true;
+      paragraph = evidenceAligned.value;
+    }
     const proseClosed = closeReviewProseStart(paragraph);
     if (proseClosed !== paragraph) {
       changed = true;
@@ -6260,12 +6295,19 @@ function normalizeFinalModelOutputForSafety(
           language === "zh-CN"
             ? normalizeChineseQuantitiesToArabic(answer.answer)
             : answer.answer;
+        const statisticClosed = normalizeEvidenceStatisticLabels(
+          sanitize(normalizedAnswer, source),
+          source,
+          language
+        );
+        const evidenceAligned = normalizeAnswerEvidenceAlignment(
+          statisticClosed,
+          output.predicted_questions[answer.question_index - 1] ?? "",
+          source,
+          language
+        );
         const sanitized = deduplicateAnswerSentences(
-          normalizeEvidenceStatisticLabels(
-            sanitize(normalizedAnswer, source),
-            source,
-            language
-          )
+          evidenceAligned
         );
         if (sanitized !== normalizedAnswer) {
           changed = true;
@@ -6795,6 +6837,119 @@ function normalizeEvidenceStatisticLabels(
   );
 }
 
+function normalizeReviewEvidenceAlignment(
+  value: string,
+  allowedEvidence: string,
+  language: ResearchRunRecord["language"]
+): {
+  value: string;
+  topicMismatchRemoved: boolean;
+  studyDesignCorrected: boolean;
+} {
+  if (language !== "zh-CN" || allowedEvidence.trim() === "") {
+    return {
+      value,
+      topicMismatchRemoved: false,
+      studyDesignCorrected: false
+    };
+  }
+  const evidence = allowedEvidence
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ");
+  const evidenceLower = evidence.toLowerCase();
+  const supportsSpinalCordClaim =
+    /\bspinal cord (?:ischemia|ischaemia|injury)\b|\bparaplegi|\bSCI\b/u.test(
+      evidence
+    );
+  let topicMismatchRemoved = false;
+  let normalized = value
+    .split(/(?<=[。！？])\s*/u)
+    .filter((sentence) => {
+      if (
+        /脊髓缺血|脊髓损伤|永久性?截瘫/u.test(sentence) &&
+        !supportsSpinalCordClaim
+      ) {
+        topicMismatchRemoved = true;
+        return false;
+      }
+      return true;
+    })
+    .join("");
+  const metaAnalysisPattern = /该(?:项)?(?:Meta分析|荟萃分析)/gu;
+  let studyDesignCorrected = false;
+  if (
+    metaAnalysisPattern.test(normalized) &&
+    !/\bmeta-analysis\b|\bsystematic review\b/u.test(evidenceLower)
+  ) {
+    const replacement =
+      /\bcase report\b/u.test(evidenceLower)
+        ? "该病例报告"
+        : /\bcase series\b/u.test(evidenceLower)
+          ? "该病例系列"
+          : /\bretrospective\b/u.test(evidenceLower)
+            ? "该回顾性分析"
+            : /\bprospective\b/u.test(evidenceLower)
+              ? "该前瞻性研究"
+              : /\bnarrative review\b/u.test(evidenceLower)
+                ? "该叙述性综述"
+                : "该项研究";
+    normalized = normalized.replace(metaAnalysisPattern, replacement);
+    studyDesignCorrected = true;
+  }
+  return {
+    value: normalized,
+    topicMismatchRemoved,
+    studyDesignCorrected
+  };
+}
+
+function normalizeAnswerEvidenceAlignment(
+  value: string,
+  question: string,
+  allowedEvidence: string,
+  language: ResearchRunRecord["language"]
+): string {
+  if (language !== "zh-CN") {
+    return value;
+  }
+  let normalized = value.replace(
+    /(^|[。！？；]\s*)(发现|显示|表明|提示)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于|相近|相当|检出|转为))/gu,
+    "$1所引研究$2"
+  );
+  const evidence = allowedEvidence
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .toLowerCase();
+  const asksSexComparison =
+    /(?:女性.{0,24}男性|男性.{0,24}女性|男女|性别).{0,32}(?:相当|相近|可比|比较|差异|结局|效果)|(?:相当|相近|可比|比较|差异|结局|效果).{0,32}(?:女性|男性|男女|性别)/u.test(
+      question
+    );
+  const evidenceSupportsComparableOutcomes =
+    /\b(?:female|women).{0,120}\b(?:male|men)\b.{0,200}\bcomparable\b|\bcomparable\b.{0,200}\b(?:female|women|male|men|sexes)\b|\bcomparable mid-term outcomes\b/u.test(
+      evidence
+    );
+  const answerStatesComparableOutcomes =
+    /(?:女性|男女|两性).{0,40}(?:中期)?结局.{0,16}(?:相近|相当|可比|无显著差异)|(?:中期)?结局.{0,16}(?:相近|相当|可比|无显著差异).{0,40}(?:女性|男性|男女|两性)/u.test(
+      normalized
+    );
+  if (
+    asksSexComparison &&
+    evidenceSupportsComparableOutcomes &&
+    !answerStatesComparableOutcomes
+  ) {
+    const comparableClause =
+      /\bperioperative complication rates? (?:was|were) comparable between sexes\b/u.test(
+        evidence
+      )
+        ? "所引研究报告女性与男性患者的中期结局相近，围手术期并发症发生率也相近。"
+        : "所引研究报告女性与男性患者的中期结局相近。";
+    normalized = [comparableClause, normalized]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return normalized;
+}
+
 function deduplicateAnswerSentences(value: string): string {
   const sentences = value
     .split(
@@ -7179,6 +7334,23 @@ function validateEvidenceScopeAndCausality(
         `case_evidence_prescriptive_claim:paragraph=${paragraphIndex + 1}`
       );
     }
+    const evidenceAligned = normalizeReviewEvidenceAlignment(
+      paragraph,
+      citedAbstracts.join(" "),
+      language
+    );
+    if (evidenceAligned.value !== paragraph) {
+      if (evidenceAligned.topicMismatchRemoved) {
+        errors.add(
+          `review_evidence_topic_mismatch:paragraph=${paragraphIndex + 1}`
+        );
+      }
+      if (evidenceAligned.studyDesignCorrected) {
+        errors.add(
+          `review_study_design_label_mismatch:paragraph=${paragraphIndex + 1}`
+        );
+      }
+    }
   }
   const referenceByPubMedSource = new Map(
     output.review.references
@@ -7230,6 +7402,23 @@ function validateEvidenceScopeAndCausality(
       errors.add(
         `statistic_label_evidence_closure:answer=${answer.question_index}`
       );
+    }
+    if (citedAbstracts.length > 0) {
+      const evidenceAligned = normalizeAnswerEvidenceAlignment(
+        answer.answer,
+        output.predicted_questions[answer.question_index - 1] ?? "",
+        citedAbstracts.join(" "),
+        language
+      );
+      if (evidenceAligned !== answer.answer) {
+        errors.add(
+          /(?:^|[。！？；]\s*)(?:发现|显示|表明|提示)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于|相近|相当|检出|转为))/u.test(
+            answer.answer
+          )
+            ? `answer_orphaned_prose_start:answer=${answer.question_index}`
+            : `answer_question_evidence_coverage:answer=${answer.question_index}`
+        );
+      }
     }
     if (
       citedAbstracts.length > 0 &&

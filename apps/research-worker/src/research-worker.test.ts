@@ -460,7 +460,7 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       abstractText:
         retryKind === "peer-timeout"
-          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
+          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
           : retryKind === "content"
             ? "METHODS: This is a retrospective single-center cohort study of 42 samples. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. CONCLUSIONS: These findings require prospective validation before clinical deployment."
           : retryKind === "citation-closure"
@@ -490,7 +490,9 @@ describe("Research Worker controlled-beta workflow", () => {
       "如何区分相关与因果？",
       "研究设计差异怎么看？",
       "哪些结果需要全文核验？",
-      "证据局限应如何表达？"
+      retryKind === "peer-timeout"
+        ? "女性术后效果与男性是否相当？"
+        : "证据局限应如何表达？"
     ];
     foundation.answers = foundation.predicted_questions.map(
       (_, index) => ({
@@ -522,6 +524,10 @@ describe("Research Worker controlled-beta workflow", () => {
               answer:
                 index === 0
                   ? "该病例报告检查了四十二份样本，中位随访二点七年；这些信息只用于说明公开摘要中的病例级观察，不能据此推断普遍临床疗效。"
+                  : index === 3
+                    ? "发现公开摘要证据与观察结果相关，但病例级资料不能直接外推为普遍临床疗效。"
+                    : index === 4
+                      ? "研究支持该术式在女性中的可行性，但女性样本有限，需更多数据支持。"
                   : answer.answer
             }))
         : foundation.answers;
@@ -599,6 +605,8 @@ describe("Research Worker controlled-beta workflow", () => {
                     crossShardNumericParagraph,
                     "所引病例报告包含42个样本，中位随访为2.7年；这些数据只在对应公开摘要的证据边界内解释。[1]",
                     "该研究纳入2025例患者，评估公开摘要证据与主要不良临床结局及长期预后之间的关联[1]。",
+                    "该Meta分析基于观察性研究，随机对照证据尚付阙如[1]。",
+                    "并反映了脊髓缺血风险在性别间可能存在差异[1]。",
                     "---\n\n**学术问答**\n\n这一分片混入的辅助输出必须删除，但其后独立分片中的闭合章节必须保留[1]。"
                   ]
                   : [])
@@ -1246,6 +1254,15 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.review.markdown).not.toContain(
         "这一分片混入的辅助输出"
       );
+      expect(result.review.markdown).toContain(
+        "该病例报告基于观察性研究"
+      );
+      expect(result.review.markdown).not.toContain(
+        "该Meta分析基于观察性研究"
+      );
+      expect(result.review.markdown).not.toContain(
+        "脊髓缺血风险在性别间可能存在差异"
+      );
       expect(result.answers[0]?.answer).toContain("42份样本");
       expect(result.answers[0]?.answer).toContain("2.7年");
       expect(result.answers[0]?.answer).toContain("平均随访2.7年");
@@ -1261,6 +1278,15 @@ describe("Research Worker controlled-beta workflow", () => {
             ).length <= 1
         )
       ).toBe(true);
+      expect(result.answers[3]?.answer).toContain(
+        "所引研究发现公开摘要证据"
+      );
+      expect(result.answers[4]?.answer).toContain(
+        "女性与男性患者的中期结局相近"
+      );
+      expect(result.answers[4]?.answer).toContain(
+        "围手术期并发症发生率也相近"
+      );
       expect(
         result.review.core_evidence.every(
           (item) => !/^发现/u.test(item.key_results)
