@@ -4638,6 +4638,15 @@ function validateCompleteReviewPresentationIntegrity(
         `review_orphaned_prose_start:paragraph=${index + 1}`
       );
     }
+    if (
+      /^(?:(?:但|然而|不过)\s*该(?:项)?研究|涵盖(?=.{2,120}(?:研究|证据|影像|治疗|技术|人群|领域)))/u.test(
+        trimmed
+      )
+    ) {
+      errors.push(
+        `review_orphaned_prose_start:paragraph=${index + 1}`
+      );
+    }
     if (/(?:^|[。！？]\s*)该系统/u.test(trimmed)) {
       errors.push(
         `review_orphaned_demonstrative_start:paragraph=${index + 1}`
@@ -6628,6 +6637,14 @@ function normalizeFinalModelOutputForSafety(
     }
     return value
       .replace(
+        /^(\s*)(?:但|然而|不过)\s*该(?:项)?研究/gu,
+        "$1相关研究"
+      )
+      .replace(
+        /^(\s*)涵盖(?=.{2,120}(?:研究|证据|影像|治疗|技术|人群|领域))/gu,
+        "$1本综述所引证据涵盖"
+      )
+      .replace(
         /(^|[。！？]\s*)(发现|评估|比较|分析|探讨|考察)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果))/gu,
         "$1一项研究$2"
       )
@@ -7773,6 +7790,55 @@ function normalizeAnswerEvidenceAlignment(
     .normalize("NFKC")
     .replace(/\s+/gu, " ")
     .toLowerCase();
+  if (/(?:有效率|成功率|治疗效果|疗效)/u.test(question)) {
+    const metricClauses: string[] = [];
+    const rateMetrics = [
+      [
+        "技术成功率",
+        /\btechnical success rate (?:was|of) ([0-9]+(?:\.[0-9]+)?\s*%)/u
+      ],
+      [
+        "即刻造影成功率",
+        /\bimmediate angiographic success rate (?:was|of) ([0-9]+(?:\.[0-9]+)?\s*%)/u
+      ],
+      [
+        "临床成功率",
+        /\bclinical success rate (?:was|of) ([0-9]+(?:\.[0-9]+)?\s*%)/u
+      ]
+    ] as const;
+    for (const [label, pattern] of rateMetrics) {
+      const match = pattern.exec(evidence);
+      const rate = match?.[1]?.replace(/\s+/gu, "");
+      if (rate && !normalized.includes(rate)) {
+        metricClauses.push(`${label}为${rate}`);
+      }
+    }
+    if (/(?:有效率|治疗效果|疗效)/u.test(question)) {
+      const shrinkage =
+        /\bmean (?:fl|false lumen) shrinkage was ([0-9]+(?:\.[0-9]+)?)\s*(?:±|\+\/-)\s*([0-9]+(?:\.[0-9]+)?)\s*%/u.exec(
+          evidence
+        );
+      const shrinkageValue = shrinkage
+        ? `${shrinkage[1]}±${shrinkage[2]}%`
+        : null;
+      if (
+        shrinkageValue &&
+        !normalized.includes(shrinkageValue)
+      ) {
+        metricClauses.push(
+          `平均假腔缩小幅度为${shrinkageValue}`
+        );
+      }
+    }
+    if (metricClauses.length > 0) {
+      normalized = [
+        `所引摘要报告${metricClauses.join("、")}。`,
+        normalized
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  }
   const asksSexComparison =
     /(?:女性.{0,24}男性|男性.{0,24}女性|男女|性别).{0,32}(?:相当|相近|可比|比较|差异|结局|效果)|(?:相当|相近|可比|比较|差异|结局|效果).{0,32}(?:女性|男性|男女|性别)/u.test(
       question

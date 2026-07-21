@@ -488,7 +488,7 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       abstractText:
         retryKind === "peer-timeout"
-          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
+          ? "METHODS: This case report examined 42 samples with a mean follow-up of 2.7 years. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. The technical success rate was 100%, and the immediate angiographic success rate was 91.7%. The mean false lumen shrinkage was 40.0 ± 28.6%. Female and male patients had comparable mid-term outcomes, and perioperative complication rates were comparable between sexes. LIMITATIONS: Abstract-level reporting cannot replace full-text appraisal."
           : retryKind === "content"
             ? "METHODS: This is a retrospective single-center cohort study of 42 samples. RESULTS: We found that the retrieved evidence supports cautious synthesis in 42 samples. CONCLUSIONS: These findings require prospective validation before clinical deployment."
           : retryKind === "citation-closure"
@@ -574,7 +574,9 @@ describe("Research Worker controlled-beta workflow", () => {
         : [])
     ].join("\n\n");
     foundation.predicted_questions = [
-      "摘要证据能支持什么？",
+      retryKind === "peer-timeout"
+        ? "所引治疗的有效率如何？"
+        : "摘要证据能支持什么？",
       "如何区分相关与因果？",
       "研究设计差异怎么看？",
       "哪些结果需要全文核验？",
@@ -768,6 +770,8 @@ describe("Research Worker controlled-beta workflow", () => {
                 crossShardNumericParagraph,
                 "现有段落先说明摘要边界。发现公开摘要证据与观察结果相关[1]。",
                 "在影像引导方面，较常规路径减少资源使用[1]。",
+                "但该研究样本量有限，仍需在公开摘要证据边界内谨慎解释结果与适用范围[1]。",
+                "涵盖研究设计、证据强度、影像技术与后续验证方向，但不能据此推断普遍临床效果[1]。",
                 "未来方向包括：（1）前瞻性验证[1]；（2）外部验证[1]；（5）患者结局研究[1]。",
                 "---\n\n**学术问答**\n\n这一残缺辅助输出不属于综述正文[1]。",
                 "---\n\n**\n\n**\n\n答：尾部问答答案一不属于正式学术综述正文[1]。\n\n**\n\n答：尾部问答答案二也不属于正式学术综述正文[1]。"
@@ -1565,6 +1569,15 @@ describe("Research Worker controlled-beta workflow", () => {
         "所引研究显示，在影像引导方面，较常规路径减少资源使用"
       );
       expect(result.review.markdown).toContain(
+        "相关研究样本量有限"
+      );
+      expect(result.review.markdown).toContain(
+        "本综述所引证据涵盖研究设计"
+      );
+      expect(result.review.markdown).not.toContain(
+        "但该研究样本量有限"
+      );
+      expect(result.review.markdown).toContain(
         "（一）前瞻性验证"
       );
       expect(result.review.markdown).toContain(
@@ -1592,6 +1605,15 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.answers[0]?.answer).toContain("42份样本");
       expect(result.answers[0]?.answer).toContain("2.7年");
       expect(result.answers[0]?.answer).toContain("平均随访2.7年");
+      expect(result.answers[0]?.answer).toContain(
+        "技术成功率为100%"
+      );
+      expect(result.answers[0]?.answer).toContain(
+        "即刻造影成功率为91.7%"
+      );
+      expect(result.answers[0]?.answer).toContain(
+        "平均假腔缩小幅度为40.0±28.6%"
+      );
       expect(result.answers[0]?.answer).not.toContain("四十二份");
       expect(result.answers[0]?.answer).not.toContain("二点七年");
       expect(
