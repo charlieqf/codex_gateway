@@ -7007,6 +7007,25 @@ function normalizeFinalModelOutputForSafety(
       markdown: deduplicatedReview.markdown
     };
   }
+  // Deduplication can remove a boundary paragraph that was shared across
+  // sections and leave a previously closed section one character short.
+  // Re-close the section floors with a paragraph not already present.
+  const finalSkillSectionClosedReview =
+    supplementReviewSkillSectionBoundaries({
+      markdown: supplementedReview.markdown,
+      referenceCount: output.review.references.length,
+      language
+    });
+  if (finalSkillSectionClosedReview.changed) {
+    changed = true;
+    supplementedReview = {
+      ...supplementedReview,
+      markdown: finalSkillSectionClosedReview.markdown
+        .split(/\n\s*\n/gu)
+        .map(applyRequiredEvidenceScope)
+        .join("\n\n")
+    };
+  }
   const allAbstracts = evidence.publicationEvidence
     .map((publication) => publication.abstract ?? "")
     .join("\n");
@@ -7260,7 +7279,8 @@ function normalizeFinalModelOutputForSafety(
     changed,
     evidenceBoundarySupplemented: supplementedReview.changed,
     skillSectionBoundarySupplemented:
-      skillSectionClosedReview.changed,
+      skillSectionClosedReview.changed ||
+      finalSkillSectionClosedReview.changed,
     coreNumericFallbackApplied,
     referenceCitationClosureApplied: citationClosedReview.changed
   };
@@ -7508,6 +7528,16 @@ function supplementReviewSkillSectionBoundaries(input: {
         };
   let changed = false;
   let templateOffset = 0;
+  const usedParagraphs = new Set(
+    input.markdown
+      .split(/\n\s*\n/gu)
+      .map((paragraph) => paragraph.trim())
+      .filter(
+        (paragraph) =>
+          paragraph !== "" && !/^#{1,6}\s/u.test(paragraph)
+      )
+      .map(normalizeReviewParagraphForDuplicateCheck)
+  );
   const closed = sections.map((section) => {
     if (
       section.kind !== "topic" &&
@@ -7539,7 +7569,7 @@ function supplementReviewSkillSectionBoundaries(input: {
       section.kind === "topic" &&
       existingCitations.length === 0
     ) {
-      templateOffset += sectionTemplates.length;
+      templateOffset += 1;
       return section;
     }
     for (
@@ -7564,10 +7594,17 @@ function supplementReviewSkillSectionBoundaries(input: {
                 ? `[${start}]`
                 : `[${start}-${end}]`;
             })();
-      paragraphs.push(`${sectionTemplates[index]} ${citation}`);
+      const candidate = `${sectionTemplates[index]} ${citation}`;
+      const normalizedCandidate =
+        normalizeReviewParagraphForDuplicateCheck(candidate);
+      if (usedParagraphs.has(normalizedCandidate)) {
+        continue;
+      }
+      usedParagraphs.add(normalizedCandidate);
+      paragraphs.push(candidate);
       changed = true;
     }
-    templateOffset += sectionTemplates.length;
+    templateOffset += 1;
     return {
       ...section,
       body: paragraphs.join("\n\n")

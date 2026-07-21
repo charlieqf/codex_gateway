@@ -58,7 +58,7 @@ complete, explicitly warned result with a 5000-character aggregate floor.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.51` together with the
+The production Worker uses frozen execution contract `1.6.52` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -69,7 +69,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.51` splits synthesis into three bounded independent
+For latency, execution `1.6.52` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -107,7 +107,7 @@ contains verified citations. It can add only pre-reviewed evidence-boundary
 prose tied to those same citations; a shorter or uncited topic still fails
 closed.
 
-Execution `1.6.51` also closes two model-fragment presentation defects without
+Execution `1.6.52` also closes two model-fragment presentation defects without
 rewriting medical content: a paragraph-level dangling transition such as
 `但该研究...` is made self-contained, and a subjectless scope sentence such as
 `涵盖...` is anchored to the evidence in the review. For a Chinese question
@@ -118,8 +118,12 @@ invents a replacement fact, and the normal numeric evidence-closure and
 100-300-character answer gates still apply.
 
 When several near-minimum body sections require deterministic boundary
-completion, execution `1.6.51` rotates distinct pre-reviewed paragraphs across
-sections so the completion step cannot create duplicate prose. A substantive
+completion, execution `1.6.52` rotates distinct pre-reviewed paragraphs across
+sections so the completion step cannot create duplicate prose. It repeats the
+unchanged section-floor check after whole-review paragraph deduplication, since
+a shared model paragraph may otherwise leave a section just below its floor.
+That final check can add only a boundary paragraph not already present in the
+review; it does not lower or reinterpret any medical content gate. A substantive
 closing limitations or conclusion section that is near its unchanged Skill
 floor is completed before fragment contract evaluation, using the same
 claim-free evidence-boundary text and citation checks already used after
@@ -225,7 +229,7 @@ one additional call to retry only that shard inside the same hard deadline.
 Foundation retries are capped at 120 seconds, middle-fragment retries at
 170 seconds, and closing-fragment retries at 90 seconds. If both the original
 closing call and its bounded retry fail after the foundation and four-topic
-body have succeeded, execution `1.6.51` builds only the three closing sections
+body have succeeded, execution `1.6.52` builds only the three closing sections
 from pre-reviewed evidence-boundary prose and still attempts the compact peer
 review. Every section floor, identity rule, citation rule, numeric closure,
 evidence-grade rule, five-question contract, and artifact integrity check is
