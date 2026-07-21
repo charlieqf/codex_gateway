@@ -7619,7 +7619,12 @@ function supplementReviewSkillSectionBoundaries(input: {
           topic: [
             "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
             "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
-            "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。"
+            "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。",
+            "本节把摘要明确报告的发现与解释性推断分开呈现。结论方向相近并不自动代表研究对象、方法和终点可比，差异本身应保留为证据不确定性的组成部分。",
+            "证据强度应与研究设计能够回答的问题相匹配。统计关联、模型区分能力、操作可行性和患者结局属于不同层次，不能因措辞相似而被合并为同一种临床判断。",
+            "对摘要未说明的纳入标准、偏倚控制、缺失资料和亚组分析保持沉默，可以避免从题名、期刊或相邻研究补写事实，也使后续全文复核具有明确入口。",
+            "跨研究综合应同时核对资料来源、测量方式、比较条件和观察时间。只有这些要素具有足够可比性时，结果方向的一致才构成更稳健的学术线索。",
+            "面向后续研究，本节把尚未闭合的问题转化为可验证任务，包括全文复核、前瞻性检验、外部验证和独立重复；这些方向用于界定证据缺口，不预设验证结果。"
           ],
           limitations: [
             "本节的判断边界是已核验的公开元数据和摘要。摘要未披露的纳入细节、统计设定、缺失数据处理、亚组分析与敏感性分析仍需回到全文复核，不能由题名、期刊或相邻研究补写。",
@@ -7640,7 +7645,12 @@ function supplementReviewSkillSectionBoundaries(input: {
           topic: [
             "This section compares only populations, designs, methods, and outcomes directly supported by the cited public abstracts. Full-text details omitted from an abstract are not treated as facts and do not justify broader applicability.",
             "Cross-study interpretation must distinguish sample provenance, technical pathways, endpoint definitions, and follow-up frameworks. Those differences limit direct pooling and require observational association, technical feasibility, and clinical effectiveness to remain separate claims.",
-            "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies."
+            "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies.",
+            "Apparently similar findings may have different meanings when eligibility, measurement, follow-up, or outcome ascertainment differs. Evidence synthesis should retain those uncertainties instead of filling absent information with confident language.",
+            "Findings explicitly reported in abstracts remain separate from interpretive inference. Similar conclusion wording does not establish comparable populations, methods, or endpoints, and those differences remain part of the uncertainty.",
+            "Evidence strength must match the question a design can answer. Association, model discrimination, procedural feasibility, and patient outcomes occupy different levels and are not interchangeable clinical claims.",
+            "Eligibility, bias control, missing-data handling, and subgroup analyses that are absent from abstracts remain unknown. Titles, journals, and adjacent studies cannot supply those missing facts.",
+            "A cross-study synthesis should check provenance, measurement, comparators, and observation windows together. Agreement in direction is more informative only when those elements are sufficiently comparable."
           ],
           limitations: [
             "The verified boundary for this section is public metadata and abstracts. Eligibility details, statistical specifications, missing-data handling, subgroup analyses, and sensitivity analyses that are absent from an abstract still require full-text review and cannot be reconstructed from titles, journals, or adjacent studies.",
