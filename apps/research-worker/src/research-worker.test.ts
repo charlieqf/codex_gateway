@@ -393,6 +393,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "transport-body-near-minimum",
       "bounded_shard_transport_retry_completed"
     ],
+    [
+      "introduction-safety",
+      "bounded_introduction_correction_completed"
+    ],
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     [
@@ -629,6 +633,18 @@ describe("Research Worker controlled-beta workflow", () => {
                       "## Introduction\n\nShort English introduction."
                   }
                 }
+                : retryKind === "introduction-safety"
+                  ? {
+                      review: {
+                        ...foundationFragment.review,
+                        markdown: skillFoundationFragment(
+                          24
+                        ).replaceAll(
+                          "所引公开摘要证据",
+                          "所引999999公开摘要证据"
+                        )
+                      }
+                    }
                 : retryKind === "skill-normalization"
                   ? {
                       review: {
@@ -960,6 +976,13 @@ describe("Research Worker controlled-beta workflow", () => {
                           initialBodyQuestions,
                         answers: initialBodyAnswers
                       })
+                  : retryKind === "introduction-safety"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_review_fragment.v1",
+                        markdown:
+                          closedIntroductionSupplementFoundationFragment()
+                      })
                   : retryKind === "contract-short-abstract"
                     ? JSON.stringify({
                         review: {
@@ -1193,6 +1216,14 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "review_truncated_numeric_prose"
+      );
+    }
+    if (retryKind === "introduction-safety") {
+      expect(retryPrompt).toContain(
+        "BOUNDED INTRODUCTION EVIDENCE-CLOSURE CORRECTION"
+      );
+      expect(retryPrompt).toContain(
+        "Numeric citation markers such as [1] are the only allowed digits"
       );
     }
     const stored = fixture.store.getRunResultForSubject(

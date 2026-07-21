@@ -2551,7 +2551,7 @@ async function generateAndValidateShardedModelOutput(
     );
     return null;
   }
-  const acceptedFoundationFragment = foundationFragment;
+  let acceptedFoundationFragment = foundationFragment;
   let acceptedMiddleFragment = middleFragment;
   let acceptedClosingFragment = closingFragment;
   const assembleDraft = (): DoctorResearchModelDraft => ({
@@ -2632,6 +2632,24 @@ async function generateAndValidateShardedModelOutput(
     !shardSkillContractRetryCompleted &&
     !qaContractRetryRequired &&
     validation.errorCodes.includes("review_content_minimum");
+  const deterministicSafetyPreview = validateGeneratedOutput(
+    JSON.stringify(assembledDraft),
+    context.run,
+    identity,
+    evidence,
+    context.input.policy,
+    { deterministicSafetyNormalization: true }
+  );
+  const introductionCorrectionRequired =
+    !shardTransportRetryCompleted &&
+    !shardContractRetryCompleted &&
+    !shardSkillContractRetryCompleted &&
+    !qaContractRetryRequired &&
+    !reviewContentCorrectionRequired &&
+    !deterministicSafetyPreview.ok &&
+    deterministicSafetyPreview.errorCodes.includes(
+      "review_introduction_minimum"
+    );
   const reviewContentCount =
     context.run.language === "zh-CN"
       ? countHanCharacters(assembledDraft.review.markdown)
@@ -2693,14 +2711,30 @@ async function generateAndValidateShardedModelOutput(
           system: doctorResearchFragmentSystemPolicy,
           prompt: reviewContentCorrectionPrompt
         });
+  const introductionCorrectionPromise =
+    introductionCorrectionRequired
+      ? context.generateModel({
+          stage: "synthesize_review",
+          attempt: 4,
+          system: doctorResearchFragmentSystemPolicy,
+          prompt: buildIntroductionCorrectionPrompt({
+            run: context.run,
+            evidence: foundationEvidence,
+            medicalSkillBundle
+          })
+        })
+      : null;
   const boundedCorrectionPromise =
-    qaContractRetryPromise ?? reviewContentCorrectionPromise;
+    qaContractRetryPromise ??
+    reviewContentCorrectionPromise ??
+    introductionCorrectionPromise;
   const peerReviewAttempt =
     shardTransportRetryCompleted ||
     shardContractRetryCompleted ||
     shardSkillContractRetryCompleted ||
     qaContractRetryRequired ||
-    reviewContentCorrectionRequired
+    reviewContentCorrectionRequired ||
+    introductionCorrectionRequired
       ? 5
       : 4;
   const peerReviewPromise = context.generateModel({
@@ -2718,6 +2752,7 @@ async function generateAndValidateShardedModelOutput(
   });
   let correctedQaResponse: ResearchModelResponse | null = null;
   let correctedReviewResponse: ResearchModelResponse | null = null;
+  let correctedIntroductionResponse: ResearchModelResponse | null = null;
   let peerReviewResponse: ResearchModelResponse | null = null;
   let peerReviewUnavailableFallbackApplied = false;
   if (boundedCorrectionPromise) {
@@ -2731,8 +2766,10 @@ async function generateAndValidateShardedModelOutput(
     }
     if (qaContractRetryPromise) {
       correctedQaResponse = correctionResult.value;
-    } else {
+    } else if (reviewContentCorrectionPromise) {
       correctedReviewResponse = correctionResult.value;
+    } else {
+      correctedIntroductionResponse = correctionResult.value;
     }
     if (peerReviewResult.status === "fulfilled") {
       peerReviewResponse = peerReviewResult.value;
@@ -2758,6 +2795,7 @@ async function generateAndValidateShardedModelOutput(
   }
   let qaContractRetryCompleted = false;
   let reviewContentCorrectionCompleted = false;
+  let introductionCorrectionCompleted = false;
   if (correctedQaResponse) {
     const correctedQaFragment = parseQaFragment(
       correctedQaResponse.text
@@ -2813,6 +2851,52 @@ async function generateAndValidateShardedModelOutput(
       ].join("\n\n")
     };
     reviewContentCorrectionCompleted = true;
+    assembledDraft = assembleDraft();
+    validation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    if (!validation.ok) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        validation.errorCodes
+      );
+    }
+  }
+  if (correctedIntroductionResponse) {
+    const correctedIntroductionFragment = parseReviewFragment(
+      correctedIntroductionResponse.text
+    );
+    const correctionErrors = correctedIntroductionFragment
+      ? validateIntroductionCorrectionFragment(
+          correctedIntroductionFragment,
+          context.run.language
+        )
+      : ["introduction_fragment_contract_error"];
+    if (
+      !correctedIntroductionFragment ||
+      correctionErrors.length > 0
+    ) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        4,
+        correctionErrors.map((error) => error.split(":", 1)[0]!),
+        correctionErrors
+      );
+      return null;
+    }
+    acceptedFoundationFragment = {
+      ...acceptedFoundationFragment,
+      review: {
+        ...acceptedFoundationFragment.review,
+        markdown: correctedIntroductionFragment.markdown
+      }
+    };
+    introductionCorrectionCompleted = true;
     assembledDraft = assembleDraft();
     validation = validateGeneratedOutput(
       JSON.stringify(assembledDraft),
@@ -2898,6 +2982,9 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(reviewContentCorrectionCompleted
           ? ["bounded_review_content_correction_completed"]
+          : []),
+        ...(introductionCorrectionCompleted
+          ? ["bounded_introduction_correction_completed"]
           : [])
       ]
     };
@@ -3071,6 +3158,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(reviewContentCorrectionCompleted
         ? ["bounded_review_content_correction_completed"]
+        : []),
+      ...(introductionCorrectionCompleted
+        ? ["bounded_introduction_correction_completed"]
         : []),
       ...(peerReview.replacements.length > 0 &&
       !peerReviewPatchFallbackApplied
@@ -3410,6 +3500,57 @@ function buildReviewFragmentPrompt(input: {
     })}`,
     `Closed server-verified evidence for this fragment: ${JSON.stringify(
       publications
+    )}`
+  ].join("\n\n");
+}
+
+function buildIntroductionCorrectionPrompt(input: {
+  run: ResearchRunRecord;
+  evidence: WorkflowEvidence;
+  medicalSkillBundle: MedicalSkillBundle;
+}): string {
+  const publicationEvidenceByReferenceId = new Map(
+    input.evidence.publicationEvidence.map((publication) => [
+      publication.reference_id,
+      publication
+    ])
+  );
+  const verifiedPublications = input.evidence.references.map(
+    (reference, index) => {
+      const publication = publicationEvidenceByReferenceId.get(
+        reference.reference_id
+      );
+      return {
+        citation: index + 1,
+        reference_id: reference.reference_id,
+        title: reference.title,
+        journal: reference.journal,
+        publication_year: reference.publication_year,
+        pmid: reference.pmid,
+        doi: reference.doi,
+        authors: publication?.authors ?? [],
+        abstract: publication?.abstract ?? null
+      };
+    }
+  );
+  return [
+    compactMedicalSkillExecutionContract(input.medicalSkillBundle),
+    "BOUNDED INTRODUCTION EVIDENCE-CLOSURE CORRECTION",
+    "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_review_fragment.v1\",\"markdown\":\"...\"}.",
+    input.run.language === "zh-CN"
+      ? "markdown 必须只包含一个二级标题“## 引言”及其正式学术综述引言，不少于 800 个汉字，写成 4 至 6 个完整且递进的自然段，并以转入主题正文的句子结束。"
+      : "markdown must contain only one level-two heading, “## Introduction”, followed by a formal review introduction of at least 800 words in four to six complete progressive paragraphs that ends by leading into the thematic body.",
+    "The earlier introduction became empty only after deterministic evidence closure. Recreate the introduction from the supplied verified abstracts; do not return an abstract, evidence table, thematic section, questions, answers, limitations, conclusion, references, or search report.",
+    "Use every supplied reference at least once with its listed numeric citation and put at least one applicable citation in every paragraph.",
+    "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
+    "Compare research questions, populations, designs, methods, outcomes, evidence strength, and unresolved issues only qualitatively. Do not infer facts missing from an abstract and do not use causal wording for observational evidence.",
+    "Do not emit raw HTML, Markdown links, Markdown images, URLs, placeholders, a reference list, or a search report.",
+    `Doctor and research context: ${JSON.stringify({
+      doctor: input.run.input.doctor,
+      search_queries: input.evidence.searchQueries
+    })}`,
+    `Closed server-verified evidence: ${JSON.stringify(
+      verifiedPublications
     )}`
   ].join("\n\n");
 }
@@ -3879,6 +4020,39 @@ function validateClosingFragmentSkillContract(
   }
   errors.push(
     ...validateReviewProseIntegrity(fragment.markdown, language)
+  );
+  return [...new Set(errors)];
+}
+
+function validateIntroductionCorrectionFragment(
+  fragment: ReviewFragment,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  const sections = parseSkillReviewSections(fragment.markdown);
+  if (
+    sections.length !== 1 ||
+    sections[0]?.kind !== "introduction"
+  ) {
+    errors.push("introduction_fragment_section_contract");
+  }
+  const content = sections[0]
+    ? countReviewLanguageContent(sections[0].body, language)
+    : 0;
+  if (content < 800) {
+    errors.push(`introduction_fragment_minimum:${content}/800`);
+  }
+  if (
+    extractNarrativeNumericTokens(fragment.markdown).length > 0
+  ) {
+    errors.push("introduction_fragment_narrative_number");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(fragment.markdown, language),
+    ...validateCompleteReviewPresentationIntegrity(
+      fragment.markdown,
+      language
+    )
   );
   return [...new Set(errors)];
 }

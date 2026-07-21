@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.40` together with the
+The production Worker uses frozen execution contract `1.6.41` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.40` splits synthesis into three bounded independent
+For latency, execution `1.6.41` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -98,6 +98,14 @@ model already supplied at least 75% of the Skill's 600-character floor and the
 section contains verified citations. It can add only pre-reviewed
 evidence-boundary prose tied to those same citations; a shorter or uncited
 topic still fails closed.
+
+Before spending the medical Skill's peer-review call, the Worker previews the
+same deterministic evidence closure used by the unavailable-peer fallback. If
+that closure would remove the complete introduction while the original
+fragment passed its Skill floor, one bounded correction call runs concurrently
+with peer review. It regenerates only the introduction from the five verified
+foundation abstracts, forbids narrative numbers, retains the 800-character
+floor, and does not alter any medical-team Skill text or any thematic section.
 
 The Worker projects only the required fields from model fragment envelopes and
 accepts a closing fragment returned directly as bounded Markdown. This
