@@ -2402,6 +2402,19 @@ async function generateAndValidateShardedModelOutput(
       shardSkillNormalizationWarnings.push(warning);
     }
   }
+  const deduplicatedMiddle = deduplicateReviewParagraphs(
+    middleFragment.markdown,
+    context.run.language
+  );
+  middleFragment = {
+    ...middleFragment,
+    markdown: deduplicatedMiddle.markdown
+  };
+  if (deduplicatedMiddle.changed) {
+    shardSkillNormalizationWarnings.push(
+      "deterministic_body_duplicate_paragraph_removed"
+    );
+  }
   const normalizedMiddle = supplementNearMinimumBodySections(
     middleFragment,
     context.run.language
@@ -2500,6 +2513,24 @@ async function generateAndValidateShardedModelOutput(
       if (!shardSkillNormalizationWarnings.includes(warning)) {
         shardSkillNormalizationWarnings.push(warning);
       }
+    }
+    const deduplicatedRetryMiddle = deduplicateReviewParagraphs(
+      middleFragment.markdown,
+      context.run.language
+    );
+    middleFragment = {
+      ...middleFragment,
+      markdown: deduplicatedRetryMiddle.markdown
+    };
+    if (
+      deduplicatedRetryMiddle.changed &&
+      !shardSkillNormalizationWarnings.includes(
+        "deterministic_body_duplicate_paragraph_removed"
+      )
+    ) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_body_duplicate_paragraph_removed"
+      );
     }
     const normalizedRetryMiddle = supplementNearMinimumBodySections(
       middleFragment,

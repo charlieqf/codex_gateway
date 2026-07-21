@@ -493,6 +493,8 @@ describe("Research Worker controlled-beta workflow", () => {
     foundation.review.keywords = ["证据综合", "研究设计", "方法学"];
     const crossShardNumericParagraph =
       "该分片错误写入2025例无法闭合的数字陈述，跨分片共用的公开摘要边界说明仅用于界定证据范围。[1]";
+    const duplicateBodyParagraph =
+      "这一完整段落只比较所引公开摘要中的研究设计、样本来源、方法路径、观察终点、证据强度与适用边界，并明确摘要证据不能替代全文评价，也不能据此推断普遍临床因果关系。[1]";
     const unsafeSectionPaddingSentence =
       "该段错误写入2025例无法由所引摘要闭合的样本陈述，同时扩展未核验的结局解释与适用范围";
     const sectionBoundaryClosingFragment = [
@@ -672,6 +674,12 @@ describe("Research Worker controlled-beta workflow", () => {
                 retryKind === "peer-convergence"
                   ? convergenceBody
                   : skillBodyFragment(20),
+                ...(retryKind === "transport"
+                  ? [
+                      duplicateBodyParagraph,
+                      duplicateBodyParagraph
+                    ]
+                  : []),
                 ...(retryKind === "peer-timeout"
                   ? [
                     crossShardNumericParagraph,
@@ -1566,6 +1574,16 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toBe(true);
       expect(result.quality.warnings).toContain(
         "deterministic_body_section_boundary_supplement_applied"
+      );
+    }
+    if (retryKind === "transport") {
+      expect(
+        result.review.markdown.match(
+          /这一完整段落只比较所引公开摘要中的研究设计/gu
+        )
+      ).toHaveLength(1);
+      expect(result.quality.warnings).toContain(
+        "deterministic_body_duplicate_paragraph_removed"
       );
     }
     if (retryKind === "transport-skill") {
