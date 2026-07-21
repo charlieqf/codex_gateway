@@ -1390,6 +1390,20 @@ function extractPublicationSampleAndSource(
   language: ResearchRunRecord["language"],
   studyType = ""
 ): string | null {
+  for (const sentence of sentences) {
+    const screenedAndIncluded =
+      /\b([0-9][0-9,]*)\s+patients?\b[^.!?。！？]{0,240}\b([0-9][0-9,]*)\b[^.!?。！？]{0,120}\bincluded in (?:the )?analysis\b/iu.exec(
+        sentence
+      );
+    if (
+      screenedAndIncluded &&
+      screenedAndIncluded[1] !== screenedAndIncluded[2]
+    ) {
+      return language === "zh-CN"
+        ? `公开摘要报告候选队列为${screenedAndIncluded[1]}例，其中${screenedAndIncluded[2]}例纳入分析；样本来源限于所引摘要。`
+        : `The public abstract reports a source cohort of ${screenedAndIncluded[1]} patients, of whom ${screenedAndIncluded[2]} were included in the analysis.`;
+    }
+  }
   const candidates = sentences
     .map((sentence) => {
       const match =
@@ -4841,7 +4855,22 @@ function validateCompleteReviewPresentationIntegrity(
         `review_orphaned_prose_start:paragraph=${index + 1}`
       );
     }
-    if (/(?:^|[。！？]\s*)该系统/u.test(trimmed)) {
+    if (
+      /(?:^|[。！？]\s*)该系统/u.test(trimmed) ||
+      /^该(?:个案|病例|发现|结果|趋势)/u.test(trimmed)
+    ) {
+      errors.push(
+        `review_orphaned_demonstrative_start:paragraph=${index + 1}`
+      );
+    }
+    if (
+      /(?:^|[。！？]\s*)(?:(?:但|然而|不过)[，,\s]*)?[^。！？]{0,48}(?:回归|分析|检验)[^。！？]{0,48}(?:确认|支持|提示)(?:了)?该关联[。！？]/u.test(
+        trimmed
+      ) ||
+      /(?:^|[。！？]\s*)(?:但|然而|不过)[，,\s]*该(?:趋势|结果|发现|关联)[^。！？]*[。！？]/u.test(
+        trimmed
+      )
+    ) {
       errors.push(
         `review_orphaned_demonstrative_start:paragraph=${index + 1}`
       );
@@ -6831,6 +6860,14 @@ function normalizeFinalModelOutputForSafety(
     }
     return value
       .replace(
+        /(^|[。！？]\s*)[^。！？]{0,48}(?:回归|分析|检验)[^。！？]{0,48}(?:确认|支持|提示)(?:了)?该关联[。！？]/gu,
+        "$1"
+      )
+      .replace(
+        /(^|[。！？]\s*)(?:但|然而|不过)[，,\s]*该(?:趋势|结果|发现|关联)[^。！？]*[。！？]/gu,
+        "$1"
+      )
+      .replace(
         /^(\s*)(?:但|然而|不过)\s*该(?:项)?研究/gu,
         "$1相关研究"
       )
@@ -6845,6 +6882,14 @@ function normalizeFinalModelOutputForSafety(
       .replace(
         /(^|[。！？]\s*)该系统/gu,
         "$1所引研究中的器械系统"
+      )
+      .replace(
+        /^(\s*)该(?:个案|病例)/gu,
+        "$1所引病例"
+      )
+      .replace(
+        /^(\s*)该(?:发现|结果|趋势)/gu,
+        "$1所引研究的发现"
       )
       .replace(
         /(^|[。！？]\s*)(在[^。！？]{2,48}方面，)(较[^。！？]{4,120}(?:减少|增加|降低|提高))/gu,
@@ -7360,12 +7405,23 @@ function stripTrailingQuestionAnswerReviewTail(
     return value;
   }
   const conclusionTail = value.slice(conclusion.index);
+  const separator = /(?:^|\r?\n)\s*---\s*(?=\r?\n|$)/mu.exec(
+    conclusionTail
+  );
+  if (separator?.index !== undefined) {
+    return [
+      value.slice(0, conclusion.index),
+      conclusionTail.slice(0, separator.index)
+    ]
+      .join("")
+      .trimEnd();
+  }
   const answerMarker =
     language === "zh-CN"
-      ? /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:答|答案)\s*[：:]/gmu
-      : /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:answer|a)\s*[.:：]/gimu;
+      ? /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:答|答案|回答)\s*[0-9一二三四五六七八九十]*\s*[：:]/gmu
+      : /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:answer|a)\s*[0-9]*\s*[.:：]/gimu;
   const answerMatches = [...conclusionTail.matchAll(answerMarker)];
-  if (answerMatches.length < 2) {
+  if (answerMatches.length < 1) {
     return value;
   }
 
@@ -7451,11 +7507,40 @@ function closeReviewReferenceCitations(input: {
     input.language === "zh-CN"
       ? "为保持纳入证据与参考文献编号闭合，以下编号仅表示相应文献已进入本综述的公开元数据和摘要级证据集；对公开摘要未披露的信息不作推断。"
       : "To close the included evidence set against the reference numbering, the following identifiers mean only that the corresponding records are part of the verified public metadata and abstract-level evidence set; no inference is made about information absent from the public abstracts.";
+  const boundaryParagraph = `${evidenceBoundary} [${missing.join(",")}]`;
+  const sections = parseSkillReviewSections(input.markdown);
+  const targetIndex = sections.findIndex(
+    (section) => section.kind === "synthesis"
+  );
+  const fallbackIndex = sections.findIndex(
+    (section) => section.kind === "conclusion"
+  );
+  const insertionIndex = targetIndex >= 0 ? targetIndex : fallbackIndex;
+  if (
+    insertionIndex >= 0 &&
+    sections.every((section) => section.heading !== "")
+  ) {
+    return {
+      markdown: sections
+        .map((section, index) => ({
+          ...section,
+          body:
+            index === insertionIndex
+              ? [section.body.trim(), boundaryParagraph]
+                  .filter(Boolean)
+                  .join("\n\n")
+              : section.body
+        }))
+        .map(
+          (section) =>
+            `## ${section.heading}\n\n${section.body.trim()}`
+        )
+        .join("\n\n"),
+      changed: true
+    };
+  }
   return {
-    markdown: [
-      input.markdown.trim(),
-      `${evidenceBoundary} [${missing.join(",")}]`
-    ]
+    markdown: [input.markdown.trim(), boundaryParagraph]
       .filter(Boolean)
       .join("\n\n"),
     changed: true
@@ -7753,11 +7838,11 @@ function supplementReviewEvidenceBoundary(input: {
           "Consistency across papers must be interpreted with methods and provenance, not conclusion wording alone. Sampling, selection bias, measurement, and endpoint definitions can change the meaning of apparently similar findings.",
           "Future work should turn abstract-level signals into auditable questions through prospective, external, real-world, mechanistic, and patient-outcome validation without presuming their results."
         ];
-  const paragraphs = [input.markdown];
+  const paragraphs: string[] = [];
   let supplemented = 0;
   for (
     let index = 0;
-    count(paragraphs.join("\n\n")) < input.minimumContent &&
+    count(input.markdown) + supplemented < input.minimumContent &&
     supplemented < maximumSupplement &&
     index < templates.length;
     index += 1
@@ -7773,9 +7858,39 @@ function supplementReviewEvidenceBoundary(input: {
     paragraphs.push(paragraph);
     supplemented += paragraphContent;
   }
+  if (paragraphs.length === 0) {
+    return { markdown: input.markdown, changed: false };
+  }
+  const sections = parseSkillReviewSections(input.markdown);
+  const insertionIndex = sections.findIndex(
+    (section) => section.kind === "synthesis"
+  );
+  if (
+    insertionIndex >= 0 &&
+    sections.every((section) => section.heading !== "")
+  ) {
+    return {
+      markdown: sections
+        .map((section, index) => ({
+          ...section,
+          body:
+            index === insertionIndex
+              ? [section.body.trim(), ...paragraphs]
+                  .filter(Boolean)
+                  .join("\n\n")
+              : section.body
+        }))
+        .map(
+          (section) =>
+            `## ${section.heading}\n\n${section.body.trim()}`
+        )
+        .join("\n\n"),
+      changed: true
+    };
+  }
   return {
-    markdown: paragraphs.join("\n\n"),
-    changed: paragraphs.length > 1
+    markdown: [input.markdown, ...paragraphs].join("\n\n"),
+    changed: true
   };
 }
 
@@ -8032,7 +8147,13 @@ function normalizeAnswerEvidenceAlignment(
     .normalize("NFKC")
     .replace(/\s+/gu, " ")
     .toLowerCase();
-  if (/(?:有效率|成功率|治疗效果|疗效)/u.test(question)) {
+  const asksReportedTreatmentEffect =
+    /(?:有效率|成功率|治疗(?:的)?效果|疗效)/u.test(question) ||
+    (
+      /效果/u.test(question) &&
+      /(?:AVP|Amplatzer|内漏|栓塞)/iu.test(question)
+    );
+  if (asksReportedTreatmentEffect) {
     const metricClauses: string[] = [];
     const rateMetrics = [
       [
@@ -8055,7 +8176,7 @@ function normalizeAnswerEvidenceAlignment(
         metricClauses.push(`${label}为${rate}`);
       }
     }
-    if (/(?:有效率|治疗效果|疗效)/u.test(question)) {
+    if (asksReportedTreatmentEffect) {
       const shrinkage =
         /\bmean (?:fl|false lumen) shrinkage was ([0-9]+(?:\.[0-9]+)?)\s*(?:±|\+\/-)\s*([0-9]+(?:\.[0-9]+)?)\s*%/u.exec(
           evidence
@@ -8081,7 +8202,10 @@ function normalizeAnswerEvidenceAlignment(
         .join(" ");
     }
   }
-  if (/(?:通畅率|通畅性)/u.test(question)) {
+  if (
+    /(?:通畅率|通畅性)/u.test(question) ||
+    (/\biCover\b/iu.test(question) && /\biCover\b/iu.test(evidence))
+  ) {
     const patencyMetrics = [
       [
         "靶血管通畅率",

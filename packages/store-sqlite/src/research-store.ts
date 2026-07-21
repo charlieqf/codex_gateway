@@ -367,7 +367,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         mode: "brief",
         skill: {
           name: "doctor-research-query",
-          version: "1.6.53"
+          version: "1.6.54"
         },
         created_at: timestamp,
         status_url: `${createRunEndpoint}/${runId}`,
@@ -381,8 +381,8 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
             mode, language, input_json, status, stage, progress_percent,
             warning_codes_json, queued_at, created_at, updated_at
           ) VALUES (
-            ?, ?, ?, 'doctor-research-query', '1.6.53',
-            'doctor-research-prompt.v26', 'doctor_research_run_input.v2',
+            ?, ?, ?, 'doctor-research-query', '1.6.54',
+            'doctor-research-prompt.v27', 'doctor_research_run_input.v2',
             'doctor_research_result.v1', ?, ?, ?, 'queued', 'validate_input',
             0, '[]', ?, ?, ?
           )`
