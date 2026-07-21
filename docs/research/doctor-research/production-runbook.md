@@ -7,34 +7,73 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-19, the public Gateway runs runtime commit
-`857d45330081adbb3f46a942b78a413349b51a5e` from:
+As of 2026-07-21, the public Azure Gateway, Research Worker and maintenance
+service run commit `f91ff78a0812f7e5fe7eb09a0230df53e5732aa1` from:
 
 ```text
-/home/qian/codex-gateway-release-857d453-20260719T134615Z
+/home/qian/codex-gateway-release-f91ff78-20260721T101407Z
 ```
 
-This Gateway-only recreation added validated recovery for a fully serialized
-`[assistant tool_calls]` response without adding another provider attempt.
-The internal direct-GLM Gateway, Worker and maintenance containers were not
-recreated; their container identities and start times remained unchanged.
-All four switches remain enabled after their gates passed, and all four
-containers are healthy with zero restarts. Production run
-`drr_3d65d1ca83c34eee883679cea27fd116` succeeded and public HTTPS returned
-exactly three Markdown artifacts plus one five-line text artifact with
-manifest-matching hashes.
-
-The current online database backup and Gateway rollback image are:
+The execution contract is `1.6.58`, with prompt `v27`, validation contract
+`v39` and workflow `doctor_research_workflow.v52`. The public Gateway remains
+bound only to `127.0.0.1:18787`; the internal LLM Gateway was not recreated.
+The ordinary public surface still exposes the exact eight-model registry.
+Build, all 531 Vitest tests and all 23 Python tests passed before deployment.
+The medical-team Skill directory has no Git diff and its deployed four-file
+bundle SHA-256 remains:
 
 ```text
-/home/qian/codex-gateway-backups/857d453/20260719T134822Z
-codex_gateway_test-gateway:rollback-857d453-20260719T134822Z
+6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
 ```
 
-Both SQLite backups passed integrity checks with zero foreign-key violations.
-The pre-Research clean release
-`/home/qian/codex-gateway-release-ccccf1c-20260718T031500Z` remains retained
-as the older compatibility boundary.
+The API is enabled for a restricted, named-user production trial, but this
+release has **not** passed strict four-artifact production acceptance. Two
+public-HTTPS release runs remained below the ten-minute ceiling but failed
+closed without publishing partial artifacts:
+
+- `drr_9f7bb667522046389ef4579805b8fda4` ran from
+  `2026-07-21T10:18:56.718Z` to `10:25:51.134Z` (414.416 seconds) and ended
+  `upstream_unavailable` after required GoldenCode/GLM-5.2 generation calls
+  did not return. The Worker then performed its deliberate dependency-failure
+  restart and returned healthy.
+- `drr_25f189a126d54b6c9e0979495225215e` ran from
+  `2026-07-21T10:27:43.049Z` to `10:35:12.100Z` (449.051 seconds). Two
+  synthesis shards returned in approximately 77 and 108 seconds; another
+  attempt received an upstream HTTP 500 `Batch backend error`. The final
+  peer output was rejected as `model_contract_error` because one reviewed
+  topic section was `328/600` characters. All other final validation errors
+  had been closed.
+
+Do not describe `1.6.58` as fully accepted and do not broaden access beyond
+approved named trial users until a fresh real run succeeds, returns exactly
+three Markdown files and one five-line text file, all manifest hashes match,
+and the four downloaded contents pass manual review. The current behavior is
+intentionally fail-closed: users may receive a terminal upstream or model
+contract error rather than unsupported medical content.
+
+The only retained online database backup and the current rollback image tags
+are:
+
+```text
+/home/qian/codex-gateway-backups/f91ff78/20260721T101407Z
+codex_gateway_test-gateway:rollback-644d566-20260721T101407Z
+codex_gateway_test-research-worker:rollback-644d566-20260721T101407Z
+codex_gateway_test-research-maintenance:rollback-644d566-20260721T101407Z
+```
+
+All three SQLite backups passed integrity and foreign-key checks. Their
+SHA-256 values are:
+
+```text
+gateway.db       77e25be2be71aff63b10a95ba7197d5e68a4351301fa5f793bd58326052a953f
+client-events.db 8af7bd9ddec088e6ec4f03cf2ca0528c629c242b3fd899470e88e76d0e609a9b
+research.db      f66af06e1f9935b964ea5d6d6c0bf9d4781bbf3a4768ac81f3bec4c2204ad4fb
+```
+
+The superseded `644d566` database backup was deleted only after those hashes,
+the new release and service health were verified. Historical source releases
+and the pre-Research compatibility boundary remain separate from database
+backup retention.
 
 The separate backup volume is encrypted at rest by the Azure managed-disk
 platform and has passed a networkless scratch-volume restore drill. It is on
