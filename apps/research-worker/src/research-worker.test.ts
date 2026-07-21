@@ -394,6 +394,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_closing_transport_fallback_applied"
     ],
     [
+      "transport-middle-and-closing",
+      "deterministic_closing_transport_fallback_applied"
+    ],
+    [
       "transport-body-near-minimum",
       "bounded_shard_transport_retry_completed"
     ],
@@ -842,6 +846,29 @@ describe("Research Worker controlled-beta workflow", () => {
             })
       ]
     ]);
+    const shardRoleForPrompt = (
+      prompt: string
+    ): 1 | 2 | 3 | null => {
+      if (
+        prompt.includes("doctor_research_foundation_fragment.v3")
+      ) {
+        return 1;
+      }
+      if (prompt.includes("doctor_research_body_fragment.v1")) {
+        return 2;
+      }
+      if (prompt.includes("doctor_research_review_fragment.v1")) {
+        return 3;
+      }
+      return null;
+    };
+    const shardFragmentForPrompt = (prompt: string): string => {
+      const role = shardRoleForPrompt(prompt);
+      if (role === null) {
+        throw new Error("Expected a synthesis shard prompt.");
+      }
+      return fragments.get(role)!;
+    };
     let activeSynthesisCalls = 0;
     let maximumActiveSynthesisCalls = 0;
     let releaseBarrier: (() => void) | null = null;
@@ -852,6 +879,10 @@ describe("Research Worker controlled-beta workflow", () => {
     const admissionBarrier = new Promise<void>((resolve) => {
       releaseAdmissionBarrier = resolve;
     });
+    let releaseMiddleFailureBarrier: (() => void) | null = null;
+    const middleFailureBarrier = new Promise<void>((resolve) => {
+      releaseMiddleFailureBarrier = resolve;
+    });
     let acceptedAdmissionCallCompleted = false;
     let thirdShardStartedAfterAdmissionCompletion = false;
     let activeCorrectionCalls = 0;
@@ -861,6 +892,7 @@ describe("Research Worker controlled-beta workflow", () => {
       releaseCorrectionBarrier = resolve;
     });
     const attempts: number[] = [];
+    const modelCalls: string[] = [];
     const synthesisPrompts = new Map<number, string>();
     const synthesisOutputTokenLimits = new Map<number, number | undefined>();
     let retryPrompt: string | null = null;
@@ -877,20 +909,67 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate(modelInput) {
           attempts.push(modelInput.attempt);
-          if (modelInput.attempt <= 3) {
+          modelCalls.push(
+            `${modelInput.stage}:${modelInput.attempt}:${
+              modelInput.prompt.includes(
+                "doctor_research_body_fragment.v1"
+              )
+                ? "body"
+                : modelInput.prompt.includes(
+                      "doctor_research_foundation_fragment.v3"
+                    )
+                  ? "foundation"
+                  : "closing"
+            }`
+          );
+          const shardRole = shardRoleForPrompt(modelInput.prompt);
+          if (
+            modelInput.stage === "synthesize_review" &&
+            shardRole !== null &&
+            !synthesisPrompts.has(shardRole)
+          ) {
             synthesisOutputTokenLimits.set(
-              modelInput.attempt,
+              shardRole,
               modelInput.maximumOutputTokens
             );
-            synthesisPrompts.set(
-              modelInput.attempt,
-              modelInput.prompt
-            );
+            synthesisPrompts.set(shardRole, modelInput.prompt);
+          }
+          if (modelInput.attempt <= 3) {
             activeSynthesisCalls += 1;
             maximumActiveSynthesisCalls = Math.max(
               maximumActiveSynthesisCalls,
               activeSynthesisCalls
             );
+            if (retryKind === "transport-middle-and-closing") {
+              if (modelInput.attempt === 1) {
+                activeSynthesisCalls -= 1;
+                return {
+                  text: fragments.get(1)!,
+                  gatewayRequestId:
+                    "req_sharded_middle_closing_foundation",
+                  usage: {
+                    promptTokens: 100,
+                    completionTokens: 1_000,
+                    totalTokens: 1_100
+                  }
+                };
+              }
+              if (modelInput.attempt === 2) {
+                await middleFailureBarrier;
+                activeSynthesisCalls -= 1;
+                throw new DOMException(
+                  "Body shard timed out.",
+                  "TimeoutError"
+                );
+              }
+              activeSynthesisCalls -= 1;
+              setImmediate(() => releaseMiddleFailureBarrier?.());
+              throw new ResearchModelClientError(
+                "upstream_error",
+                503,
+                "req_sharded_middle_closing_initial"
+              );
+            }
             if (retryKind === "admission") {
               if (modelInput.attempt === 1) {
                 await admissionBarrier;
@@ -919,7 +998,7 @@ describe("Research Worker controlled-beta workflow", () => {
                 acceptedAdmissionCallCompleted;
               activeSynthesisCalls -= 1;
               return {
-                text: fragments.get(3)!,
+                text: shardFragmentForPrompt(modelInput.prompt),
                 gatewayRequestId: "req_sharded_admission_3",
                 usage: {
                   promptTokens: 100,
@@ -969,7 +1048,10 @@ describe("Research Worker controlled-beta workflow", () => {
               };
             }
             return {
-              text: fragments.get(modelInput.attempt)!,
+              text:
+                retryKind === "transport"
+                  ? shardFragmentForPrompt(modelInput.prompt)
+                  : fragments.get(modelInput.attempt)!,
               gatewayRequestId: `req_sharded_${modelInput.attempt}`,
               usage: {
                 promptTokens: 100,
@@ -1136,6 +1218,31 @@ describe("Research Worker controlled-beta workflow", () => {
             );
           }
           if (
+            retryKind === "transport-middle-and-closing" &&
+            modelInput.attempt === 4
+          ) {
+            return {
+              text: fragments.get(2)!,
+              gatewayRequestId:
+                "req_sharded_middle_closing_body_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          if (
+            retryKind === "transport-middle-and-closing" &&
+            modelInput.attempt === 5
+          ) {
+            throw new ResearchModelClientError(
+              "upstream_error",
+              503,
+              "req_sharded_middle_closing_final"
+            );
+          }
+          if (
             retryKind === "transport-double" &&
             modelInput.attempt === 5 &&
             modelInput.stage === "synthesize_review"
@@ -1155,8 +1262,9 @@ describe("Research Worker controlled-beta workflow", () => {
             retryPrompt = modelInput.prompt;
             return {
               text:
-                retryKind === "transport"
-                  ? JSON.stringify(foundationFragment)
+                retryKind === "transport" ||
+                retryKind === "admission"
+                  ? shardFragmentForPrompt(modelInput.prompt)
                   : retryKind === "transport-body-near-minimum"
                     ? JSON.stringify({
                         schema_version:
@@ -1235,8 +1343,6 @@ describe("Research Worker controlled-beta workflow", () => {
                             true
                           )
                         })
-                  : retryKind === "admission"
-                    ? fragments.get(2)!
                   : retryKind === "contract"
                     ? fragments.get(3)!
                     : retryKind === "content" ||
@@ -1342,7 +1448,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ).toBeGreaterThan(0);
     expect(
       outcome,
-      JSON.stringify({ attempts, validationEvents })
+      JSON.stringify({ attempts, modelCalls, validationEvents })
     ).toEqual({
       outcome: "succeeded"
     });
@@ -1368,6 +1474,15 @@ describe("Research Worker controlled-beta workflow", () => {
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
+    if (retryKind === "transport-middle-and-closing") {
+      expect(modelCalls.slice(0, 5)).toEqual([
+        "synthesize_review:1:foundation",
+        "synthesize_review:2:body",
+        "synthesize_review:3:closing",
+        "synthesize_review:4:body",
+        "synthesize_review:5:closing"
+      ]);
+    }
     expect(synthesisPrompts.get(1)).toContain(
       "doctor_research_foundation_fragment.v3"
     );
@@ -1954,6 +2069,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         retryKind === "transport-skill" ||
+        retryKind === "transport-middle-and-closing" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety"
           ? "deterministic_peer_review_self_check_completed"

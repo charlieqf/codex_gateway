@@ -2365,24 +2365,34 @@ async function generateAndValidateShardedModelOutput(
       responses[settlement.index] = settlement.value;
       continue;
     }
+    const retryableShardTransportError =
+      isRetryableShardTransportError(settlement.reason);
+    if (
+      settlement.index === 2 &&
+      shardTransportRetryCount >= 1 &&
+      responses[0] !== null &&
+      responses[1] !== null &&
+      retryableShardTransportError
+    ) {
+      deterministicClosingTransportFallbackApplied = true;
+      continue;
+    }
     if (
       shardTransportRetryCount < 2 &&
       nextAttempt <= 5 &&
-      isRetryableShardTransportError(settlement.reason)
+      retryableShardTransportError
     ) {
-      if (
-        settlement.index === 2 &&
-        shardTransportRetryCount >= 1 &&
-        responses[0] !== null &&
-        responses[1] !== null
-      ) {
-        deterministicClosingTransportFallbackApplied = true;
-        continue;
-      }
       shardTransportRetryCount += 1;
       shardTransportRetryCompleted = true;
       maximumConcurrency = 1;
-      pendingIndexes.push(settlement.index);
+      if (settlement.index === 2) {
+        pendingIndexes.push(settlement.index);
+      } else {
+        // Foundation and body carry non-reconstructable model content. Put
+        // their retries ahead of the closing shard, whose three prescribed
+        // sections have an evidence-bounded deterministic fallback.
+        pendingIndexes.unshift(settlement.index);
+      }
       continue;
     }
     terminalShardError = settlement.reason;
