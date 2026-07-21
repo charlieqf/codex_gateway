@@ -4655,6 +4655,7 @@ function validateGeneratedOutput(
   };
   let deterministicSafetyNormalizationApplied = false;
   let deterministicEvidenceBoundarySupplementApplied = false;
+  let deterministicSkillSectionBoundarySupplementApplied = false;
   let deterministicCoreNumericFallbackApplied = false;
   let deterministicReferenceCitationClosureApplied = false;
   if (options.deterministicSafetyNormalization) {
@@ -4668,6 +4669,8 @@ function validateGeneratedOutput(
     deterministicSafetyNormalizationApplied = normalized.changed;
     deterministicEvidenceBoundarySupplementApplied =
       normalized.evidenceBoundarySupplemented;
+    deterministicSkillSectionBoundarySupplementApplied =
+      normalized.skillSectionBoundarySupplemented;
     deterministicCoreNumericFallbackApplied =
       normalized.coreNumericFallbackApplied;
     deterministicReferenceCitationClosureApplied =
@@ -4721,6 +4724,11 @@ function validateGeneratedOutput(
           ...(deterministicEvidenceBoundarySupplementApplied
             ? [
                 "deterministic_evidence_boundary_supplement_applied"
+              ]
+            : []),
+          ...(deterministicSkillSectionBoundarySupplementApplied
+            ? [
+                "deterministic_skill_section_boundary_supplement_applied"
               ]
             : []),
           ...(deterministicCoreNumericFallbackApplied
@@ -5940,6 +5948,7 @@ function normalizeFinalModelOutputForSafety(
   value: DoctorResearchModelOutput;
   changed: boolean;
   evidenceBoundarySupplemented: boolean;
+  skillSectionBoundarySupplemented: boolean;
   coreNumericFallbackApplied: boolean;
   referenceCitationClosureApplied: boolean;
 } {
@@ -6193,8 +6202,17 @@ function normalizeFinalModelOutputForSafety(
       normalizedParagraphs.push(paragraph);
     }
   }
+  const skillSectionClosedReview =
+    supplementReviewSkillSectionBoundaries({
+      markdown: normalizedParagraphs.join("\n\n"),
+      referenceCount: output.review.references.length,
+      language
+    });
+  if (skillSectionClosedReview.changed) {
+    changed = true;
+  }
   let supplementedReview = supplementReviewEvidenceBoundary({
-    markdown: normalizedParagraphs.join("\n\n"),
+    markdown: skillSectionClosedReview.markdown,
     referenceCount: output.review.references.length,
     language,
     minimumContent: policy.minimumReviewContent
@@ -6472,6 +6490,8 @@ function normalizeFinalModelOutputForSafety(
     value: normalizedValue,
     changed,
     evidenceBoundarySupplemented: supplementedReview.changed,
+    skillSectionBoundarySupplemented:
+      skillSectionClosedReview.changed,
     coreNumericFallbackApplied,
     referenceCitationClosureApplied: citationClosedReview.changed
   };
@@ -6604,6 +6624,113 @@ function closeReviewReferenceCitations(input: {
       .filter(Boolean)
       .join("\n\n"),
     changed: true
+  };
+}
+
+function supplementReviewSkillSectionBoundaries(input: {
+  markdown: string;
+  referenceCount: number;
+  language: ResearchRunRecord["language"];
+}): { markdown: string; changed: boolean } {
+  if (input.referenceCount <= 0) {
+    return { markdown: input.markdown, changed: false };
+  }
+  const sections = parseSkillReviewSections(input.markdown);
+  if (
+    sections.some((section) => section.heading === "") ||
+    sections.filter((section) => section.kind === "limitations")
+      .length !== 1 ||
+    sections.filter((section) => section.kind === "conclusion")
+      .length !== 1
+  ) {
+    return { markdown: input.markdown, changed: false };
+  }
+  const count = (value: string): number =>
+    countReviewLanguageContent(value, input.language);
+  const templates =
+    input.language === "zh-CN"
+      ? {
+          limitations: [
+            "本节的判断边界是已核验的公开元数据和摘要。摘要未披露的纳入细节、统计设定、缺失数据处理、亚组分析与敏感性分析仍需回到全文复核，不能由题名、期刊或相邻研究补写。",
+            "研究对象、资料来源、技术路径、终点定义与随访框架的差异会限制横向比较。即使结果方向相近，也不能在缺少同质设计和完整统计资料时直接合并效应或扩大适用人群。",
+            "观察性研究、病例资料、预测模型、技术可行性研究和临床效果研究回答的问题不同。综合时应保留证据等级差异，不把相关性、病例经验或技术成功直接解释为因果关系或普遍获益。",
+            "公开摘要可以支持可复核的证据地图，但不足以完成全文级偏倚评价。发表选择、样本选择、测量误差、结局报告不完整及外部适用性仍是不确定性来源。",
+            "后续复核应优先取得全文和补充材料，核对方案、统计方法、失访、并发症定义与长期结局。需要前瞻性研究、外部验证和独立重复来检验当前摘要层面的线索。",
+            "因此，本节保留无法由公开摘要解决的争议，不以确定语气填补证据空白。任何临床解释都应结合具体患者、完整研究资料、指南和独立专业判断。"
+          ],
+          conclusion: [
+            "综合而言，当前公开证据能够界定研究对象、方法路径和摘要明确报告的结局，但不能替代全文评价，也不足以把研究发现直接转化为常规临床建议。",
+            "结论应限定在各研究的设计、样本、终点和随访范围内，并持续区分关联、预测性能、技术可行性、病例经验与临床有效性，避免跨越证据等级。",
+            "现阶段更稳妥的用途是形成可复核的证据地图和后续问题。前瞻性验证、外部验证、完整随访和患者结局资料仍是收敛不确定性的必要条件。",
+            "具体实践仍需结合全文、患者特征、适用指南与独立临床评估；本综述不替代诊疗决策，也不对摘要未披露的信息作推断。"
+          ]
+        }
+      : {
+          limitations: [
+            "The verified boundary for this section is public metadata and abstracts. Eligibility details, statistical specifications, missing-data handling, subgroup analyses, and sensitivity analyses that are absent from an abstract still require full-text review and cannot be reconstructed from titles, journals, or adjacent studies.",
+            "Differences in populations, data provenance, technical pathways, endpoint definitions, and follow-up frameworks limit cross-study comparison. Similar directions of findings do not make effects directly combinable or justify broader applicability when designs and complete statistical information are not homogeneous.",
+            "Observational studies, case material, prediction models, feasibility studies, and clinical-effectiveness studies answer different questions. Synthesis must preserve those evidence grades and must not translate association, case experience, or technical success directly into causality or general clinical benefit.",
+            "Public abstracts can support an auditable evidence map but cannot complete a full-text risk-of-bias appraisal. Publication selection, sample selection, measurement error, incomplete outcome reporting, and external applicability therefore remain sources of uncertainty.",
+            "Further appraisal should obtain full texts and supplements and verify protocols, statistical methods, attrition, complication definitions, and longer-term outcomes. Prospective studies, external validation, and independent replication are still needed to test signals reported only at abstract level.",
+            "Accordingly, this section retains disputes that public abstracts cannot resolve and does not fill evidence gaps with confident wording. Any clinical interpretation must also consider the individual patient, complete study reports, applicable guidance, and independent professional judgment."
+          ],
+          conclusion: [
+            "Overall, the public evidence can define studied populations, methodological pathways, and outcomes explicitly reported in abstracts, but it cannot replace full-text appraisal or convert research findings directly into routine clinical recommendations.",
+            "Conclusions should remain within each study's design, sample, endpoints, and follow-up, while distinguishing association, predictive performance, technical feasibility, case experience, and clinical effectiveness so that evidence grades are not crossed.",
+            "The most defensible present use is an auditable evidence map and a set of follow-up questions. Prospective validation, external validation, complete follow-up, and patient-outcome data remain necessary to narrow uncertainty.",
+            "Practice decisions still require full texts, patient-specific factors, applicable guidance, and independent clinical assessment. This review does not replace diagnosis or treatment decisions and does not infer information omitted from public abstracts."
+          ]
+        };
+  let changed = false;
+  let templateOffset = 0;
+  const closed = sections.map((section) => {
+    if (
+      section.kind !== "limitations" &&
+      section.kind !== "conclusion"
+    ) {
+      return section;
+    }
+    const minimum = section.kind === "limitations" ? 600 : 200;
+    const minimumExisting =
+      section.kind === "limitations"
+        ? Math.ceil(minimum * 0.5)
+        : Math.ceil(minimum * 0.25);
+    if (
+      count(section.body) >= minimum ||
+      count(section.body) < minimumExisting
+    ) {
+      return section;
+    }
+    const paragraphs = [section.body.trim()].filter(Boolean);
+    const sectionTemplates = templates[section.kind];
+    for (
+      let index = 0;
+      count(paragraphs.join("\n\n")) < minimum &&
+      index < sectionTemplates.length;
+      index += 1
+    ) {
+      const start =
+        ((templateOffset + index * 5) % input.referenceCount) + 1;
+      const end = Math.min(input.referenceCount, start + 4);
+      const citation =
+        start === end ? `[${start}]` : `[${start}-${end}]`;
+      paragraphs.push(`${sectionTemplates[index]} ${citation}`);
+      changed = true;
+    }
+    templateOffset += sectionTemplates.length;
+    return {
+      ...section,
+      body: paragraphs.join("\n\n")
+    };
+  });
+  return {
+    markdown: closed
+      .map(
+        (section) =>
+          `## ${section.heading}\n\n${section.body.trim()}`
+      )
+      .join("\n\n"),
+    changed
   };
 }
 

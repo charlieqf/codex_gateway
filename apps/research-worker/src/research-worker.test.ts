@@ -426,6 +426,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "peer_review_model_unavailable_deterministic_fallback"
     ],
     [
+      "section-closure",
+      "peer_review_model_unavailable_deterministic_fallback"
+    ],
+    [
       "grace",
       "bounded_initial_shard_admission_grace_elapsed"
     ]
@@ -477,6 +481,36 @@ describe("Research Worker controlled-beta workflow", () => {
     foundation.review.keywords = ["证据综合", "研究设计", "方法学"];
     const crossShardNumericParagraph =
       "该分片错误写入2025例无法闭合的数字陈述，跨分片共用的公开摘要边界说明仅用于界定证据范围。[1]";
+    const unsafeSectionPaddingSentence =
+      "该段错误写入2025例无法由所引摘要闭合的样本陈述，同时扩展未核验的结局解释与适用范围";
+    const sectionBoundaryClosingFragment = [
+      longChineseReviewFragment(
+        "证据综合与未解争议",
+        26
+      ),
+      `## 局限性与展望\n\n${[
+        Array.from(
+          { length: 8 },
+          () =>
+            "局限性与展望部分仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制"
+        ).join("。"),
+        Array.from(
+          { length: 8 },
+          () => unsafeSectionPaddingSentence
+        ).join("。")
+      ].join("。")}。[1]`,
+      `## 结论\n\n${[
+        Array.from(
+          { length: 2 },
+          () =>
+            "结论部分仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制"
+        ).join("。"),
+        Array.from(
+          { length: 4 },
+          () => unsafeSectionPaddingSentence
+        ).join("。")
+      ].join("。")}。[1]`
+    ].join("\n\n");
     foundation.review.markdown = [
       skillFoundationFragment(
         retryKind === "content" ? 25 : 55
@@ -633,7 +667,13 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         3,
-        retryKind === "peer-timeout"
+        retryKind === "section-closure"
+          ? JSON.stringify({
+              schema_version:
+                "doctor_research_review_fragment.v1",
+              markdown: sectionBoundaryClosingFragment
+            })
+        : retryKind === "peer-timeout"
           ? JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
@@ -834,7 +874,8 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           if (
             (retryKind === "peer-timeout" ||
-              retryKind === "citation-closure") &&
+              retryKind === "citation-closure" ||
+              retryKind === "section-closure") &&
             modelInput.stage === "validate_outputs"
           ) {
             throw new DOMException(
@@ -1046,6 +1087,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "citation-closure" ||
       retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
+      retryKind === "section-closure" ||
       retryKind === "skill-normalization" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
@@ -1350,6 +1392,29 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_evidence_boundary_supplement_applied"
       );
     }
+    if (retryKind === "section-closure") {
+      const sections = result.review.markdown.split(
+        /^##\s+/gmu
+      );
+      const limitations =
+        sections.find((section) =>
+          section.startsWith("局限性与展望")
+        ) ?? "";
+      const conclusion =
+        sections.find((section) =>
+          section.startsWith("结论")
+        ) ?? "";
+      expect(
+        limitations.match(/\p{Script=Han}/gu)?.length ?? 0
+      ).toBeGreaterThanOrEqual(600);
+      expect(
+        conclusion.match(/\p{Script=Han}/gu)?.length ?? 0
+      ).toBeGreaterThanOrEqual(200);
+      expect(result.review.markdown).not.toContain("2025例");
+      expect(result.quality.warnings).toContain(
+        "deterministic_skill_section_boundary_supplement_applied"
+      );
+    }
     if (retryKind === "skill-normalization") {
       expect(result.quality.warnings).toContain(
         "deterministic_abstract_evidence_boundary_supplement_applied"
@@ -1376,6 +1441,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_core_evidence_projection_completed",
         retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
+        retryKind === "section-closure" ||
         retryKind === "peer-contract" ||
         retryKind === "skill-normalization"
           ? "peer_review_model_attempted"
