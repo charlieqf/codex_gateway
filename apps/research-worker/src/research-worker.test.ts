@@ -530,6 +530,20 @@ describe("Research Worker controlled-beta workflow", () => {
                       ? "研究支持该术式在女性中的可行性，但女性样本有限，需更多数据支持。"
                   : answer.answer
             }))
+        : retryKind === "citation-closure"
+          ? foundation.answers.map((answer, index) => ({
+              ...answer,
+              ...(index === 4
+                ? {
+                    answer:
+                      "两者均为小样本回顾性研究，尚需大规模多中心验证。",
+                    source_ids: [
+                      "src_pubmed_1001",
+                      "src_pubmed_1002"
+                    ]
+                  }
+                : {})
+            }))
         : foundation.answers;
     const initialBodyQuestions =
       retryKind === "body"
@@ -1322,6 +1336,12 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toContain("病例报告或病例系列");
       expect(result.quality.warnings).toContain(
         "deterministic_safety_normalization_applied"
+      );
+      expect(result.answers[4]?.answer).toContain(
+        "所引两项研究均为小样本研究"
+      );
+      expect(result.answers[4]?.answer).not.toContain(
+        "均为小样本回顾性研究"
       );
       expect(result.quality.warnings).toContain(
         "deterministic_reference_citation_closure_applied"

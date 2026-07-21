@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.34` together with the
+The production Worker uses frozen execution contract `1.6.35` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.34` splits synthesis into three bounded independent
+For latency, execution `1.6.35` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -128,7 +128,10 @@ explicitly asks whether female and male outcomes are comparable, a comparable
 outcome statement is projected only when that exact relationship is present in
 the cited abstract. Review study-design labels are corrected from the cited
 abstract, and a sentence claiming spinal-cord injury is removed when none of
-that paragraph's cited abstracts reports that clinical topic.
+that paragraph's cited abstracts reports that clinical topic. A collective
+answer may call multiple sources retrospective only when every cited abstract
+explicitly reports a retrospective design; otherwise that unsupported design
+label is removed and the two studies are named directly.
 After the concise peer-review patch, the Worker first validates the corrected
 draft without rewriting it and invokes deterministic safety normalization only
 when a gate still fails. If that normalization would leave a medical-Skill

@@ -1686,6 +1686,7 @@ async function generateAndValidateModelOutput(
           "review_study_design_label_mismatch",
           "answer_orphaned_prose_start",
           "answer_question_evidence_coverage",
+          "answer_study_design_label_mismatch",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1800,6 +1801,7 @@ async function generateAndValidateModelOutput(
           "review_study_design_label_mismatch",
           "answer_orphaned_prose_start",
           "answer_question_evidence_coverage",
+          "answer_study_design_label_mismatch",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1848,6 +1850,7 @@ async function generateAndValidateModelOutput(
           "review_study_design_label_mismatch",
           "answer_orphaned_prose_start",
           "answer_question_evidence_coverage",
+          "answer_study_design_label_mismatch",
           "review_inline_enumeration_sequence",
           "causal_claim_evidence_grade"
         ].includes(code)
@@ -1926,6 +1929,7 @@ async function generateAndValidateModelOutput(
             "review_study_design_label_mismatch",
             "answer_orphaned_prose_start",
             "answer_question_evidence_coverage",
+            "answer_study_design_label_mismatch",
             "review_inline_enumeration_sequence",
             "causal_claim_evidence_grade"
           ].includes(code)
@@ -6304,7 +6308,8 @@ function normalizeFinalModelOutputForSafety(
           statisticClosed,
           output.predicted_questions[answer.question_index - 1] ?? "",
           source,
-          language
+          language,
+          sourceAbstracts
         );
         const sanitized = deduplicateAnswerSentences(
           evidenceAligned
@@ -6907,7 +6912,8 @@ function normalizeAnswerEvidenceAlignment(
   value: string,
   question: string,
   allowedEvidence: string,
-  language: ResearchRunRecord["language"]
+  language: ResearchRunRecord["language"],
+  sourceAbstracts: readonly string[] = []
 ): string {
   if (language !== "zh-CN") {
     return value;
@@ -6947,7 +6953,45 @@ function normalizeAnswerEvidenceAlignment(
       .filter(Boolean)
       .join(" ");
   }
+  if (
+    hasCollectiveRetrospectiveDesignMismatch(
+      normalized,
+      sourceAbstracts
+    )
+  ) {
+    normalized = normalized
+      .split(/(?<=[。！？])\s*/u)
+      .map((sentence) => {
+        if (
+          !/(?:两者|两项研究|所引两项研究).{0,20}均为.{0,20}回顾性研究/u.test(
+            sentence
+          )
+        ) {
+          return sentence;
+        }
+        return sentence
+          .replace(/^(\s*)两者/u, "$1所引两项研究")
+          .replace(/小样本回顾性研究/gu, "小样本研究")
+          .replace(/回顾性研究/gu, "研究");
+      })
+      .join("");
+  }
   return normalized;
+}
+
+function hasCollectiveRetrospectiveDesignMismatch(
+  value: string,
+  sourceAbstracts: readonly string[]
+): boolean {
+  return (
+    sourceAbstracts.length >= 2 &&
+    /(?:两者|两项研究|所引两项研究).{0,20}均为.{0,20}回顾性研究/u.test(
+      value
+    ) &&
+    !sourceAbstracts.every((abstract) =>
+      /\bretrospective\b/iu.test(abstract)
+    )
+  );
 }
 
 function deduplicateAnswerSentences(value: string): string {
@@ -7408,13 +7452,19 @@ function validateEvidenceScopeAndCausality(
         answer.answer,
         output.predicted_questions[answer.question_index - 1] ?? "",
         citedAbstracts.join(" "),
-        language
+        language,
+        citedAbstracts
       );
       if (evidenceAligned !== answer.answer) {
         errors.add(
-          /(?:^|[。！？；]\s*)(?:发现|显示|表明|提示)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于|相近|相当|检出|转为))/u.test(
-            answer.answer
+          hasCollectiveRetrospectiveDesignMismatch(
+            answer.answer,
+            citedAbstracts
           )
+            ? `answer_study_design_label_mismatch:answer=${answer.question_index}`
+            : /(?:^|[。！？；]\s*)(?:发现|显示|表明|提示)(?=.{4,220}(?:相关|关联|价值|影响|可行性|结果|优于|相近|相当|检出|转为))/u.test(
+                answer.answer
+              )
             ? `answer_orphaned_prose_start:answer=${answer.question_index}`
             : `answer_question_evidence_coverage:answer=${answer.question_index}`
         );
