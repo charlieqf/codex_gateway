@@ -55,7 +55,7 @@ boundary when fewer relevant verified records are available.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.38` together with the
+The production Worker uses frozen execution contract `1.6.39` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -66,7 +66,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.38` splits synthesis into three bounded independent
+For latency, execution `1.6.39` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -99,9 +99,9 @@ accepts a closing fragment returned directly as bounded Markdown. This
 transport normalization does not waive any content check: every fragment is
 checked against the medical Skill's target language and exact section/length
 contract before assembly. The middle shard always supplies four substantive
-topic sections, and the closing shard may add one evidence-supported topic,
-followed by one evidence-synthesis/controversy section, one
-limitations/outlook section, and one conclusion. Empty sections,
+topic sections, and the closing shard supplies exactly one
+evidence-synthesis/controversy section, one limitations/outlook section, and
+one conclusion. Empty sections,
 duplicate substantive paragraphs, unbalanced delimiters, truncated numeric
 prose, and low-information, English-substituted, or duplicated Chinese
 core-evidence fields are rejected. The deterministic core table obtains study
@@ -120,7 +120,9 @@ set of subjectless or comparison-only Chinese sentence starts left by safe
 clause deletion, renumbers damaged inline outlook enumerations, strips an
 accidentally appended Q&A block from the review while preserving any later
 independently generated synthesis, limitations, and conclusion sections, and
-removes duplicate substantive paragraphs that arise only after unsupported
+also strips repeated orphan `答：` paragraphs after the conclusion even when
+their Q&A heading was lost during evidence closure. It removes duplicate
+substantive paragraphs that arise only after unsupported
 numerical sentences are closed. A prescriptive treatment sentence supported
 only by case reports or case series is removed instead of being promoted into
 a general recommendation.

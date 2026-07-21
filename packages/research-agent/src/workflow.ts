@@ -6534,7 +6534,7 @@ function stripEmbeddedAuxiliaryReviewOutput(
   for (let iteration = 0; iteration < 8; iteration += 1) {
     const match = marker.exec(normalized);
     if (!match) {
-      return normalized;
+      break;
     }
     const prefix = normalized.slice(0, match.index).trimEnd();
     const remainder = normalized.slice(match.index + match[0].length);
@@ -6562,7 +6562,53 @@ function stripEmbeddedAuxiliaryReviewOutput(
       .join("\n\n")
       .trim();
   }
-  return normalized;
+  return stripTrailingQuestionAnswerReviewTail(normalized, language);
+}
+
+function stripTrailingQuestionAnswerReviewTail(
+  value: string,
+  language: ResearchRunRecord["language"]
+): string {
+  const levelTwoHeadings = [...value.matchAll(/^##(?!#)\s+(.+?)\s*$/gmu)];
+  const conclusion = levelTwoHeadings
+    .filter((heading) => classifySkillReviewHeading(heading[1]!) === "conclusion")
+    .at(-1);
+  if (!conclusion || conclusion.index === undefined) {
+    return value;
+  }
+  const conclusionTail = value.slice(conclusion.index);
+  const answerMarker =
+    language === "zh-CN"
+      ? /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:答|答案)\s*[：:]/gmu
+      : /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:answer|a)\s*[.:：]/gimu;
+  const answerMatches = [...conclusionTail.matchAll(answerMarker)];
+  if (answerMatches.length < 2) {
+    return value;
+  }
+
+  const firstAnswerOffset = answerMatches[0]!.index ?? 0;
+  const beforeFirstAnswer = conclusionTail.slice(0, firstAnswerOffset);
+  const separators = [
+    ...beforeFirstAnswer.matchAll(
+      /(?:^|\r?\n)\s*---\s*(?=\r?\n|$)/gmu
+    )
+  ];
+  const trailingSeparator = separators.at(-1);
+  const tailStart =
+    trailingSeparator?.index ??
+    (() => {
+      const questionMarker =
+        language === "zh-CN"
+          ? /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:问题\s*[0-9一二三四五六七八九十]+|问)\s*[：:.、]?(?:\s*\*\*)?/gmu
+          : /(?:^|\r?\n)\s*(?:\*\*\s*)?(?:question|q)\s*[0-9]*\s*[.:：]?(?:\s*\*\*)?/gimu;
+      return questionMarker.exec(beforeFirstAnswer)?.index ?? firstAnswerOffset;
+    })();
+  return [
+    value.slice(0, conclusion.index),
+    conclusionTail.slice(0, tailStart)
+  ]
+    .join("")
+    .trimEnd();
 }
 
 function normalizeInlineChineseEnumeration(value: string): string {

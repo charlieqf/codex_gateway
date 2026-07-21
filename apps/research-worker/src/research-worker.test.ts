@@ -688,7 +688,8 @@ describe("Research Worker controlled-beta workflow", () => {
                 "现有段落先说明摘要边界。发现公开摘要证据与观察结果相关[1]。",
                 "在影像引导方面，较常规路径减少资源使用[1]。",
                 "未来方向包括：（1）前瞻性验证[1]；（2）外部验证[1]；（5）患者结局研究[1]。",
-                "---\n\n**学术问答**\n\n这一残缺辅助输出不属于综述正文[1]。"
+                "---\n\n**学术问答**\n\n这一残缺辅助输出不属于综述正文[1]。",
+                "---\n\n**\n\n**\n\n答：尾部问答答案一不属于正式学术综述正文[1]。\n\n**\n\n答：尾部问答答案二也不属于正式学术综述正文[1]。"
               ].join("\n\n")
             })
           : retryKind === "skill-normalization"
@@ -1321,6 +1322,9 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.review.markdown).not.toContain("学术问答");
       expect(result.review.markdown).not.toContain(
         "这一分片混入的辅助输出"
+      );
+      expect(result.review.markdown).not.toContain(
+        "尾部问答答案"
       );
       expect(result.review.markdown).toContain(
         "该病例报告基于观察性研究"
