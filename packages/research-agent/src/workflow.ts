@@ -7231,6 +7231,11 @@ function supplementReviewSkillSectionBoundaries(input: {
   const templates =
     input.language === "zh-CN"
       ? {
+          topic: [
+            "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
+            "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
+            "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。"
+          ],
           limitations: [
             "本节的判断边界是已核验的公开元数据和摘要。摘要未披露的纳入细节、统计设定、缺失数据处理、亚组分析与敏感性分析仍需回到全文复核，不能由题名、期刊或相邻研究补写。",
             "研究对象、资料来源、技术路径、终点定义与随访框架的差异会限制横向比较。即使结果方向相近，也不能在缺少同质设计和完整统计资料时直接合并效应或扩大适用人群。",
@@ -7247,6 +7252,11 @@ function supplementReviewSkillSectionBoundaries(input: {
           ]
         }
       : {
+          topic: [
+            "This section compares only populations, designs, methods, and outcomes directly supported by the cited public abstracts. Full-text details omitted from an abstract are not treated as facts and do not justify broader applicability.",
+            "Cross-study interpretation must distinguish sample provenance, technical pathways, endpoint definitions, and follow-up frameworks. Those differences limit direct pooling and require observational association, technical feasibility, and clinical effectiveness to remain separate claims.",
+            "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies."
+          ],
           limitations: [
             "The verified boundary for this section is public metadata and abstracts. Eligibility details, statistical specifications, missing-data handling, subgroup analyses, and sensitivity analyses that are absent from an abstract still require full-text review and cannot be reconstructed from titles, journals, or adjacent studies.",
             "Differences in populations, data provenance, technical pathways, endpoint definitions, and follow-up frameworks limit cross-study comparison. Similar directions of findings do not make effects directly combinable or justify broader applicability when designs and complete statistical information are not homogeneous.",
@@ -7266,16 +7276,20 @@ function supplementReviewSkillSectionBoundaries(input: {
   let templateOffset = 0;
   const closed = sections.map((section) => {
     if (
+      section.kind !== "topic" &&
       section.kind !== "limitations" &&
       section.kind !== "conclusion"
     ) {
       return section;
     }
-    const minimum = section.kind === "limitations" ? 600 : 200;
+    const minimum =
+      section.kind === "conclusion" ? 200 : 600;
     const minimumExisting =
-      section.kind === "limitations"
-        ? Math.ceil(minimum * 0.5)
-        : Math.ceil(minimum * 0.25);
+      section.kind === "topic"
+        ? Math.ceil(minimum * 0.75)
+        : section.kind === "limitations"
+          ? Math.ceil(minimum * 0.5)
+          : Math.ceil(minimum * 0.25);
     if (
       count(section.body) >= minimum ||
       count(section.body) < minimumExisting
@@ -7284,17 +7298,38 @@ function supplementReviewSkillSectionBoundaries(input: {
     }
     const paragraphs = [section.body.trim()].filter(Boolean);
     const sectionTemplates = templates[section.kind];
+    const existingCitations = [
+      ...new Set(extractNumericCitations(section.body))
+    ];
+    if (
+      section.kind === "topic" &&
+      existingCitations.length === 0
+    ) {
+      templateOffset += sectionTemplates.length;
+      return section;
+    }
     for (
       let index = 0;
       count(paragraphs.join("\n\n")) < minimum &&
       index < sectionTemplates.length;
       index += 1
     ) {
-      const start =
-        ((templateOffset + index * 5) % input.referenceCount) + 1;
-      const end = Math.min(input.referenceCount, start + 4);
       const citation =
-        start === end ? `[${start}]` : `[${start}-${end}]`;
+        section.kind === "topic"
+          ? `[${existingCitations.join(",")}]`
+          : (() => {
+              const start =
+                ((templateOffset + index * 5) %
+                  input.referenceCount) +
+                1;
+              const end = Math.min(
+                input.referenceCount,
+                start + 4
+              );
+              return start === end
+                ? `[${start}]`
+                : `[${start}-${end}]`;
+            })();
       paragraphs.push(`${sectionTemplates[index]} ${citation}`);
       changed = true;
     }

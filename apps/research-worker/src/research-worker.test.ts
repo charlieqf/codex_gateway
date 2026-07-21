@@ -533,6 +533,16 @@ describe("Research Worker controlled-beta workflow", () => {
         ).join("。")
       ].join("。")}。[1]`
     ].join("\n\n");
+    const postSafetyNearMinimumBodyFragment = (() => {
+      const [first, ...remaining] =
+        nearMinimumSkillBodyFragment().split(
+          /\n\n(?=##\s)/u
+        );
+      return [
+        `${first}\n\n${unsafeSectionPaddingSentence}。[1]`,
+        ...remaining
+      ].join("\n\n");
+    })();
     const transportUnsafeConclusionClosingFragment = [
       longChineseReviewFragment(
         "证据综合与未解争议",
@@ -699,7 +709,9 @@ describe("Research Worker controlled-beta workflow", () => {
               markdown: [
                 retryKind === "peer-convergence"
                   ? convergenceBody
-                  : skillBodyFragment(20),
+                  : retryKind === "section-closure"
+                    ? postSafetyNearMinimumBodyFragment
+                    : skillBodyFragment(20),
                 ...(retryKind === "transport"
                   ? [
                       duplicateBodyParagraph,
@@ -1637,6 +1649,22 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(
         conclusion.match(/\p{Script=Han}/gu)?.length ?? 0
       ).toBeGreaterThanOrEqual(200);
+      const topics = sections.filter(
+        (section) =>
+          section.trim() !== "" &&
+          !section.startsWith("引言") &&
+          !section.startsWith("证据综合") &&
+          !section.startsWith("局限性与展望") &&
+          !section.startsWith("结论")
+      );
+      expect(topics).toHaveLength(4);
+      expect(
+        topics.every(
+          (section) =>
+            (section.match(/\p{Script=Han}/gu)?.length ??
+              0) >= 600
+        )
+      ).toBe(true);
       expect(result.review.markdown).not.toContain("2025例");
       expect(result.quality.warnings).toContain(
         "deterministic_skill_section_boundary_supplement_applied"
