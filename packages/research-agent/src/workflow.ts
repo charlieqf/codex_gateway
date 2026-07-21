@@ -2683,6 +2683,107 @@ async function generateAndValidateShardedModelOutput(
     deterministicSafetyPreview.errorCodes.includes(
       "review_introduction_minimum"
     );
+  const conclusionCorrectionRequiredAfterTransport =
+    shardTransportRetryCompleted &&
+    !shardContractRetryCompleted &&
+    !shardSkillContractRetryCompleted &&
+    !qaContractRetryRequired &&
+    !reviewContentCorrectionRequired &&
+    !deterministicSafetyPreview.ok &&
+    deterministicSafetyPreview.errorCodes.includes(
+      "review_conclusion_minimum"
+    );
+  if (conclusionCorrectionRequiredAfterTransport) {
+    const correctedConclusionResponse = await context.generateModel({
+      stage: "synthesize_review",
+      attempt: 5,
+      maximumDurationMs: 120_000,
+      system: doctorResearchFragmentSystemPolicy,
+      prompt: buildConclusionCorrectionPrompt({
+        run: context.run,
+        evidence: foundationEvidence,
+        medicalSkillBundle
+      })
+    });
+    const correctedConclusionFragment = parseReviewFragment(
+      correctedConclusionResponse.text
+    );
+    const correctionErrors = correctedConclusionFragment
+      ? validateConclusionCorrectionFragment(
+          correctedConclusionFragment,
+          context.run.language
+        )
+      : ["conclusion_fragment_contract_error"];
+    const correctedClosingMarkdown = correctedConclusionFragment
+      ? replaceSingleSkillReviewSection(
+          acceptedClosingFragment.markdown,
+          correctedConclusionFragment.markdown,
+          "conclusion"
+        )
+      : null;
+    if (
+      !correctedConclusionFragment ||
+      correctionErrors.length > 0 ||
+      correctedClosingMarkdown === null
+    ) {
+      const reportedErrors =
+        correctionErrors.length > 0
+          ? correctionErrors
+          : ["conclusion_fragment_replacement_error"];
+      context.reportValidationFailure(
+        "synthesize_review",
+        5,
+        reportedErrors.map((error) => error.split(":", 1)[0]!),
+        reportedErrors
+      );
+      return null;
+    }
+    acceptedClosingFragment = {
+      ...acceptedClosingFragment,
+      markdown: correctedClosingMarkdown
+    };
+    assembledDraft = assembleDraft();
+    const correctedRawValidation = validateGeneratedOutput(
+      JSON.stringify(assembledDraft),
+      context.run,
+      identity,
+      evidence,
+      context.input.policy
+    );
+    const deterministicSelfReview = correctedRawValidation.ok
+      ? correctedRawValidation
+      : validateGeneratedOutput(
+          JSON.stringify(assembledDraft),
+          context.run,
+          identity,
+          evidence,
+          context.input.policy,
+          { deterministicSafetyNormalization: true }
+        );
+    if (!deterministicSelfReview.ok) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        deterministicSelfReview.errorCodes,
+        deterministicSelfReview.errors
+      );
+      return null;
+    }
+    return {
+      output: deterministicSelfReview.value,
+      warnings: [
+        ...deterministicSelfReview.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_call_reallocated_to_transport_conclusion_repair",
+        "bounded_conclusion_evidence_closure_correction_completed",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        "bounded_shard_transport_retry_completed"
+      ]
+    };
+  }
   const peerReviewCallBudgetConsumedByTransportRepair =
     shardTransportRetryCompleted &&
     shardSkillContractRetryCompleted &&
@@ -3620,6 +3721,57 @@ function buildIntroductionCorrectionPrompt(input: {
   ].join("\n\n");
 }
 
+function buildConclusionCorrectionPrompt(input: {
+  run: ResearchRunRecord;
+  evidence: WorkflowEvidence;
+  medicalSkillBundle: MedicalSkillBundle;
+}): string {
+  const publicationEvidenceByReferenceId = new Map(
+    input.evidence.publicationEvidence.map((publication) => [
+      publication.reference_id,
+      publication
+    ])
+  );
+  const verifiedPublications = input.evidence.references.map(
+    (reference, index) => {
+      const publication = publicationEvidenceByReferenceId.get(
+        reference.reference_id
+      );
+      return {
+        citation: index + 1,
+        reference_id: reference.reference_id,
+        title: reference.title,
+        journal: reference.journal,
+        publication_year: reference.publication_year,
+        pmid: reference.pmid,
+        doi: reference.doi,
+        authors: publication?.authors ?? [],
+        abstract: publication?.abstract ?? null
+      };
+    }
+  );
+  return [
+    compactMedicalSkillExecutionContract(input.medicalSkillBundle),
+    "BOUNDED CONCLUSION EVIDENCE-CLOSURE CORRECTION",
+    "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_review_fragment.v1\",\"markdown\":\"...\"}.",
+    input.run.language === "zh-CN"
+      ? "markdown 必须只包含一个二级标题“## 结论”及其正式学术综述结论，不少于 200 个汉字，写成一至两个完整自然段。"
+      : "markdown must contain only one level-two heading, “## Conclusion”, followed by a formal review conclusion of at least 200 words in one or two complete paragraphs.",
+    "The earlier conclusion became empty only after deterministic evidence closure. Recreate only the conclusion from the supplied verified abstracts; do not return an abstract, introduction, evidence table, thematic section, questions, answers, limitations, references, or search report.",
+    "Use every supplied reference at least once with its listed numeric citation and put at least one applicable citation in every paragraph.",
+    "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
+    "State only cautious qualitative conclusions about evidence scope, design strength, consistency, limitations, and unresolved research needs. Do not infer facts missing from an abstract, make treatment recommendations, or use causal wording for observational evidence.",
+    "Do not emit raw HTML, Markdown links, Markdown images, URLs, placeholders, a reference list, or a search report.",
+    `Doctor and research context: ${JSON.stringify({
+      doctor: input.run.input.doctor,
+      search_queries: input.evidence.searchQueries
+    })}`,
+    `Closed server-verified evidence: ${JSON.stringify(
+      verifiedPublications
+    )}`
+  ].join("\n\n");
+}
+
 function buildPeerReviewPatchPrompt(input: {
   run: ResearchRunRecord;
   evidence: WorkflowEvidence;
@@ -4120,6 +4272,67 @@ function validateIntroductionCorrectionFragment(
     )
   );
   return [...new Set(errors)];
+}
+
+function validateConclusionCorrectionFragment(
+  fragment: ReviewFragment,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors: string[] = [];
+  const sections = parseSkillReviewSections(fragment.markdown);
+  if (
+    sections.length !== 1 ||
+    sections[0]?.kind !== "conclusion"
+  ) {
+    errors.push("conclusion_fragment_section_contract");
+  }
+  const content = sections[0]
+    ? countReviewLanguageContent(sections[0].body, language)
+    : 0;
+  if (content < 200) {
+    errors.push(`conclusion_fragment_minimum:${content}/200`);
+  }
+  if (
+    extractNarrativeNumericTokens(fragment.markdown).length > 0
+  ) {
+    errors.push("conclusion_fragment_narrative_number");
+  }
+  errors.push(
+    ...validateReviewProseIntegrity(fragment.markdown, language),
+    ...validateCompleteReviewPresentationIntegrity(
+      fragment.markdown,
+      language
+    )
+  );
+  return [...new Set(errors)];
+}
+
+function replaceSingleSkillReviewSection(
+  markdown: string,
+  replacementMarkdown: string,
+  kind: SkillReviewSection["kind"]
+): string | null {
+  const sections = parseSkillReviewSections(markdown);
+  const replacements = parseSkillReviewSections(
+    replacementMarkdown
+  );
+  if (
+    sections.filter((section) => section.kind === kind).length !== 1 ||
+    replacements.length !== 1 ||
+    replacements[0]?.kind !== kind ||
+    replacements[0].heading === ""
+  ) {
+    return null;
+  }
+  return sections
+    .map((section) =>
+      section.kind === kind ? replacements[0]! : section
+    )
+    .map(
+      (section) =>
+        `## ${section.heading}\n\n${section.body.trim()}`
+    )
+    .join("\n\n");
 }
 
 function validateReviewHeaderSkillContract(

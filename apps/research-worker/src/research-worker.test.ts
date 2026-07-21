@@ -398,6 +398,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_peer_review_self_check_completed"
     ],
     [
+      "transport-conclusion-safety",
+      "deterministic_peer_review_self_check_completed"
+    ],
+    [
       "introduction-safety",
       "bounded_introduction_correction_completed"
     ],
@@ -525,6 +529,24 @@ describe("Research Worker controlled-beta workflow", () => {
         ).join("。")
       ].join("。")}。[1]`
     ].join("\n\n");
+    const transportUnsafeConclusionClosingFragment = [
+      longChineseReviewFragment(
+        "证据综合与未解争议",
+        26
+      ),
+      longChineseReviewFragment("局限性与展望", 20),
+      `## 结论\n\n${Array.from(
+        { length: 10 },
+        () =>
+          "该结论错误写入999999例未经所引摘要支持的确定性结果，并据此提出普遍治疗建议"
+      ).join("。")}。[1]`
+    ].join("\n\n");
+    const closedConclusionCorrectionFragment =
+      `## 结论\n\n${Array.from(
+        { length: 8 },
+        () =>
+          "现有公开摘要支持对研究对象、设计路径、方法差异、结果方向与证据边界进行谨慎综合，但不能替代全文质量评价，也不足以形成确定的因果判断或普遍治疗建议"
+      ).join("。")}。[1]`;
     foundation.review.markdown = [
       skillFoundationFragment(
         retryKind === "content" ? 25 : 55
@@ -699,7 +721,14 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         3,
-        retryKind === "section-closure"
+        retryKind === "transport-conclusion-safety"
+          ? JSON.stringify({
+              schema_version:
+                "doctor_research_review_fragment.v1",
+              markdown:
+                transportUnsafeConclusionClosingFragment
+            })
+        : retryKind === "section-closure"
           ? JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
@@ -858,7 +887,8 @@ describe("Research Worker controlled-beta workflow", () => {
               (retryKind === "transport" &&
                 modelInput.attempt === 1) ||
               ((retryKind === "transport-body-near-minimum" ||
-                retryKind === "transport-skill") &&
+                retryKind === "transport-skill" ||
+                retryKind === "transport-conclusion-safety") &&
                 modelInput.attempt === 2)
             ) {
               throw new ResearchModelClientError(
@@ -996,6 +1026,28 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "transport-conclusion-safety" &&
+            modelInput.attempt === 5 &&
+            modelInput.stage === "synthesize_review"
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_review_fragment.v1",
+                markdown:
+                  closedConclusionCorrectionFragment
+              }),
+              gatewayRequestId:
+                "req_sharded_transport_conclusion_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -1027,6 +1079,16 @@ describe("Research Worker controlled-beta workflow", () => {
                           ),
                           "## 结果一致性与证据强度\n\n短段落。[1]"
                         ].join("\n\n"),
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers
+                      })
+                  : retryKind ===
+                      "transport-conclusion-safety"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: skillBodyFragment(20),
                         predicted_questions:
                           initialBodyQuestions,
                         answers: initialBodyAnswers
@@ -1290,6 +1352,14 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "body_topic_section_minimum:600"
+      );
+    }
+    if (retryKind === "transport-conclusion-safety") {
+      expect(retryPrompt).toContain(
+        "BOUNDED CONCLUSION EVIDENCE-CLOSURE CORRECTION"
+      );
+      expect(retryPrompt).toContain(
+        "Numeric citation markers such as [1] are the only allowed digits"
       );
     }
     const stored = fixture.store.getRunResultForSubject(
@@ -1602,6 +1672,26 @@ describe("Research Worker controlled-beta workflow", () => {
         "peer_review_model_completed"
       );
     }
+    if (retryKind === "transport-conclusion-safety") {
+      expect(result.review.markdown).toContain(
+        "现有公开摘要支持对研究对象"
+      );
+      expect(result.review.markdown).not.toContain("999999");
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "bounded_shard_transport_retry_completed",
+          "peer_review_call_reallocated_to_transport_conclusion_repair",
+          "bounded_conclusion_evidence_closure_correction_completed",
+          "deterministic_peer_review_self_check_completed"
+        ])
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_attempted"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_completed"
+      );
+    }
     if (retryKind === "contract-short-abstract") {
       expect(result.quality.warnings).toContain(
         "deterministic_abstract_closed_introduction_supplement_applied"
@@ -1615,7 +1705,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        retryKind === "transport-skill"
+        retryKind === "transport-skill" ||
+        retryKind === "transport-conclusion-safety"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
