@@ -2401,6 +2401,16 @@ async function generateAndValidateShardedModelOutput(
       shardSkillNormalizationWarnings.push(warning);
     }
   }
+  const normalizedMiddle = supplementNearMinimumBodySections(
+    middleFragment,
+    context.run.language
+  );
+  middleFragment = normalizedMiddle.fragment;
+  if (normalizedMiddle.changed) {
+    shardSkillNormalizationWarnings.push(
+      "deterministic_body_section_boundary_supplement_applied"
+    );
+  }
   const normalizedClosing =
     dropUnderfilledOptionalClosingTopic(
       closingFragment,
@@ -2488,6 +2498,21 @@ async function generateAndValidateShardedModelOutput(
       if (!shardSkillNormalizationWarnings.includes(warning)) {
         shardSkillNormalizationWarnings.push(warning);
       }
+    }
+    const normalizedRetryMiddle = supplementNearMinimumBodySections(
+      middleFragment,
+      context.run.language
+    );
+    middleFragment = normalizedRetryMiddle.fragment;
+    if (
+      normalizedRetryMiddle.changed &&
+      !shardSkillNormalizationWarnings.includes(
+        "deterministic_body_section_boundary_supplement_applied"
+      )
+    ) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_body_section_boundary_supplement_applied"
+      );
     }
     const normalizedRetryClosing =
       dropUnderfilledOptionalClosingTopic(
@@ -6782,6 +6807,87 @@ function supplementReviewSkillSectionBoundaries(input: {
           `## ${section.heading}\n\n${section.body.trim()}`
       )
       .join("\n\n"),
+    changed
+  };
+}
+
+function supplementNearMinimumBodySections(
+  fragment: BodyFragment,
+  language: ResearchRunRecord["language"]
+): { fragment: BodyFragment; changed: boolean } {
+  const sections = parseSkillReviewSections(fragment.markdown);
+  if (
+    sections.length !== 4 ||
+    sections.some(
+      (section) => section.heading === "" || section.kind !== "topic"
+    )
+  ) {
+    return { fragment, changed: false };
+  }
+  const minimum = 600;
+  const minimumExisting = Math.ceil(minimum * 0.75);
+  const count = (value: string): number =>
+    countReviewLanguageContent(value, language);
+  const templates =
+    language === "zh-CN"
+      ? [
+          "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
+          "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
+          "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。"
+        ]
+      : [
+          "This section compares only populations, designs, methods, and outcomes directly supported by the cited public abstracts. Full-text details omitted from an abstract are not treated as facts and do not justify broader applicability.",
+          "Cross-study interpretation must also distinguish sample provenance, technical pathways, endpoint definitions, and follow-up frameworks. Those differences limit direct pooling and require observational association, technical feasibility, and clinical effectiveness to remain separate claims.",
+          "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies.",
+          "Apparently similar findings may have different meanings when eligibility, measurement, follow-up, or outcome ascertainment differs. Evidence synthesis should retain those uncertainties instead of filling absent information with confident language."
+        ];
+  let changed = false;
+  let templateOffset = 0;
+  const closed = sections.map((section) => {
+    const sectionCount = count(section.body);
+    if (
+      sectionCount >= minimum ||
+      sectionCount < minimumExisting
+    ) {
+      templateOffset += templates.length;
+      return section;
+    }
+    const citations = [
+      ...new Set(extractNumericCitations(section.body))
+    ];
+    if (citations.length === 0) {
+      templateOffset += templates.length;
+      return section;
+    }
+    const citation = `[${citations.join(",")}]`;
+    const paragraphs = [section.body.trim()];
+    for (
+      let index = 0;
+      count(paragraphs.join("\n\n")) < minimum &&
+      index < templates.length;
+      index += 1
+    ) {
+      paragraphs.push(
+        `${templates[(templateOffset + index) % templates.length]} ${citation}`
+      );
+      changed = true;
+    }
+    templateOffset += templates.length;
+    return {
+      ...section,
+      body: paragraphs.join("\n\n")
+    };
+  });
+  return {
+    fragment: {
+      ...fragment,
+      markdown: closed
+        .map(
+          (section) =>
+            `## ${section.heading}\n\n${section.body.trim()}`
+        )
+        .join("\n\n")
+    },
     changed
   };
 }

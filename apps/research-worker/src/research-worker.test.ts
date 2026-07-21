@@ -389,6 +389,10 @@ describe("Research Worker controlled-beta workflow", () => {
 
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
+    [
+      "transport-body-near-minimum",
+      "bounded_shard_transport_retry_completed"
+    ],
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     [
@@ -823,8 +827,10 @@ describe("Research Worker controlled-beta workflow", () => {
             await barrier;
             activeSynthesisCalls -= 1;
             if (
-              retryKind === "transport" &&
-              modelInput.attempt === 1
+              (retryKind === "transport" &&
+                modelInput.attempt === 1) ||
+              (retryKind === "transport-body-near-minimum" &&
+                modelInput.attempt === 2)
             ) {
               throw new ResearchModelClientError(
                 "upstream_error",
@@ -944,6 +950,16 @@ describe("Research Worker controlled-beta workflow", () => {
               text:
                 retryKind === "transport"
                   ? JSON.stringify(foundationFragment)
+                  : retryKind === "transport-body-near-minimum"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown:
+                          nearMinimumSkillBodyFragment(),
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers
+                      })
                   : retryKind === "contract-short-abstract"
                     ? JSON.stringify({
                         review: {
@@ -1440,6 +1456,27 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.quality.warnings).not.toContain(
         "bounded_shard_skill_contract_retry_completed"
+      );
+    }
+    if (retryKind === "transport-body-near-minimum") {
+      const topicSections = result.review.markdown
+        .split(/^##\s+/gmu)
+        .filter((section) =>
+          section.startsWith("研究设计与人群差异") ||
+          section.startsWith("方法路径与评价终点") ||
+          section.startsWith("结果一致性与证据强度") ||
+          section.startsWith("转化边界与研究缺口")
+        );
+      expect(topicSections).toHaveLength(4);
+      expect(
+        topicSections.every(
+          (section) =>
+            (section.match(/\p{Script=Han}/gu)?.length ?? 0) >=
+            600
+        )
+      ).toBe(true);
+      expect(result.quality.warnings).toContain(
+        "deterministic_body_section_boundary_supplement_applied"
       );
     }
     if (retryKind === "contract-short-abstract") {
@@ -3953,6 +3990,27 @@ function skillBodyFragment(repetitionsPerSection: number): string {
     longChineseReviewFragment(
       "转化边界与研究缺口",
       repetitionsPerSection
+    )
+  ].join("\n\n");
+}
+
+function nearMinimumSkillBodyFragment(): string {
+  return [
+    longChineseReviewFragment(
+      "研究设计与人群差异",
+      12
+    ),
+    longChineseReviewFragment(
+      "方法路径与评价终点",
+      20
+    ),
+    longChineseReviewFragment(
+      "结果一致性与证据强度",
+      20
+    ),
+    longChineseReviewFragment(
+      "转化边界与研究缺口",
+      20
     )
   ].join("\n\n");
 }
