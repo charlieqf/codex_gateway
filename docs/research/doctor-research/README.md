@@ -40,6 +40,8 @@ complete, explicitly warned result with a 5000-character aggregate floor.
 
 ## Contents
 
+- `current-status-problems-and-remediation.md`: current Azure release status,
+  known acceptance gaps, root-cause analysis and prioritized remediation plan.
 - `api-service-design.md`: reviewed API and implementation design.
 - `controlled-beta-runbook.md`: isolated staging bootstrap, smoke, negative
   tests, shutdown and production gate.
