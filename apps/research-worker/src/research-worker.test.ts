@@ -1109,24 +1109,24 @@ describe("Research Worker controlled-beta workflow", () => {
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 2380
-          : 2000
+          ? 1540
+          : 1200
       } content characters`
     );
     expect(synthesisPrompts.get(2)).toContain(
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 5880
-          : 5000
+          ? 3850
+          : 3000
       } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
       `at least ${
         retryKind === "peer-timeout" ||
         retryKind === "content"
-          ? 6440
-          : 5500
+          ? 2660
+          : 1800
       } content characters`
     );
     if (retryKind === "body") {

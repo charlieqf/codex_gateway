@@ -2110,17 +2110,22 @@ async function generateAndValidateShardedModelOutput(
     return null;
   }
   const minimumReviewContent = context.input.policy.minimumReviewContent;
+  // Preserve every medical-Skill section floor while avoiding the former
+  // engineering over-allocation that independently asked the three shards
+  // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer
+  // leaves room for evidence-safety removal without making the closing shard
+  // produce almost a second complete review.
   const foundationMinimum = Math.max(
-    2_000,
-    Math.ceil(minimumReviewContent * 0.34)
+    1_200,
+    Math.ceil((minimumReviewContent * 22) / 100)
   );
   const middleMinimum = Math.max(
-    5_000,
-    Math.ceil(minimumReviewContent * 0.84)
+    3_000,
+    Math.ceil((minimumReviewContent * 55) / 100)
   );
   const closingMinimum = Math.max(
-    5_500,
-    Math.ceil(minimumReviewContent * 0.92)
+    1_800,
+    Math.ceil((minimumReviewContent * 38) / 100)
   );
   const foundationPrompt = buildFoundationFragmentPrompt({
     run: context.run,
