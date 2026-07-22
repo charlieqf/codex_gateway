@@ -2785,6 +2785,8 @@ async function generateAndValidateShardedModelOutput(
     }
     const retryableShardTransportError =
       isRetryableShardTransportError(settlement.reason);
+    const retryableShardEnvelopeError =
+      isRetryableShardEnvelopeError(settlement.reason);
     if (
       settlement.index === 2 &&
       shardTransportRetryCount >= 1 &&
@@ -2795,8 +2797,9 @@ async function generateAndValidateShardedModelOutput(
       deterministicClosingTransportFallbackApplied = true;
       continue;
     }
+    const shardTransportRetryLimit = retryableShardEnvelopeError ? 1 : 2;
     if (
-      shardTransportRetryCount < 2 &&
+      shardTransportRetryCount < shardTransportRetryLimit &&
       nextAttempt <= 5 &&
       retryableShardTransportError
     ) {
@@ -5907,9 +5910,18 @@ function isRetryableShardTransportError(error: unknown): boolean {
   return (
     (error instanceof DOMException && error.name === "TimeoutError") ||
     (error instanceof ResearchModelClientError &&
-      (error.code === "rate_limited" ||
+      (error.code === "empty_response" ||
+        error.code === "invalid_response" ||
+        error.code === "rate_limited" ||
         (error.code === "upstream_error" &&
           (error.statusCode === 0 || error.statusCode >= 500))))
+  );
+}
+
+function isRetryableShardEnvelopeError(error: unknown): boolean {
+  return (
+    error instanceof ResearchModelClientError &&
+    (error.code === "empty_response" || error.code === "invalid_response")
   );
 }
 

@@ -389,6 +389,7 @@ describe("Research Worker controlled-beta workflow", () => {
 
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
+    ["transport-empty", "bounded_shard_transport_retry_completed"],
     [
       "transport-double",
       "deterministic_closing_transport_fallback_applied"
@@ -1036,6 +1037,8 @@ describe("Research Worker controlled-beta workflow", () => {
             if (
               (retryKind === "transport" &&
                 modelInput.attempt === 1) ||
+              (retryKind === "transport-empty" &&
+                modelInput.attempt === 3) ||
               (retryKind === "transport-double" &&
                 modelInput.attempt === 3) ||
               ((retryKind === "transport-body-near-minimum" ||
@@ -1044,8 +1047,10 @@ describe("Research Worker controlled-beta workflow", () => {
                 modelInput.attempt === 2)
             ) {
               throw new ResearchModelClientError(
-                "upstream_error",
-                503,
+                retryKind === "transport-empty"
+                  ? "empty_response"
+                  : "upstream_error",
+                retryKind === "transport-empty" ? 200 : 503,
                 "req_sharded_1"
               );
             }
@@ -1335,6 +1340,7 @@ describe("Research Worker controlled-beta workflow", () => {
             return {
               text:
                 retryKind === "transport" ||
+                retryKind === "transport-empty" ||
                 retryKind === "admission"
                   ? shardFragmentForPrompt(modelInput.prompt)
                   : retryKind === "transport-body-near-minimum"
