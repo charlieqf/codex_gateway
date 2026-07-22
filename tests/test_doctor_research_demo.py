@@ -78,6 +78,16 @@ class DemoHandler(BaseHTTPRequestHandler):
                 {
                     "schema_version": "doctor_research_result.v1",
                     "run_id": RUN_ID,
+                    "quality": {
+                        "status": "passed_with_warnings",
+                        "checks": ["server_validation"],
+                        "warnings": [
+                            "controlled_trial_topic_section_below_target"
+                        ],
+                    },
+                    "source_coverage": {
+                        "warnings": ["abstract_only_evidence"]
+                    },
                     "artifacts": list(self.artifacts.values()),
                 }
             )
@@ -232,6 +242,16 @@ class DoctorResearchDemoTests(unittest.TestCase):
                 )
                 final = json.loads(stdout.getvalue().splitlines()[-1])
                 self.assertEqual(final["outcome"], "succeeded")
+                self.assertEqual(
+                    final["quality_status"], "passed_with_warnings"
+                )
+                self.assertEqual(
+                    final["warnings"],
+                    [
+                        "controlled_trial_topic_section_below_target",
+                        "abstract_only_evidence",
+                    ],
+                )
                 self.assertNotIn(TOKEN, stdout.getvalue())
         finally:
             server.shutdown()
@@ -453,6 +473,19 @@ class DoctorResearchDemoTests(unittest.TestCase):
                 },
                 run_id=RUN_ID,
                 doctor_name=DOCTOR_NAME,
+            )
+
+    def test_rejects_invalid_result_warning_codes(self):
+        with self.assertRaisesRegex(DEMO.DemoError, "quality warnings"):
+            DEMO.validate_result_quality(
+                {
+                    "quality": {
+                        "status": "passed_with_warnings",
+                        "checks": ["server_validation"],
+                        "warnings": ["unsafe warning with spaces"],
+                    },
+                    "source_coverage": {"warnings": []},
+                }
             )
 
 

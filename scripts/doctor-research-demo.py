@@ -412,6 +412,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         result = client.request_json(
             "GET", f"/gateway/research/v1/doctor-runs/{run_id}/result"
         )
+        quality_status, warnings = validate_result_quality(result)
         artifacts = validate_manifest(
             result, run_id=run_id, doctor_name=payload["doctor"]["name"]
         )
@@ -425,6 +426,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             {
                 "outcome": "succeeded",
                 "run_id": run_id,
+                "quality_status": quality_status,
+                "warnings": warnings,
                 "output_directory": str(output_directory),
                 "files": [artifact.filename for artifact in artifacts],
             }
@@ -841,6 +844,44 @@ def validate_manifest(
     ):
         raise DemoError("Artifact extensions were not exactly 3 MD + 1 TXT.")
     return ordered
+
+
+def validate_result_quality(result: dict[str, Any]) -> tuple[str, list[str]]:
+    quality = result.get("quality")
+    source_coverage = result.get("source_coverage")
+    if not isinstance(quality, dict) or not isinstance(source_coverage, dict):
+        raise DemoError("Result quality or source coverage was invalid.")
+    status = quality.get("status")
+    if status not in {"passed", "passed_with_warnings"}:
+        raise DemoError("Result quality status was invalid.")
+    checks = quality.get("checks")
+    if (
+        not isinstance(checks, list)
+        or not checks
+        or any(not isinstance(item, str) or not item for item in checks)
+    ):
+        raise DemoError("Result quality checks were invalid.")
+    warnings = validate_warning_codes(
+        quality.get("warnings"), "quality warnings"
+    )
+    source_warnings = validate_warning_codes(
+        source_coverage.get("warnings"), "source-coverage warnings"
+    )
+    return status, list(dict.fromkeys([*warnings, *source_warnings]))
+
+
+def validate_warning_codes(value: Any, description: str) -> list[str]:
+    if (
+        not isinstance(value, list)
+        or len(value) > 100
+        or any(
+            not isinstance(item, str)
+            or not re.fullmatch(r"[a-z][a-z0-9_.:-]{0,119}", item)
+            for item in value
+        )
+    ):
+        raise DemoError(f"Result {description} were invalid.")
+    return [item for item in value if isinstance(item, str)]
 
 
 def download_artifacts(
