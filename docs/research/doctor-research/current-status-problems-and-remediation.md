@@ -30,7 +30,7 @@ Doctor Research API 的 `1.6.58` 已部署到 Azure VM 的公网生产入口，
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
 | 真实公网 E2E | `1.6.58` 两次运行分别在 414.416 秒和 449.051 秒失败 | 严格验收未通过 |
 | 当前四文件 | 两次运行均 fail-closed，没有发布部分文件 | 不能声称当前版本的 3 MD + 1 TXT 已通过内容审核 |
-| 取消传播 | Worker 会中止本地非流式 HTTP 请求，但 Gateway 尚未把客户端断开传播到该请求的 provider 调用 | 旧上游调用可能与重试重叠，是当前必须先修的 P0 |
+| 取消传播 | Research Worker 会中止本地非流式 HTTP 请求，但 Gateway 的 `/v1/chat/completions` 和 `/v1/responses` 非流式路径尚未把客户端断开传播到 provider 调用 | 旧上游调用可能与重试重叠，是当前必须先修的 P0 |
 | 发布范围 | 仅允许命名、可追踪的少量用户试用 | 暂不扩大为普遍可用 |
 
 今天已经完成的是“把一个安全失败、时间有上限的版本部署到 Azure”；尚未完成的
@@ -172,7 +172,9 @@ Doctor Research API 的 `1.6.58` 已部署到 Azure VM 的公网生产入口，
 
 Research Model Client 使用 `stream: false`。它在 Worker 超时或 run 被取消时会中止本地
 HTTP 请求；但 Gateway 的非流式 `/v1/chat/completions` 路径只记录客户端断开，没有把
-该信号传给 `executeChatCompletion()` 的 provider deadline。当前代码路径因此可能出现：
+该信号传给 `executeChatCompletion()` 的 provider deadline。`/v1/responses` 的非流式
+兼容路径调用同一个执行器时也没有传 signal；它的流式路径已经传入 `sse.signal`。
+当前非流式代码路径因此可能出现：
 
 1. Worker 放弃本地请求；
 2. Gateway 中的旧 provider 调用继续执行并占用上游并发；
@@ -262,10 +264,16 @@ HTTP 请求；但 Gateway 的非流式 `/v1/chat/completions` 路径只记录客
 
 建议改动范围：
 
-1. 在 `apps/gateway/src/` 增加可复用的客户端断开 `AbortSignal`，监听
-   `request.raw.aborted` 和非正常 `reply.raw.close`，正常响应完成后移除监听器。
-2. `/v1/chat/completions` 非流式 handler 把该 signal 传入 `executeChatCompletion()`；
-   `createChatRequestDeadline()` 再把它传播到 provider adapter。
+1. 在 `apps/gateway/src/` 增加可复用的客户端断开 `AbortSignal`，不再使用 Node 已弃用的
+   `request.raw` `aborted` 事件。监听 `request.raw.close` 时只有
+   `request.raw.complete === false` 才表示请求体未完整接收；监听 `reply.raw.close` 时只有
+   `reply.raw.writableEnded === false` 才表示响应未正常结束。正常完成后必须移除监听器。
+   不能在 `request.raw.close` 时只检查响应状态，因为 Node 16+ 会在正常请求消息完成时
+   触发 IncomingMessage `close`。现有 `onRequest` observation 中的 `aborted` 监听也应迁移
+   到同一 helper，避免取消执行和 499 观测各自维护一套生命周期判断。
+2. `/v1/chat/completions` 和 `/v1/responses` 的非流式 handler 都把该 signal 传入
+   `executeChatCompletion()`；`createChatRequestDeadline()` 再把它传播到 provider adapter。
+   `/v1/responses` 流式路径继续使用现有 `sse.signal`，并增加防回退测试。
 3. 保持 provider deadline 严格早于 Worker call deadline，预留返回结构化
    `upstream_timeout` 和清理活动调用的时间；不能让 Worker 先断开、Gateway 后超时。
 4. 对本地超时采用保守策略：只有收到 Gateway/provider 的明确终态后才允许同分片重试；
@@ -275,11 +283,11 @@ HTTP 请求；但 Gateway 的非流式 `/v1/chat/completions` 路径只记录客
 
 最小回归用例：
 
-- 模拟一个永不结束的非流式 provider；客户端断开后 provider signal 必须在限定时间内
-  进入 aborted；
+- 分别通过 `/v1/chat/completions` 和 `/v1/responses` 模拟一个永不结束的非流式
+  provider；客户端断开后 provider signal 必须在限定时间内进入 aborted；
 - `activeRequestRegistry`、rate limit、token reservation 和 upstream inflight 最终均为 0；
 - 同一 `run_id + stage + attempt` 不产生重叠 provider 调用；
-- 正常非流式和流式请求行为不变；
+- 正常非流式请求行为不变，`/v1/responses` 流式断开仍通过 `sse.signal` 取消且不重复结算；
 - 取消过程中无未处理异常、无 Gateway/Worker 重启。
 
 ### 6.3 P0：建立 Worker 到 provider 的统一调用时间线
@@ -518,7 +526,7 @@ B1 和 B2 互不依赖，应并行推进。上线 B1 前必须做 Gateway 通用
 
 | 工作包 | 主要代码位置 | 必须新增或更新的验证 |
 | --- | --- | --- |
-| PR-1 非流式取消 | `apps/gateway/src/index.ts`、`services/chat-request-deadline.ts`，必要时新增通用 client-disconnect helper | `index.test.ts` 的非流式断开集成测试、deadline signal 测试、active request/inflight 归零断言 |
+| PR-1 非流式取消 | `apps/gateway/src/index.ts`、`services/chat-request-deadline.ts`，必要时新增通用 client-disconnect helper；同时覆盖 `/v1/chat/completions` 和 `/v1/responses` | `index.test.ts` 和 `responses-compat.test.ts` 的两条非流式断开测试、responses 流式防回退、deadline signal、active request/inflight 归零断言 |
 | PR-2 调用时间线 | `packages/research-agent/src/model-client.ts`、`packages/store-sqlite/src/research-migrations.ts`、`research-store.ts`、Gateway observation/request-events | schema 升级兼容、旧库读取、成功/500/timeout/cancel 四类时间线测试 |
 | PR-3 离线回放 | `packages/research-agent/src/workflow.ts`、新 replay 模块、`apps/research-worker/src/research-worker.test.ts`、新 fixture 目录 | 禁网运行、重复运行确定性、首批历史缺陷用例、`known-invalid` 排除断言 |
 | PR-4 单一规则源 | 新 contract policy/prose rules 模块及 `workflow.ts` 调用点 | Prompt/fragment/final/supplementer 同源断言、所有回放通过、Skill digest 变化时 fail-closed |
@@ -550,7 +558,8 @@ PR-1 和 PR-2 可在同一发布候选中联调，但应保持可独立回滚；
 
 - Azure 当前部署和备份健康，公网仍只经 Nginx 暴露；
 - 医学 Skill 仍为经医学团队确认的原始版本；
-- 非流式客户端断开能够到达 provider，活动调用和并发计数正常释放；
+- `/v1/chat/completions` 和 `/v1/responses` 的非流式客户端断开都能够到达 provider，
+  活动调用和并发计数正常释放；
 - timeout/retry 故障注入证明同一分片没有新旧 provider 调用重叠；
 - Worker stage 与 Gateway request event 可以关联，并能区分 provider 首事件、完成、取消和
   admission wait；
