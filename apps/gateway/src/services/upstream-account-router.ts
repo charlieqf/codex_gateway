@@ -315,12 +315,13 @@ export class UpstreamAccountRouter {
         httpStatus: 503
       });
     }
-    if (isCoolingDown(runtime.upstreamAccount)) {
+    const nowMs = this.now().getTime();
+    if (isCoolingDown(runtime.upstreamAccount, nowMs)) {
       return new GatewayError({
         code: "rate_limited",
         message: "The upstream account for this session is cooling down.",
         httpStatus: 429,
-        retryAfterSeconds: retryAfterSeconds(runtime.upstreamAccount)
+        retryAfterSeconds: retryAfterSeconds(runtime.upstreamAccount, nowMs)
       });
     }
     if (isAtConcurrencyCap(runtime)) {
@@ -339,12 +340,13 @@ export class UpstreamAccountRouter {
     excludeAccountIds: Iterable<string> | undefined
   ): UpstreamAccountRuntime | GatewayError {
     const excluded = new Set(excludeAccountIds ?? []);
+    const nowMs = this.now().getTime();
     const candidates = this.runtimes.filter(
       (runtime) =>
         !excluded.has(runtime.upstreamAccount.id) &&
         runtime.enabled &&
         runtime.upstreamAccount.state === "active" &&
-        !isCoolingDown(runtime.upstreamAccount) &&
+        !isCoolingDown(runtime.upstreamAccount, nowMs) &&
         !isAtConcurrencyCap(runtime)
     );
     if (candidates.length === 0) {
@@ -390,12 +392,13 @@ export class UpstreamAccountRouter {
   }
 
   private firstEligibleRuntime(): UpstreamAccountRuntime | null {
+    const nowMs = this.now().getTime();
     return (
       this.runtimes.find(
         (runtime) =>
           runtime.enabled &&
           runtime.upstreamAccount.state === "active" &&
-          !isCoolingDown(runtime.upstreamAccount) &&
+          !isCoolingDown(runtime.upstreamAccount, nowMs) &&
           !isAtConcurrencyCap(runtime)
       ) ?? null
     );
@@ -410,18 +413,20 @@ export class UpstreamAccountRouter {
         httpStatus: 503
       });
     }
-    if (
-      enabled.some(
-        (runtime) =>
-          runtime.upstreamAccount.state === "active" &&
-          (isCoolingDown(runtime.upstreamAccount) || isAtConcurrencyCap(runtime))
-      )
-    ) {
+    const nowMs = this.now().getTime();
+    const busy = enabled.filter(
+      (runtime) =>
+        runtime.upstreamAccount.state === "active" &&
+        (isCoolingDown(runtime.upstreamAccount, nowMs) || isAtConcurrencyCap(runtime))
+    );
+    if (busy.length > 0) {
       return new GatewayError({
         code: "rate_limited",
         message: "All upstream accounts are temporarily busy.",
         httpStatus: 429,
-        retryAfterSeconds: 1
+        retryAfterSeconds: Math.min(
+          ...busy.map((runtime) => runtimeRetryAfterSeconds(runtime, nowMs))
+        )
       });
     }
     return new GatewayError({
@@ -739,19 +744,25 @@ function isUpstreamAccountState(value: unknown): value is UpstreamAccountState {
   );
 }
 
-function isCoolingDown(account: UpstreamAccount): boolean {
-  return Boolean(account.cooldownUntil && account.cooldownUntil.getTime() > Date.now());
+function isCoolingDown(account: UpstreamAccount, nowMs = Date.now()): boolean {
+  return Boolean(account.cooldownUntil && account.cooldownUntil.getTime() > nowMs);
 }
 
-function retryAfterSeconds(account: UpstreamAccount): number {
+function retryAfterSeconds(account: UpstreamAccount, nowMs = Date.now()): number {
   if (!account.cooldownUntil) {
     return 1;
   }
-  return Math.max(1, Math.ceil((account.cooldownUntil.getTime() - Date.now()) / 1000));
+  return Math.max(1, Math.ceil((account.cooldownUntil.getTime() - nowMs) / 1000));
 }
 
 function isAtConcurrencyCap(runtime: UpstreamAccountRuntime): boolean {
   return runtime.maxConcurrent !== null && runtime.inflight >= runtime.maxConcurrent;
+}
+
+function runtimeRetryAfterSeconds(runtime: UpstreamAccountRuntime, nowMs: number): number {
+  return isCoolingDown(runtime.upstreamAccount, nowMs)
+    ? retryAfterSeconds(runtime.upstreamAccount, nowMs)
+    : 1;
 }
 
 function isImageCoolingDown(runtime: UpstreamAccountRuntime): boolean {

@@ -242,6 +242,56 @@ describe("UpstreamAccountRouter", () => {
     expect("upstreamAccount" in selection && selection.upstreamAccount.id).toBe("codex-pro-1");
   });
 
+  it("reports the earliest real cooldown instead of retrying every second", () => {
+    const now = new Date("2026-07-22T06:00:00.000Z");
+    const router = new UpstreamAccountRouter(
+      [
+        runtime("codex-pro-1", {
+          upstreamAccount: upstreamAccount("codex-pro-1", {
+            cooldownUntil: new Date("2026-07-22T06:00:30.000Z")
+          })
+        }),
+        runtime("codex-pro-2", {
+          upstreamAccount: upstreamAccount("codex-pro-2", {
+            cooldownUntil: new Date("2026-07-22T06:00:45.000Z")
+          })
+        })
+      ],
+      { now: () => now }
+    );
+
+    expect(router.beginStateless()).toMatchObject({
+      code: "rate_limited",
+      retryAfterSeconds: 30
+    });
+  });
+
+  it("prefers a short concurrency retry when another account is cooling down", () => {
+    const now = new Date("2026-07-22T06:00:00.000Z");
+    const router = new UpstreamAccountRouter(
+      [
+        runtime("codex-pro-1", { maxConcurrent: 1 }),
+        runtime("codex-pro-2", {
+          upstreamAccount: upstreamAccount("codex-pro-2", {
+            cooldownUntil: new Date("2026-07-22T06:00:30.000Z")
+          })
+        })
+      ],
+      { now: () => now, softAffinity: "none" }
+    );
+    const lease = router.beginStateless();
+    expect(lease).not.toBeInstanceOf(Error);
+
+    expect(router.beginStateless()).toMatchObject({
+      code: "rate_limited",
+      retryAfterSeconds: 1
+    });
+
+    if ("release" in lease) {
+      lease.release();
+    }
+  });
+
   it("records provider outcomes into account state and cooldown", () => {
     const updates: UpstreamAccount[] = [];
     const now = new Date("2026-01-01T00:00:00.000Z");
@@ -405,10 +455,12 @@ function runtime(
   > = {}
 ): UpstreamAccountRuntimeInput {
   return {
-    upstreamAccount: upstreamAccount(id, {
-      state: overrides.state,
-      imageApiKeyEnv: overrides.imageApiKeyEnv
-    }),
+    upstreamAccount:
+      overrides.upstreamAccount ??
+      upstreamAccount(id, {
+        state: overrides.state,
+        imageApiKeyEnv: overrides.imageApiKeyEnv
+      }),
     provider: overrides.provider ?? new FakeProvider(),
     imageProvider: overrides.imageProvider,
     enabled: overrides.enabled,
