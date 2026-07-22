@@ -332,12 +332,15 @@ export async function executeDoctorResearchWorkflow(input: {
         status: "passed_with_warnings",
         checks: qualityChecks,
         warnings: [
-          "llm_synthesis_requires_human_review",
-          "abstract_only_evidence",
-          ...generatedResult.warnings,
-          ...(literature.references.length < input.policy.maximumPublications
-            ? ["verified_reference_target_not_reached"]
-            : [])
+          ...new Set([
+            "llm_synthesis_requires_human_review",
+            "abstract_only_evidence",
+            ...generatedResult.warnings,
+            ...(literature.references.length <
+              input.policy.maximumPublications
+              ? ["verified_reference_target_not_reached"]
+              : [])
+          ])
         ]
       }
     };
@@ -376,12 +379,17 @@ export async function executeDoctorResearchWorkflow(input: {
         sha256: artifact.sha256
       }))
     });
-    const result = assembleDoctorResearchResult({
-      modelOutput: finalized,
-      requestId: `req_research_worker_${context.run.runId.slice(4)}`,
-      runId: context.run.runId,
-      artifacts: publicResearchArtifactManifests(staged)
-    });
+    let result;
+    try {
+      result = assembleDoctorResearchResult({
+        modelOutput: finalized,
+        requestId: `req_research_worker_${context.run.runId.slice(4)}`,
+        runId: context.run.runId,
+        artifacts: publicResearchArtifactManifests(staged)
+      });
+    } catch (error) {
+      throw new WorkflowModelContractError(error);
+    }
     const completed = input.store.completeSuccessfulRun({
       token: context.token,
       resultSchemaVersion: "doctor_research_result.v1",
@@ -431,6 +439,9 @@ export async function executeDoctorResearchWorkflow(input: {
             ? "deadline_exceeded"
             : "model_contract_error"
       };
+    }
+    if (error instanceof WorkflowModelContractError) {
+      return { outcome: "failed", reason: "model_contract_error" };
     }
     if (input.signal.aborted) {
       throw error;
@@ -10158,6 +10169,12 @@ function validateWorkflowPolicy(policy: DoctorResearchWorkflowPolicy): void {
 }
 
 class WorkflowFencedError extends Error {}
+class WorkflowModelContractError extends Error {
+  constructor(readonly cause: unknown) {
+    super("Research result assembly failed its closed contract.");
+    this.name = "WorkflowModelContractError";
+  }
+}
 class WorkflowBudgetError extends Error {
   constructor(readonly limit: string) {
     super(`Research workflow budget exceeded: ${limit}`);
