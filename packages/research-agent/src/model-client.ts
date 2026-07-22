@@ -43,6 +43,7 @@ export interface ResearchModelClient {
     prompt: string;
     signal: AbortSignal;
     maximumOutputTokens?: number;
+    reasoningEffort?: "none" | "low" | "medium" | "high";
   }): Promise<ResearchModelResponse>;
 }
 
@@ -239,6 +240,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     prompt: string;
     signal: AbortSignal;
     maximumOutputTokens?: number;
+    reasoningEffort?: "none" | "low" | "medium" | "high";
   }): Promise<ResearchModelResponse> {
     if (!/^drr_[a-f0-9]{32}$/.test(input.runId)) {
       throw new Error("Research LLM run ID is invalid.");
@@ -257,6 +259,8 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     }
     const maximumOutputTokens =
       input.maximumOutputTokens ?? this.maximumOutputTokensPerCall;
+    const reasoningEffort =
+      input.reasoningEffort ?? this.options.reasoningEffort;
     if (
       !Number.isSafeInteger(maximumOutputTokens) ||
       maximumOutputTokens <= 0 ||
@@ -265,6 +269,9 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       throw new Error(
         "Research LLM request output token limit is invalid."
       );
+    }
+    if (!["none", "low", "medium", "high"].includes(reasoningEffort)) {
+      throw new Error("Research LLM request reasoning effort is invalid.");
     }
     const clientStartedAt = this.monotonicNow();
     let admissionWaitMs = 0;
@@ -309,7 +316,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
             model: this.model,
             stream: false,
             max_tokens: maximumOutputTokens,
-            reasoning_effort: this.options.reasoningEffort,
+            reasoning_effort: reasoningEffort,
             messages: [
               { role: "system", content: input.system },
               { role: "user", content: input.prompt }
@@ -412,11 +419,17 @@ export class GatewayResearchModelClient implements ResearchModelClient {
             : null;
         const message =
           first && isRecord(first.message) ? first.message : null;
+        const finishReason =
+          first && typeof first.finish_reason === "string"
+            ? first.finish_reason
+            : null;
         const text =
           typeof message?.content === "string" ? message.content : null;
         if (text === null || text.trim() === "") {
           throw new ResearchModelClientError(
-            "empty_response",
+            finishReason === "length"
+              ? "output_exhausted"
+              : "empty_response",
             response.status,
             requestId
           );
@@ -559,7 +572,8 @@ export class ResearchModelClientError extends Error {
       | "rate_limited"
       | "upstream_error"
       | "invalid_response"
-      | "empty_response",
+      | "empty_response"
+      | "output_exhausted",
     readonly statusCode: number,
     readonly gatewayRequestId: string | null,
     readonly retryAfterSeconds: number | null = null

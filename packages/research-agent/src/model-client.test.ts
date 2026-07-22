@@ -129,6 +129,74 @@ describe("Doctor Research structured Gateway model client", () => {
     });
   });
 
+  it("classifies hidden-reasoning exhaustion and honors a bounded reasoning override", async () => {
+    let requestBody: Record<string, unknown> | null = null;
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async (_input, init) => {
+        requestBody = JSON.parse(String(init?.body)) as Record<
+          string,
+          unknown
+        >;
+        return jsonResponse(
+          {
+            choices: [
+              {
+                message: { role: "assistant", content: "" },
+                finish_reason: "length"
+              }
+            ],
+            usage: {
+              prompt_tokens: 12_000,
+              completion_tokens: 8_001,
+              completion_tokens_details: {
+                reasoning_tokens: 8_000
+              },
+              total_tokens: 20_001
+            }
+          },
+          { "x-request-id": "req_model_output_exhausted" }
+        );
+      }
+    });
+
+    const failure = await captureFailure(() =>
+      client.generate({
+        runId: `drr_${"9".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 4,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal,
+        maximumOutputTokens: 8_000,
+        reasoningEffort: "none"
+      })
+    );
+
+    expect(failure).toMatchObject({
+      name: "ResearchModelClientError",
+      code: "output_exhausted",
+      statusCode: 200,
+      gatewayRequestId: "req_model_output_exhausted"
+    });
+    expect(requestBody).toMatchObject({
+      max_tokens: 8_000,
+      reasoning_effort: "none"
+    });
+    expect(researchModelCallTelemetryFromError(failure)).toMatchObject({
+      terminalSource: "provider_response",
+      cancelRequested: false,
+      cancelObserved: false
+    });
+  });
+
   it("fails closed when the service credential does not expose the exact model", async () => {
     const client = new GatewayResearchModelClient({
       baseUrl: "http://gateway:8787",

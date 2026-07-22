@@ -396,7 +396,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "transport-middle-and-closing",
-      "deterministic_closing_transport_fallback_applied"
+      "bounded_shard_transport_retry_completed"
     ],
     [
       "transport-body-near-minimum",
@@ -914,6 +914,12 @@ describe("Research Worker controlled-beta workflow", () => {
     const modelCalls: string[] = [];
     const synthesisPrompts = new Map<number, string>();
     const synthesisOutputTokenLimits = new Map<number, number | undefined>();
+    const synthesisReasoningEfforts = new Map<
+      number,
+      string | undefined
+    >();
+    const activeOutputExhaustedShardRoles = new Set<number>();
+    let sameShardProviderOverlapObserved = false;
     let retryPrompt: string | null = null;
     const validationEvents: Array<{
       stage: string;
@@ -928,6 +934,12 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate(modelInput) {
           attempts.push(modelInput.attempt);
+          if (modelInput.stage === "synthesize_review") {
+            synthesisReasoningEfforts.set(
+              modelInput.attempt,
+              modelInput.reasoningEffort
+            );
+          }
           modelCalls.push(
             `${modelInput.stage}:${modelInput.attempt}:${
               modelInput.prompt.includes(
@@ -942,6 +954,24 @@ describe("Research Worker controlled-beta workflow", () => {
             }`
           );
           const shardRole = shardRoleForPrompt(modelInput.prompt);
+          const finishOutputExhaustedShardCall = (): void => {
+            if (
+              retryKind === "transport-middle-and-closing" &&
+              shardRole !== null
+            ) {
+              activeOutputExhaustedShardRoles.delete(shardRole);
+            }
+          };
+          if (
+            retryKind === "transport-middle-and-closing" &&
+            modelInput.stage === "synthesize_review" &&
+            shardRole !== null
+          ) {
+            if (activeOutputExhaustedShardRoles.has(shardRole)) {
+              sameShardProviderOverlapObserved = true;
+            }
+            activeOutputExhaustedShardRoles.add(shardRole);
+          }
           if (
             modelInput.stage === "synthesize_review" &&
             shardRole !== null &&
@@ -962,6 +992,7 @@ describe("Research Worker controlled-beta workflow", () => {
             if (retryKind === "transport-middle-and-closing") {
               if (modelInput.attempt === 1) {
                 activeSynthesisCalls -= 1;
+                finishOutputExhaustedShardCall();
                 return {
                   text: fragments.get(1)!,
                   gatewayRequestId:
@@ -976,17 +1007,20 @@ describe("Research Worker controlled-beta workflow", () => {
               if (modelInput.attempt === 2) {
                 await middleFailureBarrier;
                 activeSynthesisCalls -= 1;
-                throw new DOMException(
-                  "Body shard timed out.",
-                  "TimeoutError"
+                finishOutputExhaustedShardCall();
+                throw new ResearchModelClientError(
+                  "output_exhausted",
+                  200,
+                  "req_sharded_middle_output_exhausted"
                 );
               }
               activeSynthesisCalls -= 1;
               setImmediate(() => releaseMiddleFailureBarrier?.());
+              finishOutputExhaustedShardCall();
               throw new ResearchModelClientError(
-                "upstream_error",
-                503,
-                "req_sharded_middle_closing_initial"
+                "output_exhausted",
+                200,
+                "req_sharded_closing_output_exhausted"
               );
             }
             if (retryKind === "admission") {
@@ -1298,6 +1332,7 @@ describe("Research Worker controlled-beta workflow", () => {
             retryKind === "transport-middle-and-closing" &&
             modelInput.attempt === 4
           ) {
+            finishOutputExhaustedShardCall();
             return {
               text: fragments.get(2)!,
               gatewayRequestId:
@@ -1313,11 +1348,17 @@ describe("Research Worker controlled-beta workflow", () => {
             retryKind === "transport-middle-and-closing" &&
             modelInput.attempt === 5
           ) {
-            throw new ResearchModelClientError(
-              "upstream_error",
-              503,
-              "req_sharded_middle_closing_final"
-            );
+            finishOutputExhaustedShardCall();
+            return {
+              text: fragments.get(3)!,
+              gatewayRequestId:
+                "req_sharded_middle_closing_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
           }
           if (
             retryKind === "transport-double" &&
@@ -1561,6 +1602,15 @@ describe("Research Worker controlled-beta workflow", () => {
         "synthesize_review:4:body",
         "synthesize_review:5:closing"
       ]);
+      expect([...synthesisReasoningEfforts.entries()]).toEqual([
+        [1, undefined],
+        [2, undefined],
+        [3, undefined],
+        [4, "none"],
+        [5, "none"]
+      ]);
+      expect(sameShardProviderOverlapObserved).toBe(false);
+      expect(activeOutputExhaustedShardRoles.size).toBe(0);
     }
     expect(synthesisPrompts.get(1)).toContain(
       "doctor_research_foundation_fragment.v3"
@@ -3418,6 +3468,7 @@ describe("Research Worker controlled-beta workflow", () => {
   it.each([
     ["invalid_response", 200],
     ["empty_response", 200],
+    ["output_exhausted", 200],
     ["upstream_error", 401]
   ] as const)(
     "does not replay a non-transient initial model failure (%s/%i)",

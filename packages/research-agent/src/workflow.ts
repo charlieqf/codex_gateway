@@ -557,6 +557,7 @@ class WorkflowContext {
     system?: string;
     maximumDurationMs?: number;
     maximumOutputTokens?: number;
+    reasoningEffort?: "none" | "low" | "medium" | "high";
   }): Promise<ResearchModelResponse> {
     const system = input.system ?? doctorResearchSystemPolicy;
     // Preflight wall-clock capacity before charging tokens or writing a stage
@@ -580,7 +581,8 @@ class WorkflowContext {
           prompt: input.prompt,
           maximumOutputTokens:
             input.maximumOutputTokens ??
-            this.input.policy.maximumOutputTokensPerCall
+            this.input.policy.maximumOutputTokensPerCall,
+          reasoningEffort: input.reasoningEffort ?? null
         })
       ),
       now: startedAt
@@ -602,7 +604,10 @@ class WorkflowContext {
         signal: modelSignal,
         ...(input.maximumOutputTokens === undefined
           ? {}
-          : { maximumOutputTokens: input.maximumOutputTokens })
+          : { maximumOutputTokens: input.maximumOutputTokens }),
+        ...(input.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: input.reasoningEffort })
       });
       const durationMs = elapsedMilliseconds(startedMonotonic);
       const telemetry = response.telemetry ?? {
@@ -2677,6 +2682,10 @@ async function generateAndValidateShardedModelOutput(
     Array.from({ length: shardInputs.length }, () => null);
   const pendingIndexes = shardInputs.map((_, index) => index);
   const active = new Map<number, Promise<ShardSettlement>>();
+  const shardReasoningEffortOverrides = new Map<
+    number,
+    "none" | "low" | "medium" | "high"
+  >();
   let maximumConcurrency = 2;
   let nextAttempt = 1;
   let shardTransportRetryCompleted = false;
@@ -2714,7 +2723,13 @@ async function generateAndValidateShardedModelOutput(
             ...input,
             attempt,
             maximumDurationMs:
-              index === 1 ? 170_000 : index === 2 ? 90_000 : 120_000
+              index === 1 ? 170_000 : index === 2 ? 90_000 : 120_000,
+            ...(shardReasoningEffortOverrides.has(index)
+              ? {
+                  reasoningEffort:
+                    shardReasoningEffortOverrides.get(index)!
+                }
+              : {})
           }
         : { ...input, attempt };
     active.set(
@@ -2805,6 +2820,13 @@ async function generateAndValidateShardedModelOutput(
     ) {
       shardTransportRetryCount += 1;
       shardTransportRetryCompleted = true;
+      if (isOutputExhaustedShardError(settlement.reason)) {
+        // A length-terminated response with no visible content has already
+        // spent its entire completion budget on hidden reasoning. Preserve
+        // the reviewed model and every output validator, but make the single
+        // bounded retry spend its token budget on the required JSON content.
+        shardReasoningEffortOverrides.set(settlement.index, "none");
+      }
       maximumConcurrency = 1;
       if (settlement.index === 2) {
         pendingIndexes.push(settlement.index);
@@ -5908,6 +5930,7 @@ function isRetryableLateModelError(
 
 function isRetryableShardTransportError(error: unknown): boolean {
   return (
+    isOutputExhaustedShardError(error) ||
     (error instanceof DOMException && error.name === "TimeoutError") ||
     (error instanceof ResearchModelClientError &&
       (error.code === "empty_response" ||
@@ -5915,6 +5938,14 @@ function isRetryableShardTransportError(error: unknown): boolean {
         error.code === "rate_limited" ||
         (error.code === "upstream_error" &&
           (error.statusCode === 0 || error.statusCode >= 500))))
+  );
+}
+
+function isOutputExhaustedShardError(error: unknown): boolean {
+  return (
+    ((error instanceof ResearchModelClientError) ||
+      (isJsonRecord(error) && error.name === "ResearchModelClientError")) &&
+    error.code === "output_exhausted"
   );
 }
 
