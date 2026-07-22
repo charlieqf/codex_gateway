@@ -423,6 +423,26 @@ doctor's position, expertise and research-direction evidence. The run fails
 closed if the identity bridge, publication attribution or required profile
 evidence is missing.
 
+## Offline model-response replay
+
+Reviewed replay fixtures live only under
+`packages/research-agent/test-fixtures/replay/`. The replay entry accepts a
+sanitized run input, fixed closed evidence, an injected clock, and the ordered
+model response-or-error sequence. It performs the production fragment parse,
+deterministic normalization, merge, complete validation, peer substring patch,
+and four-text rendering without network access. Tests run every fixture twice
+and require identical diagnostics, semantic results, artifact bytes, and
+aggregate content SHA-256.
+
+The initial suite contains synthetic derived cases for short topic sections,
+orphaned references, truncated comparison prose, QA after the conclusion,
+unsupported numbers, missing citations, peer patches, malformed shard JSON,
+provider 500, 429 admission rejection, timeout cancellation, and client abort.
+Each fixture is pinned to the exact medical-team Skill bundle digest and the
+prompt, validation, workflow, and response-template versions; a digest or
+version change fails closed pending review. The quarantined
+`samples/known-invalid/` directory is never loaded as a replay fixture.
+
 ## Historical Phase 0 status
 
 The following records describe the earlier Phase 0 baseline and are retained

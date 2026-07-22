@@ -1,0 +1,123 @@
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  getDefaultMedicalSkillBundle,
+  runDoctorResearchReplayFixture,
+  type DoctorResearchReplayFixture
+} from "./index.js";
+
+const fixtureRoot = path.resolve(
+  "packages/research-agent/test-fixtures/replay"
+);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("Doctor Research offline model-response replay", () => {
+  const fixtures = loadReplayFixtures();
+
+  it("loads only the independent reviewed replay directory", () => {
+    expect(fixtureRoot.replaceAll("\\", "/")).not.toContain(
+      "samples/known-invalid"
+    );
+    expect(fixtures.map((fixture) => fixture.fixture_id)).toEqual([
+      ...fixtures.map((fixture) => fixture.fixture_id)
+    ].sort());
+    expect(fixtures.length).toBeGreaterThanOrEqual(13);
+  });
+
+  for (const fixture of fixtures) {
+    it(`replays ${fixture.fixture_id} deterministically without network`, () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const activeSkillBundleSha256 =
+        getDefaultMedicalSkillBundle().digest;
+      const first = runDoctorResearchReplayFixture({
+        fixture,
+        activeSkillBundleSha256
+      });
+      const second = runDoctorResearchReplayFixture({
+        fixture,
+        activeSkillBundleSha256
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      expect(first.terminalStatus).toBe(
+        fixture.expected.terminal_status
+      );
+      expect(first.diagnostics).toEqual(
+        fixture.expected.diagnostics
+      );
+      expect(second).toEqual(first);
+      if (first.terminalStatus !== "succeeded") {
+        expect(first.artifacts).toEqual([]);
+        expect(first.artifactContentSha256).toBeNull();
+        return;
+      }
+
+      const semantics = fixture.expected.artifact_semantics;
+      expect(first.artifacts.map((artifact) => artifact.kind)).toEqual(
+        semantics.exact_kinds
+      );
+      expect(
+        first.artifacts.filter((artifact) =>
+          artifact.contentType.startsWith("text/markdown")
+        )
+      ).toHaveLength(semantics.markdown_count);
+      expect(
+        first.artifacts.filter((artifact) =>
+          artifact.contentType.startsWith("text/plain")
+        )
+      ).toHaveLength(semantics.text_count);
+      expect(new Set(first.artifacts.map((artifact) => artifact.kind))).toHaveLength(4);
+      for (const artifact of first.artifacts) {
+        expect(
+          createHash("sha256")
+            .update(artifact.content, "utf8")
+            .digest("hex")
+        ).toBe(artifact.contentSha256);
+      }
+      expect(first.artifactContentSha256).toMatch(/^[a-f0-9]{64}$/u);
+      expect(first.artifactContentSha256).toBe(
+        semantics.aggregate_content_sha256
+      );
+    });
+  }
+
+  it("fails closed when the medical-team Skill digest changes", () => {
+    expect(() =>
+      runDoctorResearchReplayFixture({
+        fixture: fixtures[0]!,
+        activeSkillBundleSha256: "f".repeat(64)
+      })
+    ).toThrow("requires review");
+  });
+
+  it("fails closed when a derived policy version changes", () => {
+    const fixture = structuredClone(fixtures[0]!);
+    fixture.validation_version = "doctor_research_validation.v999";
+    expect(() =>
+      runDoctorResearchReplayFixture({
+        fixture,
+        activeSkillBundleSha256:
+          getDefaultMedicalSkillBundle().digest
+      })
+    ).toThrow("policy versions are stale");
+  });
+});
+
+function loadReplayFixtures(): DoctorResearchReplayFixture[] {
+  return readdirSync(fixtureRoot)
+    .filter((name) => name.endsWith(".json"))
+    .sort()
+    .map((name) =>
+      JSON.parse(
+        readFileSync(path.join(fixtureRoot, name), "utf8")
+      ) as DoctorResearchReplayFixture
+    )
+    .sort((left, right) =>
+      left.fixture_id.localeCompare(right.fixture_id)
+    );
+}

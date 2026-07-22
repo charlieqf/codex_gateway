@@ -909,13 +909,7 @@ function resolveIdentity(
     orcidIdentity: FrozenIdentityRecord | null;
     officialSources: FrozenOfficialSource[];
   }
-): {
-  canonicalIdentityId: string;
-  matchedBy: DoctorResearchModelOutput["identity_resolution"]["matched_by"];
-  sources: DoctorResearchSource[];
-  profileSourceIds: string[];
-  sourceEvidence: Array<DoctorResearchSource & { untrusted_text: string }>;
-} | null {
+): ResolvedDoctorResearchIdentity | null {
   const doctor = run.input.doctor;
   if (
     doctor.orcid &&
@@ -1044,14 +1038,14 @@ function orcidAffiliationMatches(
   );
 }
 
-interface PublicationEvidence {
+export interface PublicationEvidence {
   reference_id: string;
   title: string;
   authors: string[];
   abstract: string | null;
 }
 
-interface CollectedLiterature {
+export interface CollectedLiterature {
   discoveredCount: number;
   references: DoctorResearchReference[];
   sources: DoctorResearchSource[];
@@ -1059,13 +1053,330 @@ interface CollectedLiterature {
   databases: Array<"pubmed" | "crossref">;
 }
 
-interface WorkflowEvidence {
+export interface WorkflowEvidence {
   sources: DoctorResearchSource[];
   references: DoctorResearchReference[];
   publicationEvidence: PublicationEvidence[];
   literatureDatabases: Array<"pubmed" | "crossref">;
   doctorLiterature: CollectedLiterature;
   searchQueries: string[];
+}
+
+export interface ResolvedDoctorResearchIdentity {
+  canonicalIdentityId: string;
+  matchedBy: DoctorResearchModelOutput["identity_resolution"]["matched_by"];
+  sources: DoctorResearchSource[];
+  profileSourceIds: string[];
+  sourceEvidence: Array<
+    DoctorResearchSource & { untrusted_text: string }
+  >;
+}
+
+export interface DoctorResearchSynthesisReplayCall {
+  stage: "synthesize_review" | "validate_outputs";
+  attempt: number;
+  role:
+    | "foundation"
+    | "body"
+    | "closing"
+    | "complete_draft"
+    | "peer_review";
+  responseText: string;
+}
+
+export interface DoctorResearchSynthesisReplayArtifact {
+  kind: "profile" | "review" | "questions" | "answers";
+  contentType:
+    | "text/markdown; charset=utf-8"
+    | "text/plain; charset=utf-8";
+  contentSha256: string;
+  content: string;
+}
+
+export type DoctorResearchSynthesisReplayResult =
+  | {
+      terminalStatus: "succeeded";
+      diagnostics: string[];
+      warnings: string[];
+      output: DoctorResearchModelOutput;
+      artifacts: DoctorResearchSynthesisReplayArtifact[];
+    }
+  | {
+      terminalStatus: "failed";
+      diagnostics: string[];
+      warnings: string[];
+      output: null;
+      artifacts: [];
+    };
+
+export function replayDoctorResearchSynthesis(input: {
+  runInput: DoctorResearchRunInput;
+  runId: string;
+  now: Date;
+  identity: ResolvedDoctorResearchIdentity;
+  closedEvidence: WorkflowEvidence;
+  policy: DoctorResearchWorkflowPolicy;
+  modelCalls: readonly DoctorResearchSynthesisReplayCall[];
+}): DoctorResearchSynthesisReplayResult {
+  validateWorkflowPolicy(input.policy);
+  if (!/^drr_[a-f0-9]{32}$/u.test(input.runId)) {
+    throw new Error("Research replay run ID is invalid.");
+  }
+  if (!Number.isFinite(input.now.getTime())) {
+    throw new Error("Research replay clock is invalid.");
+  }
+  const callsByRole = new Map<
+    DoctorResearchSynthesisReplayCall["role"],
+    DoctorResearchSynthesisReplayCall
+  >();
+  for (const call of input.modelCalls) {
+    if (
+      !Number.isSafeInteger(call.attempt) ||
+      call.attempt < 1 ||
+      call.attempt > 9 ||
+      callsByRole.has(call.role)
+    ) {
+      throw new Error("Research replay model call sequence is invalid.");
+    }
+    callsByRole.set(call.role, call);
+  }
+  const run: ResearchRunRecord = {
+    runId: input.runId,
+    subjectId: "subj_research_replay",
+    credentialId: null,
+    skillName: doctorResearchSkillDefinition.name,
+    skillVersion: doctorResearchSkillDefinition.version,
+    promptVersion: doctorResearchSkillDefinition.promptVersion,
+    inputSchemaVersion: doctorResearchSkillDefinition.inputSchemaVersion,
+    outputSchemaVersion: doctorResearchSkillDefinition.outputSchemaVersion,
+    mode: input.runInput.mode,
+    language: input.runInput.language,
+    input: structuredClone(input.runInput),
+    status: "running",
+    stage: "synthesize_review",
+    progressPercent: 60,
+    canonicalIdentityId: input.identity.canonicalIdentityId,
+    warningCodes: [],
+    terminalReason: null,
+    terminalDetailPublic: null,
+    cancelRequestedAt: null,
+    cancelRequestedBy: null,
+    cancelRequestId: null,
+    needsInputExpiresAt: null,
+    needsInputStartedAt: null,
+    queuedAt: input.now,
+    activeStartedAt: input.now,
+    activeElapsedMs: 0,
+    leaseOwner: "research-replay",
+    leaseUntil: new Date(input.now.getTime() + input.policy.hardDeadlineMs),
+    leaseGeneration: 1,
+    attemptCount: 1,
+    resumeCount: 0,
+    createdAt: input.now,
+    updatedAt: input.now,
+    completedAt: null,
+    expiresAt: null,
+    purgeAfter: null
+  };
+  const warnings: string[] = [];
+  const fail = (diagnostics: readonly string[]): DoctorResearchSynthesisReplayResult => ({
+    terminalStatus: "failed",
+    diagnostics: [...new Set(diagnostics)],
+    warnings: [...new Set(warnings)],
+    output: null,
+    artifacts: []
+  });
+
+  let draftText: string;
+  const completeDraft = callsByRole.get("complete_draft");
+  if (completeDraft) {
+    draftText = completeDraft.responseText;
+  } else {
+    const foundationCall = callsByRole.get("foundation");
+    const bodyCall = callsByRole.get("body");
+    const closingCall = callsByRole.get("closing");
+    const foundation = foundationCall
+      ? parseFoundationFragment(foundationCall.responseText)
+      : null;
+    const body = bodyCall
+      ? parseBodyFragment(bodyCall.responseText)
+      : null;
+    const closing = closingCall
+      ? parseReviewFragment(closingCall.responseText)
+      : null;
+    const fragmentDiagnostics = [
+      ...(foundation ? [] : ["foundation_fragment_contract_error"]),
+      ...(body ? [] : ["body_fragment_contract_error"]),
+      ...(closing ? [] : ["fragment_contract_error"])
+    ];
+    if (!foundation || !body || !closing) {
+      return fail(fragmentDiagnostics);
+    }
+    const normalizedFoundation =
+      normalizeNearMinimumFoundationAbstract(
+        foundation,
+        run.language
+      );
+    const normalizedBody = supplementNearMinimumBodySections(
+      body,
+      run.language
+    );
+    const normalizedClosing =
+      dropUnderfilledOptionalClosingTopic(closing, run.language);
+    const skillClosedClosing = supplementReviewSkillSectionBoundaries({
+      markdown: normalizedClosing.fragment.markdown,
+      referenceCount: input.closedEvidence.references.length,
+      language: run.language
+    });
+    warnings.push(...normalizedFoundation.warnings);
+    if (normalizedBody.changed) {
+      warnings.push(
+        "deterministic_body_section_boundary_supplement_applied"
+      );
+    }
+    if (normalizedClosing.changed) {
+      warnings.push("deterministic_underfilled_optional_topic_removed");
+    }
+    if (skillClosedClosing.changed) {
+      warnings.push(
+        "deterministic_closing_section_boundary_supplement_applied"
+      );
+    }
+    const normalizedClosingFragment: ReviewFragment = {
+      ...normalizedClosing.fragment,
+      markdown: skillClosedClosing.markdown
+    };
+    const skillDiagnostics = [
+      ...validateFoundationFragmentSkillContract(
+        normalizedFoundation.fragment,
+        run.language
+      ),
+      ...validateBodyFragmentSkillContract(
+        normalizedBody.fragment,
+        run.language
+      ),
+      ...validateClosingFragmentSkillContract(
+        normalizedClosingFragment,
+        run.language
+      )
+    ].map((diagnostic) => diagnostic.split(":", 1)[0]!);
+    if (skillDiagnostics.length > 0) {
+      return fail(skillDiagnostics);
+    }
+    const profile = buildDeterministicVerifiedProfile(
+      input.identity,
+      run.input.doctor.name
+    );
+    if (!profile) {
+      return fail(["verified_research_direction_required"]);
+    }
+    const foundationEvidence = subsetWorkflowEvidence(
+      input.closedEvidence,
+      referenceIndexes(
+        0,
+        Math.min(5, input.closedEvidence.references.length)
+      )
+    );
+    const draft: DoctorResearchModelDraft = {
+      schema_version: "doctor_research_model_draft.v1",
+      profile,
+      review: {
+        title: normalizedFoundation.fragment.review.title,
+        abstract: normalizedFoundation.fragment.review.abstract,
+        keywords: normalizedFoundation.fragment.review.keywords,
+        markdown: [
+          normalizedFoundation.fragment.review.markdown.trim(),
+          normalizedBody.fragment.markdown.trim(),
+          normalizedClosingFragment.markdown.trim()
+        ].join("\n\n"),
+        core_evidence: buildDeterministicCoreEvidence(
+          foundationEvidence,
+          run.language,
+          normalizedFoundation.fragment.review.markdown
+        )
+      },
+      predicted_questions:
+        normalizedBody.fragment.predicted_questions,
+      answers: normalizedBody.fragment.answers.map((answer) => ({
+        ...answer,
+        answer: boundAnswerContent(
+          run.language === "zh-CN"
+            ? normalizeChineseQuantitiesToArabic(answer.answer)
+            : answer.answer,
+          run.language,
+          input.policy.minimumAnswerContent,
+          input.policy.maximumAnswerContent
+        )
+      }))
+    };
+    const peerCall = callsByRole.get("peer_review");
+    if (peerCall) {
+      const decision = parsePeerReviewDecision(peerCall.responseText);
+      if (!decision) {
+        return fail(["peer_review_contract_error"]);
+      }
+      const patched = applyPeerReviewPatches(draft, decision);
+      if (!patched) {
+        return fail(["peer_review_patch_error"]);
+      }
+      if (decision.replacements.length > 0) {
+        warnings.push("peer_review_patch_applied");
+      }
+      draftText = JSON.stringify(patched);
+    } else {
+      draftText = JSON.stringify(draft);
+    }
+  }
+
+  let validation = validateGeneratedOutput(
+    draftText,
+    run,
+    input.identity,
+    input.closedEvidence,
+    input.policy
+  );
+  const initialDiagnostics = validation.ok
+    ? []
+    : validation.errorCodes;
+  if (!validation.ok) {
+    validation = validateGeneratedOutput(
+      draftText,
+      run,
+      input.identity,
+      input.closedEvidence,
+      input.policy,
+      { deterministicSafetyNormalization: true }
+    );
+  }
+  if (!validation.ok) {
+    return fail([
+      ...initialDiagnostics,
+      ...validation.errorCodes
+    ]);
+  }
+  warnings.push(...validation.warnings);
+  const rendered = renderDoctorResearchArtifacts(
+    validation.value,
+    run.language
+  );
+  if (
+    rendered.length !== 4 ||
+    new Set(rendered.map((artifact) => artifact.kind)).size !== 4
+  ) {
+    return fail(["artifact_semantics_error"]);
+  }
+  return {
+    terminalStatus: "succeeded",
+    diagnostics: [...new Set(initialDiagnostics)],
+    warnings: [...new Set(warnings)],
+    output: validation.value,
+    artifacts: rendered.map((artifact) => ({
+      kind: artifact.kind,
+      contentType: artifact.contentType,
+      contentSha256: sha256(artifact.content),
+      content: artifact.content
+    }))
+  };
 }
 
 async function collectLiterature(

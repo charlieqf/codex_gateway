@@ -1,0 +1,299 @@
+{
+  "fixture_version": "doctor_research_replay_fixture.v1",
+  "fixture_id": "doctor_research_replay_orphaned_demonstrative",
+  "fixture_kind": "synthetic_derived",
+  "skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
+  "prompt_version": "doctor-research-prompt.v27",
+  "validation_version": "doctor_research_validation.v39",
+  "workflow_version": "doctor_research_workflow.v52",
+  "response_template_version": "doctor_research_synthetic_response.v1",
+  "run_input": {
+    "doctor": {
+      "name": "李明",
+      "hospital": "示例大学附属医院",
+      "department": "研究医学科",
+      "title": "主任医师",
+      "city": "示例市",
+      "orcid": null
+    },
+    "mode": "brief",
+    "language": "zh-CN",
+    "options": {
+      "publicationYears": 5,
+      "citationStyle": "vancouver"
+    },
+    "clientReference": "sanitized-replay"
+  },
+  "closed_evidence": {
+    "identity": {
+      "canonicalIdentityId": "dci_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "matchedBy": [
+        "institution",
+        "department",
+        "research_topic"
+      ],
+      "sources": [
+        {
+          "source_id": "src_official_replay",
+          "source_type": "official_web",
+          "title": "示例大学附属医院李明医生公开主页",
+          "url": "https://hospital.example.test/doctors/li-ming",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "profileSourceIds": [
+        "src_official_replay"
+      ],
+      "sourceEvidence": [
+        {
+          "source_id": "src_official_replay",
+          "source_type": "official_web",
+          "title": "示例大学附属医院李明医生公开主页",
+          "url": "https://hospital.example.test/doctors/li-ming",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "untrusted_text": "李明，示例大学附属医院研究医学科主任医师。擅长证据综合与方法学评价。教育与工作经历包括研究医学训练和医院科研工作。研究方向：示例研究主题、证据综合与方法学评价。代表性成果以公开文献记录为准。"
+        }
+      ]
+    },
+    "evidence": {
+      "sources": [
+        {
+          "source_id": "src_official_replay",
+          "source_type": "official_web",
+          "title": "示例大学附属医院李明医生公开主页",
+          "url": "https://hospital.example.test/doctors/li-ming",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "source_id": "src_pubmed_90000001",
+          "source_type": "pubmed",
+          "title": "Verified Evidence Synthesis Study 1",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/90000001/",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "source_id": "src_pubmed_90000002",
+          "source_type": "pubmed",
+          "title": "Verified Evidence Synthesis Study 2",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/90000002/",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "source_id": "src_pubmed_90000003",
+          "source_type": "pubmed",
+          "title": "Verified Evidence Synthesis Study 3",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/90000003/",
+          "accessed_at": "2026-07-22T00:00:00.000Z",
+          "content_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "references": [
+        {
+          "reference_id": "ref_pmid_replay_1",
+          "title": "Verified Evidence Synthesis Study 1",
+          "journal": "Synthetic Evidence Journal",
+          "publication_year": 2025,
+          "pmid": "90000001",
+          "doi": null,
+          "verification_status": "verified"
+        },
+        {
+          "reference_id": "ref_pmid_replay_2",
+          "title": "Verified Evidence Synthesis Study 2",
+          "journal": "Synthetic Evidence Journal",
+          "publication_year": 2024,
+          "pmid": "90000002",
+          "doi": null,
+          "verification_status": "verified"
+        },
+        {
+          "reference_id": "ref_pmid_replay_3",
+          "title": "Verified Evidence Synthesis Study 3",
+          "journal": "Synthetic Evidence Journal",
+          "publication_year": 2025,
+          "pmid": "90000003",
+          "doi": null,
+          "verification_status": "verified"
+        }
+      ],
+      "publicationEvidence": [
+        {
+          "reference_id": "ref_pmid_replay_1",
+          "title": "Verified Evidence Synthesis Study 1",
+          "authors": [
+            "Li Ming",
+            "Researcher 1"
+          ],
+          "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+        },
+        {
+          "reference_id": "ref_pmid_replay_2",
+          "title": "Verified Evidence Synthesis Study 2",
+          "authors": [
+            "Li Ming",
+            "Researcher 2"
+          ],
+          "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+        },
+        {
+          "reference_id": "ref_pmid_replay_3",
+          "title": "Verified Evidence Synthesis Study 3",
+          "authors": [
+            "Li Ming",
+            "Researcher 3"
+          ],
+          "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+        }
+      ],
+      "literatureDatabases": [
+        "pubmed"
+      ],
+      "doctorLiterature": {
+        "discoveredCount": 3,
+        "references": [
+          {
+            "reference_id": "ref_pmid_replay_1",
+            "title": "Verified Evidence Synthesis Study 1",
+            "journal": "Synthetic Evidence Journal",
+            "publication_year": 2025,
+            "pmid": "90000001",
+            "doi": null,
+            "verification_status": "verified"
+          },
+          {
+            "reference_id": "ref_pmid_replay_2",
+            "title": "Verified Evidence Synthesis Study 2",
+            "journal": "Synthetic Evidence Journal",
+            "publication_year": 2024,
+            "pmid": "90000002",
+            "doi": null,
+            "verification_status": "verified"
+          },
+          {
+            "reference_id": "ref_pmid_replay_3",
+            "title": "Verified Evidence Synthesis Study 3",
+            "journal": "Synthetic Evidence Journal",
+            "publication_year": 2025,
+            "pmid": "90000003",
+            "doi": null,
+            "verification_status": "verified"
+          }
+        ],
+        "sources": [
+          {
+            "source_id": "src_pubmed_90000001",
+            "source_type": "pubmed",
+            "title": "Verified Evidence Synthesis Study 1",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/90000001/",
+            "accessed_at": "2026-07-22T00:00:00.000Z",
+            "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "source_id": "src_pubmed_90000002",
+            "source_type": "pubmed",
+            "title": "Verified Evidence Synthesis Study 2",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/90000002/",
+            "accessed_at": "2026-07-22T00:00:00.000Z",
+            "content_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          {
+            "source_id": "src_pubmed_90000003",
+            "source_type": "pubmed",
+            "title": "Verified Evidence Synthesis Study 3",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/90000003/",
+            "accessed_at": "2026-07-22T00:00:00.000Z",
+            "content_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ],
+        "publicationEvidence": [
+          {
+            "reference_id": "ref_pmid_replay_1",
+            "title": "Verified Evidence Synthesis Study 1",
+            "authors": [
+              "Li Ming",
+              "Researcher 1"
+            ],
+            "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+          },
+          {
+            "reference_id": "ref_pmid_replay_2",
+            "title": "Verified Evidence Synthesis Study 2",
+            "authors": [
+              "Li Ming",
+              "Researcher 2"
+            ],
+            "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+          },
+          {
+            "reference_id": "ref_pmid_replay_3",
+            "title": "Verified Evidence Synthesis Study 3",
+            "authors": [
+              "Li Ming",
+              "Researcher 3"
+            ],
+            "abstract": "BACKGROUND: Evidence synthesis methods require explicit boundaries between public abstract data and full-text appraisal. METHODS: This prospective observational study evaluated research questions, data sources, study design, analytic methods, outcomes, bias, and external applicability in an academic evidence workflow. RESULTS: Comparative analysis found that transparent source closure and cautious interpretation supported reproducible evidence mapping while unreported details remained unresolved. CONCLUSIONS: Observational associations cannot establish causality, and independent validation plus full-text review remain necessary."
+          }
+        ],
+        "databases": [
+          "pubmed"
+        ]
+      },
+      "searchQueries": [
+        "\"李明\" 示例大学附属医院 研究医学科",
+        "evidence synthesis methodology"
+      ]
+    }
+  },
+  "model_calls": [
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "role": "foundation",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "valid"
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 2,
+      "role": "body",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "orphaned_demonstrative"
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 3,
+      "role": "closing",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "valid"
+      }
+    }
+  ],
+  "expected": {
+    "terminal_status": "succeeded",
+    "diagnostics": [
+      "review_orphaned_demonstrative_start"
+    ],
+    "artifact_semantics": {
+      "exact_kinds": [
+        "profile",
+        "review",
+        "questions",
+        "answers"
+      ],
+      "markdown_count": 3,
+      "text_count": 1,
+      "deterministic_content_sha256": true,
+      "aggregate_content_sha256": "3039d4ae03ed93ff0288184e4dafb10de0802cefbd5a83da62ed15240487fa4d"
+    }
+  }
+}
