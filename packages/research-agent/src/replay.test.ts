@@ -106,6 +106,51 @@ describe("Doctor Research offline model-response replay", () => {
       })
     ).toThrow("policy versions are stale");
   });
+
+  it("accepts the controlled-trial soft floor with explicit warnings", () => {
+    const fixture = structuredClone(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!
+    );
+    fixture.fixture_id =
+      "doctor_research_replay_controlled_trial_soft_floor";
+    for (const call of fixture.model_calls) {
+      if (
+        call.role === "body" &&
+        call.response_or_error.type === "synthetic_response"
+      ) {
+        call.response_or_error.variant =
+          "controlled_trial_soft_floor";
+      }
+    }
+
+    const first = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+    const second = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(first.terminalStatus).toBe("succeeded");
+    expect(first.diagnostics).toEqual([]);
+    expect(first.warnings).toEqual(
+      expect.arrayContaining([
+        "controlled_trial_review_content_below_target",
+        "controlled_trial_topic_section_below_target"
+      ])
+    );
+    expect(first.artifacts.map((artifact) => artifact.kind)).toEqual([
+      "profile",
+      "review",
+      "questions",
+      "answers"
+    ]);
+    expect(first.artifactContentSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(second).toEqual(first);
+  });
 });
 
 function loadReplayFixtures(): DoctorResearchReplayFixture[] {

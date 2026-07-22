@@ -18,12 +18,23 @@ describe("Doctor Research derived review contract", () => {
     expect(reviewContractPolicy).toMatchObject({
       responsibility: "medical_team",
       sourceBundleSha256: bundle.digest,
+      policyVersion: "doctor_research_review_contract.v2",
+      releasePolicy: {
+        mode: "controlled_trial",
+        expandedReleaseRequiresMedicalReview: true
+      },
+      totalContent: { minimum: 5_000, targetMinimum: 6_000 },
       sections: {
-        introduction: { minimum: 800 },
-        topic: { minimum: 600, minimumCount: 4, maximumCount: 7 },
-        synthesis: { minimum: 800 },
-        limitations: { minimum: 600 },
-        conclusion: { minimum: 200 }
+        introduction: { minimum: 640, targetMinimum: 800 },
+        topic: {
+          minimum: 450,
+          targetMinimum: 600,
+          minimumCount: 4,
+          maximumCount: 7
+        },
+        synthesis: { minimum: 640, targetMinimum: 800 },
+        limitations: { minimum: 450, targetMinimum: 600 },
+        conclusion: { minimum: 160, targetMinimum: 200 }
       }
     });
     expect(() => assertReviewedReviewContractPolicy(bundle.digest)).not.toThrow();

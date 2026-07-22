@@ -456,11 +456,11 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "section-repair",
-      "bounded_single_section_repair_completed"
+      "peer_review_contract_unusable_deterministic_fallback"
     ],
     [
       "correction-timeout",
-      "bounded_correction_model_unavailable_peer_review_fallback"
+      "peer_review_contract_unusable_deterministic_fallback"
     ],
     [
       "body-section-repair",
@@ -1709,6 +1709,8 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "skill-closing-normalization" ||
       retryKind === "skill-normalization" ||
       retryKind === "peer-convergence" ||
+      retryKind === "section-repair" ||
+      retryKind === "correction-timeout" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
@@ -1763,7 +1765,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-timeout" ||
         retryKind === "content"
           ? 4200
-          : 3200
+          : 3600
       } content characters`
     );
     expect(synthesisPrompts.get(3)).toContain(
@@ -1771,7 +1773,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-timeout" ||
         retryKind === "content"
           ? 2450
-          : 1800
+          : 2100
       } content characters`
     );
     expect(synthesisPrompts.get(2)).toContain(
@@ -1847,16 +1849,7 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (retryKind === "section-repair") {
       expect(retryPrompt).toContain(
-        "BOUNDED SINGLE-SECTION REPAIR"
-      );
-      expect(retryPrompt).toContain(
-        "doctor_research_section_repair.v1"
-      );
-      expect(retryPrompt).toContain(
-        "Allowed numeric citations: [1]"
-      );
-      expect(retryPrompt).not.toContain(
-        "## 方法路径与评价终点"
+        "mandatory concise peer-review self-check"
       );
     }
     if (retryKind === "transport-skill") {
@@ -1867,7 +1860,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "body_topic_section_contract:expected=4"
       );
       expect(retryPrompt).toContain(
-        "body_topic_section_minimum:600"
+        "body_topic_section_minimum:450"
       );
     }
     if (
@@ -2157,8 +2150,6 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "peer-convergence" ||
-      retryKind === "section-repair" ||
-      retryKind === "correction-timeout" ||
       retryKind === "body-section-repair"
     ) {
       expect(result.review.markdown).toContain(
@@ -2169,6 +2160,20 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.review.markdown).toContain(
         longChineseReviewFragment("方法路径与评价终点", 20)
+      );
+    }
+    if (
+      retryKind === "section-repair" ||
+      retryKind === "correction-timeout"
+    ) {
+      expect(result.review.markdown).not.toContain(
+        convergenceUnsafeParagraph
+      );
+      expect(result.quality.warnings).toContain(
+        "deterministic_safety_normalization_applied"
+      );
+      expect(result.quality.warnings).toContain(
+        "controlled_trial_topic_section_below_target"
       );
     }
     if (retryKind === "citation-closure") {
@@ -2215,10 +2220,10 @@ describe("Research Worker controlled-beta workflow", () => {
         ) ?? "";
       expect(
         limitations.match(/\p{Script=Han}/gu)?.length ?? 0
-      ).toBeGreaterThanOrEqual(600);
+      ).toBeGreaterThanOrEqual(450);
       expect(
         conclusion.match(/\p{Script=Han}/gu)?.length ?? 0
-      ).toBeGreaterThanOrEqual(200);
+      ).toBeGreaterThanOrEqual(160);
       const topics = sections.filter(
         (section) =>
           section.trim() !== "" &&
@@ -2232,7 +2237,7 @@ describe("Research Worker controlled-beta workflow", () => {
         topics.every(
           (section) =>
             (section.match(/\p{Script=Han}/gu)?.length ??
-              0) >= 600
+              0) >= 450
         )
       ).toBe(true);
       expect(result.review.markdown).not.toContain("2025例");
@@ -2274,10 +2279,13 @@ describe("Research Worker controlled-beta workflow", () => {
         topicSections.every(
           (section) =>
             (section.match(/\p{Script=Han}/gu)?.length ?? 0) >=
-            600
+            450
         )
       ).toBe(true);
       expect(result.quality.warnings).toContain(
+        "controlled_trial_topic_section_below_target"
+      );
+      expect(result.quality.warnings).not.toContain(
         "deterministic_body_section_boundary_supplement_applied"
       );
     }
@@ -2378,7 +2386,9 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "citation-closure" ||
         retryKind === "section-closure" ||
         retryKind === "peer-contract" ||
-        retryKind === "skill-normalization"
+        retryKind === "skill-normalization" ||
+        retryKind === "section-repair" ||
+        retryKind === "correction-timeout"
           ? "peer_review_model_attempted"
           : "peer_review_model_completed",
         retryWarning

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DoctorResearchRunInput } from "@codex-gateway/core";
+import { reviewContractPolicy } from "./review-contract-policy.js";
 import {
   doctorResearchSkillDefinition
 } from "./skill-definition.js";
@@ -24,6 +25,7 @@ export type DoctorResearchReplayErrorCode =
 
 export type DoctorResearchReplaySyntheticVariant =
   | "valid"
+  | "controlled_trial_soft_floor"
   | "short_topic"
   | "orphaned_demonstrative"
   | "truncated_comparison"
@@ -378,6 +380,21 @@ function mutateBodyMarkdown(
   markdown: string,
   variant: DoctorResearchReplaySyntheticVariant
 ): string {
+  if (variant === "controlled_trial_soft_floor") {
+    const designSeed =
+      "本节基于闭合摘要比较研究问题、资料来源、方法边界和结果解释。公开摘要支持结构化综合，但不能替代全文质量评价；观察性关联不能解释为因果，未披露信息也不作补写。证据的共同方向与差异均应保留，并用于界定后续验证问题。[1-3]";
+    const methodsSeed =
+      "方法学比较需要区分研究对象、测量框架、分析路径和结局口径。闭合摘要可支持谨慎的横向综合，但未报告的过程不得推定；观察性结果只能说明关联，不能据此建立因果结论。差异及其适用边界应被明确保留。[1-3]";
+    return replaceSectionBody(
+      replaceSectionBody(
+        markdown,
+        "设计能力与资料来源",
+        repeatToMinimum(designSeed, 476)
+      ),
+      "方法路径与结局解释",
+      repeatToMinimum(methodsSeed, 476)
+    );
+  }
   if (variant === "short_topic") {
     return replaceSectionBody(
       markdown,
@@ -471,7 +488,7 @@ function productionReplayPolicy() {
     maximumSourceTextCharacters: 200_000,
     maximumPublications: 40,
     minimumReferences: 3,
-    minimumReviewContent: 6_000,
+    minimumReviewContent: reviewContractPolicy.totalContent.minimum,
     maximumQuestionContent: 30,
     minimumAnswerContent: 100,
     maximumAnswerContent: 300,

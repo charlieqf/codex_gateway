@@ -321,11 +321,14 @@ the closing retry; if that body then succeeds but closing transport remains
 unavailable, the same bounded closing fallback is used. A remaining call still
 attempts compact peer review; when both transport retries consumed the
 five-call budget, the unchanged deterministic evidence-safety validator
-performs the final self-check. Every section floor, identity rule, citation
-rule, numeric closure,
-evidence-grade rule, five-question contract, and artifact integrity check is
-unchanged. Only the aggregate review floor may decrease from 6000 to 5000
-characters, and the result records
+performs the final self-check. Every identity rule, citation rule, numeric
+closure, evidence-grade rule, five-question contract, section-count rule, and
+artifact integrity check is unchanged. The `1.6.73` controlled-trial candidate
+keeps the medical Skill's 6000/800/600/800/600/200 content values as authoring
+targets while using the versioned 5000/640/450/640/450/160 release floors. A
+result between a floor and its target is published only with an explicit
+`controlled_trial_*_below_target` quality warning. Missing sections and content
+below any release floor still fail closed. The closing fallback records
 `deterministic_closing_transport_fallback_applied`. Foundation or body
 transport exhaustion, or any remaining validation failure, still fails
 closed. The 570-second run deadline remains the outer limit.
@@ -335,8 +338,8 @@ evidence-closed sentences selected from that same fragment's validated
 introduction, followed when needed by one fixed claim-free evidence-boundary
 sentence. An underfilled optional closing topic is removed because the four
 mandatory topic sections are already complete. These actions are recorded as
-warnings; neither lowers a medical Skill length gate nor consumes another
-model call. Numeric safety normalization first preserves only complete,
+warnings and consume no additional model call. Numeric safety normalization
+first preserves only complete,
 substantive Chinese clauses from the model's original sentence whose numbers
 are all closed against the cited abstracts. It removes the complete sentence
 when no such clause is safe, never splits decimal points, and rejects
@@ -347,9 +350,10 @@ then assembles the fragments, renders the
 3-8-paper core evidence table from verified publication metadata and
 abstracts, adds verified identity, sources, all reference metadata, search
 report, coverage and quality fields, and validates the unchanged public result
-schema. Up to 40 verified references, the normal 6000-character floor, and the
-mandatory peer-review attempt remain in force, subject only to the explicit
-closing-transport degradation above.
+schema. Up to 40 verified references, the 6000-character authoring target, the
+5000-character controlled-trial release floor, and the mandatory peer-review
+attempt remain in force. This soft-length release policy does not relax any
+evidence, safety, identity, question/answer, section-count, or artifact gate.
 
 The peer-review model is always attempted. If that bounded call times out or
 returns an unusable patch envelope, the Worker records a transparent warning

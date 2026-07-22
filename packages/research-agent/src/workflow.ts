@@ -2200,7 +2200,7 @@ async function generateAndValidateModelOutput(
       `Exact remaining validation diagnostics: ${JSON.stringify(
         validation.errors.slice(0, 24)
       )}`,
-      `The review.markdown field must contain at least ${context.input.policy.minimumReviewContent} Han characters and must not become shorter than that threshold.`,
+      `The review.markdown field should still target at least ${reviewContentTarget(context.input.policy)} Han characters and must never fall below the controlled-trial floor of ${context.input.policy.minimumReviewContent}.`,
       "Every blank-line-separated substantive review paragraph must contain at least one applicable numeric citation.",
       "For every narrative number, either cite an abstract containing that exact number or remove the unsupported numerical claim.",
       "When a cited abstract is in-vitro or cell-line evidence, explicitly label that paragraph as 体外 or 细胞研究 evidence.",
@@ -2351,7 +2351,7 @@ async function generateAndValidateModelOutput(
         `Exact remaining validation diagnostics: ${JSON.stringify(
           validation.errors.slice(0, 24)
         )}`,
-        `The review.markdown body must contain at least ${context.input.policy.minimumReviewContent} Han characters. Expand synthesis and comparison only from the cited abstracts; do not invent facts.`,
+        `The review.markdown body should reach the ${reviewContentTarget(context.input.policy)}-character medical target and must never fall below the controlled-trial floor of ${context.input.policy.minimumReviewContent}. Expand synthesis and comparison only from the cited abstracts; do not invent facts.`,
         `Use all ${evidence.references.length} server-verified references in applicable substantive paragraphs so every reference number is cited at least once. Do not add a standalone citation dump.`,
         "Every blank-line-separated substantive review paragraph must contain at least one applicable numeric citation.",
         "For every narrative number, either cite an abstract containing that exact number or remove the unsupported numerical claim.",
@@ -2615,24 +2615,24 @@ async function generateAndValidateShardedModelOutput(
     );
     return null;
   }
-  const minimumReviewContent = context.input.policy.minimumReviewContent;
   // Preserve every medical-Skill section floor while avoiding the former
   // engineering over-allocation that independently asked the three shards
   // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer,
   // weighted toward the four-section body, leaves room for evidence-safety
   // removal without making the closing shard produce almost a second complete
   // review.
+  const targetReviewContent = reviewContentTarget(context.input.policy);
   const foundationMinimum = Math.max(
     1_200,
-    Math.ceil((minimumReviewContent * 20) / 100)
+    Math.ceil((targetReviewContent * 20) / 100)
   );
   const middleMinimum = Math.max(
     3_200,
-    Math.ceil((minimumReviewContent * 60) / 100)
+    Math.ceil((targetReviewContent * 60) / 100)
   );
   const closingMinimum = Math.max(
     1_800,
-    Math.ceil((minimumReviewContent * 35) / 100)
+    Math.ceil((targetReviewContent * 35) / 100)
   );
   const foundationPrompt = buildFoundationFragmentPrompt({
     run: context.run,
@@ -2662,7 +2662,7 @@ async function generateAndValidateShardedModelOutput(
     referenceIndexes: closingIndexes,
     minimumContent: closingMinimum,
     assignment:
-      `Write the closing body of the review as exactly three level-two sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Do not add a topic-specific transition section or any other level-two section. Evidence synthesis must be at least ${reviewContractPolicy.sections.synthesis.minimum} content units, limitations and outlook at least ${reviewContractPolicy.sections.limitations.minimum}, and the conclusion one or two full paragraphs with at least ${reviewContractPolicy.sections.conclusion.minimum}. Do not write an abstract, evidence table, references, or search report.`,
+      `Write the closing body of the review as exactly three level-two sections titled for evidence synthesis and unresolved controversies, limitations and outlook, and conclusion. Do not add a topic-specific transition section or any other level-two section. Aim for at least ${reviewContractPolicy.sections.synthesis.targetMinimum} content units in evidence synthesis, ${reviewContractPolicy.sections.limitations.targetMinimum} in limitations and outlook, and ${reviewContractPolicy.sections.conclusion.targetMinimum} in the one- or two-paragraph conclusion. Do not write an abstract, evidence table, references, or search report.`,
     medicalSkillBundle
   });
   const shardInputs = [
@@ -3589,11 +3589,11 @@ async function generateAndValidateShardedModelOutput(
           evidence,
           referenceIndexes: closingIndexes,
           minimumContent: Math.max(
-            outputValidationPolicy.minimumReviewContent * 2,
+            reviewContentTarget(outputValidationPolicy) * 2,
             3 *
               Math.max(
                 1,
-                outputValidationPolicy.minimumReviewContent -
+                reviewContentTarget(outputValidationPolicy) -
                   reviewContentCount
               )
           ),
@@ -3605,7 +3605,7 @@ async function generateAndValidateShardedModelOutput(
               context.run.language === "zh-CN"
                 ? "Han characters"
                 : "words"
-            }; the assembled review must reach at least ${outputValidationPolicy.minimumReviewContent}.`
+            }; the assembled review should reach the ${reviewContentTarget(outputValidationPolicy)} medical target and must reach at least the ${outputValidationPolicy.minimumReviewContent} controlled-trial floor.`
           ].join(" "),
           medicalSkillBundle
         })
@@ -4545,7 +4545,7 @@ function buildBodyFragmentPrompt(input: {
     )}`,
     `Language: ${input.run.language}. The markdown must contain at least ${input.minimumContent} content characters and use complete scientific-review paragraphs rather than bullet lists.`,
     reviewLanguageInstruction(input.run.language),
-    `The markdown must contain exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount} level-two (##) topic-specific sections, each with at least ${reviewContractPolicy.sections.topic.minimum} content units. Do not leave any heading without substantive prose.`,
+    `The markdown must contain exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount} level-two (##) topic-specific sections, each targeting at least ${reviewContractPolicy.sections.topic.targetMinimum} content units. Do not leave any heading without substantive prose.`,
     `Before returning, count the literal "## " headings: there must be exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount}. None of these headings may be an introduction, evidence-synthesis or unresolved-controversies heading, limitations or outlook heading, conclusion, references, or search report.`,
     input.assignment,
     `Also generate exactly ${reviewContractPolicy.questions.requiredCount} short, conversational, shallow academic questions from the research topic and ${reviewContractPolicy.answers.requiredCount} directly corresponding answers. Do not ask about the doctor's identity, administration, patient care, publicity, business, or branding.`,
@@ -4664,8 +4664,8 @@ function buildReviewFragmentPrompt(input: {
     `Language: ${input.run.language}. The markdown must contain at least ${input.minimumContent} content characters and use complete scientific-review paragraphs rather than bullet lists.`,
     reviewLanguageInstruction(input.run.language),
     input.run.language === "zh-CN"
-      ? `Use explicit level-two headings for “证据综合与未解争议”, “局限性与展望”, and “结论”. The evidence-synthesis section must contain at least ${reviewContractPolicy.sections.synthesis.minimum} Han characters, limitations and outlook at least ${reviewContractPolicy.sections.limitations.minimum} Han characters, and conclusion at least ${reviewContractPolicy.sections.conclusion.minimum} Han characters. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value.`
-      : `Use explicit level-two headings for “Evidence synthesis and unresolved controversies”, “Limitations and outlook”, and “Conclusion”. The evidence-synthesis section must contain at least ${reviewContractPolicy.sections.synthesis.minimum} words, limitations and outlook at least ${reviewContractPolicy.sections.limitations.minimum} words, and conclusion at least ${reviewContractPolicy.sections.conclusion.minimum} words. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value.`,
+      ? `Use explicit level-two headings for “证据综合与未解争议”, “局限性与展望”, and “结论”. Target at least ${reviewContractPolicy.sections.synthesis.targetMinimum} Han characters in evidence synthesis, ${reviewContractPolicy.sections.limitations.targetMinimum} in limitations and outlook, and ${reviewContractPolicy.sections.conclusion.targetMinimum} in the conclusion. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value.`
+      : `Use explicit level-two headings for “Evidence synthesis and unresolved controversies”, “Limitations and outlook”, and “Conclusion”. Target at least ${reviewContractPolicy.sections.synthesis.targetMinimum} words in evidence synthesis, ${reviewContractPolicy.sections.limitations.targetMinimum} in limitations and outlook, and ${reviewContractPolicy.sections.conclusion.targetMinimum} in the conclusion. Follow the medical Skill by comparing concrete samples, designs, endpoints, and results whenever the supplied abstracts report them. Use a narrative number only when the exact number occurs in an abstract cited by the same paragraph; otherwise state the evidence boundary rather than inventing or clipping a value.`,
     input.assignment,
     "Use every supplied reference at least once with its global numeric citation, and put at least one applicable citation in every substantive paragraph.",
     "Each section must synthesize at least three supplied papers when at least three are available; do not mechanically summarize one paper at a time.",
@@ -4697,8 +4697,8 @@ function buildIntroductionCorrectionPrompt(input: {
     "BOUNDED INTRODUCTION EVIDENCE-CLOSURE CORRECTION",
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_review_fragment.v1\",\"markdown\":\"...\"}.",
     input.run.language === "zh-CN"
-      ? `markdown 必须只包含一个二级标题“## 引言”及其正式学术综述引言，不少于 ${reviewContractPolicy.sections.introduction.minimum} 个汉字，写成 4 至 6 个完整且递进的自然段，并以转入主题正文的句子结束。`
-      : `markdown must contain only one level-two heading, “## Introduction”, followed by a formal review introduction of at least ${reviewContractPolicy.sections.introduction.minimum} words in four to six complete progressive paragraphs that ends by leading into the thematic body.`,
+      ? `markdown 必须只包含一个二级标题“## 引言”及其正式学术综述引言，以不少于 ${reviewContractPolicy.sections.introduction.targetMinimum} 个汉字为目标，写成 4 至 6 个完整且递进的自然段，并以转入主题正文的句子结束。`
+      : `markdown must contain only one level-two heading, “## Introduction”, followed by a formal review introduction targeting at least ${reviewContractPolicy.sections.introduction.targetMinimum} words in four to six complete progressive paragraphs that ends by leading into the thematic body.`,
     "The earlier introduction became empty only after deterministic evidence closure. Recreate the introduction from the supplied verified abstracts; do not return an abstract, evidence table, thematic section, questions, answers, limitations, conclusion, references, or search report.",
     "Use every supplied reference at least once with its listed numeric citation and put at least one applicable citation in every paragraph.",
     "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
@@ -4729,8 +4729,8 @@ function buildConclusionCorrectionPrompt(input: {
     "BOUNDED CONCLUSION EVIDENCE-CLOSURE CORRECTION",
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_review_fragment.v1\",\"markdown\":\"...\"}.",
     input.run.language === "zh-CN"
-      ? `markdown 必须只包含一个二级标题“## 结论”及其正式学术综述结论，不少于 ${reviewContractPolicy.sections.conclusion.minimum} 个汉字，写成一至两个完整自然段。`
-      : `markdown must contain only one level-two heading, “## Conclusion”, followed by a formal review conclusion of at least ${reviewContractPolicy.sections.conclusion.minimum} words in one or two complete paragraphs.`,
+      ? `markdown 必须只包含一个二级标题“## 结论”及其正式学术综述结论，以不少于 ${reviewContractPolicy.sections.conclusion.targetMinimum} 个汉字为目标，写成一至两个完整自然段。`
+      : `markdown must contain only one level-two heading, “## Conclusion”, followed by a formal review conclusion targeting at least ${reviewContractPolicy.sections.conclusion.targetMinimum} words in one or two complete paragraphs.`,
     "The earlier conclusion became empty only after deterministic evidence closure. Recreate only the conclusion from the supplied verified abstracts; do not return an abstract, introduction, evidence table, thematic section, questions, answers, limitations, references, or search report.",
     "Use every supplied reference at least once with its listed numeric citation and put at least one applicable citation in every paragraph.",
     "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
@@ -4795,7 +4795,7 @@ function buildPeerReviewPatchPrompt(input: {
     "Check title and abstract accuracy, evidence grading, exact numeric support, paragraph citations, evidence scope, causal language, formal review depth, length, conclusion support, and the target of at least 40 verified references.",
     "Return only a compact patch decision with this exact shape: {\"schema_version\":\"doctor_research_peer_review.v1\",\"approved\":true,\"replacements\":[{\"target\":\"title|abstract|markdown\",\"old_text\":\"exact existing substring\",\"new_text\":\"corrected replacement\"}],\"warnings\":[\"short_machine_code\"]}.",
     "Use at most 12 replacements. Each old_text must be an exact unique substring of its target. Do not return the complete draft.",
-    `A replacement must not add a source, citation number, identifier, fact, or narrative number absent from the closed evidence. Preserve length and coherence; after all replacements, the introduction must still contain at least ${reviewContractPolicy.sections.introduction.minimum} content units, every topic-specific section at least ${reviewContractPolicy.sections.topic.minimum}, evidence synthesis at least ${reviewContractPolicy.sections.synthesis.minimum}, limitations and outlook at least ${reviewContractPolicy.sections.limitations.minimum}, and the conclusion at least ${reviewContractPolicy.sections.conclusion.minimum}.`,
+    `A replacement must not add a source, citation number, identifier, fact, or narrative number absent from the closed evidence. Preserve length and coherence; after all replacements, aim to retain the medical targets of ${reviewContractPolicy.sections.introduction.targetMinimum} content units for the introduction, ${reviewContractPolicy.sections.topic.targetMinimum} for every topic-specific section, ${reviewContractPolicy.sections.synthesis.targetMinimum} for evidence synthesis, ${reviewContractPolicy.sections.limitations.targetMinimum} for limitations and outlook, and ${reviewContractPolicy.sections.conclusion.targetMinimum} for the conclusion.`,
     "Correct the smallest unsafe clause or sentence instead of replacing a complete long paragraph with a short summary. Case reports and case series must not be promoted into routine, standard, or preferred treatment recommendations.",
     "If no correction is needed, set approved=true with an empty replacements array. If corrections are supplied, set approved to whether the corrected review passes the self-check.",
     `Language: ${input.run.language}. Deterministic server diagnostics: ${JSON.stringify(
@@ -4823,8 +4823,8 @@ function compactMedicalSkillExecutionContract(
         `${document.relativePath} source_sha256=${document.sha256}`
     ),
     "The Worker loaded and verified the exact read-only medical-team bundle. Retrieval, identity resolution, PubMed metadata verification, citation closure, and artifact formatting are performed by the Worker. The model must preserve the bundle's business requirements without adding new ones.",
-    `Derived review contract ${reviewContractPolicy.policyVersion} from ${reviewContractPolicy.sourceSkill} at bundle SHA-256 ${reviewContractPolicy.sourceBundleSha256}; medical-team review is required before changing any threshold.`,
-    `Required review form: academic title; ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract; ${reviewContractPolicy.keywords.minimumCount}-${reviewContractPolicy.keywords.maximumCount} keywords; introduction of at least ${reviewContractPolicy.sections.introduction.minimum} content units; ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-paper core evidence table; ${reviewContractPolicy.sections.topic.minimumCount}-${reviewContractPolicy.sections.topic.maximumCount} topic-specific body sections of at least ${reviewContractPolicy.sections.topic.minimum} content units each; evidence synthesis and controversies of at least ${reviewContractPolicy.sections.synthesis.minimum}; limitations and outlook of at least ${reviewContractPolicy.sections.limitations.minimum}; conclusion of at least ${reviewContractPolicy.sections.conclusion.minimum}; numeric in-text citations; at least ${reviewContractPolicy.coreEvidence.targetReferenceCount} references as the target, with authenticity taking priority.`,
+    `Derived review contract ${reviewContractPolicy.policyVersion} from ${reviewContractPolicy.sourceSkill} at bundle SHA-256 ${reviewContractPolicy.sourceBundleSha256}. The original medical length targets remain the authoring targets; the versioned controlled-trial release floors are server-side acceptance boundaries and require medical review before expanded release.`,
+    `Required review form and targets: academic title; ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract; ${reviewContractPolicy.keywords.minimumCount}-${reviewContractPolicy.keywords.maximumCount} keywords; introduction targeting at least ${reviewContractPolicy.sections.introduction.targetMinimum} content units; ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-paper core evidence table; ${reviewContractPolicy.sections.topic.minimumCount}-${reviewContractPolicy.sections.topic.maximumCount} topic-specific body sections targeting at least ${reviewContractPolicy.sections.topic.targetMinimum} content units each; evidence synthesis and controversies targeting at least ${reviewContractPolicy.sections.synthesis.targetMinimum}; limitations and outlook targeting at least ${reviewContractPolicy.sections.limitations.targetMinimum}; conclusion targeting at least ${reviewContractPolicy.sections.conclusion.targetMinimum}; numeric in-text citations; at least ${reviewContractPolicy.coreEvidence.targetReferenceCount} references as the target, with authenticity taking priority.`,
     "Required writing behavior: coherent formal scientific review; paragraphs rather than list substitution; cross-study comparison; explicit evidence strength, disagreement, limits, and actionable research gaps; public metadata and abstract evidence must not be represented as full-text verification.",
     `Required auxiliary outputs: exactly ${reviewContractPolicy.questions.requiredCount} short, conversational, shallow academic questions no longer than the configured bound, and ${reviewContractPolicy.answers.requiredCount} directly corresponding evidence-grounded answers. Peer review applies only to the review document.`,
     "END MEDICAL TEAM SKILL EXECUTION CONTRACT"
@@ -6422,7 +6422,12 @@ function validateGeneratedOutput(
                 "deterministic_reference_citation_closure_applied"
               ]
             : []),
-          ...deterministicAbstractSupplementWarnings
+          ...deterministicAbstractSupplementWarnings,
+          ...collectReviewContractTargetWarnings(
+            reparsed.value,
+            policy,
+            run.language
+          )
         ]
       }
     : {
@@ -6523,6 +6528,82 @@ function stableValidationCodes(errors: readonly string[]): string[] {
       })
     )
   ].slice(0, 12);
+}
+
+function reviewContentTarget(
+  policy: DoctorResearchWorkflowPolicy
+): number {
+  return Math.max(
+    policy.minimumReviewContent,
+    reviewContractPolicy.totalContent.targetMinimum
+  );
+}
+
+function collectReviewContractTargetWarnings(
+  output: DoctorResearchModelOutput,
+  policy: DoctorResearchWorkflowPolicy,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const warnings: string[] = [];
+  const count = (value: string): number =>
+    countReviewContractContent(value, language);
+  if (
+    count(output.review.markdown) <
+    reviewContentTarget(policy)
+  ) {
+    warnings.push("controlled_trial_review_content_below_target");
+  }
+  if (policy.synthesisShardCount !== 3) {
+    return warnings;
+  }
+
+  const sections = parseSkillReviewSections(output.review.markdown);
+  const firstCount = (
+    kind: ReturnType<typeof parseSkillReviewSections>[number]["kind"]
+  ): number | null => {
+    const section = sections.find((item) => item.kind === kind);
+    return section ? count(section.body) : null;
+  };
+  const introduction = firstCount("introduction");
+  if (
+    introduction !== null &&
+    introduction < reviewContractPolicy.sections.introduction.targetMinimum
+  ) {
+    warnings.push("controlled_trial_introduction_below_target");
+  }
+  if (
+    sections
+      .filter((section) => section.kind === "topic")
+      .some(
+        (section) =>
+          count(section.body) <
+          reviewContractPolicy.sections.topic.targetMinimum
+      )
+  ) {
+    warnings.push("controlled_trial_topic_section_below_target");
+  }
+  const synthesis = firstCount("synthesis");
+  if (
+    synthesis !== null &&
+    synthesis < reviewContractPolicy.sections.synthesis.targetMinimum
+  ) {
+    warnings.push("controlled_trial_synthesis_below_target");
+  }
+  const limitations = firstCount("limitations");
+  if (
+    limitations !== null &&
+    limitations < reviewContractPolicy.sections.limitations.targetMinimum
+  ) {
+    warnings.push("controlled_trial_limitations_below_target");
+  }
+  const conclusion = firstCount("conclusion");
+  if (
+    conclusion !== null &&
+    conclusion < reviewContractPolicy.sections.conclusion.targetMinimum
+  ) {
+    warnings.push("controlled_trial_conclusion_below_target");
+  }
+  return warnings;
 }
 
 function validateRuntimeQuality(
@@ -7601,7 +7682,7 @@ function buildModelPrompt(
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only findings.",
     "Never write placeholder facts such as unverified or 未核验. Omit an unsupported claim instead.",
     "Do not emit raw HTML, Markdown links, Markdown images, or URLs. The Worker renders verified source links separately.",
-    `Language: ${run.language}. Minimum review content: ${policy.minimumReviewContent}.`,
+    `Language: ${run.language}. Review content target: ${reviewContentTarget(policy)}; controlled-trial release floor: ${policy.minimumReviewContent}.`,
     `Exactly ${reviewContractPolicy.questions.requiredCount} questions; maximum question content: ${policy.maximumQuestionContent}.`,
     `Each answer content range: ${policy.minimumAnswerContent}-${policy.maximumAnswerContent}.`,
     "Use numeric citations like [1] and cite every supplied reference at least once.",

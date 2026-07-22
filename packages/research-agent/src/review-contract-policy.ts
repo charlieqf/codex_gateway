@@ -2,10 +2,19 @@ export const reviewedMedicalSkillBundleSha256 =
   "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351";
 
 export const reviewContractPolicy = Object.freeze({
-  policyVersion: "doctor_research_review_contract.v1",
+  policyVersion: "doctor_research_review_contract.v2",
   responsibility: "medical_team",
   sourceSkill: "docs/research/采访skill/doctor-research-query/SKILL.md",
   sourceBundleSha256: reviewedMedicalSkillBundleSha256,
+  releasePolicy: {
+    mode: "controlled_trial",
+    directiveDate: "2026-07-23",
+    expandedReleaseRequiresMedicalReview: true
+  },
+  totalContent: {
+    minimum: 5_000,
+    targetMinimum: 6_000
+  },
   title: {
     minimumHanCharacters: 8,
     minimumEnglishWords: 6
@@ -27,17 +36,18 @@ export const reviewContractPolicy = Object.freeze({
     }
   },
   sections: {
-    introduction: { minimum: 800, requiredCount: 1 },
+    introduction: { minimum: 640, targetMinimum: 800, requiredCount: 1 },
     topic: {
-      minimum: 600,
+      minimum: 450,
+      targetMinimum: 600,
       promptTargetMinimum: 750,
       minimumCount: 4,
       maximumCount: 7,
       bodyFragmentCount: 4
     },
-    synthesis: { minimum: 800, requiredCount: 1 },
-    limitations: { minimum: 600, requiredCount: 1 },
-    conclusion: { minimum: 200, requiredCount: 1 }
+    synthesis: { minimum: 640, targetMinimum: 800, requiredCount: 1 },
+    limitations: { minimum: 450, targetMinimum: 600, requiredCount: 1 },
+    conclusion: { minimum: 160, targetMinimum: 200, requiredCount: 1 }
   },
   keywords: { minimumCount: 3, maximumCount: 12 },
   coreEvidence: {
