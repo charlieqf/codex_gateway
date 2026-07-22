@@ -17,6 +17,7 @@ import {
   type ProviderHealth,
   type RateLimitPolicy,
   type StreamEvent,
+  type TokenBudgetLimiter,
   type UpstreamAccount
 } from "@codex-gateway/core";
 import {
@@ -27,7 +28,11 @@ import {
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
 import { chatMessagesToPrompt, type ChatCompletionRequest } from "./openai-compat.js";
-import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import {
+  InMemoryCredentialRateLimiter,
+  type CredentialRateLimiter
+} from "./services/rate-limiter.js";
+import { ActiveRequestRegistry } from "./services/active-request-registry.js";
 import { estimatePromptTokens } from "./services/token-budget-hook.js";
 import {
   goldencodeMemberIds,
@@ -139,6 +144,60 @@ class HangingChatProvider implements ProviderAdapter {
       code: error.code,
       message: error.message
     };
+  }
+}
+
+class HangingThenSuccessChatProvider implements ProviderAdapter {
+  readonly kind = "fake";
+  readonly messages: MessageInput[] = [];
+  readonly firstStarted: Promise<void>;
+  abortReason: unknown;
+  activeCalls = 0;
+  maximumActiveCalls = 0;
+  private resolveFirstStarted!: () => void;
+
+  constructor() {
+    this.firstStarted = new Promise((resolve) => {
+      this.resolveFirstStarted = resolve;
+    });
+  }
+
+  async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
+    return {
+      state: "healthy",
+      checkedAt: new Date("2026-01-01T00:00:00Z")
+    };
+  }
+
+  async *message(input: MessageInput): AsyncIterable<StreamEvent> {
+    this.messages.push(input);
+    const call = this.messages.length;
+    this.activeCalls += 1;
+    this.maximumActiveCalls = Math.max(this.maximumActiveCalls, this.activeCalls);
+    try {
+      if (call === 1) {
+        this.resolveFirstStarted();
+        await new Promise<void>((resolve) => {
+          if (input.signal?.aborted) {
+            resolve();
+            return;
+          }
+          input.signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+        this.abortReason = input.signal?.reason;
+        yield {
+          type: "error",
+          code: "client_aborted",
+          message: "Client disconnected."
+        };
+        return;
+      }
+
+      yield { type: "message_delta", text: "retry-after-cleanup-ok" };
+      yield { type: "completed", providerSessionRef: "provider_thread_2" };
+    } finally {
+      this.activeCalls -= 1;
+    }
   }
 }
 
@@ -8645,6 +8704,251 @@ describe("gateway phase 1 routes", () => {
     } finally {
       await app.close();
     }
+  });
+
+  it.each([
+    {
+      name: "Chat Completions",
+      path: "/v1/chat/completions",
+      payload: {
+        model: "goldencode",
+        messages: [{ role: "user", content: "Wait for me." }]
+      }
+    },
+    {
+      name: "Responses",
+      path: "/v1/responses",
+      payload: {
+        model: "goldencode",
+        input: "Wait for me."
+      }
+    }
+  ])(
+    "cancels a non-streaming $name provider call and releases all request resources once",
+    async ({ path: requestPath, payload }) => {
+      await withTemporaryEnv(
+        {
+          MEDCODE_PUBLIC_MODEL_ID: "goldencode",
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+            goldencode: {
+              displayName: "GoldenCode",
+              runtime: "codex",
+              upstreamModel: "glm-5.2",
+              contextWindow: 200000,
+              upstreamContextWindow: 200000,
+              maxOutputTokens: 18000,
+              enabled: true
+            }
+          })
+        },
+        async () => {
+          const tokenPolicy = {
+            tokensPerMinute: null,
+            tokensPerDay: null,
+            tokensPerMonth: null,
+            maxPromptTokensPerRequest: null,
+            maxTotalTokensPerRequest: null,
+            reserveTokensPerRequest: 100,
+            missingUsageCharge: "reserve" as const
+          };
+          const ratePolicy: RateLimitPolicy = {
+            requestsPerMinute: 30,
+            requestsPerDay: null,
+            concurrentRequests: 1,
+            token: tokenPolicy
+          };
+          const { store, issued, headers } = createCredentialBackedStore(ratePolicy);
+          const provider = new HangingThenSuccessChatProvider();
+          const account = testUpstreamAccount("codex-pro-1");
+          const activeRequests = new ActiveRequestRegistry();
+          const delegateRateLimiter = new InMemoryCredentialRateLimiter();
+          let rateReleaseCalls = 0;
+          const rateLimiter: CredentialRateLimiter = {
+            acquire: (input) => {
+              const result = delegateRateLimiter.acquire(input);
+              if (!("release" in result)) {
+                return result;
+              }
+              return {
+                release: () => {
+                  rateReleaseCalls += 1;
+                  result.release();
+                }
+              };
+            }
+          };
+          const delegateTokenLimiter = createSqliteTokenBudgetLimiter({ db: store.database });
+          let tokenFinalizeCalls = 0;
+          const tokenBudgetLimiter: TokenBudgetLimiter = {
+            acquire: (input) => delegateTokenLimiter.acquire(input),
+            finalize: (input) => {
+              tokenFinalizeCalls += 1;
+              return delegateTokenLimiter.finalize(input);
+            },
+            beginSoftWrite: (input) => delegateTokenLimiter.beginSoftWrite(input),
+            finalizeSoftWrite: (input) => delegateTokenLimiter.finalizeSoftWrite(input),
+            cleanupExpired: (now) => delegateTokenLimiter.cleanupExpired(now),
+            getCurrentUsage: (input) => delegateTokenLimiter.getCurrentUsage(input),
+            resetUsage: (input) => delegateTokenLimiter.resetUsage(input)
+          };
+          const app = buildGateway({
+            authMode: "credential",
+            sessionStore: store,
+            observationStore: store,
+            rateLimiter,
+            tokenBudgetLimiter,
+            activeRequestRegistry: activeRequests,
+            upstreamAccounts: [
+              {
+                upstreamAccount: account,
+                provider,
+                maxConcurrent: 1
+              }
+            ],
+            logger: false
+          });
+
+          try {
+            await app.listen({ host: "127.0.0.1", port: 0 });
+            const address = app.server.address() as AddressInfo;
+            const request = http.request({
+              method: "POST",
+              host: "127.0.0.1",
+              port: address.port,
+              path: requestPath,
+              headers: {
+                ...headers,
+                "content-type": "application/json"
+              }
+            });
+            request.on("error", () => undefined);
+            request.end(JSON.stringify(payload));
+
+            await provider.firstStarted;
+            request.destroy();
+
+            await eventually(() => {
+              expect(activeRequests.snapshot().inflightRequests).toBe(0);
+              expect(provider.activeCalls).toBe(0);
+              expect(tokenFinalizeCalls).toBe(1);
+              expect(rateReleaseCalls).toBe(1);
+            });
+            expect(store.listRequestEvents({ limit: 1 })).toEqual([
+              expect.objectContaining({
+                status: "error",
+                errorCode: "client_aborted"
+              })
+            ]);
+            expect(provider.abortReason).toBeInstanceOf(GatewayError);
+            expect((provider.abortReason as GatewayError).code).toBe("client_aborted");
+            expect(provider.messages).toHaveLength(1);
+            expect(delegateTokenLimiter.listReservations({
+              subjectId: "subj_dev",
+              includeFinalized: true
+            })).toEqual([
+              expect.objectContaining({
+                credentialId: issued.record.id,
+                finalizedAt: expect.any(Date)
+              })
+            ]);
+            expect(delegateTokenLimiter.listReservations({
+              subjectId: "subj_dev"
+            })).toHaveLength(0);
+            expect(account.lastUsedAt).toBeNull();
+            expect(account.cooldownUntil).toBeNull();
+
+            const next = await app.inject({
+              method: "POST",
+              url: requestPath,
+              headers,
+              payload
+            });
+            expect(next.statusCode).toBe(200);
+            expect(provider.messages).toHaveLength(2);
+            expect(provider.maximumActiveCalls).toBe(1);
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    }
+  );
+
+  it("keeps Responses streaming cancellation connected through the SSE signal", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODEL_ID: "goldencode",
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          goldencode: {
+            displayName: "GoldenCode",
+            runtime: "codex",
+            upstreamModel: "glm-5.2",
+            contextWindow: 200000,
+            upstreamContextWindow: 200000,
+            maxOutputTokens: 18000,
+            enabled: true
+          }
+        })
+      },
+      async () => {
+        const store = createSqliteStore({ path: ":memory:" });
+        const provider = new HangingChatProvider();
+        const account = testUpstreamAccount("codex-pro-1");
+        const app = buildGateway({
+          accessToken: "secret",
+          authMode: "dev",
+          sessionStore: store,
+          observationStore: store,
+          upstreamAccounts: [
+            {
+              upstreamAccount: account,
+              provider,
+              maxConcurrent: 1
+            }
+          ],
+          logger: false
+        });
+
+        try {
+          await app.listen({ host: "127.0.0.1", port: 0 });
+          const address = app.server.address() as AddressInfo;
+          const request = http.request({
+            method: "POST",
+            host: "127.0.0.1",
+            port: address.port,
+            path: "/v1/responses",
+            headers: {
+              authorization: "Bearer secret",
+              "content-type": "application/json"
+            }
+          });
+          request.on("error", () => undefined);
+          request.end(JSON.stringify({
+            model: "goldencode",
+            input: "Wait for me.",
+            stream: true
+          }));
+
+          await provider.started;
+          request.destroy();
+
+          await eventually(() => {
+            expect(store.listRequestEvents({ limit: 1 })).toEqual([
+              expect.objectContaining({
+                status: "error",
+                errorCode: "client_aborted"
+              })
+            ]);
+          });
+          expect(provider.abortReason).toBeInstanceOf(GatewayError);
+          expect((provider.abortReason as GatewayError).code).toBe("client_aborted");
+          expect(account.lastUsedAt).toBeNull();
+          expect(account.cooldownUntil).toBeNull();
+        } finally {
+          await app.close();
+        }
+      }
+    );
   });
 
   it("returns OpenAI tool calls and usage for non-streaming chat completions", async () => {

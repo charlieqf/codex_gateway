@@ -88,6 +88,7 @@ import {
   type UpstreamV2Client
 } from "./upstream-v2-client.js";
 import { credentialAuthHook, devAuthHook } from "./http/auth.js";
+import { observeClientDisconnect } from "./http/client-disconnect.js";
 import {
   getGatewayContext,
   researchRouteConfig,
@@ -601,17 +602,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     startObservation(request);
     reply.header("x-request-id", request.id);
     reply.raw.setHeader("x-request-id", request.id);
-    const recordClientAbort = () => {
+    request.gatewayClientDisconnect = observeClientDisconnect(request, reply, () => {
       markClientAborted(request);
       releaseRateLimit(request);
       recordObservation(request, observationStore, 499);
-    };
-    request.raw.once("aborted", recordClientAbort);
-    reply.raw.once("close", () => {
-      request.raw.off("aborted", recordClientAbort);
-      if (!reply.raw.writableEnded) {
-        recordClientAbort();
-      }
     });
   });
 
@@ -666,6 +660,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   app.addHook("onResponse", async (request, reply) => {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
+    request.gatewayClientDisconnect?.cleanup();
   });
 
   if (researchStore) {
@@ -1728,7 +1723,10 @@ export function buildGateway(options: GatewayOptions = {}) {
         );
       }
 
-      const abort = createImageRequestAbort(request, reply, imageRequestTimeoutMs);
+      const abort = createImageRequestAbort(
+        request.gatewayClientDisconnect?.signal,
+        imageRequestTimeoutMs
+      );
       try {
         if (upstreamPool.accountPoolConfigured) {
           request.gatewayObservedUpstreamAccount = {
@@ -2534,7 +2532,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
     }
-    return executeChatCompletion(request, reply, parsed);
+    return executeChatCompletion(request, reply, parsed, {
+      signal: request.gatewayClientDisconnect?.signal
+    });
   };
 
   app.post<{ Body: unknown }>("/v1/chat/completions", chatCompletionsHandler);
@@ -2552,7 +2552,8 @@ export function buildGateway(options: GatewayOptions = {}) {
         parsed.chatRequest,
         {
           captureErrors: true,
-          clientSessionId: parsed.promptCacheKey
+          clientSessionId: parsed.promptCacheKey,
+          signal: request.gatewayClientDisconnect?.signal
         }
       );
       if (isChatCompletionExecutionFailure(chatCompletion)) {
@@ -3815,7 +3816,7 @@ async function generateImageWithAccountPool(
   const affinityKey = requestAffinityKey(request, router.softAffinity);
   const attemptedAccountIds = new Set<string>();
   let lastError: GatewayError | null = null;
-  const abort = createImageRequestAbort(request, reply, input.timeoutMs);
+  const abort = createImageRequestAbort(request.gatewayClientDisconnect?.signal, input.timeoutMs);
 
   try {
     for (let attemptIndex = 0; attemptIndex < maxStatelessAttempts; attemptIndex += 1) {
@@ -3896,8 +3897,7 @@ interface ImageRequestAbort {
 }
 
 function createImageRequestAbort(
-  request: FastifyRequest,
-  reply: FastifyReply,
+  parentSignal: AbortSignal | undefined,
   timeoutMs: number
 ): ImageRequestAbort {
   const controller = new AbortController();
@@ -3937,8 +3937,11 @@ function createImageRequestAbort(
     timeoutMs
   );
 
-  request.raw.once("aborted", abortClient);
-  reply.raw.once("close", abortClient);
+  if (parentSignal?.aborted) {
+    abortClient();
+  } else {
+    parentSignal?.addEventListener("abort", abortClient, { once: true });
+  }
 
   return {
     signal: controller.signal,
@@ -3946,8 +3949,7 @@ function createImageRequestAbort(
     cleanup: () => {
       settled = true;
       clearTimeout(timeout);
-      request.raw.off("aborted", abortClient);
-      reply.raw.off("close", abortClient);
+      parentSignal?.removeEventListener("abort", abortClient);
     },
     clientAborted: () => isAbortReason(controller.signal.reason, "client_aborted"),
     timedOut: () => isAbortReason(controller.signal.reason, "gateway_image_timeout")

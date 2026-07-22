@@ -15,6 +15,7 @@ import type {
   UpstreamAttemptSummary,
   ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
+import type { ClientDisconnectHandle } from "./client-disconnect.js";
 
 export type GatewayResponseDialect = "gateway" | "openai" | "research";
 
@@ -48,6 +49,7 @@ declare module "fastify" {
 
   interface FastifyRequest {
     gatewayContext?: GatewayRequestContext;
+    gatewayClientDisconnect?: ClientDisconnectHandle;
     gatewayRateLimitRelease?: () => void;
     gatewayObservationStartedAt?: Date;
     gatewayObservationFirstByteAt?: Date;
