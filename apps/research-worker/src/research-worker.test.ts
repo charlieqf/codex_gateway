@@ -926,6 +926,7 @@ describe("Research Worker controlled-beta workflow", () => {
       number,
       number | undefined
     >();
+    const peerReviewReasoningEfforts: Array<string | undefined> = [];
     const activeOutputExhaustedShardRoles = new Set<number>();
     let sameShardProviderOverlapObserved = false;
     let retryPrompt: string | null = null;
@@ -950,6 +951,13 @@ describe("Research Worker controlled-beta workflow", () => {
             synthesisProviderTimeouts.set(
               modelInput.attempt,
               modelInput.providerTimeoutMs
+            );
+          } else if (
+            modelInput.stage === "validate_outputs" &&
+            modelInput.prompt.includes("doctor_research_peer_review.v1")
+          ) {
+            peerReviewReasoningEfforts.push(
+              modelInput.reasoningEffort
             );
           }
           modelCalls.push(
@@ -1602,10 +1610,13 @@ describe("Research Worker controlled-beta workflow", () => {
       3: 8_000
     });
     expect(Object.fromEntries(initialReasoningEffortByShard)).toEqual({
-      1: undefined,
+      1: "none",
       2: "none",
       3: "none"
     });
+    expect(
+      peerReviewReasoningEfforts.every((value) => value === "none")
+    ).toBe(true);
     if (retryKind === "admission") {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
@@ -1630,7 +1641,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "synthesize_review:5:closing"
       ]);
       expect([...synthesisReasoningEfforts.entries()]).toEqual([
-        [1, undefined],
+        [1, "none"],
         [2, "none"],
         [3, "none"],
         [4, "none"],
@@ -1684,6 +1695,9 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     expect(synthesisPrompts.get(2)).toContain(
       "exactly four complete and balanced topic-specific sections"
+    );
+    expect(synthesisPrompts.get(2)).toContain(
+      'count the literal "## " headings'
     );
     expect(synthesisPrompts.get(2)).toContain(
       "Each section must independently reach at least 750 content characters"

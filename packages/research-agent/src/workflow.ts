@@ -2659,6 +2659,7 @@ async function generateAndValidateShardedModelOutput(
         attempt: 1,
         prompt: foundationPrompt,
         system: doctorResearchFoundationSystemPolicy,
+        reasoningEffort: "none",
         maximumDurationMs: 200_000,
         maximumOutputTokens: Math.min(
           8_000,
@@ -3598,6 +3599,7 @@ async function generateAndValidateShardedModelOutput(
   const peerReviewPromise = context.generateModel({
     stage: "validate_outputs",
     attempt: peerReviewAttempt,
+    reasoningEffort: "none",
     maximumDurationMs: 120_000,
     prompt: buildPeerReviewPatchPrompt({
       run: context.run,
@@ -4406,6 +4408,7 @@ function buildBodyFragmentPrompt(input: {
     `Language: ${input.run.language}. The markdown must contain at least ${input.minimumContent} content characters and use complete scientific-review paragraphs rather than bullet lists.`,
     reviewLanguageInstruction(input.run.language),
     `The markdown must contain exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount} level-two (##) topic-specific sections, each with at least ${reviewContractPolicy.sections.topic.minimum} content units. Do not leave any heading without substantive prose.`,
+    `Before returning, count the literal "## " headings: there must be exactly ${reviewContractPolicy.sections.topic.bodyFragmentCount}. None of these headings may be an introduction, evidence-synthesis or unresolved-controversies heading, limitations or outlook heading, conclusion, references, or search report.`,
     input.assignment,
     `Also generate exactly ${reviewContractPolicy.questions.requiredCount} short, conversational, shallow academic questions from the research topic and ${reviewContractPolicy.answers.requiredCount} directly corresponding answers. Do not ask about the doctor's identity, administration, patient care, publicity, business, or branding.`,
     `Each question must stay within ${input.maximumQuestionContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}. Each answer must contain ${input.minimumAnswerContent}-${input.maximumAnswerContent} ${input.run.language === "zh-CN" ? "Han characters" : "words"}, directly answer its question, remain academically accurate, and cite one or more supplied source_id values.`,
