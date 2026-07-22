@@ -27,7 +27,9 @@ from urllib.request import (
 
 
 DEFAULT_BASE_URL = "https://gw.instmarket.com.au"
+DEFAULT_MAX_WAIT_SECONDS = 590
 MAXIMUM_JSON_BYTES = 5_000_000
+MAXIMUM_REQUEST_FILE_BYTES = 65_536
 MAXIMUM_ARTIFACT_BYTES = 1_048_576
 MAXIMUM_RATE_LIMIT_RETRIES = 4
 MAXIMUM_RATE_LIMIT_WAIT_SECONDS = 60
@@ -285,9 +287,17 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
             "three Markdown files plus one text file."
         )
     )
-    parser.add_argument("--doctor-name", required=True)
-    parser.add_argument("--hospital", required=True)
-    parser.add_argument("--department", required=True)
+    parser.add_argument(
+        "--request-file",
+        help=(
+            "UTF-8 JSON create-request body. It cannot be combined with "
+            "doctor, literature, language, publication, or client-reference "
+            "arguments."
+        ),
+    )
+    parser.add_argument("--doctor-name")
+    parser.add_argument("--hospital")
+    parser.add_argument("--department")
     parser.add_argument(
         "--literature-name",
         help=(
@@ -306,15 +316,19 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--official-profile-url",
         action="append",
-        required=True,
         dest="official_profile_urls",
         help="Approved HTTPS official profile URL; repeat for up to three.",
     )
     parser.add_argument(
-        "--language", choices=("zh-CN", "en"), default="zh-CN"
+        "--language",
+        choices=("zh-CN", "en"),
+        help="CLI request language (default without --request-file: zh-CN).",
     )
     parser.add_argument(
-        "--publication-years", type=int, choices=range(1, 11), default=5
+        "--publication-years",
+        type=int,
+        choices=range(1, 11),
+        help="CLI publication window (default without --request-file: 5).",
     )
     parser.add_argument("--client-reference")
     parser.add_argument(
@@ -349,7 +363,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--max-wait-seconds",
         type=bounded_integer("maximum wait seconds", 60, 600),
-        default=600,
+        default=DEFAULT_MAX_WAIT_SECONDS,
     )
     parser.add_argument(
         "--request-timeout-seconds",
@@ -399,7 +413,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "GET", f"/gateway/research/v1/doctor-runs/{run_id}/result"
         )
         artifacts = validate_manifest(
-            result, run_id=run_id, doctor_name=args.doctor_name
+            result, run_id=run_id, doctor_name=payload["doctor"]["name"]
         )
         output_directory = download_artifacts(
             client,
@@ -431,6 +445,34 @@ def main(argv: Iterable[str] | None = None) -> int:
 
 
 def build_payload(args: argparse.Namespace) -> dict[str, Any]:
+    cli_fields = (
+        "doctor_name",
+        "hospital",
+        "department",
+        "literature_name",
+        "literature_hospital",
+        "literature_department",
+        "title",
+        "city",
+        "orcid",
+        "official_profile_urls",
+        "language",
+        "publication_years",
+        "client_reference",
+    )
+    if args.request_file:
+        if any(getattr(args, field) is not None for field in cli_fields):
+            raise DemoError(
+                "--request-file cannot be combined with request-body "
+                "command-line arguments."
+            )
+        return load_request_payload(args.request_file)
+
+    if not args.official_profile_urls:
+        raise DemoError(
+            "At least one --official-profile-url is required when "
+            "--request-file is not used."
+        )
     if len(args.official_profile_urls) > 3:
         raise DemoError("At most three official profile URLs are allowed.")
     doctor: dict[str, Any] = {
@@ -470,9 +512,9 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "doctor": doctor,
         "mode": "brief",
-        "language": args.language,
+        "language": args.language or "zh-CN",
         "options": {
-            "publication_years": args.publication_years,
+            "publication_years": args.publication_years or 5,
             "citation_style": "vancouver",
         },
     }
@@ -480,7 +522,188 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
         payload["client_reference"] = unicodedata.normalize(
             "NFC", args.client_reference.strip()
         )
+    return validate_request_payload(payload)
+
+
+def load_request_payload(filename: str) -> dict[str, Any]:
+    path = Path(filename).expanduser()
+    if path.is_symlink():
+        raise DemoError("Request file must not be a symbolic link.")
+    metadata = path.stat()
+    if not stat.S_ISREG(metadata.st_mode):
+        raise DemoError("Request-file path is not a regular file.")
+    if metadata.st_size < 2 or metadata.st_size > MAXIMUM_REQUEST_FILE_BYTES:
+        raise DemoError("Request-file size was invalid.")
+    with path.open("rb") as input_file:
+        raw = input_file.read(MAXIMUM_REQUEST_FILE_BYTES + 1)
+    if len(raw) > MAXIMUM_REQUEST_FILE_BYTES:
+        raise DemoError("Request-file size was invalid.")
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise DemoError("Request file was not a valid UTF-8 JSON object.") from None
+    return validate_request_payload(payload)
+
+
+def validate_request_payload(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise DemoError("Request file must contain one JSON object.")
+    assert_only_keys(
+        value,
+        {"doctor", "mode", "language", "options", "client_reference"},
+        "request",
+    )
+    if value.get("mode") != "brief":
+        raise DemoError("Only mode 'brief' is supported.")
+    if value.get("language") not in ("zh-CN", "en"):
+        raise DemoError("language must be 'zh-CN' or 'en'.")
+
+    raw_doctor = value.get("doctor")
+    raw_options = value.get("options")
+    if not isinstance(raw_doctor, dict) or not isinstance(raw_options, dict):
+        raise DemoError("doctor and options must be JSON objects.")
+    assert_only_keys(
+        raw_doctor,
+        {
+            "name",
+            "hospital",
+            "department",
+            "title",
+            "city",
+            "orcid",
+            "official_profile_urls",
+            "literature_identity",
+        },
+        "doctor",
+    )
+    assert_only_keys(
+        raw_options,
+        {"publication_years", "citation_style"},
+        "options",
+    )
+
+    doctor: dict[str, Any] = {
+        "name": normalized_text(raw_doctor.get("name"), "doctor.name", 2, 100),
+        "hospital": normalized_text(
+            raw_doctor.get("hospital"), "doctor.hospital", 1, 200
+        ),
+        "department": normalized_text(
+            raw_doctor.get("department"), "doctor.department", 1, 200
+        ),
+    }
+    raw_urls = raw_doctor.get("official_profile_urls")
+    if not isinstance(raw_urls, list) or not 1 <= len(raw_urls) <= 3:
+        raise DemoError(
+            "doctor.official_profile_urls must contain one to three URLs."
+        )
+    urls = [validate_official_url(item) for item in raw_urls]
+    if len(set(urls)) != len(urls):
+        raise DemoError("doctor.official_profile_urls contained duplicates.")
+    doctor["official_profile_urls"] = urls
+
+    for key, maximum in (("title", 100), ("city", 100)):
+        if key in raw_doctor:
+            doctor[key] = normalized_text(
+                raw_doctor[key], f"doctor.{key}", 1, maximum
+            )
+    if "orcid" in raw_doctor:
+        doctor["orcid"] = validate_orcid(raw_doctor["orcid"])
+
+    if "literature_identity" in raw_doctor:
+        literature = raw_doctor["literature_identity"]
+        if not isinstance(literature, dict):
+            raise DemoError("doctor.literature_identity must be an object.")
+        assert_only_keys(
+            literature,
+            {"name", "hospital", "department"},
+            "doctor.literature_identity",
+        )
+        doctor["literature_identity"] = {
+            "name": normalized_text(
+                literature.get("name"),
+                "doctor.literature_identity.name",
+                2,
+                100,
+            ),
+            "hospital": normalized_text(
+                literature.get("hospital"),
+                "doctor.literature_identity.hospital",
+                2,
+                200,
+            ),
+            "department": normalized_text(
+                literature.get("department"),
+                "doctor.literature_identity.department",
+                2,
+                200,
+            ),
+        }
+
+    publication_years = raw_options.get("publication_years")
+    if (
+        not isinstance(publication_years, int)
+        or isinstance(publication_years, bool)
+        or not 1 <= publication_years <= 10
+    ):
+        raise DemoError("options.publication_years must be an integer from 1 to 10.")
+    if raw_options.get("citation_style") != "vancouver":
+        raise DemoError("Only citation_style 'vancouver' is supported.")
+
+    payload: dict[str, Any] = {
+        "doctor": doctor,
+        "mode": "brief",
+        "language": value["language"],
+        "options": {
+            "publication_years": publication_years,
+            "citation_style": "vancouver",
+        },
+    }
+    if "client_reference" in value:
+        payload["client_reference"] = normalized_text(
+            value["client_reference"], "client_reference", 1, 128
+        )
     return payload
+
+
+def assert_only_keys(
+    value: dict[str, Any], allowed: set[str], description: str
+) -> None:
+    unexpected = sorted(set(value) - allowed)
+    if unexpected:
+        raise DemoError(
+            f"{description} contained unsupported field(s): "
+            + ", ".join(unexpected)
+        )
+
+
+def normalized_text(
+    value: Any, description: str, minimum: int, maximum: int
+) -> str:
+    if not isinstance(value, str):
+        raise DemoError(f"{description} must be a string.")
+    normalized = unicodedata.normalize("NFC", value.strip())
+    if (
+        not minimum <= len(normalized) <= maximum
+        or any(ord(char) < 32 or ord(char) == 127 for char in normalized)
+        or any(0xD800 <= ord(char) <= 0xDFFF for char in normalized)
+    ):
+        raise DemoError(f"{description} was invalid.")
+    return normalized
+
+
+def validate_orcid(value: Any) -> str:
+    normalized = normalized_text(value, "doctor.orcid", 19, 19)
+    if not re.fullmatch(r"[0-9]{4}(?:-[0-9]{4}){2}-[0-9]{3}[0-9X]", normalized):
+        raise DemoError("doctor.orcid was invalid.")
+    compact = normalized.replace("-", "")
+    total = 0
+    for digit in compact[:15]:
+        total = (total + int(digit)) * 2
+    check_value = (12 - (total % 11)) % 11
+    expected = "X" if check_value == 10 else str(check_value)
+    if compact[15] != expected:
+        raise DemoError("doctor.orcid checksum was invalid.")
+    return normalized
 
 
 def wait_for_success(
@@ -712,7 +935,11 @@ def validate_base_url(value: str) -> str:
 
 
 def validate_official_url(value: str) -> str:
+    if not isinstance(value, str):
+        raise DemoError("Official profile URL must be a string.")
     normalized = unicodedata.normalize("NFC", value.strip())
+    if not normalized or len(normalized) > 2_048:
+        raise DemoError("Official profile URL length was invalid.")
     parsed = urlsplit(normalized)
     try:
         port = parsed.port
@@ -780,19 +1007,17 @@ def validate_five_line_questions(path: Path) -> None:
 
 def validate_idempotency_key(value: str) -> str:
     if (
-        not value.startswith("research:")
+        not re.fullmatch(r"research:[A-Za-z0-9._:-]+", value)
         or len(value) > 128
-        or re.search(r"[\r\n\x00]", value)
     ):
         raise DemoError("Idempotency key was invalid.")
     return value
 
 
-def normalized_required(value: str, description: str) -> str:
-    normalized = unicodedata.normalize("NFC", value.strip())
-    if not normalized:
+def normalized_required(value: Any, description: str) -> str:
+    if not isinstance(value, str):
         raise DemoError(f"{description} is required.")
-    return normalized
+    return normalized_text(value, description, 1, 200)
 
 
 def bounded_integer(

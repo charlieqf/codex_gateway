@@ -373,6 +373,12 @@ validation showed that a required long fragment could otherwise reach the
 
 ## API quick reference
 
+The complete Chinese client guide, including every route, request constraints,
+idempotency, human identity selection, cancellation, error handling, and
+artifact verification, is
+[`api-usage.zh-CN.md`](api-usage.zh-CN.md). A copy-ready create body is in
+[`request.example.json`](request.example.json).
+
 All routes require a Doctor Research credential as
 `Authorization: Bearer <key>`. Create also requires a unique, reusable
 `Idempotency-Key`.
@@ -411,8 +417,10 @@ Poll `GET /gateway/research/v1/doctor-runs/{run_id}` until `succeeded`, then
 read `GET /gateway/research/v1/doctor-runs/{run_id}/result`. Download each
 manifest entry through its authenticated `download_url`; verify both
 `size_bytes` and `sha256`. The supported end-user client is
-`scripts/doctor-research-demo.py`, documented below. Its default and maximum
-polling window is 600 seconds, matching the public API ceiling.
+`scripts/doctor-research-demo.py`, documented below. Its default polling
+window is 590 seconds, leaving a bounded observation margin after the
+570-second Worker hard deadline; callers may explicitly configure at most
+600 seconds.
 
 ## Python API demo
 
@@ -421,6 +429,8 @@ the asynchronous production API. It:
 
 - reads the bearer credential from a private file or
   `DOCTOR_RESEARCH_API_KEY`, never from a command-line token argument;
+- accepts either a bounded, strictly validated UTF-8 JSON request file or the
+  original per-field command-line arguments, but never mixes the two;
 - sends create with a reusable `Idempotency-Key`, polls bounded status, and
   stops without guessing if human identity selection is required;
 - honors integer `Retry-After` guidance for rate-limited authenticated GETs,
@@ -441,18 +451,12 @@ the asynchronous production API. It:
 Example:
 
 ```powershell
+Copy-Item docs/research/doctor-research/request.example.json .\request.json
+# Edit request.json with verified identity values and a stable client_reference.
 python scripts/doctor-research-demo.py `
-  --doctor-name "陆清声" `
-  --hospital "海军军医大学第一附属医院" `
-  --department "血管外科" `
-  --literature-name "Lu Qingsheng" `
-  --literature-hospital "Changhai Hospital" `
-  --literature-department "Vascular Surgery" `
-  --title "教授、主任医师" `
-  --city "上海" `
-  --official-profile-url "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html" `
-  --official-profile-url "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml" `
+  --request-file ".\request.json" `
   --api-key-file "C:\private\doctor-research.key" `
+  --idempotency-key "research:his-user-42:case-20260722-001" `
   --output-dir ".\doctor-research-output"
 ```
 
@@ -460,6 +464,12 @@ The API key must belong to a named user on the dedicated Doctor Research beta
 plan. On POSIX, the key file must be mode `0600` or stricter. If create returns
 an uncertain network outcome, rerun with the `idempotency_key` printed before
 the POST instead of generating a second run.
+
+The per-field CLI form remains available; run
+`python scripts/doctor-research-demo.py --help` for its arguments. The example
+rejects symbolic-link request files, files over 64 KiB, unknown JSON fields,
+unsupported modes or citation styles, malformed identity fields, and unsafe
+official URLs before transmitting the request.
 
 The three `--literature-*` values are optional as a group. When supplied, an
 allowlisted official page must place the display name and literature name in

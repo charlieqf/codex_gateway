@@ -153,6 +153,31 @@ def artifact_manifest():
     return result
 
 
+def request_payload():
+    return {
+        "doctor": {
+            "name": DOCTOR_NAME,
+            "hospital": "上海长海医院",
+            "department": "血管外科",
+            "official_profile_urls": [
+                "https://hospital.example/doctor/lu"
+            ],
+            "literature_identity": {
+                "name": "Lu Qingsheng",
+                "hospital": "Changhai Hospital",
+                "department": "Vascular Surgery",
+            },
+        },
+        "mode": "brief",
+        "language": "zh-CN",
+        "options": {
+            "publication_years": 5,
+            "citation_style": "vancouver",
+        },
+        "client_reference": "test-client-reference",
+    }
+
+
 class DoctorResearchDemoTests(unittest.TestCase):
     def setUp(self):
         DemoHandler.artifacts = artifact_manifest()
@@ -212,6 +237,113 @@ class DoctorResearchDemoTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_request_file_end_to_end(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                key_file = root / "research.key"
+                key_file.write_text(TOKEN, encoding="utf-8")
+                if os.name != "nt":
+                    key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+                request_file = root / "request.json"
+                request_file.write_text(
+                    json.dumps(request_payload(), ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    status = DEMO.main(
+                        [
+                            "--request-file",
+                            str(request_file),
+                            "--api-key-file",
+                            str(key_file),
+                            "--base-url",
+                            f"http://127.0.0.1:{server.server_port}",
+                            "--output-dir",
+                            str(root / "output"),
+                        ]
+                    )
+                self.assertEqual(status, 0, stdout.getvalue())
+                self.assertTrue((root / "output" / RUN_ID).is_dir())
+                self.assertNotIn(TOKEN, stdout.getvalue())
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_request_file_rejects_unknown_fields(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            request_file = Path(temporary) / "request.json"
+            payload = request_payload()
+            payload["doctor"]["doctor_name"] = payload["doctor"]["name"]
+            request_file.write_text(json.dumps(payload), encoding="utf-8")
+            args = DEMO.parse_args(["--request-file", str(request_file)])
+            with self.assertRaisesRegex(
+                DEMO.DemoError, "unsupported field.*doctor_name"
+            ):
+                DEMO.build_payload(args)
+
+    def test_tracked_request_example_matches_client_contract(self):
+        request_file = (
+            ROOT
+            / "docs"
+            / "research"
+            / "doctor-research"
+            / "request.example.json"
+        )
+        args = DEMO.parse_args(["--request-file", str(request_file)])
+        payload = DEMO.build_payload(args)
+        self.assertEqual(payload["mode"], "brief")
+        self.assertEqual(payload["doctor"]["name"], DOCTOR_NAME)
+
+    def test_request_file_cannot_be_mixed_with_body_arguments(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            request_file = Path(temporary) / "request.json"
+            request_file.write_text(
+                json.dumps(request_payload()), encoding="utf-8"
+            )
+            args = DEMO.parse_args(
+                [
+                    "--request-file",
+                    str(request_file),
+                    "--doctor-name",
+                    DOCTOR_NAME,
+                ]
+            )
+            with self.assertRaisesRegex(DEMO.DemoError, "cannot be combined"):
+                DEMO.build_payload(args)
+
+    def test_request_file_size_is_bounded(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            request_file = Path(temporary) / "request.json"
+            request_file.write_bytes(
+                b"x" * (DEMO.MAXIMUM_REQUEST_FILE_BYTES + 1)
+            )
+            args = DEMO.parse_args(["--request-file", str(request_file)])
+            with self.assertRaisesRegex(DEMO.DemoError, "size was invalid"):
+                DEMO.build_payload(args)
+
+    def test_idempotency_key_matches_service_grammar(self):
+        valid = "research:client_42:case-20260722.001"
+        self.assertEqual(DEMO.validate_idempotency_key(valid), valid)
+        for invalid in (
+            "research:",
+            "research:contains space",
+            "other:client-42",
+            "research:" + "a" * 120,
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(DEMO.DemoError):
+                    DEMO.validate_idempotency_key(invalid)
+
+    def test_default_wait_leaves_worker_observation_margin(self):
+        args = DEMO.parse_args(["--request-file", "request.json"])
+        self.assertEqual(args.max_wait_seconds, 590)
 
     def test_requires_all_three_literature_identity_anchors(self):
         args = DEMO.parse_args(
