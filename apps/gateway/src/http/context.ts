@@ -66,6 +66,15 @@ declare module "fastify" {
     gatewayPromptEstimateMethod?: string | null;
     gatewayModelContextTokens?: number | null;
     gatewayModelMaxOutputTokens?: number | null;
+    gatewayPromptChars?: number | null;
+    gatewayMaximumOutputTokens?: number | null;
+    gatewayAdmittedMs?: number | null;
+    gatewayProviderStartedAt?: Date;
+    gatewayProviderFirstEventMs?: number | null;
+    gatewayProviderDurationMs?: number | null;
+    gatewayTerminalSource?: string | null;
+    gatewayCancelRequested?: boolean;
+    gatewayCancelObserved?: boolean;
     gatewayActiveToolCount?: number | null;
     gatewayClientToolMode?: string | null;
     gatewayToolLoopGuard?: ToolLoopGuardDiagnostic | null;

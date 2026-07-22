@@ -70,6 +70,7 @@ export interface ChatCompletionRequest {
   messages: ChatCompletionMessage[];
   stream: boolean;
   reasoningEffort?: string;
+  maximumOutputTokens?: number;
   tools?: OpenAIChatToolDefinition[];
   toolChoice: ChatCompletionToolChoice;
   preserveAutoToolChoice?: boolean;
@@ -170,6 +171,14 @@ export function parseChatCompletionRequest(
     reasoningEffort = body.reasoning_effort.trim();
   }
 
+  const maximumOutputTokens = parseMaximumOutputTokens(
+    body.max_tokens,
+    body.max_completion_tokens
+  );
+  if (maximumOutputTokens instanceof GatewayError) {
+    return maximumOutputTokens;
+  }
+
   let tools: OpenAIChatToolDefinition[] | undefined;
   if (body.tools !== undefined) {
     const parsedTools = parseToolDefinitions(body.tools);
@@ -189,9 +198,35 @@ export function parseChatCompletionRequest(
     messages,
     stream,
     ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
+    ...(maximumOutputTokens !== undefined ? { maximumOutputTokens } : {}),
     tools,
     toolChoice
   };
+}
+
+function parseMaximumOutputTokens(
+  maxTokens: unknown,
+  maxCompletionTokens: unknown
+): number | undefined | GatewayError {
+  if (
+    maxTokens !== undefined &&
+    maxCompletionTokens !== undefined &&
+    maxTokens !== maxCompletionTokens
+  ) {
+    return invalidRequest(
+      "max_tokens and max_completion_tokens must match when both are provided."
+    );
+  }
+  const value = maxCompletionTokens ?? maxTokens;
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+    return invalidRequest(
+      "max_tokens/max_completion_tokens must be a positive integer when provided."
+    );
+  }
+  return value as number;
 }
 
 export function chatMessagesToPrompt(

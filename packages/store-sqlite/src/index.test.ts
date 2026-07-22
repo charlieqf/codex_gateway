@@ -802,6 +802,14 @@ describe("SqliteGatewayStore", () => {
       gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
       modelContextTokens: 200_000,
       modelMaxOutputTokens: 32_000,
+      promptChars: 12_345,
+      maximumOutputTokens: 8_000,
+      gatewayAdmittedMs: 25,
+      providerFirstEventMs: 100,
+      providerDurationMs: 5_000,
+      terminalSource: "provider_response",
+      cancelRequested: false,
+      cancelObserved: false,
       activeToolCount: 2,
       clientToolMode: "native",
       toolLoopGuard: {
@@ -886,6 +894,14 @@ describe("SqliteGatewayStore", () => {
         gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
         modelContextTokens: 200_000,
         modelMaxOutputTokens: 32_000,
+        promptChars: 12_345,
+        maximumOutputTokens: 8_000,
+        gatewayAdmittedMs: 25,
+        providerFirstEventMs: 100,
+        providerDurationMs: 5_000,
+        terminalSource: "provider_response",
+        cancelRequested: false,
+        cancelObserved: false,
         activeToolCount: 2,
         clientToolMode: "native",
         toolLoopGuard: expect.objectContaining({
@@ -898,6 +914,9 @@ describe("SqliteGatewayStore", () => {
       }
     ]);
     expect(store.listRequestEvents({ turnCode: "T:7K3P2" })).toHaveLength(1);
+    expect(
+      store.listRequestEvents({ clientSessionId: "ses_client_1" })
+    ).toHaveLength(1);
     store.close();
   });
 

@@ -38,10 +38,12 @@ export function insert(
       started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
       prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
       estimated_tokens, gateway_estimated_prompt_tokens, gateway_prompt_estimate_method,
-      model_context_tokens, model_max_output_tokens, active_tool_count, client_tool_mode,
+      model_context_tokens, model_max_output_tokens, prompt_chars, maximum_output_tokens,
+      gateway_admitted_ms, provider_first_event_ms, provider_duration_ms, terminal_source,
+      cancel_requested, cancel_observed, active_tool_count, client_tool_mode,
       tool_loop_guard_json, usage_source, limit_kind, reservation_id, over_request_limit,
       identity_guard_hit
-    ) VALUES (${Array.from({ length: 52 }, () => "?").join(", ")})
+    ) VALUES (${Array.from({ length: 60 }, () => "?").join(", ")})
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -86,6 +88,14 @@ export function insert(
       gateway_prompt_estimate_method = excluded.gateway_prompt_estimate_method,
       model_context_tokens = excluded.model_context_tokens,
       model_max_output_tokens = excluded.model_max_output_tokens,
+      prompt_chars = excluded.prompt_chars,
+      maximum_output_tokens = excluded.maximum_output_tokens,
+      gateway_admitted_ms = excluded.gateway_admitted_ms,
+      provider_first_event_ms = excluded.provider_first_event_ms,
+      provider_duration_ms = excluded.provider_duration_ms,
+      terminal_source = excluded.terminal_source,
+      cancel_requested = excluded.cancel_requested,
+      cancel_observed = excluded.cancel_observed,
       active_tool_count = excluded.active_tool_count,
       client_tool_mode = excluded.client_tool_mode,
       tool_loop_guard_json = excluded.tool_loop_guard_json,
@@ -143,6 +153,14 @@ export function insert(
     record.gatewayPromptEstimateMethod ?? null,
     record.modelContextTokens ?? null,
     record.modelMaxOutputTokens ?? null,
+    record.promptChars ?? null,
+    record.maximumOutputTokens ?? null,
+    record.gatewayAdmittedMs ?? null,
+    record.providerFirstEventMs ?? null,
+    record.providerDurationMs ?? null,
+    record.terminalSource ?? null,
+    record.cancelRequested === undefined ? null : record.cancelRequested ? 1 : 0,
+    record.cancelObserved === undefined ? null : record.cancelObserved ? 1 : 0,
     record.activeToolCount ?? null,
     record.clientToolMode ?? null,
     record.toolLoopGuard ? JSON.stringify(record.toolLoopGuard) : null,
@@ -178,6 +196,10 @@ export function list(
   if (input.turnCode) {
     clauses.push("turn_code = ?");
     params.push(input.turnCode);
+  }
+  if (input.clientSessionId) {
+    clauses.push("client_session_id = ?");
+    params.push(input.clientSessionId);
   }
   if (input.since) {
     clauses.push("started_at >= ?");

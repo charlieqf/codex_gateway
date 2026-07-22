@@ -63,7 +63,8 @@ describe("OpenAICompatibleProviderAdapter", () => {
         subject: testSubject(),
         scope: "code",
         session: testSession(),
-        message: "original gateway prompt"
+        message: "original gateway prompt",
+        maximumOutputTokens: 8_000
       });
 
       expect(result).not.toBeInstanceOf(Error);
@@ -89,6 +90,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
         model: "z-ai/glm-5.2",
         stream: true,
         stream_options: { include_usage: true },
+        max_tokens: 8_000,
         reasoning: { effort: "none" }
       });
       const messages = captured[0].body.messages as Array<{ role: string; content: string }>;

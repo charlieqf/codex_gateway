@@ -200,6 +200,9 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       stream_options: {
         include_usage: true
       },
+      ...(input.maximumOutputTokens === undefined
+        ? {}
+        : { max_tokens: input.maximumOutputTokens }),
       ...this.reasoningPayload(input),
       ...(nativeToolCallsEnabled(input)
         ? {

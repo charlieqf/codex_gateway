@@ -37,6 +37,7 @@ describe("Responses compatibility", () => {
       tool_choice: "auto",
       reasoning: null,
       prompt_cache_key: "codex-thread-1",
+      max_output_tokens: 8_000,
       stream: true
     });
 
@@ -64,6 +65,17 @@ describe("Responses compatibility", () => {
       toolChoice: "auto",
       preserveAutoToolChoice: true
     });
+    expect(parsed.chatRequest.maximumOutputTokens).toBe(8_000);
+  });
+
+  it("rejects a non-positive maximum output token limit", () => {
+    const parsed = parseResponsesRequest({
+      model: "goldencode",
+      input: "Reply with ok.",
+      max_output_tokens: 0
+    });
+    expect(parsed).toBeInstanceOf(GatewayError);
+    expect((parsed as GatewayError).code).toBe("invalid_request");
   });
 
   it("maps Codex function-call history back into assistant and tool messages", () => {

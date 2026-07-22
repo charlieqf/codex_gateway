@@ -124,11 +124,23 @@ export function parseResponsesRequest(
     promptCacheKey = body.prompt_cache_key.trim();
   }
 
+  let maximumOutputTokens: number | undefined;
+  if (body.max_output_tokens !== undefined && body.max_output_tokens !== null) {
+    if (
+      !Number.isSafeInteger(body.max_output_tokens) ||
+      (body.max_output_tokens as number) <= 0
+    ) {
+      return invalidRequest("max_output_tokens must be a positive integer when provided.");
+    }
+    maximumOutputTokens = body.max_output_tokens as number;
+  }
+
   const chatRequest: ChatCompletionRequest = {
     model,
     messages,
     stream: false,
     ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
+    ...(maximumOutputTokens !== undefined ? { maximumOutputTokens } : {}),
     ...(tools.length > 0 ? { tools } : {}),
     toolChoice,
     preserveAutoToolChoice: true

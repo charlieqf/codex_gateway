@@ -551,6 +551,49 @@ export function migrateResearchSchema(
     `,
     logger
   );
+
+  applyResearchMigration(
+    db,
+    6,
+    `
+      CREATE TABLE IF NOT EXISTS research_stage_runs (
+        stage_run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id TEXT NOT NULL REFERENCES research_runs(run_id),
+        stage TEXT NOT NULL,
+        attempt INTEGER NOT NULL CHECK (attempt > 0),
+        lease_generation INTEGER NOT NULL CHECK (lease_generation > 0),
+        input_sha256 TEXT,
+        output_sha256 TEXT,
+        duration_ms INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
+        prompt_tokens INTEGER CHECK (prompt_tokens IS NULL OR prompt_tokens >= 0),
+        completion_tokens INTEGER CHECK (
+          completion_tokens IS NULL OR completion_tokens >= 0
+        ),
+        gateway_request_id TEXT,
+        error_code TEXT,
+        error_detail_sanitized TEXT,
+        started_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE (run_id, stage, attempt, lease_generation)
+      );
+
+      ALTER TABLE research_stage_runs ADD COLUMN prompt_chars INTEGER
+        CHECK (prompt_chars IS NULL OR prompt_chars >= 0);
+      ALTER TABLE research_stage_runs ADD COLUMN maximum_output_tokens INTEGER
+        CHECK (maximum_output_tokens IS NULL OR maximum_output_tokens > 0);
+      ALTER TABLE research_stage_runs ADD COLUMN admission_wait_ms INTEGER
+        CHECK (admission_wait_ms IS NULL OR admission_wait_ms >= 0);
+      ALTER TABLE research_stage_runs ADD COLUMN request_sent_at TEXT;
+      ALTER TABLE research_stage_runs ADD COLUMN client_total_ms INTEGER
+        CHECK (client_total_ms IS NULL OR client_total_ms >= 0);
+      ALTER TABLE research_stage_runs ADD COLUMN terminal_source TEXT;
+      ALTER TABLE research_stage_runs ADD COLUMN cancel_requested INTEGER
+        CHECK (cancel_requested IS NULL OR cancel_requested IN (0, 1));
+      ALTER TABLE research_stage_runs ADD COLUMN cancel_observed INTEGER
+        CHECK (cancel_observed IS NULL OR cancel_observed IN (0, 1));
+    `,
+    logger
+  );
 }
 
 function applyResearchMigration(

@@ -7,6 +7,7 @@ import type {
   ObservationStore,
   RateLimitOrigin,
   RequestTokenUsageSource,
+  StreamEvent,
   TokenUsage
 } from "@codex-gateway/core";
 
@@ -67,6 +68,70 @@ export function markFirstByte(request: FastifyRequest): void {
   }
 }
 
+export function markProviderCallStarted(
+  request: FastifyRequest,
+  at = new Date()
+): void {
+  if (request.gatewayProviderStartedAt) {
+    return;
+  }
+  request.gatewayProviderStartedAt = at;
+  const requestStartedAt = request.gatewayObservationStartedAt;
+  request.gatewayAdmittedMs = requestStartedAt
+    ? Math.max(0, at.getTime() - requestStartedAt.getTime())
+    : null;
+}
+
+export function markProviderEvent(
+  request: FastifyRequest,
+  event: StreamEvent,
+  at = new Date()
+): void {
+  const providerStartedAt = request.gatewayProviderStartedAt;
+  if (providerStartedAt && request.gatewayProviderFirstEventMs === undefined) {
+    request.gatewayProviderFirstEventMs = Math.max(
+      0,
+      at.getTime() - providerStartedAt.getTime()
+    );
+  }
+  if (
+    event.type === "error" &&
+    (event.code === "client_aborted" || event.code === "upstream_timeout")
+  ) {
+    request.gatewayCancelObserved = true;
+  }
+}
+
+export function markProviderCallFinished(
+  request: FastifyRequest,
+  signal: AbortSignal,
+  at = new Date()
+): void {
+  const providerStartedAt = request.gatewayProviderStartedAt;
+  request.gatewayProviderDurationMs = providerStartedAt
+    ? Math.max(0, at.getTime() - providerStartedAt.getTime())
+    : null;
+  request.gatewayCancelRequested = signal.aborted;
+  const reason = signal.reason;
+  const reasonCode =
+    reason && typeof reason === "object" && "code" in reason
+      ? String(reason.code)
+      : null;
+  if (reasonCode === "client_aborted") {
+    request.gatewayTerminalSource = "client_abort";
+  } else if (reasonCode === "upstream_timeout") {
+    request.gatewayTerminalSource = "gateway_deadline";
+  } else if (request.gatewayErrorCode) {
+    request.gatewayTerminalSource =
+      request.gatewayUpstreamHttpStatus !== null &&
+      request.gatewayUpstreamHttpStatus !== undefined
+        ? "provider_response"
+        : "transport_error";
+  } else {
+    request.gatewayTerminalSource = "provider_response";
+  }
+}
+
 export function markTokenUsage(
   request: FastifyRequest,
   usage: TokenUsage | undefined,
@@ -116,11 +181,12 @@ export function markIdentityGuardHit(request: FastifyRequest): void {
 export function recordObservation(
   request: FastifyRequest,
   store: ObservationStore | undefined,
-  statusCode?: number
+  statusCode?: number,
+  options: { refresh?: boolean } = {}
 ): void {
   if (
     !store ||
-    request.gatewayObservationRecorded ||
+    (request.gatewayObservationRecorded && !options.refresh) ||
     request.routeOptions.config?.public ||
     request.routeOptions.config?.skipObservation
   ) {
@@ -194,6 +260,14 @@ export function recordObservation(
     gatewayPromptEstimateMethod: request.gatewayPromptEstimateMethod ?? null,
     modelContextTokens: request.gatewayModelContextTokens ?? null,
     modelMaxOutputTokens: request.gatewayModelMaxOutputTokens ?? null,
+    promptChars: request.gatewayPromptChars ?? null,
+    maximumOutputTokens: request.gatewayMaximumOutputTokens ?? null,
+    gatewayAdmittedMs: request.gatewayAdmittedMs ?? null,
+    providerFirstEventMs: request.gatewayProviderFirstEventMs ?? null,
+    providerDurationMs: request.gatewayProviderDurationMs ?? null,
+    terminalSource: request.gatewayTerminalSource ?? null,
+    cancelRequested: request.gatewayCancelRequested,
+    cancelObserved: request.gatewayCancelObserved,
     activeToolCount: request.gatewayActiveToolCount ?? null,
     clientToolMode: request.gatewayClientToolMode ?? null,
     toolLoopGuard: request.gatewayToolLoopGuard ?? null,

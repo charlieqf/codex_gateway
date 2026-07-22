@@ -9,10 +9,28 @@ export interface ResearchModelUsage {
   totalTokens: number | null;
 }
 
+export interface ResearchModelCallTelemetry {
+  promptChars: number;
+  maximumOutputTokens: number;
+  admissionWaitMs: number;
+  requestSentAt: Date | null;
+  clientTotalMs: number;
+  terminalSource:
+    | "provider_response"
+    | "provider_deadline"
+    | "transport_error"
+    | "client_abort"
+    | "worker_deadline"
+    | "worker_abort";
+  cancelRequested: boolean;
+  cancelObserved: boolean;
+}
+
 export interface ResearchModelResponse {
   text: string;
   gatewayRequestId: string | null;
   usage: ResearchModelUsage;
+  telemetry?: ResearchModelCallTelemetry;
 }
 
 export interface ResearchModelClient {
@@ -35,6 +53,8 @@ export class GatewayResearchModelClient implements ResearchModelClient {
   private readonly timeoutMs: number;
   private readonly maximumResponseBytes: number;
   private readonly maximumOutputTokensPerCall: number;
+  private readonly now: () => Date;
+  private readonly monotonicNow: () => number;
 
   constructor(
     private readonly options: {
@@ -53,6 +73,8 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         maximumTokensPerRun: number;
       };
       fetchImpl?: typeof fetch;
+      now?: () => Date;
+      monotonicNow?: () => number;
     }
   ) {
     this.model = requiredIdentifier(options.model, "model");
@@ -83,6 +105,8 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     );
     this.maximumOutputTokensPerCall =
       readiness.maximumOutputTokensPerCall;
+    this.now = options.now ?? (() => new Date());
+    this.monotonicNow = options.monotonicNow ?? (() => performance.now());
     positiveInteger(
       readiness.callsPerRun,
       "readinessRequirements.callsPerRun"
@@ -242,142 +266,191 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         "Research LLM request output token limit is invalid."
       );
     }
-    for (let admissionRetry = 0; ; admissionRetry += 1) {
-      const signal = AbortSignal.any([
-        input.signal,
-        AbortSignal.timeout(this.timeoutMs)
-      ]);
-      let response: Response;
-      try {
-      const headers = {
-        accept: "application/json",
-        authorization: `Bearer ${this.options.bearerToken}`,
-        "content-type": "application/json",
-        "x-medcode-client-session-id":
-          `${input.runId}:${stage}:${input.attempt}`,
-        "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
-      };
-      const body = JSON.stringify({
-        model: this.model,
-        stream: false,
-        max_tokens: maximumOutputTokens,
-        reasoning_effort: this.options.reasoningEffort,
-        messages: [
-          { role: "system", content: input.system },
-          { role: "user", content: input.prompt }
-        ]
-      });
-        response = this.options.fetchImpl
-          ? await this.options.fetchImpl(this.endpoint, {
-              method: "POST",
-              headers,
-              body,
-              redirect: "error",
-              signal
-            })
-          : await requestBoundedModelResponse({
-              url: this.endpoint,
-              headers,
-              body,
-              signal,
-              timeoutMs: this.timeoutMs,
-              maximumBytes: this.maximumResponseBytes
-            });
-      } catch (error) {
-        if (input.signal.aborted) {
-          throw input.signal.reason ?? error;
-        }
-        if (signal.aborted) {
-          throw signal.reason ?? error;
-        }
-        throw new ResearchModelClientError("upstream_error", 0, null);
-      }
-      const requestId = boundedHeader(
-        response.headers.get("x-request-id")
-      );
-      const bytes = await readBoundedResponseBody(
-        response.body,
-        this.maximumResponseBytes
-      );
-      let payload: unknown;
-      try {
-        payload = JSON.parse(bytes.toString("utf8"));
-      } catch {
-        throw new ResearchModelClientError(
-          "invalid_response",
-          response.status,
-          requestId
-        );
-      }
-      if (!response.ok) {
-        const retryAfterSeconds =
-          response.status === 429
-            ? modelRetryAfterSeconds(response.headers, payload)
-            : null;
-        if (
-          response.status === 429 &&
-          admissionRetry < 6 &&
-          !input.signal.aborted
-        ) {
-          await waitForModelAdmission({
-            retryIndex: admissionRetry,
-            retryAfterSeconds,
-            attempt: input.attempt,
-            signal: input.signal
+    const clientStartedAt = this.monotonicNow();
+    let admissionWaitMs = 0;
+    let requestSentAt: Date | null = null;
+    let activeSignal: AbortSignal | null = null;
+    let terminalSource: ResearchModelCallTelemetry["terminalSource"] =
+      "transport_error";
+    let cancelObserved = false;
+    const telemetry = (): ResearchModelCallTelemetry => ({
+      promptChars: input.system.length + input.prompt.length,
+      maximumOutputTokens,
+      admissionWaitMs,
+      requestSentAt,
+      clientTotalMs: elapsedMonotonicMilliseconds(
+        clientStartedAt,
+        this.monotonicNow()
+      ),
+      terminalSource,
+      cancelRequested:
+        input.signal.aborted || activeSignal?.aborted === true,
+      cancelObserved
+    });
+    try {
+      for (let admissionRetry = 0; ; admissionRetry += 1) {
+        const signal = AbortSignal.any([
+          input.signal,
+          AbortSignal.timeout(this.timeoutMs)
+        ]);
+        activeSignal = signal;
+        requestSentAt ??= this.now();
+        let response: Response;
+        try {
+          const headers = {
+            accept: "application/json",
+            authorization: `Bearer ${this.options.bearerToken}`,
+            "content-type": "application/json",
+            "x-medcode-client-session-id":
+              `${input.runId}:${stage}:${input.attempt}`,
+            "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
+          };
+          const body = JSON.stringify({
+            model: this.model,
+            stream: false,
+            max_tokens: maximumOutputTokens,
+            reasoning_effort: this.options.reasoningEffort,
+            messages: [
+              { role: "system", content: input.system },
+              { role: "user", content: input.prompt }
+            ]
           });
-          continue;
+          response = this.options.fetchImpl
+            ? await this.options.fetchImpl(this.endpoint, {
+                method: "POST",
+                headers,
+                body,
+                redirect: "error",
+                signal
+              })
+            : await requestBoundedModelResponse({
+                url: this.endpoint,
+                headers,
+                body,
+                signal,
+                timeoutMs: this.timeoutMs,
+                maximumBytes: this.maximumResponseBytes
+              });
+        } catch (error) {
+          if (input.signal.aborted) {
+            cancelObserved = true;
+            terminalSource = abortTerminalSource(input.signal.reason);
+            throw input.signal.reason ?? error;
+          }
+          if (signal.aborted) {
+            cancelObserved = true;
+            terminalSource = "provider_deadline";
+            throw signal.reason ?? error;
+          }
+          terminalSource = "transport_error";
+          throw new ResearchModelClientError("upstream_error", 0, null);
         }
-        throw new ResearchModelClientError(
-          response.status === 429 ? "rate_limited" : "upstream_error",
-          response.status,
-          requestId,
-          retryAfterSeconds
+        terminalSource = "provider_response";
+        const requestId = boundedHeader(
+          response.headers.get("x-request-id")
         );
-      }
-      if (!isRecord(payload)) {
-        throw new ResearchModelClientError(
-          "invalid_response",
-          response.status,
-          requestId
+        const bytes = await readBoundedResponseBody(
+          response.body,
+          this.maximumResponseBytes
         );
-      }
-      const choices = payload.choices;
-      const first =
-        Array.isArray(choices) &&
-        choices.length === 1 &&
-        isRecord(choices[0])
-          ? choices[0]
-          : null;
-      const message =
-        first && isRecord(first.message) ? first.message : null;
-      const text =
-        typeof message?.content === "string" ? message.content : null;
-      if (text === null || text.trim() === "") {
-        throw new ResearchModelClientError(
-          "empty_response",
-          response.status,
-          requestId
-        );
-      }
-      const usage = isRecord(payload.usage) ? payload.usage : null;
-      const completionDetails =
-        usage && isRecord(usage.completion_tokens_details)
-          ? usage.completion_tokens_details
-          : null;
-      return {
-        text,
-        gatewayRequestId: requestId,
-        usage: {
-          promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
-          completionTokens: nonNegativeIntegerOrNull(
-            usage?.completion_tokens
-          ),
-          reasoningTokens: nonNegativeIntegerOrNull(
-            completionDetails?.reasoning_tokens
-          ),
-          totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
+        let payload: unknown;
+        try {
+          payload = JSON.parse(bytes.toString("utf8"));
+        } catch {
+          throw new ResearchModelClientError(
+            "invalid_response",
+            response.status,
+            requestId
+          );
         }
-      };
+        if (!response.ok) {
+          const retryAfterSeconds =
+            response.status === 429
+              ? modelRetryAfterSeconds(response.headers, payload)
+              : null;
+          if (
+            response.status === 429 &&
+            admissionRetry < 6 &&
+            !input.signal.aborted
+          ) {
+            const waitStartedAt = this.monotonicNow();
+            try {
+              await waitForModelAdmission({
+                retryIndex: admissionRetry,
+                retryAfterSeconds,
+                attempt: input.attempt,
+                signal: input.signal
+              });
+            } finally {
+              admissionWaitMs += elapsedMonotonicMilliseconds(
+                waitStartedAt,
+                this.monotonicNow()
+              );
+            }
+            continue;
+          }
+          throw new ResearchModelClientError(
+            response.status === 429 ? "rate_limited" : "upstream_error",
+            response.status,
+            requestId,
+            retryAfterSeconds
+          );
+        }
+        if (!isRecord(payload)) {
+          throw new ResearchModelClientError(
+            "invalid_response",
+            response.status,
+            requestId
+          );
+        }
+        const choices = payload.choices;
+        const first =
+          Array.isArray(choices) &&
+          choices.length === 1 &&
+          isRecord(choices[0])
+            ? choices[0]
+            : null;
+        const message =
+          first && isRecord(first.message) ? first.message : null;
+        const text =
+          typeof message?.content === "string" ? message.content : null;
+        if (text === null || text.trim() === "") {
+          throw new ResearchModelClientError(
+            "empty_response",
+            response.status,
+            requestId
+          );
+        }
+        const usage = isRecord(payload.usage) ? payload.usage : null;
+        const completionDetails =
+          usage && isRecord(usage.completion_tokens_details)
+            ? usage.completion_tokens_details
+            : null;
+        return {
+          text,
+          gatewayRequestId: requestId,
+          usage: {
+            promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
+            completionTokens: nonNegativeIntegerOrNull(
+              usage?.completion_tokens
+            ),
+            reasoningTokens: nonNegativeIntegerOrNull(
+              completionDetails?.reasoning_tokens
+            ),
+            totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
+          },
+          telemetry: telemetry()
+        };
+      }
+    } catch (error) {
+      if (input.signal.aborted) {
+        cancelObserved = true;
+        terminalSource = abortTerminalSource(input.signal.reason);
+      } else if (activeSignal?.aborted) {
+        cancelObserved = true;
+        terminalSource = "provider_deadline";
+      }
+      throw attachResearchModelCallTelemetry(error, telemetry());
     }
   }
 }
@@ -494,6 +567,66 @@ export class ResearchModelClientError extends Error {
     super("Research LLM request failed.");
     this.name = "ResearchModelClientError";
   }
+}
+
+const researchModelCallTelemetry = Symbol("researchModelCallTelemetry");
+
+export function researchModelCallTelemetryFromError(
+  error: unknown
+): ResearchModelCallTelemetry | null {
+  if (
+    (typeof error !== "object" && typeof error !== "function") ||
+    error === null
+  ) {
+    return null;
+  }
+  const value = (
+    error as { [researchModelCallTelemetry]?: ResearchModelCallTelemetry }
+  )[researchModelCallTelemetry];
+  return value ?? null;
+}
+
+function attachResearchModelCallTelemetry(
+  error: unknown,
+  telemetry: ResearchModelCallTelemetry
+): unknown {
+  if (
+    (typeof error !== "object" && typeof error !== "function") ||
+    error === null
+  ) {
+    return error;
+  }
+  try {
+    Object.defineProperty(error, researchModelCallTelemetry, {
+      configurable: true,
+      value: telemetry
+    });
+  } catch {
+    // Preserve the original error even when it is non-extensible.
+  }
+  return error;
+}
+
+function abortTerminalSource(
+  reason: unknown
+): "client_abort" | "worker_deadline" | "worker_abort" {
+  if (
+    isRecord(reason) &&
+    (reason.code === "client_aborted" || reason.code === "client_abort")
+  ) {
+    return "client_abort";
+  }
+  if (
+    reason instanceof DOMException &&
+    reason.name === "TimeoutError"
+  ) {
+    return "worker_deadline";
+  }
+  return "worker_abort";
+}
+
+function elapsedMonotonicMilliseconds(start: number, end: number): number {
+  return Math.max(0, Math.round(end - start));
 }
 
 function modelRetryAfterSeconds(

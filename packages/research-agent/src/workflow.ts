@@ -46,6 +46,7 @@ import {
 } from "./medical-skill-bundle.js";
 import {
   estimateResearchInputTokens,
+  researchModelCallTelemetryFromError,
   ResearchModelClientError,
   type ResearchModelClient,
   type ResearchModelResponse,
@@ -556,6 +557,10 @@ class WorkflowContext {
     if (started.outcome !== "written") {
       throw new WorkflowFencedError();
     }
+    const modelSignal = this.callSignal(input.maximumDurationMs);
+    const maximumOutputTokens =
+      input.maximumOutputTokens ??
+      this.input.policy.maximumOutputTokensPerCall;
     let completionRecorded = false;
     try {
       const response = await this.input.modelClient.generate({
@@ -564,21 +569,40 @@ class WorkflowContext {
         attempt: input.attempt,
         system,
         prompt: input.prompt,
-        signal: this.callSignal(input.maximumDurationMs),
+        signal: modelSignal,
         ...(input.maximumOutputTokens === undefined
           ? {}
           : { maximumOutputTokens: input.maximumOutputTokens })
       });
+      const durationMs = elapsedMilliseconds(startedMonotonic);
+      const telemetry = response.telemetry ?? {
+        promptChars: system.length + input.prompt.length,
+        maximumOutputTokens,
+        admissionWaitMs: 0,
+        requestSentAt: startedAt,
+        clientTotalMs: durationMs,
+        terminalSource: "provider_response" as const,
+        cancelRequested: false,
+        cancelObserved: false
+      };
       const completed = this.input.store.completeStageRun({
         token: this.token,
         stage: input.stage,
         attempt: input.attempt,
         outputSha256: sha256(response.text),
-        durationMs: elapsedMilliseconds(startedMonotonic),
+        durationMs,
         promptTokens: response.usage.promptTokens,
         completionTokens: response.usage.completionTokens,
         gatewayRequestId: response.gatewayRequestId,
         errorCode: null,
+        promptChars: telemetry.promptChars,
+        maximumOutputTokens: telemetry.maximumOutputTokens,
+        admissionWaitMs: telemetry.admissionWaitMs,
+        requestSentAt: telemetry.requestSentAt,
+        clientTotalMs: telemetry.clientTotalMs,
+        terminalSource: telemetry.terminalSource,
+        cancelRequested: telemetry.cancelRequested,
+        cancelObserved: telemetry.cancelObserved,
         now: this.now()
       });
       if (completed.outcome !== "written") {
@@ -594,12 +618,31 @@ class WorkflowContext {
       return response;
     } catch (error) {
       if (!completionRecorded && !(error instanceof WorkflowFencedError)) {
+        const durationMs = elapsedMilliseconds(startedMonotonic);
+        const telemetry = researchModelCallTelemetryFromError(error) ?? {
+          promptChars: system.length + input.prompt.length,
+          maximumOutputTokens,
+          admissionWaitMs: 0,
+          requestSentAt: startedAt,
+          clientTotalMs: durationMs,
+          terminalSource: modelSignal.aborted
+            ? modelSignal.reason instanceof DOMException &&
+              modelSignal.reason.name === "TimeoutError"
+              ? "worker_deadline"
+              : "worker_abort"
+            : error instanceof ResearchModelClientError &&
+                error.statusCode > 0
+              ? "provider_response"
+              : "transport_error",
+          cancelRequested: modelSignal.aborted,
+          cancelObserved: modelSignal.aborted
+        };
         const completed = this.input.store.completeStageRun({
           token: this.token,
           stage: input.stage,
           attempt: input.attempt,
           outputSha256: null,
-          durationMs: elapsedMilliseconds(startedMonotonic),
+          durationMs,
           promptTokens: null,
           completionTokens: null,
           gatewayRequestId:
@@ -610,6 +653,14 @@ class WorkflowContext {
             error instanceof ResearchModelClientError
               ? `model_${error.code}`
               : "model_call_failed",
+          promptChars: telemetry.promptChars,
+          maximumOutputTokens: telemetry.maximumOutputTokens,
+          admissionWaitMs: telemetry.admissionWaitMs,
+          requestSentAt: telemetry.requestSentAt,
+          clientTotalMs: telemetry.clientTotalMs,
+          terminalSource: telemetry.terminalSource,
+          cancelRequested: telemetry.cancelRequested,
+          cancelObserved: telemetry.cancelObserved,
           now: this.now()
         });
         if (completed.outcome !== "written") {

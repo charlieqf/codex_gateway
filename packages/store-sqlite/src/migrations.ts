@@ -799,6 +799,34 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    24,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["prompt_chars", "INTEGER"],
+        ["maximum_output_tokens", "INTEGER"],
+        ["gateway_admitted_ms", "INTEGER"],
+        ["provider_first_event_ms", "INTEGER"],
+        ["provider_duration_ms", "INTEGER"],
+        ["terminal_source", "TEXT"],
+        ["cancel_requested", "INTEGER"],
+        ["cancel_observed", "INTEGER"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "request_events", column)) {
+          db.exec(`ALTER TABLE request_events ADD COLUMN ${column} ${type}`);
+        }
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_request_events_client_session_started
+          ON request_events(client_session_id, started_at DESC)
+          WHERE client_session_id IS NOT NULL;
+      `);
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

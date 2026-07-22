@@ -662,6 +662,7 @@ describe("codex-gateway-admin user API key operations", () => {
       publicModelId: "medcode",
       upstreamRuntime: "codex",
       upstreamModel: "gpt-5.5",
+      clientSessionId: "drr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:synthesize_review:1",
       promptTokens: 100,
       completionTokens: 20,
       totalTokens: 120,
@@ -670,6 +671,14 @@ describe("codex-gateway-admin user API key operations", () => {
       gatewayPromptEstimateMethod: "utf16_chars_div_3_v1",
       modelContextTokens: 200_000,
       modelMaxOutputTokens: 32_000,
+      promptChars: 12_345,
+      maximumOutputTokens: 8_000,
+      gatewayAdmittedMs: 25,
+      providerFirstEventMs: 100,
+      providerDurationMs: 5_000,
+      terminalSource: "provider_response",
+      cancelRequested: false,
+      cancelObserved: false,
       activeToolCount: 0,
       clientToolMode: "none",
       toolLoopGuard: {
@@ -702,7 +711,13 @@ describe("codex-gateway-admin user API key operations", () => {
     });
     store.close();
 
-    const events = runCli(dbPath, ["events", "--user", "alice"]) as {
+    const events = runCli(dbPath, [
+      "events",
+      "--user",
+      "alice",
+      "--client-session-id",
+      "drr_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:synthesize_review:1"
+    ]) as {
       events: Array<{
         request_id: string;
         subject_id: string;
@@ -728,6 +743,14 @@ describe("codex-gateway-admin user API key operations", () => {
       gateway_prompt_estimate_method: "utf16_chars_div_3_v1",
       model_context_tokens: 200_000,
       model_max_output_tokens: 32_000,
+      prompt_chars: 12_345,
+      maximum_output_tokens: 8_000,
+      gateway_admitted_ms: 25,
+      provider_first_event_ms: 100,
+      provider_duration_ms: 5_000,
+      terminal_source: "provider_response",
+      cancel_requested: false,
+      cancel_observed: false,
       active_tool_count: 0,
       client_tool_mode: "none",
       gateway_context_utilization: 0.00055,
@@ -931,7 +954,7 @@ describe("codex-gateway-admin user API key operations", () => {
         expect.objectContaining({ name: "audit_trail", status: "ok" })
       ])
     );
-  }, 20_000);
+  }, 30_000);
 
   it("issues token policy credentials and reads token windows without charging", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-token-"));

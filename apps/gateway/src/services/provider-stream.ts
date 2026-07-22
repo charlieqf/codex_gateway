@@ -194,10 +194,12 @@ export interface CollectProviderMessageInput {
   session: GatewaySession;
   message: string;
   reasoningEffort?: string | null;
+  maximumOutputTokens?: number;
   clientTools?: ClientToolDefinition[];
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
+  onProviderEvent?: (event: StreamEvent) => void;
   suppressToolCalls?: boolean;
   suppressTextAfterToolCall?: boolean;
   deferEmptyCompletionError?: boolean;
@@ -225,11 +227,13 @@ export async function collectProviderMessage(
     session: input.session,
     message: input.message,
     reasoningEffort: input.reasoningEffort,
+    maximumOutputTokens: input.maximumOutputTokens,
     clientTools: input.clientTools,
     clientToolChoice: input.clientToolChoice,
     signal: input.signal,
     onProviderError: input.onProviderError
   })) {
+    input.onProviderEvent?.(event);
     collector.record(event);
     if (event.type === "message_delta") {
       if (input.suppressTextAfterToolCall && hasToolCalls) {

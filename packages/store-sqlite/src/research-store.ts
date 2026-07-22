@@ -2380,6 +2380,28 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
     nonNegativeSafeInteger(input.durationMs, "durationMs");
     nullableTokenCount(input.promptTokens, "promptTokens");
     nullableTokenCount(input.completionTokens, "completionTokens");
+    nullableNonNegativeSafeInteger(input.promptChars, "promptChars");
+    nullablePositiveSafeInteger(input.maximumOutputTokens, "maximumOutputTokens");
+    nullableNonNegativeSafeInteger(input.admissionWaitMs, "admissionWaitMs");
+    nullableNonNegativeSafeInteger(input.clientTotalMs, "clientTotalMs");
+    if (
+      input.requestSentAt !== undefined &&
+      input.requestSentAt !== null &&
+      (!(input.requestSentAt instanceof Date) || !Number.isFinite(input.requestSentAt.getTime()))
+    ) {
+      throw new Error("requestSentAt is invalid.");
+    }
+    nullableBoundedSingleLine(input.terminalSource ?? null, "terminalSource", 64);
+    if (
+      (input.cancelRequested !== undefined &&
+        input.cancelRequested !== null &&
+        typeof input.cancelRequested !== "boolean") ||
+      (input.cancelObserved !== undefined &&
+        input.cancelObserved !== null &&
+        typeof input.cancelObserved !== "boolean")
+    ) {
+      throw new Error("Research stage cancellation telemetry is invalid.");
+    }
     nullableBoundedSingleLine(
       input.gatewayRequestId,
       "gatewayRequestId",
@@ -2410,6 +2432,14 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
                gateway_request_id = ?,
                error_code = ?,
                error_detail_sanitized = NULL,
+               prompt_chars = ?,
+               maximum_output_tokens = ?,
+               admission_wait_ms = ?,
+               request_sent_at = ?,
+               client_total_ms = ?,
+               terminal_source = ?,
+               cancel_requested = ?,
+               cancel_observed = ?,
                completed_at = ?
            WHERE run_id = ?
              AND stage = ?
@@ -2424,6 +2454,22 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
           input.completionTokens,
           input.gatewayRequestId,
           input.errorCode,
+          input.promptChars ?? null,
+          input.maximumOutputTokens ?? null,
+          input.admissionWaitMs ?? null,
+          input.requestSentAt?.toISOString() ?? null,
+          input.clientTotalMs ?? null,
+          input.terminalSource ?? null,
+          input.cancelRequested === undefined || input.cancelRequested === null
+            ? null
+            : input.cancelRequested
+              ? 1
+              : 0,
+          input.cancelObserved === undefined || input.cancelObserved === null
+            ? null
+            : input.cancelObserved
+              ? 1
+              : 0,
           now.toISOString(),
           input.token.runId,
           input.stage,
@@ -3508,6 +3554,28 @@ function validateSha256(value: string, name: string): void {
 function nonNegativeSafeInteger(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative safe integer.`);
+  }
+}
+
+function nullableNonNegativeSafeInteger(
+  value: number | null | undefined,
+  name: string
+): void {
+  if (value !== null && value !== undefined) {
+    nonNegativeSafeInteger(value, name);
+  }
+}
+
+function nullablePositiveSafeInteger(
+  value: number | null | undefined,
+  name: string
+): void {
+  if (
+    value !== null &&
+    value !== undefined &&
+    (!Number.isSafeInteger(value) || value <= 0)
+  ) {
+    throw new Error(`${name} must be a positive safe integer.`);
   }
 }
 

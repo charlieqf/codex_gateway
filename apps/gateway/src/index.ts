@@ -104,6 +104,9 @@ import {
   markClientAborted,
   markFirstByte,
   markGatewayError,
+  markProviderCallFinished,
+  markProviderCallStarted,
+  markProviderEvent,
   markRateLimitOrigin,
   markRateLimitRejection,
   markSession,
@@ -1888,6 +1891,19 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
     request.gatewayModelContextTokens = attempt.limits.contextWindow;
     request.gatewayModelMaxOutputTokens = attempt.limits.maxOutputTokens;
+    const maximumOutputTokens =
+      parsed.maximumOutputTokens ?? attempt.limits.maxOutputTokens;
+    if (maximumOutputTokens > attempt.limits.maxOutputTokens) {
+      attempt.release();
+      return fail(
+        new GatewayError({
+          code: "invalid_request",
+          message: `Requested output tokens exceed the ${attempt.limits.maxOutputTokens} token model limit.`,
+          httpStatus: 400
+        })
+      );
+    }
+    request.gatewayMaximumOutputTokens = maximumOutputTokens;
     request.gatewayActiveToolCount =
       request.gatewayToolChoice === "none" ? 0 : parsed.tools?.length ?? 0;
     request.gatewayClientToolMode =
@@ -1899,6 +1915,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const prompt = strictClientTools
       ? chatMessagesToStrictToolPrompt(parsed)
       : chatMessagesToPrompt(parsed, { includeToolsContext: !nativeClientTools });
+    request.gatewayPromptChars = prompt.length;
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
       chatCompletionEstimateExtras(parsed, strictClientTools, attempt.runtime)
@@ -2016,6 +2033,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         now: clock()
       });
       const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
+      markProviderCallStarted(request, clock());
+      const onProviderEvent = (event: StreamEvent) =>
+        markProviderEvent(request, event, clock());
       let failed = false;
       let hasToolCalls = false;
       let toolCallIndex = 0;
@@ -2047,7 +2067,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             signal: deadline.signal,
             requestId: request.id,
             log: request.log,
-            onProviderError
+            onProviderError,
+            onProviderEvent
           });
           if (strictResult instanceof GatewayError) {
             recordChatRuntimeErrorOutcome(attempt, strictResult);
@@ -2109,7 +2130,8 @@ export function buildGateway(options: GatewayOptions = {}) {
             signal: deadline.signal,
             requestId: request.id,
             log: request.log,
-            onProviderError
+            onProviderError,
+            onProviderEvent
           });
           if (nativeResult instanceof GatewayError) {
             recordChatRuntimeErrorOutcome(attempt, nativeResult);
@@ -2180,11 +2202,13 @@ export function buildGateway(options: GatewayOptions = {}) {
               session: attempt.session,
               message: prompt,
               reasoningEffort: attempt.reasoningEffort,
+              maximumOutputTokens,
               clientTools: nativeClientTools ? parsed.tools : undefined,
               clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
               signal: deadline.signal,
               onProviderError
             })) {
+              onProviderEvent(event);
               providerSummary.record(event);
               if (sse.isClosed()) {
                 break;
@@ -2339,12 +2363,15 @@ export function buildGateway(options: GatewayOptions = {}) {
           sse.writeDone();
         }
       } finally {
+        markProviderCallFinished(request, deadline.signal, clock());
         await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
         attempt.release();
         activeRequest.finish();
         deadline.cleanup();
         releaseRateLimit(request);
-        recordObservation(request, observationStore, reply.raw.statusCode);
+        recordObservation(request, observationStore, reply.raw.statusCode, {
+          refresh: request.gatewayClientDisconnect?.signal.aborted === true
+        });
         sse.end();
       }
       return;
@@ -2359,6 +2386,9 @@ export function buildGateway(options: GatewayOptions = {}) {
       now: clock()
     });
     const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
+    markProviderCallStarted(request, clock());
+    const onProviderEvent = (event: StreamEvent) =>
+      markProviderEvent(request, event, clock());
 
     try {
       if (strictClientTools) {
@@ -2377,7 +2407,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           signal: deadline.signal,
           requestId: request.id,
           log: request.log,
-          onProviderError
+          onProviderError,
+          onProviderEvent
         });
         if (strictResult instanceof GatewayError) {
           recordChatRuntimeErrorOutcome(attempt, strictResult);
@@ -2409,7 +2440,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           signal: deadline.signal,
           requestId: request.id,
           log: request.log,
-          onProviderError
+          onProviderError,
+          onProviderEvent
         });
         if (nativeResult instanceof GatewayError) {
           recordChatRuntimeErrorOutcome(attempt, nativeResult);
@@ -2437,6 +2469,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             session: attempt.session,
             message: prompt,
             reasoningEffort: attempt.reasoningEffort,
+            maximumOutputTokens,
             clientTools: nativeClientTools ? parsed.tools : undefined,
             clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
             attemptKind: statelessAttempts > 1 ? "stateless_retry" : "primary",
@@ -2445,6 +2478,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             upstreamModel: attempt.upstreamModel,
             signal: deadline.signal,
             onProviderError,
+            onProviderEvent,
             suppressToolCalls: parsed.toolChoice === "none",
             suppressTextAfterToolCall: true
           });
@@ -2517,10 +2551,14 @@ export function buildGateway(options: GatewayOptions = {}) {
         usage
       });
     } finally {
+      markProviderCallFinished(request, deadline.signal, clock());
       await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
       attempt.release();
       activeRequest.finish();
       deadline.cleanup();
+      if (request.gatewayClientDisconnect?.signal.aborted) {
+        recordObservation(request, observationStore, 499, { refresh: true });
+      }
     }
   };
 
@@ -2808,6 +2846,7 @@ interface StrictClientToolsInput {
   requestId?: string;
   log?: StrictClientToolsLogger;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
+  onProviderEvent?: (event: StreamEvent) => void;
 }
 
 interface NativeClientToolsInput extends StrictClientToolsInput {
@@ -2971,6 +3010,7 @@ async function collectNativeClientTools(
     session: input.session,
     message: prompt,
     reasoningEffort: input.reasoningEffort,
+    maximumOutputTokens: input.request.maximumOutputTokens,
     clientTools: input.request.tools,
     clientToolChoice: toolChoice,
     attemptKind,
@@ -2979,6 +3019,7 @@ async function collectNativeClientTools(
     upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
+    onProviderEvent: input.onProviderEvent,
     suppressTextAfterToolCall: true,
     deferEmptyCompletionError: true
   });
@@ -3547,12 +3588,14 @@ async function collectStrictToolDecision(
     session: input.session,
     message: prompt,
     reasoningEffort: input.reasoningEffort,
+    maximumOutputTokens: input.request.maximumOutputTokens,
     attemptKind,
     attemptToolChoice: serializeToolChoice(input.request.toolChoice),
     upstreamRuntime: input.upstreamRuntime,
     upstreamModel: input.upstreamModel,
     signal: input.signal,
     onProviderError: input.onProviderError,
+    onProviderEvent: input.onProviderEvent,
     suppressToolCalls: true,
     deferEmptyCompletionError: true
   });

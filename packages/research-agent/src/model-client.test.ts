@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import {
-  GatewayResearchModelClient
+  GatewayResearchModelClient,
+  researchModelCallTelemetryFromError
 } from "./index.js";
 
 describe("Doctor Research structured Gateway model client", () => {
@@ -75,7 +76,7 @@ describe("Doctor Research structured Gateway model client", () => {
       maximumOutputTokens: 8_000
     });
 
-    expect(response).toEqual({
+    expect(response).toMatchObject({
       text: "{\"schema_version\":\"doctor_research_model_output.v1\"}",
       gatewayRequestId: "req_model_client",
       usage: {
@@ -83,8 +84,18 @@ describe("Doctor Research structured Gateway model client", () => {
         completionTokens: 20,
         reasoningTokens: 7,
         totalTokens: 120
+      },
+      telemetry: {
+        admissionWaitMs: 0,
+        cancelObserved: false,
+        cancelRequested: false,
+        maximumOutputTokens: 8_000,
+        promptChars: 55,
+        terminalSource: "provider_response"
       }
     });
+    expect(response.telemetry?.requestSentAt).toBeInstanceOf(Date);
+    expect(response.telemetry?.clientTotalMs).toBeGreaterThanOrEqual(0);
     const readinessUrl = new URL(requests[0]!.url);
     expect(Object.fromEntries(readinessUrl.searchParams)).toEqual({
       maximum_prompt_tokens_per_call: "200000",
@@ -187,19 +198,27 @@ describe("Doctor Research structured Gateway model client", () => {
       }
     });
 
-    await expect(
-      client.generate({
+    const response = await client.generate({
         runId: `drr_${"d".repeat(32)}`,
         stage: "synthesize_review",
         attempt: 1,
         system: "Return structured evidence.",
         prompt: "Use the closed evidence set.",
         signal: new AbortController().signal
-      })
-    ).resolves.toMatchObject({
+      });
+    expect(response).toMatchObject({
       text: "{\"admitted\":true}",
       gatewayRequestId: "req_admission_completed"
     });
+    expect(response.telemetry).toMatchObject({
+      terminalSource: "provider_response",
+      cancelRequested: false,
+      cancelObserved: false
+    });
+    expect(response.telemetry?.admissionWaitMs).toBeGreaterThanOrEqual(300);
+    expect(response.telemetry?.clientTotalMs).toBeGreaterThanOrEqual(
+      response.telemetry?.admissionWaitMs ?? 0
+    );
     expect(requests).toBe(2);
   });
 
@@ -234,20 +253,127 @@ describe("Doctor Research structured Gateway model client", () => {
       }
     });
 
-    await expect(
-      client.generate({
+    let failure: unknown;
+    try {
+      await client.generate({
         runId: `drr_${"b".repeat(32)}`,
         stage: "synthesize_review",
         attempt: 1,
         system: "Return structured evidence.",
         prompt: "Use the closed evidence set.",
         signal: new AbortController().signal
-      })
-    ).rejects.toMatchObject({
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toMatchObject({
       name: "ResearchModelClientError",
       code: "upstream_error",
       statusCode: 0,
       gatewayRequestId: null
+    });
+    expect(researchModelCallTelemetryFromError(failure)).toMatchObject({
+      terminalSource: "transport_error",
+      cancelRequested: false,
+      cancelObserved: false
+    });
+  });
+
+  it("records provider responses and provider deadlines on failed calls", async () => {
+    const responseFailureClient = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ error: { code: "provider_failure" } }), {
+          status: 500,
+          headers: { "content-type": "application/json" }
+        })
+    });
+    const responseFailure = await captureFailure(() =>
+      responseFailureClient.generate({
+        runId: `drr_${"e".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal
+      })
+    );
+    expect(researchModelCallTelemetryFromError(responseFailure)).toMatchObject({
+      terminalSource: "provider_response",
+      cancelRequested: false,
+      cancelObserved: false
+    });
+
+    const deadlineClient = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 10,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async (_input, init) =>
+        await rejectWhenAborted(init?.signal)
+    });
+    const deadlineFailure = await captureFailure(() =>
+      deadlineClient.generate({
+        runId: `drr_${"f".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal
+      })
+    );
+    expect(researchModelCallTelemetryFromError(deadlineFailure)).toMatchObject({
+      terminalSource: "provider_deadline",
+      cancelRequested: true,
+      cancelObserved: true
+    });
+  });
+
+  it("records an upstream client cancellation separately from a provider deadline", async () => {
+    const controller = new AbortController();
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async (_input, init) =>
+        await rejectWhenAborted(init?.signal)
+    });
+    const pending = captureFailure(() =>
+      client.generate({
+        runId: `drr_${"1".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 1,
+        system: "Return structured evidence.",
+        prompt: "Use the closed evidence set.",
+        signal: controller.signal
+      })
+    );
+    controller.abort(
+      Object.assign(new Error("Client disconnected."), {
+        code: "client_aborted"
+      })
+    );
+    const failure = await pending;
+    expect(researchModelCallTelemetryFromError(failure)).toMatchObject({
+      terminalSource: "client_abort",
+      cancelRequested: true,
+      cancelObserved: true
     });
   });
 
@@ -308,7 +434,7 @@ describe("Doctor Research structured Gateway model client", () => {
         prompt: "Use bounded native HTTP.",
         signal: new AbortController().signal
       });
-      expect(response).toEqual({
+      expect(response).toMatchObject({
         text: "{\"native\":true}",
         gatewayRequestId: "req_native_transport",
         usage: {
@@ -316,6 +442,14 @@ describe("Doctor Research structured Gateway model client", () => {
           completionTokens: 5,
           reasoningTokens: 2,
           totalTokens: 15
+        },
+        telemetry: {
+          admissionWaitMs: 0,
+          cancelObserved: false,
+          cancelRequested: false,
+          maximumOutputTokens: 12_000,
+          promptChars: 36,
+          terminalSource: "provider_response"
         }
       });
     } finally {
@@ -358,5 +492,29 @@ function jsonResponse(
   return new Response(JSON.stringify(value), {
     status: 200,
     headers: { "content-type": "application/json", ...headers }
+  });
+}
+
+async function captureFailure(run: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await run();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected the model call to fail.");
+}
+
+async function rejectWhenAborted(
+  signal: AbortSignal | null | undefined
+): Promise<Response> {
+  if (!signal) {
+    throw new Error("Expected an abort signal.");
+  }
+  return await new Promise<Response>((_resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) {
+      onAbort();
+    }
   });
 }

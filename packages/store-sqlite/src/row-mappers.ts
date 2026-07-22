@@ -292,6 +292,14 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     gateway_prompt_estimate_method: string | null;
     model_context_tokens: number | null;
     model_max_output_tokens: number | null;
+    prompt_chars: number | null;
+    maximum_output_tokens: number | null;
+    gateway_admitted_ms: number | null;
+    provider_first_event_ms: number | null;
+    provider_duration_ms: number | null;
+    terminal_source: string | null;
+    cancel_requested: number | null;
+    cancel_observed: number | null;
     active_tool_count: number | null;
     client_tool_mode: string | null;
     tool_loop_guard_json: string | null;
@@ -348,6 +356,16 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     gatewayPromptEstimateMethod: value.gateway_prompt_estimate_method,
     modelContextTokens: value.model_context_tokens,
     modelMaxOutputTokens: value.model_max_output_tokens,
+    promptChars: value.prompt_chars,
+    maximumOutputTokens: value.maximum_output_tokens,
+    gatewayAdmittedMs: value.gateway_admitted_ms,
+    providerFirstEventMs: value.provider_first_event_ms,
+    providerDurationMs: value.provider_duration_ms,
+    terminalSource: value.terminal_source,
+    cancelRequested:
+      value.cancel_requested === null ? undefined : value.cancel_requested === 1,
+    cancelObserved:
+      value.cancel_observed === null ? undefined : value.cancel_observed === 1,
     activeToolCount: value.active_tool_count,
     clientToolMode: value.client_tool_mode,
     toolLoopGuard: parseToolLoopGuard(value.tool_loop_guard_json),

@@ -573,6 +573,14 @@ export interface CompleteResearchStageRunInput {
   completionTokens: number | null;
   gatewayRequestId: string | null;
   errorCode: string | null;
+  promptChars?: number | null;
+  maximumOutputTokens?: number | null;
+  admissionWaitMs?: number | null;
+  requestSentAt?: Date | null;
+  clientTotalMs?: number | null;
+  terminalSource?: string | null;
+  cancelRequested?: boolean | null;
+  cancelObserved?: boolean | null;
   now?: Date;
 }
 

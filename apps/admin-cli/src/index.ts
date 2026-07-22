@@ -1126,6 +1126,10 @@ program
   .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--credential-id <id>", "filter by credential id")
   .option("--subject-id <id>", "filter by subject id")
+  .option(
+    "--client-session-id <id>",
+    "filter by client session id, including Doctor Research run:stage:attempt"
+  )
   .option("--limit <n>", "maximum events to return", parsePositiveInteger, 50)
   .action((options) => {
     withStore((store) => {
@@ -1133,6 +1137,7 @@ program
       const events = store.listRequestEvents({
         credentialId: options.credentialId,
         subjectId,
+        clientSessionId: options.clientSessionId,
         limit: options.limit
       });
       printJson({
@@ -1180,6 +1185,14 @@ program
           gateway_prompt_estimate_method: event.gatewayPromptEstimateMethod ?? null,
           model_context_tokens: event.modelContextTokens ?? null,
           model_max_output_tokens: event.modelMaxOutputTokens ?? null,
+          prompt_chars: event.promptChars ?? null,
+          maximum_output_tokens: event.maximumOutputTokens ?? null,
+          gateway_admitted_ms: event.gatewayAdmittedMs ?? null,
+          provider_first_event_ms: event.providerFirstEventMs ?? null,
+          provider_duration_ms: event.providerDurationMs ?? null,
+          terminal_source: event.terminalSource ?? null,
+          cancel_requested: event.cancelRequested ?? null,
+          cancel_observed: event.cancelObserved ?? null,
           active_tool_count: event.activeToolCount ?? null,
           client_tool_mode: event.clientToolMode ?? null,
           gateway_context_utilization:

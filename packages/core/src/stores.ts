@@ -112,6 +112,7 @@ export interface ListRequestEventsInput {
   subjectId?: string;
   clientTurnId?: string;
   turnCode?: string;
+  clientSessionId?: string;
   since?: Date;
   until?: Date;
   limit?: number;

@@ -8712,6 +8712,7 @@ describe("gateway phase 1 routes", () => {
       path: "/v1/chat/completions",
       payload: {
         model: "goldencode",
+        max_tokens: 8_000,
         messages: [{ role: "user", content: "Wait for me." }]
       }
     },
@@ -8720,6 +8721,7 @@ describe("gateway phase 1 routes", () => {
       path: "/v1/responses",
       payload: {
         model: "goldencode",
+        max_output_tokens: 8_000,
         input: "Wait for me."
       }
     }
@@ -8811,6 +8813,8 @@ describe("gateway phase 1 routes", () => {
           try {
             await app.listen({ host: "127.0.0.1", port: 0 });
             const address = app.server.address() as AddressInfo;
+            const clientSessionId =
+              `drr_${"a".repeat(32)}:synthesize_review:1`;
             const request = http.request({
               method: "POST",
               host: "127.0.0.1",
@@ -8818,7 +8822,8 @@ describe("gateway phase 1 routes", () => {
               path: requestPath,
               headers: {
                 ...headers,
-                "content-type": "application/json"
+                "content-type": "application/json",
+                "x-medcode-client-session-id": clientSessionId
               }
             });
             request.on("error", () => undefined);
@@ -8833,15 +8838,26 @@ describe("gateway phase 1 routes", () => {
               expect(tokenFinalizeCalls).toBe(1);
               expect(rateReleaseCalls).toBe(1);
             });
-            expect(store.listRequestEvents({ limit: 1 })).toEqual([
+            expect(
+              store.listRequestEvents({ clientSessionId, limit: 1 })
+            ).toEqual([
               expect.objectContaining({
                 status: "error",
-                errorCode: "client_aborted"
+                errorCode: "client_aborted",
+                promptChars: expect.any(Number),
+                maximumOutputTokens: 8_000,
+                gatewayAdmittedMs: expect.any(Number),
+                providerFirstEventMs: expect.any(Number),
+                providerDurationMs: expect.any(Number),
+                terminalSource: "client_abort",
+                cancelRequested: true,
+                cancelObserved: true
               })
             ]);
             expect(provider.abortReason).toBeInstanceOf(GatewayError);
             expect((provider.abortReason as GatewayError).code).toBe("client_aborted");
             expect(provider.messages).toHaveLength(1);
+            expect(provider.messages[0]?.maximumOutputTokens).toBe(8_000);
             expect(delegateTokenLimiter.listReservations({
               subjectId: "subj_dev",
               includeFinalized: true

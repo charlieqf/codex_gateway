@@ -224,6 +224,14 @@ export interface RequestEventRecord {
   gatewayPromptEstimateMethod?: string | null;
   modelContextTokens?: number | null;
   modelMaxOutputTokens?: number | null;
+  promptChars?: number | null;
+  maximumOutputTokens?: number | null;
+  gatewayAdmittedMs?: number | null;
+  providerFirstEventMs?: number | null;
+  providerDurationMs?: number | null;
+  terminalSource?: string | null;
+  cancelRequested?: boolean;
+  cancelObserved?: boolean;
   activeToolCount?: number | null;
   clientToolMode?: string | null;
   toolLoopGuard?: ToolLoopGuardDiagnostic | null;
@@ -430,6 +438,7 @@ export interface MessageInput {
   scope: Scope;
   message: string;
   reasoningEffort?: string | null;
+  maximumOutputTokens?: number;
   clientTools?: ClientToolDefinition[];
   clientToolChoice?: ClientToolChoice;
   signal?: AbortSignal;

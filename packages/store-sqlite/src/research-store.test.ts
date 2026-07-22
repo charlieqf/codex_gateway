@@ -224,7 +224,8 @@ describe("ResearchSqliteStore", () => {
       { version: 2 },
       { version: 3 },
       { version: 4 },
-      { version: 5 }
+      { version: 5 },
+      { version: 6 }
     ]);
     store.close();
   });
@@ -647,6 +648,14 @@ describe("ResearchSqliteStore", () => {
         completionTokens: 50,
         gatewayRequestId: "req_gateway_stage_1",
         errorCode: null,
+        promptChars: 12_345,
+        maximumOutputTokens: 8_000,
+        admissionWaitMs: 350,
+        requestSentAt: new Date("2026-07-17T01:30:00.125Z"),
+        clientTotalMs: 24,
+        terminalSource: "provider_response",
+        cancelRequested: false,
+        cancelObserved: false,
         now: new Date(now.getTime() + 1_000)
       })
     ).toEqual({ outcome: "written" });
@@ -654,7 +663,10 @@ describe("ResearchSqliteStore", () => {
       store.database
         .prepare(
           `SELECT input_sha256, output_sha256, duration_ms, prompt_tokens,
-                  completion_tokens, gateway_request_id, error_code
+                  completion_tokens, gateway_request_id, error_code,
+                  prompt_chars, maximum_output_tokens, admission_wait_ms,
+                  request_sent_at, client_total_ms, terminal_source,
+                  cancel_requested, cancel_observed
            FROM research_stage_runs
            WHERE run_id = ?`
         )
@@ -666,7 +678,15 @@ describe("ResearchSqliteStore", () => {
       prompt_tokens: 100,
       completion_tokens: 50,
       gateway_request_id: "req_gateway_stage_1",
-      error_code: null
+      error_code: null,
+      prompt_chars: 12_345,
+      maximum_output_tokens: 8_000,
+      admission_wait_ms: 350,
+      request_sent_at: "2026-07-17T01:30:00.125Z",
+      client_total_ms: 24,
+      terminal_source: "provider_response",
+      cancel_requested: 0,
+      cancel_observed: 0
     });
     expect(
       store.startStageRun({
