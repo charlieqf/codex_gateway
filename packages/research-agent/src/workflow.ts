@@ -3175,6 +3175,70 @@ async function generateAndValidateShardedModelOutput(
     }
     remainingFragmentSkillErrors = fragmentSkillErrors();
   }
+  let bodySectionRepairCompleted = false;
+  const bodySectionRepairCandidate =
+    shardSkillContractRetryAttempt === 4 &&
+    remainingFragmentSkillErrors.length === 1 &&
+    remainingFragmentSkillErrors[0]?.index === 1 &&
+    remainingFragmentSkillErrors[0].errors.length === 1 &&
+    remainingFragmentSkillErrors[0].errors[0]?.startsWith(
+      "body_topic_section_minimum:"
+    )
+      ? selectSingleSectionRepairCandidate({
+          markdown: middleFragment.markdown,
+          language: context.run.language,
+          errorCodes: ["review_topic_section_minimum"],
+          errorDetails: remainingFragmentSkillErrors[0].errors,
+          evidence
+        })
+      : null;
+  if (bodySectionRepairCandidate) {
+    const repairResponse = await context.generateModel({
+      stage: "synthesize_review",
+      attempt: 5,
+      maximumDurationMs: 120_000,
+      reasoningEffort: "none",
+      system: doctorResearchSectionRepairSystemPolicy,
+      prompt: buildSectionRepairPrompt({
+        run: context.run,
+        candidate: bodySectionRepairCandidate,
+        medicalSkillBundle
+      })
+    });
+    const repairDecision = parseSectionRepairDecision(
+      repairResponse.text
+    );
+    const repairedMarkdown = repairDecision
+      ? applyReviewSectionRepair({
+          markdown: middleFragment.markdown,
+          target: bodySectionRepairCandidate.target,
+          decision: repairDecision
+        })
+      : null;
+    if (repairedMarkdown === null) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        5,
+        [
+          repairDecision
+            ? "body_section_repair_application_error"
+            : "body_section_repair_contract_error"
+        ]
+      );
+      return null;
+    }
+    middleFragment = {
+      ...middleFragment,
+      markdown: repairedMarkdown
+    };
+    remainingFragmentSkillErrors = fragmentSkillErrors();
+    if (remainingFragmentSkillErrors.length === 0) {
+      bodySectionRepairCompleted = true;
+      shardSkillNormalizationWarnings.push(
+        "bounded_body_section_repair_completed"
+      );
+    }
+  }
   if (remainingFragmentSkillErrors.length > 0) {
     context.reportValidationFailure(
       "synthesize_review",
@@ -3347,6 +3411,7 @@ async function generateAndValidateShardedModelOutput(
   const conclusionCorrectionRequiredAfterPriorRepair =
     priorRepairConsumedFourthCall &&
     shardSkillContractRetryAttempt !== 5 &&
+    !bodySectionRepairCompleted &&
     !qaContractRetryRequired &&
     !reviewContentCorrectionRequired &&
     !deterministicSafetyPreview.ok &&
@@ -3453,6 +3518,7 @@ async function generateAndValidateShardedModelOutput(
     };
   }
   const peerReviewCallBudgetConsumedByTransportRepair =
+    bodySectionRepairCompleted ||
     shardTransportRetryCount >= 2 ||
     (
       shardTransportRetryCompleted &&
@@ -3479,7 +3545,11 @@ async function generateAndValidateShardedModelOutput(
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        ...(shardTransportRetryCount >= 2
+        ...(bodySectionRepairCompleted
+          ? [
+              "peer_review_call_reallocated_to_body_section_repair"
+            ]
+          : shardTransportRetryCount >= 2
           ? [
               "peer_review_call_reallocated_to_second_transport_retry"
             ]
@@ -3488,7 +3558,9 @@ async function generateAndValidateShardedModelOutput(
             ]),
         "deterministic_peer_review_self_check_completed",
         ...shardSkillNormalizationWarnings,
-        "bounded_shard_transport_retry_completed",
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
           : [])

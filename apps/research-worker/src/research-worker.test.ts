@@ -463,6 +463,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_correction_model_unavailable_peer_review_fallback"
     ],
     [
+      "body-section-repair",
+      "bounded_body_section_repair_completed"
+    ],
+    [
       "citation-closure",
       "peer_review_model_unavailable_deterministic_fallback"
     ],
@@ -698,6 +702,10 @@ describe("Research Worker controlled-beta workflow", () => {
       convergenceUnsafeParagraph,
       convergenceSafeParagraph
     );
+    const underfilledBody = convergenceBody.replace(
+      convergenceUnsafeParagraph,
+      convergenceShortParagraph
+    );
     const fragments = new Map<number, string>([
       [
         1,
@@ -748,6 +756,8 @@ describe("Research Worker controlled-beta workflow", () => {
               markdown: [
                 retryKind === "peer-convergence"
                   ? peerConvergenceBody
+                  : retryKind === "body-section-repair"
+                    ? underfilledBody
                   : retryKind === "section-repair" ||
                       retryKind === "correction-timeout"
                     ? convergenceBody
@@ -1369,6 +1379,38 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
+            retryKind === "body-section-repair" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 5
+          ) {
+            const boundSource =
+              /Failed section and hash-bound source: (\{[^\r\n]+\})/u.exec(
+                modelInput.prompt
+              );
+            expect(boundSource).not.toBeNull();
+            const section = JSON.parse(boundSource![1]!) as {
+              section_id: string;
+              original_sha256: string;
+              heading: string;
+            };
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_section_repair.v1",
+                section_id: section.section_id,
+                original_sha256: section.original_sha256,
+                replacement: `## ${section.heading}\n\n${convergenceSafeParagraph}`
+              }),
+              gatewayRequestId:
+                "req_sharded_body_section_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
             retryKind === "transport-double" &&
             modelInput.attempt === 4
           ) {
@@ -1494,6 +1536,15 @@ describe("Research Worker controlled-beta workflow", () => {
                       })
                   : retryKind === "skill-contract"
                     ? JSON.stringify(foundationFragment)
+                  : retryKind === "body-section-repair"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: underfilledBody,
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers
+                      })
                   : retryKind === "skill-conclusion-safety"
                     ? JSON.stringify({
                         schema_version:
@@ -2105,7 +2156,8 @@ describe("Research Worker controlled-beta workflow", () => {
     if (
       retryKind === "peer-convergence" ||
       retryKind === "section-repair" ||
-      retryKind === "correction-timeout"
+      retryKind === "correction-timeout" ||
+      retryKind === "body-section-repair"
     ) {
       expect(result.review.markdown).toContain(
         convergenceSafeParagraph
@@ -2309,7 +2361,8 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "transport-skill" ||
         retryKind === "transport-middle-and-closing" ||
         retryKind === "transport-conclusion-safety" ||
-        retryKind === "skill-conclusion-safety"
+        retryKind === "skill-conclusion-safety" ||
+        retryKind === "body-section-repair"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
