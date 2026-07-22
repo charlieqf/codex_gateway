@@ -918,6 +918,10 @@ describe("Research Worker controlled-beta workflow", () => {
       number,
       string | undefined
     >();
+    const initialReasoningEffortByShard = new Map<
+      number,
+      string | undefined
+    >();
     const synthesisProviderTimeouts = new Map<
       number,
       number | undefined
@@ -962,6 +966,16 @@ describe("Research Worker controlled-beta workflow", () => {
             }`
           );
           const shardRole = shardRoleForPrompt(modelInput.prompt);
+          if (
+            modelInput.stage === "synthesize_review" &&
+            shardRole !== null &&
+            !initialReasoningEffortByShard.has(shardRole)
+          ) {
+            initialReasoningEffortByShard.set(
+              shardRole,
+              modelInput.reasoningEffort
+            );
+          }
           const finishOutputExhaustedShardCall = (): void => {
             if (
               retryKind === "transport-middle-and-closing" &&
@@ -1587,6 +1601,11 @@ describe("Research Worker controlled-beta workflow", () => {
       2: 10_000,
       3: 8_000
     });
+    expect(Object.fromEntries(initialReasoningEffortByShard)).toEqual({
+      1: undefined,
+      2: "none",
+      3: "none"
+    });
     if (retryKind === "admission") {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
@@ -1612,13 +1631,13 @@ describe("Research Worker controlled-beta workflow", () => {
       ]);
       expect([...synthesisReasoningEfforts.entries()]).toEqual([
         [1, undefined],
-        [2, undefined],
-        [3, undefined],
+        [2, "none"],
+        [3, "none"],
         [4, "none"],
         [5, "none"]
       ]);
       expect([...synthesisProviderTimeouts.entries()]).toEqual([
-        [1, 170_000],
+        [1, 190_000],
         [2, 170_000],
         [3, 170_000],
         [4, 160_000],

@@ -2659,7 +2659,7 @@ async function generateAndValidateShardedModelOutput(
         attempt: 1,
         prompt: foundationPrompt,
         system: doctorResearchFoundationSystemPolicy,
-        maximumDurationMs: 180_000,
+        maximumDurationMs: 200_000,
         maximumOutputTokens: Math.min(
           8_000,
           context.input.policy.maximumOutputTokensPerCall
@@ -2670,6 +2670,7 @@ async function generateAndValidateShardedModelOutput(
         attempt: 2,
         prompt: middlePrompt,
         system: doctorResearchBodySystemPolicy,
+        reasoningEffort: "none",
         maximumDurationMs: 180_000,
         maximumOutputTokens: Math.min(
           10_000,
@@ -2681,6 +2682,7 @@ async function generateAndValidateShardedModelOutput(
         attempt: 3,
         prompt: closingPrompt,
         system: doctorResearchFragmentSystemPolicy,
+        reasoningEffort: "none",
         maximumDurationMs: 180_000,
         maximumOutputTokens: Math.min(
           8_000,
@@ -2740,8 +2742,9 @@ async function generateAndValidateShardedModelOutput(
     const input = shardInputs[index]!;
     const attempt = nextAttempt;
     nextAttempt += 1;
+    const retrying = attempt !== input.attempt;
     const request =
-      attempt > shardInputs.length
+      retrying
         ? {
             ...input,
             attempt,

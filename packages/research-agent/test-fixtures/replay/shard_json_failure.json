@@ -5,7 +5,7 @@
   "skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
   "prompt_version": "doctor-research-prompt.v28",
   "validation_version": "doctor_research_validation.v39",
-  "workflow_version": "doctor_research_workflow.v57",
+  "workflow_version": "doctor_research_workflow.v58",
   "response_template_version": "doctor_research_synthetic_response.v1",
   "run_input": {
     "doctor": {
