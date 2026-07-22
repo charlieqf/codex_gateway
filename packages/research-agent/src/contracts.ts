@@ -1,4 +1,5 @@
 import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
+import { reviewContractPolicy } from "./review-contract-policy.js";
 
 export const doctorResearchRunSchemaVersion = "doctor_research_run.v1";
 export const doctorResearchModelOutputSchemaVersion =
@@ -506,21 +507,25 @@ export const doctorResearchResultSchema = {
     },
     predicted_questions: {
       type: "array",
-      minItems: 5,
-      maxItems: 5,
+      minItems: reviewContractPolicy.questions.requiredCount,
+      maxItems: reviewContractPolicy.questions.requiredCount,
       uniqueItems: true,
       items: { type: "string", minLength: 1 }
     },
     answers: {
       type: "array",
-      minItems: 5,
-      maxItems: 5,
+      minItems: reviewContractPolicy.answers.requiredCount,
+      maxItems: reviewContractPolicy.answers.requiredCount,
       items: {
         type: "object",
         additionalProperties: false,
         required: ["question_index", "answer", "source_ids"],
         properties: {
-          question_index: { type: "integer", minimum: 1, maximum: 5 },
+          question_index: {
+            type: "integer",
+            minimum: 1,
+            maximum: reviewContractPolicy.questions.requiredCount
+          },
           answer: { type: "string", minLength: 1 },
           source_ids: {
             type: "array",
@@ -777,7 +782,7 @@ export function parseAndValidateDoctorResearchModelDraft(
     )
   ) {
     semanticErrors.push(
-      "answers must use question_index 1 through 5 in order"
+      `answers must use question_index 1 through ${reviewContractPolicy.questions.requiredCount} in order`
     );
   }
   if (semanticErrors.length > 0) {
@@ -916,7 +921,9 @@ function validateContentSemantics(result: DoctorResearchContent): string[] {
   }
   const answerIndexes = result.answers.map((answer) => answer.question_index);
   if (answerIndexes.some((value, index) => value !== index + 1)) {
-    errors.push("answers must use question_index 1 through 5 in order");
+    errors.push(
+      `answers must use question_index 1 through ${reviewContractPolicy.questions.requiredCount} in order`
+    );
   }
   for (const answer of result.answers) {
     for (const sourceId of answer.source_ids) {

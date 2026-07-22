@@ -29,6 +29,18 @@ digest, and rerunning the regression and live E2E gates; no business-text
 "optimization" should be made in this repository unless correcting an
 unambiguous error agreed with the medical team.
 
+The engineering-side derived thresholds are declared once in
+`packages/research-agent/src/review-contract-policy.ts`. That policy records
+the authoritative Skill path, medical-team ownership, and the exact reviewed
+bundle SHA-256. Workflow admission fails closed when the active bundle digest
+does not match it, so a Skill update cannot silently reuse stale prompt,
+validator, or supplementer rules. The prompt builders, fragment and complete
+validators,
+deterministic supplementers, JSON contract, and language counters all consume
+that policy. Prose defect detection and deterministic repair share
+`review-prose-rules.ts`; the replay suite must pass unchanged before either
+derived rule source is released.
+
 The request field remains `"mode": "brief"` for v1 wire compatibility. Normal
 execution targets the medical Skill's current 6000-character review and
 40-reference search target: production searches up to 40 verified field

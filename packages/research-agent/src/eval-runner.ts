@@ -1,5 +1,8 @@
 import type { ResearchAdapterBundle } from "./adapters.js";
 import type { DoctorResearchContent } from "./contracts.js";
+import { countEnglishWords } from "./review-contract-policy.js";
+
+export { countEnglishWords } from "./review-contract-policy.js";
 
 export interface DoctorResearchEvalPolicy {
   language: "zh-CN" | "en";
@@ -135,14 +138,6 @@ export async function evaluateDoctorResearchResult(
 export function countUnicodeContentCharacters(value: string): number {
   return Array.from(value.normalize("NFC")).filter(
     (character) => !/\s/u.test(character)
-  ).length;
-}
-
-export function countEnglishWords(value: string): number {
-  return (
-    value
-      .normalize("NFC")
-      .match(/[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu) ?? []
   ).length;
 }
 
