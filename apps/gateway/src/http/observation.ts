@@ -112,6 +112,10 @@ export function markProviderCallFinished(
     ? Math.max(0, at.getTime() - providerStartedAt.getTime())
     : null;
   request.gatewayCancelRequested = signal.aborted;
+  // Migration-era rows remain nullable for rollback compatibility, but every
+  // new provider attempt must record the negative case explicitly. A provider
+  // error event may already have set this to true.
+  request.gatewayCancelObserved ??= false;
   const reason = signal.reason;
   const reasonCode =
     reason && typeof reason === "object" && "code" in reason
