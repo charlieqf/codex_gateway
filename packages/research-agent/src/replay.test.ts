@@ -151,6 +151,27 @@ describe("Doctor Research offline model-response replay", () => {
     expect(first.artifactContentSha256).toMatch(/^[a-f0-9]{64}$/u);
     expect(second).toEqual(first);
   });
+
+  it("repairs a sole unmatched delimiter and reruns every hard gate", () => {
+    const fixture = fixtures.find(
+      (item) =>
+        item.fixture_id ===
+        "doctor_research_replay_unbalanced_delimiter"
+    )!;
+    const result = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(result.terminalStatus).toBe("succeeded");
+    expect(result.diagnostics).toEqual([
+      "review_unbalanced_delimiter"
+    ]);
+    expect(result.warnings).toContain(
+      "deterministic_delimiter_balance_applied"
+    );
+    expect(result.artifacts).toHaveLength(4);
+  });
 });
 
 function loadReplayFixtures(): DoctorResearchReplayFixture[] {

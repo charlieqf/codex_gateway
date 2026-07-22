@@ -58,6 +58,66 @@ function hasBalancedDelimiter(
   return depth === 0;
 }
 
+function removeUnmatchedDelimiterCharacters(
+  value: string,
+  open: string,
+  close: string
+): string {
+  const characters = Array.from(value);
+  const unmatchedOpenIndexes: number[] = [];
+  const removeIndexes = new Set<number>();
+  for (const [index, character] of characters.entries()) {
+    if (character === open) {
+      unmatchedOpenIndexes.push(index);
+      continue;
+    }
+    if (character !== close) {
+      continue;
+    }
+    const matchingOpen = unmatchedOpenIndexes.pop();
+    if (matchingOpen === undefined) {
+      removeIndexes.add(index);
+    }
+  }
+  for (const index of unmatchedOpenIndexes) {
+    removeIndexes.add(index);
+  }
+  return removeIndexes.size === 0
+    ? value
+    : characters
+        .filter((_, index) => !removeIndexes.has(index))
+        .join("");
+}
+
+/**
+ * Removes only unmatched delimiter glyphs; it never inserts text or turns
+ * malformed citation text into a citation. Callers must rerun the complete
+ * review contract after applying this bounded mechanical repair.
+ */
+export function repairReviewUnbalancedDelimiters(value: string): string {
+  return value
+    .split(/(\n\s*\n)/gu)
+    .map((part, index) => {
+      if (index % 2 === 1) {
+        return part;
+      }
+      let repaired = part;
+      for (const [open, close] of [
+        ["(", ")"],
+        ["\uFF08", "\uFF09"],
+        ["[", "]"]
+      ] as const) {
+        repaired = removeUnmatchedDelimiterCharacters(
+          repaired,
+          open,
+          close
+        );
+      }
+      return repaired;
+    })
+    .join("");
+}
+
 export function validateReviewProseIntegrityRules(
   markdown: string,
   language: ReviewContractLanguage

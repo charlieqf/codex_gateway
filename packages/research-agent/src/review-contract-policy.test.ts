@@ -6,8 +6,10 @@ import {
   reviewedMedicalSkillBundleSha256
 } from "./review-contract-policy.js";
 import {
+  repairReviewUnbalancedDelimiters,
   repairReviewProseStarts,
-  validateCompleteReviewPresentationRules
+  validateCompleteReviewPresentationRules,
+  validateReviewProseIntegrityRules
 } from "./review-prose-rules.js";
 
 describe("Doctor Research derived review contract", () => {
@@ -84,5 +86,29 @@ describe("Doctor Research derived review contract", () => {
         hasEmbeddedAuxiliaryOutput: true
       })
     ).toEqual(["review_embedded_auxiliary_output"]);
+  });
+
+  it("mechanically removes only unmatched delimiters before full revalidation", () => {
+    const original = [
+      "## 研究进展",
+      "",
+      "公开摘要支持这一谨慎表述（但括号未闭合。[1]",
+      "",
+      "多余右括号不会改变正文证据）[2]"
+    ].join("\n");
+
+    expect(
+      validateReviewProseIntegrityRules(original, "zh-CN")
+    ).toEqual([
+      "review_unbalanced_delimiter:paragraph=2",
+      "review_unbalanced_delimiter:paragraph=3"
+    ]);
+    const repaired = repairReviewUnbalancedDelimiters(original);
+    expect(repaired).toContain("公开摘要支持这一谨慎表述但括号未闭合。[1]");
+    expect(repaired).toContain("多余右括号不会改变正文证据[2]");
+    expect(validateReviewProseIntegrityRules(repaired, "zh-CN")).toEqual([]);
+    expect(repairReviewUnbalancedDelimiters("未闭合引用 [12")).toBe(
+      "未闭合引用 12"
+    );
   });
 });

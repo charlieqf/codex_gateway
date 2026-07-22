@@ -1,6 +1,6 @@
 {
   "fixture_version": "doctor_research_replay_fixture.v1",
-  "fixture_id": "doctor_research_replay_client_abort",
+  "fixture_id": "doctor_research_replay_unbalanced_delimiter",
   "fixture_kind": "synthetic_derived",
   "skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
   "prompt_version": "doctor-research-prompt.v29",
@@ -255,15 +255,42 @@
       "attempt": 1,
       "role": "foundation",
       "response_or_error": {
-        "type": "error",
-        "code": "client_abort"
+        "type": "synthetic_response",
+        "variant": "valid"
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 2,
+      "role": "body",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "valid"
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 3,
+      "role": "closing",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "valid"
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "role": "peer_review",
+      "response_or_error": {
+        "type": "synthetic_response",
+        "variant": "unbalanced_delimiter"
       }
     }
   ],
   "expected": {
-    "terminal_status": "cancelled",
+    "terminal_status": "succeeded",
     "diagnostics": [
-      "client_aborted"
+      "review_unbalanced_delimiter"
     ],
     "artifact_semantics": {
       "exact_kinds": [
@@ -275,7 +302,7 @@
       "markdown_count": 3,
       "text_count": 1,
       "deterministic_content_sha256": true,
-      "aggregate_content_sha256": null
+      "aggregate_content_sha256": "20170b09435f76137ec3c43bdfe66108a6ea474141a0f2087deafe7dae78924f"
     }
   }
 }

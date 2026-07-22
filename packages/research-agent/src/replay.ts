@@ -27,6 +27,7 @@ export type DoctorResearchReplaySyntheticVariant =
   | "valid"
   | "controlled_trial_soft_floor"
   | "short_topic"
+  | "unbalanced_delimiter"
   | "orphaned_demonstrative"
   | "truncated_comparison"
   | "qa_after_conclusion"
@@ -252,6 +253,14 @@ function syntheticReplayResponse(
                 new_text: "证据适用边界短语"
               }
             ]
+          : variant === "unbalanced_delimiter"
+            ? [
+                {
+                  target: "markdown",
+                  old_text: "证据边界短语",
+                  new_text: "证据边界短语）"
+                }
+              ]
           : [],
       warnings: []
     });

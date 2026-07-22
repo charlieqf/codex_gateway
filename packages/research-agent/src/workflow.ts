@@ -58,6 +58,7 @@ import {
   reviewContractPolicy
 } from "./review-contract-policy.js";
 import {
+  repairReviewUnbalancedDelimiters,
   repairReviewProseStarts,
   validateCompleteReviewPresentationRules,
   validateReviewProseIntegrityRules
@@ -6371,34 +6372,57 @@ function validateGeneratedOutput(
       )
     };
   }
-  const qualityErrors = validateRuntimeQuality(
-    reparsed.value,
+  const profileSourceIdSet = new Set(profileSourceIds);
+  let finalizedValue = reparsed.value;
+  let qualityErrors = collectCompleteRuntimeQualityErrors(
+    finalizedValue,
     policy,
-    new Set(profileSourceIds),
+    profileSourceIdSet,
+    evidence,
     run.language
   );
-  const unsupportedNumericTokens = unsupportedNarrativeNumericTokens(
-    reparsed.value,
-    evidence
-  );
-  if (unsupportedNumericTokens.size > 0) {
-    qualityErrors.push(
-      `numeric_evidence_closure:${[...unsupportedNumericTokens]
-        .slice(0, 40)
-        .join("|")}`
-    );
-  }
-  qualityErrors.push(
-    ...validateEvidenceScopeAndCausality(
-      reparsed.value,
-      evidence,
-      run.language
+  let deterministicDelimiterBalanceApplied = false;
+  if (
+    options.deterministicSafetyNormalization &&
+    qualityErrors.length > 0 &&
+    qualityErrors.every(
+      (error) =>
+        error.split(":", 1)[0] === "review_unbalanced_delimiter"
     )
-  );
+  ) {
+    const repairedMarkdown = repairReviewUnbalancedDelimiters(
+      finalizedValue.review.markdown
+    );
+    if (repairedMarkdown !== finalizedValue.review.markdown) {
+      const repaired = parseAndValidateDoctorResearchModelOutput(
+        JSON.stringify({
+          ...finalizedValue,
+          review: {
+            ...finalizedValue.review,
+            markdown: repairedMarkdown
+          }
+        })
+      );
+      if (repaired.ok) {
+        const repairedErrors = collectCompleteRuntimeQualityErrors(
+          repaired.value,
+          policy,
+          profileSourceIdSet,
+          evidence,
+          run.language
+        );
+        if (repairedErrors.length === 0) {
+          finalizedValue = repaired.value;
+          qualityErrors = [];
+          deterministicDelimiterBalanceApplied = true;
+        }
+      }
+    }
+  }
   return qualityErrors.length === 0
     ? {
         ok: true,
-        value: reparsed.value,
+        value: finalizedValue,
         draft,
         warnings: [
           ...(deterministicSafetyNormalizationApplied
@@ -6422,9 +6446,12 @@ function validateGeneratedOutput(
                 "deterministic_reference_citation_closure_applied"
               ]
             : []),
+          ...(deterministicDelimiterBalanceApplied
+            ? ["deterministic_delimiter_balance_applied"]
+            : []),
           ...deterministicAbstractSupplementWarnings,
           ...collectReviewContractTargetWarnings(
-            reparsed.value,
+            finalizedValue,
             policy,
             run.language
           )
@@ -6434,7 +6461,7 @@ function validateGeneratedOutput(
         ok: false,
         errors: qualityErrors,
         errorCodes: stableValidationCodes(qualityErrors),
-        candidate: reparsed.value
+        candidate: finalizedValue
       };
 }
 
@@ -6604,6 +6631,40 @@ function collectReviewContractTargetWarnings(
     warnings.push("controlled_trial_conclusion_below_target");
   }
   return warnings;
+}
+
+function collectCompleteRuntimeQualityErrors(
+  output: DoctorResearchModelOutput,
+  policy: DoctorResearchWorkflowPolicy,
+  profileSourceIds: ReadonlySet<string>,
+  evidence: WorkflowEvidence,
+  language: ResearchRunRecord["language"]
+): string[] {
+  const errors = validateRuntimeQuality(
+    output,
+    policy,
+    profileSourceIds,
+    language
+  );
+  const unsupportedNumericTokens = unsupportedNarrativeNumericTokens(
+    output,
+    evidence
+  );
+  if (unsupportedNumericTokens.size > 0) {
+    errors.push(
+      `numeric_evidence_closure:${[...unsupportedNumericTokens]
+        .slice(0, 40)
+        .join("|")}`
+    );
+  }
+  errors.push(
+    ...validateEvidenceScopeAndCausality(
+      output,
+      evidence,
+      language
+    )
+  );
+  return [...new Set(errors)];
 }
 
 function validateRuntimeQuality(
