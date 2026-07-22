@@ -70,6 +70,10 @@ import {
   type ReviewSectionRepairDecision,
   type ReviewSectionRepairTarget
 } from "./review-section-repair.js";
+import {
+  buildResearchPromptProjection,
+  mechanicallyBoundPromptText
+} from "./research-prompt-projection.js";
 import { ResearchHttpError } from "./safe-http.js";
 
 export interface DoctorResearchWorkflowPolicy {
@@ -555,6 +559,10 @@ class WorkflowContext {
     maximumOutputTokens?: number;
   }): Promise<ResearchModelResponse> {
     const system = input.system ?? doctorResearchSystemPolicy;
+    // Preflight wall-clock capacity before charging tokens or writing a stage
+    // run. The retained tail is for structured failure persistence, lease
+    // cleanup, and provider cancellation observation.
+    const modelSignal = this.callSignal(input.maximumDurationMs, true);
     const reservedInputTokens = this.reserveModel(
       system,
       input.prompt,
@@ -580,7 +588,6 @@ class WorkflowContext {
     if (started.outcome !== "written") {
       throw new WorkflowFencedError();
     }
-    const modelSignal = this.callSignal(input.maximumDurationMs);
     const maximumOutputTokens =
       input.maximumOutputTokens ??
       this.input.policy.maximumOutputTokensPerCall;
@@ -802,9 +809,21 @@ class WorkflowContext {
     // run-total usage, final schema and artifact byte limits remain enforced.
   }
 
-  callSignal(maximumDurationMs?: number): AbortSignal {
+  callSignal(
+    maximumDurationMs?: number,
+    retainCleanupReserve = false
+  ): AbortSignal {
     this.checkActiveDeadline();
     const remaining = this.remainingActiveMs();
+    const cleanupReserveMs = retainCleanupReserve
+      ? Math.min(
+          10_000,
+          Math.max(
+            250,
+            Math.floor(this.input.policy.hardDeadlineMs * 0.02)
+          )
+        )
+      : 0;
     if (
       maximumDurationMs !== undefined &&
       (!Number.isSafeInteger(maximumDurationMs) ||
@@ -814,14 +833,18 @@ class WorkflowContext {
         "Research model call maximum duration must be a positive integer."
       );
     }
+    const availableForCall = remaining - cleanupReserveMs;
+    if (availableForCall <= 0) {
+      throw new WorkflowBudgetError("active_deadline");
+    }
     return AbortSignal.any([
       this.input.signal,
       AbortSignal.timeout(
         Math.max(
           1,
           maximumDurationMs === undefined
-            ? remaining
-            : Math.min(remaining, maximumDurationMs)
+            ? availableForCall
+            : Math.min(availableForCall, maximumDurationMs)
         )
       )
     ]);
@@ -1550,23 +1573,11 @@ function compactPublicationAbstract(
   value: string,
   maximumCharacters: number
 ): string {
-  const normalized = value.normalize("NFC").replace(/\s+/gu, " ").trim();
-  const characters = Array.from(normalized);
-  if (characters.length <= maximumCharacters) {
-    return normalized;
-  }
-  const marker = " [bounded abstract: middle omitted] ";
-  const markerLength = Array.from(marker).length;
-  if (maximumCharacters <= markerLength + 2) {
-    return characters.slice(0, maximumCharacters).join("");
-  }
-  const available = maximumCharacters - markerLength;
-  const leading = Math.ceil(available * 0.6);
-  return [
-    ...characters.slice(0, leading),
-    ...Array.from(marker),
-    ...characters.slice(-(available - leading))
-  ].join("");
+  return mechanicallyBoundPromptText(
+    value,
+    maximumCharacters,
+    " [bounded abstract: middle omitted] "
+  );
 }
 
 function buildDeterministicCoreEvidence(
@@ -4270,28 +4281,23 @@ function buildFoundationFragmentPrompt(input: {
   minimumContent: number;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
-  const publicationEvidenceByReferenceId = new Map(
-    input.evidence.publicationEvidence.map((publication) => [
-      publication.reference_id,
-      publication
-    ])
+  const localReferenceIds = new Set(
+    input.evidence.references.map((reference) => reference.reference_id)
   );
-  const verifiedPublications = input.evidence.references.map(
-    (reference, index) => {
-      const publication = publicationEvidenceByReferenceId.get(
-        reference.reference_id
-      );
-      return {
-        citation: index + 1,
-        ...reference,
-        source_id: reference.pmid
-          ? `src_pubmed_${reference.pmid}`
-          : null,
-        authors: publication?.authors ?? [],
-        abstract: publication?.abstract ?? null
-      };
-    }
-  );
+  const projection = buildResearchPromptProjection({
+    doctor: {
+      name: input.run.input.doctor.name,
+      hospital: input.run.input.doctor.hospital ?? null,
+      department: input.run.input.doctor.department ?? null
+    },
+    searchQueries: input.allEvidence.searchQueries,
+    references: input.allEvidence.references,
+    publicationEvidence: input.allEvidence.publicationEvidence,
+    localReferenceIndexes: input.allEvidence.references.flatMap(
+      (reference, index) =>
+        localReferenceIds.has(reference.reference_id) ? [index] : []
+    )
+  });
   return [
     compactMedicalSkillExecutionContract(input.medicalSkillBundle),
     "SHARDED SYNTHESIS ASSIGNMENT 1 OF 3",
@@ -4310,19 +4316,7 @@ function buildFoundationFragmentPrompt(input: {
     "A narrative number is allowed only when the exact number occurs in an abstract cited by that paragraph.",
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only evidence.",
     "Do not emit raw HTML, Markdown links, Markdown images, URLs, placeholders, a reference list, or a search report.",
-    `Doctor and research context: ${JSON.stringify({
-      doctor: input.run.input.doctor,
-      search_queries: input.evidence.searchQueries
-    })}`,
-    `Closed server-verified publications: ${JSON.stringify(
-      verifiedPublications
-    )}`,
-    `All review reference titles for narrative scope: ${JSON.stringify(
-      input.allEvidence.references.map((reference, index) => ({
-        citation: index + 1,
-        title: reference.title
-      }))
-    )}`
+    `Structured research context, global citation map, and closed shard evidence: ${JSON.stringify(projection)}`
   ].join("\n\n");
 }
 
@@ -4337,31 +4331,17 @@ function buildBodyFragmentPrompt(input: {
   maximumAnswerContent: number;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
-  const publications = input.referenceIndexes
-    .map((index) => {
-      const reference = input.evidence.references[index];
-      if (!reference) {
-        return null;
-      }
-      const publication = input.evidence.publicationEvidence.find(
-        (item) => item.reference_id === reference.reference_id
-      );
-      return {
-        citation: index + 1,
-        reference_id: reference.reference_id,
-        source_id: reference.pmid
-          ? `src_pubmed_${reference.pmid}`
-          : null,
-        title: reference.title,
-        journal: reference.journal,
-        publication_year: reference.publication_year,
-        pmid: reference.pmid,
-        doi: reference.doi,
-        authors: publication?.authors ?? [],
-        abstract: publication?.abstract ?? null
-      };
-    })
-    .filter((publication) => publication !== null);
+  const projection = buildResearchPromptProjection({
+    doctor: {
+      name: input.run.input.doctor.name,
+      hospital: input.run.input.doctor.hospital ?? null,
+      department: input.run.input.doctor.department ?? null
+    },
+    searchQueries: input.evidence.searchQueries,
+    references: input.evidence.references,
+    publicationEvidence: input.evidence.publicationEvidence,
+    localReferenceIndexes: input.referenceIndexes
+  });
   return [
     compactMedicalSkillExecutionContract(input.medicalSkillBundle),
     "SHARDED SYNTHESIS ASSIGNMENT 2 OF 3",
@@ -4386,19 +4366,7 @@ function buildBodyFragmentPrompt(input: {
     "Use only the supplied evidence. A narrative number is allowed only when the exact number occurs in an abstract cited by that paragraph or answer.",
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only evidence. Do not extrapolate directly to clinical benefit.",
     "Do not emit raw HTML, Markdown links, Markdown images, URLs, a reference list, or a search report.",
-    `Doctor and research context: ${JSON.stringify({
-      doctor: input.run.input.doctor,
-      search_queries: input.evidence.searchQueries,
-      reference_titles: input.evidence.references.map(
-        (reference, index) => ({
-          citation: index + 1,
-          title: reference.title
-        })
-      )
-    })}`,
-    `Closed server-verified evidence for this fragment: ${JSON.stringify(
-      publications
-    )}`
+    `Structured research context, global citation map, and closed shard evidence: ${JSON.stringify(projection)}`
   ].join("\n\n");
 }
 
@@ -4485,28 +4453,17 @@ function buildReviewFragmentPrompt(input: {
   assignment: string;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
-  const publications = input.referenceIndexes
-    .map((index) => {
-      const reference = input.evidence.references[index];
-      if (!reference) {
-        return null;
-      }
-      const publication = input.evidence.publicationEvidence.find(
-        (item) => item.reference_id === reference.reference_id
-      );
-      return {
-        citation: index + 1,
-        reference_id: reference.reference_id,
-        title: reference.title,
-        journal: reference.journal,
-        publication_year: reference.publication_year,
-        pmid: reference.pmid,
-        doi: reference.doi,
-        authors: publication?.authors ?? [],
-        abstract: publication?.abstract ?? null
-      };
-    })
-    .filter((publication) => publication !== null);
+  const projection = buildResearchPromptProjection({
+    doctor: {
+      name: input.run.input.doctor.name,
+      hospital: input.run.input.doctor.hospital ?? null,
+      department: input.run.input.doctor.department ?? null
+    },
+    searchQueries: input.evidence.searchQueries,
+    references: input.evidence.references,
+    publicationEvidence: input.evidence.publicationEvidence,
+    localReferenceIndexes: input.referenceIndexes
+  });
   return [
     compactMedicalSkillExecutionContract(
       input.medicalSkillBundle
@@ -4523,19 +4480,7 @@ function buildReviewFragmentPrompt(input: {
     "Use only the supplied evidence. A narrative number is allowed only when the exact number occurs in an abstract cited by that paragraph.",
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only evidence. Do not extrapolate directly to clinical benefit.",
     "Do not emit raw HTML, Markdown links, Markdown images, URLs, a reference list, or a search report.",
-    `Doctor and research context: ${JSON.stringify({
-      doctor: input.run.input.doctor,
-      search_queries: input.evidence.searchQueries,
-      reference_titles: input.evidence.references.map(
-        (reference, index) => ({
-          citation: index + 1,
-          title: reference.title
-        })
-      )
-    })}`,
-    `Closed server-verified evidence for this fragment: ${JSON.stringify(
-      publications
-    )}`
+    `Structured research context, global citation map, and closed shard evidence: ${JSON.stringify(projection)}`
   ].join("\n\n");
 }
 
@@ -4544,30 +4489,17 @@ function buildIntroductionCorrectionPrompt(input: {
   evidence: WorkflowEvidence;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
-  const publicationEvidenceByReferenceId = new Map(
-    input.evidence.publicationEvidence.map((publication) => [
-      publication.reference_id,
-      publication
-    ])
-  );
-  const verifiedPublications = input.evidence.references.map(
-    (reference, index) => {
-      const publication = publicationEvidenceByReferenceId.get(
-        reference.reference_id
-      );
-      return {
-        citation: index + 1,
-        reference_id: reference.reference_id,
-        title: reference.title,
-        journal: reference.journal,
-        publication_year: reference.publication_year,
-        pmid: reference.pmid,
-        doi: reference.doi,
-        authors: publication?.authors ?? [],
-        abstract: publication?.abstract ?? null
-      };
-    }
-  );
+  const projection = buildResearchPromptProjection({
+    doctor: {
+      name: input.run.input.doctor.name,
+      hospital: input.run.input.doctor.hospital ?? null,
+      department: input.run.input.doctor.department ?? null
+    },
+    searchQueries: input.evidence.searchQueries,
+    references: input.evidence.references,
+    publicationEvidence: input.evidence.publicationEvidence,
+    localReferenceIndexes: input.evidence.references.map((_, index) => index)
+  });
   return [
     compactMedicalSkillExecutionContract(input.medicalSkillBundle),
     "BOUNDED INTRODUCTION EVIDENCE-CLOSURE CORRECTION",
@@ -4580,13 +4512,7 @@ function buildIntroductionCorrectionPrompt(input: {
     "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
     "Compare research questions, populations, designs, methods, outcomes, evidence strength, and unresolved issues only qualitatively. Do not infer facts missing from an abstract and do not use causal wording for observational evidence.",
     "Do not emit raw HTML, Markdown links, Markdown images, URLs, placeholders, a reference list, or a search report.",
-    `Doctor and research context: ${JSON.stringify({
-      doctor: input.run.input.doctor,
-      search_queries: input.evidence.searchQueries
-    })}`,
-    `Closed server-verified evidence: ${JSON.stringify(
-      verifiedPublications
-    )}`
+    `Structured research context, global citation map, and closed shard evidence: ${JSON.stringify(projection)}`
   ].join("\n\n");
 }
 
@@ -4595,30 +4521,17 @@ function buildConclusionCorrectionPrompt(input: {
   evidence: WorkflowEvidence;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
-  const publicationEvidenceByReferenceId = new Map(
-    input.evidence.publicationEvidence.map((publication) => [
-      publication.reference_id,
-      publication
-    ])
-  );
-  const verifiedPublications = input.evidence.references.map(
-    (reference, index) => {
-      const publication = publicationEvidenceByReferenceId.get(
-        reference.reference_id
-      );
-      return {
-        citation: index + 1,
-        reference_id: reference.reference_id,
-        title: reference.title,
-        journal: reference.journal,
-        publication_year: reference.publication_year,
-        pmid: reference.pmid,
-        doi: reference.doi,
-        authors: publication?.authors ?? [],
-        abstract: publication?.abstract ?? null
-      };
-    }
-  );
+  const projection = buildResearchPromptProjection({
+    doctor: {
+      name: input.run.input.doctor.name,
+      hospital: input.run.input.doctor.hospital ?? null,
+      department: input.run.input.doctor.department ?? null
+    },
+    searchQueries: input.evidence.searchQueries,
+    references: input.evidence.references,
+    publicationEvidence: input.evidence.publicationEvidence,
+    localReferenceIndexes: input.evidence.references.map((_, index) => index)
+  });
   return [
     compactMedicalSkillExecutionContract(input.medicalSkillBundle),
     "BOUNDED CONCLUSION EVIDENCE-CLOSURE CORRECTION",
@@ -4631,13 +4544,7 @@ function buildConclusionCorrectionPrompt(input: {
     "Do not write any narrative number, date, percentage, effect estimate, duration, sample size, or numbered enumeration. Numeric citation markers such as [1] are the only allowed digits.",
     "State only cautious qualitative conclusions about evidence scope, design strength, consistency, limitations, and unresolved research needs. Do not infer facts missing from an abstract, make treatment recommendations, or use causal wording for observational evidence.",
     "Do not emit raw HTML, Markdown links, Markdown images, URLs, placeholders, a reference list, or a search report.",
-    `Doctor and research context: ${JSON.stringify({
-      doctor: input.run.input.doctor,
-      search_queries: input.evidence.searchQueries
-    })}`,
-    `Closed server-verified evidence: ${JSON.stringify(
-      verifiedPublications
-    )}`
+    `Structured research context, global citation map, and closed shard evidence: ${JSON.stringify(projection)}`
   ].join("\n\n");
 }
 

@@ -1604,6 +1604,17 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(synthesisPrompts.get(3)).toContain(
       "Do not add a topic-specific transition section"
     );
+    for (const attempt of [1, 2, 3]) {
+      const prompt = synthesisPrompts.get(attempt)!;
+      expect(prompt).toContain(
+        '"projection_version":"doctor_research_prompt_projection.v1"'
+      );
+      expect(
+        prompt.match(/Retrieved Clinical Evidence 1001/gu) ?? []
+      ).toHaveLength(1);
+      expect(prompt).toContain('"evidence_id":"ref_pmid_1001"');
+      expect(prompt).not.toContain('"literatureIdentity"');
+    }
     if (retryKind === "body") {
       expect(maximumActiveCorrectionCalls).toBe(2);
       expect(retryPrompt).toContain(
@@ -2215,6 +2226,69 @@ describe("Research Worker controlled-beta workflow", () => {
       reason: "deadline_exceeded"
     });
     expect(adapterCalled).toBe(false);
+  });
+
+  it("preflights the cleanup wall-clock reserve before charging a model call", async () => {
+    const fixture = createLeasedWorkflowFixture("model_wall_preflight");
+    let adapterCalls = 0;
+    let modelCalls = 0;
+    const baseAdapters = adapters(0);
+    const renewed = fixture.store.renewLease({
+      token: fixture.lease.token,
+      leaseSeconds: Math.ceil(
+        (workflowPolicy().hardDeadlineMs + 60_000) / 1_000
+      ),
+      now: fixture.now
+    });
+    if (renewed.outcome !== "renewed") {
+      throw new Error("Research wall-clock preflight lease was not renewed.");
+    }
+    fixture.lease.token = renewed.token;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: {
+        ...baseAdapters,
+        async searchOfficialSources(normalizedDoctorName, signal, options) {
+          adapterCalls += 1;
+          return baseAdapters.searchOfficialSources(
+            normalizedDoctorName,
+            signal,
+            options
+          );
+        }
+      },
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run inside the cleanup reserve.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () =>
+        new Date(
+          fixture.now.getTime() +
+            workflowPolicy().hardDeadlineMs -
+            5_000
+        )
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "deadline_exceeded"
+    });
+    expect(adapterCalls).toBeGreaterThan(0);
+    expect(modelCalls).toBe(0);
+    expect(
+      fixture.store.database
+        .prepare(
+          "SELECT llm_calls FROM research_run_budgets WHERE run_id = ?"
+        )
+        .get(fixture.lease.run.runId)
+    ).toMatchObject({ llm_calls: 0 });
   });
 
   it("closes a transposed numeric claim after peer review without publishing unsafe text", async () => {

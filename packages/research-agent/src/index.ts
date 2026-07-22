@@ -9,6 +9,7 @@ export * from "./maintenance.js";
 export * from "./medical-skill-bundle.js";
 export * from "./model-client.js";
 export * from "./replay.js";
+export * from "./research-prompt-projection.js";
 export * from "./review-contract-policy.js";
 export * from "./review-prose-rules.js";
 export * from "./review-section-repair.js";

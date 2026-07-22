@@ -41,6 +41,16 @@ that policy. Prose defect detection and deterministic repair share
 `review-prose-rules.ts`; the replay suite must pass unchanged before either
 derived rule source is released.
 
+Normal synthesis prompts use
+`doctor_research_prompt_projection.v1`: each call receives a minimal doctor
+context, bounded search expressions, one global citation/evidence-ID/title
+map, and only that shard's closed publication subset. A title appears only in
+the global map rather than being repeated in each publication object; author
+lists and abstracts are mechanically bounded without engineering-side medical
+summarization. Per-call input tokens and usable remaining wall time are
+preflighted before a stage run is charged, and the Worker retains a cleanup
+tail for structured failure persistence and cancellation observation.
+
 The request field remains `"mode": "brief"` for v1 wire compatibility. Normal
 execution targets the medical Skill's current 6000-character review and
 40-reference search target: production searches up to 40 verified field
