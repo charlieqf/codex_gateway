@@ -48,6 +48,39 @@ downloaded exactly 3 MD + 1 TXT and verified every size and manifest SHA-256;
 the temporary key was revoked, entitlement cancelled, user disabled and local
 downloads removed.
 
+Client documentation and the dependency-free Python example were then updated
+on main in commit `d31177f6085f02aa9c94434fe2988438ed2e22a6`. This is an
+external client/docs change and did not rebuild or restart the `a77cf01`
+Gateway/Worker runtime. Current main passed the same build and 579 Vitest tests,
+plus 30 Python tests and a zero-vulnerability npm audit. The new
+`--request-file` path was also exercised through the real public API:
+
+- `drr_f0048d1f058945dca14495ddcb111a99` failed closed as
+  `model_contract_error` in 170.726 seconds. All four provider calls returned,
+  but the assembled response still violated multiple citation, numeric,
+  causality, answer-coverage and review-section gates; zero artifacts were
+  published.
+- `drr_62ac092339a14b55957141918c750af4` succeeded in 389.430 seconds and the
+  Python client authenticated, downloaded and independently verified exactly
+  3 MD + 1 TXT. A bounded correction call reached the 175-second Gateway
+  deadline with `cancel_requested=1` and `cancel_observed=1`; the subsequent
+  call was admitted only after a 31.010-second wait, so the old and new
+  provider calls did not overlap.
+
+The successful Python-client artifact SHA-256 values, in
+`profile / review / questions / answers` order, were:
+
+```text
+4ae0c4abd1038fc22ab207ffc9c3a3ac8588363b26b2dca54bbee139266ad4d9
+cd76a114605e1c21e4cd121ea2cb96d2c740fc293089f2d1ba0e5b8b186567cb
+c10842b07e5978fca5c1094f3fb6229409e670b417866c55a4aecca5179624d3
+07775cd687ccaa599988212c936482ec61ca5495d37f4a440412fa9e01c1aa47
+```
+
+All temporary Python-validation credentials were revoked, entitlements
+cancelled, users disabled and VM/local output directories removed. All four
+production containers remained healthy with zero restarts.
+
 Each successful run returned exactly three Markdown files and one five-line
 text file, and authenticated downloads matched all manifest SHA-256 values.
 Each failed run published zero artifacts. This proves the engineering

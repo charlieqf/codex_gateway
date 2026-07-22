@@ -42,6 +42,20 @@ Completed:
     `drr_eab9f11f07484434aff46074bfd567e0`, succeeded in 227.733 seconds with
     exactly 3 MD + 1 TXT and verified all manifest hashes. Its temporary key,
     entitlement, user and downloaded files were cleaned;
+  - current main commit `d31177f6085f02aa9c94434fe2988438ed2e22a6`
+    adds the complete Chinese API usage/caution guide, a tracked JSON request
+    example and a strictly validated Python `--request-file` client. Main
+    passed build, 579 Vitest tests, 30 Python tests and npm audit with zero
+    vulnerabilities. This client/docs-only commit did not restart the
+    `a77cf01` runtime;
+  - the updated Python client was validated through public HTTPS. Run
+    `drr_f0048d1f058945dca14495ddcb111a99` failed closed with zero artifacts
+    as `model_contract_error` in 170.726 seconds after multiple independent
+    content gates remained unresolved. Controlled rerun
+    `drr_62ac092339a14b55957141918c750af4` succeeded in 389.430 seconds and
+    downloaded exactly 3 MD + 1 TXT with every size and SHA-256 verified. Its
+    timed-out correction recorded cancellation `1/1`, and a later call waited
+    31.010 seconds for admission rather than overlapping it;
   - compared with the two `1.6.58` production runs, mean create-to-terminal
     time fell from 431.734 to 270.852 seconds (37.3%). Mean estimated prompt
     tokens per associated Gateway event fell from 14116.89 to 12635.76
@@ -51,6 +65,8 @@ Completed:
     restarts, public Gateway bound only to `127.0.0.1:18787`, and loopback plus
     public health checks passing. All temporary E2E/abort users were disabled,
     credentials revoked, entitlements cancelled and reservations finalized;
+    the Python-client validation users and temporary VM directories were also
+    verified clean;
   - verified pre-deploy backup:
     `/home/qian/codex-gateway-backups/a77cf01/20260722T103032Z`; immediate
     rollback images are tagged `rollback-70ca267-20260722T103032Z`, and the

@@ -8,7 +8,8 @@ API 使用说明或生产操作手册。
 
 相关文档：
 
-- API 使用说明与 Python 示例：[`README.md`](README.md#api-quick-reference)
+- API 使用说明与注意事项：[`api-usage.zh-CN.md`](api-usage.zh-CN.md)
+- Python 示例概览：[`README.md`](README.md#python-api-demo)
 - 生产部署、备份和回滚：[`production-runbook.md`](production-runbook.md)
 - 医学团队原始 Skill：[`../采访skill/`](../采访skill/)
 
@@ -17,7 +18,7 @@ API 使用说明或生产操作手册。
 Doctor Research API 的 `1.6.72` 已部署到 Azure VM 的公网生产入口。
 取消、遥测、回放、规则统一、定向修复和四文件提交链路的工程整改已经完成，
 服务和基础设施健康；但医学团队尚未完成人工四文件内容验收，且当前代表病例的
-真实成功率为 3/5，因此仍定义为**受限试用版**，不能扩大用户范围。
+连续五次严格验收窗口为 3/5，因此仍定义为**受限试用版**，不能扩大用户范围。
 
 当前结论可以概括为：
 
@@ -27,10 +28,10 @@ Doctor Research API 的 `1.6.72` 已部署到 Azure VM 的公网生产入口。
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
 | 当前版本 | commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb`，执行器 `1.6.72` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 本地和 Azure 均通过 build、579 个 Vitest、23 个 Python 测试；npm audit 为 0 | 工程回归通过 |
+| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、579 个 Vitest、23 个 Python 测试；含新版 API 客户端的 current main 通过 build、579 个 Vitest、30 个 Python 测试；npm audit 为 0 | 工程回归通过 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
 | 真实公网 E2E | `1.6.72` 同一代表病例连续 5 次均在 10 分钟内终态；3 次成功、2 次 `model_contract_error` fail-closed | 墙钟与失败安全验收通过，成功率尚未达到 5/5 |
-| 当前四文件 | 连续五次基线中的 3 个成功 run 和 `a77cf01` 发布后成功 run 均恰好产生 3 MD + 1 TXT，下载内容与 manifest SHA-256 一致；2 个失败 run 均为 0 artifact | 自动化四文件契约通过，仍待医学团队人工内容验收 |
+| 当前四文件 | 连续五次基线中的 3 个成功 run、`a77cf01` 发布后成功 run 和新版 Python 客户端成功 run 均恰好产生 3 MD + 1 TXT，下载内容与 manifest SHA-256 一致；失败 run 均为 0 artifact | 自动化四文件契约通过，仍待医学团队人工内容验收 |
 | 取消传播 | `/v1/chat/completions` 与 `/v1/responses` 非流式生产断开均到达 provider，记录 `cancel_requested=1`、`cancel_observed=1` | P0 已完成；故障注入覆盖无同分片新旧调用重叠 |
 | 发布范围 | 仅允许命名、可追踪的少量用户试用 | 暂不扩大为普遍可用 |
 
@@ -121,6 +122,8 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 - 失败时不会发布半成品四文件；
 - 身份、引用、数值、证据等级和文件哈希门槛仍然有效；
 - 可以向少量命名用户开放受限试用并跟踪每次 run。
+- current main 已提供完整中文 API 调用/注意事项、JSON 请求样例和经过公网验证的
+  Python `--request-file` 客户端；它不改变当前 `a77cf01` 服务运行时。
 
 暂时不能承诺：
 
@@ -148,6 +151,8 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 | `1.6.72` / `drr_9ac8538f3ce147a0abcf1f6c19a0f96b` | `model_contract_error`，285.717 秒 | 初始和纠错输出仍同时违反引用、孤立指代、数值与因果等级；peer 又破坏章节契约，按多硬门槛策略 fail-closed |
 | `1.6.72` / `drr_9d5fea39377646daa08bdfacfaef1861` | `model_contract_error`，358.272 秒 | 纠错 provider 在 175 秒截止并确认取消；peer 不可用后只剩主题 `476/600`，未擅自放宽软门槛 |
 | `1.6.72 @ a77cf01` / `drr_eab9f11f07484434aff46074bfd567e0` | 成功，227.733 秒 | 精确当前 runtime commit 的发布后公网 E2E；四文件下载、大小和哈希一致 |
+| `1.6.72 @ a77cf01` / `drr_f0048d1f058945dca14495ddcb111a99` | `model_contract_error`，170.726 秒 | 新版 Python JSON 请求文件经公网到达终态；多个引用、数字、因果、回答覆盖和综述章节门槛同时失败，按策略零 artifact fail-closed |
+| `1.6.72 @ a77cf01` / `drr_62ac092339a14b55957141918c750af4` | 成功，389.430 秒 | 新版 Python 客户端完成公网创建、轮询、result 和四文件下载；一次 175 秒纠错超时确认取消，后续调用等待 31.010 秒准入，无新旧 provider 重叠；大小和哈希一致 |
 
 发布前连续五次和发布后精确 runtime E2E 均使用当前工程 allowlist 的同一 smoke 病例；医学团队仍需明确确认它是否可作为
 正式代表性病例，并补充其要求覆盖的其他病例。该组数据可作为工程基线，不能替代医学
@@ -159,7 +164,7 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 因果实验；它证明 token/墙钟方向已经改善，但不能替代回放零回退、真实成功率和医学
 人工内容质量验收。
 
-四个成功 run 的 manifest/download SHA-256 记录如下，列顺序为
+五个成功 run 的 manifest/download SHA-256 记录如下，列顺序为
 `profile / review / questions / answers`：
 
 | run | SHA-256 |
@@ -168,6 +173,7 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 | `drr_dffe542c19914841bf9936e65f93ca3a` | `4ae0c4abd1038fc22ab207ffc9c3a3ac8588363b26b2dca54bbee139266ad4d9` / `6e4158c8e5c87f5cbd00606d3f59e1df433c494515723f527dfd4e1e597deb16` / `45949843d70b867eae16b8ac4ecc92688ae3158c9f52af5d467baed1d5061c3a` / `ba347d9e18020bfd34eabd7ea5cbac7b3fc2eecbac9f2d359130b4eafa3ea2b4` |
 | `drr_955f4e47884b4a9eaa1c0b5e57045265` | `4ae0c4abd1038fc22ab207ffc9c3a3ac8588363b26b2dca54bbee139266ad4d9` / `075c9d71a2f60f00c1f9a7ff4a6703e774aa103b06f5a58b78bc8cd253170fc7` / `53dcd6beff24d0dc9079c854114ad4ddbb65d154bfab755ebd3ee674b0b87864` / `ea2a1a51424542802c2759acdb9ec521520ea3dad38e5f5852bdd14c1644927a` |
 | `drr_eab9f11f07484434aff46074bfd567e0` | `4ae0c4abd1038fc22ab207ffc9c3a3ac8588363b26b2dca54bbee139266ad4d9` / `39de911175e21a1c2420b9fbed13beb734103a42a012c1dacdb439bea100dcfe` / `c9e7ce7aa4822ddf8208007cf9e5d5899ddaa3a5c38aa5b3ed66eb71215c6ba2` / `bbf91b30bebee9efe0f7413378502fa707f6b7b971369ff884ffc5863b3db37a` |
+| `drr_62ac092339a14b55957141918c750af4` | `4ae0c4abd1038fc22ab207ffc9c3a3ac8588363b26b2dca54bbee139266ad4d9` / `cd76a114605e1c21e4cd121ea2cb96d2c740fc293089f2d1ba0e5b8b186567cb` / `c10842b07e5978fca5c1094f3fb6229409e670b417866c55a4aecca5179624d3` / `07775cd687ccaa599988212c936482ec61ca5495d37f4a440412fa9e01c1aa47` |
 
 `1.6.59` 至 `1.6.72` 进一步完成的工程修复包括：
 
@@ -184,7 +190,7 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 - 去重证据 Prompt，并修复上游 cooldown、截断/空响应、推理预算和 provider 重试边界；
 - 修复安全规范化后摘要变短和重复 warning 导致最终 manifest 组装失败的问题。
 
-这些修改通过自动化与真实生产验证。剩余闭环证据是医学团队对三个成功 run 的四文件
+这些修改通过自动化与真实生产验证。剩余闭环证据是医学团队对成功 run 的四文件
 人工审核；在该审核完成前继续保持 controlled-trial。
 
 ## 五、问题分析
