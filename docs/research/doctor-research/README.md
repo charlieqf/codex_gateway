@@ -102,6 +102,17 @@ returns bounded exact-text corrections instead of rewriting the complete
 article. That compact peer-review call has a 120-second engineering deadline;
 if its transport is unavailable, deterministic evidence-closure may accept
 the assembled draft only when every medical Skill content gate still passes.
+When complete validation isolates the remaining hard failure to one body or
+closing section, the bounded correction path sends only that section, its
+structured diagnostics, and the closed evidence already cited by that
+section. The response must carry the stable section ID, exact source-section
+SHA-256, and a complete replacement under `doctor_research_section_repair.v1`.
+The Worker rejects stale hashes, changed headings, citations outside the
+allowed evidence subset, and any replacement that fails complete validation;
+all other section bytes remain unchanged. The existing peer-review
+`old_text`/`new_text` patch contract remains supported. If failures span
+independent hard-gate domains, the Worker fails closed instead of starting a
+second broad self-rewrite.
 The three normal fragment targets preserve all per-section floors and total
 115% of the configured review minimum, replacing an engineering
 over-allocation that previously requested 210% across the three calls. This

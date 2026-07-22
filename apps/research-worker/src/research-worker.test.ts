@@ -451,7 +451,11 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "peer-convergence",
-      "bounded_peer_review_convergence_completed"
+      "peer_review_patch_fallback_to_deterministic_safety"
+    ],
+    [
+      "section-repair",
+      "bounded_single_section_repair_completed"
     ],
     [
       "citation-closure",
@@ -685,6 +689,10 @@ describe("Research Worker controlled-beta workflow", () => {
       longChineseReviewFragment("结果一致性与证据强度", 20),
       longChineseReviewFragment("转化边界与研究缺口", 20)
     ].join("\n\n");
+    const peerConvergenceBody = convergenceBody.replace(
+      convergenceUnsafeParagraph,
+      convergenceSafeParagraph
+    );
     const fragments = new Map<number, string>([
       [
         1,
@@ -734,7 +742,9 @@ describe("Research Worker controlled-beta workflow", () => {
             schema_version: "doctor_research_body_fragment.v1",
               markdown: [
                 retryKind === "peer-convergence"
-                  ? convergenceBody
+                  ? peerConvergenceBody
+                  : retryKind === "section-repair"
+                    ? convergenceBody
                   : retryKind === "section-closure"
                     ? postSafetyNearMinimumBodyFragment
                     : skillBodyFragment(20),
@@ -1098,28 +1108,82 @@ describe("Research Worker controlled-beta workflow", () => {
             retryKind === "peer-convergence" &&
             modelInput.stage === "validate_outputs"
           ) {
+            if (modelInput.attempt === 5) {
+              const boundSource =
+                /Failed section and hash-bound source: (\{[^\r\n]+\})/u.exec(
+                  modelInput.prompt
+                );
+              expect(boundSource).not.toBeNull();
+              const section = JSON.parse(boundSource![1]!) as {
+                section_id: string;
+                original_sha256: string;
+                heading: string;
+              };
+              return {
+                text: JSON.stringify({
+                  schema_version:
+                    "doctor_research_section_repair.v1",
+                  section_id: section.section_id,
+                  original_sha256: section.original_sha256,
+                  replacement: `## ${section.heading}\n\n${convergenceSafeParagraph}`
+                }),
+                gatewayRequestId:
+                  "req_sharded_section_convergence",
+                usage: {
+                  promptTokens: 100,
+                  completionTokens: 100,
+                  totalTokens: 200
+                }
+              };
+            }
             return {
               text: JSON.stringify({
                 schema_version:
                   "doctor_research_peer_review.v1",
                 approved: true,
                 replacements: [
-                  modelInput.attempt === 4
-                    ? {
-                        target: "markdown",
-                        old_text: convergenceUnsafeParagraph,
-                        new_text: convergenceShortParagraph
-                      }
-                    : {
-                        target: "markdown",
-                        old_text: convergenceShortParagraph,
-                        new_text: convergenceSafeParagraph
-                      }
+                  {
+                    target: "markdown",
+                    old_text: convergenceSafeParagraph,
+                    new_text: convergenceShortParagraph
+                  }
                 ],
                 warnings: []
               }),
               gatewayRequestId:
                 "req_sharded_peer_convergence",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
+            retryKind === "section-repair" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 4
+          ) {
+            retryPrompt = modelInput.prompt;
+            const boundSource =
+              /Failed section and hash-bound source: (\{[^\r\n]+\})/u.exec(
+                modelInput.prompt
+              );
+            expect(boundSource).not.toBeNull();
+            const section = JSON.parse(boundSource![1]!) as {
+              section_id: string;
+              original_sha256: string;
+              heading: string;
+            };
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_section_repair.v1",
+                section_id: section.section_id,
+                original_sha256: section.original_sha256,
+                replacement: `## ${section.heading}\n\n${convergenceSafeParagraph}`
+              }),
+              gatewayRequestId: "req_sharded_section_repair",
               usage: {
                 promptTokens: 100,
                 completionTokens: 100,
@@ -1478,6 +1542,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "section-closure" ||
       retryKind === "skill-closing-normalization" ||
       retryKind === "skill-normalization" ||
+      retryKind === "peer-convergence" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
@@ -1582,6 +1647,20 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "Numeric citation markers such as [1] are the only allowed digits"
+      );
+    }
+    if (retryKind === "section-repair") {
+      expect(retryPrompt).toContain(
+        "BOUNDED SINGLE-SECTION REPAIR"
+      );
+      expect(retryPrompt).toContain(
+        "doctor_research_section_repair.v1"
+      );
+      expect(retryPrompt).toContain(
+        "Allowed numeric citations: [1]"
+      );
+      expect(retryPrompt).not.toContain(
+        "## 方法路径与评价终点"
       );
     }
     if (retryKind === "transport-skill") {
@@ -1880,12 +1959,18 @@ describe("Research Worker controlled-beta workflow", () => {
         result.review.markdown.indexOf("## 局限性与展望")
       );
     }
-    if (retryKind === "peer-convergence") {
+    if (
+      retryKind === "peer-convergence" ||
+      retryKind === "section-repair"
+    ) {
       expect(result.review.markdown).toContain(
         convergenceSafeParagraph
       );
       expect(result.review.markdown).not.toContain(
         convergenceShortParagraph
+      );
+      expect(result.review.markdown).toContain(
+        longChineseReviewFragment("方法路径与评价终点", 20)
       );
     }
     if (retryKind === "citation-closure") {
