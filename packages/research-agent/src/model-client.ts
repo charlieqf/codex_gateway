@@ -453,15 +453,22 @@ export class GatewayResearchModelClient implements ResearchModelClient {
         );
         const text =
           typeof message?.content === "string" ? message.content : null;
+        if (
+          finishReason === "length" ||
+          (completionTokens !== null &&
+            completionTokens >= maximumOutputTokens) ||
+          (reasoningTokens !== null &&
+            reasoningTokens >= maximumOutputTokens)
+        ) {
+          throw new ResearchModelClientError(
+            "output_exhausted",
+            response.status,
+            requestId
+          );
+        }
         if (text === null || text.trim() === "") {
           throw new ResearchModelClientError(
-            finishReason === "length" ||
-            (completionTokens !== null &&
-              completionTokens >= maximumOutputTokens) ||
-            (reasoningTokens !== null &&
-              reasoningTokens >= maximumOutputTokens)
-              ? "output_exhausted"
-              : "empty_response",
+            "empty_response",
             response.status,
             requestId
           );

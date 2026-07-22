@@ -203,6 +203,59 @@ describe("Doctor Research structured Gateway model client", () => {
     });
   });
 
+  it("rejects non-empty JSON truncated at the provider output limit", async () => {
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () =>
+        jsonResponse(
+          {
+            choices: [
+              {
+                message: {
+                  role: "assistant",
+                  content: '{"schema_version":"doctor_research_body_fragment.v1","markdown":"truncated'
+                },
+                finish_reason: "length"
+              }
+            ],
+            usage: {
+              prompt_tokens: 12_000,
+              completion_tokens: 10_001,
+              completion_tokens_details: {
+                reasoning_tokens: 7_481
+              },
+              total_tokens: 22_001
+            }
+          },
+          { "x-request-id": "req_nonempty_output_exhausted" }
+        )
+    });
+
+    await expect(
+      client.generate({
+        runId: `drr_${"8".repeat(32)}`,
+        stage: "synthesize_review",
+        attempt: 2,
+        system: "Return the body fragment contract.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal,
+        maximumOutputTokens: 10_000
+      })
+    ).rejects.toMatchObject({
+      name: "ResearchModelClientError",
+      code: "output_exhausted",
+      statusCode: 200,
+      gatewayRequestId: "req_nonempty_output_exhausted"
+    });
+  });
+
   it("fails closed when the service credential does not expose the exact model", async () => {
     const client = new GatewayResearchModelClient({
       baseUrl: "http://gateway:8787",
