@@ -921,10 +921,6 @@ describe("Research Worker controlled-beta workflow", () => {
     let thirdShardStartedAfterAdmissionCompletion = false;
     let activeCorrectionCalls = 0;
     let maximumActiveCorrectionCalls = 0;
-    let releaseCorrectionBarrier: (() => void) | null = null;
-    const correctionBarrier = new Promise<void>((resolve) => {
-      releaseCorrectionBarrier = resolve;
-    });
     const attempts: number[] = [];
     const modelCalls: string[] = [];
     const synthesisPrompts = new Map<number, string>();
@@ -1171,11 +1167,13 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumActiveCorrectionCalls,
               activeCorrectionCalls
             );
-            if (activeCorrectionCalls === 2) {
-              releaseCorrectionBarrier?.();
-            }
-            await correctionBarrier;
             activeCorrectionCalls -= 1;
+          }
+          if (
+            retryKind === "introduction-safety" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            expect(modelInput.prompt).not.toContain("999999");
           }
           if (
             (retryKind === "peer-timeout" ||
@@ -1799,7 +1797,7 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(prompt).not.toContain('"literatureIdentity"');
     }
     if (retryKind === "body") {
-      expect(maximumActiveCorrectionCalls).toBe(2);
+      expect(maximumActiveCorrectionCalls).toBe(1);
       expect(retryPrompt).toContain(
         "doctor_research_qa_fragment.v1"
       );

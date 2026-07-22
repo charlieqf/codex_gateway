@@ -3669,20 +3669,6 @@ async function generateAndValidateShardedModelOutput(
     introductionCorrectionRequired
       ? 5
       : 4;
-  const peerReviewPromise = context.generateModel({
-    stage: "validate_outputs",
-    attempt: peerReviewAttempt,
-    reasoningEffort: "none",
-    maximumDurationMs: 120_000,
-    prompt: buildPeerReviewPatchPrompt({
-      run: context.run,
-      evidence,
-      draft: assembledDraft,
-      validationErrors: initialValidationErrors,
-      medicalSkillBundle
-    }),
-    system: doctorResearchPeerReviewSystemPolicy
-  });
   let correctedQaResponse: ResearchModelResponse | null = null;
   let correctedReviewResponse: ResearchModelResponse | null = null;
   let correctedSectionResponse: ResearchModelResponse | null = null;
@@ -3692,11 +3678,9 @@ async function generateAndValidateShardedModelOutput(
   let correctionUnavailableFallbackApplied = false;
   let correctionUnavailableError: unknown = null;
   if (boundedCorrectionPromise) {
-    const [correctionResult, peerReviewResult] =
-      await Promise.allSettled([
-        boundedCorrectionPromise,
-        peerReviewPromise
-      ]);
+    const [correctionResult] = await Promise.allSettled([
+      boundedCorrectionPromise
+    ]);
     if (correctionResult.status === "rejected") {
       if (isRecoverablePeerReviewError(correctionResult.reason)) {
         correctionUnavailableFallbackApplied = true;
@@ -3714,33 +3698,6 @@ async function generateAndValidateShardedModelOutput(
       } else {
         correctedIntroductionResponse = correctionResult.value;
       }
-    }
-    if (peerReviewResult.status === "fulfilled") {
-      peerReviewResponse = peerReviewResult.value;
-    } else if (isRecoverablePeerReviewError(peerReviewResult.reason)) {
-      peerReviewUnavailableFallbackApplied = true;
-    } else {
-      throw peerReviewResult.reason;
-    }
-    if (
-      correctionUnavailableFallbackApplied &&
-      peerReviewUnavailableFallbackApplied
-    ) {
-      throw correctionUnavailableError;
-    }
-  } else {
-    const [peerReviewResult] = await Promise.allSettled([
-      peerReviewPromise
-    ]);
-    if (peerReviewResult?.status === "fulfilled") {
-      peerReviewResponse = peerReviewResult.value;
-    } else if (
-      peerReviewResult?.status === "rejected" &&
-      isRecoverablePeerReviewError(peerReviewResult.reason)
-    ) {
-      peerReviewUnavailableFallbackApplied = true;
-    } else if (peerReviewResult?.status === "rejected") {
-      throw peerReviewResult.reason;
     }
   }
   let qaContractRetryCompleted = false;
@@ -3919,6 +3876,40 @@ async function generateAndValidateShardedModelOutput(
         validation.errorCodes
       );
     }
+  }
+  const [peerReviewResult] = await Promise.allSettled([
+    context.generateModel({
+      stage: "validate_outputs",
+      attempt: peerReviewAttempt,
+      reasoningEffort: "none",
+      maximumDurationMs: 120_000,
+      prompt: buildPeerReviewPatchPrompt({
+        run: context.run,
+        evidence,
+        draft: assembledDraft,
+        validationErrors: validation.ok
+          ? []
+          : validation.errors,
+        medicalSkillBundle
+      }),
+      system: doctorResearchPeerReviewSystemPolicy
+    })
+  ]);
+  if (peerReviewResult?.status === "fulfilled") {
+    peerReviewResponse = peerReviewResult.value;
+  } else if (
+    peerReviewResult?.status === "rejected" &&
+    isRecoverablePeerReviewError(peerReviewResult.reason)
+  ) {
+    peerReviewUnavailableFallbackApplied = true;
+  } else if (peerReviewResult?.status === "rejected") {
+    throw peerReviewResult.reason;
+  }
+  if (
+    correctionUnavailableFallbackApplied &&
+    peerReviewUnavailableFallbackApplied
+  ) {
+    throw correctionUnavailableError;
   }
   if (!peerReviewUnavailableFallbackApplied && !peerReviewResponse) {
     throw new Error(
