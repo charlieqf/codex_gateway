@@ -3617,6 +3617,8 @@ async function generateAndValidateShardedModelOutput(
   let correctedIntroductionResponse: ResearchModelResponse | null = null;
   let peerReviewResponse: ResearchModelResponse | null = null;
   let peerReviewUnavailableFallbackApplied = false;
+  let correctionUnavailableFallbackApplied = false;
+  let correctionUnavailableError: unknown = null;
   if (boundedCorrectionPromise) {
     const [correctionResult, peerReviewResult] =
       await Promise.allSettled([
@@ -3624,16 +3626,22 @@ async function generateAndValidateShardedModelOutput(
         peerReviewPromise
       ]);
     if (correctionResult.status === "rejected") {
-      throw correctionResult.reason;
-    }
-    if (qaContractRetryPromise) {
-      correctedQaResponse = correctionResult.value;
-    } else if (reviewContentCorrectionPromise) {
-      correctedReviewResponse = correctionResult.value;
-    } else if (sectionRepairPromise) {
-      correctedSectionResponse = correctionResult.value;
+      if (isRecoverablePeerReviewError(correctionResult.reason)) {
+        correctionUnavailableFallbackApplied = true;
+        correctionUnavailableError = correctionResult.reason;
+      } else {
+        throw correctionResult.reason;
+      }
     } else {
-      correctedIntroductionResponse = correctionResult.value;
+      if (qaContractRetryPromise) {
+        correctedQaResponse = correctionResult.value;
+      } else if (reviewContentCorrectionPromise) {
+        correctedReviewResponse = correctionResult.value;
+      } else if (sectionRepairPromise) {
+        correctedSectionResponse = correctionResult.value;
+      } else {
+        correctedIntroductionResponse = correctionResult.value;
+      }
     }
     if (peerReviewResult.status === "fulfilled") {
       peerReviewResponse = peerReviewResult.value;
@@ -3641,6 +3649,12 @@ async function generateAndValidateShardedModelOutput(
       peerReviewUnavailableFallbackApplied = true;
     } else {
       throw peerReviewResult.reason;
+    }
+    if (
+      correctionUnavailableFallbackApplied &&
+      peerReviewUnavailableFallbackApplied
+    ) {
+      throw correctionUnavailableError;
     }
   } else {
     const [peerReviewResult] = await Promise.allSettled([
@@ -3909,6 +3923,11 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(introductionCorrectionCompleted
           ? ["bounded_introduction_correction_completed"]
+          : []),
+        ...(correctionUnavailableFallbackApplied
+          ? [
+              "bounded_correction_model_unavailable_peer_review_fallback"
+            ]
           : [])
       ]
     };
@@ -4183,6 +4202,11 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(introductionCorrectionCompleted
         ? ["bounded_introduction_correction_completed"]
+        : []),
+      ...(correctionUnavailableFallbackApplied
+        ? [
+            "bounded_correction_model_unavailable_peer_review_fallback"
+          ]
         : []),
       ...(peerReview.replacements.length > 0 &&
       !peerReviewPatchFallbackApplied

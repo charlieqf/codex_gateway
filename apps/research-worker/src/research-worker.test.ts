@@ -459,6 +459,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_single_section_repair_completed"
     ],
     [
+      "correction-timeout",
+      "bounded_correction_model_unavailable_peer_review_fallback"
+    ],
+    [
       "citation-closure",
       "peer_review_model_unavailable_deterministic_fallback"
     ],
@@ -744,7 +748,8 @@ describe("Research Worker controlled-beta workflow", () => {
               markdown: [
                 retryKind === "peer-convergence"
                   ? peerConvergenceBody
-                  : retryKind === "section-repair"
+                  : retryKind === "section-repair" ||
+                      retryKind === "correction-timeout"
                     ? convergenceBody
                   : retryKind === "section-closure"
                     ? postSafetyNearMinimumBodyFragment
@@ -1234,6 +1239,16 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
+            retryKind === "correction-timeout" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 4
+          ) {
+            throw new DOMException(
+              "Targeted correction model timed out.",
+              "TimeoutError"
+            );
+          }
+          if (
             retryKind === "section-repair" &&
             modelInput.stage === "synthesize_review" &&
             modelInput.attempt === 4
@@ -1533,7 +1548,15 @@ describe("Research Worker controlled-beta workflow", () => {
                       "doctor_research_peer_review.v1",
                     approved: true,
                     replacements:
-                      retryKind === "body"
+                      retryKind === "correction-timeout"
+                        ? [
+                            {
+                              target: "markdown",
+                              old_text: convergenceUnsafeParagraph,
+                              new_text: convergenceSafeParagraph
+                            }
+                          ]
+                        : retryKind === "body"
                         ? [
                             {
                               target: "title",
@@ -2081,7 +2104,8 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "peer-convergence" ||
-      retryKind === "section-repair"
+      retryKind === "section-repair" ||
+      retryKind === "correction-timeout"
     ) {
       expect(result.review.markdown).toContain(
         convergenceSafeParagraph
