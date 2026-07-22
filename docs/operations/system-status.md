@@ -14,20 +14,23 @@ Completed:
 
 - Doctor Research engineering remediation `1.6.72` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `70ca2675827acfa4992816e932a3afd236453adf` from clean release
-    `/home/qian/codex-gateway-release-70ca267-20260722T093500Z`;
-  - build, 577 Vitest tests, 23 Python tests, npm audit and medical-Skill
+  - runtime commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb` from clean release
+    `/home/qian/codex-gateway-release-a77cf01-20260722T103032Z`;
+  - build, 579 Vitest tests, 23 Python tests, npm audit and medical-Skill
     zero-diff checks passed both locally and on the VM;
   - both non-stream `/v1/chat/completions` and `/v1/responses` public-HTTPS
     disconnect smokes propagated cancellation to the provider and recorded
-    `client_aborted`, `cancel_requested=1` and `cancel_observed=1`;
+    `client_aborted`, `cancel_requested=1` and `cancel_observed=1`; a normal
+    provider call explicitly recorded `cancel_requested=0` and
+    `cancel_observed=0`;
   - Worker/Gateway/provider call timelines now include prompt/output budgets,
     admission wait, real provider first event/duration, client duration,
     terminal source and cancellation state; timeout joins use the client
     session ID when no Gateway request ID is available;
   - the deterministic replay suite, shared review/prose policy, hash-bound
     section repair, evidence-prompt deduplication and safety-normalization
-    fallbacks are active. Medical Skill bundle SHA-256 remains
+    fallbacks are active. The replay set has 13 independent fixtures and 16
+    tests. Medical Skill bundle SHA-256 remains
     `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
   - five consecutive public E2E runs of the same engineering-allowlisted smoke
     case all reached terminal state in 209.931-358.272 seconds. Three succeeded
@@ -35,13 +38,19 @@ Completed:
     verified manifest hashes; two failed closed as `model_contract_error`
     with zero artifacts because multiple evidence gates or the unchanged
     `600`-character topic floor remained unsatisfied;
+  - compared with the two `1.6.58` production runs, mean create-to-terminal
+    time fell from 431.734 to 270.852 seconds (37.3%). Mean estimated prompt
+    tokens per associated Gateway event fell from 14116.89 to 12635.76
+    (10.5%); this cross-version observation is not a causal isolation test and
+    does not replace medical content review;
   - final service verification found all four containers healthy with zero
     restarts, public Gateway bound only to `127.0.0.1:18787`, and loopback plus
     public health checks passing. All temporary E2E/abort users were disabled,
     credentials revoked, entitlements cancelled and reservations finalized;
   - verified pre-deploy backup:
-    `/home/qian/codex-gateway-backups/70ca267/20260722T093500Z`; immediate
-    rollback images are tagged `rollback-02e5880-20260722T093500Z`;
+    `/home/qian/codex-gateway-backups/a77cf01/20260722T103032Z`; immediate
+    rollback images are tagged `rollback-70ca267-20260722T103032Z`, and the
+    earlier verified `70ca267/20260722T093500Z` database boundary is retained;
   - access remains controlled-trial. Do not expand it until the medical team
     confirms representative cases, manually accepts the four-file contents and
     decides whether any soft completeness policy should change. CN1, Nginx,

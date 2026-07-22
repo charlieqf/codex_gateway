@@ -25,9 +25,9 @@ Doctor Research API 的 `1.6.72` 已部署到 Azure VM 的公网生产入口。
 | --- | --- | --- |
 | 部署目标 | Azure VM，公网入口为 `https://gw.instmarket.com.au` | 正确；CN1 不是 Doctor Research 部署目标，且本轮未改动 CN1 |
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
-| 当前版本 | commit `70ca2675827acfa4992816e932a3afd236453adf`，执行器 `1.6.72` | 已上线 |
+| 当前版本 | commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb`，执行器 `1.6.72` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 本地和 Azure 均通过 build、577 个 Vitest、23 个 Python 测试；npm audit 为 0 | 工程回归通过 |
+| 自动化验证 | 本地和 Azure 均通过 build、579 个 Vitest、23 个 Python 测试；npm audit 为 0 | 工程回归通过 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
 | 真实公网 E2E | `1.6.72` 同一代表病例连续 5 次均在 10 分钟内终态；3 次成功、2 次 `model_contract_error` fail-closed | 墙钟与失败安全验收通过，成功率尚未达到 5/5 |
 | 当前四文件 | 3 个成功 run 均恰好产生 3 MD + 1 TXT，下载内容与 manifest SHA-256 一致；2 个失败 run 均为 0 artifact | 自动化四文件契约通过，仍待医学团队人工内容验收 |
@@ -87,7 +87,7 @@ Doctor Research API 的 `1.6.72` 已部署到 Azure VM 的公网生产入口。
 - 目标环境：Azure VM
 - Compose project：`codex_gateway_test`
 - 发布目录：
-  `/home/qian/codex-gateway-release-70ca267-20260722T093500Z`
+  `/home/qian/codex-gateway-release-a77cf01-20260722T103032Z`
 - 执行器：`doctor-research-skill.1.6.72`
 - Prompt：`v28`
 - Validation：`v39`
@@ -103,11 +103,14 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 当前发布回滚边界使用以下经过完整性、外键和 SHA-256 校验的三数据库备份：
 
 ```text
-/home/qian/codex-gateway-backups/70ca267/20260722T093500Z
+/home/qian/codex-gateway-backups/a77cf01/20260722T103032Z
 ```
 
-三份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；1.6.71 的四个
-当前镜像已打上 `rollback-02e5880-20260722T093500Z` 标签。详细哈希见生产 runbook。
+三份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；部署前的
+`70ca267` 四个镜像已打上 `rollback-70ca267-20260722T103032Z` 标签。额外保留
+`/home/qian/codex-gateway-backups/70ca267/20260722T093500Z` 作为前一数据库边界；其余已被
+这两个验证边界替代的历史部署备份已清理。详细哈希见生产 runbook。根盘最终约有
+24.3 GiB 可用，满足 10 GiB 和 10% 双重准入线。
 
 ### 3.3 当前可以对用户承诺什么
 
@@ -148,6 +151,12 @@ Worker 报告 `doctor-research-skill.1.6.72`，内部 LLM Gateway 截止为 1750
 这五次使用当前工程 allowlist 的同一 smoke 病例；医学团队仍需明确确认它是否可作为
 正式代表性病例，并补充其要求覆盖的其他病例。该组数据可作为工程基线，不能替代医学
 团队对病例代表性和四文件内容的判断。
+
+同口径比较中，`1.6.58` 两次运行的平均终态时间为 431.734 秒，`1.6.72` 五次为
+270.852 秒，下降约 37.3%。关联 Gateway 事件的单次估算输入 token 均值从
+14116.89 降到 12635.76，下降约 10.5%。这是跨版本、不同调用组合的生产观测，不是隔离
+因果实验；它证明 token/墙钟方向已经改善，但不能替代回放零回退、真实成功率和医学
+人工内容质量验收。
 
 三个成功 run 的 manifest/download SHA-256 记录如下，列顺序为
 `profile / review / questions / answers`：
@@ -200,7 +209,9 @@ Gateway 现在通过同一个 client-disconnect helper 处理执行取消和 499
 
 1.6.72 生产 smoke 中，Chat Completions 与 Responses 非流式调用均在约 2 秒断开后记录
 `client_aborted`、`terminal_source=client_abort`、`cancel_requested=1` 和
-`cancel_observed=1`，无服务重启和未结算 reservation。
+`cancel_observed=1`，无服务重启和未结算 reservation。`a77cf01` 发布后的正常非流式
+真实调用同时明确记录 `cancel_requested=0`、`cancel_observed=0`，不再让新成功行保留
+迁移兼容所需的 `NULL`；旧行仍可回滚读取。
 
 ### 5.3 模型结构化输出存在随机性
 
@@ -219,14 +230,14 @@ Gateway 现在通过同一个 client-disconnect helper 处理执行取消和 499
 
 `review-contract-policy.ts` 和共享 prose predicates 现在同时服务 Prompt、分片验证、
 完整验证、规范化和补齐器；医学业务门槛记录来源 Skill 和 bundle SHA，并在摘要变化时
-fail-closed。16 个独立 replay fixture 覆盖历史缺陷、provider 错误和确定性重复运行，
+fail-closed。13 个独立 replay fixture 通过 16 个测试覆盖历史缺陷、provider 错误和确定性重复运行，
 `samples/known-invalid/` 仍只作为缺陷目录，没有被当作 golden 或 executable fixture。
 
 ### 5.5 代码现状需要准确描述
 
 | 项目 | 实际状态 | 对后续方案的影响 |
 | --- | --- | --- |
-| 模型输出回放 | 独立 replay 目录已有 16 个脱敏 fixture，使用固定证据、可注入时钟和语义/hash 断言 | 规则和修复改造受回放保护；known-invalid 继续隔离 |
+| 模型输出回放 | 独立 replay 目录已有 13 个脱敏 fixture、16 个测试，使用固定证据、可注入时钟和语义/hash 断言 | 规则和修复改造受回放保护；known-invalid 继续隔离 |
 | `known-invalid` 样本 | 是隔离的历史展示输出，目录标记明确禁止作为 golden、benchmark 或 executable fixture | 只能用作缺陷目录和派生负例来源，原目录继续保持隔离 |
 | 分片指标 | Worker 与 Gateway 已记录 prompt/output budget、admission、provider 首事件/时长、客户端总时长、终态来源和取消状态 | 可按 client session ID 还原超时和无 request ID 的调用 |
 | Gateway `first_byte_ms` | 已存在，但非流式路径在收集完 provider 内容后才标记 | 对 Research 非流式调用更接近“完整结果时间”，不能当作模型首 token |

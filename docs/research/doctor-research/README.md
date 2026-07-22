@@ -61,7 +61,7 @@ transport failures for the closing fragment, the service may publish a
 complete, explicitly warned result with a 5000-character aggregate floor.
 
 The current Azure release is commit
-`70ca2675827acfa4992816e932a3afd236453adf`, execution `1.6.72`, prompt `v28`,
+`a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb`, execution `1.6.72`, prompt `v28`,
 validation `v39` and workflow `doctor_research_workflow.v65`. Five consecutive
 same-case public E2E runs all reached terminal state in under ten minutes;
 three produced hash-verified 3 MD + 1 TXT results and two failed closed with
@@ -475,6 +475,10 @@ deterministic normalization, merge, complete validation, peer substring patch,
 and four-text rendering without network access. Tests run every fixture twice
 and require identical diagnostics, semantic results, artifact bytes, and
 aggregate content SHA-256.
+
+The current suite contains 13 independent sanitized fixtures exercised by 16
+tests; repeated-run variants account for the difference between fixture and
+test counts.
 
 The initial suite contains synthetic derived cases for short topic sections,
 orphaned references, truncated comparison prose, QA after the conclusion,

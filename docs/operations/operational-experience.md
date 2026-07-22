@@ -35,6 +35,20 @@ Last updated: 2026-07-22
   Preflight parsers should remove only one matching outer quote pair before
   `JSON.parse`, validate the exact expected registry, and print key names or
   presence only, never values.
+- For disk admission, compare `available * 100` with `blocks * threshold`
+  instead of truncating an integer percentage. Before deleting superseded
+  deployment backups, resolve and validate every exact path, retain the current
+  runtime rollback boundary plus the newly verified backup, and never touch
+  live state volumes.
+- Opening a copied SQLite database with a normal verification connection can
+  create `-wal`/`-shm` sidecars. Prefer a read-only URI; if sidecars were
+  created, remove only the exact files after the database and manifest checks
+  pass.
+- Nullable migration columns preserve old-row rollback compatibility, but new
+  terminal observations should persist explicit boolean outcomes. In
+  particular, record both `cancel_requested=false` and
+  `cancel_observed=false` after an ordinary provider call, while preserving a
+  previously observed `true`.
 - Archives written through a root-owned temporary Docker container are also
   root-owned on the host bind mount. Use `sudo chmod` for the final mode, and
   install an error/exit recovery trap before stopping the live service so a

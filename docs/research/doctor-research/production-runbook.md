@@ -8,17 +8,17 @@ Docker listener.
 ## Current production deployment
 
 As of 2026-07-22, the public Azure Gateway and all three Research services run
-commit `70ca2675827acfa4992816e932a3afd236453adf` from:
+commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb` from:
 
 ```text
-/home/qian/codex-gateway-release-70ca267-20260722T093500Z
+/home/qian/codex-gateway-release-a77cf01-20260722T103032Z
 ```
 
 The execution contract is `1.6.72`, with prompt `v28`, validation contract
 `v39` and workflow `doctor_research_workflow.v65`. The public Gateway remains
 bound only to `127.0.0.1:18787`; no other Research service publishes a host
 port. The ordinary public surface still exposes the exact eight-model
-registry. Local and Azure release gates passed build, all 577 Vitest tests,
+registry. Local and Azure release gates passed build, all 579 Vitest tests,
 all 23 Python tests and an npm audit with zero vulnerabilities.
 The medical-team Skill directory has no Git diff and its deployed four-file
 bundle SHA-256 remains:
@@ -52,25 +52,27 @@ review. Do not broaden access beyond approved named trial users.
 The current verified online database backup and rollback image tags are:
 
 ```text
-/home/qian/codex-gateway-backups/70ca267/20260722T093500Z
-codex_gateway_test-gateway:rollback-02e5880-20260722T093500Z
-codex_gateway_test-research-llm-gateway:rollback-02e5880-20260722T093500Z
-codex_gateway_test-research-worker:rollback-02e5880-20260722T093500Z
-codex_gateway_test-research-maintenance:rollback-02e5880-20260722T093500Z
+/home/qian/codex-gateway-backups/a77cf01/20260722T103032Z
+codex_gateway_test-gateway:rollback-70ca267-20260722T103032Z
+codex_gateway_test-research-llm-gateway:rollback-70ca267-20260722T103032Z
+codex_gateway_test-research-worker:rollback-70ca267-20260722T103032Z
+codex_gateway_test-research-maintenance:rollback-70ca267-20260722T103032Z
 ```
 
 All three SQLite backups passed integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db       fc2867ebeeda0f4e3235b24bbbe22d354758be2462fc3efe5247a123efd09346
-client-events.db e22b655e2a445b388ad68dd12fd085cc01fb9ba0de4b717bb595d868b0cf67a4
-research.db      d478f498d3c67f39494892ec5a6e422b7035cb9f21dc4a3001185dbfba2458cd
+gateway.db       77a8861f7afcfc51d4a5d2a6eb205222fbc52cda0be59cfd927ef6a04d75a642
+client-events.db 76459a5c5f8981805e81524150835babefc48f1c357020be38d20d3cbda39376
+research.db      77018681ced2f914279bc02dbcea4d8da23da881fd05ea7ffeb04d1859e0684b
 ```
 
-The prior `02e5880` release remains the immediate source/image rollback
-boundary. Historical source releases and the pre-Research compatibility
-boundary remain separate from database backup retention.
+The prior `70ca267` release remains the immediate source/image rollback
+boundary, with its earlier verified database backup retained at
+`/home/qian/codex-gateway-backups/70ca267/20260722T093500Z`. Historical
+deployment backups superseded by these two verified boundaries were removed;
+the current state volumes and both rollback boundaries were retained.
 
 The separate backup volume is encrypted at rest by the Azure managed-disk
 platform and has passed a networkless scratch-volume restore drill. It is on
@@ -262,6 +264,12 @@ both `/v1/chat/completions` and `/v1/responses`. Each deliberate disconnect
 recorded `client_aborted`, `terminal_source=client_abort`,
 `cancel_requested=1` and `cancel_observed=1`; temporary users and credentials
 were disabled/revoked, and no token reservation remained unfinalized.
+After the `a77cf01` deployment, a normal non-stream provider call explicitly
+recorded `cancel_requested=0` and `cancel_observed=0`, while fresh Chat and
+Responses disconnects again recorded `1/1`. Runtime inflight requests and
+unfinalized reservations returned to zero, all four containers remained
+healthy with zero restarts, and the temporary credential was revoked and its
+user disabled.
 
 ## Rollback
 
