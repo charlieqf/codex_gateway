@@ -563,7 +563,14 @@ class WorkflowContext {
     // Preflight wall-clock capacity before charging tokens or writing a stage
     // run. The retained tail is for structured failure persistence, lease
     // cleanup, and provider cancellation observation.
-    const modelSignal = this.callSignal(input.maximumDurationMs, true);
+    const modelCallDeadline = this.callDeadline(
+      input.maximumDurationMs,
+      true
+    );
+    if (modelCallDeadline.timeoutMs <= 1) {
+      throw new WorkflowBudgetError("active_deadline");
+    }
+    const modelSignal = modelCallDeadline.signal;
     const reservedInputTokens = this.reserveModel(
       system,
       input.prompt,
@@ -607,7 +614,11 @@ class WorkflowContext {
           : { maximumOutputTokens: input.maximumOutputTokens }),
         ...(input.reasoningEffort === undefined
           ? {}
-          : { reasoningEffort: input.reasoningEffort })
+          : { reasoningEffort: input.reasoningEffort }),
+        providerTimeoutMs: Math.max(
+          1,
+          modelCallDeadline.timeoutMs - 10_000
+        )
       });
       const durationMs = elapsedMilliseconds(startedMonotonic);
       const telemetry = response.telemetry ?? {
@@ -818,6 +829,16 @@ class WorkflowContext {
     maximumDurationMs?: number,
     retainCleanupReserve = false
   ): AbortSignal {
+    return this.callDeadline(
+      maximumDurationMs,
+      retainCleanupReserve
+    ).signal;
+  }
+
+  private callDeadline(
+    maximumDurationMs?: number,
+    retainCleanupReserve = false
+  ): { signal: AbortSignal; timeoutMs: number } {
     this.checkActiveDeadline();
     const remaining = this.remainingActiveMs();
     const cleanupReserveMs = retainCleanupReserve
@@ -842,17 +863,19 @@ class WorkflowContext {
     if (availableForCall <= 0) {
       throw new WorkflowBudgetError("active_deadline");
     }
-    return AbortSignal.any([
+    const timeoutMs = Math.max(
+      1,
+      maximumDurationMs === undefined
+        ? availableForCall
+        : Math.min(availableForCall, maximumDurationMs)
+    );
+    return {
+      signal: AbortSignal.any([
       this.input.signal,
-      AbortSignal.timeout(
-        Math.max(
-          1,
-          maximumDurationMs === undefined
-            ? availableForCall
-            : Math.min(availableForCall, maximumDurationMs)
-        )
-      )
-    ]);
+        AbortSignal.timeout(timeoutMs)
+      ]),
+      timeoutMs
+    };
   }
 
   checkActiveDeadline(): void {
@@ -2820,11 +2843,11 @@ async function generateAndValidateShardedModelOutput(
     ) {
       shardTransportRetryCount += 1;
       shardTransportRetryCompleted = true;
-      if (isOutputExhaustedShardError(settlement.reason)) {
-        // A length-terminated response with no visible content has already
-        // spent its entire completion budget on hidden reasoning. Preserve
-        // the reviewed model and every output validator, but make the single
-        // bounded retry spend its token budget on the required JSON content.
+      if (shouldPreferVisibleContentOnShardRetry(settlement.reason)) {
+        // Output exhaustion and provider/Worker deadlines are evidence that
+        // low reasoning did not leave enough wall clock or token budget for
+        // visible JSON. Preserve the reviewed model and every validator, but
+        // make the bounded retry spend its budget on the required content.
         shardReasoningEffortOverrides.set(settlement.index, "none");
       }
       maximumConcurrency = 1;
@@ -5946,6 +5969,15 @@ function isOutputExhaustedShardError(error: unknown): boolean {
     ((error instanceof ResearchModelClientError) ||
       (isJsonRecord(error) && error.name === "ResearchModelClientError")) &&
     error.code === "output_exhausted"
+  );
+}
+
+function shouldPreferVisibleContentOnShardRetry(error: unknown): boolean {
+  return (
+    isOutputExhaustedShardError(error) ||
+    (error instanceof DOMException && error.name === "TimeoutError") ||
+    (isJsonRecord(error) &&
+      error.code === "upstream_error")
   );
 }
 

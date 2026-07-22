@@ -918,6 +918,10 @@ describe("Research Worker controlled-beta workflow", () => {
       number,
       string | undefined
     >();
+    const synthesisProviderTimeouts = new Map<
+      number,
+      number | undefined
+    >();
     const activeOutputExhaustedShardRoles = new Set<number>();
     let sameShardProviderOverlapObserved = false;
     let retryPrompt: string | null = null;
@@ -938,6 +942,10 @@ describe("Research Worker controlled-beta workflow", () => {
             synthesisReasoningEfforts.set(
               modelInput.attempt,
               modelInput.reasoningEffort
+            );
+            synthesisProviderTimeouts.set(
+              modelInput.attempt,
+              modelInput.providerTimeoutMs
             );
           }
           modelCalls.push(
@@ -1009,9 +1017,9 @@ describe("Research Worker controlled-beta workflow", () => {
                 activeSynthesisCalls -= 1;
                 finishOutputExhaustedShardCall();
                 throw new ResearchModelClientError(
-                  "output_exhausted",
-                  200,
-                  "req_sharded_middle_output_exhausted"
+                  "upstream_error",
+                  504,
+                  "req_sharded_middle_provider_timeout"
                 );
               }
               activeSynthesisCalls -= 1;
@@ -1608,6 +1616,13 @@ describe("Research Worker controlled-beta workflow", () => {
         [3, undefined],
         [4, "none"],
         [5, "none"]
+      ]);
+      expect([...synthesisProviderTimeouts.entries()]).toEqual([
+        [1, 170_000],
+        [2, 170_000],
+        [3, 170_000],
+        [4, 160_000],
+        [5, 80_000]
       ]);
       expect(sameShardProviderOverlapObserved).toBe(false);
       expect(activeOutputExhaustedShardRoles.size).toBe(0);

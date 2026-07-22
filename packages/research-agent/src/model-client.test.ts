@@ -131,6 +131,7 @@ describe("Doctor Research structured Gateway model client", () => {
 
   it("classifies hidden-reasoning exhaustion and honors a bounded reasoning override", async () => {
     let requestBody: Record<string, unknown> | null = null;
+    let requestHeaders: Record<string, string> | null = null;
     const client = new GatewayResearchModelClient({
       baseUrl: "http://gateway:8787",
       allowedHosts: ["gateway"],
@@ -141,6 +142,7 @@ describe("Doctor Research structured Gateway model client", () => {
       maximumResponseBytes: 100_000,
       readinessRequirements: readinessRequirements(),
       fetchImpl: async (_input, init) => {
+        requestHeaders = init?.headers as Record<string, string>;
         requestBody = JSON.parse(String(init?.body)) as Record<
           string,
           unknown
@@ -150,7 +152,7 @@ describe("Doctor Research structured Gateway model client", () => {
             choices: [
               {
                 message: { role: "assistant", content: "" },
-                finish_reason: "length"
+                finish_reason: "stop"
               }
             ],
             usage: {
@@ -176,7 +178,8 @@ describe("Doctor Research structured Gateway model client", () => {
         prompt: "Use the closed evidence set.",
         signal: new AbortController().signal,
         maximumOutputTokens: 8_000,
-        reasoningEffort: "none"
+        reasoningEffort: "none",
+        providerTimeoutMs: 70_000
       })
     );
 
@@ -189,6 +192,9 @@ describe("Doctor Research structured Gateway model client", () => {
     expect(requestBody).toMatchObject({
       max_tokens: 8_000,
       reasoning_effort: "none"
+    });
+    expect(requestHeaders).toMatchObject({
+      "x-medcode-request-timeout-ms": "70000"
     });
     expect(researchModelCallTelemetryFromError(failure)).toMatchObject({
       terminalSource: "provider_response",

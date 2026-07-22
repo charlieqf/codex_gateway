@@ -45,9 +45,38 @@ export function parseChatRequestTimeoutPolicy(
 export function resolveChatRequestTimeoutMs(
   policy: ChatRequestTimeoutPolicy,
   publicModelId: string,
-  upstreamRuntime: string
+  upstreamRuntime: string,
+  requestedMaximumMs?: number | null
 ): number {
-  return policy.models[publicModelId] ?? policy.runtimes[upstreamRuntime] ?? policy.defaultMs;
+  const configured =
+    policy.models[publicModelId] ??
+    policy.runtimes[upstreamRuntime] ??
+    policy.defaultMs;
+  if (requestedMaximumMs === undefined || requestedMaximumMs === null) {
+    return configured;
+  }
+  return configured > 0
+    ? Math.min(configured, requestedMaximumMs)
+    : requestedMaximumMs;
+}
+
+export function parseRequestedChatRequestTimeoutMs(
+  value: string | string[] | undefined
+): number | null | GatewayError {
+  if (value === undefined) {
+    return null;
+  }
+  if (
+    typeof value !== "string" ||
+    !/^[1-9][0-9]{0,8}$/u.test(value)
+  ) {
+    return invalidRequestedTimeout();
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 900_000) {
+    return invalidRequestedTimeout();
+  }
+  return parsed;
 }
 
 export function createChatRequestDeadline(options: {
@@ -144,4 +173,13 @@ function parseTimeoutMap(value: unknown, field: string): Record<string, number> 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function invalidRequestedTimeout(): GatewayError {
+  return new GatewayError({
+    code: "invalid_request",
+    message:
+      "x-medcode-request-timeout-ms must be an integer from 1 through 900000.",
+    httpStatus: 400
+  });
 }

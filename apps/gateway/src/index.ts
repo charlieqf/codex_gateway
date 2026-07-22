@@ -211,6 +211,7 @@ import {
 } from "./services/active-request-registry.js";
 import {
   createChatRequestDeadline,
+  parseRequestedChatRequestTimeoutMs,
   parseChatRequestTimeoutPolicy,
   resolveChatRequestTimeoutMs
 } from "./services/chat-request-deadline.js";
@@ -1863,6 +1864,15 @@ export function buildGateway(options: GatewayOptions = {}) {
       return fail(entitlementAccess);
     }
 
+    const requestedChatRequestTimeoutMs =
+      parseRequestedChatRequestTimeoutMs(
+        request.headers["x-medcode-request-timeout-ms"]
+      );
+    if (requestedChatRequestTimeoutMs instanceof GatewayError) {
+      request.gatewayObservedUpstreamAccount = { id: null, provider: null };
+      return fail(requestedChatRequestTimeoutMs);
+    }
+
     const affinityKey = chatRuntimeAffinityKey(request, publicModel, upstreamRouter.softAffinity);
     const attemptedAccountIds = new Set<string>();
     let statelessAttempts = 1;
@@ -2010,7 +2020,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     const chatRequestTimeoutMs = resolveChatRequestTimeoutMs(
       chatRequestTimeoutPolicy,
       publicModel.id,
-      attempt.runtime
+      attempt.runtime,
+      requestedChatRequestTimeoutMs
     );
     const beginActiveRequest = (
       runtimeContext: ChatRuntimeContext,

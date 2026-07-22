@@ -44,6 +44,7 @@ export interface ResearchModelClient {
     signal: AbortSignal;
     maximumOutputTokens?: number;
     reasoningEffort?: "none" | "low" | "medium" | "high";
+    providerTimeoutMs?: number;
   }): Promise<ResearchModelResponse>;
 }
 
@@ -241,6 +242,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     signal: AbortSignal;
     maximumOutputTokens?: number;
     reasoningEffort?: "none" | "low" | "medium" | "high";
+    providerTimeoutMs?: number;
   }): Promise<ResearchModelResponse> {
     if (!/^drr_[a-f0-9]{32}$/.test(input.runId)) {
       throw new Error("Research LLM run ID is invalid.");
@@ -272,6 +274,14 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     }
     if (!["none", "low", "medium", "high"].includes(reasoningEffort)) {
       throw new Error("Research LLM request reasoning effort is invalid.");
+    }
+    if (
+      input.providerTimeoutMs !== undefined &&
+      (!Number.isSafeInteger(input.providerTimeoutMs) ||
+        input.providerTimeoutMs < 1 ||
+        input.providerTimeoutMs > 900_000)
+    ) {
+      throw new Error("Research LLM provider timeout is invalid.");
     }
     const clientStartedAt = this.monotonicNow();
     let admissionWaitMs = 0;
@@ -310,7 +320,14 @@ export class GatewayResearchModelClient implements ResearchModelClient {
             "content-type": "application/json",
             "x-medcode-client-session-id":
               `${input.runId}:${stage}:${input.attempt}`,
-            "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`
+            "x-medcode-client-turn-code": `research:${stage}:${input.attempt}`,
+            ...(input.providerTimeoutMs === undefined
+              ? {}
+              : {
+                  "x-medcode-request-timeout-ms": String(
+                    input.providerTimeoutMs
+                  )
+                })
           };
           const body = JSON.stringify({
             model: this.model,
@@ -423,33 +440,39 @@ export class GatewayResearchModelClient implements ResearchModelClient {
           first && typeof first.finish_reason === "string"
             ? first.finish_reason
             : null;
+        const usage = isRecord(payload.usage) ? payload.usage : null;
+        const completionDetails =
+          usage && isRecord(usage.completion_tokens_details)
+            ? usage.completion_tokens_details
+            : null;
+        const completionTokens = nonNegativeIntegerOrNull(
+          usage?.completion_tokens
+        );
+        const reasoningTokens = nonNegativeIntegerOrNull(
+          completionDetails?.reasoning_tokens
+        );
         const text =
           typeof message?.content === "string" ? message.content : null;
         if (text === null || text.trim() === "") {
           throw new ResearchModelClientError(
-            finishReason === "length"
+            finishReason === "length" ||
+            (completionTokens !== null &&
+              completionTokens >= maximumOutputTokens) ||
+            (reasoningTokens !== null &&
+              reasoningTokens >= maximumOutputTokens)
               ? "output_exhausted"
               : "empty_response",
             response.status,
             requestId
           );
         }
-        const usage = isRecord(payload.usage) ? payload.usage : null;
-        const completionDetails =
-          usage && isRecord(usage.completion_tokens_details)
-            ? usage.completion_tokens_details
-            : null;
         return {
           text,
           gatewayRequestId: requestId,
           usage: {
             promptTokens: nonNegativeIntegerOrNull(usage?.prompt_tokens),
-            completionTokens: nonNegativeIntegerOrNull(
-              usage?.completion_tokens
-            ),
-            reasoningTokens: nonNegativeIntegerOrNull(
-              completionDetails?.reasoning_tokens
-            ),
+            completionTokens,
+            reasoningTokens,
             totalTokens: nonNegativeIntegerOrNull(usage?.total_tokens)
           },
           telemetry: telemetry()

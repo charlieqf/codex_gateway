@@ -2,6 +2,7 @@ import { GatewayError } from "@codex-gateway/core";
 import { describe, expect, it, vi } from "vitest";
 import {
   createChatRequestDeadline,
+  parseRequestedChatRequestTimeoutMs,
   parseChatRequestTimeoutPolicy,
   resolveChatRequestTimeoutMs
 } from "./chat-request-deadline.js";
@@ -17,8 +18,29 @@ describe("chat request deadline", () => {
       })
     });
     expect(resolveChatRequestTimeoutMs(policy, "max", "codex")).toBe(4000);
+    expect(resolveChatRequestTimeoutMs(policy, "max", "codex", 3500)).toBe(3500);
+    expect(resolveChatRequestTimeoutMs(policy, "max", "codex", 4500)).toBe(4000);
     expect(resolveChatRequestTimeoutMs(policy, "fast", "codex")).toBe(3000);
     expect(resolveChatRequestTimeoutMs(policy, "fast", "openrouter")).toBe(2000);
+    expect(
+      resolveChatRequestTimeoutMs(
+        { defaultMs: 0, runtimes: {}, models: {} },
+        "fast",
+        "openrouter",
+        1700
+      )
+    ).toBe(1700);
+  });
+
+  it("validates the per-call upper-bound header", () => {
+    expect(parseRequestedChatRequestTimeoutMs(undefined)).toBeNull();
+    expect(parseRequestedChatRequestTimeoutMs("170000")).toBe(170000);
+    expect(parseRequestedChatRequestTimeoutMs("1")).toBe(1);
+    expect(parseRequestedChatRequestTimeoutMs("0")).toBeInstanceOf(GatewayError);
+    expect(parseRequestedChatRequestTimeoutMs("900001")).toBeInstanceOf(GatewayError);
+    expect(parseRequestedChatRequestTimeoutMs(["1000", "2000"])).toBeInstanceOf(
+      GatewayError
+    );
   });
 
   it("falls back safely when JSON configuration is invalid", () => {
