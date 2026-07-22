@@ -6327,6 +6327,7 @@ function validateGeneratedOutput(
   let deterministicSkillSectionBoundarySupplementApplied = false;
   let deterministicCoreNumericFallbackApplied = false;
   let deterministicReferenceCitationClosureApplied = false;
+  let deterministicAbstractSupplementWarnings: string[] = [];
   if (options.deterministicSafetyNormalization) {
     const normalized = normalizeFinalModelOutputForSafety(
       candidate,
@@ -6344,6 +6345,8 @@ function validateGeneratedOutput(
       normalized.coreNumericFallbackApplied;
     deterministicReferenceCitationClosureApplied =
       normalized.referenceCitationClosureApplied;
+    deterministicAbstractSupplementWarnings =
+      normalized.abstractSupplementWarnings;
   }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
@@ -6407,7 +6410,8 @@ function validateGeneratedOutput(
             ? [
                 "deterministic_reference_citation_closure_applied"
               ]
-            : [])
+            : []),
+          ...deterministicAbstractSupplementWarnings
         ]
       }
     : {
@@ -7632,6 +7636,7 @@ function normalizeFinalModelOutputForSafety(
   skillSectionBoundarySupplemented: boolean;
   coreNumericFallbackApplied: boolean;
   referenceCitationClosureApplied: boolean;
+  abstractSupplementWarnings: string[];
 } {
   let changed = false;
   const reviewWithoutEmbeddedAuxiliaryOutput =
@@ -8175,6 +8180,28 @@ function normalizeFinalModelOutputForSafety(
       }
     };
   }
+  const normalizedAbstract = normalizeNearMinimumFoundationAbstract(
+    {
+      schema_version: "doctor_research_foundation_fragment.v3",
+      review: {
+        title: normalizedValue.review.title,
+        abstract: normalizedValue.review.abstract,
+        keywords: normalizedValue.review.keywords,
+        markdown: normalizedValue.review.markdown
+      }
+    },
+    language
+  );
+  if (normalizedAbstract.changed) {
+    changed = true;
+    normalizedValue = {
+      ...normalizedValue,
+      review: {
+        ...normalizedValue.review,
+        abstract: normalizedAbstract.fragment.review.abstract
+      }
+    };
+  }
   return {
     value: normalizedValue,
     changed,
@@ -8183,7 +8210,8 @@ function normalizeFinalModelOutputForSafety(
       skillSectionClosedReview.changed ||
       finalSkillSectionClosedReview.changed,
     coreNumericFallbackApplied,
-    referenceCitationClosureApplied: citationClosedReview.changed
+    referenceCitationClosureApplied: citationClosedReview.changed,
+    abstractSupplementWarnings: normalizedAbstract.warnings
   };
 }
 
