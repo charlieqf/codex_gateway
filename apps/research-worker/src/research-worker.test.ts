@@ -1215,6 +1215,11 @@ describe("Research Worker controlled-beta workflow", () => {
                     target: "markdown",
                     old_text: convergenceSafeParagraph,
                     new_text: convergenceShortParagraph
+                  },
+                  {
+                    target: "abstract",
+                    old_text: foundation.review.abstract,
+                    new_text: "\u8bc1".repeat(244)
                   }
                 ],
                 warnings: []

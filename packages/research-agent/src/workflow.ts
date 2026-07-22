@@ -67,6 +67,7 @@ import {
   applyReviewSectionRepair,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
+  selectPeerReviewConvergenceTarget,
   type ReviewSectionRepairDecision,
   type ReviewSectionRepairTarget
 } from "./review-section-repair.js";
@@ -3917,7 +3918,7 @@ async function generateAndValidateShardedModelOutput(
       "Peer review decision state is inconsistent after fallback."
     );
   }
-  const patchedDraft = applyPeerReviewPatches(
+  let patchedDraft = applyPeerReviewPatches(
     assembledDraft,
     peerReview
   );
@@ -3928,6 +3929,17 @@ async function generateAndValidateShardedModelOutput(
       ["peer_review_patch_error"]
     );
     return null;
+  }
+  const normalizedPatchedAbstract =
+    normalizeNearMinimumDraftAbstract(
+      patchedDraft,
+      context.run.language
+    );
+  patchedDraft = normalizedPatchedAbstract.draft;
+  for (const warning of normalizedPatchedAbstract.warnings) {
+    if (!shardSkillNormalizationWarnings.includes(warning)) {
+      shardSkillNormalizationWarnings.push(warning);
+    }
   }
   // A peer-reviewed draft that already passes every deterministic gate should
   // remain intact. Safety normalization is a bounded repair path, not a
@@ -3987,11 +3999,19 @@ async function generateAndValidateShardedModelOutput(
         evidence
       })
     : null;
+  const convergencePatchTarget = !validation.ok
+    ? selectPeerReviewConvergenceTarget(validation.errorCodes)
+    : null;
   const convergenceAllowed =
     !validation.ok &&
-    allowsBoundedRepairConvergence(
-      validation.errorCodes,
-      convergenceSectionCandidate !== null
+    (convergenceSectionCandidate !== null ||
+      (
+        allowsBoundedRepairConvergence(
+          validation.errorCodes,
+          false
+        ) &&
+        convergencePatchTarget !== null
+      )
     );
   if (
     !validation.ok &&
@@ -4054,10 +4074,19 @@ async function generateAndValidateShardedModelOutput(
         convergenceResponse.text
       );
       if (convergenceDecision) {
-        convergedDraft = applyPeerReviewPatches(
-          patchedDraft,
-          convergenceDecision
-        );
+        const scopedDecision: PeerReviewDecision = {
+          ...convergenceDecision,
+          replacements: convergenceDecision.replacements.filter(
+            (replacement) =>
+              replacement.target === convergencePatchTarget
+          )
+        };
+        if (scopedDecision.replacements.length > 0) {
+          convergedDraft = applyPeerReviewPatches(
+            patchedDraft,
+            scopedDecision
+          );
+        }
       }
     }
     if (!convergedDraft) {
@@ -4067,6 +4096,17 @@ async function generateAndValidateShardedModelOutput(
         ["peer_review_convergence_patch_error"]
       );
       return null;
+    }
+    const normalizedConvergedAbstract =
+      normalizeNearMinimumDraftAbstract(
+        convergedDraft,
+        context.run.language
+      );
+    convergedDraft = normalizedConvergedAbstract.draft;
+    for (const warning of normalizedConvergedAbstract.warnings) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
     }
     rawPatchedValidation = validateGeneratedOutput(
       JSON.stringify(convergedDraft),
@@ -4917,6 +4957,39 @@ function normalizeNearMinimumFoundationAbstract(
           ]
         : [])
     ]
+  };
+}
+
+function normalizeNearMinimumDraftAbstract(
+  draft: DoctorResearchModelDraft,
+  language: ResearchRunRecord["language"]
+): {
+  draft: DoctorResearchModelDraft;
+  warnings: string[];
+} {
+  const normalized = normalizeNearMinimumFoundationAbstract(
+    {
+      schema_version: "doctor_research_foundation_fragment.v3",
+      review: {
+        title: draft.review.title,
+        abstract: draft.review.abstract,
+        keywords: draft.review.keywords,
+        markdown: draft.review.markdown
+      }
+    },
+    language
+  );
+  return {
+    draft: normalized.changed
+      ? {
+          ...draft,
+          review: {
+            ...draft.review,
+            abstract: normalized.fragment.review.abstract
+          }
+        }
+      : draft,
+    warnings: normalized.warnings
   };
 }
 

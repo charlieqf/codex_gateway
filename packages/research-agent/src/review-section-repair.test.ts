@@ -4,6 +4,7 @@ import {
   applyReviewSectionRepair,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
+  selectPeerReviewConvergenceTarget,
   type ReviewSectionRepairDecision
 } from "./review-section-repair.js";
 
@@ -99,5 +100,30 @@ describe("Doctor Research targeted section repair", () => {
     expect(
       allowsBoundedRepairConvergence(["review_title_language_contract"], false)
     ).toBe(true);
+  });
+
+  it("binds peer convergence to the only failing review field", () => {
+    expect(
+      selectPeerReviewConvergenceTarget([
+        "review_abstract_length_contract"
+      ])
+    ).toBe("abstract");
+    expect(
+      selectPeerReviewConvergenceTarget([
+        "review_section_contract"
+      ])
+    ).toBe("markdown");
+    expect(
+      selectPeerReviewConvergenceTarget([
+        "review_abstract_length_contract",
+        "review_section_contract"
+      ])
+    ).toBeNull();
+    expect(
+      selectPeerReviewConvergenceTarget(["answer_length_contract"])
+    ).toBeNull();
+    expect(
+      selectPeerReviewConvergenceTarget(["review_keywords_contract"])
+    ).toBeNull();
   });
 });

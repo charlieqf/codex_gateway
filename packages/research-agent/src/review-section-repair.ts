@@ -122,6 +122,50 @@ export function allowsBoundedRepairConvergence(
   );
 }
 
+export type PeerReviewConvergenceTarget =
+  | "title"
+  | "abstract"
+  | "markdown";
+
+/**
+ * Keep a final peer-review convergence call bound to the one field that still
+ * fails. The peer-review schema can patch several review fields, but accepting
+ * unrelated patches here can regress an already-valid abstract or section
+ * layout while repairing a different deterministic diagnostic.
+ */
+export function selectPeerReviewConvergenceTarget(
+  errorCodes: readonly string[]
+): PeerReviewConvergenceTarget | null {
+  const uniqueCodes = [...new Set(errorCodes)];
+  if (uniqueCodes.length !== 1) {
+    return null;
+  }
+  const code = uniqueCodes[0]!;
+  if (code === "review_title_language_contract") {
+    return "title";
+  }
+  if (code === "review_abstract_length_contract") {
+    return "abstract";
+  }
+  if (
+    code.startsWith("review_") &&
+    code !== "review_keywords_contract"
+  ) {
+    return "markdown";
+  }
+  if (
+    [
+      "paragraph_citation_coverage",
+      "causal_claim_evidence_grade",
+      "statistic_label_evidence_closure",
+      "case_evidence_scope_required"
+    ].includes(code)
+  ) {
+    return "markdown";
+  }
+  return null;
+}
+
 function extractNumericCitations(markdown: string): number[] {
   const citations: number[] = [];
   for (const match of markdown.matchAll(/\[([0-9,\s-]+)\]/gu)) {
