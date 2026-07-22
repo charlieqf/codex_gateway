@@ -60,6 +60,15 @@ documented below: after two successful core synthesis fragments and two
 transport failures for the closing fragment, the service may publish a
 complete, explicitly warned result with a 5000-character aggregate floor.
 
+The current Azure release is commit
+`70ca2675827acfa4992816e932a3afd236453adf`, execution `1.6.72`, prompt `v28`,
+validation `v39` and workflow `doctor_research_workflow.v65`. Five consecutive
+same-case public E2E runs all reached terminal state in under ten minutes;
+three produced hash-verified 3 MD + 1 TXT results and two failed closed with
+zero artifacts. The service therefore remains `controlled-trial` until the
+medical team completes manual content acceptance and agrees on the required
+success-rate and soft-completeness policy.
+
 ## Contents
 
 - `current-status-problems-and-remediation.md`: current Azure release status,
@@ -82,7 +91,7 @@ complete, explicitly warned result with a 5000-character aggregate floor.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.58` together with the
+The production Worker uses frozen execution contract `1.6.72` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -93,7 +102,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.58` splits synthesis into three bounded independent
+For latency, execution `1.6.72` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -142,7 +151,7 @@ contains verified citations. It can add only pre-reviewed evidence-boundary
 prose tied to those same citations; a shorter or uncited topic still fails
 closed.
 
-Execution `1.6.58` also closes model-fragment presentation defects without
+Execution `1.6.72` also closes model-fragment presentation defects without
 rewriting medical content: a paragraph-level dangling transition such as
 `但该研究...` is made self-contained, and a subjectless scope sentence such as
 `涵盖...` is anchored to the evidence in the review. Dangling post-safety
@@ -168,7 +177,7 @@ invents a replacement fact, and the normal numeric evidence-closure and
 100-300-character answer gates still apply.
 If evidence-safety removal leaves a Chinese question about target-vessel
 patency or EASIX prognostic value with only boundary language, execution
-`1.6.58` may copy only the explicitly labelled patency, odds-ratio, or
+`1.6.72` may copy only the explicitly labelled patency, odds-ratio, or
 hazard-ratio values from that answer's already-bound PubMed abstract. The
 mapping is keyword-limited, idempotent, and remains subject to the same numeric
 and statistic-label evidence closure; it does not infer a clinical
@@ -186,7 +195,7 @@ design now receives a neutral methods boundary rather than a duplicated
 `原始表述为准。设计` phrase.
 
 When several near-minimum body sections require deterministic boundary
-completion, execution `1.6.58` rotates distinct pre-reviewed paragraphs across
+completion, execution `1.6.72` rotates distinct pre-reviewed paragraphs across
 sections so the completion step cannot create duplicate prose. It repeats the
 unchanged section-floor check after whole-review paragraph deduplication, since
 a shared model paragraph may otherwise leave a section just below its floor.
@@ -300,7 +309,7 @@ one additional call to retry only that shard inside the same hard deadline.
 Foundation retries are capped at 120 seconds, middle-fragment retries at
 170 seconds, and closing-fragment retries at 90 seconds. If both the original
 closing call and its bounded retry fail after the foundation and four-topic
-body have succeeded, execution `1.6.58` builds only the three closing sections
+body have succeeded, execution `1.6.72` builds only the three closing sections
 from pre-reviewed evidence-boundary prose. When body and closing transport
 failures overlap, the non-reconstructable body retry is scheduled ahead of
 the closing retry; if that body then succeeds but closing transport remains

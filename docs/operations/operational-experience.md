@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-19
+Last updated: 2026-07-22
 
 ## Safety Rules That Worked
 
@@ -172,6 +172,17 @@ Last updated: 2026-07-19
 - Upstream Codex reauthentication should use
   `scripts/reauth-upstream-codex-account.sh` from the VM release checkout. Do
   not hand-compose `docker exec sh -lc 'export CODEX_HOME=...'` login commands.
+- Doctor Research warning lists are schema-controlled sets. A warning emitted
+  by both fragment normalization and final safety normalization must be
+  deduplicated before result assembly; otherwise a fully rendered run can fail
+  after the `render_artifacts` checkpoint. Keep assembly-contract failures
+  classified as `model_contract_error`, not `upstream_unavailable`, so the
+  Worker does not restart for an internal deterministic contract defect.
+- For Doctor Research timeout diagnosis, join `research_stage_runs` and
+  Gateway `request_events` first by
+  `run_id:stage:attempt` client session. A timed-out call may have no response
+  request ID, while the client session still exposes provider first-event,
+  duration, terminal source and cancellation observation.
 
 ## Known Pitfalls
 

@@ -7,18 +7,19 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-21, the public Azure Gateway, Research Worker and maintenance
-service run commit `f91ff78a0812f7e5fe7eb09a0230df53e5732aa1` from:
+As of 2026-07-22, the public Azure Gateway and all three Research services run
+commit `70ca2675827acfa4992816e932a3afd236453adf` from:
 
 ```text
-/home/qian/codex-gateway-release-f91ff78-20260721T101407Z
+/home/qian/codex-gateway-release-70ca267-20260722T093500Z
 ```
 
-The execution contract is `1.6.58`, with prompt `v27`, validation contract
-`v39` and workflow `doctor_research_workflow.v52`. The public Gateway remains
-bound only to `127.0.0.1:18787`; the internal LLM Gateway was not recreated.
-The ordinary public surface still exposes the exact eight-model registry.
-Build, all 531 Vitest tests and all 23 Python tests passed before deployment.
+The execution contract is `1.6.72`, with prompt `v28`, validation contract
+`v39` and workflow `doctor_research_workflow.v65`. The public Gateway remains
+bound only to `127.0.0.1:18787`; no other Research service publishes a host
+port. The ordinary public surface still exposes the exact eight-model
+registry. Local and Azure release gates passed build, all 577 Vitest tests,
+all 23 Python tests and an npm audit with zero vulnerabilities.
 The medical-team Skill directory has no Git diff and its deployed four-file
 bundle SHA-256 remains:
 
@@ -26,54 +27,50 @@ bundle SHA-256 remains:
 6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
 ```
 
-The API is enabled for a restricted, named-user production trial, but this
-release has **not** passed strict four-artifact production acceptance. Two
-public-HTTPS release runs remained below the ten-minute ceiling but failed
-closed without publishing partial artifacts:
+The API remains a restricted, named-user production trial. Five consecutive
+public-HTTPS runs of the same engineering-allowlisted smoke case all reached a
+terminal state below ten minutes. The medical team has not yet confirmed that
+case as its final representative acceptance case:
 
-- `drr_9f7bb667522046389ef4579805b8fda4` ran from
-  `2026-07-21T10:18:56.718Z` to `10:25:51.134Z` (414.416 seconds) and ended
-  `upstream_unavailable` after required GoldenCode/GLM-5.2 generation calls
-  did not return. The Worker then performed its deliberate dependency-failure
-  restart and returned healthy.
-- `drr_25f189a126d54b6c9e0979495225215e` ran from
-  `2026-07-21T10:27:43.049Z` to `10:35:12.100Z` (449.051 seconds). Two
-  synthesis shards returned in approximately 77 and 108 seconds; another
-  attempt received an upstream HTTP 500 `Batch backend error`. The final
-  peer output was rejected as `model_contract_error` because one reviewed
-  topic section was `328/600` characters. All other final validation errors
-  had been closed.
+- `drr_a98ba77e84a04f99a47de3e322c07043`: succeeded in 237.459 seconds;
+- `drr_dffe542c19914841bf9936e65f93ca3a`: succeeded in 209.931 seconds;
+- `drr_955f4e47884b4a9eaa1c0b5e57045265`: succeeded in 262.879 seconds;
+- `drr_9ac8538f3ce147a0abcf1f6c19a0f96b`: failed closed as
+  `model_contract_error` in 285.717 seconds after multiple independent
+  citation, numeric, causality and prose gates remained unresolved;
+- `drr_9d5fea39377646daa08bdfacfaef1861`: failed closed as
+  `model_contract_error` in 358.272 seconds after a cancelled correction
+  timeout and a final `476/600` topic section.
 
-Do not describe `1.6.58` as fully accepted and do not broaden access beyond
-approved named trial users until a fresh real run succeeds, returns exactly
-three Markdown files and one five-line text file, all manifest hashes match,
-and the four downloaded contents pass manual review. The current behavior is
-intentionally fail-closed: users may receive a terminal upstream or model
-contract error rather than unsupported medical content.
+Each successful run returned exactly three Markdown files and one five-line
+text file, and authenticated downloads matched all manifest SHA-256 values.
+Each failed run published zero artifacts. This proves the engineering
+terminal-time and artifact-atomicity requirements, but it is not a 5/5 model
+success result and the medical team has not yet completed manual content
+review. Do not broaden access beyond approved named trial users.
 
-The only retained online database backup and the current rollback image tags
-are:
+The current verified online database backup and rollback image tags are:
 
 ```text
-/home/qian/codex-gateway-backups/f91ff78/20260721T101407Z
-codex_gateway_test-gateway:rollback-644d566-20260721T101407Z
-codex_gateway_test-research-worker:rollback-644d566-20260721T101407Z
-codex_gateway_test-research-maintenance:rollback-644d566-20260721T101407Z
+/home/qian/codex-gateway-backups/70ca267/20260722T093500Z
+codex_gateway_test-gateway:rollback-02e5880-20260722T093500Z
+codex_gateway_test-research-llm-gateway:rollback-02e5880-20260722T093500Z
+codex_gateway_test-research-worker:rollback-02e5880-20260722T093500Z
+codex_gateway_test-research-maintenance:rollback-02e5880-20260722T093500Z
 ```
 
 All three SQLite backups passed integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db       77e25be2be71aff63b10a95ba7197d5e68a4351301fa5f793bd58326052a953f
-client-events.db 8af7bd9ddec088e6ec4f03cf2ca0528c629c242b3fd899470e88e76d0e609a9b
-research.db      f66af06e1f9935b964ea5d6d6c0bf9d4781bbf3a4768ac81f3bec4c2204ad4fb
+gateway.db       fc2867ebeeda0f4e3235b24bbbe22d354758be2462fc3efe5247a123efd09346
+client-events.db e22b655e2a445b388ad68dd12fd085cc01fb9ba0de4b717bb595d868b0cf67a4
+research.db      d478f498d3c67f39494892ec5a6e422b7035cb9f21dc4a3001185dbfba2458cd
 ```
 
-The superseded `644d566` database backup was deleted only after those hashes,
-the new release and service health were verified. Historical source releases
-and the pre-Research compatibility boundary remain separate from database
-backup retention.
+The prior `02e5880` release remains the immediate source/image rollback
+boundary. Historical source releases and the pre-Research compatibility
+boundary remain separate from database backup retention.
 
 The separate backup volume is encrypted at rest by the Azure managed-disk
 platform and has passed a networkless scratch-volume restore drill. It is on
@@ -106,8 +103,8 @@ execution are not part of the Research generation path.
 
 The production SLA is a hard ten-minute wall-clock ceiling from API run
 creation, not merely Worker active time. The protected Worker environment must
-keep `RESEARCH_HARD_DEADLINE_SECONDS` at `570` or lower,
-`RESEARCH_LLM_TIMEOUT_MS` below that deadline (currently `240000`), and
+keep `RESEARCH_HARD_DEADLINE_SECONDS` at `570` or lower, the internal Gateway
+provider deadline below the Worker call deadline (currently `175000` ms), and
 `RESEARCH_SYNTHESIS_SHARD_COUNT=3`. Configuration loading fails closed if the
 deadline exceeds 600 seconds.
 
@@ -244,10 +241,11 @@ paths. Success requires:
 - `GET result`;
 - exactly four manifest entries and downloads;
 - exactly three Markdown files and one five-line text file;
-- downloaded sizes and SHA-256 values equal the manifest.
+- downloaded sizes and SHA-256 values equal the manifest;
 - measured create-to-terminal wall time below 600 seconds;
-- one three-call concurrent synthesis fan-out, at most one bounded retry for
-  a transport/upstream failure, and exactly one compact peer-review call;
+- one bounded three-call synthesis fan-out and at most five total model calls;
+  the last calls may be a targeted correction, hash-bound section repair or
+  compact peer review according to deterministic diagnostics;
 - a rendered 3-8-row core evidence table and no partial artifact publication.
 
 Then verify the public HTTPS status/result/download path, foreign-subject
@@ -258,6 +256,12 @@ After collecting the release evidence, revoke the E2E credential, disable its
 temporary user and remove its mode-`0600` token/request files. Never hand an
 E2E credential to a beta user; provision a new named credential with recorded
 phone metadata instead.
+
+For `1.6.72`, non-stream cancellation was also tested through public HTTPS for
+both `/v1/chat/completions` and `/v1/responses`. Each deliberate disconnect
+recorded `client_aborted`, `terminal_source=client_abort`,
+`cancel_requested=1` and `cancel_observed=1`; temporary users and credentials
+were disabled/revoked, and no token reservation remained unfinalized.
 
 ## Rollback
 
