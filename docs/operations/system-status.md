@@ -38,6 +38,10 @@ Completed:
     verified manifest hashes; two failed closed as `model_contract_error`
     with zero artifacts because multiple evidence gates or the unchanged
     `600`-character topic floor remained unsatisfied;
+  - an additional exact-runtime post-deploy public E2E,
+    `drr_eab9f11f07484434aff46074bfd567e0`, succeeded in 227.733 seconds with
+    exactly 3 MD + 1 TXT and verified all manifest hashes. Its temporary key,
+    entitlement, user and downloaded files were cleaned;
   - compared with the two `1.6.58` production runs, mean create-to-terminal
     time fell from 431.734 to 270.852 seconds (37.3%). Mean estimated prompt
     tokens per associated Gateway event fell from 14116.89 to 12635.76

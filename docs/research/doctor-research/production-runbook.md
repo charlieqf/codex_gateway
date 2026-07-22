@@ -42,6 +42,12 @@ case as its final representative acceptance case:
   `model_contract_error` in 358.272 seconds after a cancelled correction
   timeout and a final `476/600` topic section.
 
+After deploying exact runtime commit `a77cf01`, public-HTTPS E2E
+`drr_eab9f11f07484434aff46074bfd567e0` succeeded in 227.733 seconds. It again
+downloaded exactly 3 MD + 1 TXT and verified every size and manifest SHA-256;
+the temporary key was revoked, entitlement cancelled, user disabled and local
+downloads removed.
+
 Each successful run returned exactly three Markdown files and one five-line
 text file, and authenticated downloads matched all manifest SHA-256 values.
 Each failed run published zero artifacts. This proves the engineering

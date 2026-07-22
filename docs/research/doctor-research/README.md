@@ -69,6 +69,11 @@ zero artifacts. The service therefore remains `controlled-trial` until the
 medical team completes manual content acceptance and agrees on the required
 success-rate and soft-completeness policy.
 
+An additional post-deploy E2E on exact runtime commit `a77cf01`,
+`drr_eab9f11f07484434aff46074bfd567e0`, succeeded in 227.733 seconds with the
+same exact four-file and manifest/hash checks. It is an engineering smoke case,
+not a substitute for a medical-team-approved representative case.
+
 ## Contents
 
 - `current-status-problems-and-remediation.md`: current Azure release status,
