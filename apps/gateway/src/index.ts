@@ -82,7 +82,11 @@ import {
   resolveBillingAdminTokenMode,
   type BillingAdminTokenMode
 } from "./billing-admin.js";
-import { registerResearchRoutes } from "./research-routes.js";
+import {
+  parseDoctorResearchRunRequest,
+  registerResearchRoutes,
+  type ResearchIdentityRegistryEntry
+} from "./research-routes.js";
 import {
   resolveUpstreamV2Client,
   type UpstreamV2Client
@@ -278,6 +282,7 @@ export interface GatewayOptions {
   researchAdmissionGuard?: (now: Date) => Promise<GatewayError | null>;
   researchOfficialSourceMode?: "brave" | "direct";
   researchOfficialWebAllowedDomains?: readonly string[];
+  researchOfficialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
@@ -518,6 +523,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   const researchOfficialWebAllowedDomains =
     options.researchOfficialWebAllowedDomains ??
     defaultResearchRuntime?.officialWebAllowedDomains ??
+    [];
+  const researchOfficialIdentityRegistry =
+    options.researchOfficialIdentityRegistry ??
+    defaultResearchRuntime?.officialIdentityRegistry ??
     [];
   const imageGenerationProvider =
     options.imageGenerationProvider === undefined
@@ -835,6 +844,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       admissionGuard: researchAdmissionGuard,
       officialSourceMode: researchOfficialSourceMode,
       officialWebAllowedDomains: researchOfficialWebAllowedDomains,
+      officialIdentityRegistry: researchOfficialIdentityRegistry,
       now: clock
     });
   }
@@ -4966,6 +4976,7 @@ function createDefaultResearchRuntime(
   admissionGuard: (now: Date) => Promise<GatewayError | null>;
   officialSourceMode: "brave" | "direct";
   officialWebAllowedDomains: string[];
+  officialIdentityRegistry: ResearchIdentityRegistryEntry[];
 } | null {
   if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
     return null;
@@ -4990,6 +5001,11 @@ function createDefaultResearchRuntime(
     parseResearchOfficialWebAllowedDomains(
       env.RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS,
       env.NODE_ENV
+    );
+  const officialIdentityRegistry =
+    parseResearchOfficialIdentityRegistry(
+      env.RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON,
+      officialWebAllowedDomains
     );
   const readRpm = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_CONTROL_READ_RPM,
@@ -5113,6 +5129,7 @@ function createDefaultResearchRuntime(
     maximumArtifactBytes,
     officialSourceMode,
     officialWebAllowedDomains,
+    officialIdentityRegistry,
     admissionGuard: async (now) => {
       const latestBackup = store.latestSuccessfulBackupAt();
       if (
@@ -5248,6 +5265,81 @@ function parseResearchOfficialWebAllowedDomains(
     );
   }
   return domains;
+}
+
+function parseResearchOfficialIdentityRegistry(
+  value: string | undefined,
+  allowedDomains: readonly string[]
+): ResearchIdentityRegistryEntry[] {
+  const raw = value?.trim();
+  if (!raw) {
+    return [];
+  }
+  if (raw.length > 65_536) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON exceeds 65536 characters."
+    );
+  }
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON must be valid JSON."
+    );
+  }
+  if (!Array.isArray(decoded) || decoded.length > 100) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON must be an array of at most 100 entries."
+    );
+  }
+  const entries = decoded.map((doctor, index) => {
+    try {
+      const parsed = parseDoctorResearchRunRequest(
+        {
+          doctor,
+          mode: "brief",
+          language: "zh-CN",
+          options: {
+            publication_years: 5,
+            citation_style: "vancouver"
+          }
+        },
+        {
+          officialSourceMode: "direct",
+          officialWebAllowedDomains: allowedDomains
+        }
+      );
+      const officialProfileUrls =
+        parsed.input.doctor.officialProfileUrls ?? [];
+      if (officialProfileUrls.length === 0) {
+        throw new Error("official_profile_urls is required");
+      }
+      return {
+        identityFingerprint: parsed.identityFingerprint,
+        officialProfileUrls,
+        ...(parsed.input.doctor.literatureIdentity
+          ? {
+              literatureIdentity:
+                parsed.input.doctor.literatureIdentity
+            }
+          : {})
+      } satisfies ResearchIdentityRegistryEntry;
+    } catch {
+      throw new Error(
+        `RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON entry ${index + 1} is invalid.`
+      );
+    }
+  });
+  if (
+    new Set(entries.map((entry) => entry.identityFingerprint)).size !==
+    entries.length
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON contains duplicate doctor identity anchors."
+    );
+  }
+  return entries;
 }
 
 function assertDedicatedResearchDatabasePath(

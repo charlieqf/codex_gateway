@@ -50,11 +50,14 @@ class DemoHandler(BaseHTTPRequestHandler):
         assert self.headers["Idempotency-Key"].startswith("research:")
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         assert body["doctor"]["name"] == DOCTOR_NAME
-        assert body["doctor"]["literature_identity"] == {
-            "name": "Lu Qingsheng",
-            "hospital": "Changhai Hospital",
-            "department": "Vascular Surgery",
-        }
+        assert body["doctor"]["hospital"]
+        assert body["doctor"]["department"]
+        if "literature_identity" in body["doctor"]:
+            assert body["doctor"]["literature_identity"] == {
+                "name": "Lu Qingsheng",
+                "hospital": "Changhai Hospital",
+                "department": "Vascular Surgery",
+            }
         self.send_json({"run_id": RUN_ID, "status": "queued"}, status=202)
 
     def do_GET(self):
@@ -307,6 +310,65 @@ class DoctorResearchDemoTests(unittest.TestCase):
                 DEMO.DemoError, "unsupported field.*doctor_name"
             ):
                 DEMO.build_payload(args)
+
+    def test_request_file_accepts_only_three_flat_business_fields(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            request_file = Path(temporary) / "request.json"
+            request_file.write_text(
+                json.dumps(
+                    {
+                        "name": DOCTOR_NAME,
+                        "hospital": "海军军医大学第一附属医院",
+                        "department": "血管外科",
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            args = DEMO.parse_args(["--request-file", str(request_file)])
+            payload = DEMO.build_payload(args)
+            self.assertEqual(
+                payload,
+                {
+                    "doctor": {
+                        "name": DOCTOR_NAME,
+                        "hospital": "海军军医大学第一附属医院",
+                        "department": "血管外科",
+                    },
+                    "mode": "brief",
+                    "language": "zh-CN",
+                    "options": {
+                        "publication_years": 5,
+                        "citation_style": "vancouver",
+                    },
+                },
+            )
+
+    def test_optional_blank_fields_are_omitted(self):
+        payload = DEMO.validate_request_payload(
+            {
+                "doctor": {
+                    "name": DOCTOR_NAME,
+                    "hospital": "海军军医大学第一附属医院",
+                    "department": "血管外科",
+                    "title": " ",
+                    "city": "",
+                    "orcid": None,
+                    "official_profile_urls": [],
+                    "literature_identity": None,
+                },
+                "client_reference": "",
+            }
+        )
+        self.assertEqual(
+            payload["doctor"],
+            {
+                "name": DOCTOR_NAME,
+                "hospital": "海军军医大学第一附属医院",
+                "department": "血管外科",
+            },
+        )
+        self.assertNotIn("client_reference", payload)
 
     def test_tracked_request_example_matches_client_contract(self):
         request_file = (

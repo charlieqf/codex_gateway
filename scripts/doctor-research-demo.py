@@ -471,22 +471,18 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
             )
         return load_request_payload(args.request_file)
 
-    if not args.official_profile_urls:
-        raise DemoError(
-            "At least one --official-profile-url is required when "
-            "--request-file is not used."
-        )
-    if len(args.official_profile_urls) > 3:
+    if args.official_profile_urls and len(args.official_profile_urls) > 3:
         raise DemoError("At most three official profile URLs are allowed.")
     doctor: dict[str, Any] = {
         "name": normalized_required(args.doctor_name, "doctor name"),
         "hospital": normalized_required(args.hospital, "hospital"),
         "department": normalized_required(args.department, "department"),
-        "official_profile_urls": [
+    }
+    if args.official_profile_urls:
+        doctor["official_profile_urls"] = [
             validate_official_url(value)
             for value in args.official_profile_urls
-        ],
-    }
+        ]
     for key in ("title", "city", "orcid"):
         value = getattr(args, key)
         if value:
@@ -551,18 +547,42 @@ def load_request_payload(filename: str) -> dict[str, Any]:
 def validate_request_payload(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise DemoError("Request file must contain one JSON object.")
-    assert_only_keys(
-        value,
-        {"doctor", "mode", "language", "options", "client_reference"},
-        "request",
-    )
-    if value.get("mode") != "brief":
+    doctor_fields = {
+        "name",
+        "hospital",
+        "department",
+        "title",
+        "city",
+        "orcid",
+        "official_profile_urls",
+        "literature_identity",
+    }
+    flat_request = "doctor" not in value
+    if flat_request:
+        assert_only_keys(
+            value,
+            doctor_fields
+            | {"mode", "language", "options", "client_reference"},
+            "request",
+        )
+        raw_doctor = {
+            key: value[key] for key in doctor_fields if key in value
+        }
+    else:
+        assert_only_keys(
+            value,
+            {"doctor", "mode", "language", "options", "client_reference"},
+            "request",
+        )
+        raw_doctor = value.get("doctor")
+    mode = value.get("mode", "brief")
+    if mode != "brief":
         raise DemoError("Only mode 'brief' is supported.")
-    if value.get("language") not in ("zh-CN", "en"):
+    language = value.get("language", "zh-CN")
+    if language not in ("zh-CN", "en"):
         raise DemoError("language must be 'zh-CN' or 'en'.")
 
-    raw_doctor = value.get("doctor")
-    raw_options = value.get("options")
+    raw_options = value.get("options", {})
     if not isinstance(raw_doctor, dict) or not isinstance(raw_options, dict):
         raise DemoError("doctor and options must be JSON objects.")
     assert_only_keys(
@@ -595,24 +615,35 @@ def validate_request_payload(value: Any) -> dict[str, Any]:
         ),
     }
     raw_urls = raw_doctor.get("official_profile_urls")
-    if not isinstance(raw_urls, list) or not 1 <= len(raw_urls) <= 3:
-        raise DemoError(
-            "doctor.official_profile_urls must contain one to three URLs."
-        )
-    urls = [validate_official_url(item) for item in raw_urls]
-    if len(set(urls)) != len(urls):
-        raise DemoError("doctor.official_profile_urls contained duplicates.")
-    doctor["official_profile_urls"] = urls
+    if raw_urls not in (None, []):
+        if not isinstance(raw_urls, list) or not 1 <= len(raw_urls) <= 3:
+            raise DemoError(
+                "doctor.official_profile_urls must contain one to three URLs."
+            )
+        urls = [validate_official_url(item) for item in raw_urls]
+        if len(set(urls)) != len(urls):
+            raise DemoError(
+                "doctor.official_profile_urls contained duplicates."
+            )
+        doctor["official_profile_urls"] = urls
 
     for key, maximum in (("title", 100), ("city", 100)):
-        if key in raw_doctor:
+        if key in raw_doctor and raw_doctor[key] not in (None, ""):
+            if (
+                isinstance(raw_doctor[key], str)
+                and not raw_doctor[key].strip()
+            ):
+                continue
             doctor[key] = normalized_text(
                 raw_doctor[key], f"doctor.{key}", 1, maximum
             )
-    if "orcid" in raw_doctor:
-        doctor["orcid"] = validate_orcid(raw_doctor["orcid"])
+    raw_orcid = raw_doctor.get("orcid")
+    if raw_orcid not in (None, "") and not (
+        isinstance(raw_orcid, str) and not raw_orcid.strip()
+    ):
+        doctor["orcid"] = validate_orcid(raw_orcid)
 
-    if "literature_identity" in raw_doctor:
+    if raw_doctor.get("literature_identity") is not None:
         literature = raw_doctor["literature_identity"]
         if not isinstance(literature, dict):
             raise DemoError("doctor.literature_identity must be an object.")
@@ -642,26 +673,33 @@ def validate_request_payload(value: Any) -> dict[str, Any]:
             ),
         }
 
-    publication_years = raw_options.get("publication_years")
+    publication_years = raw_options.get("publication_years", 5)
     if (
         not isinstance(publication_years, int)
         or isinstance(publication_years, bool)
         or not 1 <= publication_years <= 10
     ):
         raise DemoError("options.publication_years must be an integer from 1 to 10.")
-    if raw_options.get("citation_style") != "vancouver":
+    if raw_options.get("citation_style", "vancouver") != "vancouver":
         raise DemoError("Only citation_style 'vancouver' is supported.")
 
     payload: dict[str, Any] = {
         "doctor": doctor,
         "mode": "brief",
-        "language": value["language"],
+        "language": language,
         "options": {
             "publication_years": publication_years,
             "citation_style": "vancouver",
         },
     }
-    if "client_reference" in value:
+    if (
+        "client_reference" in value
+        and value["client_reference"] not in (None, "")
+        and not (
+            isinstance(value["client_reference"], str)
+            and not value["client_reference"].strip()
+        )
+    ):
         payload["client_reference"] = normalized_text(
             value["client_reference"], "client_reference", 1, 128
         )

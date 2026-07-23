@@ -76,6 +76,44 @@ describe("Doctor Research control-plane routes", () => {
     );
   });
 
+  it("fails startup on an invalid official identity registry", async () => {
+    await withTemporaryEnv(
+      {
+        RESEARCH_API_ENABLED: "true",
+        RESEARCH_DB_PATH: ":memory:",
+        RESEARCH_ARTIFACT_ROOT: ".research-test-artifacts",
+        RESEARCH_WEB_SEARCH_PROVIDER: "direct",
+        RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "hospital.example",
+        RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON: JSON.stringify([
+          {
+            name: "Example Doctor",
+            hospital: "Example Hospital",
+            department: "Cardiology",
+            official_profile_urls: [
+              "https://unapproved.example/doctor"
+            ]
+          }
+        ])
+      },
+      async () => {
+        const gateway = createSqliteStore({ path: ":memory:" });
+        try {
+          expect(() =>
+            buildGateway({
+              provider,
+              sessionStore: gateway,
+              logger: false
+            })
+          ).toThrow(
+            "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON entry 1 is invalid."
+          );
+        } finally {
+          gateway.close();
+        }
+      }
+    );
+  });
+
   it("rejects an in-memory production database and database path reuse", async () => {
     await withTemporaryEnv(
       {
@@ -693,7 +731,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.6.76"
+        version: "1.6.77"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1501,7 +1539,7 @@ describe("Doctor Research control-plane routes", () => {
     expect(weakIdentity.json()).toMatchObject({
       error: {
         code: "invalid_request",
-        message: expect.stringContaining("both hospital and department")
+        message: "Invalid Doctor Research request."
       }
     });
     expect(oversizedIdentitySearch.statusCode).toBe(400);
@@ -1553,12 +1591,16 @@ describe("Doctor Research control-plane routes", () => {
       "https://www.shsmu.edu.cn/english/info/1354/4134.htm"
     ]);
 
-    expect(() =>
-      parseDoctorResearchRunRequest(validRequest("Guang Ning"), {
+    const withoutRegisteredSource = parseDoctorResearchRunRequest(
+      validRequest("Guang Ning"),
+      {
         officialSourceMode: "direct",
         officialWebAllowedDomains: ["shsmu.edu.cn"]
-      })
-    ).toThrow("requires at least one allowlisted");
+      }
+    );
+    expect(withoutRegisteredSource.input.doctor.officialProfileUrls).toEqual(
+      []
+    );
 
     const blocked = validRequest("Guang Ning");
     blocked.doctor.official_profile_urls = [
@@ -1581,6 +1623,87 @@ describe("Doctor Research control-plane routes", () => {
         officialWebAllowedDomains: ["shsmu.edu.cn"]
       })
     ).toThrow("not allowed");
+  });
+
+  it("accepts exactly three business fields and applies approved server identity metadata", () => {
+    const minimal = parseDoctorResearchRunRequest({
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科"
+    });
+    expect(minimal.input).toEqual({
+      doctor: {
+        name: "陆清声",
+        hospital: "海军军医大学第一附属医院",
+        department: "血管外科",
+        title: null,
+        city: null,
+        orcid: null,
+        officialProfileUrls: [],
+        literatureIdentity: undefined
+      },
+      mode: "brief",
+      language: "zh-CN",
+      options: {
+        publicationYears: 5,
+        citationStyle: "vancouver"
+      },
+      clientReference: null
+    });
+    const nestedMinimal = parseDoctorResearchRunRequest({
+      doctor: {
+        name: minimal.input.doctor.name,
+        hospital: minimal.input.doctor.hospital,
+        department: minimal.input.doctor.department
+      }
+    });
+    expect(nestedMinimal.requestHash).toBe(minimal.requestHash);
+
+    const officialProfileUrls = [
+      "https://www.carm.org.cn/doctor/lu-qingsheng"
+    ];
+    const literatureIdentity = {
+      name: "Lu Qingsheng",
+      hospital: "Changhai Hospital",
+      department: "Vascular Surgery"
+    };
+    const enriched = parseDoctorResearchRunRequest(
+      {
+        doctor: {
+          name: "陆清声",
+          hospital: "海军军医大学第一附属医院",
+          department: "血管外科",
+          title: " ",
+          city: "",
+          orcid: "",
+          official_profile_urls: [],
+          literature_identity: null
+        },
+        client_reference: ""
+      },
+      {
+        officialSourceMode: "direct",
+        officialWebAllowedDomains: ["carm.org.cn"],
+        officialIdentityRegistry: [
+          {
+            identityFingerprint: minimal.identityFingerprint,
+            officialProfileUrls,
+            literatureIdentity
+          }
+        ]
+      }
+    );
+    expect(enriched.input.doctor).toMatchObject({
+      title: null,
+      city: null,
+      orcid: null,
+      officialProfileUrls,
+      literatureIdentity
+    });
+    expect(enriched.input.clientReference).toBeNull();
+    expect(enriched.identityFingerprint).toBe(
+      minimal.identityFingerprint
+    );
   });
 
   it("accepts only a complete, bounded literature identity", () => {

@@ -52,7 +52,14 @@ export interface ResearchRouteOptions {
   admissionGuard?: (now: Date) => Promise<GatewayError | null>;
   officialSourceMode?: "brave" | "direct";
   officialWebAllowedDomains?: readonly string[];
+  officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   now?: () => Date;
+}
+
+export interface ResearchIdentityRegistryEntry {
+  identityFingerprint: string;
+  officialProfileUrls: readonly string[];
+  literatureIdentity?: ResearchDoctorInput["literatureIdentity"];
 }
 
 interface ParsedResearchRunRequest {
@@ -94,7 +101,9 @@ export function registerResearchRoutes(
         parsed = parseDoctorResearchRunRequest(request.body, {
           officialSourceMode: options.officialSourceMode ?? "brave",
           officialWebAllowedDomains:
-            options.officialWebAllowedDomains ?? []
+            options.officialWebAllowedDomains ?? [],
+          officialIdentityRegistry:
+            options.officialIdentityRegistry ?? []
         });
         idempotencyKey = parseIdempotencyKey(
           request.headers["idempotency-key"]
@@ -751,22 +760,42 @@ export function parseDoctorResearchRunRequest(
   policy: {
     officialSourceMode?: "brave" | "direct";
     officialWebAllowedDomains?: readonly string[];
+    officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   } = {}
 ): ParsedResearchRunRequest {
   if (!isRecord(body)) {
     throw invalidRequest();
   }
-  assertOnlyKeys(body, [
-    "doctor",
-    "mode",
-    "language",
-    "options",
-    "client_reference"
-  ]);
-  if (!isRecord(body.doctor) || !isRecord(body.options)) {
+  const nestedDoctor = body.doctor;
+  const flatRequest = nestedDoctor === undefined;
+  assertOnlyKeys(
+    body,
+    flatRequest
+      ? [
+          "name",
+          "hospital",
+          "department",
+          "title",
+          "city",
+          "orcid",
+          "official_profile_urls",
+          "literature_identity",
+          "mode",
+          "language",
+          "options",
+          "client_reference"
+        ]
+      : ["doctor", "mode", "language", "options", "client_reference"]
+  );
+  const doctorBody = flatRequest ? body : nestedDoctor;
+  if (!isRecord(doctorBody)) {
     throw invalidRequest();
   }
-  assertOnlyKeys(body.doctor, [
+  const optionsBody = body.options ?? {};
+  if (!isRecord(optionsBody)) {
+    throw invalidRequest();
+  }
+  assertOnlyKeys(doctorBody, [
     "name",
     "hospital",
     "department",
@@ -776,46 +805,50 @@ export function parseDoctorResearchRunRequest(
     "official_profile_urls",
     "literature_identity"
   ]);
-  assertOnlyKeys(body.options, ["publication_years", "citation_style"]);
+  assertOnlyKeys(optionsBody, ["publication_years", "citation_style"]);
 
-  const doctor = {
-    name: normalizedText(body.doctor.name, "doctor.name", 2, 100),
-    hospital: optionalText(body.doctor.hospital, "doctor.hospital", 200),
-    department: optionalText(
-      body.doctor.department,
-      "doctor.department",
-      200
-    ),
-    title: optionalText(body.doctor.title, "doctor.title", 100),
-    city: optionalText(body.doctor.city, "doctor.city", 100),
-    orcid: optionalOrcid(body.doctor.orcid),
-    officialProfileUrls: parseOfficialProfileUrls(
-      body.doctor.official_profile_urls,
-      policy.officialWebAllowedDomains ?? []
-    ),
-    literatureIdentity: parseLiteratureIdentity(
-      body.doctor.literature_identity
-    )
+  const name = normalizedText(doctorBody.name, "doctor.name", 2, 100);
+  const hospital = normalizedText(
+    doctorBody.hospital,
+    "doctor.hospital",
+    1,
+    200
+  );
+  const department = normalizedText(
+    doctorBody.department,
+    "doctor.department",
+    1,
+    200
+  );
+  const identityFingerprint = doctorIdentityFingerprint(
+    name,
+    hospital,
+    department
+  );
+  const registeredIdentity = policy.officialIdentityRegistry?.find(
+    (entry) => entry.identityFingerprint === identityFingerprint
+  );
+  const suppliedProfileUrls = parseOfficialProfileUrls(
+    doctorBody.official_profile_urls,
+    policy.officialWebAllowedDomains ?? []
+  );
+  const suppliedLiteratureIdentity = parseLiteratureIdentity(
+    doctorBody.literature_identity
+  );
+  const doctor: ResearchDoctorInput = {
+    name,
+    hospital,
+    department,
+    title: optionalBlankText(doctorBody.title, "doctor.title", 100),
+    city: optionalBlankText(doctorBody.city, "doctor.city", 100),
+    orcid: optionalOrcid(doctorBody.orcid),
+    officialProfileUrls:
+      suppliedProfileUrls.length > 0
+        ? suppliedProfileUrls
+        : [...(registeredIdentity?.officialProfileUrls ?? [])],
+    literatureIdentity:
+      suppliedLiteratureIdentity ?? registeredIdentity?.literatureIdentity
   };
-  if (!doctor.hospital || !doctor.department) {
-    throw new GatewayError({
-      code: "invalid_request",
-      message:
-        "The controlled Doctor Research beta requires both hospital and department identity anchors.",
-      httpStatus: 400
-    });
-  }
-  if (
-    policy.officialSourceMode === "direct" &&
-    doctor.officialProfileUrls.length === 0
-  ) {
-    throw new GatewayError({
-      code: "invalid_request",
-      message:
-        "Direct official-source mode requires at least one allowlisted doctor.official_profile_urls entry.",
-      httpStatus: 400
-    });
-  }
   const officialSearchQuery = [
     `"${doctor.name}"`,
     doctor.hospital,
@@ -851,17 +884,19 @@ export function parseDoctorResearchRunRequest(
       });
     }
   }
-  if (body.mode !== "brief") {
+  const mode = body.mode ?? "brief";
+  if (mode !== "brief") {
     throw new GatewayError({
       code: "invalid_request",
       message: "Only brief Doctor Research runs are currently supported.",
       httpStatus: 400
     });
   }
-  if (body.language !== "zh-CN" && body.language !== "en") {
+  const language = body.language ?? "zh-CN";
+  if (language !== "zh-CN" && language !== "en") {
     throw invalidRequest();
   }
-  const publicationYears = body.options.publication_years;
+  const publicationYears = optionsBody.publication_years ?? 5;
   if (
     typeof publicationYears !== "number" ||
     !Number.isSafeInteger(publicationYears) ||
@@ -870,10 +905,11 @@ export function parseDoctorResearchRunRequest(
   ) {
     throw invalidRequest();
   }
-  if (body.options.citation_style !== "vancouver") {
+  const citationStyle = optionsBody.citation_style ?? "vancouver";
+  if (citationStyle !== "vancouver") {
     throw invalidRequest();
   }
-  const clientReference = optionalText(
+  const clientReference = optionalBlankText(
     body.client_reference,
     "client_reference",
     128
@@ -881,25 +917,18 @@ export function parseDoctorResearchRunRequest(
   const input: DoctorResearchRunInput = {
     doctor,
     mode: "brief",
-    language: body.language,
+    language,
     options: {
       publicationYears,
-      citationStyle: "vancouver"
+      citationStyle
     },
     clientReference
   };
   const canonical = JSON.stringify(input);
-  const identityCanonical = JSON.stringify({
-    name: canonicalIdentityAnchor(doctor.name),
-    hospital: canonicalIdentityAnchor(doctor.hospital),
-    department: canonicalIdentityAnchor(doctor.department)
-  });
   return {
     input,
     requestHash: sha256(canonical),
-    identityFingerprint: sha256(
-      `doctor_identity_input.v1\u0000${identityCanonical}`
-    )
+    identityFingerprint
   };
 }
 
@@ -1287,6 +1316,19 @@ function canonicalIdentityAnchor(value: string): string {
     .trim();
 }
 
+function doctorIdentityFingerprint(
+  name: string,
+  hospital: string,
+  department: string
+): string {
+  const identityCanonical = JSON.stringify({
+    name: canonicalIdentityAnchor(name),
+    hospital: canonicalIdentityAnchor(hospital),
+    department: canonicalIdentityAnchor(department)
+  });
+  return sha256(`doctor_identity_input.v1\u0000${identityCanonical}`);
+}
+
 function hasUnpairedSurrogate(value: string): boolean {
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);
@@ -1318,8 +1360,19 @@ function optionalText(
   return normalizedText(value, field, 1, maximum);
 }
 
+function optionalBlankText(
+  value: unknown,
+  field: string,
+  maximum: number
+): string | null {
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+  return optionalText(value, field, maximum);
+}
+
 function optionalOrcid(value: unknown): string | null {
-  const normalized = optionalText(value, "doctor.orcid", 19);
+  const normalized = optionalBlankText(value, "doctor.orcid", 19);
   if (
     normalized !== null &&
     (!/^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/.test(normalized) ||
@@ -1337,7 +1390,7 @@ function optionalOrcid(value: unknown): string | null {
 function parseLiteratureIdentity(
   value: unknown
 ): ResearchDoctorInput["literatureIdentity"] {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return undefined;
   }
   if (!isRecord(value)) {
@@ -1383,20 +1436,19 @@ function parseOfficialProfileUrls(
   value: unknown,
   allowedDomains: readonly string[]
 ): string[] {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return [];
   }
-  if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    value.length > 3
-  ) {
+  if (!Array.isArray(value) || value.length > 3) {
     throw new GatewayError({
       code: "invalid_request",
       message:
         "doctor.official_profile_urls must contain one to three allowlisted HTTPS URLs.",
       httpStatus: 400
     });
+  }
+  if (value.length === 0) {
+    return [];
   }
   const normalizedDomains = allowedDomains.map((domain) =>
     domain.trim().toLowerCase().replace(/^\./u, "")
