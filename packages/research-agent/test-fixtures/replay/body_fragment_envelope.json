@@ -1,6 +1,6 @@
 {
   "fixture_version": "doctor_research_replay_fixture.v1",
-  "fixture_id": "doctor_research_replay_unbalanced_delimiter",
+  "fixture_id": "doctor_research_replay_body_fragment_envelope",
   "fixture_kind": "synthetic_derived",
   "skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
   "prompt_version": "doctor-research-prompt.v29",
@@ -265,7 +265,7 @@
       "role": "body",
       "response_or_error": {
         "type": "synthetic_response",
-        "variant": "valid"
+        "variant": "body_fragment_envelope"
       }
     },
     {
@@ -276,22 +276,11 @@
         "type": "synthetic_response",
         "variant": "valid"
       }
-    },
-    {
-      "stage": "validate_outputs",
-      "attempt": 4,
-      "role": "peer_review",
-      "response_or_error": {
-        "type": "synthetic_response",
-        "variant": "unbalanced_delimiter"
-      }
     }
   ],
   "expected": {
     "terminal_status": "succeeded",
-    "diagnostics": [
-      "review_unbalanced_delimiter"
-    ],
+    "diagnostics": [],
     "artifact_semantics": {
       "exact_kinds": [
         "profile",
@@ -302,7 +291,7 @@
       "markdown_count": 3,
       "text_count": 1,
       "deterministic_content_sha256": true,
-      "aggregate_content_sha256": "20170b09435f76137ec3c43bdfe66108a6ea474141a0f2087deafe7dae78924f"
+      "aggregate_content_sha256": "eaa8e3f4217ab9425a50f72ccce92d9c110115c5d91179d86cfa7a5667025641"
     }
   }
 }

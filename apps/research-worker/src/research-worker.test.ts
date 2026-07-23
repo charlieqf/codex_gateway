@@ -421,6 +421,10 @@ describe("Research Worker controlled-beta workflow", () => {
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
     [
+      "body-envelope",
+      "deterministic_body_fragment_envelope_normalization_applied"
+    ],
+    [
       "contract-short-abstract",
       "bounded_shard_contract_retry_completed"
     ],
@@ -761,8 +765,15 @@ describe("Research Worker controlled-beta workflow", () => {
         2,
         [
           "```json",
-          JSON.stringify({
-            schema_version: "doctor_research_body_fragment.v1",
+          retryKind === "body-envelope"
+            ? JSON.stringify({
+                schema_version: "doctor_research_body_fragment.v1",
+                review: { markdown: skillBodyFragment(20) },
+                predicted_questions: initialBodyQuestions,
+                answers: initialBodyAnswers
+              })
+            : JSON.stringify({
+                schema_version: "doctor_research_body_fragment.v1",
               markdown: [
                 retryKind === "peer-convergence"
                   ? peerConvergenceBody
@@ -793,7 +804,7 @@ describe("Research Worker controlled-beta workflow", () => {
             ].join("\n\n"),
             predicted_questions: initialBodyQuestions,
             answers: initialBodyAnswers
-          }),
+              }),
           "```"
         ].join("\n")
       ],
@@ -1726,6 +1737,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "peer-convergence" ||
       retryKind === "section-repair" ||
       retryKind === "correction-timeout" ||
+      retryKind === "body-envelope" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
@@ -2422,6 +2434,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-contract" ||
         retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
+        retryKind === "body-envelope" ||
         retryKind === "section-repair" ||
         retryKind === "correction-timeout"
           ? "peer_review_model_attempted"

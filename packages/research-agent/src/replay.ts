@@ -34,6 +34,7 @@ export type DoctorResearchReplaySyntheticVariant =
   | "unsupported_numeric"
   | "missing_citation"
   | "peer_patch"
+  | "body_fragment_envelope"
   | "shard_json_failure";
 
 export interface DoctorResearchReplayFixture {
@@ -276,7 +277,16 @@ function syntheticReplayResponse(
   if (role === "body") {
     const body = syntheticBodyFragment(evidence);
     body.markdown = mutateBodyMarkdown(body.markdown, variant);
-    return JSON.stringify(body);
+    return JSON.stringify(
+      variant === "body_fragment_envelope"
+        ? {
+            schema_version: "doctor_research_body_fragment.v1",
+            review: { markdown: body.markdown },
+            predicted_questions: body.predicted_questions,
+            answers: body.answers
+          }
+        : body
+    );
   }
   const closing = syntheticClosingFragment();
   if (variant === "qa_after_conclusion") {

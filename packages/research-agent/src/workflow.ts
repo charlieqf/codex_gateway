@@ -1299,6 +1299,7 @@ export function replayDoctorResearchSynthesis(input: {
     if (!foundation || !body || !closing) {
       return fail(fragmentDiagnostics);
     }
+    warnings.push(...body.normalizationWarnings);
     const normalizedFoundation =
       normalizeNearMinimumFoundationAbstract(
         foundation,
@@ -2488,6 +2489,7 @@ interface BodyFragment {
   markdown: string;
   predicted_questions: DoctorResearchModelDraft["predicted_questions"];
   answers: DoctorResearchModelDraft["answers"];
+  normalizationWarnings: string[];
 }
 
 interface QaFragment {
@@ -2975,10 +2977,12 @@ async function generateAndValidateShardedModelOutput(
       "Research fragment contract state is inconsistent after validation."
     );
   }
-  const shardSkillNormalizationWarnings: string[] =
-    deterministicClosingTransportFallbackApplied
+  const shardSkillNormalizationWarnings: string[] = [
+    ...(deterministicClosingTransportFallbackApplied
       ? ["deterministic_closing_transport_fallback_applied"]
-      : [];
+      : []),
+    ...middleFragment.normalizationWarnings
+  ];
   const normalizedFoundation =
     normalizeNearMinimumFoundationAbstract(
       foundationFragment,
@@ -3104,6 +3108,11 @@ async function generateAndValidateShardedModelOutput(
         ["fragment_contract_error"]
       );
       return null;
+    }
+    for (const warning of middleFragment.normalizationWarnings) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
     }
     const normalizedRetryFoundation =
       normalizeNearMinimumFoundationAbstract(
@@ -4974,15 +4983,46 @@ function parseFoundationFragment(
 
 function parseBodyFragment(text: string): BodyFragment | null {
   const parsed = parseStrictFragmentJson(text);
-  if (!parsed.ok) {
+  if (!parsed.ok || !isJsonRecord(parsed.value)) {
     return null;
   }
   const value = parsed.value;
+  const direct = bodyFragmentFields(value);
+  if (direct) {
+    return {
+      schema_version: "doctor_research_body_fragment.v1",
+      ...direct,
+      normalizationWarnings: []
+    };
+  }
+
+  // Normalize only conventional, unambiguous envelopes. This does not
+  // repair content: the fragment Skill rules and the complete output
+  // validator still run before any artifact can be published.
+  const nestedRecords = ["body", "body_fragment", "review"]
+    .map((key) => value[key])
+    .filter(isJsonRecord);
+  const completeNested = nestedRecords
+    .map(bodyFragmentFields)
+    .filter((candidate): candidate is BodyFragmentFields => candidate !== null);
+  if (completeNested.length === 1) {
+    return {
+      schema_version: "doctor_research_body_fragment.v1",
+      ...completeNested[0]!,
+      normalizationWarnings: [
+        "deterministic_body_fragment_envelope_normalization_applied"
+      ]
+    };
+  }
+
+  // A complete-draft-shaped response commonly leaves questions and answers
+  // at the top level while nesting markdown under review. Accept exactly one
+  // such markdown source and reject ambiguous envelopes.
+  const nestedMarkdown = nestedRecords
+    .map((record) => record.markdown)
+    .filter(isUsableBodyFragmentMarkdown);
   if (
-    !isJsonRecord(value) ||
-    typeof value.markdown !== "string" ||
-    value.markdown.trim().length === 0 ||
-    value.markdown.length > 100_000 ||
+    nestedMarkdown.length !== 1 ||
     !Array.isArray(value.predicted_questions) ||
     !Array.isArray(value.answers)
   ) {
@@ -4990,12 +5030,50 @@ function parseBodyFragment(text: string): BodyFragment | null {
   }
   return {
     schema_version: "doctor_research_body_fragment.v1",
+    markdown: nestedMarkdown[0]!,
+    predicted_questions:
+      value.predicted_questions as DoctorResearchModelDraft["predicted_questions"],
+    answers:
+      value.answers as DoctorResearchModelDraft["answers"],
+    normalizationWarnings: [
+      "deterministic_body_fragment_envelope_normalization_applied"
+    ]
+  };
+}
+
+interface BodyFragmentFields {
+  markdown: string;
+  predicted_questions: DoctorResearchModelDraft["predicted_questions"];
+  answers: DoctorResearchModelDraft["answers"];
+}
+
+function bodyFragmentFields(
+  value: Record<string, unknown>
+): BodyFragmentFields | null {
+  if (
+    !isUsableBodyFragmentMarkdown(value.markdown) ||
+    !Array.isArray(value.predicted_questions) ||
+    !Array.isArray(value.answers)
+  ) {
+    return null;
+  }
+  return {
     markdown: value.markdown,
     predicted_questions:
       value.predicted_questions as DoctorResearchModelDraft["predicted_questions"],
     answers:
       value.answers as DoctorResearchModelDraft["answers"]
   };
+}
+
+function isUsableBodyFragmentMarkdown(
+  value: unknown
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= 100_000
+  );
 }
 
 function parseQaFragment(text: string): QaFragment | null {

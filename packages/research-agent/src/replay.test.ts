@@ -172,6 +172,33 @@ describe("Doctor Research offline model-response replay", () => {
     );
     expect(result.artifacts).toHaveLength(4);
   });
+
+  it("normalizes an unambiguous body envelope and preserves artifact hashes", () => {
+    const fixture = fixtures.find(
+      (item) =>
+        item.fixture_id ===
+        "doctor_research_replay_body_fragment_envelope"
+    )!;
+    const first = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+    const second = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(first.terminalStatus).toBe("succeeded");
+    expect(first.diagnostics).toEqual([]);
+    expect(first.warnings).toContain(
+      "deterministic_body_fragment_envelope_normalization_applied"
+    );
+    expect(first.artifacts).toHaveLength(4);
+    expect(first.artifactContentSha256).toBe(
+      fixture.expected.artifact_semantics.aggregate_content_sha256
+    );
+    expect(second).toEqual(first);
+  });
 });
 
 function loadReplayFixtures(): DoctorResearchReplayFixture[] {
