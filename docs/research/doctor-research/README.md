@@ -453,7 +453,7 @@ Example:
 
 ```powershell
 Copy-Item docs/research/doctor-research/request.example.json .\request.json
-# Edit request.json with verified identity values and a stable client_reference.
+# Edit only the required name, hospital, and department values.
 python scripts/doctor-research-demo.py `
   --request-file ".\request.json" `
   --api-key-file "C:\private\doctor-research.key" `

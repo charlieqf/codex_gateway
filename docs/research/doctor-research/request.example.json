@@ -1,25 +1,5 @@
 {
-  "doctor": {
-    "name": "陆清声",
-    "hospital": "海军军医大学第一附属医院",
-    "department": "血管外科",
-    "title": "教授、主任医师",
-    "city": "上海",
-    "official_profile_urls": [
-      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html",
-      "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml"
-    ],
-    "literature_identity": {
-      "name": "Lu Qingsheng",
-      "hospital": "Changhai Hospital",
-      "department": "Vascular Surgery"
-    }
-  },
-  "mode": "brief",
-  "language": "zh-CN",
-  "options": {
-    "publication_years": 5,
-    "citation_style": "vancouver"
-  },
-  "client_reference": "replace-with-stable-client-reference"
+  "name": "陆清声",
+  "hospital": "海军军医大学第一附属医院",
+  "department": "血管外科"
 }

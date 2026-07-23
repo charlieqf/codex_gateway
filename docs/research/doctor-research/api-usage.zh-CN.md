@@ -50,48 +50,40 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "doctor": {
-    "name": "陆清声",
-    "hospital": "海军军医大学第一附属医院",
-    "department": "血管外科",
-    "title": "教授、主任医师",
-    "city": "上海",
-    "official_profile_urls": [
-      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html"
-    ],
-    "literature_identity": {
-      "name": "Lu Qingsheng",
-      "hospital": "Changhai Hospital",
-      "department": "Vascular Surgery"
-    }
-  },
-  "mode": "brief",
-  "language": "zh-CN",
-  "options": {
-    "publication_years": 5,
-    "citation_style": "vancouver"
-  },
-  "client_reference": "his-case-20260722-001"
+  "name": "陆清声",
+  "hospital": "海军军医大学第一附属医院",
+  "department": "血管外科"
 }
 ```
+
+请求正文唯一必填的业务字段就是以上三项。服务端将它们规范化为内部 `doctor` 对象，并
+默认使用 `mode=brief`、`language=zh-CN`、最近 5 年文献和 Vancouver 引用格式。旧版
+嵌套 `doctor` 请求继续兼容；调用方无需为了默认值发送空字符串、`null` 或空数组。
 
 字段约束如下。
 
 | 字段 | 要求 |
 | --- | --- |
-| `doctor.name` | 必填，2 至 100 个字符 |
-| `doctor.hospital` / `doctor.department` | 受限试用均必填，各不超过 200 个字符 |
-| `doctor.title` / `doctor.city` | 可选，各不超过 100 个字符 |
-| `doctor.orcid` | 可选，必须是校验位正确的标准 ORCID；仅在部署已批准 ORCID 访问时使用 |
-| `doctor.official_profile_urls` | 生产直连模式必填，1 至 3 个互不重复、allowlist 内、无凭据和 fragment 的 HTTPS URL |
-| `doctor.literature_identity` | 可选；如使用，`name`、`hospital`、`department` 三项必须一起提供并已核实 |
-| `mode` | 当前只能是 `brief` |
-| `language` | `zh-CN` 或 `en` |
-| `options.publication_years` | 1 至 10 的整数 |
-| `options.citation_style` | 当前只能是 `vancouver` |
+| `name` / `doctor.name` | 必填，2 至 100 个字符 |
+| `hospital` / `doctor.hospital` | 必填，1 至 200 个字符 |
+| `department` / `doctor.department` | 必填，1 至 200 个字符 |
+| `doctor.title` / `doctor.city` | 可选，各不超过 100 个字符；`null`、空字符串和纯空白按未提供处理 |
+| `doctor.orcid` | 可选；空值按未提供处理，非空值必须是校验位正确的标准 ORCID |
+| `doctor.official_profile_urls` | 可选增强信息；1 至 3 个互不重复、allowlist 内、无凭据和 fragment 的 HTTPS URL |
+| `doctor.literature_identity` | 可选增强信息；非空时 `name`、`hospital`、`department` 三项必须一起提供并已核实 |
+| `mode` | 可选，默认且当前只能是 `brief` |
+| `language` | 可选，默认 `zh-CN`，也可为 `en` |
+| `options.publication_years` | 可选，默认 5；提供时必须是 1 至 10 的整数 |
+| `options.citation_style` | 可选，默认且当前只能是 `vancouver` |
 | `client_reference` | 可选，不超过 128 个字符；建议使用调用方稳定且不含敏感信息的病例引用 |
 
-服务会拒绝未声明字段，字段名必须严格使用上述 snake_case。完整无密钥示例见
+生产 `direct` 模式会按姓名、医院、科室的规范化精确组合，从服务端已审核身份注册表
+加载官方主页和 PubMed 英文身份；注册表中的 URL 仍必须位于官方域名 allowlist，并继续
+经过身份、医院、科室、研究方向和文献作者归属硬验证。三字段只减少用户输入，不降低
+身份门槛。尚未注册且调用方又未提供增强身份信息的医生可能终止为
+`identity_not_resolved`，不会生成未经核实的四文件。
+
+服务会拒绝未声明字段，字段名必须严格使用上述 snake_case。最小无密钥示例见
 [`request.example.json`](request.example.json)。
 
 ### 幂等与重试
@@ -193,7 +185,7 @@ Content-Type: application/json
 
 ```powershell
 Copy-Item docs/research/doctor-research/request.example.json .\request.json
-# 编辑 request.json，使用已核实身份和稳定 client_reference。
+# 编辑 request.json 中的姓名、医院和科室。
 python scripts/doctor-research-demo.py `
   --request-file .\request.json `
   --api-key-file C:\private\doctor-research.key `
