@@ -240,8 +240,11 @@ try {
   $subjectId = [string]$create.subject.id
   $createdSubjectThisRun = ($create.created -eq $true -and $create.idempotent_replay -ne $true)
 
-  $periodStart = [DateTimeOffset]::UtcNow
-  $periodEnd = $periodStart.AddDays($EntitlementDays)
+  # Allow bounded client/server clock skew so the entitlement is already
+  # active when the immediate post-grant validation response is evaluated.
+  $periodNow = [DateTimeOffset]::UtcNow
+  $periodStart = $periodNow.AddMinutes(-1)
+  $periodEnd = $periodNow.AddDays($EntitlementDays)
   $entitlementHeaders = $headers.Clone()
   $entitlementHeaders["Idempotency-Key"] = "$Provider`:$ExternalUserId`:purchase:$stamp"
   $entitlementBody = [ordered]@{
