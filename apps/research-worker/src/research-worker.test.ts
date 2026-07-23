@@ -447,6 +447,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "peer_review_contract_unusable_deterministic_fallback"
     ],
     [
+      "peer-contract-conclusion-safety",
+      "peer_review_fallback_reallocated_to_conclusion_repair"
+    ],
+    [
       "peer-timeout",
       "peer_review_model_unavailable_deterministic_fallback"
     ],
@@ -592,6 +596,8 @@ describe("Research Worker controlled-beta workflow", () => {
           "该结论错误写入999999例未经所引摘要支持的确定性结果，并据此提出普遍治疗建议"
       ).join("。")}。[1]`
     ].join("\n\n");
+    const peerFallbackUnsafeConclusionClosingFragment =
+      transportUnsafeConclusionClosingFragment.replace(/\[1\]$/u, "");
     const closedConclusionCorrectionFragment =
       `## 结论\n\n${Array.from(
         { length: 8 },
@@ -793,7 +799,14 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         3,
-        retryKind === "transport-conclusion-safety"
+        retryKind === "peer-contract-conclusion-safety"
+          ? JSON.stringify({
+              schema_version:
+                "doctor_research_review_fragment.v1",
+              markdown:
+                peerFallbackUnsafeConclusionClosingFragment
+            })
+        : retryKind === "transport-conclusion-safety"
           ? JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
@@ -1359,6 +1372,7 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           if (
             (retryKind === "transport-conclusion-safety" ||
+              retryKind === "peer-contract-conclusion-safety" ||
               retryKind === "skill-conclusion-safety") &&
             modelInput.attempt === 5 &&
             modelInput.stage === "synthesize_review"
@@ -1594,7 +1608,8 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           return {
             text:
-              retryKind === "peer-contract"
+              retryKind === "peer-contract" ||
+              retryKind === "peer-contract-conclusion-safety"
                 ? "not a peer-review decision"
                 : JSON.stringify({
                     schema_version:
@@ -1865,6 +1880,7 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "transport-conclusion-safety" ||
+      retryKind === "peer-contract-conclusion-safety" ||
       retryKind === "skill-conclusion-safety"
     ) {
       expect(retryPrompt).toContain(
@@ -2355,6 +2371,24 @@ describe("Research Worker controlled-beta workflow", () => {
         "peer_review_model_completed"
       );
     }
+    if (retryKind === "peer-contract-conclusion-safety") {
+      expect(result.review.markdown).toContain(
+        "现有公开摘要支持对研究对象"
+      );
+      expect(result.review.markdown).not.toContain("999999");
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "peer_review_model_attempted",
+          "peer_review_contract_unusable_deterministic_fallback",
+          "peer_review_fallback_reallocated_to_conclusion_repair",
+          "bounded_conclusion_evidence_closure_correction_completed",
+          "deterministic_peer_review_self_check_completed"
+        ])
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_completed"
+      );
+    }
     if (retryKind === "contract-short-abstract") {
       expect(result.quality.warnings).toContain(
         "deterministic_abstract_closed_introduction_supplement_applied"
@@ -2386,6 +2420,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "citation-closure" ||
         retryKind === "section-closure" ||
         retryKind === "peer-contract" ||
+        retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
         retryKind === "section-repair" ||
         retryKind === "correction-timeout"

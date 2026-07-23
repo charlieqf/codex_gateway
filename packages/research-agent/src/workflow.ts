@@ -3956,6 +3956,109 @@ async function generateAndValidateShardedModelOutput(
       outputValidationPolicy,
       { deterministicSafetyNormalization: true }
     );
+    const fallbackErrorCodes = validation.ok
+      ? []
+      : [...new Set(validation.errorCodes)];
+    const fallbackConclusionCorrectionRequired =
+      peerReviewAttempt === 4 &&
+      !validation.ok &&
+      fallbackErrorCodes.length === 1 &&
+      fallbackErrorCodes[0] === "review_conclusion_minimum";
+    if (fallbackConclusionCorrectionRequired) {
+      const correctedConclusionResponse = await context.generateModel({
+        stage: "synthesize_review",
+        attempt: 5,
+        maximumDurationMs: 120_000,
+        system: doctorResearchFragmentSystemPolicy,
+        prompt: buildConclusionCorrectionPrompt({
+          run: context.run,
+          evidence: foundationEvidence,
+          medicalSkillBundle
+        })
+      });
+      const correctedConclusionFragment = parseReviewFragment(
+        correctedConclusionResponse.text
+      );
+      const correctionErrors = correctedConclusionFragment
+        ? validateConclusionCorrectionFragment(
+            correctedConclusionFragment,
+            context.run.language
+          )
+        : ["conclusion_fragment_contract_error"];
+      const correctedClosingMarkdown = correctedConclusionFragment
+        ? replaceSingleSkillReviewSection(
+            acceptedClosingFragment.markdown,
+            correctedConclusionFragment.markdown,
+            "conclusion"
+          )
+        : null;
+      if (
+        !correctedConclusionFragment ||
+        correctionErrors.length > 0 ||
+        correctedClosingMarkdown === null
+      ) {
+        const reportedErrors =
+          correctionErrors.length > 0
+            ? correctionErrors
+            : ["conclusion_fragment_replacement_error"];
+        context.reportValidationFailure(
+          "synthesize_review",
+          5,
+          reportedErrors.map((error) => error.split(":", 1)[0]!),
+          reportedErrors
+        );
+        return null;
+      }
+      acceptedClosingFragment = {
+        ...acceptedClosingFragment,
+        markdown: correctedClosingMarkdown
+      };
+      assembledDraft = assembleDraft();
+      const correctedRawValidation = validateGeneratedOutput(
+        JSON.stringify(assembledDraft),
+        context.run,
+        identity,
+        evidence,
+        outputValidationPolicy
+      );
+      const deterministicSelfReview = correctedRawValidation.ok
+        ? correctedRawValidation
+        : validateGeneratedOutput(
+            JSON.stringify(assembledDraft),
+            context.run,
+            identity,
+            evidence,
+            outputValidationPolicy,
+            { deterministicSafetyNormalization: true }
+          );
+      if (!deterministicSelfReview.ok) {
+        context.reportValidationFailure(
+          "validate_outputs",
+          5,
+          deterministicSelfReview.errorCodes,
+          deterministicSelfReview.errors
+        );
+        return null;
+      }
+      return {
+        output: deterministicSelfReview.value,
+        warnings: [
+          ...deterministicSelfReview.warnings,
+          "sharded_synthesis_completed",
+          "deterministic_profile_projection_completed",
+          "deterministic_core_evidence_projection_completed",
+          "peer_review_model_attempted",
+          peerReviewFallbackWarning,
+          "peer_review_fallback_reallocated_to_conclusion_repair",
+          "bounded_conclusion_evidence_closure_correction_completed",
+          "deterministic_peer_review_self_check_completed",
+          ...shardSkillNormalizationWarnings,
+          ...(shardAdmissionGraceElapsed
+            ? ["bounded_initial_shard_admission_grace_elapsed"]
+            : [])
+        ]
+      };
+    }
     if (!validation.ok) {
       context.reportValidationFailure(
         "validate_outputs",
