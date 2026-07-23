@@ -225,6 +225,14 @@ Last updated: 2026-07-23
   Do not probe an invented public Research readiness route; use container
   health/admission checks or the authenticated internal Worker readiness route
   defined by the current runbook.
+- Optional Doctor Research UI fields commonly arrive as `""`, whitespace, or
+  `null`; normalize those representations to omitted before validating bounded
+  optional text. Do not apply that rule to the required name/hospital/department
+  identity anchors. In direct-source mode, a three-field request also needs a
+  startup-validated server registry keyed by the normalized exact identity
+  triple. Registry URLs must still pass the official-domain allowlist and the
+  normal identity/evidence workflow; unregistered identities fail closed rather
+  than being guessed from a translated name.
 
 ## Known Pitfalls
 

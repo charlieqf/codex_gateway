@@ -15,7 +15,7 @@ API 使用说明或生产操作手册。
 
 ## 一、结论摘要
 
-Doctor Research API 的 `1.6.76` 已部署到 Azure VM 的公网生产入口。
+Doctor Research API 的 `1.6.77` 已部署到 Azure VM 的公网生产入口。
 取消、遥测、回放、规则统一、定向修复、受控软完整度发布线、模型片段有界归一化和
 四文件提交链路的工程整改已经完成。当前工程 allowlist 的同一病例连续 5 次真实公网
 E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基础设施健康。医学团队尚未
@@ -28,17 +28,17 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 | --- | --- | --- |
 | 部署目标 | Azure VM，公网入口为 `https://gw.instmarket.com.au` | 正确；CN1 不是 Doctor Research 部署目标，且本轮未改动 CN1 |
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
-| 当前版本 | commit `638e51df5862b61516a6b726c273dc96fbed03f4`，执行器 `1.6.76` | 已上线 |
+| 当前版本 | commit `c439848eb6095482e93461aba2362dee010174de`，执行器 `1.6.77` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 587 个 Vitest、31 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
+| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 589 个 Vitest、33 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
-| 真实公网 E2E | `1.6.76` 同一工程 allowlist 病例连续 5 次全部成功，耗时 166.765–378.099 秒 | 5/5 满足工程稳定性与 10 分钟墙钟目标；病例代表性仍待医学团队确认 |
-| 当前四文件 | 5 个成功 run 均恰好产生 3 MD + 1 TXT，下载大小、manifest 和 SHA-256 全部一致 | 自动化四文件契约通过，仍待医学团队人工内容验收 |
+| 真实公网 E2E | `1.6.76` 同一工程病例连续 5 次成功；`1.6.77` 又以顶层恰好三字段成功 1 次，耗时 320.668 秒 | 三字段兼容和 10 分钟墙钟目标通过；病例代表性仍待医学团队确认 |
+| 当前四文件 | 最新三字段 run 恰好产生 3 MD + 1 TXT，下载大小、manifest、SHA-256 和五行 TXT 全部一致 | 自动化四文件契约通过，仍待医学团队人工内容验收 |
 | 取消传播 | `/v1/chat/completions` 与 `/v1/responses` 非流式生产断开均到达 provider，记录 `cancel_requested=1`、`cancel_observed=1` | P0 已完成；故障注入覆盖无同分片新旧调用重叠 |
 | 发布范围 | 仅允许命名、可追踪的少量用户试用 | 暂不扩大为普遍可用 |
 
-今天已经完成的是“把整改闭环部署到 Azure，并用 5 次连续真实运行证明每次都在 10 分钟
-内成功且原子发布完整四文件”。尚未完成的是医学团队确认病例代表性、审核成功四文件，
+今天已经完成的是“把整改闭环部署到 Azure，用 5 次连续真实运行证明稳定性，并进一步
+验证用户只提交姓名、医院和科室也能在 10 分钟内原子发布完整四文件”。尚未完成的是医学团队确认病例代表性、审核成功四文件，
 以及决定当前受控软完整度发布线是否可成为长期业务政策。多个独立硬错误后的额外改写
 仍保持 fail-closed，不作为提高成功率的手段。
 
@@ -93,8 +93,8 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 - 目标环境：Azure VM
 - Compose project：`codex_gateway_test`
 - 发布目录：
-  `/home/qian/codex-gateway-release-638e51d-20260723T012554Z`
-- 执行器：`doctor-research-skill.1.6.76`
+  `/home/qian/codex-gateway-release-c439848-20260723T094725Z`
+- 执行器：`doctor-research-skill.1.6.77`
 - Prompt：`v29`
 - Validation：`v41`
 - Workflow：`doctor_research_workflow.v69`
@@ -102,20 +102,20 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 - Research LLM Gateway、Worker 和 maintenance 均不发布宿主机端口。
 
 最终检查时四个容器均为 healthy、重启次数均为 0。公网和 loopback 健康检查通过，
-Worker 报告 `doctor-research-skill.1.6.76`，内部 LLM Gateway 截止为 175000 ms。
+Worker 报告 `doctor-research-skill.1.6.77`，内部 LLM Gateway 截止为 175000 ms。
 
 ### 3.2 备份与磁盘
 
 当前发布回滚边界使用以下经过完整性、外键和 SHA-256 校验的三数据库备份：
 
 ```text
-/home/qian/codex-gateway-backups/ff6980d/20260723T013104Z
+/home/qian/codex-gateway-backups/c439848/20260723T094725Z
 ```
 
 三份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；部署前的
-`ff6980d` 四个镜像已打上 `rollback-ff6980d-20260723T013104Z` 标签。数据库哈希分别为
-Gateway `899f8a4e...e4b28b5`、client-events `cfe46004...29c33aa`、Research
-`f971b317...f73c9e9`，完整值见生产 runbook。该目录与镜像标签构成 `1.6.75` 的即时
+`c439848` 四个部署前镜像已打上 `rollback-c439848-20260723T094725Z` 标签。数据库哈希分别为
+Gateway `7596c7d5...a90938`、client-events `ce0dbd68...593e9`、Research
+`57062e3b...200f7`，完整值见生产 runbook。该目录与镜像标签构成 `1.6.76` 的即时
 回滚边界；当前状态卷和唯一有效备份均未删除。
 
 ### 3.3 当前可以对用户承诺什么
@@ -127,13 +127,13 @@ Gateway `899f8a4e...e4b28b5`、client-events `cfe46004...29c33aa`、Research
 - 失败时不会发布半成品四文件；
 - 身份、引用、数值、证据等级和文件哈希门槛仍然有效；
 - 可以向少量命名用户开放受限试用并跟踪每次 run。
-- 当前版本已提供完整中文 API 调用/注意事项、JSON 请求样例和经过连续五次公网验证的
+- 当前版本已提供完整中文 API 调用/注意事项、只含三个必填业务字段的 JSON 请求样例和
   Python `--request-file` 客户端。
 
 暂时不能承诺：
 
 - 所有医生、所有上游状态下的每次请求都一定成功；当前证据是单一工程病例连续 5/5；
-- `1.6.76` 生成的 3 MD + 1 TXT 已经完成人工医学内容验收；
+- `1.6.77` 生成的 3 MD + 1 TXT 已经完成人工医学内容验收；
 - 可以无风险扩大到普通用户或高并发流量。
 
 ## 四、最近验证过程和结果
@@ -163,6 +163,7 @@ Gateway `899f8a4e...e4b28b5`、client-events `cfe46004...29c33aa`、Research
 | `1.6.76 @ 638e51d` / `drr_b789d7d82b974872a59d3b784e9b1d6d` | 成功，321.301 秒 | 严格 Python 公网 E2E；四文件一致 |
 | `1.6.76 @ 638e51d` / `drr_0ac3161cfb0d47a38194e2b714d45726` | 成功，344.805 秒 | provider 截止后确认取消，下一 attempt 严格顺序启动；四文件一致 |
 | `1.6.76 @ 638e51d` / `drr_38ff2d2cfadd4bbb9043551acc29d762` | 成功，166.765 秒 | 严格 Python 公网 E2E；四文件一致 |
+| `1.6.77 @ c439848` / `drr_1e696a86a85849278d4023b255197967` | 成功，320.668 秒 | 请求正文顶层恰好 `name/hospital/department`；服务端审核身份注册表补足闭合来源和英文文献身份；15/15 阶段、3 MD + 1 TXT、五行 TXT、manifest、大小和 SHA-256 全部通过 |
 
 发布前连续五次和发布后精确 runtime E2E 均使用当前工程 allowlist 的同一 smoke 病例；医学团队仍需明确确认它是否可作为
 正式代表性病例，并补充其要求覆盖的其他病例。该组数据可作为工程基线，不能替代医学
@@ -554,7 +555,7 @@ warning 的产物。该数据支持保留当前发布线，不支持在缺少医
 
 ### 阶段 A：立即保持的生产边界
 
-1. 保持 `1.6.76` 受限试用，不扩大用户范围。
+1. 保持 `1.6.77` 受限试用，不扩大用户范围。
 2. 保持 570 秒硬截止、Worker concurrency 1 和 fail-closed artifact 发布。
 3. 对用户明确展示失败类型和是否建议稍后重试。
 4. 冻结新的边缘句式补丁、盲目模型切换和未经医学团队确认的门槛放宽。

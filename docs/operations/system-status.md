@@ -12,13 +12,13 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.76` is deployed to the Azure
+- Doctor Research engineering remediation `1.6.77` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `638e51df5862b61516a6b726c273dc96fbed03f4` from clean release
-    `/home/qian/codex-gateway-release-638e51d-20260723T012554Z`;
-  - local and Azure gates passed build, 40 files/587 Vitest tests, 31 Python
+  - runtime commit `c439848eb6095482e93461aba2362dee010174de` from clean release
+    `/home/qian/codex-gateway-release-c439848-20260723T094725Z`;
+  - local and Azure gates passed build, 40 files/589 Vitest tests, 33 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
-  - execution `1.6.76`, prompt `v29`, validation `v41`, workflow `v69`; the
+  - execution `1.6.77`, prompt `v29`, validation `v41`, workflow `v69`; the
     deployed medical bundle SHA-256 remains
     `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
   - cancellation, full Worker/Gateway/provider timelines, 15-fixture/21-test
@@ -27,6 +27,11 @@ Completed:
   - the same engineering-allowlisted case passed five consecutive strict public
     HTTPS Python E2Es in 166.765–378.099 seconds. Each returned exactly 3 MD +
     1 TXT and passed filename, manifest, size and SHA-256 verification;
+  - the deployed `1.6.77` additionally accepted a request containing exactly
+    top-level `name`, `hospital`, and `department`. Server-reviewed identity
+    metadata was applied and `drr_1e696a86a85849278d4023b255197967` succeeded
+    in 320.668 seconds with 15/15 stages, 3 MD + 1 five-line TXT, and complete
+    manifest/size/SHA-256 verification;
   - two of those runs exercised the 175-second provider deadline. Cancellation
     was requested and observed, the replacement attempts began only after the
     old calls terminated, and no same-session provider overlap was found;
@@ -36,10 +41,11 @@ Completed:
     `passed_with_warnings`;
   - final service verification found all four containers healthy with zero
     restarts, only `127.0.0.1:18787` published, public/loopback health ready,
-    and no active test credential, entitlement, run, reservation or temp file;
+    and no active run, unfinished reservation or temporary validation file. The
+    requested named user test credential remains active for handoff;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/ff6980d/20260723T013104Z`, with image tags
-    `rollback-ff6980d-20260723T013104Z` and all three databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/c439848/20260723T094725Z`, with image tags
+    `rollback-c439848-20260723T094725Z` and all three databases integrity/FK/hash
     checked;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,
