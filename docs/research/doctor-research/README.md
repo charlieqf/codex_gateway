@@ -55,24 +55,21 @@ The request field remains `"mode": "brief"` for v1 wire compatibility. Normal
 execution targets the medical Skill's current 6000-character review and
 40-reference search target: production searches up to 40 verified field
 references and reports the actual count and evidence boundary when fewer
-relevant verified records are available. The only production degradation is
-documented below: after two successful core synthesis fragments and two
-transport failures for the closing fragment, the service may publish a
-complete, explicitly warned result with a 5000-character aggregate floor.
+relevant verified records are available. The controlled-trial release policy
+is documented below: medical authoring targets remain unchanged, while pure
+length completeness has a lower, versioned release floor. Results below target
+but above that floor are explicitly warned; all identity, evidence, safety and
+artifact gates remain fail-closed.
 
 The current Azure release is commit
-`a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb`, execution `1.6.72`, prompt `v28`,
-validation `v39` and workflow `doctor_research_workflow.v65`. Five consecutive
-same-case public E2E runs all reached terminal state in under ten minutes;
-three produced hash-verified 3 MD + 1 TXT results and two failed closed with
-zero artifacts. The service therefore remains `controlled-trial` until the
-medical team completes manual content acceptance and agrees on the required
-success-rate and soft-completeness policy.
-
-An additional post-deploy E2E on exact runtime commit `a77cf01`,
-`drr_eab9f11f07484434aff46074bfd567e0`, succeeded in 227.733 seconds with the
-same exact four-file and manifest/hash checks. It is an engineering smoke case,
-not a substitute for a medical-team-approved representative case.
+`638e51df5862b61516a6b726c273dc96fbed03f4`, execution `1.6.76`, prompt `v29`,
+validation `v41` and workflow `doctor_research_workflow.v69`. Five consecutive
+same-case public E2E runs succeeded in 166.765–378.099 seconds. Every run
+returned exactly 3 MD + 1 TXT and passed independent manifest, size and
+SHA-256 checks. Provider deadline/cancellation telemetry was observed without
+same-session old/new call overlap. The case is engineering-allowlisted; it is
+not a substitute for a medical-team-approved representative case or manual
+content acceptance. The service therefore remains `controlled-trial`.
 
 ## Contents
 
@@ -96,7 +93,7 @@ not a substitute for a medical-team-approved representative case.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.72` together with the
+The production Worker uses frozen execution contract `1.6.76` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -107,7 +104,7 @@ examples, install commands, optional visual/PDF deliverables, external-tool
 instructions, resources, dependencies, and assets outside this four-text-file
 API. The full bundle hash and derived projection hash are both recorded.
 
-For latency, execution `1.6.72` splits synthesis into three bounded independent
+For latency, execution `1.6.76` splits synthesis into three bounded independent
 fragments and routes them with separate internal session affinity. It starts
 two calls, observes a bounded 15-second window for a fast provider-admission
 rejection, and then starts the third concurrently when both accepted calls
@@ -156,7 +153,7 @@ contains verified citations. It can add only pre-reviewed evidence-boundary
 prose tied to those same citations; a shorter or uncited topic still fails
 closed.
 
-Execution `1.6.72` also closes model-fragment presentation defects without
+Execution `1.6.76` also closes model-fragment presentation defects without
 rewriting medical content: a paragraph-level dangling transition such as
 `但该研究...` is made self-contained, and a subjectless scope sentence such as
 `涵盖...` is anchored to the evidence in the review. Dangling post-safety
@@ -182,7 +179,7 @@ invents a replacement fact, and the normal numeric evidence-closure and
 100-300-character answer gates still apply.
 If evidence-safety removal leaves a Chinese question about target-vessel
 patency or EASIX prognostic value with only boundary language, execution
-`1.6.72` may copy only the explicitly labelled patency, odds-ratio, or
+`1.6.76` may copy only the explicitly labelled patency, odds-ratio, or
 hazard-ratio values from that answer's already-bound PubMed abstract. The
 mapping is keyword-limited, idempotent, and remains subject to the same numeric
 and statistic-label evidence closure; it does not infer a clinical
@@ -200,7 +197,7 @@ design now receives a neutral methods boundary rather than a duplicated
 `原始表述为准。设计` phrase.
 
 When several near-minimum body sections require deterministic boundary
-completion, execution `1.6.72` rotates distinct pre-reviewed paragraphs across
+completion, execution `1.6.76` rotates distinct pre-reviewed paragraphs across
 sections so the completion step cannot create duplicate prose. It repeats the
 unchanged section-floor check after whole-review paragraph deduplication, since
 a shared model paragraph may otherwise leave a section just below its floor.
@@ -314,7 +311,7 @@ one additional call to retry only that shard inside the same hard deadline.
 Foundation retries are capped at 120 seconds, middle-fragment retries at
 170 seconds, and closing-fragment retries at 90 seconds. If both the original
 closing call and its bounded retry fail after the foundation and four-topic
-body have succeeded, execution `1.6.72` builds only the three closing sections
+body have succeeded, execution `1.6.76` builds only the three closing sections
 from pre-reviewed evidence-boundary prose. When body and closing transport
 failures overlap, the non-reconstructable body retry is scheduled ahead of
 the closing retry; if that body then succeeds but closing transport remains
@@ -323,7 +320,7 @@ attempts compact peer review; when both transport retries consumed the
 five-call budget, the unchanged deterministic evidence-safety validator
 performs the final self-check. Every identity rule, citation rule, numeric
 closure, evidence-grade rule, five-question contract, section-count rule, and
-artifact integrity check is unchanged. The `1.6.73` controlled-trial candidate
+artifact integrity check is unchanged. The production controlled-trial policy
 keeps the medical Skill's 6000/800/600/800/600/200 content values as authoring
 targets while using the versioned 5000/640/450/640/450/160 release floors. A
 result between a floor and its target is published only with an explicit
@@ -495,7 +492,7 @@ and four-text rendering without network access. Tests run every fixture twice
 and require identical diagnostics, semantic results, artifact bytes, and
 aggregate content SHA-256.
 
-The current suite contains 13 independent sanitized fixtures exercised by 16
+The current suite contains 15 independent sanitized fixtures exercised by 21
 tests; repeated-run variants account for the difference between fixture and
 test counts.
 
@@ -503,6 +500,10 @@ The initial suite contains synthetic derived cases for short topic sections,
 orphaned references, truncated comparison prose, QA after the conclusion,
 unsupported numbers, missing citations, peer patches, malformed shard JSON,
 provider 500, 429 admission rejection, timeout cancellation, and client abort.
+It also covers bounded body-fragment envelope normalization: only one direct
+fragment or one unambiguous conventional `body`, `body_fragment`, or `review`
+wrapper is accepted. Ambiguous layouts remain rejected, and normalized
+content still traverses every fragment, Skill and complete-output validator.
 Each fixture is pinned to the exact medical-team Skill bundle digest and the
 prompt, validation, workflow, and response-template versions; a digest or
 version change fails closed pending review. The quarantined

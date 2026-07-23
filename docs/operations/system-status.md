@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 ## Current Phase
 
@@ -12,8 +12,42 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.72` is deployed to the Azure
+- Doctor Research engineering remediation `1.6.76` is deployed to the Azure
   controlled-trial environment:
+  - runtime commit `638e51df5862b61516a6b726c273dc96fbed03f4` from clean release
+    `/home/qian/codex-gateway-release-638e51d-20260723T012554Z`;
+  - local and Azure gates passed build, 40 files/587 Vitest tests, 31 Python
+    tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
+  - execution `1.6.76`, prompt `v29`, validation `v41`, workflow `v69`; the
+    deployed medical bundle SHA-256 remains
+    `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
+  - cancellation, full Worker/Gateway/provider timelines, 15-fixture/21-test
+    deterministic replay, shared review/prose rules, hash-bound section repair,
+    evidence projection and bounded body-envelope normalization are active;
+  - the same engineering-allowlisted case passed five consecutive strict public
+    HTTPS Python E2Es in 166.765–378.099 seconds. Each returned exactly 3 MD +
+    1 TXT and passed filename, manifest, size and SHA-256 verification;
+  - two of those runs exercised the 175-second provider deadline. Cancellation
+    was requested and observed, the replacement attempts began only after the
+    old calls terminated, and no same-session provider overlap was found;
+  - the controlled-trial policy preserves all identity, citation, numeric,
+    evidence-grade, safety and artifact hard gates while treating pure length
+    targets as target plus warned release floor. All five accepted results were
+    `passed_with_warnings`;
+  - final service verification found all four containers healthy with zero
+    restarts, only `127.0.0.1:18787` published, public/loopback health ready,
+    and no active test credential, entitlement, run, reservation or temp file;
+  - verified rollback boundary:
+    `/home/qian/codex-gateway-backups/ff6980d/20260723T013104Z`, with image tags
+    `rollback-ff6980d-20260723T013104Z` and all three databases integrity/FK/hash
+    checked;
+  - access remains controlled-trial. The medical team still needs to confirm
+    representative cases, decide whether to retain the soft completeness policy,
+    and manually accept four-file content. CN1, Nginx, public ports and
+    MedEvidence were not modified.
+
+- Historical Doctor Research `1.6.72` deployment record (superseded by the
+  current entry above):
   - runtime commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb` from clean release
     `/home/qian/codex-gateway-release-a77cf01-20260722T103032Z`;
   - build, 579 Vitest tests, 23 Python tests, npm audit and medical-Skill

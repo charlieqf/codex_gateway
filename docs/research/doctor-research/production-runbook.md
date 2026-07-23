@@ -7,6 +7,92 @@ Docker listener.
 
 ## Current production deployment
 
+As of 2026-07-23, the public Azure Gateway and all three Research services run
+commit `638e51df5862b61516a6b726c273dc96fbed03f4` from:
+
+```text
+/home/qian/codex-gateway-release-638e51d-20260723T012554Z
+```
+
+The execution contract is `1.6.76`, prompt `v29`, validation contract `v41`
+and workflow `doctor_research_workflow.v69`. The public Gateway remains bound
+only to `127.0.0.1:18787`; the three Research services publish no host port.
+All four containers are healthy, have zero restarts and use the exact release
+workdir. Public and loopback health return `ready / controlled-trial`.
+
+Local and Azure release gates passed build, 40 test files with all 587 Vitest
+tests, all 31 Python tests, `git diff --check` and an npm audit with zero
+vulnerabilities. The medical-team Skill directory has no Git diff, and the
+deployed four-file bundle SHA-256 remains:
+
+```text
+6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
+```
+
+The dependency-free Python client then ran the same engineering-allowlisted
+case through the public HTTPS API five consecutive times:
+
+| Run | Client create-to-terminal | Server duration | Result |
+| --- | ---: | ---: | --- |
+| `drr_701cffeff8534a4699a255556e2828eb` | 327.055 s | 324.749 s | success, four verified artifacts |
+| `drr_6e631e5255254b5ca479a91bdfdff8d9` | 378.099 s | 376.004 s | success, four verified artifacts |
+| `drr_b789d7d82b974872a59d3b784e9b1d6d` | 321.301 s | 320.391 s | success, four verified artifacts |
+| `drr_0ac3161cfb0d47a38194e2b714d45726` | 344.805 s | 341.876 s | success, four verified artifacts |
+| `drr_38ff2d2cfadd4bbb9043551acc29d762` | 166.765 s | 165.905 s | success, four verified artifacts |
+
+Each result was `passed_with_warnings`, contained exactly 3 MD + 1 TXT, and
+passed independent filename, size, manifest and SHA-256 checks. Two runs
+exercised a 175-second internal Gateway deadline: provider cancellation was
+observed `1/1`, and the replacement attempt began only after the timed-out
+attempt ended (18 ms and 15 ms gaps respectively). Across the five runs, all
+24 Worker stage rows had prompt/output budget, admission, sent, total and
+request-ID data; all joined to Gateway events with admitted, provider-first-
+event and provider-duration data. There were no same-session provider-call
+overlaps. For non-stream calls, use `provider_first_event_ms`, not the legacy
+`first_byte_ms`, as the real provider first-event timing.
+
+The current controlled-trial policy retains the medical generation targets
+and applies only a lower release floor for pure length completeness:
+`6000/800/600/800/600/200` targets become
+`5000/640/450/640/450/160` release floors for aggregate review,
+introduction, each topic, synthesis, limitations and conclusion. A result
+between target and floor is published only as `passed_with_warnings`.
+Identity, citation, numeric evidence, evidence grade, safety, chapter count,
+5-question/5-answer and four-file integrity gates remain fail-closed.
+
+All temporary E2E API keys, users, entitlements and output directories were
+cleaned. Final checks found zero active runs, credentials or entitlements,
+zero unfinished reservations/events and no temporary Research directory. The
+medical team has not yet confirmed this case as a representative acceptance
+case or manually accepted the generated content, so access must remain a
+named-user controlled trial.
+
+The verified pre-deploy database and image rollback boundary is:
+
+```text
+/home/qian/codex-gateway-backups/ff6980d/20260723T013104Z
+codex_gateway_test-gateway:rollback-ff6980d-20260723T013104Z
+codex_gateway_test-research-llm-gateway:rollback-ff6980d-20260723T013104Z
+codex_gateway_test-research-worker:rollback-ff6980d-20260723T013104Z
+codex_gateway_test-research-maintenance:rollback-ff6980d-20260723T013104Z
+```
+
+All copied databases passed SQLite integrity and foreign-key checks. Their
+sizes and SHA-256 values are:
+
+```text
+gateway.db         112742400  899f8a4e629672c0ce709fe747312aade3135ffe89916793c5d4a52a9e4b28b5
+client-events.db   907202560  cfe4600470e8beb5a3be2d818cead6eaac966db8c79dc1b0c08ad51f629c33aa
+research.db          8101888  f971b3179cc89c48c356fade31f750649b63391e0d92834f518c08d12f73c9e9
+```
+
+The exact deployed image IDs are Gateway `23f7261cc20b`, internal LLM Gateway
+`a01a57cd9c57`, maintenance `c809b17a0584`, and Worker `50ae4f772bd3`.
+The backup is on the same Azure OS disk and supports application rollback, not
+host-loss disaster recovery.
+
+## Historical 1.6.72 acceptance record
+
 As of 2026-07-22, the public Azure Gateway and all three Research services run
 commit `a77cf01fe8e71b92bb071cab40c4ab5e0e6d37bb` from:
 
@@ -184,6 +270,14 @@ secrets/research-production-llm-token
 The four env files must be mode `0600`. Provider and service-token files must
 be host owner `999:999`, mode `0400`. Compose local secrets do not enforce the
 declared uid/gid/mode; verify host metadata.
+
+A new clean source archive does not contain these untracked protected files.
+Copy them from the verified current release before the first service recreate,
+then check every exact source path and owner/group/mode. `docker compose config`
+can validate the rendered model without proving that a later bind/secret mount
+source exists. The failed recreate safety check in the `1.6.76` rollout left
+the old healthy container running, but this preflight prevents the avoidable
+first-attempt failure.
 
 Create the Compose env from
 `config/research.production.compose.example.env`. Its four enable switches

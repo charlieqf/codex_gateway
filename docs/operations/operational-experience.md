@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 ## Safety Rules That Worked
 
@@ -28,6 +28,16 @@ Last updated: 2026-07-22
   checkout instead of cleaning it in place. The current release checkout name
   records the original runtime deployment commit and may be detached at a newer
   docs/scripts commit.
+- A clean source archive intentionally excludes untracked production env and
+  secret files. Before the first Compose recreate in a new release directory,
+  copy every required protected file from the current release, restore its
+  exact owner/group/mode, run Compose config validation, and explicitly verify
+  each bind/secret source exists. A config-only pass does not guarantee that a
+  later recreate can mount every relative secret path.
+- The Azure host has no supported system Node/npm. Validate release code in an
+  ephemeral Node container; for the Python suite that invokes Node-backed
+  helpers, use an ephemeral image containing both Node and Python. Do not treat
+  host `node` absence as a product test failure or install a new host runtime.
 - Avoid quote-heavy one-line SSH commands from PowerShell when shell variables,
   JSON, or heredocs are involved. Transfer a temporary script or pipe normalized
   LF-only content to `bash -s`.
@@ -197,6 +207,24 @@ Last updated: 2026-07-22
   `run_id:stage:attempt` client session. A timed-out call may have no response
   request ID, while the client session still exposes provider first-event,
   duration, terminal source and cancellation observation.
+- Treat Worker and internal-Gateway terminal sources as different layers. A
+  Worker stage may record an HTTP `provider_response`/`model_upstream_error`
+  while the joined internal request records `gateway_deadline` and cancellation
+  `1/1`; correlate by request ID and
+  `x-medcode-client-session-id=<run>:<stage>:<attempt>` before classifying it.
+- For non-stream Research calls, legacy `first_byte_ms` is stamped after the
+  response body is collected and is not model first-token latency. Use
+  `provider_first_event_ms`; retain `first_byte_ms` only for compatibility.
+- Accepting a model response envelope is safe only when the wrapper is unique
+  and conventional. The `1.6.76` body-fragment normalizer accepts a direct
+  fragment or exactly one `body`, `body_fragment`, or `review` wrapper, then
+  reruns every fragment/Skill/complete validator. It must reject ambiguous or
+  incomplete shapes instead of guessing which nested object is medical output.
+- Real E2E scripts should install cleanup traps before issuing credentials and
+  remove keys, entitlements, users and output paths on both success and error.
+  Do not probe an invented public Research readiness route; use container
+  health/admission checks or the authenticated internal Worker readiness route
+  defined by the current runbook.
 
 ## Known Pitfalls
 
