@@ -114,6 +114,97 @@ describe("Doctor Research control-plane routes", () => {
     );
   });
 
+  it("loads a versioned identity registry file and rejects inline drift", async () => {
+    const root = temporaryArtifactDirectory();
+    const registryPath = path.join(root, "official-identities.json");
+    const entry = {
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科",
+      official_profile_urls: [
+        "https://hospital.example/doctors/lu-qingsheng"
+      ],
+      literature_identity: {
+        name: "Lu Qingsheng",
+        hospital: "Changhai Hospital",
+        department: "Vascular Surgery"
+      }
+    };
+    writeFileSync(
+      registryPath,
+      JSON.stringify({
+        schema_version:
+          "doctor_research_official_identity_registry.v1",
+        entries: [entry]
+      }),
+      "utf8"
+    );
+    const environment = {
+      RESEARCH_API_ENABLED: "true",
+      RESEARCH_DB_PATH: ":memory:",
+      RESEARCH_ARTIFACT_ROOT: root,
+      RESEARCH_WEB_SEARCH_PROVIDER: "direct",
+      RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "hospital.example",
+      RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH: registryPath,
+      RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE: "false",
+      RESEARCH_CONTROL_READ_RPM: "20",
+      RESEARCH_CONTROL_MUTATION_RPM: "10",
+      RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT: "10",
+      RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "10",
+      RESEARCH_MAX_QUEUED_RUNS: "100",
+      RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "10",
+      RESEARCH_MAX_CHECKPOINT_BYTES: "1048576",
+      RESEARCH_MAX_RESULT_BYTES: "4194304",
+      RESEARCH_MAX_ARTIFACT_BYTES: "1048576",
+      RESEARCH_HEARTBEAT_STALE_SECONDS: "45",
+      RESEARCH_MAX_STORAGE_BYTES: "1073741824",
+      RESEARCH_MIN_FREE_BYTES: "1",
+      RESEARCH_MIN_FREE_PERCENT: "1",
+      RESEARCH_BACKUP_MAX_AGE_SECONDS: "3600",
+      RESEARCH_IDEMPOTENCY_REPLAY_SECONDS: "604800",
+      RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS: "2592000",
+      RESEARCH_RESULT_TTL_SECONDS: "2592000",
+      RESEARCH_RUN_RETENTION_SECONDS: "7776000",
+      RESEARCH_NEEDS_INPUT_TTL_SECONDS: "259200"
+    };
+    await withTemporaryEnv(environment, async () => {
+      const gateway = createSqliteStore({ path: ":memory:" });
+      const app = buildGateway({
+        provider,
+        sessionStore: gateway,
+        logger: false
+      });
+      await app.close();
+    });
+    await withTemporaryEnv(
+      {
+        ...environment,
+        RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON: JSON.stringify([
+          {
+            ...entry,
+            department: "Cardiology"
+          }
+        ])
+      },
+      async () => {
+        const gateway = createSqliteStore({ path: ":memory:" });
+        try {
+          expect(() =>
+            buildGateway({
+              provider,
+              sessionStore: gateway,
+              logger: false
+            })
+          ).toThrow(
+            "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON must match the versioned registry file."
+          );
+        } finally {
+          gateway.close();
+        }
+      }
+    );
+  });
+
   it("rejects an in-memory production database and database path reuse", async () => {
     await withTemporaryEnv(
       {
@@ -731,7 +822,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.6.77"
+        version: "1.6.78"
       }
     });
     expect(replayed.statusCode).toBe(202);

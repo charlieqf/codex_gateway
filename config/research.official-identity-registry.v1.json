@@ -1,0 +1,19 @@
+{
+  "schema_version": "doctor_research_official_identity_registry.v1",
+  "entries": [
+    {
+      "name": "陆清声",
+      "hospital": "海军军医大学第一附属医院",
+      "department": "血管外科",
+      "official_profile_urls": [
+        "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html",
+        "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml"
+      ],
+      "literature_identity": {
+        "name": "Lu Qingsheng",
+        "hospital": "Changhai Hospital",
+        "department": "Vascular Surgery"
+      }
+    }
+  ]
+}

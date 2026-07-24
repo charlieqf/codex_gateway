@@ -234,6 +234,59 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertNotIn("model", request)
         self.assertNotIn("outputs", request)
 
+    def test_production_identity_registry_is_versioned_and_image_bound(self):
+        registry_path = (
+            ROOT
+            / "config"
+            / "research.official-identity-registry.v1.json"
+        )
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        compose = (ROOT / "compose.research-production.yml").read_text(
+            encoding="utf-8"
+        )
+        api_example_env = (
+            ROOT / "config" / "research.production.api.example.env"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(
+            registry["schema_version"],
+            "doctor_research_official_identity_registry.v1",
+        )
+        self.assertEqual(len(registry["entries"]), 1)
+        self.assertEqual(
+            {
+                key: registry["entries"][0][key]
+                for key in ("name", "hospital", "department")
+            },
+            {
+                "name": "陆清声",
+                "hospital": "海军军医大学第一附属医院",
+                "department": "血管外科",
+            },
+        )
+        self.assertEqual(
+            registry["entries"][0]["literature_identity"]["name"],
+            "Lu Qingsheng",
+        )
+        self.assertIn(
+            "COPY config/research.official-identity-registry.v1.json ",
+            dockerfile,
+        )
+        self.assertIn(
+            "test -r /app/config/research.official-identity-registry.v1.json",
+            dockerfile,
+        )
+        self.assertIn(
+            "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH: "
+            "/app/config/research.official-identity-registry.v1.json",
+            compose,
+        )
+        self.assertNotIn(
+            "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON=",
+            api_example_env,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

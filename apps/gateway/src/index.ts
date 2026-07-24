@@ -5002,11 +5002,10 @@ function createDefaultResearchRuntime(
       env.RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS,
       env.NODE_ENV
     );
-  const officialIdentityRegistry =
-    parseResearchOfficialIdentityRegistry(
-      env.RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON,
-      officialWebAllowedDomains
-    );
+  const officialIdentityRegistry = loadResearchOfficialIdentityRegistry(
+    env,
+    officialWebAllowedDomains
+  );
   const readRpm = parseRequiredPositiveIntegerEnv(
     env.RESEARCH_CONTROL_READ_RPM,
     "RESEARCH_CONTROL_READ_RPM"
@@ -5265,6 +5264,84 @@ function parseResearchOfficialWebAllowedDomains(
     );
   }
   return domains;
+}
+
+function loadResearchOfficialIdentityRegistry(
+  env: NodeJS.ProcessEnv,
+  allowedDomains: readonly string[]
+): ResearchIdentityRegistryEntry[] {
+  const inlineRegistry = parseResearchOfficialIdentityRegistry(
+    env.RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON,
+    allowedDomains
+  );
+  const configuredPath =
+    env.RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH?.trim();
+  if (!configuredPath) {
+    return inlineRegistry;
+  }
+  if (
+    configuredPath.length > 4_096 ||
+    configuredPath.includes("\0") ||
+    !path.isAbsolute(configuredPath)
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH must be an absolute file path."
+    );
+  }
+  let raw: string;
+  try {
+    raw = readFileSync(configuredPath, "utf8");
+  } catch {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH could not be read."
+    );
+  }
+  if (Buffer.byteLength(raw, "utf8") > 65_536) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH exceeds 65536 bytes."
+    );
+  }
+  let document: unknown;
+  try {
+    document = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH must contain valid JSON."
+    );
+  }
+  if (
+    typeof document !== "object" ||
+    document === null ||
+    Array.isArray(document) ||
+    Object.keys(document).some(
+      (key) => !["schema_version", "entries"].includes(key)
+    ) ||
+    (document as { schema_version?: unknown }).schema_version !==
+      "doctor_research_official_identity_registry.v1" ||
+    !Array.isArray((document as { entries?: unknown }).entries)
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH has an invalid registry document."
+    );
+  }
+  const fileRegistry = parseResearchOfficialIdentityRegistry(
+    JSON.stringify((document as { entries: unknown[] }).entries),
+    allowedDomains
+  );
+  if (fileRegistry.length === 0) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH must contain at least one entry."
+    );
+  }
+  if (
+    inlineRegistry.length > 0 &&
+    JSON.stringify(inlineRegistry) !== JSON.stringify(fileRegistry)
+  ) {
+    throw new Error(
+      "RESEARCH_OFFICIAL_PROFILE_REGISTRY_JSON must match the versioned registry file."
+    );
+  }
+  return fileRegistry;
 }
 
 function parseResearchOfficialIdentityRegistry(

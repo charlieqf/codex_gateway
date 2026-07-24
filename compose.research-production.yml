@@ -6,6 +6,7 @@ services:
       RESEARCH_API_ENABLED: ${RESEARCH_PRODUCTION_API_ENABLED:-false}
       RESEARCH_DB_PATH: /var/lib/codex-gateway-research/research.db
       RESEARCH_ARTIFACT_ROOT: /var/lib/codex-gateway-research/artifacts
+      RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH: /app/config/research.official-identity-registry.v1.json
     volumes:
       - research_production_state:/var/lib/codex-gateway-research
 
