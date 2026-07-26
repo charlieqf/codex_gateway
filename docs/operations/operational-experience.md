@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-23
+Last updated: 2026-07-27
 
 ## Safety Rules That Worked
 
@@ -34,6 +34,11 @@ Last updated: 2026-07-23
   exact owner/group/mode, run Compose config validation, and explicitly verify
   each bind/secret source exists. A config-only pass does not guarantee that a
   later recreate can mount every relative secret path.
+- A restrictive archive/extraction umask also changes modes on tracked,
+  non-secret bind-mounted configuration. Before recreating a service that runs
+  as UID/GID `999:999`, explicitly restore release directories to `0755`,
+  read-only tracked configuration to `0444`, and verify readability from the
+  intended container user. Keep secret files at their stricter owner and mode.
 - The Azure host has no supported system Node/npm. Validate release code in an
   ephemeral Node container; for the Python suite that invokes Node-backed
   helpers, use an ephemeral image containing both Node and Python. Do not treat
@@ -94,6 +99,11 @@ Last updated: 2026-07-23
   allow a second first-party profile page with explicit position/expertise/
   research text; retain fail-closed `verified_research_direction_required`
   behavior instead of treating an article abstract as a doctor profile.
+- Optional client identity URLs must augment, never replace, the exact
+  server-reviewed registry sources. Merge authoritative URLs first, de-duplicate
+  and apply the existing bound afterward; otherwise a partial client cache can
+  silently remove the bilingual identity bridge and cause a valid registered
+  doctor to fail identity resolution.
 
 ## Operator Vocabulary
 

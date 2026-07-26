@@ -7,21 +7,21 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-23, the public Azure Gateway and all three Research services run
-commit `c439848eb6095482e93461aba2362dee010174de` from:
+As of 2026-07-27, the public Azure Gateway and all three Research services run
+commit `1ac1419194faba5b40c0679b96377cf52285343f` from:
 
 ```text
-/home/qian/codex-gateway-release-c439848-20260723T094725Z
+/home/qian/codex-gateway-release-1ac1419-20260726T214648Z
 ```
 
-The execution contract is `1.6.77`, prompt `v29`, validation contract `v41`
+The execution contract is `1.6.79`, prompt `v29`, validation contract `v41`
 and workflow `doctor_research_workflow.v69`. The public Gateway remains bound
 only to `127.0.0.1:18787`; the three Research services publish no host port.
 All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
-Local and Azure release gates passed build, 40 test files with all 589 Vitest
-tests, all 33 Python tests, `git diff --check` and an npm audit with zero
+Local and Azure release gates passed build, 40 test files with all 590 Vitest
+tests, all 34 Python tests, `git diff --check` and an npm audit with zero
 vulnerabilities. The medical-team Skill directory has no Git diff, and the
 deployed four-file bundle SHA-256 remains:
 
@@ -29,14 +29,24 @@ deployed four-file bundle SHA-256 remains:
 6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
 ```
 
-Execution `1.6.76` established the five-run engineering baseline below. After
-deploying `1.6.77`, a separate public HTTPS acceptance call sent exactly the
-three top-level business fields `name`, `hospital`, and `department`. The
-Gateway applied startup-validated server identity metadata, the run crossed
-identity resolution and succeeded in 320.668 seconds as
-`drr_1e696a86a85849278d4023b255197967`. It downloaded exactly 3 MD + 1 TXT,
-verified all manifest sizes and SHA-256 values, and verified that the TXT had
-five non-empty lines.
+Execution `1.6.76` established the five-run engineering baseline below, and
+`1.6.77` first proved the three-field request contract. A subsequent real-user
+run, `drr_32fe62a652dc4a9f8d9b561b68a478e5`, exposed that a non-empty client
+`official_profile_urls` list replaced rather than augmented the server-reviewed
+registry. The single submitted Chinese profile therefore removed the registered
+bilingual identity bridge, and identity resolution correctly failed closed.
+
+Execution `1.6.79` now merges the authoritative registered URLs first and then
+adds allowlisted client URLs, with de-duplication and the existing three-URL
+bound. A public HTTPS acceptance call submitted exactly the three top-level
+business fields `name`, `hospital`, and `department`. The Gateway applied both
+server-reviewed identity sources, and `drr_07b07f128ce746edb777fbc70dbe3340`
+succeeded in 265.857 server seconds (272.4 seconds client wall time). It
+downloaded exactly 3 MD + 1 TXT, verified all manifest sizes and SHA-256 values,
+and verified that the TXT had five non-empty lines. All five Worker calls joined
+to complete Gateway/provider timelines; the permitted three-call initial shard
+fan-out ended before the targeted follow-up began, so there was no old/new
+follow-up overlap.
 
 The earlier dependency-free Python baseline was:
 
@@ -68,7 +78,7 @@ between target and floor is published only as `passed_with_warnings`.
 Identity, citation, numeric evidence, evidence grade, safety, chapter count,
 5-question/5-answer and four-file integrity gates remain fail-closed.
 
-The `1.6.77` acceptance reused the explicitly issued named test credential,
+The `1.6.79` acceptance reused the explicitly issued named test credential,
 which remains active for the requested user handoff; it did not create another
 temporary credential. Local validation downloads and scripts were removed.
 Final checks found zero active runs and zero unfinished public or internal-LLM
@@ -79,24 +89,24 @@ access must remain a named-user controlled trial.
 The verified pre-deploy database and image rollback boundary is:
 
 ```text
-/home/qian/codex-gateway-backups/c439848/20260723T094725Z
-codex_gateway_test-gateway:rollback-c439848-20260723T094725Z
-codex_gateway_test-research-llm-gateway:rollback-c439848-20260723T094725Z
-codex_gateway_test-research-worker:rollback-c439848-20260723T094725Z
-codex_gateway_test-research-maintenance:rollback-c439848-20260723T094725Z
+/home/qian/codex-gateway-backups/1ac1419/20260726T214648Z
+codex_gateway_test-gateway:rollback-c439848-20260726T214648Z
+codex_gateway_test-research-llm-gateway:rollback-c439848-20260726T214648Z
+codex_gateway_test-research-worker:rollback-c439848-20260726T214648Z
+codex_gateway_test-research-maintenance:rollback-c439848-20260726T214648Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
-sizes and SHA-256 values are:
+SHA-256 values are:
 
 ```text
-gateway.db         114298880  7596c7d5da8520736c1f80fe53122b286dd92d5eb44c4a4a19a08ad372a90938
-client-events.db   919777280  ce0dbd68969484c8dfdff84256919e5ab0d7470c57af395781fdba7b9e7593e9
-research.db          9019392  57062e3b9d92e0c8a439047bb4075e479b78410173a0a2eda6ff5bb49d8200f7
+gateway.db        ff541c325d6ebe4a92de8555867dc13ae05689dda4d3bfcacb816e8dda776e95
+client-events.db  85c48b559db2dd3df303805e9b9be2d7acbcff423092be48bccebe31f380172e
+research.db       cbb6c410d566f95bb61ed1b0e2587e778df94da9a91be67f486db5149857cbd2
 ```
 
-The exact deployed image IDs are Gateway `f9b6b4be7de8`, internal LLM Gateway
-`188bce8bac8c`, maintenance `5598491c88a2`, and Worker `03c101f46828`.
+The exact deployed image IDs are Gateway `6cd1014dc20a`, internal LLM Gateway
+`812a2ee25556`, maintenance `050c07a0b666`, and Worker `3ce106e56f67`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
 

@@ -62,17 +62,20 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure release is commit
-`c439848eb6095482e93461aba2362dee010174de`, execution `1.6.77`, prompt `v29`,
+`1ac1419194faba5b40c0679b96377cf52285343f`, execution `1.6.79`, prompt `v29`,
 validation `v41` and workflow `doctor_research_workflow.v69`. The `1.6.76`
 baseline completed five consecutive same-case public E2Es in 166.765–378.099
-seconds. The deployed `1.6.77` then accepted exactly the three top-level fields
-`name`, `hospital`, and `department`; server-reviewed identity metadata was
-applied and the run succeeded in 320.668 seconds. Every accepted run returned
-exactly 3 MD + 1 TXT and passed independent manifest, size and SHA-256 checks.
-Provider deadline/cancellation telemetry was observed without same-session
-old/new call overlap. The case is engineering-allowlisted; it is not a
-substitute for a medical-team-approved representative case or manual content
-acceptance. The service therefore remains `controlled-trial`.
+seconds. A later real-user run showed that an optional one-URL client list could
+replace the complete server-reviewed identity source set. `1.6.79` fixes that
+engineering error by keeping registered sources authoritative and treating
+allowlisted client URLs as additions. A new request containing exactly the
+three top-level fields `name`, `hospital`, and `department` succeeded in
+265.857 server seconds. It returned exactly 3 MD + 1 TXT and passed independent
+manifest, size and SHA-256 checks. Provider deadline/cancellation telemetry was
+observed without old/new follow-up call overlap. The case is
+engineering-allowlisted; it is not a substitute for a medical-team-approved
+representative case or manual content acceptance. The service therefore remains
+`controlled-trial`.
 
 ## Contents
 
@@ -96,7 +99,7 @@ acceptance. The service therefore remains `controlled-trial`.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.77` together with the
+The production Worker uses frozen execution contract `1.6.79` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
