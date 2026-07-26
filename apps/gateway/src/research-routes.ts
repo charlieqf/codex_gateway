@@ -835,6 +835,12 @@ export function parseDoctorResearchRunRequest(
   const suppliedLiteratureIdentity = parseLiteratureIdentity(
     doctorBody.literature_identity
   );
+  const officialProfileUrls = [
+    ...new Set([
+      ...(registeredIdentity?.officialProfileUrls ?? []),
+      ...suppliedProfileUrls
+    ])
+  ].slice(0, 3);
   const doctor: ResearchDoctorInput = {
     name,
     hospital,
@@ -842,10 +848,7 @@ export function parseDoctorResearchRunRequest(
     title: optionalBlankText(doctorBody.title, "doctor.title", 100),
     city: optionalBlankText(doctorBody.city, "doctor.city", 100),
     orcid: optionalOrcid(doctorBody.orcid),
-    officialProfileUrls:
-      suppliedProfileUrls.length > 0
-        ? suppliedProfileUrls
-        : [...(registeredIdentity?.officialProfileUrls ?? [])],
+    officialProfileUrls,
     literatureIdentity:
       suppliedLiteratureIdentity ?? registeredIdentity?.literatureIdentity
   };

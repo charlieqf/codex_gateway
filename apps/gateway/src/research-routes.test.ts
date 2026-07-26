@@ -822,7 +822,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.6.78"
+        version: "1.6.79"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1751,7 +1751,8 @@ describe("Doctor Research control-plane routes", () => {
     expect(nestedMinimal.requestHash).toBe(minimal.requestHash);
 
     const officialProfileUrls = [
-      "https://www.carm.org.cn/doctor/lu-qingsheng"
+      "https://www.carm.org.cn/doctor/lu-qingsheng",
+      "https://www.qk.sjtu.edu.cn/doctor/lu-qingsheng"
     ];
     const literatureIdentity = {
       name: "Lu Qingsheng",
@@ -1774,7 +1775,7 @@ describe("Doctor Research control-plane routes", () => {
       },
       {
         officialSourceMode: "direct",
-        officialWebAllowedDomains: ["carm.org.cn"],
+        officialWebAllowedDomains: ["carm.org.cn", "qk.sjtu.edu.cn"],
         officialIdentityRegistry: [
           {
             identityFingerprint: minimal.identityFingerprint,
@@ -1795,6 +1796,34 @@ describe("Doctor Research control-plane routes", () => {
     expect(enriched.identityFingerprint).toBe(
       minimal.identityFingerprint
     );
+
+    const cannotPartiallyOverrideRegisteredSources =
+      parseDoctorResearchRunRequest(
+        {
+          name: minimal.input.doctor.name,
+          hospital: minimal.input.doctor.hospital,
+          department: minimal.input.doctor.department,
+          official_profile_urls: [officialProfileUrls[0]]
+        },
+        {
+          officialSourceMode: "direct",
+          officialWebAllowedDomains: [
+            "carm.org.cn",
+            "qk.sjtu.edu.cn"
+          ],
+          officialIdentityRegistry: [
+            {
+              identityFingerprint: minimal.identityFingerprint,
+              officialProfileUrls,
+              literatureIdentity
+            }
+          ]
+        }
+      );
+    expect(
+      cannotPartiallyOverrideRegisteredSources.input.doctor
+        .officialProfileUrls
+    ).toEqual(officialProfileUrls);
   });
 
   it("accepts only a complete, bounded literature identity", () => {
