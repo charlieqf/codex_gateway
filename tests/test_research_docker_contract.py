@@ -180,6 +180,9 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertNotIn('"runtime": "codex"', serialized)
 
     def test_production_examples_fail_closed_without_operator_values(self):
+        api = (
+            ROOT / "config" / "research.production.api.example.env"
+        ).read_text(encoding="utf-8")
         worker = (
             ROOT / "config" / "research.production.worker.example.env"
         ).read_text(encoding="utf-8")
@@ -204,6 +207,8 @@ class ResearchDockerContractTests(unittest.TestCase):
             compose_environment,
         )
         self.assertIn("RESEARCH_WORKER_ENABLED=false", worker)
+        self.assertIn("RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT=50", api)
+        self.assertIn("RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT=50", worker)
         self.assertIn(
             "RESEARCH_BACKUP_TARGET_ENCRYPTION_CONFIRMED=false",
             worker,

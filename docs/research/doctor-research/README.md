@@ -74,7 +74,10 @@ three top-level fields `name`, `hospital`, and `department` succeeded in
 identity failures had correctly exhausted the old two-run daily allowance, but
 the old response incorrectly advertised a fixed 30-second retry. `1.6.80`
 raised the controlled-trial allowance to five admitted runs per UTC day and
-returns the real reset interval plus usage details. `1.6.81` then generalized
+returns the real reset interval plus usage details. The current production
+policy raises that per-subject UTC-day admission ceiling to 50 while retaining
+the single active brief run per subject, Worker concurrency 1 and global queue
+limits. `1.6.81` then generalized
 the final fail-closed mechanical repair for duplicate paragraphs, unmatched
 delimiters and invalid inline enumeration, while rerunning every hard gate.
 The exact three-field public run `drr_ed34e4ea72af4648b0e29d87b2f42175`

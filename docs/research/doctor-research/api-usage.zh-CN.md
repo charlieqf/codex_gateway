@@ -183,7 +183,7 @@ Content-Type: application/json
 
 ### 日运行配额
 
-生产受控试用当前按 subject 每个 UTC 自然日最多准入 5 个 Research run。计数发生在
+生产受控试用当前按 subject 每个 UTC 自然日最多准入 50 个 Research run。计数发生在
 run 被正式准入时；为防止通过故意失败或取消绕过资源限制，已准入后终止为失败或取消的
 run 也占用当日额度。相同 `Idempotency-Key` 和相同请求体的重放只返回原 run，不会重复
 计数；要修正请求并创建新 run 时会消耗新的额度。
@@ -204,8 +204,8 @@ run 也占用当日额度。相同 `Idempotency-Key` 和相同请求体的重放
     "limit": {
       "scope": "subject",
       "window": "day",
-      "maximum": 5,
-      "used": 5,
+      "maximum": 50,
+      "used": 50,
       "requested": 1
     }
   }
@@ -259,8 +259,9 @@ redirect、非 loopback 明文 HTTP、符号链接 key/request 文件和不安�
 
 旧身份缺陷造成的两次已准入失败曾耗尽当时每天 2 次的额度，随后
 `req-4aaf46f6-6104-48f6-8c8d-b85f6c7322ed` 正确返回日配额拒绝，但旧实现错误地只提示
-等待 30 秒。`1.6.80` 将受控试用额度调整为每天 5 次，并返回到下一个 UTC 日边界的准确
-等待时间及 `maximum/used/requested`。`1.6.81` 上线后，仍仅提交三个必填字段的
+等待 30 秒。`1.6.80` 曾将受控试用额度调整为每天 5 次，并返回到下一个 UTC 日边界的准确
+等待时间及 `maximum/used/requested`；当前生产策略进一步提高为每个 subject 每个 UTC 日 50 次。
+`1.6.81` 上线后，仍仅提交三个必填字段的
 `drr_ed34e4ea72af4648b0e29d87b2f42175` 在服务端 198.292 秒成功；Python 示例独立下载
 并校验恰好 3 MD + 1 TXT，四个 SHA-256 与 manifest 逐项一致。
 

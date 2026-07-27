@@ -209,8 +209,8 @@ class DoctorResearchDemoTests(unittest.TestCase):
                     "limit": {
                         "scope": "subject",
                         "window": "day",
-                        "maximum": 5,
-                        "used": 5,
+                        "maximum": 50,
+                        "used": 50,
                         "requested": 1,
                     },
                 }
@@ -228,7 +228,7 @@ class DoctorResearchDemoTests(unittest.TestCase):
         self.assertEqual(error.retry_after_seconds, 67_729)
         self.assertIn("research_code=research_quota_exceeded", str(error))
         self.assertIn("limit_kind=research_daily_runs", str(error))
-        self.assertIn("used=5, maximum=5, requested=1", str(error))
+        self.assertIn("used=50, maximum=50, requested=1", str(error))
         self.assertIn("retry_after=67729", str(error))
 
     def test_end_to_end_preserves_four_localized_filenames(self):
