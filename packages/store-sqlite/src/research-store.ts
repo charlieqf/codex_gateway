@@ -278,21 +278,37 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
       const utcDayStart = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
       );
+      const utcDayEnd = new Date(utcDayStart.getTime() + dayMs);
       const dailyRuns = count(
         this.db,
         `SELECT COUNT(*) AS count
          FROM research_doctor_admissions
          WHERE subject_id = ?
-           AND admitted_at >= ?`,
+           AND admitted_at >= ?
+           AND admitted_at < ?`,
         input.subjectId,
-        utcDayStart.toISOString()
+        utcDayStart.toISOString(),
+        utcDayEnd.toISOString()
       );
       if (dailyRuns >= this.limits.dailyRunsPerSubject) {
         return admissionRejected(
           this.db,
           input,
           "research_daily_runs",
-          now
+          now,
+          {
+            retryAfterSeconds: Math.max(
+              1,
+              Math.ceil((utcDayEnd.getTime() - now.getTime()) / 1_000)
+            ),
+            details: {
+              scope: "subject",
+              window: "day",
+              limit: this.limits.dailyRunsPerSubject,
+              used: dailyRuns,
+              requested: 1
+            }
+          }
         );
       }
 
@@ -367,7 +383,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         mode: "brief",
         skill: {
           name: "doctor-research-query",
-          version: "1.6.79"
+          version: "1.6.80"
         },
         created_at: timestamp,
         status_url: `${createRunEndpoint}/${runId}`,
@@ -381,7 +397,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
             mode, language, input_json, status, stage, progress_percent,
             warning_codes_json, queued_at, created_at, updated_at
           ) VALUES (
-            ?, ?, ?, 'doctor-research-query', '1.6.79',
+            ?, ?, ?, 'doctor-research-query', '1.6.80',
             'doctor-research-prompt.v29', 'doctor_research_run_input.v2',
             'doctor_research_result.v1', ?, ?, ?, 'queued', 'validate_input',
             0, '[]', ?, ?, ?
@@ -2644,7 +2660,14 @@ function admissionRejected(
     CreateResearchRunResult,
     { outcome: "rate_limited" }
   >["limitKind"],
-  now: Date
+  now: Date,
+  metadata: {
+    retryAfterSeconds?: number;
+    details?: Extract<
+      CreateResearchRunResult,
+      { outcome: "rate_limited" }
+    >["details"];
+  } = {}
 ): CreateResearchRunResult {
   const minuteStart = new Date(
     Math.floor(now.getTime() / 60_000) * 60_000
@@ -2670,11 +2693,28 @@ function admissionRejected(
       params: {
         limit_kind: limitKind,
         mode: input.input.mode,
-        identity_fingerprint: input.identityFingerprint
+        identity_fingerprint: input.identityFingerprint,
+        ...(metadata.retryAfterSeconds !== undefined
+          ? { retry_after_seconds: metadata.retryAfterSeconds }
+          : {}),
+        ...(metadata.details
+          ? {
+              limit_maximum: metadata.details.limit,
+              limit_used: metadata.details.used,
+              limit_requested: metadata.details.requested
+            }
+          : {})
       }
     });
   }
-  return { outcome: "rate_limited", limitKind };
+  return {
+    outcome: "rate_limited",
+    limitKind,
+    ...(metadata.retryAfterSeconds !== undefined
+      ? { retryAfterSeconds: metadata.retryAfterSeconds }
+      : {}),
+    ...(metadata.details ? { details: metadata.details } : {})
+  };
 }
 
 function insertAuditEvent(

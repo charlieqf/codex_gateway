@@ -1,4 +1,4 @@
-import type { LimitKind } from "./token-budget.js";
+import type { LimitDetails, LimitKind } from "./token-budget.js";
 
 export const researchRunStatuses = [
   "queued",
@@ -200,6 +200,8 @@ export type CreateResearchRunResult =
         | "research_unique_doctors_30d"
         | "research_global_queue"
       >;
+      retryAfterSeconds?: number;
+      details?: LimitDetails;
     };
 
 export interface InspectCreateResearchRunIdempotencyInput {

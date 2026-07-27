@@ -822,7 +822,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.6.79"
+        version: "1.6.80"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -1112,6 +1112,65 @@ describe("Doctor Research control-plane routes", () => {
       action: "admission_quota",
       outcome: "rejected",
       params_json: expect.stringContaining("research_active_brief")
+    });
+    await fixture.app.close();
+  });
+
+  it("returns the UTC-day reset delay and usage for the daily Research quota", async () => {
+    const fixture = createFixture({
+      capability: true,
+      dailyRunsPerSubject: 1
+    });
+    const auth = { authorization: `Bearer ${fixture.token}` };
+    const first = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:daily-first"
+      },
+      payload: validRequest("Doctor Daily One")
+    });
+    const runId = first.json().run_id as string;
+    fixture.research.database
+      .prepare(
+        `UPDATE research_runs
+         SET status = 'failed', terminal_reason = 'identity_not_resolved',
+             completed_at = updated_at
+         WHERE run_id = ?`
+      )
+      .run(runId);
+    const second = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:daily-second"
+      },
+      payload: validRequest("Doctor Daily Two")
+    });
+
+    expect(first.statusCode).toBe(202);
+    expect(second.statusCode).toBe(429);
+    expect(second.headers["x-gateway-limit-kind"]).toBe(
+      "research_daily_runs"
+    );
+    expect(second.headers["retry-after"]).toBe("81000");
+    expect(second.json()).toMatchObject({
+      error: {
+        code: "rate_limited",
+        research_code: "research_quota_exceeded",
+        retry_after_seconds: 81000,
+        limit_kind: "research_daily_runs",
+        rate_limit_origin: "gateway",
+        limit: {
+          scope: "subject",
+          window: "day",
+          maximum: 1,
+          used: 1,
+          requested: 1
+        }
+      }
     });
     await fixture.app.close();
   });
@@ -1867,6 +1926,7 @@ function createFixture(input: {
   secondCredentialSameSubject?: boolean;
   readRpm?: number;
   mutationRpm?: number;
+  dailyRunsPerSubject?: number;
   acceptWhenWorkerUnavailable?: boolean;
   artifactRoot?: string;
   admissionGuard?: (
@@ -1887,7 +1947,7 @@ function createFixture(input: {
   const research = createResearchSqliteStore({
     path: ":memory:",
     limits: {
-      dailyRunsPerSubject: 10,
+      dailyRunsPerSubject: input.dailyRunsPerSubject ?? 10,
       uniqueDoctors30dPerSubject: 10,
       globalActiveRuns: 100,
       needsInputPerSubject: 10

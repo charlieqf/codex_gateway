@@ -219,7 +219,7 @@ export function registerResearchRoutes(
           );
         }
         if (result.outcome === "rate_limited") {
-          markLimitKind(request, result.limitKind);
+          markLimitKind(request, result.limitKind, result.details);
           markRateLimitOrigin(request, "gateway");
           return sendResearchError(
             request,
@@ -228,7 +228,7 @@ export function registerResearchRoutes(
               code: "rate_limited",
               message: "Research quota exceeded.",
               httpStatus: 429,
-              retryAfterSeconds: 30
+              retryAfterSeconds: result.retryAfterSeconds ?? 30
             }),
             "research_quota_exceeded"
           );
