@@ -8,10 +8,10 @@ Docker listener.
 ## Current production deployment
 
 As of 2026-07-27, the public Azure Gateway and all three Research services run
-commit `599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da` from:
+commit `2559d3a3473976cea0bdad1fc1db7787bfed7d2e` from:
 
 ```text
-/home/qian/codex-gateway-release-599fd53-20260727T022356Z
+/home/qian/codex-gateway-release-2559d3a-20260727T092311Z
 ```
 
 The execution contract is `1.6.81`, prompt `v29`, validation contract `v42`
@@ -21,7 +21,7 @@ All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
 Local and Azure release gates passed build, 40 test files with all 593 Vitest
-tests, all 34 Python tests, `git diff --check` and an npm audit with zero
+tests, all 35 Python tests, `git diff --check` and an npm audit with zero
 vulnerabilities. The medical-team Skill directory has no Git diff, and the
 deployed four-file bundle SHA-256 remains:
 
@@ -57,6 +57,15 @@ trial allowance to five admitted runs per UTC day and returns the true next-UTC-
 day reset interval plus `maximum`, `used` and `requested` values. Admitted
 failed and cancelled runs continue to count as the intentional anti-abuse
 contract.
+
+The current operator-approved production policy raises that per-subject UTC-day
+admission ceiling from 5 to 50. The public Gateway, internal LLM Gateway,
+Worker and maintenance containers all load the same value. This does not change
+the single active brief run per subject, Worker concurrency 1, global queued-run
+limit 2, five-unique-doctors-per-30-day limit, entitlement boundary or medical
+quality gates. At post-deploy verification, the reported user's subject had 5
+admissions for the current UTC day and therefore 45 remaining under the new
+ceiling without issuing another Research run merely to test the configuration.
 
 Execution `1.6.81` adds a final bounded repair only when every remaining
 diagnostic is duplicate paragraph, unmatched delimiter or invalid inline
@@ -105,29 +114,42 @@ token reservations. The medical team has not yet confirmed this case as a
 representative acceptance case or manually accepted the generated content, so
 access must remain a named-user controlled trial.
 
+After the quota rollout, public OpenAI compatibility and strict-tools smokes
+passed. A focused `goldencode` native-tools call succeeded as request
+`req-417326fb-ff23-4546-9739-892584accf95`; its event records
+`goldencode-tencent / tencent / glm-5.2 / medium / status=ok`. All three smoke
+users were disabled and their credentials have zero active keys. The latest
+maintenance backup `drb_7e7ef3e2c240460eb2865c375991fd52` also succeeded.
+
 The verified pre-deploy database and image rollback boundary is:
 
 ```text
-/home/qian/codex-gateway-backups/599fd53/20260727T022356Z
-codex_gateway_test-gateway:rollback-20ca27f-20260727T022356Z
-codex_gateway_test-research-llm-gateway:rollback-20ca27f-20260727T022356Z
-codex_gateway_test-research-worker:rollback-20ca27f-20260727T022356Z
-codex_gateway_test-research-maintenance:rollback-20ca27f-20260727T022356Z
+/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z
+codex_gateway_test-gateway:rollback-599fd53-20260727T092311Z
+codex_gateway_test-research-llm-gateway:rollback-599fd53-20260727T092311Z
+codex_gateway_test-research-worker:rollback-599fd53-20260727T092311Z
+codex_gateway_test-research-maintenance:rollback-599fd53-20260727T092311Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db        60e323e742fa677783fa22119f13ecc46f5e0ae71f6494a61d1640cc55dfccdc
-client-events.db  e7d8a6964acf6a30526eb3f4bbe914a815214a949fb6f881eae51d47ef07e789
-research.db       afbe74b6197768ea9f8da481e6d99907b54674cb5e92d01acac7d2505418822f
+gateway.db        866f70927521fe86c2d102a6778d505fcb4288bf46033c422e14129d3033e0e2
+client-events.db  3c8a6c2feb62fb01b09340e7e18730084a2e54dce2578fa73ab80d2b53b4e122
+research.db       267e1e3446b25ddadbccb5aa9b233d31c74e05fa37a6516bcd21e7c375ca4435
 ```
 
-The exact deployed image IDs are Gateway `1ab69da38fcd`, internal LLM Gateway
-`d6cd84e551ac`, maintenance `e95272ce3f92`, and Worker `75930344e230`.
+The exact deployed image IDs are Gateway `29b8e09efe29`, internal LLM Gateway
+`830575ff8eac`, maintenance `27120202b3ee`, and Worker `7bba1b88cb26`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
+
+Disk preflight initially found only about 13 GiB free. After confirming the
+then-current `599fd53/20260727T022356Z` backup and rollback boundary, only
+superseded older deployment backup directories were removed, recovering about
+8.6 GiB. The live volumes, that `599fd53` boundary and the new `2559d3a`
+boundary remain. Post-deploy free space was about 19 GiB.
 
 ## Historical 1.6.72 acceptance record
 

@@ -248,6 +248,13 @@ Last updated: 2026-07-27
   caller could bypass the limit by forcing failures. Return the exact next UTC
   day reset and current `maximum/used/requested` values. A fixed 30-second
   retry is actively misleading for a daily window.
+- A production daily-quota change must update both protected API and Worker env
+  files, recreate all four Research-aware containers, and verify the loaded
+  value in each process. Raising the daily total does not imply raising active
+  run, Worker concurrency, global queue, unique-doctor, entitlement or medical
+  quality boundaries. When the affected subject is already at the former
+  ceiling, compare its persisted UTC-day admissions with the newly loaded
+  limit instead of consuming another real run only to prove admission.
 - A host script copied into a container with mode `0600` may remain root-owned
   and be unreadable by the container's unprivileged Node user. For one-shot,
   import-free diagnostic or SQLite-backup modules, prefer

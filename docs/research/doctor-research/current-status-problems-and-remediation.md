@@ -28,9 +28,10 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 | --- | --- | --- |
 | 部署目标 | Azure VM，公网入口为 `https://gw.instmarket.com.au` | 正确；CN1 不是 Doctor Research 部署目标，且本轮未改动 CN1 |
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
-| 当前版本 | commit `599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da`，执行器 `1.6.81` | 已上线 |
+| 当前版本 | commit `2559d3a3473976cea0bdad1fc1db7787bfed7d2e`，执行器 `1.6.81` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 593 个 Vitest、34 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
+| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 593 个 Vitest、35 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
+| 每日准入额度 | 每个 subject 每个 UTC 自然日 50 次；当日已准入失败/取消仍计数，幂等重放不重复计数 | 已上线；不改变并发、队列、身份、证据和四文件门槛 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
 | 真实公网 E2E | `1.6.76` 同一工程病例连续 5 次成功；`1.6.81` 以顶层恰好三字段成功，服务端耗时 198.292 秒，并实际触发最终有界排版修复 | 三字段兼容和 10 分钟墙钟目标通过；病例代表性仍待医学团队确认 |
 | 当前四文件 | 最新三字段 run 恰好产生 3 MD + 1 TXT，下载大小、manifest、SHA-256 和五行 TXT 全部一致 | 自动化四文件契约通过，仍待医学团队人工内容验收 |
@@ -93,7 +94,7 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 - 目标环境：Azure VM
 - Compose project：`codex_gateway_test`
 - 发布目录：
-  `/home/qian/codex-gateway-release-599fd53-20260727T022356Z`
+  `/home/qian/codex-gateway-release-2559d3a-20260727T092311Z`
 - 执行器：`doctor-research-skill.1.6.81`
 - Prompt：`v29`
 - Validation：`v42`
@@ -103,20 +104,23 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 
 最终检查时四个容器均为 healthy、重启次数均为 0。公网和 loopback 健康检查通过，
 Worker 报告 `doctor-research-skill.1.6.81`，内部 LLM Gateway 截止为 175000 ms。
+四个容器实际加载的 `RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT` 均为 `50`。发布后公网
+OpenAI、strict-tools 和定向 `goldencode` native-tools smoke 均通过；相关三个临时用户均已禁用且
+活动 key 为 0。用户当日已正式准入 5 次，因此新上限下尚余 45 次；该核验没有额外创建 Research run。
 
 ### 3.2 备份与磁盘
 
 当前发布回滚边界使用以下经过完整性、外键和 SHA-256 校验的三数据库备份：
 
 ```text
-/home/qian/codex-gateway-backups/599fd53/20260727T022356Z
+/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z
 ```
 
 三份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；部署前的
-`20ca27f` 四个镜像已打上 `rollback-20ca27f-20260727T022356Z` 标签。数据库哈希分别为
-Gateway `60e323e7...5dfccdc`、client-events `e7d8a696...f07e789`、Research
-`afbe74b6...418822f`，完整值见生产 runbook。该目录与镜像标签构成 `1.6.80` 的即时
-回滚边界；当前状态卷和唯一有效备份均未删除。
+`599fd53` 四个镜像已打上 `rollback-599fd53-20260727T092311Z` 标签。数据库哈希分别为
+Gateway `866f7092...33e0e2`、client-events `3c8a6c2f...4e122`、Research
+`267e1e34...a4435`，完整值见生产 runbook。该目录与镜像标签构成当前即时回滚边界；
+当前状态卷、上一份 `599fd53/20260727T022356Z` 验证备份和新备份均保留。
 
 ### 3.3 当前可以对用户承诺什么
 

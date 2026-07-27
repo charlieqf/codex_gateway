@@ -62,7 +62,7 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure release is commit
-`599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da`, execution `1.6.81`, prompt `v29`,
+`2559d3a3473976cea0bdad1fc1db7787bfed7d2e`, execution `1.6.81`, prompt `v29`,
 validation `v42` and workflow `doctor_research_workflow.v70`. The `1.6.76`
 baseline completed five consecutive same-case public E2Es in 166.765–378.099
 seconds. A later real-user run showed that an optional one-URL client list could

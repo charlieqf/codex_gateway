@@ -14,9 +14,9 @@ Completed:
 
 - Doctor Research engineering remediation `1.6.81` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da` from clean release
-    `/home/qian/codex-gateway-release-599fd53-20260727T022356Z`;
-  - local and Azure gates passed build, 40 files/593 Vitest tests, 34 Python
+  - runtime commit `2559d3a3473976cea0bdad1fc1db7787bfed7d2e` from clean release
+    `/home/qian/codex-gateway-release-2559d3a-20260727T092311Z`;
+  - local and Azure gates passed build, 40 files/593 Vitest tests, 35 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
   - execution `1.6.81`, prompt `v29`, validation `v42`, workflow `v70`; the
     deployed medical bundle SHA-256 remains
@@ -40,6 +40,12 @@ Completed:
     allowance; `1.6.80` raised the controlled allowance from 2 to 5 and now
     returns the actual next UTC reset plus usage details instead of a fixed
     30-second retry;
+  - the operator-approved production policy now permits 50 admitted runs per
+    subject per UTC day. All four containers load `50`; failed/cancelled runs
+    still count, while single-active-run, Worker concurrency 1, global queue 2,
+    unique-doctor, entitlement and medical quality boundaries remain unchanged;
+  - the reported user's subject had used 5 admissions on the rollout day and
+    therefore had 45 remaining without consuming another run for verification;
   - `1.6.81` permits a final deterministic repair only when all remaining
     diagnostics are duplicate paragraph, unmatched delimiter or invalid inline
     enumeration, and reruns every hard validator before acceptance;
@@ -58,10 +64,18 @@ Completed:
     restarts, only `127.0.0.1:18787` published, public/loopback health ready,
     and no active run, unfinished reservation or temporary validation file. The
     requested named user test credential remains active for handoff;
+  - public OpenAI, strict-tools and focused `goldencode` native-tools smokes
+    passed. Request `req-417326fb-ff23-4546-9739-892584accf95` recorded
+    `goldencode-tencent / tencent / glm-5.2 / medium / status=ok`; all smoke
+    users were disabled with zero active keys;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/599fd53/20260727T022356Z`, with image tags
-    `rollback-20ca27f-20260727T022356Z` and all three databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z`, with image tags
+    `rollback-599fd53-20260727T092311Z` and all three databases integrity/FK/hash
     checked;
+  - superseded deployment backup directories from `70ca267` through
+    `20ca27f` were removed only after the verified `599fd53` boundary was
+    confirmed, recovering about 8.6 GiB. The `599fd53/20260727T022356Z`
+    boundary, the new `2559d3a` boundary and all live state volumes remain;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,
     and manually accept four-file content. CN1, Nginx, public ports and
