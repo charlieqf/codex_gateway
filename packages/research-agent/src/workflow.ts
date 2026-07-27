@@ -5957,6 +5957,63 @@ function deduplicateReviewParagraphs(
   };
 }
 
+const boundedReviewPresentationErrorCodes = new Set([
+  "review_duplicate_paragraph",
+  "review_unbalanced_delimiter",
+  "review_inline_enumeration_sequence"
+]);
+
+/**
+ * Applies only lossless or monotonically subtractive presentation repairs.
+ * The caller must rerun the complete output contract before accepting the
+ * result because paragraph removal can expose another hard quality failure.
+ */
+export function repairBoundedReviewPresentationIntegrity(input: {
+  markdown: string;
+  language: ResearchRunRecord["language"];
+  errorCodes: readonly string[];
+}): {
+  markdown: string;
+  changed: boolean;
+  duplicateParagraphRemoved: boolean;
+  delimiterBalanceRepaired: boolean;
+  inlineEnumerationNormalized: boolean;
+} {
+  if (
+    input.errorCodes.length === 0 ||
+    input.errorCodes.some(
+      (code) => !boundedReviewPresentationErrorCodes.has(code)
+    )
+  ) {
+    return {
+      markdown: input.markdown,
+      changed: false,
+      duplicateParagraphRemoved: false,
+      delimiterBalanceRepaired: false,
+      inlineEnumerationNormalized: false
+    };
+  }
+  const enumerationNormalized = normalizeInlineChineseEnumeration(
+    input.markdown
+  );
+  const delimiterRepaired = repairReviewUnbalancedDelimiters(
+    enumerationNormalized
+  );
+  const deduplicated = deduplicateReviewParagraphs(
+    delimiterRepaired,
+    input.language
+  );
+  return {
+    markdown: deduplicated.markdown,
+    changed: deduplicated.markdown !== input.markdown,
+    duplicateParagraphRemoved: deduplicated.changed,
+    delimiterBalanceRepaired:
+      delimiterRepaired !== enumerationNormalized,
+    inlineEnumerationNormalized:
+      enumerationNormalized !== input.markdown
+  };
+}
+
 function hasBalancedDelimiter(
   value: string,
   opening: string,
@@ -6563,24 +6620,24 @@ function validateGeneratedOutput(
     run.language
   );
   let deterministicDelimiterBalanceApplied = false;
-  if (
-    options.deterministicSafetyNormalization &&
-    qualityErrors.length > 0 &&
-    qualityErrors.every(
-      (error) =>
-        error.split(":", 1)[0] === "review_unbalanced_delimiter"
-    )
-  ) {
-    const repairedMarkdown = repairReviewUnbalancedDelimiters(
-      finalizedValue.review.markdown
-    );
-    if (repairedMarkdown !== finalizedValue.review.markdown) {
+  let deterministicReviewDuplicateParagraphRemoved = false;
+  let deterministicInlineEnumerationNormalizationApplied = false;
+  if (options.deterministicSafetyNormalization) {
+    const presentationRepair =
+      repairBoundedReviewPresentationIntegrity({
+        markdown: finalizedValue.review.markdown,
+        language: run.language,
+        errorCodes: qualityErrors.map(
+          (error) => error.split(":", 1)[0]!
+        )
+      });
+    if (presentationRepair.changed) {
       const repaired = parseAndValidateDoctorResearchModelOutput(
         JSON.stringify({
           ...finalizedValue,
           review: {
             ...finalizedValue.review,
-            markdown: repairedMarkdown
+            markdown: presentationRepair.markdown
           }
         })
       );
@@ -6595,7 +6652,12 @@ function validateGeneratedOutput(
         if (repairedErrors.length === 0) {
           finalizedValue = repaired.value;
           qualityErrors = [];
-          deterministicDelimiterBalanceApplied = true;
+          deterministicInlineEnumerationNormalizationApplied =
+            presentationRepair.inlineEnumerationNormalized;
+          deterministicDelimiterBalanceApplied =
+            presentationRepair.delimiterBalanceRepaired;
+          deterministicReviewDuplicateParagraphRemoved =
+            presentationRepair.duplicateParagraphRemoved;
         }
       }
     }
@@ -6629,6 +6691,16 @@ function validateGeneratedOutput(
             : []),
           ...(deterministicDelimiterBalanceApplied
             ? ["deterministic_delimiter_balance_applied"]
+            : []),
+          ...(deterministicReviewDuplicateParagraphRemoved
+            ? [
+                "deterministic_review_duplicate_paragraph_removed"
+              ]
+            : []),
+          ...(deterministicInlineEnumerationNormalizationApplied
+            ? [
+                "deterministic_inline_enumeration_normalization_applied"
+              ]
             : []),
           ...deterministicAbstractSupplementWarnings,
           ...collectReviewContractTargetWarnings(

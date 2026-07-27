@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getDefaultMedicalSkillBundle,
+  repairBoundedReviewPresentationIntegrity,
   runDoctorResearchReplayFixture,
   type DoctorResearchReplayFixture
 } from "./index.js";
@@ -171,6 +172,88 @@ describe("Doctor Research offline model-response replay", () => {
       "deterministic_delimiter_balance_applied"
     );
     expect(result.artifacts).toHaveLength(4);
+  });
+
+  it("repairs the bounded presentation-integrity bundle deterministically", () => {
+    const fixture = structuredClone(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!
+    );
+    fixture.fixture_id =
+      "doctor_research_replay_presentation_integrity_bundle";
+    fixture.model_calls.push({
+      stage: "validate_outputs",
+      attempt: 4,
+      role: "peer_review",
+      response_or_error: {
+        type: "synthetic_response",
+        variant: "presentation_integrity_bundle"
+      }
+    });
+
+    const first = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+    const second = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(first.terminalStatus).toBe("succeeded");
+    expect(first.diagnostics).toEqual([
+      "paragraph_citation_coverage",
+      "review_unbalanced_delimiter",
+      "review_inline_enumeration_sequence",
+      "numeric_evidence_closure"
+    ]);
+    expect(first.warnings).toContain(
+      "deterministic_safety_normalization_applied"
+    );
+    expect(first.artifacts).toHaveLength(4);
+    expect(first.artifactContentSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(second).toEqual(first);
+  });
+
+  it("mechanically closes the exact production presentation bundle", () => {
+    const paragraph =
+      "公开摘要能够支持研究问题、资料来源和方法边界的结构化比较，未披露的信息不作补写，观察性关联不解释为因果，正式判断仍需结合全文与独立复核。[1-3]";
+    const markdown = [
+      "## 研究主题",
+      paragraph,
+      paragraph,
+      "（1）核对公开摘要，（3）保留证据边界。） [1-3]"
+    ].join("\n\n");
+    const repaired = repairBoundedReviewPresentationIntegrity({
+      markdown,
+      language: "zh-CN",
+      errorCodes: [
+        "review_duplicate_paragraph",
+        "review_unbalanced_delimiter",
+        "review_inline_enumeration_sequence"
+      ]
+    });
+
+    expect(repaired).toMatchObject({
+      changed: true,
+      duplicateParagraphRemoved: true,
+      delimiterBalanceRepaired: true,
+      inlineEnumerationNormalized: true
+    });
+    expect(repaired.markdown.match(/公开摘要能够支持/gu)).toHaveLength(1);
+    expect(repaired.markdown).toContain("（一）核对公开摘要，（二）");
+    expect(repaired.markdown).not.toContain("。）");
+
+    const refused = repairBoundedReviewPresentationIntegrity({
+      markdown,
+      language: "zh-CN",
+      errorCodes: [
+        "review_duplicate_paragraph",
+        "numeric_evidence_closure"
+      ]
+    });
+    expect(refused).toMatchObject({ markdown, changed: false });
   });
 
   it("normalizes an unambiguous body envelope and preserves artifact hashes", () => {

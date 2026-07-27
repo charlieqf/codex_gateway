@@ -28,6 +28,7 @@ export type DoctorResearchReplaySyntheticVariant =
   | "controlled_trial_soft_floor"
   | "short_topic"
   | "unbalanced_delimiter"
+  | "presentation_integrity_bundle"
   | "orphaned_demonstrative"
   | "truncated_comparison"
   | "qa_after_conclusion"
@@ -260,6 +261,18 @@ function syntheticReplayResponse(
                   target: "markdown",
                   old_text: "证据边界短语",
                   new_text: "证据边界短语）"
+                }
+              ]
+          : variant === "presentation_integrity_bundle"
+            ? [
+                {
+                  target: "markdown",
+                  old_text: "证据边界短语",
+                  new_text: [
+                    "证据边界短语） （1）证据按公开摘要解释，（3）未披露内容不作补写。",
+                    "公开摘要用于建立可追溯的证据地图，能够支持研究问题、资料来源和方法边界的结构化比较；未披露的信息不作补写，观察性关联不解释为因果，正式判断仍需结合全文与独立复核。[1-3]",
+                    "公开摘要用于建立可追溯的证据地图，能够支持研究问题、资料来源和方法边界的结构化比较；未披露的信息不作补写，观察性关联不解释为因果，正式判断仍需结合全文与独立复核。[1-3]"
+                  ].join("\n\n")
                 }
               ]
           : [],
