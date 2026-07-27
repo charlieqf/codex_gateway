@@ -197,6 +197,40 @@ class DoctorResearchDemoTests(unittest.TestCase):
         DemoHandler.rate_limit_result_remaining = 0
         DemoHandler.rate_limit_download_remaining = 0
 
+    def test_daily_quota_error_keeps_actionable_reset_and_usage(self):
+        payload = json.dumps(
+            {
+                "error": {
+                    "code": "rate_limited",
+                    "research_code": "research_quota_exceeded",
+                    "message": "Research quota exceeded.",
+                    "retry_after_seconds": 67_729,
+                    "limit_kind": "research_daily_runs",
+                    "limit": {
+                        "scope": "subject",
+                        "window": "day",
+                        "maximum": 5,
+                        "used": 5,
+                        "requested": 1,
+                    },
+                }
+            }
+        ).encode()
+        error = DEMO.api_error(
+            429,
+            {
+                "Retry-After": "67729",
+                "X-Request-Id": "req-quota-test",
+            },
+            payload,
+        )
+
+        self.assertEqual(error.retry_after_seconds, 67_729)
+        self.assertIn("research_code=research_quota_exceeded", str(error))
+        self.assertIn("limit_kind=research_daily_runs", str(error))
+        self.assertIn("used=5, maximum=5, requested=1", str(error))
+        self.assertIn("retry_after=67729", str(error))
+
     def test_end_to_end_preserves_four_localized_filenames(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

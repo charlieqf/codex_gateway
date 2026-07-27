@@ -243,6 +243,22 @@ Last updated: 2026-07-27
   triple. Registry URLs must still pass the official-domain allowlist and the
   normal identity/evidence workflow; unregistered identities fail closed rather
   than being guessed from a translated name.
+- Doctor Research daily quota is an admission/resource contract, not a success
+  counter. Once admitted, failed and cancelled runs still count; otherwise a
+  caller could bypass the limit by forcing failures. Return the exact next UTC
+  day reset and current `maximum/used/requested` values. A fixed 30-second
+  retry is actively misleading for a daily window.
+- A host script copied into a container with mode `0600` may remain root-owned
+  and be unreadable by the container's unprivileged Node user. For one-shot,
+  import-free diagnostic or SQLite-backup modules, prefer
+  `docker exec -i ... node --input-type=module - < script`; then copy out only
+  the verified backup files and remove their exact temporary paths.
+- Deterministic final-output repair is appropriate only for a closed set of
+  presentation defects whose transformation is lossless or monotonically
+  subtractive. Duplicate-paragraph removal, unmatched-delimiter removal and
+  inline-enumeration normalization must be refused when any evidence, numeric,
+  identity, length, structure or safety diagnostic remains, and the complete
+  validator must pass again before artifacts are published.
 
 ## Known Pitfalls
 

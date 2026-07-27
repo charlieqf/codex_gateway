@@ -8,19 +8,19 @@ Docker listener.
 ## Current production deployment
 
 As of 2026-07-27, the public Azure Gateway and all three Research services run
-commit `1ac1419194faba5b40c0679b96377cf52285343f` from:
+commit `599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da` from:
 
 ```text
-/home/qian/codex-gateway-release-1ac1419-20260726T214648Z
+/home/qian/codex-gateway-release-599fd53-20260727T022356Z
 ```
 
-The execution contract is `1.6.79`, prompt `v29`, validation contract `v41`
-and workflow `doctor_research_workflow.v69`. The public Gateway remains bound
+The execution contract is `1.6.81`, prompt `v29`, validation contract `v42`
+and workflow `doctor_research_workflow.v70`. The public Gateway remains bound
 only to `127.0.0.1:18787`; the three Research services publish no host port.
 All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
-Local and Azure release gates passed build, 40 test files with all 590 Vitest
+Local and Azure release gates passed build, 40 test files with all 593 Vitest
 tests, all 34 Python tests, `git diff --check` and an npm audit with zero
 vulnerabilities. The medical-team Skill directory has no Git diff, and the
 deployed four-file bundle SHA-256 remains:
@@ -47,6 +47,25 @@ and verified that the TXT had five non-empty lines. All five Worker calls joined
 to complete Gateway/provider timelines; the permitted three-call initial shard
 fan-out ended before the targeted follow-up began, so there was no old/new
 follow-up overlap.
+
+Two admitted failures caused by that old identity-source defect then exhausted
+the former two-run daily subject quota. Request
+`req-4aaf46f6-6104-48f6-8c8d-b85f6c7322ed` was a genuine
+`research_daily_runs` rejection, not a failed deployment, but the old response
+incorrectly advertised a fixed 30-second retry. `1.6.80` sets the controlled-
+trial allowance to five admitted runs per UTC day and returns the true next-UTC-
+day reset interval plus `maximum`, `used` and `requested` values. Admitted
+failed and cancelled runs continue to count as the intentional anti-abuse
+contract.
+
+Execution `1.6.81` adds a final bounded repair only when every remaining
+diagnostic is duplicate paragraph, unmatched delimiter or invalid inline
+enumeration. It reruns the complete identity, citation, numeric, evidence-grade,
+length, structure, safety and artifact contract after the mechanical change.
+Public run `drr_ed34e4ea72af4648b0e29d87b2f42175`, using exactly the three
+required top-level fields, succeeded in 198.292 server seconds (204.9 seconds
+client wall time). Its five Worker calls joined to Gateway/provider timelines,
+and exactly 3 MD + 1 TXT matched every manifest size and SHA-256.
 
 The earlier dependency-free Python baseline was:
 
@@ -78,7 +97,7 @@ between target and floor is published only as `passed_with_warnings`.
 Identity, citation, numeric evidence, evidence grade, safety, chapter count,
 5-question/5-answer and four-file integrity gates remain fail-closed.
 
-The `1.6.79` acceptance reused the explicitly issued named test credential,
+The `1.6.81` acceptance reused the explicitly issued named test credential,
 which remains active for the requested user handoff; it did not create another
 temporary credential. Local validation downloads and scripts were removed.
 Final checks found zero active runs and zero unfinished public or internal-LLM
@@ -89,24 +108,24 @@ access must remain a named-user controlled trial.
 The verified pre-deploy database and image rollback boundary is:
 
 ```text
-/home/qian/codex-gateway-backups/1ac1419/20260726T214648Z
-codex_gateway_test-gateway:rollback-c439848-20260726T214648Z
-codex_gateway_test-research-llm-gateway:rollback-c439848-20260726T214648Z
-codex_gateway_test-research-worker:rollback-c439848-20260726T214648Z
-codex_gateway_test-research-maintenance:rollback-c439848-20260726T214648Z
+/home/qian/codex-gateway-backups/599fd53/20260727T022356Z
+codex_gateway_test-gateway:rollback-20ca27f-20260727T022356Z
+codex_gateway_test-research-llm-gateway:rollback-20ca27f-20260727T022356Z
+codex_gateway_test-research-worker:rollback-20ca27f-20260727T022356Z
+codex_gateway_test-research-maintenance:rollback-20ca27f-20260727T022356Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db        ff541c325d6ebe4a92de8555867dc13ae05689dda4d3bfcacb816e8dda776e95
-client-events.db  85c48b559db2dd3df303805e9b9be2d7acbcff423092be48bccebe31f380172e
-research.db       cbb6c410d566f95bb61ed1b0e2587e778df94da9a91be67f486db5149857cbd2
+gateway.db        60e323e742fa677783fa22119f13ecc46f5e0ae71f6494a61d1640cc55dfccdc
+client-events.db  e7d8a6964acf6a30526eb3f4bbe914a815214a949fb6f881eae51d47ef07e789
+research.db       afbe74b6197768ea9f8da481e6d99907b54674cb5e92d01acac7d2505418822f
 ```
 
-The exact deployed image IDs are Gateway `6cd1014dc20a`, internal LLM Gateway
-`812a2ee25556`, maintenance `050c07a0b666`, and Worker `3ce106e56f67`.
+The exact deployed image IDs are Gateway `1ab69da38fcd`, internal LLM Gateway
+`d6cd84e551ac`, maintenance `e95272ce3f92`, and Worker `75930344e230`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
 

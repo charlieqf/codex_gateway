@@ -12,16 +12,16 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.79` is deployed to the Azure
+- Doctor Research engineering remediation `1.6.81` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `1ac1419194faba5b40c0679b96377cf52285343f` from clean release
-    `/home/qian/codex-gateway-release-1ac1419-20260726T214648Z`;
-  - local and Azure gates passed build, 40 files/590 Vitest tests, 34 Python
+  - runtime commit `599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da` from clean release
+    `/home/qian/codex-gateway-release-599fd53-20260727T022356Z`;
+  - local and Azure gates passed build, 40 files/593 Vitest tests, 34 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
-  - execution `1.6.79`, prompt `v29`, validation `v41`, workflow `v69`; the
+  - execution `1.6.81`, prompt `v29`, validation `v42`, workflow `v70`; the
     deployed medical bundle SHA-256 remains
     `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
-  - cancellation, full Worker/Gateway/provider timelines, 15-fixture/21-test
+  - cancellation, full Worker/Gateway/provider timelines, 15-fixture/23-test
     deterministic replay, shared review/prose rules, hash-bound section repair,
     evidence projection and bounded body-envelope normalization are active;
   - the same engineering-allowlisted case passed five consecutive strict public
@@ -35,6 +35,18 @@ Completed:
     `department` succeeded as `drr_07b07f128ce746edb777fbc70dbe3340`
     in 265.857 server seconds with 3 MD + 1 five-line TXT and complete
     manifest/size/SHA-256 verification;
+  - request `req-4aaf46f6-6104-48f6-8c8d-b85f6c7322ed` was a genuine daily
+    quota rejection after two admitted identity failures exhausted the former
+    allowance; `1.6.80` raised the controlled allowance from 2 to 5 and now
+    returns the actual next UTC reset plus usage details instead of a fixed
+    30-second retry;
+  - `1.6.81` permits a final deterministic repair only when all remaining
+    diagnostics are duplicate paragraph, unmatched delimiter or invalid inline
+    enumeration, and reruns every hard validator before acceptance;
+  - exact-three-field public run `drr_ed34e4ea72af4648b0e29d87b2f42175`
+    succeeded in 198.292 server seconds, exercised the bounded delimiter
+    repair, joined all five Worker and Gateway/provider timelines, and verified
+    exactly 3 MD + 1 TXT against manifest sizes and SHA-256;
   - two of those runs exercised the 175-second provider deadline. Cancellation
     was requested and observed, the replacement attempts began only after the
     old calls terminated, and no same-session provider overlap was found;
@@ -47,8 +59,8 @@ Completed:
     and no active run, unfinished reservation or temporary validation file. The
     requested named user test credential remains active for handoff;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/1ac1419/20260726T214648Z`, with image tags
-    `rollback-c439848-20260726T214648Z` and all three databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/599fd53/20260727T022356Z`, with image tags
+    `rollback-20ca27f-20260727T022356Z` and all three databases integrity/FK/hash
     checked;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,

@@ -62,17 +62,25 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure release is commit
-`1ac1419194faba5b40c0679b96377cf52285343f`, execution `1.6.79`, prompt `v29`,
-validation `v41` and workflow `doctor_research_workflow.v69`. The `1.6.76`
+`599fd53a9231ecb6ac5f69193c9c4cc4ae53e6da`, execution `1.6.81`, prompt `v29`,
+validation `v42` and workflow `doctor_research_workflow.v70`. The `1.6.76`
 baseline completed five consecutive same-case public E2Es in 166.765–378.099
 seconds. A later real-user run showed that an optional one-URL client list could
 replace the complete server-reviewed identity source set. `1.6.79` fixes that
 engineering error by keeping registered sources authoritative and treating
 allowlisted client URLs as additions. A new request containing exactly the
 three top-level fields `name`, `hospital`, and `department` succeeded in
-265.857 server seconds. It returned exactly 3 MD + 1 TXT and passed independent
-manifest, size and SHA-256 checks. Provider deadline/cancellation telemetry was
-observed without old/new follow-up call overlap. The case is
+265.857 server seconds. A subsequent quota incident showed that two admitted
+identity failures had correctly exhausted the old two-run daily allowance, but
+the old response incorrectly advertised a fixed 30-second retry. `1.6.80`
+raised the controlled-trial allowance to five admitted runs per UTC day and
+returns the real reset interval plus usage details. `1.6.81` then generalized
+the final fail-closed mechanical repair for duplicate paragraphs, unmatched
+delimiters and invalid inline enumeration, while rerunning every hard gate.
+The exact three-field public run `drr_ed34e4ea72af4648b0e29d87b2f42175`
+succeeded in 198.292 server seconds. It returned exactly 3 MD + 1 TXT and
+passed independent manifest, size and SHA-256 checks. All five model calls
+joined to complete Worker/Gateway/provider timelines. The case is
 engineering-allowlisted; it is not a substitute for a medical-team-approved
 representative case or manual content acceptance. The service therefore remains
 `controlled-trial`.
@@ -99,7 +107,7 @@ representative case or manual content acceptance. The service therefore remains
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.79` together with the
+The production Worker uses frozen execution contract `1.6.81` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and

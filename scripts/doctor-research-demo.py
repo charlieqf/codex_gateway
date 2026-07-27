@@ -1151,6 +1151,10 @@ def parse_json_object(payload: bytes) -> dict[str, Any]:
 def api_error(status: int, headers: Any, payload: bytes) -> ApiError:
     code = "http_error"
     message = "Request was rejected."
+    research_code = None
+    limit_kind = None
+    limit_summary = None
+    body_retry_after_seconds = None
     try:
         value = parse_json_object(payload)
         error = value.get("error")
@@ -1159,18 +1163,50 @@ def api_error(status: int, headers: Any, payload: bytes) -> ApiError:
                 code = error["code"]
             if isinstance(error.get("message"), str):
                 message = error["message"]
+            if isinstance(error.get("research_code"), str):
+                research_code = error["research_code"]
+            if isinstance(error.get("limit_kind"), str):
+                limit_kind = error["limit_kind"]
+            retry_value = error.get("retry_after_seconds")
+            if (
+                isinstance(retry_value, int)
+                and not isinstance(retry_value, bool)
+                and 0 <= retry_value <= 604_800
+            ):
+                body_retry_after_seconds = retry_value
+            limit = error.get("limit")
+            if isinstance(limit, dict):
+                maximum = limit.get("maximum")
+                used = limit.get("used")
+                requested = limit.get("requested")
+                if all(
+                    isinstance(item, int) and not isinstance(item, bool)
+                    for item in (maximum, used, requested)
+                ):
+                    limit_summary = (
+                        f"used={used}, maximum={maximum}, "
+                        f"requested={requested}"
+                    )
     except DemoError:
         pass
     retry_after = headers.get("Retry-After") if headers is not None else None
     request_id = headers.get("X-Request-Id") if headers is not None else None
-    suffix = ""
-    if retry_after:
-        suffix += f", retry_after={retry_after}"
-    if request_id:
-        suffix += f", request_id={request_id}"
     retry_after_seconds = None
     if isinstance(retry_after, str) and re.fullmatch(r"[0-9]{1,6}", retry_after):
         retry_after_seconds = int(retry_after)
+    elif body_retry_after_seconds is not None:
+        retry_after_seconds = body_retry_after_seconds
+    suffix = ""
+    if research_code and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", research_code):
+        suffix += f", research_code={research_code}"
+    if limit_kind and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", limit_kind):
+        suffix += f", limit_kind={limit_kind}"
+    if limit_summary:
+        suffix += f", limit=({limit_summary})"
+    if retry_after_seconds is not None:
+        suffix += f", retry_after={retry_after_seconds}"
+    if request_id:
+        suffix += f", request_id={request_id}"
     return ApiError(
         f"HTTP {status} {code}: {message}{suffix}",
         status=status,
