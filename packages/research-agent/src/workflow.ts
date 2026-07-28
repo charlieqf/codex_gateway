@@ -3911,6 +3911,140 @@ async function generateAndValidateShardedModelOutput(
       );
     }
   }
+  const postCorrectionSafetyValidation = validation.ok
+    ? validation
+    : validateGeneratedOutput(
+        JSON.stringify(assembledDraft),
+        context.run,
+        identity,
+        evidence,
+        outputValidationPolicy,
+        { deterministicSafetyNormalization: true }
+      );
+  // The fifth and final call should repair the one section that remains
+  // invalid after a successful bounded correction. Sending that slot to a
+  // general peer patch would discard the already-structured diagnostic and
+  // cannot leave room for the hash-bound repair required by the contract.
+  const postCorrectionSectionRepairCandidate =
+    boundedCorrectionPromise !== null &&
+    !correctionUnavailableFallbackApplied &&
+    (qaContractRetryCompleted ||
+      reviewContentCorrectionCompleted ||
+      introductionCorrectionCompleted) &&
+    peerReviewAttempt === 5 &&
+    !postCorrectionSafetyValidation.ok
+      ? selectSingleSectionRepairCandidate({
+          markdown: assembledDraft.review.markdown,
+          diagnosticMarkdown:
+            postCorrectionSafetyValidation.candidate?.review.markdown,
+          language: context.run.language,
+          errorCodes: postCorrectionSafetyValidation.errorCodes,
+          errorDetails: postCorrectionSafetyValidation.errors,
+          evidence
+        })
+      : null;
+  if (postCorrectionSectionRepairCandidate) {
+    const repairResponse = await context.generateModel({
+      stage: "validate_outputs",
+      attempt: 5,
+      ...boundedCorrectionOptions(8_000, 90_000),
+      system: doctorResearchSectionRepairSystemPolicy,
+      prompt: buildSectionRepairPrompt({
+        run: context.run,
+        candidate: postCorrectionSectionRepairCandidate,
+        medicalSkillBundle
+      })
+    });
+    const repairDecision = parseSectionRepairDecision(
+      repairResponse.text
+    );
+    const repairedMarkdown = repairDecision
+      ? applyReviewSectionRepair({
+          markdown: assembledDraft.review.markdown,
+          target: postCorrectionSectionRepairCandidate.target,
+          decision: repairDecision
+        })
+      : null;
+    if (!repairDecision || repairedMarkdown === null) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        [
+          repairDecision
+            ? "post_correction_section_repair_application_error"
+            : "post_correction_section_repair_contract_error"
+        ]
+      );
+      return null;
+    }
+    const repairedDraft: DoctorResearchModelDraft = {
+      ...assembledDraft,
+      review: {
+        ...assembledDraft.review,
+        markdown: repairedMarkdown
+      }
+    };
+    const rawRepairedValidation = validateGeneratedOutput(
+      JSON.stringify(repairedDraft),
+      context.run,
+      identity,
+      evidence,
+      outputValidationPolicy
+    );
+    const repairedValidation = rawRepairedValidation.ok
+      ? rawRepairedValidation
+      : validateGeneratedOutput(
+          JSON.stringify(repairedDraft),
+          context.run,
+          identity,
+          evidence,
+          outputValidationPolicy,
+          { deterministicSafetyNormalization: true }
+        );
+    if (!repairedValidation.ok) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        repairedValidation.errorCodes,
+        repairedValidation.errors
+      );
+      return null;
+    }
+    return {
+      output: repairedValidation.value,
+      warnings: [
+        ...repairedValidation.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_call_reallocated_to_post_correction_section_repair",
+        "bounded_single_section_repair_completed",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardAdmissionGraceElapsed
+          ? ["bounded_initial_shard_admission_grace_elapsed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(qaContractRetryCompleted
+          ? ["bounded_qa_contract_retry_completed"]
+          : []),
+        ...(reviewContentCorrectionCompleted
+          ? ["bounded_review_content_correction_completed"]
+          : []),
+        ...(introductionCorrectionCompleted
+          ? ["bounded_introduction_correction_completed"]
+          : [])
+      ]
+    };
+  }
   const [peerReviewResult] = await Promise.allSettled([
     context.generateModel({
       stage: "validate_outputs",

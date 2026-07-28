@@ -445,6 +445,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_closing_section_boundary_supplement_applied"
     ],
     ["body", "bounded_qa_contract_retry_completed"],
+    [
+      "qa-peer-section-repair",
+      "peer_review_call_reallocated_to_post_correction_section_repair"
+    ],
     ["content", "bounded_review_content_correction_completed"],
     [
       "peer-contract",
@@ -650,7 +654,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministically projected away"
     };
     const initialBodyAnswers =
-      retryKind === "body"
+      retryKind === "body" ||
+      retryKind === "qa-peer-section-repair"
         ? foundation.answers.map((answer, index) => ({
             ...answer,
             answer: index === 0 ? "七例" : "短"
@@ -683,7 +688,8 @@ describe("Research Worker controlled-beta workflow", () => {
             }))
         : foundation.answers;
     const initialBodyQuestions =
-      retryKind === "body"
+      retryKind === "body" ||
+      retryKind === "qa-peer-section-repair"
         ? foundation.predicted_questions.map((question, index) =>
             index === 0 ? question.repeat(8) : question
           )
@@ -708,6 +714,22 @@ describe("Research Worker controlled-beta workflow", () => {
     ].join("。");
     const convergenceBody = [
       `## 研究设计与人群差异\n\n${convergenceUnsafeParagraph}`,
+      longChineseReviewFragment("方法路径与评价终点", 20),
+      longChineseReviewFragment("结果一致性与证据强度", 20),
+      longChineseReviewFragment("转化边界与研究缺口", 20)
+    ].join("\n\n");
+    const postQaSectionRepairBody = [
+      `## 研究设计与人群差异\n\n${[
+        Array.from(
+          { length: 6 },
+          () =>
+            "本节只综合所引公开摘要证据，比较研究设计、方法差异、观察终点、证据强度与适用边界"
+        ).join("。"),
+        Array.from(
+          { length: 5 },
+          () => unsafeSectionPaddingSentence
+        ).join("。")
+      ].join("。")}。[1]`,
       longChineseReviewFragment("方法路径与评价终点", 20),
       longChineseReviewFragment("结果一致性与证据强度", 20),
       longChineseReviewFragment("转化边界与研究缺口", 20)
@@ -779,6 +801,8 @@ describe("Research Worker controlled-beta workflow", () => {
                   ? peerConvergenceBody
                   : retryKind === "body-section-repair"
                     ? underfilledBody
+                  : retryKind === "qa-peer-section-repair"
+                    ? postQaSectionRepairBody
                   : retryKind === "section-repair" ||
                       retryKind === "correction-timeout"
                     ? convergenceBody
@@ -1454,6 +1478,38 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
+            retryKind === "qa-peer-section-repair" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 5
+          ) {
+            const boundSource =
+              /Failed section and hash-bound source: (\{[^\r\n]+\})/u.exec(
+                modelInput.prompt
+              );
+            expect(boundSource).not.toBeNull();
+            const section = JSON.parse(boundSource![1]!) as {
+              section_id: string;
+              original_sha256: string;
+              heading: string;
+            };
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_section_repair.v1",
+                section_id: section.section_id,
+                original_sha256: section.original_sha256,
+                replacement: `## ${section.heading}\n\n${convergenceSafeParagraph}`
+              }),
+              gatewayRequestId:
+                "req_sharded_qa_peer_section_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
             retryKind === "transport-double" &&
             modelInput.attempt === 4
           ) {
@@ -1675,7 +1731,8 @@ describe("Research Worker controlled-beta workflow", () => {
       artifactRoot: fixture.artifactRoot,
       policy: {
         ...workflowPolicy(),
-        ...(retryKind === "body"
+        ...(retryKind === "body" ||
+          retryKind === "qa-peer-section-repair"
           ? {
               maximumQuestionContent: 30,
               minimumAnswerContent: 100,
@@ -2206,7 +2263,8 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "peer-convergence" ||
-      retryKind === "body-section-repair"
+      retryKind === "body-section-repair" ||
+      retryKind === "qa-peer-section-repair"
     ) {
       expect(result.review.markdown).toContain(
         convergenceSafeParagraph
@@ -2454,7 +2512,8 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "transport-middle-and-closing" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety" ||
-        retryKind === "body-section-repair"
+        retryKind === "body-section-repair" ||
+        retryKind === "qa-peer-section-repair"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
