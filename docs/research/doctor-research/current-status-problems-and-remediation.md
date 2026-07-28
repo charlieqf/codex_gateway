@@ -15,7 +15,7 @@ API 使用说明或生产操作手册。
 
 ## 一、结论摘要
 
-Doctor Research API 的 `1.6.82` 已部署到 Azure VM 的公网生产入口。
+Doctor Research API 的 `1.6.83` 已部署到 Azure VM 的公网生产入口。
 取消、遥测、回放、规则统一、定向修复、受控软完整度发布线、模型片段有界归一化和
 四文件提交链路的工程整改已经完成。当前工程 allowlist 的同一病例连续 5 次真实公网
 E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基础设施健康。医学团队尚未
@@ -28,12 +28,12 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 | --- | --- | --- |
 | 部署目标 | Azure VM，公网入口为 `https://gw.instmarket.com.au` | 正确；CN1 不是 Doctor Research 部署目标，且本轮未改动 CN1 |
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
-| 当前版本 | commit `02b74de838a7b4a33c340fc6924c79710872928f`，执行器 `1.6.82` | 已上线 |
+| 当前版本 | commit `eb94fa8a5b2ea8ac174832f07d30ba7c4d83d5f4`，执行器 `1.6.83` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 593 个 Vitest、35 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
+| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 594 个 Vitest、35 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
 | 每日准入额度 | 每个 subject 每个 UTC 自然日 50 次；当日已准入失败/取消仍计数，幂等重放不重复计数 | 已上线；不改变并发、队列、身份、证据和四文件门槛 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
-| 真实公网 E2E | `1.6.76` 同一工程病例连续 5 次成功；`1.6.82` 三字段发布后 E2E 在 161.227 秒成功并命中 QA 修正路径 | 三字段兼容、纠错时延和 10 分钟墙钟目标通过；病例代表性仍待医学团队确认 |
+| 真实公网 E2E | `1.6.76` 同一工程病例连续 5 次成功；`1.6.83` 三字段发布后 E2E 在 201.212 秒成功 | 三字段兼容、完整时间线和 10 分钟墙钟目标通过；病例代表性仍待医学团队确认 |
 | 当前四文件 | 最新三字段 run 恰好产生 3 MD + 1 TXT，下载大小、manifest、SHA-256 和五行 TXT 全部一致 | 自动化四文件契约通过，仍待医学团队人工内容验收 |
 | 取消传播 | `/v1/chat/completions` 与 `/v1/responses` 非流式生产断开均到达 provider，记录 `cancel_requested=1`、`cancel_observed=1` | P0 已完成；故障注入覆盖无同分片新旧调用重叠 |
 | 发布范围 | 仅允许命名、可追踪的少量用户试用 | 暂不扩大为普遍可用 |
@@ -94,16 +94,16 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 - 目标环境：Azure VM
 - Compose project：`codex_gateway_test`
 - 发布目录：
-  `/home/qian/codex-gateway-release-02b74de-20260728T030734Z`
-- 执行器：`doctor-research-skill.1.6.82`
+  `/home/qian/codex-gateway-release-eb94fa8-20260728T062916Z`
+- 执行器：`doctor-research-skill.1.6.83`
 - Prompt：`v29`
 - Validation：`v42`
-- Workflow：`doctor_research_workflow.v71`
+- Workflow：`doctor_research_workflow.v72`
 - 公网 Gateway 只监听 `127.0.0.1:18787->8787`，Nginx 仍是唯一公网边缘。
 - Research LLM Gateway、Worker 和 maintenance 均不发布宿主机端口。
 
 最终检查时四个容器均为 healthy、重启次数均为 0。公网和 loopback 健康检查通过，
-Worker 报告 `doctor-research-skill.1.6.82`，内部 LLM Gateway 截止为 175000 ms。
+Worker 报告 `doctor-research-skill.1.6.83`，内部 LLM Gateway 截止为 175000 ms。
 四个容器实际加载的 `RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT` 均为 `50`。发布后公网
 OpenAI、strict-tools、八模型 surface 和定向 `goldencode` native-tools smoke 均通过；相关四个
 临时 smoke/E2E 用户均已禁用且活动 key 为 0，临时 entitlement 和文件均已清理。
@@ -113,13 +113,13 @@ OpenAI、strict-tools、八模型 surface 和定向 `goldencode` native-tools sm
 当前发布回滚边界使用以下经过完整性、外键和 SHA-256 校验的四数据库备份：
 
 ```text
-/home/qian/codex-gateway-backups/02b74de/20260728T030734Z
+/home/qian/codex-gateway-backups/eb94fa8/20260728T062916Z
 ```
 
 四份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；部署前的
-`2559d3a` 四个镜像已打上 `rollback-2559d3a-20260728T030734Z` 标签。数据库哈希分别为
-Gateway `e0854982...a5b06`、client-events `02231deb...bf4d`、Research
-`fe168af1...dc5`、Research LLM `c5d76124...4431`，完整值见生产 runbook。
+`02b74de` 四个镜像已打上 `rollback-02b74de-20260728T062916Z` 标签。数据库哈希分别为
+Gateway `00e0fd40...f7ed`、client-events `3655003e...824e`、Research
+`6b5957a8...009f`、Research LLM `ac6ec4f1...0f42`，完整值见生产 runbook。
 
 ### 3.3 当前可以对用户承诺什么
 
@@ -136,7 +136,7 @@ Gateway `e0854982...a5b06`、client-events `02231deb...bf4d`、Research
 暂时不能承诺：
 
 - 所有医生、所有上游状态下的每次请求都一定成功；当前证据是单一工程病例连续 5/5；
-- `1.6.82` 生成的 3 MD + 1 TXT 已经完成人工医学内容验收；
+- `1.6.83` 生成的 3 MD + 1 TXT 已经完成人工医学内容验收；
 - 可以无风险扩大到普通用户或高并发流量。
 
 ## 四、最近验证过程和结果
@@ -174,6 +174,8 @@ Gateway `e0854982...a5b06`、client-events `02231deb...bf4d`、Research
 | `1.6.81 @ 2559d3a` / `drr_fe4729ec07eb42aea302d3289735b33f` | `model_contract_error`，321.483 秒，零 artifact | QA 修正继承 `low / 18000` 并在 175 秒截止且确认取消；后续 peer 不合格，剩余主题 `331/450`、结论 `0/160` 和一个括号错误，按多硬门槛 fail-closed；不是身份、配额或部署失败 |
 | `1.6.81 @ 2559d3a` / `drr_04adc0d5f5284133b64c5120154a1351` | 成功，139.191 秒 | 同病例随后成功并产生 1 result、4 artifacts、77 sources、40 references、9 claims，进一步排除身份、额度和部署问题 |
 | `1.6.82 @ 02b74de` / `drr_e3eee788c4da4c5e88c78f248929728a` | 成功，服务端 161.227 秒、客户端 164 秒 | 三字段公网 E2E 命中 QA 修正；attempt 4 为 `none / 8000`，provider 首事件 2.323 秒、持续 11.866 秒；五条时间线无取消或重叠，恰好四文件及 manifest/大小/SHA-256 全通过 |
+| `1.6.82 @ 02b74de` / `drr_cd3716ae58524bf299e36d6437b12a00` | `model_contract_error`，143.414 秒，零 artifact | 五次 Aliyun 调用均 200；QA 修正成功后，第五次仍用于通用 peer 且返回契约不可用，确定性回退只剩一个主题 `313/450`。根因是末次调用路由缺口，不是身份、额度、部署或 provider 故障 |
+| `1.6.83 @ eb94fa8` / `drr_ad1f050c609945c29d546315d4857173` | 成功，服务端 201.212 秒、客户端 203 秒 | 保持五调用上限和全部硬门槛；三字段公网 E2E 的五次 Aliyun 调用均 200、无取消或后续调用重叠，76 sources、40 references、9 claims 和恰好 3 MD + 1 五行 TXT 的 result/manifest/file 大小及 SHA-256 全部一致 |
 
 发布前连续五次和发布后精确 runtime E2E 均使用当前工程 allowlist 的同一 smoke 病例；医学团队仍需明确确认它是否可作为
 正式代表性病例，并补充其要求覆盖的其他病例。该组数据可作为工程基线，不能替代医学
@@ -565,7 +567,7 @@ warning 的产物。该数据支持保留当前发布线，不支持在缺少医
 
 ### 阶段 A：立即保持的生产边界
 
-1. 保持 `1.6.82` 受限试用，不扩大用户范围。
+1. 保持 `1.6.83` 受限试用，不扩大用户范围。
 2. 保持 570 秒硬截止、Worker concurrency 1 和 fail-closed artifact 发布。
 3. 对用户明确展示失败类型和是否建议稍后重试。
 4. 冻结新的边缘句式补丁、盲目模型切换和未经医学团队确认的门槛放宽。

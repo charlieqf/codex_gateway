@@ -12,13 +12,13 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.82` is deployed to the Azure
+- Doctor Research engineering remediation `1.6.83` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `02b74de838a7b4a33c340fc6924c79710872928f` from clean release
-    `/home/qian/codex-gateway-release-02b74de-20260728T030734Z`;
-  - local and Azure gates passed build, 40 files/593 Vitest tests, 35 Python
+  - runtime commit `eb94fa8a5b2ea8ac174832f07d30ba7c4d83d5f4` from clean release
+    `/home/qian/codex-gateway-release-eb94fa8-20260728T062916Z`;
+  - local and Azure gates passed build, 40 files/594 Vitest tests, 35 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
-  - execution `1.6.82`, prompt `v29`, validation `v42`, workflow `v71`; the
+  - execution `1.6.83`, prompt `v29`, validation `v42`, workflow `v72`; the
     deployed medical bundle SHA-256 remains
     `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
   - cancellation, full Worker/Gateway/provider timelines, 15-fixture/23-test
@@ -69,6 +69,23 @@ Completed:
     Its QA correction used `reasoning=none`, 8,000 output tokens, a 2.323-second
     first provider event and 11.866-second provider duration. The Python client
     verified exactly 3 MD + 1 TXT, manifest sizes and every SHA-256;
+  - latest reported `1.6.82` run `drr_cd3716ae58524bf299e36d6437b12a00`
+    was not a deployment, identity, quota or provider failure. All five Aliyun
+    calls returned 200, but after a successful QA correction the fifth slot
+    was still used for a contract-unusable general peer response; deterministic
+    fallback then left one topic at 313/450 and correctly published zero
+    artifacts;
+  - `1.6.83` reuses that fifth and final slot for the existing hash-bound
+    single-section repair only when a completed bounded correction leaves
+    exactly one repairable section. It adds no sixth call and preserves the
+    original-section SHA, allowed-evidence, citation, complete-validation and
+    fail-closed boundaries;
+  - exact-three-field post-deploy public E2E
+    `drr_ad1f050c609945c29d546315d4857173` succeeded in 201.212 server-active
+    seconds (203 seconds client wall time). Five Aliyun requests returned 200
+    with complete timelines and cancellation `0/0`; the run committed 76
+    sources, 40 references and 9 claims, and exactly 3 MD + 1 five-line TXT
+    matched result/manifest/file sizes and every SHA-256;
   - two of those runs exercised the 175-second provider deadline. Cancellation
     was requested and observed, the replacement attempts began only after the
     old calls terminated, and no same-session provider overlap was found;
@@ -81,19 +98,21 @@ Completed:
     and no active run, unfinished reservation or temporary validation file. The
     requested named user test credential remains active for handoff;
   - public OpenAI, strict-tools, the exact eight-model surface and focused
-    `goldencode` native-tools smokes passed. Native request
-    `req-750bbdfa-20b6-4396-b05f-32f824070e7a` succeeded; all temporary
-    smoke/E2E users were disabled with zero active keys, the temporary
-    entitlement was cancelled and temporary output was removed;
+    `goldencode` native-tools smokes passed. One first native call through
+    OpenRouter reached its 240-second client bound and verified
+    `client_abort/cancel_requested=1/cancel_observed=1`; controlled retry
+    `req-c61a0ac5-e163-42fa-a779-393062489c72` succeeded in 118 seconds. All
+    temporary smoke/E2E users were disabled with zero active keys, the
+    temporary entitlement was cancelled and temporary output was removed;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/02b74de/20260728T030734Z`, with image tags
-    `rollback-2559d3a-20260728T030734Z` and all four databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/eb94fa8/20260728T062916Z`, with image tags
+    `rollback-02b74de-20260728T062916Z` and all four databases integrity/FK/hash
     checked;
   - superseded deployment backup directories from `70ca267` through
     `20ca27f` were removed only after the verified `599fd53` boundary was
     confirmed, recovering about 8.6 GiB. The `599fd53/20260727T022356Z`
-    boundary, the `2559d3a` boundary, the current `02b74de` boundary and all
-    live state volumes remain;
+    boundary, the `2559d3a` and `02b74de` boundaries, the current
+    `eb94fa8/20260728T062916Z` boundary and all live state volumes remain;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,
     and manually accept four-file content. CN1, Nginx, public ports and

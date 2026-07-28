@@ -272,6 +272,19 @@ Last updated: 2026-07-28
   while `none / 8,000-10,000` succeeded 19/19. Bound correction and peer calls
   before changing providers or medical gates, and retain cancellation/no-overlap
   verification for every retry.
+- After a bounded Doctor Research correction succeeds, rerun deterministic
+  safety validation before assigning the last model-call slot. If exactly one
+  section remains repairable, preserve the structured diagnostic and use the
+  existing section-id/original-SHA/allowed-evidence repair contract. A generic
+  peer call can discard that information and leave no budget for the targeted
+  repair. This is slot reallocation, not a sixth call or a relaxed gate; reject
+  hash mismatches, evidence escapes and any failed complete validation.
+- A VM release gate must provide both Node and Python to Python tests that
+  invoke Node health scripts. The Azure host has Python but no system Node/npm;
+  the operator-local Node binary does not automatically enter non-interactive
+  SSH `PATH`. Run JS gates in a pinned Node container and Python gates in a
+  read-only container that also has Node, rather than interpreting
+  `FileNotFoundError: node` as an application regression.
 - Tag rollback images before a new build replaces mutable `latest` metadata.
   If that metadata is already gone, rebuild the exact previous clean release
   and tag that image, then rebuild the activation release. Do not use
@@ -281,6 +294,10 @@ Last updated: 2026-07-28
   `/tmp`. For a verified SQLite backup, copy the file inside the container to
   an exact temporary path on its state volume, copy it to the host, and remove
   only that exact temporary file after hash/integrity verification.
+- `docker cp` creates host backup files as root on this VM. Run the final
+  read-only permission change with `sudo`, then run `sudo sha256sum --check`;
+  an unprivileged checksum failure after mode `0400` is a permissions issue,
+  not evidence that an already matched container/host backup hash changed.
 
 ## Known Pitfalls
 

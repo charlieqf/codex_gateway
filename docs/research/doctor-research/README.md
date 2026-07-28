@@ -62,8 +62,8 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure release is commit
-`02b74de838a7b4a33c340fc6924c79710872928f`, execution `1.6.82`, prompt `v29`,
-validation `v42` and workflow `doctor_research_workflow.v71`. The `1.6.76`
+`eb94fa8a5b2ea8ac174832f07d30ba7c4d83d5f4`, execution `1.6.83`, prompt `v29`,
+validation `v42` and workflow `doctor_research_workflow.v72`. The `1.6.76`
 baseline completed five consecutive same-case public E2Es in 166.765–378.099
 seconds. A later real-user run showed that an optional one-URL client list could
 replace the complete server-reviewed identity source set. `1.6.79` fixes that
@@ -100,6 +100,18 @@ quality gates. Post-deploy public run `drr_e3eee788c4da4c5e88c78f248929728a`
 exercised the QA correction path and succeeded in 161.227 server seconds with
 exactly 3 MD + 1 TXT and complete manifest/size/SHA-256 verification.
 
+Real-user `1.6.82` run `drr_cd3716ae58524bf299e36d6437b12a00`
+then exposed a different deterministic routing gap: all five Aliyun calls
+returned 200, but after a successful QA correction the final call still went
+to a generic peer contract. That contract was unusable and one topic remained
+313/450, so the run correctly published nothing. `1.6.83` keeps the same
+five-call budget and quality rules, but when a completed bounded correction
+leaves exactly one repairable section it reallocates the last peer slot to the
+existing section-id/original-SHA/evidence-bound repair. Post-deploy three-field
+run `drr_ad1f050c609945c29d546315d4857173` succeeded in 201.212 active seconds
+and independently verified exactly 3 MD + 1 five-line TXT against every
+manifest size and SHA-256.
+
 ## Contents
 
 - `current-status-problems-and-remediation.md`: current Azure release status,
@@ -122,7 +134,7 @@ exactly 3 MD + 1 TXT and complete manifest/size/SHA-256 verification.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.82` together with the
+The production Worker uses frozen execution contract `1.6.83` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
