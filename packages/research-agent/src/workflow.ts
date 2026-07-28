@@ -2584,6 +2584,17 @@ async function generateAndValidateShardedModelOutput(
   warnings: string[];
 } | null> {
   const referenceCount = evidence.references.length;
+  const boundedCorrectionOptions = (
+    maximumOutputTokens: 8_000 | 10_000,
+    maximumDurationMs = 120_000
+  ) => ({
+    reasoningEffort: "none" as const,
+    maximumDurationMs,
+    maximumOutputTokens: Math.min(
+      maximumOutputTokens,
+      context.input.policy.maximumOutputTokensPerCall
+    )
+  });
   const foundationEnd = Math.min(referenceCount, 5);
   const middleEnd = Math.min(
     referenceCount,
@@ -3217,8 +3228,7 @@ async function generateAndValidateShardedModelOutput(
     const repairResponse = await context.generateModel({
       stage: "synthesize_review",
       attempt: 5,
-      maximumDurationMs: 120_000,
-      reasoningEffort: "none",
+      ...boundedCorrectionOptions(8_000),
       system: doctorResearchSectionRepairSystemPolicy,
       prompt: buildSectionRepairPrompt({
         run: context.run,
@@ -3443,7 +3453,7 @@ async function generateAndValidateShardedModelOutput(
     const correctedConclusionResponse = await context.generateModel({
       stage: "synthesize_review",
       attempt: 5,
-      maximumDurationMs: 120_000,
+      ...boundedCorrectionOptions(8_000),
       system: doctorResearchFragmentSystemPolicy,
       prompt: buildConclusionCorrectionPrompt({
         run: context.run,
@@ -3624,6 +3634,7 @@ async function generateAndValidateShardedModelOutput(
     ? context.generateModel({
         stage: "synthesize_review",
         attempt: 4,
+        ...boundedCorrectionOptions(8_000),
         system: doctorResearchQaSystemPolicy,
         prompt: buildQaContractCorrectionPrompt({
           run: context.run,
@@ -3646,6 +3657,7 @@ async function generateAndValidateShardedModelOutput(
       : context.generateModel({
           stage: "synthesize_review",
           attempt: 4,
+          ...boundedCorrectionOptions(10_000),
           system: doctorResearchFragmentSystemPolicy,
           prompt: reviewContentCorrectionPrompt
         });
@@ -3653,7 +3665,7 @@ async function generateAndValidateShardedModelOutput(
     ? context.generateModel({
         stage: "synthesize_review",
         attempt: 4,
-        maximumDurationMs: 120_000,
+        ...boundedCorrectionOptions(8_000),
         system: doctorResearchSectionRepairSystemPolicy,
         prompt: buildSectionRepairPrompt({
           run: context.run,
@@ -3667,6 +3679,7 @@ async function generateAndValidateShardedModelOutput(
       ? context.generateModel({
           stage: "synthesize_review",
           attempt: 4,
+          ...boundedCorrectionOptions(8_000),
           system: doctorResearchFragmentSystemPolicy,
           prompt: buildIntroductionCorrectionPrompt({
             run: context.run,
@@ -3902,8 +3915,7 @@ async function generateAndValidateShardedModelOutput(
     context.generateModel({
       stage: "validate_outputs",
       attempt: peerReviewAttempt,
-      reasoningEffort: "none",
-      maximumDurationMs: 120_000,
+      ...boundedCorrectionOptions(8_000),
       prompt: buildPeerReviewPatchPrompt({
         run: context.run,
         evidence,
@@ -3977,7 +3989,7 @@ async function generateAndValidateShardedModelOutput(
       const correctedConclusionResponse = await context.generateModel({
         stage: "synthesize_review",
         attempt: 5,
-        maximumDurationMs: 120_000,
+        ...boundedCorrectionOptions(8_000),
         system: doctorResearchFragmentSystemPolicy,
         prompt: buildConclusionCorrectionPrompt({
           run: context.run,
@@ -4227,7 +4239,7 @@ async function generateAndValidateShardedModelOutput(
     const convergenceResponse = await context.generateModel({
       stage: "validate_outputs",
       attempt: 5,
-      maximumDurationMs: 90_000,
+      ...boundedCorrectionOptions(8_000, 90_000),
       prompt: convergenceSectionCandidate
         ? buildSectionRepairPrompt({
             run: context.run,

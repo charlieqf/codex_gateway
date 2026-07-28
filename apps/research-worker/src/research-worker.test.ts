@@ -966,6 +966,13 @@ describe("Research Worker controlled-beta workflow", () => {
       number | undefined
     >();
     const peerReviewReasoningEfforts: Array<string | undefined> = [];
+    const followupModelBudgets: Array<{
+      stage: string;
+      attempt: number;
+      maximumOutputTokens: number | undefined;
+      reasoningEffort: string | undefined;
+      providerTimeoutMs: number | undefined;
+    }> = [];
     const activeOutputExhaustedShardRoles = new Set<number>();
     let sameShardProviderOverlapObserved = false;
     let retryPrompt: string | null = null;
@@ -982,6 +989,15 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate(modelInput) {
           attempts.push(modelInput.attempt);
+          if (modelInput.attempt >= 4) {
+            followupModelBudgets.push({
+              stage: modelInput.stage,
+              attempt: modelInput.attempt,
+              maximumOutputTokens: modelInput.maximumOutputTokens,
+              reasoningEffort: modelInput.reasoningEffort,
+              providerTimeoutMs: modelInput.providerTimeoutMs
+            });
+          }
           if (modelInput.stage === "synthesize_review") {
             synthesisReasoningEfforts.set(
               modelInput.attempt,
@@ -1723,6 +1739,18 @@ describe("Research Worker controlled-beta workflow", () => {
     });
     expect(
       peerReviewReasoningEfforts.every((value) => value === "none")
+    ).toBe(true);
+    expect(followupModelBudgets.length).toBeGreaterThan(0);
+    expect(
+      followupModelBudgets.every(
+        (budget) =>
+          budget.reasoningEffort === "none" &&
+          budget.maximumOutputTokens !== undefined &&
+          budget.maximumOutputTokens <= 10_000 &&
+          budget.providerTimeoutMs !== undefined &&
+          budget.providerTimeoutMs <= 190_000
+      ),
+      JSON.stringify(followupModelBudgets)
     ).toBe(true);
     if (retryKind === "admission") {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
