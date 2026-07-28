@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 ## Safety Rules That Worked
 
@@ -266,6 +266,21 @@ Last updated: 2026-07-27
   inline-enumeration normalization must be refused when any evidence, numeric,
   identity, length, structure or safety diagnostic remains, and the complete
   validator must pass again before artifacts are published.
+- Targeted Doctor Research correction calls should have their own measured
+  reasoning, output and wall-clock budgets. Production attempt-4 history from
+  2026-07-22 showed `low / 18,000` succeeding 13/27 times with 14 timeouts,
+  while `none / 8,000-10,000` succeeded 19/19. Bound correction and peer calls
+  before changing providers or medical gates, and retain cancellation/no-overlap
+  verification for every retry.
+- Tag rollback images before a new build replaces mutable `latest` metadata.
+  If that metadata is already gone, rebuild the exact previous clean release
+  and tag that image, then rebuild the activation release. Do not use
+  `docker commit` on a running production container because its configured
+  runtime environment may contain secrets.
+- `docker cp` cannot read a file that exists only in a container tmpfs such as
+  `/tmp`. For a verified SQLite backup, copy the file inside the container to
+  an exact temporary path on its state volume, copy it to the host, and remove
+  only that exact temporary file after hash/integrity verification.
 
 ## Known Pitfalls
 

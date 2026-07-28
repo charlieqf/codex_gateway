@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 ## Current Phase
 
@@ -12,13 +12,13 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.81` is deployed to the Azure
+- Doctor Research engineering remediation `1.6.82` is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `2559d3a3473976cea0bdad1fc1db7787bfed7d2e` from clean release
-    `/home/qian/codex-gateway-release-2559d3a-20260727T092311Z`;
+  - runtime commit `02b74de838a7b4a33c340fc6924c79710872928f` from clean release
+    `/home/qian/codex-gateway-release-02b74de-20260728T030734Z`;
   - local and Azure gates passed build, 40 files/593 Vitest tests, 35 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
-  - execution `1.6.81`, prompt `v29`, validation `v42`, workflow `v70`; the
+  - execution `1.6.82`, prompt `v29`, validation `v42`, workflow `v71`; the
     deployed medical bundle SHA-256 remains
     `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351`;
   - cancellation, full Worker/Gateway/provider timelines, 15-fixture/23-test
@@ -53,6 +53,22 @@ Completed:
     succeeded in 198.292 server seconds, exercised the bounded delimiter
     repair, joined all five Worker and Gateway/provider timelines, and verified
     exactly 3 MD + 1 TXT against manifest sizes and SHA-256;
+  - real-user `1.6.81` run `drr_fe4729ec07eb42aea302d3289735b33f`
+    failed closed in 321.483 seconds because its QA correction inherited
+    `reasoning=low` and an 18,000-token ceiling, reached the 175-second
+    provider deadline, and the later peer response did not satisfy the
+    contract. It published zero artifacts; identity, quota and deployment
+    were not the cause;
+  - production history since 2026-07-22 showed the old attempt-4
+    `low / 18,000` shape succeeded 13/27 times and timed out 14/27, while
+    existing `none / 8,000-10,000` calls succeeded 19/19. `1.6.82` therefore
+    bounds all targeted correction and peer calls without changing the model,
+    medical Skill, quality gates or artifact contract;
+  - post-deploy three-field public E2E
+    `drr_e3eee788c4da4c5e88c78f248929728a` succeeded in 161.227 server seconds.
+    Its QA correction used `reasoning=none`, 8,000 output tokens, a 2.323-second
+    first provider event and 11.866-second provider duration. The Python client
+    verified exactly 3 MD + 1 TXT, manifest sizes and every SHA-256;
   - two of those runs exercised the 175-second provider deadline. Cancellation
     was requested and observed, the replacement attempts began only after the
     old calls terminated, and no same-session provider overlap was found;
@@ -64,18 +80,20 @@ Completed:
     restarts, only `127.0.0.1:18787` published, public/loopback health ready,
     and no active run, unfinished reservation or temporary validation file. The
     requested named user test credential remains active for handoff;
-  - public OpenAI, strict-tools and focused `goldencode` native-tools smokes
-    passed. Request `req-417326fb-ff23-4546-9739-892584accf95` recorded
-    `goldencode-tencent / tencent / glm-5.2 / medium / status=ok`; all smoke
-    users were disabled with zero active keys;
+  - public OpenAI, strict-tools, the exact eight-model surface and focused
+    `goldencode` native-tools smokes passed. Native request
+    `req-750bbdfa-20b6-4396-b05f-32f824070e7a` succeeded; all temporary
+    smoke/E2E users were disabled with zero active keys, the temporary
+    entitlement was cancelled and temporary output was removed;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z`, with image tags
-    `rollback-599fd53-20260727T092311Z` and all three databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/02b74de/20260728T030734Z`, with image tags
+    `rollback-2559d3a-20260728T030734Z` and all four databases integrity/FK/hash
     checked;
   - superseded deployment backup directories from `70ca267` through
     `20ca27f` were removed only after the verified `599fd53` boundary was
     confirmed, recovering about 8.6 GiB. The `599fd53/20260727T022356Z`
-    boundary, the new `2559d3a` boundary and all live state volumes remain;
+    boundary, the `2559d3a` boundary, the current `02b74de` boundary and all
+    live state volumes remain;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,
     and manually accept four-file content. CN1, Nginx, public ports and

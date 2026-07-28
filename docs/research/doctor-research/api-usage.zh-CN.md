@@ -110,6 +110,12 @@ Accept: application/json
 - `failed`、`cancelled`、`expired`：终态。记录 `terminal_reason`、
   `terminal_detail_public` 和 `request_id`，不得把它们当成部分成功。
 
+`model_contract_error` 表示本次 run 已到终态，但模型响应的解析、结构、证据或完整
+验证合同仍未全部通过；服务会 fail-closed，不发布半成品。继续查询原 `run_id` 只会返回
+同一终态。若业务决定重新研究，这是一个新的逻辑创建操作，应使用新的
+`Idempotency-Key`；若只是创建响应
+是否送达不确定，则必须复用原 key 和完全相同的请求体，不能换 key 猜测重试。
+
 选择经过人工确认的候选：
 
 ```http
@@ -264,6 +270,12 @@ redirect、非 loopback 明文 HTTP、符号链接 key/request 文件和不安�
 `1.6.81` 上线后，仍仅提交三个必填字段的
 `drr_ed34e4ea72af4648b0e29d87b2f42175` 在服务端 198.292 秒成功；Python 示例独立下载
 并校验恰好 3 MD + 1 TXT，四个 SHA-256 与 manifest 逐项一致。
+
+`1.6.82` 针对真实 run `drr_fe4729ec07eb42aea302d3289735b33f` 暴露的 QA 修正长尾，
+把定向纠错和 peer 调用约束为 `reasoning=none`、最多 8000 或 10000 输出 token 及显式
+调用上限，不更换模型，也不降低医学或文件门槛。发布后 Python 示例以同样三个必填字段
+完成公网 run `drr_e3eee788c4da4c5e88c78f248929728a`：服务端 161.227 秒成功，命中
+QA 修正路径，并再次验证恰好 3 MD + 1 TXT、manifest、大小和全部 SHA-256。
 
 命令行逐字段方式仍受支持，查看完整参数：
 

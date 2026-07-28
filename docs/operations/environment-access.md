@@ -138,24 +138,24 @@ chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 The current live gateway is operated from a clean release checkout:
 
 ```text
-/home/qian/codex-gateway-release-2559d3a-20260727T092311Z
+/home/qian/codex-gateway-release-02b74de-20260728T030734Z
 ```
 
 The immutable release marker records runtime commit
-`2559d3a3473976cea0bdad1fc1db7787bfed7d2e`. The verified immediate rollback
-boundary is `/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z` plus
-the four `rollback-599fd53-20260727T092311Z` image tags.
+`02b74de838a7b4a33c340fc6924c79710872928f`. The verified immediate rollback
+boundary is `/home/qian/codex-gateway-backups/02b74de/20260728T030734Z` plus
+the four `rollback-2559d3a-20260728T030734Z` image tags.
 
 The current Gateway image is
-`sha256:29b8e09efe29c24175fc42c883d7683e6345eaab29dea8dca915d853d089e2e2`;
+`sha256:6ac24daddf2c7db2af76ef72d876062ea5d228a3beb34f2b5c0e3f24bb417c63`;
 the current Research Worker image is
-`sha256:7bba1b88cb266f5dd43c2812d16586d730b08213c9a5af3b13e472b9acc43484`.
+`sha256:11d3c37872cece2f0120653f1f9382f2b496cbcf8588075cebecf20fedee572e`.
 
 Production Compose mutations must now use the base file, Research overlay and
 private Compose env together:
 
 ```bash
-cd /home/qian/codex-gateway-release-2559d3a-20260727T092311Z
+cd /home/qian/codex-gateway-release-02b74de-20260728T030734Z
 sudo docker compose \
   --env-file config/research.production.compose.env \
   -p codex_gateway_test \

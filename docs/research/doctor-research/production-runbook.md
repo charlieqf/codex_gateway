@@ -7,15 +7,15 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-27, the public Azure Gateway and all three Research services run
-commit `2559d3a3473976cea0bdad1fc1db7787bfed7d2e` from:
+As of 2026-07-28, the public Azure Gateway and all three Research services run
+commit `02b74de838a7b4a33c340fc6924c79710872928f` from:
 
 ```text
-/home/qian/codex-gateway-release-2559d3a-20260727T092311Z
+/home/qian/codex-gateway-release-02b74de-20260728T030734Z
 ```
 
-The execution contract is `1.6.81`, prompt `v29`, validation contract `v42`
-and workflow `doctor_research_workflow.v70`. The public Gateway remains bound
+The execution contract is `1.6.82`, prompt `v29`, validation contract `v42`
+and workflow `doctor_research_workflow.v71`. The public Gateway remains bound
 only to `127.0.0.1:18787`; the three Research services publish no host port.
 All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
@@ -28,6 +28,35 @@ deployed four-file bundle SHA-256 remains:
 ```text
 6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
 ```
+
+Real-user run `drr_fe4729ec07eb42aea302d3289735b33f` on `1.6.81` reached a
+clear failed terminal state in 321.483 seconds. Its QA correction used the
+old default `reasoning=low` and 18,000-token ceiling, reached the 175-second
+Gateway deadline, and recorded cancellation `1/1`. The later peer call was
+admitted only after the old call terminated, but its unusable patch left a
+331/450 topic, a 0/160 conclusion and one unmatched delimiter, so the run
+correctly published zero artifacts. A subsequent same-case `1.6.81` run,
+`drr_04adc0d5f5284133b64c5120154a1351`, succeeded in 139.191 seconds with
+four artifacts, confirming that deployment, identity and quota were active.
+
+The incident also exposed a stable performance split in production history
+since 2026-07-22: attempt-4 calls using the old `low / 18,000` default
+succeeded 13/27 times and timed out 14/27 times, while already-bounded
+`none / 8,000-10,000` calls succeeded 19/19 times. Execution `1.6.82`
+therefore bounds every targeted correction and peer-review call to
+`reasoning=none`, at most 8,000 or 10,000 output tokens, and an explicit
+correction wall-clock bound. It does not change the medical Skill, prompt,
+validation, identity, citation, numeric, evidence-grade, safety, length or
+artifact gates.
+
+Post-deploy public E2E `drr_e3eee788c4da4c5e88c78f248929728a` used exactly
+the three required top-level identity fields and completed in 161.227 server
+seconds (164 seconds client wall time). It exercised the QA correction path:
+attempt 4 used `reasoning=none`, an 8,000-token ceiling, reached its first
+provider event in 2.323 seconds and completed in 11.866 seconds. The run
+published exactly 3 MD + 1 TXT, and the Python client verified every manifest
+size and SHA-256. All five calls joined to complete Worker/Gateway/provider
+timelines, with no cancellation or overlap.
 
 Execution `1.6.76` established the five-run engineering baseline below, and
 `1.6.77` first proved the three-field request contract. A subsequent real-user
@@ -114,42 +143,44 @@ token reservations. The medical team has not yet confirmed this case as a
 representative acceptance case or manually accepted the generated content, so
 access must remain a named-user controlled trial.
 
-After the quota rollout, public OpenAI compatibility and strict-tools smokes
-passed. A focused `goldencode` native-tools call succeeded as request
-`req-417326fb-ff23-4546-9739-892584accf95`; its event records
-`goldencode-tencent / tencent / glm-5.2 / medium / status=ok`. All three smoke
-users were disabled and their credentials have zero active keys. The latest
-maintenance backup `drb_7e7ef3e2c240460eb2865c375991fd52` also succeeded.
+After the `1.6.82` rollout, public OpenAI compatibility, strict-tools and the
+exact eight-model surface passed. Focused `goldencode` native-tools request
+`req-750bbdfa-20b6-4396-b05f-32f824070e7a` succeeded. All four smoke/E2E
+users were disabled, their credentials have zero active keys, the Research
+entitlement was cancelled, and the temporary files were removed. Maintenance
+backup `drb_c9380e46353645fbaa63cdabdee45da0` then succeeded under `1.6.82`.
 
 The verified pre-deploy database and image rollback boundary is:
 
 ```text
-/home/qian/codex-gateway-backups/2559d3a/20260727T092311Z
-codex_gateway_test-gateway:rollback-599fd53-20260727T092311Z
-codex_gateway_test-research-llm-gateway:rollback-599fd53-20260727T092311Z
-codex_gateway_test-research-worker:rollback-599fd53-20260727T092311Z
-codex_gateway_test-research-maintenance:rollback-599fd53-20260727T092311Z
+/home/qian/codex-gateway-backups/02b74de/20260728T030734Z
+codex_gateway_test-gateway:rollback-2559d3a-20260728T030734Z
+codex_gateway_test-research-llm-gateway:rollback-2559d3a-20260728T030734Z
+codex_gateway_test-research-worker:rollback-2559d3a-20260728T030734Z
+codex_gateway_test-research-maintenance:rollback-2559d3a-20260728T030734Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db        866f70927521fe86c2d102a6778d505fcb4288bf46033c422e14129d3033e0e2
-client-events.db  3c8a6c2feb62fb01b09340e7e18730084a2e54dce2578fa73ab80d2b53b4e122
-research.db       267e1e3446b25ddadbccb5aa9b233d31c74e05fa37a6516bcd21e7c375ca4435
+gateway.db              e0854982118075fe0e26f73d2b2b3c4604a44acccf0064ac06720da65caa5b06
+client-events.db        02231deb36803267083fd87f5ce5c2fda4e50dbff9b36091dc76772fed31bf4d
+research.db             fe168af1116836876c651982d58c9ed86851b84748b27738baa0a80facbe8dc5
+research-llm-gateway.db c5d76124eced918e4f67f5771f94b431a98647e7f2520ab539a93f3c3edd4431
 ```
 
-The exact deployed image IDs are Gateway `29b8e09efe29`, internal LLM Gateway
-`830575ff8eac`, maintenance `27120202b3ee`, and Worker `7bba1b88cb26`.
+The exact deployed image IDs are Gateway `6ac24daddf2c`, internal LLM Gateway
+`d4e5cd8ddba2`, maintenance `5643980db65d`, and Worker `11d3c37872ce`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
 
 Disk preflight initially found only about 13 GiB free. After confirming the
 then-current `599fd53/20260727T022356Z` backup and rollback boundary, only
 superseded older deployment backup directories were removed, recovering about
-8.6 GiB. The live volumes, that `599fd53` boundary and the new `2559d3a`
-boundary remain. Post-deploy free space was about 19 GiB.
+8.6 GiB. The live volumes, that `599fd53` boundary, the previous `2559d3a`
+boundary and the current `02b74de` boundary remain. Post-deploy free space was
+about 18 GiB.
 
 ## Historical 1.6.72 acceptance record
 
