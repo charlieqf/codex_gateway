@@ -17,7 +17,7 @@ describe("Doctor Research live first-party adapters", () => {
     expect(isPublicResearchAddress("not-an-address")).toBe(false);
   });
 
-  it("parses bounded PubMed abstract, Crossref, ORCID, and allowlisted Brave metadata", async () => {
+  it("parses bounded PubMed, Crossref, ORCID, and general Brave identity metadata", async () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(
         typeof input === "string"
@@ -95,21 +95,20 @@ describe("Doctor Research live first-party adapters", () => {
         });
       }
       if (url.hostname === "api.search.brave.com") {
-        expect(url.searchParams.get("q")).toContain(
-          "site:hospital.example"
-        );
+        expect(url.searchParams.get("q")).toContain("Example Doctor");
+        expect(url.searchParams.get("q")).not.toContain("site:");
         return jsonResponse({
           web: {
             results: [
               {
-                title: "Approved profile",
+                title: "Example Doctor approved profile",
                 url: "https://hospital.example/doctors/example",
                 description: "Example Hospital profile"
               },
               {
-                title: "Blocked profile",
-                url: "https://unapproved.example/doctors/example",
-                description: "Must be ignored"
+                title: "Discovered university profile",
+                url: "https://new-university.example/people/example",
+                description: "Example Doctor at Example Hospital"
               }
             ]
           }
@@ -196,7 +195,7 @@ describe("Doctor Research live first-party adapters", () => {
       "Example Doctor Example Hospital",
       signal
     );
-    expect(sources).toHaveLength(1);
+    expect(sources).toHaveLength(2);
     expect(sources[0]).toMatch(/^src_web_[a-f0-9]{24}$/u);
     expect(fetchImpl).toHaveBeenCalledTimes(5);
   });
@@ -214,7 +213,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).rejects.toThrow("host is not allowlisted");
   });
 
-  it("searches each approved official domain separately within Brave query bounds", async () => {
+  it("searches the open web once and accepts safe discovered HTTPS hosts", async () => {
     const queries: string[] = [];
     const adapters = new LiveResearchAdapters({
       ncbi: {
@@ -240,16 +239,23 @@ describe("Doctor Research live first-party adapters", () => {
         );
         const query = url.searchParams.get("q") ?? "";
         queries.push(query);
-        const domain = query.includes("site:hospital.example")
-          ? "hospital.example"
-          : "university.example";
         return jsonResponse({
           web: {
             results: [
               {
-                title: `${domain} profile`,
-                url: `https://${domain}/doctors/example`,
+                title: "Example Doctor hospital profile",
+                url: "https://hospital.example/doctors/example",
                 description: "Approved profile"
+              },
+              {
+                title: "New hospital profile",
+                url: "https://new-hospital.example/doctors/example",
+                description: "Example Doctor approved profile"
+              },
+              {
+                title: "Unsafe result",
+                url: "http://127.0.0.1/internal",
+                description: "Must be ignored"
               }
             ]
           }
@@ -258,7 +264,7 @@ describe("Doctor Research live first-party adapters", () => {
     });
 
     expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 4
+      officialSearchRequestUnits: 2
     });
     await expect(
       adapters.searchOfficialSources(
@@ -266,14 +272,10 @@ describe("Doctor Research live first-party adapters", () => {
         new AbortController().signal
       )
     ).resolves.toHaveLength(2);
-    expect(queries).toHaveLength(2);
+    expect(queries).toHaveLength(1);
     expect(queries.every((query) => query.length <= 400)).toBe(true);
-    expect(queries).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("site:hospital.example"),
-        expect.stringContaining("site:university.example")
-      ])
-    );
+    expect(queries[0]).toContain("Example Doctor Example Hospital Cardiology");
+    expect(queries[0]).not.toContain("site:");
   });
 
   it("retries official search only once for transient HTTP failures", async () => {

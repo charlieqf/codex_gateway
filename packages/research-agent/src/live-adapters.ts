@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 import {
   type FrozenIdentityRecord,
   type FrozenOfficialSource,
@@ -44,7 +45,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     pubmed: "ncbi-eutils-esearch-esummary.v1",
     crossref: "crossref-rest-v1",
     orcid: "orcid-api-v3.0",
-    official_web: "brave-web-search-v1+pinned-source-fetch.v1"
+    official_web: "brave-general-identity-search-v2+pinned-source-fetch.v1"
   });
   readonly budgetHints: {
     officialSearchRequestUnits: number;
@@ -58,7 +59,12 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   private nextNcbiRequestAt = 0;
   private readonly officialSources = new Map<
     string,
-    { url: URL; title: string; snippet: string }
+    {
+      url: URL;
+      title: string;
+      snippet: string;
+      fetchAllowedDomains: readonly string[];
+    }
   >();
 
   constructor(private readonly options: LiveResearchAdapterOptions) {
@@ -100,9 +106,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     validateAllowedDomains(options.officialWeb.allowedDomains);
     this.budgetHints = Object.freeze({
       officialSearchRequestUnits:
-        options.officialWeb.provider === "brave"
-          ? options.officialWeb.allowedDomains.length * 2
-          : 0
+        options.officialWeb.provider === "brave" ? 2 : 0
     });
     if (
       options.userAgent !== options.userAgent.trim() ||
@@ -454,64 +458,57 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       this.officialSources.set(sourceId, {
         url: sourceUrl,
         title: sourceUrl.hostname,
-        snippet: ""
+        snippet: "",
+        fetchAllowedDomains: this.options.officialWeb.allowedDomains
       });
       sourceIds.push(sourceId);
     }
     if (this.options.officialWeb.provider === "direct") {
       return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
     }
-    for (const domain of this.options.officialWeb.allowedDomains) {
-      const url = new URL("https://api.search.brave.com/res/v1/web/search");
-      setSearchParams(url, {
-        q: `${query} site:${domain}`,
-        count: String(this.maximumOfficialResults),
-        safesearch: "strict",
-        extra_snippets: "false"
+    const url = new URL("https://api.search.brave.com/res/v1/web/search");
+    setSearchParams(url, {
+      q: query,
+      count: String(this.maximumOfficialResults),
+      safesearch: "strict",
+      extra_snippets: "false"
+    });
+    const response = await this.requestJsonWithRetry<BraveSearchResponse>(
+      url,
+      signal,
+      {
+        "x-subscription-token": this.options.officialWeb.apiKey!
+      },
+      2
+    );
+    const results = response.value.web?.results;
+    if (!Array.isArray(results)) {
+      throw new Error("Official web search response is invalid.");
+    }
+    for (const result of results.slice(0, this.maximumOfficialResults)) {
+      if (
+        !result ||
+        typeof result.url !== "string" ||
+        typeof result.title !== "string" ||
+        !searchResultMentionsRequestedIdentity(result, query)
+      ) {
+        continue;
+      }
+      const sourceUrl = approvedDiscoveredUrl(result.url);
+      if (!sourceUrl) {
+        continue;
+      }
+      const sourceId = `src_web_${sha256(sourceUrl.toString()).slice(0, 24)}`;
+      this.officialSources.set(sourceId, {
+        url: sourceUrl,
+        title: normalizeText(result.title).slice(0, 300),
+        snippet:
+          typeof result.description === "string"
+            ? normalizeText(result.description).slice(0, 2_000)
+            : "",
+        fetchAllowedDomains: discoveredFetchDomains(sourceUrl)
       });
-      const response = await this.requestJsonWithRetry<BraveSearchResponse>(
-        url,
-        signal,
-        {
-          "x-subscription-token": this.options.officialWeb.apiKey!
-        },
-        2
-      );
-      const results = response.value.web?.results;
-      if (!Array.isArray(results)) {
-        throw new Error("Official web search response is invalid.");
-      }
-      for (const result of results.slice(0, this.maximumOfficialResults)) {
-        if (
-          !result ||
-          typeof result.url !== "string" ||
-          typeof result.title !== "string"
-        ) {
-          continue;
-        }
-        let sourceUrl: URL;
-        try {
-          sourceUrl = new URL(result.url);
-        } catch {
-          continue;
-        }
-        if (
-          sourceUrl.toString().length > 2_048 ||
-          !hostAllowed(sourceUrl.hostname, [domain])
-        ) {
-          continue;
-        }
-        const sourceId = `src_web_${sha256(sourceUrl.toString()).slice(0, 24)}`;
-        this.officialSources.set(sourceId, {
-          url: sourceUrl,
-          title: normalizeText(result.title).slice(0, 300),
-          snippet:
-            typeof result.description === "string"
-              ? normalizeText(result.description).slice(0, 2_000)
-              : ""
-        });
-        sourceIds.push(sourceId);
-      }
+      sourceIds.push(sourceId);
     }
     return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
   }
@@ -532,7 +529,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       try {
         document = await fetchApprovedWebDocument({
           url: selected.url,
-          allowedDomains: this.options.officialWeb.allowedDomains,
+          allowedDomains: selected.fetchAllowedDomains,
           signal,
           timeoutMs: this.timeoutMs,
           maximumBytes: this.maximumSourceBytes,
@@ -962,6 +959,26 @@ function boundedBraveIdentityQuery(value: string): string {
   return normalized;
 }
 
+function searchResultMentionsRequestedIdentity(
+  result: { title?: unknown; description?: unknown },
+  query: string
+): boolean {
+  const quotedName = /^"([^"]{2,100})"(?:\s|$)/u.exec(query)?.[1];
+  const identityName = normalizeText(
+    quotedName ?? query.split(/\s+/u).slice(0, 2).join(" ")
+  ).toLowerCase();
+  if (identityName.length < 2) {
+    return false;
+  }
+  const metadata = normalizeText(
+    [
+      typeof result.title === "string" ? result.title : "",
+      typeof result.description === "string" ? result.description : ""
+    ].join(" ")
+  ).toLowerCase();
+  return metadata.includes(identityName);
+}
+
 function normalizeText(value: string): string {
   return value.normalize("NFC").replace(/\s+/gu, " ").trim();
 }
@@ -1058,6 +1075,47 @@ function approvedSeedUrl(
     throw new Error("Official source seed URL is not allowlisted.");
   }
   return url;
+}
+
+function approvedDiscoveredUrl(value: string): URL | null {
+  if (
+    value !== value.trim() ||
+    value.length === 0 ||
+    value.length > 2_048 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    (url.port !== "" && url.port !== "443") ||
+    url.hash !== "" ||
+    hostname.length === 0 ||
+    isIP(hostname) !== 0 ||
+    !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/u.test(
+      hostname
+    )
+  ) {
+    return null;
+  }
+  return url;
+}
+
+function discoveredFetchDomains(url: URL): string[] {
+  const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+  if (hostname.startsWith("www.") && hostname.length > 4) {
+    return [hostname, hostname.slice(4)];
+  }
+  return [hostname];
 }
 
 async function abortableDelay(

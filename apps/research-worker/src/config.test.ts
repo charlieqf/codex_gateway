@@ -125,14 +125,14 @@ describe("Research Worker fail-closed configuration", () => {
     expect(() =>
       loadResearchWorkerConfig({
         ...validEnvironment(),
-        RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "465"
+        RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "461"
       })
     ).toThrow("must reserve two full workflow attempts");
 
     expect(() =>
       loadResearchWorkerConfig({
         ...validEnvironment(),
-        RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "931999999"
+        RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "923999999"
       })
     ).toThrow("must reserve two full workflow attempts");
 
