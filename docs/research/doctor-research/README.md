@@ -62,7 +62,7 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure release is commit
-`ff5db5f23e8902fc451adba96544b93625e5fd83`, execution `1.6.83`, prompt `v29`,
+`ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4`, execution `1.6.83`, prompt `v29`,
 validation `v42` and workflow `doctor_research_workflow.v72`. The `1.6.76`
 baseline completed five consecutive same-case public E2Es in 166.765–378.099
 seconds. A later real-user run showed that an optional one-URL client list could
@@ -115,13 +115,21 @@ manifest size and SHA-256.
 Request `req-2bc6c36c-fa4d-4186-967f-14377eebe4e0` was independently limited
 by the rolling 30-day unique-doctor contract, not the 50-run daily allowance:
 the subject had used five distinct doctor slots and requested a sixth. Runtime
-hotfix `ff5db5f` preserves that five-doctor privacy/anti-bulk boundary but
+hotfix `ff5db5f` preserved that then-active five-doctor boundary and
 replaces the misleading generic 30-second retry with the earliest real
 per-doctor last-admission expiry and publishes
 `rolling_30_days / maximum / used / requested`. The Python demo now reports
 the complete guidance without automatically retrying the create. Public smoke
 `req-d7e8d1a1-1ead-4a5a-bf6b-94c03a49cf1f` verified `5/5/1`, an exact
 2,519,833-second `Retry-After`, no new run/admission and temporary-key cleanup.
+
+The business owner subsequently authorized removing the different-doctor count
+limit. Release `ddb1dcc` makes explicit value `0` disable that admission check,
+while retaining positive-value rollback behavior and rejecting missing,
+negative or non-integer configuration. All four production services load `0`.
+Public request `req-a420c2e0-49fc-49b3-8190-eebe1d17b54a` admitted a new-doctor
+shape as `drr_44172c711e494cacb3b0eda1947326a7`; the smoke immediately cancelled
+the run, verified zero artifacts and revoked its temporary key.
 
 ## Contents
 

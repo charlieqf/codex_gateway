@@ -12,12 +12,12 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Completed:
 
-- Doctor Research engineering remediation `1.6.83` plus the unique-doctor
-  quota response hotfix is deployed to the Azure
+- Doctor Research engineering remediation `1.6.83` plus the unlimited-doctor
+  admission policy is deployed to the Azure
   controlled-trial environment:
-  - runtime commit `ff5db5f23e8902fc451adba96544b93625e5fd83` from clean release
-    `/home/qian/codex-gateway-release-ff5db5f-20260729T053039Z`;
-  - local and Azure gates passed build, 40 files/596 Vitest tests, 36 Python
+  - runtime commit `ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4` from clean release
+    `/home/qian/codex-gateway-release-ddb1dcc-20260729T063301Z`;
+  - local and Azure gates passed build, 40 files/598 Vitest tests, 36 Python
     tests, npm audit with zero vulnerabilities and medical-Skill zero diff;
   - execution `1.6.83`, prompt `v29`, validation `v42`, workflow `v72`; the
     deployed medical bundle SHA-256 remains
@@ -44,19 +44,30 @@ Completed:
   - the operator-approved production policy now permits 50 admitted runs per
     subject per UTC day. All four containers load `50`; failed/cancelled runs
     still count, while single-active-run, Worker concurrency 1, global queue 2,
-    unique-doctor, entitlement and medical quality boundaries remain unchanged;
+    entitlement and medical quality boundaries remain unchanged;
   - request `req-2bc6c36c-fa4d-4186-967f-14377eebe4e0` was a genuine,
     pre-model `research_unique_doctors_30d` rejection: the subject had used all
     five rolling-window doctor slots and requested a sixth unseen doctor. The
-    old generic 30-second retry was misleading; `ff5db5f` now returns the
+    old generic 30-second retry was misleading; `ff5db5f` changed an enabled
+    rolling-window policy to return the
     earliest real per-doctor last-admission expiry plus
-    `rolling_30_days / maximum / used / requested`, without changing the
-    five-doctor privacy/anti-bulk limit;
+    `rolling_30_days / maximum / used / requested` while that policy was still
+    enabled;
   - production public-contract smoke
     `req-d7e8d1a1-1ead-4a5a-bf6b-94c03a49cf1f` returned
     `maximum=5`, `used=5`, `requested=1` and an exact 2,519,833-second
     `Retry-After`; the subject's run/admission counts stayed `30/30` and the
     temporary key was revoked;
+  - the business owner then explicitly removed the different-doctor count
+    limit. All four containers now load
+    `RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D=0`; missing, negative and
+    non-integer values remain startup errors, and positive values retain the
+    old rolling-window contract for rollback;
+  - public request `req-a420c2e0-49fc-49b3-8190-eebe1d17b54a` admitted the
+    formerly blocked new-doctor shape as run
+    `drr_44172c711e494cacb3b0eda1947326a7`. It was immediately cancelled,
+    produced zero artifacts, consumed exactly one run/admission and left zero
+    temporary keys;
   - the reported user's subject had used 5 admissions on the rollout day and
     therefore had 45 remaining without consuming another run for verification;
   - `1.6.81` permits a final deterministic repair only when all remaining
@@ -118,14 +129,15 @@ Completed:
     temporary smoke/E2E users were disabled with zero active keys, the
     temporary entitlement was cancelled and temporary output was removed;
   - verified rollback boundary:
-    `/home/qian/codex-gateway-backups/ff5db5f/20260729T053039Z`, with image tags
-    `rollback-eb94fa8-20260729T053039Z` and all four databases integrity/FK/hash
+    `/home/qian/codex-gateway-backups/ddb1dcc/20260729T063301Z`, with image tags
+    `rollback-ff5db5f-20260729T063301Z` and all four databases integrity/FK/hash
     checked;
   - superseded deployment backup directories from `70ca267` through
     `20ca27f` were removed only after the verified `599fd53` boundary was
     confirmed, recovering about 8.6 GiB. The `599fd53/20260727T022356Z`
     boundary, the `2559d3a` and `02b74de` boundaries, the current
-    `eb94fa8/20260728T062916Z` boundary and all live state volumes remain;
+    `eb94fa8/20260728T062916Z`, `ff5db5f/20260729T053039Z` and current
+    `ddb1dcc/20260729T063301Z` boundaries and all live state volumes remain;
   - access remains controlled-trial. The medical team still needs to confirm
     representative cases, decide whether to retain the soft completeness policy,
     and manually accept four-file content. CN1, Nginx, public ports and

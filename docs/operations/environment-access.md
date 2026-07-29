@@ -19,6 +19,10 @@ npm test
 npm run probe:codex -- --codex-home .gateway-state\codex-home
 ```
 
+Before deciding whether a setting needs an image build, container recreate or
+no restart, consult
+[`runtime-configuration-change-matrix.md`](runtime-configuration-change-matrix.md).
+
 Development gateway:
 
 ```powershell
@@ -138,24 +142,24 @@ chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 The current live gateway is operated from a clean release checkout:
 
 ```text
-/home/qian/codex-gateway-release-ff5db5f-20260729T053039Z
+/home/qian/codex-gateway-release-ddb1dcc-20260729T063301Z
 ```
 
 The immutable release marker records runtime commit
-`ff5db5f23e8902fc451adba96544b93625e5fd83`. The verified immediate rollback
-boundary is `/home/qian/codex-gateway-backups/ff5db5f/20260729T053039Z` plus
-the four `rollback-eb94fa8-20260729T053039Z` image tags.
+`ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4`. The verified immediate rollback
+boundary is `/home/qian/codex-gateway-backups/ddb1dcc/20260729T063301Z` plus
+the four `rollback-ff5db5f-20260729T063301Z` image tags.
 
 The current Gateway image is
-`sha256:15e8277ab607c0b0e112fc6f6edaf0c879cf104e6fc21863a887c94796ed38da`;
+`sha256:f87c8f1d0c04e281a5d595246f4a68213f2f25dee264006e189a579578fde0f9`;
 the current Research Worker image is
-`sha256:d9d4bbe38a70759b4af82bfc682bc334d46ff1b5dc037b9b25931d3d91fce420`.
+`sha256:24ec0f8830916a869689491239828161c380d34574d7b1317447bbd16a4b41be`.
 
 Production Compose mutations must now use the base file, Research overlay and
 private Compose env together:
 
 ```bash
-cd /home/qian/codex-gateway-release-ff5db5f-20260729T053039Z
+cd /home/qian/codex-gateway-release-ddb1dcc-20260729T063301Z
 sudo docker compose \
   --env-file config/research.production.compose.env \
   -p codex_gateway_test \

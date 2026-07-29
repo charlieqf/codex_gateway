@@ -8,10 +8,10 @@ Docker listener.
 ## Current production deployment
 
 As of 2026-07-29, the public Azure Gateway and all three Research services run
-commit `ff5db5f23e8902fc451adba96544b93625e5fd83` from:
+commit `ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4` from:
 
 ```text
-/home/qian/codex-gateway-release-ff5db5f-20260729T053039Z
+/home/qian/codex-gateway-release-ddb1dcc-20260729T063301Z
 ```
 
 The execution contract is `1.6.83`, prompt `v29`, validation contract `v42`
@@ -20,7 +20,7 @@ only to `127.0.0.1:18787`; the three Research services publish no host port.
 All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
-Local and Azure release gates passed build, 40 test files with all 596 Vitest
+Local and Azure release gates passed build, 40 test files with all 598 Vitest
 tests, all 36 Python tests, `git diff --check` and an npm audit with zero
 vulnerabilities. The medical-team Skill directory has no Git diff, and the
 deployed four-file bundle SHA-256 remains:
@@ -119,8 +119,8 @@ The current operator-approved production policy raises that per-subject UTC-day
 admission ceiling from 5 to 50. The public Gateway, internal LLM Gateway,
 Worker and maintenance containers all load the same value. This does not change
 the single active brief run per subject, Worker concurrency 1, global queued-run
-limit 2, five-unique-doctors-per-30-day limit, entitlement boundary or medical
-quality gates. At post-deploy verification, the reported user's subject had 5
+limit 2, entitlement boundary or medical quality gates. At post-deploy
+verification, the reported user's subject had 5
 admissions for the current UTC day and therefore 45 remaining under the new
 ceiling without issuing another Research run merely to test the configuration.
 
@@ -195,7 +195,7 @@ Request `req-2bc6c36c-fa4d-4186-967f-14377eebe4e0` was a genuine pre-model
 doctors in the rolling window and requested a sixth. This limit is independent
 of the 50-run UTC-day allowance. The old response incorrectly fell back to a
 generic 30-second retry and omitted usage, which made a weeks-long quota look
-transient. Runtime hotfix `ff5db5f` preserves the five-doctor privacy/anti-bulk
+transient. Runtime hotfix `ff5db5f` preserved the then-active five-doctor
 boundary, calculates the earliest capacity from each existing doctor's latest
 admission, and returns the exact reset interval with `rolling_30_days` and
 `maximum/used/requested`.
@@ -210,36 +210,59 @@ audit found all four containers healthy with zero restarts, only
 internal-LLM reservation, and no active temporary quota-smoke key. Maintenance
 backup `drb_34756cef30d84cd2bfea3b1c6cc890c1` succeeded after activation.
 
+The business owner then explicitly authorized removing the different-doctor
+count restriction. Release `ddb1dcc` defines
+`RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D=0` as disabled, retains the full
+rolling-window contract for positive rollback values, and rejects missing,
+negative or non-integer values. All four containers load `0` and daily `50`.
+Public request `req-a420c2e0-49fc-49b3-8190-eebe1d17b54a` admitted the formerly
+blocked new-doctor shape as run `drr_44172c711e494cacb3b0eda1947326a7`.
+The smoke immediately cancelled it, verified zero artifacts and exactly one
+new run/admission, then revoked its temporary key.
+
+Post-deploy OpenAI compatibility, strict-tools, exact eight-model surface and
+focused `goldencode` native-tools smokes passed; native-tools request
+`req-153869a9-eb80-4a8b-9b14-98c25479a9b7` returned `write_file`. Final state
+had four healthy zero-restart containers, no active Research run, no unfinished
+public/internal-LLM reservation and no active temporary key/user. Maintenance
+backup `drb_4e6ee057cc6b407da6711d8d8edd56ff` succeeded. The unused
+`node:24-bookworm` release-validation image was removed after its space use
+tripped the 10% storage admission floor; no production/rollback image, volume
+or database backup was removed. Configuration restart/build classification is
+maintained in `../../operations/runtime-configuration-change-matrix.md`.
+
 The verified pre-deploy database and image rollback boundary for `1.6.83` is:
 
 ```text
-/home/qian/codex-gateway-backups/ff5db5f/20260729T053039Z
-codex_gateway_test-gateway:rollback-eb94fa8-20260729T053039Z
-codex_gateway_test-research-llm-gateway:rollback-eb94fa8-20260729T053039Z
-codex_gateway_test-research-worker:rollback-eb94fa8-20260729T053039Z
-codex_gateway_test-research-maintenance:rollback-eb94fa8-20260729T053039Z
+/home/qian/codex-gateway-backups/ddb1dcc/20260729T063301Z
+codex_gateway_test-gateway:rollback-ff5db5f-20260729T063301Z
+codex_gateway_test-research-llm-gateway:rollback-ff5db5f-20260729T063301Z
+codex_gateway_test-research-worker:rollback-ff5db5f-20260729T063301Z
+codex_gateway_test-research-maintenance:rollback-ff5db5f-20260729T063301Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db              bc7dd93756c295d72098934c872714169680007aad42925c8232d6076c90e25a
-client-events.db        871575c5b3714882834c0e975f2904336e07d8f5f53c356f4be7058395164c07
-research.db             2c54a09af405aa4c18c6f829598d375e2f58ecd57275097ee577fc352580d70e
-research-llm-gateway.db cd07e6fe58af592ef5f499fa2340bd37720405ce9efc273cfd5b3e4813670b6d
+gateway.db              43a4f07052f65c311e335cef0880819b8826c9c6b58a360f70929e6e6fbb244a
+client-events.db        c9b4aac791ab50ec687ab234042875a99b71b81d4a366169cf90766160850742
+research.db             5bc65595eac2bc327f00a6d2e2624e897f7eebe6ecb31176f416356be4ea7d92
+research-llm-gateway.db 75d5570a5589e05e6c0908d98c938bb83077c2c139e8f4a8759389fe698b2ca7
 ```
 
-The exact deployed image IDs are Gateway `15e8277ab607`, internal LLM Gateway
-`4537a543bbc9`, maintenance `aba70393a0b8`, and Worker `d9d4bbe38a70`.
+The exact deployed image IDs are Gateway `f87c8f1d0c04`, internal LLM Gateway
+`1382673e2d03`, maintenance `e5707a09a716`, and Worker `24ec0f883091`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
 
-The `ff5db5f` disk preflight found about 15 GiB free and post-deploy use was
-about 89%. No historical backup directory was removed for this release.
+The `ddb1dcc` disk preflight found about 15 GiB free. Build and release-test
+images temporarily reduced it below the 10% floor; removing only the unused
+validation image restored about 13 GiB/10% before activation continued. No
+historical backup directory was removed for this release.
 The live volumes and the verified `599fd53`, `2559d3a`, `02b74de` and current
-`eb94fa8/20260728T062916Z` plus `ff5db5f/20260729T053039Z` rollback boundaries
-remain.
+`eb94fa8/20260728T062916Z`, `ff5db5f/20260729T053039Z` plus
+`ddb1dcc/20260729T063301Z` rollback boundaries remain.
 
 ## Historical 1.6.72 acceptance record
 

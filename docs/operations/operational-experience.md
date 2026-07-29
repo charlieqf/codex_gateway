@@ -264,6 +264,21 @@ Last updated: 2026-07-29
   loops. End-user parsers may need to accept seven-digit retry values while
   still refusing to automatically retry a non-idempotent create or sleep for
   weeks.
+- An explicit business decision may disable the rolling unique-doctor limit
+  without changing medical quality or identity gates. Use a validated `0`
+  sentinel, keep positive-value rollback behavior and reject missing, negative
+  or non-integer configuration. This is an operational admission policy, not a
+  medical-Skill edit.
+- Do not rebuild an image merely because an already-supported env value
+  changed. Startup env still requires `compose up --force-recreate` rather than
+  `restart`, but the exact existing image can be reused and only consuming
+  services need recreation. The detailed split and database-policy migration
+  proposal are in `runtime-configuration-change-matrix.md`.
+- Release validation images and build cache can push disk availability below a
+  percentage floor even when more than 10 GiB remains. The `ddb1dcc` rollout
+  correctly stopped maintenance at 12 GiB/9% free. Removing only the unused
+  `node:24-bookworm` validation image restored 13 GiB/10%; production images,
+  rollback tags, volumes and database backups were retained before resuming.
 - A host script copied into a container with mode `0600` may remain root-owned
   and be unreadable by the container's unprivileged Node user. For one-shot,
   import-free diagnostic or SQLite-backup modules, prefer
