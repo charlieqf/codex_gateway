@@ -40,6 +40,7 @@ export interface LiveResearchAdapterOptions {
   maximumSourceBytes?: number;
   userAgent: string;
   fetchImpl?: typeof fetch;
+  approvedDocumentFetchImpl?: typeof fetchApprovedWebDocument;
 }
 
 export class LiveResearchAdapters implements ResearchAdapterBundle {
@@ -53,6 +54,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   private readonly maximumPubMedResults: number;
   private readonly maximumOfficialResults: number;
   private readonly fetchImpl?: typeof fetch;
+  private readonly approvedDocumentFetch: typeof fetchApprovedWebDocument;
   private nextNcbiRequestAt = 0;
   private readonly officialSources = new Map<
     string,
@@ -61,6 +63,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       title: string;
       snippet: string;
       fetchAllowedDomains: readonly string[];
+      required: boolean;
     }
   >();
 
@@ -123,9 +126,11 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       orcid: "orcid-api-v3.0",
       official_web:
         options.officialWeb.provider === "serpapi"
-          ? `serpapi-${options.officialWeb.serpApiEngine}-general-identity-search-v1+pinned-source-fetch.v1`
+          ? options.officialWeb.serpApiEngine === "baidu"
+            ? "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
+            : "serpapi-google-general-identity-search-v1+pinned-source-fetch.v2"
           : options.officialWeb.provider === "brave"
-            ? "brave-general-identity-search-v2+pinned-source-fetch.v1"
+            ? "brave-general-identity-search-v2+pinned-source-fetch.v2"
             : "direct-reviewed-source-fetch.v1"
     });
     validateAllowedDomains(options.officialWeb.allowedDomains);
@@ -142,6 +147,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       throw new Error("userAgent is missing or invalid.");
     }
     this.fetchImpl = options.fetchImpl;
+    this.approvedDocumentFetch =
+      options.approvedDocumentFetchImpl ?? fetchApprovedWebDocument;
   }
 
   async assertAvailable(signal: AbortSignal): Promise<void> {
@@ -484,7 +491,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         url: sourceUrl,
         title: sourceUrl.hostname,
         snippet: "",
-        fetchAllowedDomains: this.options.officialWeb.allowedDomains
+        fetchAllowedDomains: this.options.officialWeb.allowedDomains,
+        required: true
       });
       sourceIds.push(sourceId);
     }
@@ -516,7 +524,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
           typeof result.description === "string"
             ? normalizeText(result.description).slice(0, 2_000)
             : "",
-        fetchAllowedDomains: discoveredFetchDomains(sourceUrl)
+        fetchAllowedDomains: discoveredFetchDomains(sourceUrl),
+        required: false
       });
       sourceIds.push(sourceId);
     }
@@ -558,10 +567,12 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     signal: AbortSignal
   ): Promise<readonly OfficialSearchResult[]> {
     const engine = this.options.officialWeb.serpApiEngine!;
+    const providerQuery =
+      engine === "baidu" ? localizeBaiduIdentityQuery(query) : query;
     const url = new URL("https://serpapi.com/search.json");
     setSearchParams(url, {
       engine,
-      q: query,
+      q: providerQuery,
       output: "json",
       api_key: this.options.officialWeb.apiKey!,
       ...(engine === "google"
@@ -623,7 +634,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     let lastError: unknown;
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        document = await fetchApprovedWebDocument({
+        document = await this.approvedDocumentFetch({
           url: selected.url,
           allowedDomains: selected.fetchAllowedDomains,
           signal,
@@ -634,13 +645,18 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         break;
       } catch (error) {
         lastError = error;
-        if (
-          signal.aborted ||
-          (error instanceof ResearchHttpError &&
-            error.statusCode < 500 &&
-            error.statusCode !== 429)
-        ) {
+        if (signal.aborted) {
           throw error;
+        }
+        const permanentHttpFailure =
+          error instanceof ResearchHttpError &&
+          error.statusCode < 500 &&
+          error.statusCode !== 429;
+        if (permanentHttpFailure) {
+          if (selected.required) {
+            throw error;
+          }
+          return null;
         }
         if (attempt < 2) {
           const delayMs =
@@ -652,6 +668,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       }
     }
     if (!document) {
+      if (!selected.required) {
+        return null;
+      }
       throw lastError;
     }
     return {
@@ -1071,6 +1090,13 @@ function boundedOfficialIdentityQuery(value: string): string {
     throw new Error("Official web search query contains too many words.");
   }
   return normalized;
+}
+
+function localizeBaiduIdentityQuery(query: string): string {
+  if (query === "doctor profile") {
+    return "医生 简介";
+  }
+  return query.replace(/\s+doctor profile$/iu, " 医生 简介");
 }
 
 function searchResultMentionsRequestedIdentity(

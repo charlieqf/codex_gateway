@@ -8183,22 +8183,25 @@ function officialIdentityEvidenceWindow(
     return null;
   }
   const source = normalizeEvidenceText(sourceText);
-  const anchors = [
-    normalizeEvidenceText(doctor.name),
-    normalizeEvidenceText(doctor.hospital),
-    normalizeEvidenceText(doctor.department)
-  ];
-  if (anchors.some((anchor) => anchor.length < 2)) {
+  const name = normalizeEvidenceText(doctor.name);
+  const department = normalizeEvidenceText(doctor.department);
+  const hospitalPhrases = officialHospitalEvidencePhrases(doctor.hospital);
+  if (
+    name.length < 2 ||
+    department.length < 2 ||
+    hospitalPhrases.length === 0
+  ) {
     return null;
   }
-  const [name, hospital, department] = anchors as [string, string, string];
   let nameAt = evidencePhraseIndexOf(source, name);
   while (nameAt >= 0) {
     const windowStart = Math.max(0, nameAt - 5_000);
     const windowEnd = Math.min(source.length, nameAt + name.length + 5_000);
     const local = source.slice(windowStart, windowEnd);
     if (
-      evidencePhraseContains(local, hospital) &&
+      hospitalPhrases.some((hospital) =>
+        evidencePhraseContains(local, hospital)
+      ) &&
       evidencePhraseContains(local, department)
     ) {
       return local;
@@ -8206,6 +8209,28 @@ function officialIdentityEvidenceWindow(
     nameAt = evidencePhraseIndexOf(source, name, nameAt + name.length);
   }
   return null;
+}
+
+function officialHospitalEvidencePhrases(hospital: string): string[] {
+  const normalized = normalizeEvidenceText(hospital);
+  if (normalized.length < 2) {
+    return [];
+  }
+  const phrases = [normalized];
+  const affiliatedAt = normalized.lastIndexOf("附属");
+  if (affiliatedAt >= 0) {
+    const suffix = normalized.slice(affiliatedAt + "附属".length).trim();
+    const distinctiveCore = suffix
+      .replace(/(?:医院|医学中心|医疗中心)$/u, "")
+      .replace(/^第[一二三四五六七八九十百]+/u, "");
+    if (
+      Array.from(suffix).length >= 4 &&
+      Array.from(distinctiveCore).length >= 2
+    ) {
+      phrases.push(suffix);
+    }
+  }
+  return [...new Set(phrases)];
 }
 
 function profileClaimHasTypeMarker(

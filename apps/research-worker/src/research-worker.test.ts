@@ -4024,11 +4024,11 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("researches an arbitrary three-field Chinese doctor without a registry literature alias", async () => {
+  it("researches an arbitrary three-field Chinese doctor with a distinctive derived hospital alias", async () => {
     const input = runInput();
     input.doctor = {
       name: "陆清声",
-      hospital: "海军军医大学第一附属医院",
+      hospital: "海军军医大学附属长海医院",
       department: "血管外科",
       title: null,
       city: null,
@@ -4051,7 +4051,7 @@ describe("Research Worker controlled-beta workflow", () => {
       accessedAt: "2026-07-18T03:00:00.000Z",
       contentSha256: "a".repeat(64),
       untrustedText:
-        "陆清声，海军军医大学第一附属医院血管外科医生。研究方向为血管外科。"
+        "陆清声，长海医院血管外科医生。研究方向为血管外科。"
     });
     generalAdapters.getPubMedMetadata = async () => ({
       referenceId: "ref_pubmed_2002",
@@ -4566,6 +4566,53 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       }
     });
+    fixture.store.close();
+  });
+
+  it("does not accept a generic affiliated-hospital suffix as an identity alias", async () => {
+    const input = runInput();
+    input.doctor = {
+      ...input.doctor,
+      name: "示例医生",
+      hospital: "示例医科大学第一附属医院",
+      department: "心外科"
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "generic_hospital_alias",
+      input
+    );
+    const genericAliasAdapters = adapters();
+    genericAliasAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/example",
+      title: "示例医生",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText: "示例医生，第一医院心外科医生。研究方向为心外科。"
+    });
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: genericAliasAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run for a generic hospital alias.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "identity_not_resolved"
+    });
+    expect(modelCalls).toBe(0);
     fixture.store.close();
   });
 

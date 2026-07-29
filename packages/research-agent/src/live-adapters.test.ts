@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   fetchApprovedWebDocument,
   isPublicResearchAddress,
-  LiveResearchAdapters
+  LiveResearchAdapters,
+  ResearchHttpError
 } from "./index.js";
 
 describe("Doctor Research live first-party adapters", () => {
@@ -311,6 +312,78 @@ describe("Doctor Research live first-party adapters", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("skips unavailable discovered pages while explicit seed URLs stay fail-closed", async () => {
+    const discoveredAdapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "brave",
+        apiKey: "brave-test-key",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 1
+      },
+      timeoutMs: 1_000,
+      maximumSourceBytes: 10_000,
+      userAgent: "codex-gateway-research-test/1.0",
+      approvedDocumentFetchImpl: async () => {
+        throw new ResearchHttpError(403, null);
+      },
+      fetchImpl: async () =>
+        jsonResponse({
+          web: {
+            results: [
+              {
+                title: "Example Doctor profile",
+                url: "https://hospital.example/example-doctor",
+                description: "Example Doctor, Example Hospital, Cardiology"
+              }
+            ]
+          }
+        })
+    });
+    const discoveredIds = await discoveredAdapters.searchOfficialSources(
+      "Example Doctor Example Hospital Cardiology",
+      AbortSignal.timeout(5_000)
+    );
+    expect(discoveredIds).toHaveLength(1);
+    await expect(
+      discoveredAdapters.fetchApprovedSource(
+        discoveredIds[0]!,
+        new AbortController().signal
+      )
+    ).resolves.toBeNull();
+
+    const seededAdapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 1
+      },
+      timeoutMs: 1_000,
+      maximumSourceBytes: 10_000,
+      userAgent: "codex-gateway-research-test/1.0",
+      approvedDocumentFetchImpl: async () => {
+        throw new ResearchHttpError(403, null);
+      }
+    });
+    const seededIds = await seededAdapters.searchOfficialSources(
+      "Example Doctor Example Hospital Cardiology",
+      AbortSignal.timeout(5_000),
+      { seedUrls: ["https://hospital.example/example-doctor"] }
+    );
+    expect(seededIds).toHaveLength(1);
+    await expect(
+      seededAdapters.fetchApprovedSource(
+        seededIds[0]!,
+        new AbortController().signal
+      )
+    ).rejects.toThrow();
+  });
+
   it("discovers safe identity candidates through one bounded SerpAPI Google search", async () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(
@@ -372,7 +445,58 @@ describe("Doctor Research live first-party adapters", () => {
       officialSearchRequestUnits: 2
     });
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-general-identity-search-v1+pinned-source-fetch.v1"
+      "serpapi-google-general-identity-search-v1+pinned-source-fetch.v2"
+    );
+  });
+
+  it("localizes Baidu identity intent without dropping the exact doctor name", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+      );
+      expect(url.searchParams.get("engine")).toBe("baidu");
+      expect(url.searchParams.get("q")).toBe(
+        '"沈柏用" 上海交通大学医学院附属瑞金医院 外科 医生 简介'
+      );
+      return jsonResponse({
+        search_metadata: { status: "Success" },
+        organic_results: [
+          {
+            title: "沈柏用 - 上海交通大学医学院附属瑞金医院",
+            link: "https://www.rjh.com.cn/doctor/shen-baiyong",
+            snippet: "沈柏用，外科医生。"
+          }
+        ]
+      });
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "baidu",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 5
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchOfficialSources(
+        '"沈柏用" 上海交通大学医学院附属瑞金医院 外科 doctor profile',
+        new AbortController().signal
+      )
+    ).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(adapters.versions.official_web).toBe(
+      "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
     );
   });
 
@@ -401,6 +525,10 @@ describe("Doctor Research live first-party adapters", () => {
               : input.url
         );
         expect(url.searchParams.get("engine")).toBe("baidu");
+        expect(url.searchParams.get("q")).toBe(
+          '"Example Doctor" Example Hospital Cardiology 医生 简介'
+        );
+        expect(url.searchParams.get("q")).not.toContain("doctor profile");
         expect(url.searchParams.get("rn")).toBe("1");
         expect(url.searchParams.get("ct")).toBe("2");
         return jsonResponse({
@@ -421,6 +549,9 @@ describe("Doctor Research live first-party adapters", () => {
       "Official web search provider returned an error."
     );
     expect((error as Error).message).not.toContain("serpapi-test-key");
+    expect(adapters.versions.official_web).toBe(
+      "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
+    );
   });
 
   it("supports explicit allowlisted official URLs and anonymous ORCID reads without search credentials", async () => {

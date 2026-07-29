@@ -216,7 +216,7 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn("RESEARCH_ORCID_MODE=disabled", worker)
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", api)
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", worker)
-        self.assertIn("RESEARCH_SERPAPI_ENGINE=baidu", worker)
+        self.assertIn("RESEARCH_SERPAPI_ENGINE=google", worker)
         self.assertIn(
             "RESEARCH_WEB_SEARCH_API_KEY_FILE="
             "/run/secrets/research_production_web_search_api_key",
