@@ -21,8 +21,8 @@ All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
 This healthy state does not imply arbitrary-doctor coverage. The deployed
-`1.6.83` Worker still loads `RESEARCH_WEB_SEARCH_PROVIDER=direct`, has no web
-search secret, and the image-bound reviewed registry contains only the
+`1.6.83` Worker still loads `RESEARCH_WEB_SEARCH_PROVIDER=direct`, has no
+mounted/readable web-search secret, and the image-bound reviewed registry contains only the
 engineering smoke doctor. That temporary controlled-trial restriction was not
 a product requirement. The next activation must use general identity search;
 the registry remains a cache and must never be used as an eligibility list.
@@ -402,8 +402,9 @@ The overlay adds:
   currently enables only direct Aliyun GLM-5.2 with three-call concurrency;
   Qianfan and Tencent remain disabled rollback entries;
 - one Worker and one independent maintenance process;
-- one Worker-only Brave Search credential for general doctor identity
-  discovery; the token is never exposed to the public or internal LLM Gateway;
+- one Worker-only SerpAPI credential for bounded general doctor identity
+  discovery through the explicitly selected Baidu engine; the token is never
+  exposed to the public or internal LLM Gateway;
 - separate Research state, verified-backup, internal-LLM-state and log
   volumes.
 
@@ -450,6 +451,15 @@ secrets/research-production-llm-token
 secrets/research-production-web-search-key
 ```
 
+The web-search filename is provider-neutral. For the current `1.6.84`
+candidate it contains the SerpAPI credential, even though the preceding
+`1.6.83` Compose does not mount or read that file. The credential was verified
+as an active Free Plan with 250 monthly searches and a 250/hour account limit
+before activation. This capacity is acceptable only for the named-user
+controlled trial: check remaining searches around release E2Es and monitor
+usage afterward. Provider quota exhaustion must fail closed and must never
+fall back to `direct` or bypass identity evidence checks.
+
 The four env files must be mode `0600`. Provider and service-token files must
 be host owner `999:999`, mode `0400`. Compose local secrets do not enforce the
 declared uid/gid/mode; verify host metadata.
@@ -475,9 +485,11 @@ The Worker example deliberately fails production startup until:
   `RESEARCH_BACKUP_TARGET_ENCRYPTION_CONFIRMED=true`;
 - ORCID is either `disabled`, or an approved anonymous/credentialed mode is
   configured.
-- `RESEARCH_WEB_SEARCH_PROVIDER=brave` and the Worker-only search secret path
-  are configured. New production code rejects `direct` mode so a healthy
-  deployment cannot silently regress to registry-only doctor coverage.
+- `RESEARCH_WEB_SEARCH_PROVIDER=serpapi`,
+  `RESEARCH_SERPAPI_ENGINE=baidu` and the Worker-only search secret path are
+  configured. New production code rejects `direct` mode so a healthy
+  deployment cannot silently regress to registry-only doctor coverage. Brave
+  and SerpAPI Google remain explicit alternatives, never implicit fallbacks.
 
 With `RESEARCH_ORCID_MODE=disabled`, runs omitting ORCID remain supported.
 Requests that explicitly supply ORCID fail identity resolution; the Worker

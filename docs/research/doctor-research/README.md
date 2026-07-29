@@ -96,10 +96,15 @@ source mode, and its reviewed registry contains only the engineering smoke
 doctor. Therefore an unregistered three-field identity does not receive a web
 search and normally fails at `resolve_identity`. This is an engineering scope
 error, not a medical or business rule. The replacement path treats the
-registry only as a cache, performs one bounded general Brave identity search,
-and still applies pinned public-address fetching plus exact name, hospital and
-department evidence checks. It must not be described as deployed until the
-search credential is installed and an unregistered-doctor public E2E passes.
+registry only as a cache, performs one bounded general identity search, and
+still applies pinned public-address fetching plus exact name, hospital and
+department evidence checks. The current production candidate selects
+SerpAPI's Baidu engine after a same-query provider probe found an official
+hospital result where the Google engine's first five results did not. Brave
+and SerpAPI Google remain supported rollback/evaluation choices; this provider
+selection does not relax identity validation. It must not be described as
+deployed until the search credential is installed and an unregistered-doctor
+public E2E passes.
 
 The `1.6.84` release candidate also removes a second engineering-only coverage
 assumption: verified doctor-attributed PubMed publications enrich the profile
