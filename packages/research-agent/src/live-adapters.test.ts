@@ -311,6 +311,118 @@ describe("Doctor Research live first-party adapters", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("discovers safe identity candidates through one bounded SerpAPI Google search", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+      );
+      expect(url.origin).toBe("https://serpapi.com");
+      expect(url.pathname).toBe("/search.json");
+      expect(url.searchParams.get("engine")).toBe("google");
+      expect(url.searchParams.get("q")).toContain("Example Doctor");
+      expect(url.searchParams.get("num")).toBe("2");
+      expect(url.searchParams.get("safe")).toBe("active");
+      expect(url.searchParams.get("api_key")).toBe("serpapi-test-key");
+      return jsonResponse({
+        search_metadata: { status: "Success" },
+        organic_results: [
+          {
+            title: "Example Doctor hospital profile",
+            link: "https://hospital.example/doctors/example",
+            snippet: "Example Doctor, Example Hospital, Cardiology"
+          },
+          {
+            title: "Unsafe Example Doctor result",
+            link: "http://127.0.0.1/internal",
+            snippet: "Must be ignored"
+          }
+        ]
+      });
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {
+        email: "operator@example.org",
+        maximumResults: 1
+      },
+      crossref: { mailto: "operator@example.org" },
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "google",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 2
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchOfficialSources(
+        '"Example Doctor" Example Hospital Cardiology doctor profile',
+        new AbortController().signal
+      )
+    ).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(adapters.budgetHints).toEqual({
+      officialSearchRequestUnits: 2
+    });
+    expect(adapters.versions.official_web).toBe(
+      "serpapi-google-general-identity-search-v1+pinned-source-fetch.v1"
+    );
+  });
+
+  it("fails SerpAPI responses without exposing provider error details", async () => {
+    const adapters = new LiveResearchAdapters({
+      ncbi: {
+        email: "operator@example.org",
+        maximumResults: 1
+      },
+      crossref: { mailto: "operator@example.org" },
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "baidu",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 1
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async (input) => {
+        const url = new URL(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url
+        );
+        expect(url.searchParams.get("engine")).toBe("baidu");
+        expect(url.searchParams.get("rn")).toBe("1");
+        expect(url.searchParams.get("ct")).toBe("2");
+        return jsonResponse({
+          search_metadata: { status: "Success" },
+          error: "invalid private credential serpapi-test-key"
+        });
+      }
+    });
+
+    const error = await adapters
+      .searchOfficialSources(
+        '"Example Doctor" Example Hospital Cardiology doctor profile',
+        new AbortController().signal
+      )
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(
+      "Official web search provider returned an error."
+    );
+    expect((error as Error).message).not.toContain("serpapi-test-key");
+  });
+
   it("supports explicit allowlisted official URLs and anonymous ORCID reads without search credentials", async () => {
     const fetchImpl = vi.fn(
       async (_input: string | URL | Request, init?: RequestInit) => {

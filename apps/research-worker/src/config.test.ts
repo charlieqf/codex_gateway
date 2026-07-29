@@ -219,7 +219,39 @@ describe("Research Worker fail-closed configuration", () => {
         RESEARCH_WEB_SEARCH_PROVIDER: "direct",
         RESEARCH_WEB_SEARCH_API_KEY_FILE: undefined
       })
-    ).toThrow("requires general Brave identity search");
+    ).toThrow("requires general identity search");
+  });
+
+  it("supports an explicitly selected SerpAPI engine and rejects ambiguous provider settings", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      RESEARCH_WEB_SEARCH_PROVIDER: "serpapi",
+      RESEARCH_SERPAPI_ENGINE: "google"
+    });
+    expect(config).toMatchObject({
+      adapterOptions: {
+        officialWeb: {
+          provider: "serpapi",
+          serpApiEngine: "google",
+          apiKey: "__loaded_from_file__"
+        }
+      }
+    });
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_WEB_SEARCH_PROVIDER: "serpapi",
+        RESEARCH_SERPAPI_ENGINE: undefined
+      })
+    ).toThrow("RESEARCH_SERPAPI_ENGINE must be google or baidu");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_SERPAPI_ENGINE: "google"
+      })
+    ).toThrow("RESEARCH_SERPAPI_ENGINE is supported only");
   });
 
   it("supports a credential-free disabled ORCID mode for runs that omit ORCID", () => {

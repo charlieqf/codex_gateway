@@ -4992,7 +4992,7 @@ function createDefaultResearchRuntime(
   artifactRoot: string;
   maximumArtifactBytes: number;
   admissionGuard: (now: Date) => Promise<GatewayError | null>;
-  officialSourceMode: "brave" | "direct";
+  officialSourceMode: "brave" | "serpapi" | "direct";
   officialWebAllowedDomains: string[];
   officialIdentityRegistry: ResearchIdentityRegistryEntry[];
 } | null {
@@ -5017,10 +5017,10 @@ function createDefaultResearchRuntime(
   );
   if (
     env.NODE_ENV?.trim().toLowerCase() === "production" &&
-    officialSourceMode !== "brave"
+    officialSourceMode === "direct"
   ) {
     throw new Error(
-      "Production Doctor Research requires general Brave identity search; direct mode is staging-only."
+      "Production Doctor Research requires general identity search; direct mode is staging-only."
     );
   }
   const officialWebAllowedDomains =
@@ -5243,13 +5243,17 @@ function parseResearchBoolean(
 
 function parseResearchOfficialSourceMode(
   value: string | undefined
-): "brave" | "direct" {
+): "brave" | "serpapi" | "direct" {
   const normalized = value?.trim().toLowerCase();
-  if (normalized === "brave" || normalized === "direct") {
+  if (
+    normalized === "brave" ||
+    normalized === "serpapi" ||
+    normalized === "direct"
+  ) {
     return normalized;
   }
   throw new Error(
-    "RESEARCH_WEB_SEARCH_PROVIDER must be brave or direct when Research API is enabled."
+    "RESEARCH_WEB_SEARCH_PROVIDER must be brave, serpapi, or direct when Research API is enabled."
   );
 }
 

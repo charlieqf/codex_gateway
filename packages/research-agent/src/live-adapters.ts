@@ -7,6 +7,7 @@ import {
   type ResearchAdapterBundle
 } from "./adapters.js";
 import {
+  type BoundedJsonResponse,
   fetchApprovedWebDocument,
   fetchBoundedJson,
   fetchBoundedText,
@@ -28,8 +29,9 @@ export interface LiveResearchAdapterOptions {
     bearerToken?: string;
   };
   officialWeb: {
-    provider: "brave" | "direct";
+    provider: "brave" | "serpapi" | "direct";
     apiKey?: string;
+    serpApiEngine?: "google" | "baidu";
     allowedDomains: readonly string[];
     maximumResults?: number;
   };
@@ -41,12 +43,7 @@ export interface LiveResearchAdapterOptions {
 }
 
 export class LiveResearchAdapters implements ResearchAdapterBundle {
-  readonly versions = Object.freeze({
-    pubmed: "ncbi-eutils-esearch-esummary.v1",
-    crossref: "crossref-rest-v1",
-    orcid: "orcid-api-v3.0",
-    official_web: "brave-general-identity-search-v2+pinned-source-fetch.v1"
-  });
+  readonly versions: Readonly<Record<string, string>>;
   readonly budgetHints: {
     officialSearchRequestUnits: number;
   };
@@ -96,17 +93,45 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (options.orcid.bearerToken !== undefined) {
       requireSecret(options.orcid.bearerToken, "orcid.bearerToken");
     }
-    if (options.officialWeb.provider === "brave") {
+    if (
+      options.officialWeb.provider === "brave" ||
+      options.officialWeb.provider === "serpapi"
+    ) {
       requireSecret(options.officialWeb.apiKey ?? "", "officialWeb.apiKey");
     } else if (options.officialWeb.apiKey !== undefined) {
       throw new Error(
         "Direct official web retrieval must not configure an API key."
       );
     }
+    if (options.officialWeb.provider === "serpapi") {
+      if (
+        options.officialWeb.serpApiEngine !== "google" &&
+        options.officialWeb.serpApiEngine !== "baidu"
+      ) {
+        throw new Error(
+          "officialWeb.serpApiEngine must be google or baidu for SerpAPI."
+        );
+      }
+    } else if (options.officialWeb.serpApiEngine !== undefined) {
+      throw new Error(
+        "officialWeb.serpApiEngine is supported only for SerpAPI."
+      );
+    }
+    this.versions = Object.freeze({
+      pubmed: "ncbi-eutils-esearch-esummary.v1",
+      crossref: "crossref-rest-v1",
+      orcid: "orcid-api-v3.0",
+      official_web:
+        options.officialWeb.provider === "serpapi"
+          ? `serpapi-${options.officialWeb.serpApiEngine}-general-identity-search-v1+pinned-source-fetch.v1`
+          : options.officialWeb.provider === "brave"
+            ? "brave-general-identity-search-v2+pinned-source-fetch.v1"
+            : "direct-reviewed-source-fetch.v1"
+    });
     validateAllowedDomains(options.officialWeb.allowedDomains);
     this.budgetHints = Object.freeze({
       officialSearchRequestUnits:
-        options.officialWeb.provider === "brave" ? 2 : 0
+        options.officialWeb.provider === "direct" ? 0 : 2
     });
     if (
       options.userAgent !== options.userAgent.trim() ||
@@ -134,7 +159,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         throw new Error("ORCID preflight record was unavailable.");
       }
     }
-    if (this.options.officialWeb.provider === "brave") {
+    if (this.options.officialWeb.provider !== "direct") {
       await this.searchOfficialSources("doctor profile", signal);
     }
   }
@@ -446,7 +471,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       seedUrls?: readonly string[];
     } = {}
   ): Promise<readonly string[]> {
-    const query = boundedBraveIdentityQuery(normalizedDoctorName);
+    const query = boundedOfficialIdentityQuery(normalizedDoctorName);
     this.officialSources.clear();
     const sourceIds: string[] = [];
     for (const rawUrl of options.seedUrls ?? []) {
@@ -466,25 +491,10 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (this.options.officialWeb.provider === "direct") {
       return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
     }
-    const url = new URL("https://api.search.brave.com/res/v1/web/search");
-    setSearchParams(url, {
-      q: query,
-      count: String(this.maximumOfficialResults),
-      safesearch: "strict",
-      extra_snippets: "false"
-    });
-    const response = await this.requestJsonWithRetry<BraveSearchResponse>(
-      url,
-      signal,
-      {
-        "x-subscription-token": this.options.officialWeb.apiKey!
-      },
-      2
-    );
-    const results = response.value.web?.results;
-    if (!Array.isArray(results)) {
-      throw new Error("Official web search response is invalid.");
-    }
+    const results =
+      this.options.officialWeb.provider === "brave"
+        ? await this.searchBrave(query, signal)
+        : await this.searchSerpApi(query, signal);
     for (const result of results.slice(0, this.maximumOfficialResults)) {
       if (
         !result ||
@@ -511,6 +521,92 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       sourceIds.push(sourceId);
     }
     return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
+  }
+
+  private async searchBrave(
+    query: string,
+    signal: AbortSignal
+  ): Promise<readonly OfficialSearchResult[]> {
+    const url = new URL("https://api.search.brave.com/res/v1/web/search");
+    setSearchParams(url, {
+      q: query,
+      count: String(this.maximumOfficialResults),
+      safesearch: "strict",
+      extra_snippets: "false"
+    });
+    const response = await this.requestJsonWithRetry<BraveSearchResponse>(
+      url,
+      signal,
+      {
+        "x-subscription-token": this.options.officialWeb.apiKey!
+      },
+      2
+    );
+    const results = response.value.web?.results;
+    if (!Array.isArray(results)) {
+      throw new Error("Official web search response is invalid.");
+    }
+    return results.map((result) => ({
+      title: result.title,
+      url: result.url,
+      description: result.description
+    }));
+  }
+
+  private async searchSerpApi(
+    query: string,
+    signal: AbortSignal
+  ): Promise<readonly OfficialSearchResult[]> {
+    const engine = this.options.officialWeb.serpApiEngine!;
+    const url = new URL("https://serpapi.com/search.json");
+    setSearchParams(url, {
+      engine,
+      q: query,
+      output: "json",
+      api_key: this.options.officialWeb.apiKey!,
+      ...(engine === "google"
+        ? {
+            num: String(this.maximumOfficialResults),
+            safe: "active"
+          }
+        : {
+            rn: String(this.maximumOfficialResults),
+            ct: "2"
+          })
+    });
+    let response: BoundedJsonResponse<SerpApiSearchResponse>;
+    try {
+      response = await this.requestJsonWithRetry<SerpApiSearchResponse>(
+        url,
+        signal,
+        {},
+        2
+      );
+    } catch (error) {
+      if (signal.aborted || error instanceof ResearchHttpError) {
+        throw error;
+      }
+      throw new Error("Official web search request failed.");
+    }
+    if (
+      typeof response.value.error === "string" &&
+      response.value.error.trim() !== ""
+    ) {
+      throw new Error("Official web search provider returned an error.");
+    }
+    const status = response.value.search_metadata?.status;
+    if (status !== undefined && status !== "Success") {
+      throw new Error("Official web search response is not complete.");
+    }
+    const results = response.value.organic_results;
+    if (!Array.isArray(results)) {
+      throw new Error("Official web search response is invalid.");
+    }
+    return results.map((result) => ({
+      title: result.title,
+      url: result.link,
+      description: result.snippet
+    }));
   }
 
   async fetchApprovedSource(
@@ -736,6 +832,24 @@ interface BraveSearchResponse {
   };
 }
 
+interface SerpApiSearchResponse {
+  search_metadata?: {
+    status?: unknown;
+  };
+  error?: unknown;
+  organic_results?: Array<{
+    title?: unknown;
+    link?: unknown;
+    snippet?: unknown;
+  }>;
+}
+
+interface OfficialSearchResult {
+  title?: unknown;
+  url?: unknown;
+  description?: unknown;
+}
+
 function setSearchParams(
   url: URL,
   values: Readonly<Record<string, string | undefined>>
@@ -951,7 +1065,7 @@ function boundedQuery(value: string, maximumLength: number): string {
   return normalized;
 }
 
-function boundedBraveIdentityQuery(value: string): string {
+function boundedOfficialIdentityQuery(value: string): string {
   const normalized = boundedQuery(value, 280);
   if (normalized.split(/\s+/u).length > 40) {
     throw new Error("Official web search query contains too many words.");

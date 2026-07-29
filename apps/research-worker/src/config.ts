@@ -248,25 +248,46 @@ export function loadResearchWorkerConfig(
     env.RESEARCH_WEB_SEARCH_PROVIDER,
     "RESEARCH_WEB_SEARCH_PROVIDER"
   );
-  if (webProvider !== "brave" && webProvider !== "direct") {
+  if (
+    webProvider !== "brave" &&
+    webProvider !== "serpapi" &&
+    webProvider !== "direct"
+  ) {
     throw new Error(
-      "RESEARCH_WEB_SEARCH_PROVIDER must be brave or direct."
+      "RESEARCH_WEB_SEARCH_PROVIDER must be brave, serpapi, or direct."
     );
   }
   if (
     env.NODE_ENV?.trim().toLowerCase() === "production" &&
-    webProvider !== "brave"
+    webProvider === "direct"
   ) {
     throw new Error(
-      "Production Doctor Research requires general Brave identity search; direct mode is staging-only."
+      "Production Doctor Research requires general identity search; direct mode is staging-only."
+    );
+  }
+  const serpApiEngineValue = optionalString(env.RESEARCH_SERPAPI_ENGINE);
+  let serpApiEngine: "google" | "baidu" | undefined;
+  if (webProvider === "serpapi") {
+    if (
+      serpApiEngineValue !== "google" &&
+      serpApiEngineValue !== "baidu"
+    ) {
+      throw new Error(
+        "RESEARCH_SERPAPI_ENGINE must be google or baidu for SerpAPI."
+      );
+    }
+    serpApiEngine = serpApiEngineValue;
+  } else if (serpApiEngineValue) {
+    throw new Error(
+      "RESEARCH_SERPAPI_ENGINE is supported only when RESEARCH_WEB_SEARCH_PROVIDER=serpapi."
     );
   }
   const webSearchApiKeyFile = optionalString(
     env.RESEARCH_WEB_SEARCH_API_KEY_FILE
   );
-  if (webProvider === "brave" && !webSearchApiKeyFile) {
+  if (webProvider !== "direct" && !webSearchApiKeyFile) {
     throw new Error(
-      "RESEARCH_WEB_SEARCH_API_KEY_FILE is required for Brave search."
+      "RESEARCH_WEB_SEARCH_API_KEY_FILE is required for general identity search."
     );
   }
   if (webProvider === "direct" && webSearchApiKeyFile) {
@@ -612,8 +633,11 @@ export function loadResearchWorkerConfig(
       },
       officialWeb: {
         provider: webProvider,
-        ...(webProvider === "brave"
+        ...(webProvider !== "direct"
           ? { apiKey: "__loaded_from_file__" }
+          : {}),
+        ...(webProvider === "serpapi"
+          ? { serpApiEngine }
           : {}),
         allowedDomains,
         maximumResults: maximumOfficialResults

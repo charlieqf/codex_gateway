@@ -50,7 +50,7 @@ export interface ResearchRouteOptions {
   artifactRoot?: string;
   maximumArtifactBytes?: number;
   admissionGuard?: (now: Date) => Promise<GatewayError | null>;
-  officialSourceMode?: "brave" | "direct";
+  officialSourceMode?: "brave" | "serpapi" | "direct";
   officialWebAllowedDomains?: readonly string[];
   officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   now?: () => Date;
@@ -758,7 +758,7 @@ export function registerResearchRoutes(
 export function parseDoctorResearchRunRequest(
   body: unknown,
   policy: {
-    officialSourceMode?: "brave" | "direct";
+    officialSourceMode?: "brave" | "serpapi" | "direct";
     officialWebAllowedDomains?: readonly string[];
     officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
   } = {}

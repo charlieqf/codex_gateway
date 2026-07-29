@@ -284,7 +284,7 @@ describe("Doctor Research control-plane routes", () => {
         RESEARCH_API_ENABLED: "true",
         RESEARCH_DB_PATH: ":memory:",
         RESEARCH_ARTIFACT_ROOT: ".research-test-artifacts",
-        RESEARCH_WEB_SEARCH_PROVIDER: "brave",
+        RESEARCH_WEB_SEARCH_PROVIDER: "serpapi",
         RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS: "hospital.example",
         RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE: "false",
         RESEARCH_CONTROL_READ_RPM: "20",
