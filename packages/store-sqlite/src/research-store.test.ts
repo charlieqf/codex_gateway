@@ -493,6 +493,55 @@ describe("ResearchSqliteStore", () => {
     store.close();
   });
 
+  it("admits new doctors without a rolling count limit when configured as zero", () => {
+    const store = createResearchSqliteStore({
+      path: ":memory:",
+      limits: {
+        dailyRunsPerSubject: 10,
+        uniqueDoctors30dPerSubject: 0,
+        globalActiveRuns: 10,
+        needsInputPerSubject: 1
+      }
+    });
+
+    for (let index = 1; index <= 6; index += 1) {
+      const result = store.createRun(
+        command(
+          "subj_unlimited",
+          `unlimited-${index}`,
+          `unlimited-hash-${index}`,
+          `unlimited-fp-${index}`,
+          new Date(`2026-07-${String(index).padStart(2, "0")}T00:00:00Z`)
+        )
+      );
+      expect(result.outcome).toBe("created");
+      if (result.outcome !== "created") {
+        throw new Error("Expected a created run.");
+      }
+      store.database
+        .prepare(
+          `UPDATE research_runs
+           SET status = 'failed', terminal_reason = 'identity_not_resolved',
+               completed_at = updated_at
+           WHERE run_id = ?`
+        )
+        .run(result.run.runId);
+    }
+
+    expect(
+      store.database
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM research_audit_events
+           WHERE action = 'admission_quota'
+             AND json_extract(params_json, '$.limit_kind') =
+               'research_unique_doctors_30d'`
+        )
+        .get()
+    ).toEqual({ count: 0 });
+    store.close();
+  });
+
   it("keeps Research audit rows append-only", () => {
     const store = createStore(":memory:");
     const created = store.createRun(

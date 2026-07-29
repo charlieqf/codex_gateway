@@ -150,7 +150,7 @@ describe("Doctor Research control-plane routes", () => {
       RESEARCH_CONTROL_READ_RPM: "20",
       RESEARCH_CONTROL_MUTATION_RPM: "10",
       RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT: "10",
-      RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "10",
+      RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "0",
       RESEARCH_MAX_QUEUED_RUNS: "100",
       RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "10",
       RESEARCH_MAX_CHECKPOINT_BYTES: "1048576",
@@ -176,6 +176,28 @@ describe("Doctor Research control-plane routes", () => {
       });
       await app.close();
     });
+    await withTemporaryEnv(
+      {
+        ...environment,
+        RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "-1"
+      },
+      async () => {
+        const gateway = createSqliteStore({ path: ":memory:" });
+        try {
+          expect(() =>
+            buildGateway({
+              provider,
+              sessionStore: gateway,
+              logger: false
+            })
+          ).toThrow(
+            "RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D must be a non-negative integer."
+          );
+        } finally {
+          gateway.close();
+        }
+      }
+    );
     await withTemporaryEnv(
       {
         ...environment,

@@ -57,6 +57,21 @@ describe("Research Worker fail-closed configuration", () => {
     ).toThrow("cannot exceed 300000");
   });
 
+  it("uses zero to disable the rolling unique-doctor admission limit", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "0"
+    });
+    expect(config?.admissionLimits.uniqueDoctors30dPerSubject).toBe(0);
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D: "-1"
+      })
+    ).toThrow("must be a non-negative integer");
+  });
+
   it("rejects proxy use and unsafe cross-field limits before starting", () => {
     expect(() =>
       loadResearchWorkerConfig({

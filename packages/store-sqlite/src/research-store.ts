@@ -346,6 +346,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         windowStart
       );
       if (
+        this.limits.uniqueDoctors30dPerSubject > 0 &&
         doctorSeen === 0 &&
         uniqueDoctors >= this.limits.uniqueDoctors30dPerSubject
       ) {
@@ -3546,7 +3547,7 @@ function validateLimits(limits: ResearchAdmissionLimits): ResearchAdmissionLimit
       limits.dailyRunsPerSubject,
       "limits.dailyRunsPerSubject"
     ),
-    uniqueDoctors30dPerSubject: positiveInteger(
+    uniqueDoctors30dPerSubject: nonNegativeInteger(
       limits.uniqueDoctors30dPerSubject,
       "limits.uniqueDoctors30dPerSubject"
     ),
@@ -3564,6 +3565,13 @@ function validateLimits(limits: ResearchAdmissionLimits): ResearchAdmissionLimit
 function positiveInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
+  }
+  return value;
+}
+
+function nonNegativeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
   }
   return value;
 }

@@ -674,7 +674,7 @@ export function loadResearchWorkerConfig(
         env.RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT,
         "RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT"
       ),
-      uniqueDoctors30dPerSubject: requiredPositiveInteger(
+      uniqueDoctors30dPerSubject: requiredNonNegativeInteger(
         env.RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D,
         "RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D"
       ),
@@ -777,6 +777,21 @@ function requiredPositiveInteger(
     throw new Error(`${name} must be a positive integer.`);
   }
   const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error(`${name} exceeds the safe integer range.`);
+  }
+  return parsed;
+}
+
+function requiredNonNegativeInteger(
+  value: string | undefined,
+  name: string
+): number {
+  const normalized = value?.trim();
+  if (!normalized || !/^(?:0|[1-9][0-9]*)$/u.test(normalized)) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+  const parsed = Number(normalized);
   if (!Number.isSafeInteger(parsed)) {
     throw new Error(`${name} exceeds the safe integer range.`);
   }
