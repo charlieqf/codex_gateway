@@ -222,19 +222,18 @@ run 也占用当日额度。相同 `Idempotency-Key` 和相同请求体的重放
 `X-Request-Id` 一起记录并向用户说明可再次创建的时间。并发、全局队列或读取频率限制的
 窗口不同，必须按返回的 `limit_kind` 分别处理，不能把所有 429 都解释为日额度耗尽。
 
-### 30 天不同医生配额
+### 不同医生数量策略
 
-生产受控试用还保留一项独立的隐私和反批量画像限制：每个 subject 在滚动 30 天内最多
-准入 5 位不同医生。它与“每天 50 个 run”不是同一个计数器；同一位医生可以重复运行，
-但首次请求第 6 位不同医生会返回
-`limit_kind=research_unique_doctors_30d`。失败或取消的 run 已经完成准入，因此仍计入该
-滚动窗口。
+自 2026-07-29 起，生产策略不再限制每个 subject 可以研究的不同医生数量，显式配置为
+`RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D=0`。第 6 位或更多新医生不会再因为
+`research_unique_doctors_30d` 被拒绝；每日 50 个 run、单 active brief、全局队列、
+entitlement、身份、证据、医学质量及四文件完整性门槛仍分别执行。
 
-此类拒绝的 `Retry-After` 和 `retry_after_seconds` 是当前最早一个医生名额释放前的实际
-秒数，`limit.window` 固定为 `rolling_30_days`，同时返回
-`maximum/used/requested`。它可能远大于 30 秒；创建请求不得自动循环更换
-`Idempotency-Key`。Python 示例会解析并显示这段完整指导，但不会为创建请求睡眠数周或
-自动重试。典型响应如下：
+`0` 是经过启动校验的“禁用不同医生计数限制”值，不是缺省值。配置缺失、空、负数、
+小数或不可解析时，Gateway 和 Worker 仍会拒绝启动。若以后为了特定环境回滚为正整数，
+系统仍保留原滚动 30 天契约：超限时返回真实 `Retry-After`、
+`limit.window=rolling_30_days` 和 `maximum/used/requested`。Python 示例继续解析这种
+兼容响应，但不会自动重试创建请求。正整数配置下的响应示例如下：
 
 ```json
 {

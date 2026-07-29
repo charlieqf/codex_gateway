@@ -1831,8 +1831,8 @@ chat 热路径上的 `tools` 门禁，也不写“未授予 tools 所以调用�
 - 每 subject 同时最多 1 个 queued/running brief；
 - 每 subject 最多 10 个未过期 `needs_input`；
 - 每日 run 数由 Research policy 单独控制；
-- 每 subject 在滚动 30 天内可调研的不同医生数量必须有非空上限，具体值由
-  Phase 0 使用场景和隐私评估确定；
+- 每 subject 在滚动 30 天内可调研的不同医生数量由显式配置控制；`0` 表示禁用该项
+  计数限制，正整数启用滚动窗口限制。2026-07-29 业务授权后的生产值为 `0`；
 - full 默认禁用；
 - 状态轮询、鉴权下载和可选 signed URL 使用独立 control-plane 限流；
 - 不使用普通 chat request/day 计数表达 Research run 配额。
@@ -1841,7 +1841,7 @@ chat 热路径上的 `tools` 门禁，也不写“未授予 tools 所以调用�
 请求继续堆入 queued。被拒绝的 selection 保持 `needs_input`，等待客户端重试
 或取消。
 
-不同医生数量超限返回 `429 rate_limited`，并设置
+当不同医生数量配置为正整数时，超限返回 `429 rate_limited`，并设置
 `research_code=research_quota_exceeded` 和
 `limit_kind=research_unique_doctors_30d`。响应必须同时返回滚动窗口中当前
 `maximum/used/requested`、`limit.window=rolling_30_days`，以及最早一个不同医生名额
@@ -2235,7 +2235,7 @@ RESEARCH_RUN_RETENTION_SECONDS=7776000
 RESEARCH_IDEMPOTENCY_REPLAY_SECONDS=604800
 RESEARCH_IDEMPOTENCY_TOMBSTONE_SECONDS=2592000
 RESEARCH_MAX_DAILY_RUNS_PER_SUBJECT=...
-RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D=...
+RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D=0
 RESEARCH_MAX_ARTIFACT_BYTES=...
 RESEARCH_MAX_ARTIFACT_BYTES_PER_RUN=...
 RESEARCH_MAX_CHECKPOINT_BYTES=...
@@ -2268,10 +2268,12 @@ RESEARCH_ARTIFACT_SIGNING_SECRET_FILE=/run/secrets/research_artifact_signing_sec
 
 所有开关默认关闭。Gateway 在 `RESEARCH_API_ENABLED=false` 时不得打开 Research DB、注册后台定时器或执行额外轮询。
 
-`RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D` 是隐私和反批量画像控制，不得
-退化为无上限。当 `RESEARCH_API_ENABLED=true` 时，该值缺失、空、无法解析、
-为 0 或为负数，Gateway 必须拒绝启动并给出不含 secret 的配置错误；不能使用
-隐式默认值继续运行。Worker 启动预检还必须确认
+`RESEARCH_MAX_UNIQUE_DOCTORS_PER_SUBJECT_30D` 使用显式、可回滚语义：`0` 禁用不同
+医生计数限制，正整数启用对应的滚动 30 天限制。2026-07-29 业务负责人明确授权生产
+使用 `0`；这不改变公开职业/学术信息范围和其他安全边界。当
+`RESEARCH_API_ENABLED=true` 时，该值缺失、空、无法解析、为负数或非整数，Gateway
+必须拒绝启动并给出不含 secret 的配置错误；不能使用隐式默认值继续运行。Worker
+启动预检还必须确认
 `RESEARCH_LLM_MODEL` 与服务 credential 的非空精确模型允许清单一致，并通过
 Worker readiness 查询确认 credential 的 RPM/RPD、单请求 prompt/total/reserve
 和日/月 token policy 覆盖 Worker 配置的单次调用及整次 run 上限。
