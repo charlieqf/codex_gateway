@@ -214,6 +214,18 @@ class ResearchDockerContractTests(unittest.TestCase):
             worker,
         )
         self.assertIn("RESEARCH_ORCID_MODE=disabled", worker)
+        self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=brave", api)
+        self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=brave", worker)
+        self.assertIn(
+            "RESEARCH_WEB_SEARCH_API_KEY_FILE="
+            "/run/secrets/research_production_web_search_api_key",
+            worker,
+        )
+        self.assertIn(
+            "RESEARCH_PRODUCTION_WEB_SEARCH_KEY_FILE="
+            "./secrets/research-production-web-search-key",
+            compose_environment,
+        )
         self.assertIn("replace-with-production-operator", worker)
         self.assertIn(
             "GATEWAY_API_KEY_ENCRYPTION_SECRET=replace-with-",
@@ -239,7 +251,7 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertNotIn("model", request)
         self.assertNotIn("outputs", request)
 
-    def test_production_identity_registry_is_versioned_and_image_bound(self):
+    def test_production_identity_registry_is_a_versioned_cache_and_not_admission(self):
         registry_path = (
             ROOT
             / "config"
@@ -285,6 +297,20 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn(
             "RESEARCH_OFFICIAL_PROFILE_REGISTRY_PATH: "
             "/app/config/research.official-identity-registry.v1.json",
+            compose,
+        )
+        self.assertIn(
+            "RESEARCH_WEB_SEARCH_API_KEY_FILE: "
+            "/run/secrets/research_production_web_search_api_key",
+            compose,
+        )
+        self.assertIn(
+            "source: research_production_web_search_api_key",
+            compose,
+        )
+        self.assertIn(
+            "file: ${RESEARCH_PRODUCTION_WEB_SEARCH_KEY_FILE:?set a "
+            "production web search API key file}",
             compose,
         )
         self.assertNotIn(

@@ -238,11 +238,20 @@ Last updated: 2026-07-29
 - Optional Doctor Research UI fields commonly arrive as `""`, whitespace, or
   `null`; normalize those representations to omitted before validating bounded
   optional text. Do not apply that rule to the required name/hospital/department
-  identity anchors. In direct-source mode, a three-field request also needs a
-  startup-validated server registry keyed by the normalized exact identity
-  triple. Registry URLs must still pass the official-domain allowlist and the
-  normal identity/evidence workflow; unregistered identities fail closed rather
-  than being guessed from a translated name.
+  identity anchors. In the historical direct-source implementation, a
+  three-field request also needed a startup-validated server registry keyed by
+  the normalized exact identity triple. That explains the old failure mode but
+  is not the product contract. Cached registry URLs must still pass the
+  official-domain allowlist and the normal identity/evidence workflow.
+- A reviewed Doctor Research identity registry may accelerate a verified
+  identity, but it must not become an eligibility list unless the business
+  owner explicitly requested pre-registration. The authoritative medical Skill
+  requires discovery for the doctor named by the user and candidate selection
+  for ambiguity. A `direct` source mode plus a one-doctor registry can pass a
+  repeated smoke case while making the product unusable for every other
+  three-field request. Production must fail startup if general identity search
+  is required but its provider credential is absent; service health and
+  same-case E2E are not evidence of arbitrary-doctor coverage.
 - Doctor Research daily quota is an admission/resource contract, not a success
   counter. Once admitted, failed and cancelled runs still count; otherwise a
   caller could bypass the limit by forcing failures. Return the exact next UTC

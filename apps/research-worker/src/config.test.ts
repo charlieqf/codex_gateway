@@ -207,9 +207,19 @@ describe("Research Worker fail-closed configuration", () => {
     expect(() =>
       loadResearchWorkerConfig({
         ...validEnvironment(),
+        NODE_ENV: "staging",
         RESEARCH_WEB_SEARCH_PROVIDER: "direct"
       })
     ).toThrow("must not configure a search API key file");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        NODE_ENV: "production",
+        RESEARCH_WEB_SEARCH_PROVIDER: "direct",
+        RESEARCH_WEB_SEARCH_API_KEY_FILE: undefined
+      })
+    ).toThrow("requires general Brave identity search");
   });
 
   it("supports a credential-free disabled ORCID mode for runs that omit ORCID", () => {

@@ -5015,6 +5015,14 @@ function createDefaultResearchRuntime(
   const officialSourceMode = parseResearchOfficialSourceMode(
     env.RESEARCH_WEB_SEARCH_PROVIDER
   );
+  if (
+    env.NODE_ENV?.trim().toLowerCase() === "production" &&
+    officialSourceMode !== "brave"
+  ) {
+    throw new Error(
+      "Production Doctor Research requires general Brave identity search; direct mode is staging-only."
+    );
+  }
   const officialWebAllowedDomains =
     parseResearchOfficialWebAllowedDomains(
       env.RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS,

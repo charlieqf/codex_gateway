@@ -3185,7 +3185,8 @@ function failurePublicDetail(
     FailResearchRunInput["terminalReason"],
     string
   > = {
-    identity_not_resolved: "The doctor identity could not be resolved.",
+    identity_not_resolved:
+      "The public search did not verify the requested name, hospital, and department as one doctor. This does not mean the doctor does not exist.",
     insufficient_research_evidence:
       "There was not enough verified public evidence to produce the result.",
     upstream_unavailable:

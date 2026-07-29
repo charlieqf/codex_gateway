@@ -252,6 +252,14 @@ export function loadResearchWorkerConfig(
       "RESEARCH_WEB_SEARCH_PROVIDER must be brave or direct."
     );
   }
+  if (
+    env.NODE_ENV?.trim().toLowerCase() === "production" &&
+    webProvider !== "brave"
+  ) {
+    throw new Error(
+      "Production Doctor Research requires general Brave identity search; direct mode is staging-only."
+    );
+  }
   const webSearchApiKeyFile = optionalString(
     env.RESEARCH_WEB_SEARCH_API_KEY_FILE
   );

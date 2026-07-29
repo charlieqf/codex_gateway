@@ -88,6 +88,19 @@ engineering-allowlisted; it is not a substitute for a medical-team-approved
 representative case or manual content acceptance. The service therefore remains
 `controlled-trial`.
 
+The production identity path has a newly confirmed coverage defect. The
+medical-team Skill requires public discovery for the doctor named by the user,
+with candidate confirmation for ambiguity; it never requires prior doctor
+registration. Release `1.6.83` nevertheless runs the historical `direct`
+source mode, and its reviewed registry contains only the engineering smoke
+doctor. Therefore an unregistered three-field identity does not receive a web
+search and normally fails at `resolve_identity`. This is an engineering scope
+error, not a medical or business rule. The replacement path treats the
+registry only as a cache, performs one bounded general Brave identity search,
+and still applies pinned public-address fetching plus exact name, hospital and
+department evidence checks. It must not be described as deployed until the
+search credential is installed and an unregistered-doctor public E2E passes.
+
 Real-user `1.6.81` run `drr_fe4729ec07eb42aea302d3289735b33f` then exposed
 a correction-call reliability defect: the QA correction inherited
 `reasoning=low` and an 18,000-token ceiling and timed out at the 175-second
@@ -754,9 +767,10 @@ The controlled-beta implementation batch on 2026-07-18 adds:
 - an independently startable maintenance/scheduler process for reconciliation,
   cleanup, storage probes and verified backups; staging Worker readiness
   requires its fresh backup and keeps embedded maintenance disabled;
-- bounded first-party PubMed, Crossref and ORCID adapters plus fail-closed
-  direct official-source retrieval and optional Brave search over an explicit
-  domain allowlist;
+- bounded first-party PubMed, Crossref and ORCID adapters plus the historical
+  fail-closed direct official-source retrieval. The later general-discovery
+  remediation searches beyond the cache/domain seed list while retaining
+  pinned public-address fetching and identity evidence validation;
 - a Gateway-backed non-streaming LLM client with exact credential/model
   readiness, persistent per-run budgets, unique-JSON/AJV validation and one
   bounded repair;

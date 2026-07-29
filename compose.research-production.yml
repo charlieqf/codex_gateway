@@ -85,6 +85,7 @@ services:
       RESEARCH_BACKUP_ROOT: /var/lib/codex-gateway-research-backups
       RESEARCH_LLM_BASE_URL: http://research-llm-gateway:8787
       RESEARCH_LLM_BEARER_TOKEN_FILE: /run/secrets/research_production_llm_bearer
+      RESEARCH_WEB_SEARCH_API_KEY_FILE: /run/secrets/research_production_web_search_api_key
       HTTP_PROXY: ""
       HTTPS_PROXY: ""
       ALL_PROXY: ""
@@ -97,6 +98,11 @@ services:
     secrets:
       - source: research_production_llm_bearer
         target: research_production_llm_bearer
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: research_production_web_search_api_key
+        target: research_production_web_search_api_key
         uid: "999"
         gid: "999"
         mode: 0400
@@ -186,3 +192,5 @@ secrets:
     file: ${RESEARCH_PRODUCTION_ALIYUN_KEY_FILE:?set a production Aliyun key file}
   research_production_llm_bearer:
     file: ${RESEARCH_PRODUCTION_LLM_TOKEN_FILE:?set a production Research LLM token file}
+  research_production_web_search_api_key:
+    file: ${RESEARCH_PRODUCTION_WEB_SEARCH_KEY_FILE:?set a production web search API key file}
