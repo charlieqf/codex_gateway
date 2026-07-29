@@ -41,6 +41,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     artifacts = {}
     rate_limit_result_remaining = 0
     rate_limit_download_remaining = 0
+    last_create_body = None
 
     def do_POST(self):
         if self.path != "/gateway/research/v1/doctor-runs":
@@ -49,6 +50,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.assert_auth()
         assert self.headers["Idempotency-Key"].startswith("research:")
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        type(self).last_create_body = body
         assert body["doctor"]["name"] == DOCTOR_NAME
         assert body["doctor"]["hospital"]
         assert body["doctor"]["department"]
@@ -168,26 +170,9 @@ def artifact_manifest():
 
 def request_payload():
     return {
-        "doctor": {
-            "name": DOCTOR_NAME,
-            "hospital": "上海长海医院",
-            "department": "血管外科",
-            "official_profile_urls": [
-                "https://hospital.example/doctor/lu"
-            ],
-            "literature_identity": {
-                "name": "Lu Qingsheng",
-                "hospital": "Changhai Hospital",
-                "department": "Vascular Surgery",
-            },
-        },
-        "mode": "brief",
-        "language": "zh-CN",
-        "options": {
-            "publication_years": 5,
-            "citation_style": "vancouver",
-        },
-        "client_reference": "test-client-reference",
+        "name": DOCTOR_NAME,
+        "hospital": "海军军医大学第一附属医院",
+        "department": "血管外科",
     }
 
 
@@ -196,6 +181,7 @@ class DoctorResearchDemoTests(unittest.TestCase):
         DemoHandler.artifacts = artifact_manifest()
         DemoHandler.rate_limit_result_remaining = 0
         DemoHandler.rate_limit_download_remaining = 0
+        DemoHandler.last_create_body = None
 
     def test_daily_quota_error_keeps_actionable_reset_and_usage(self):
         payload = json.dumps(
@@ -286,14 +272,6 @@ class DoctorResearchDemoTests(unittest.TestCase):
                             "上海长海医院",
                             "--department",
                             "血管外科",
-                            "--literature-name",
-                            "Lu Qingsheng",
-                            "--literature-hospital",
-                            "Changhai Hospital",
-                            "--literature-department",
-                            "Vascular Surgery",
-                            "--official-profile-url",
-                            "https://hospital.example/doctor/lu",
                             "--api-key-file",
                             str(key_file),
                             "--base-url",
@@ -312,6 +290,14 @@ class DoctorResearchDemoTests(unittest.TestCase):
                 )
                 final = json.loads(stdout.getvalue().splitlines()[-1])
                 self.assertEqual(final["outcome"], "succeeded")
+                self.assertEqual(
+                    DemoHandler.last_create_body["doctor"],
+                    {
+                        "name": DOCTOR_NAME,
+                        "hospital": "上海长海医院",
+                        "department": "血管外科",
+                    },
+                )
                 self.assertEqual(
                     final["quality_status"], "passed_with_warnings"
                 )
@@ -370,7 +356,7 @@ class DoctorResearchDemoTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             request_file = Path(temporary) / "request.json"
             payload = request_payload()
-            payload["doctor"]["doctor_name"] = payload["doctor"]["name"]
+            payload["doctor_name"] = payload["name"]
             request_file.write_text(json.dumps(payload), encoding="utf-8")
             args = DEMO.parse_args(["--request-file", str(request_file)])
             with self.assertRaisesRegex(
@@ -540,14 +526,6 @@ class DoctorResearchDemoTests(unittest.TestCase):
                             "上海长海医院",
                             "--department",
                             "血管外科",
-                            "--literature-name",
-                            "Lu Qingsheng",
-                            "--literature-hospital",
-                            "Changhai Hospital",
-                            "--literature-department",
-                            "Vascular Surgery",
-                            "--official-profile-url",
-                            "https://hospital.example/doctor/lu",
                             "--api-key-file",
                             str(key_file),
                             "--base-url",

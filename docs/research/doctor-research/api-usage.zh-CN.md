@@ -89,6 +89,12 @@ Accept: application/json
 三字段只减少用户输入，不降低身份门槛；公开资料确实不足或相互冲突时仍会 fail-closed，
 但不得再把“未预先收录”当作失败依据。
 
+候选执行器 `1.6.84` 还移除了第二层隐性白名单：医生本人可核验的 PubMed 论文是可选的
+履历证据，不再要求每位医生先有至少 3 篇绑定论文才能进入领域研究。没有医生本人论文时，
+结果必须显示 `doctor_publication_evidence_not_found` warning，代表作列表保持为空；领域综述
+仍必须从医生科室或官方资料推导出有界英文检索主题，并继续满足最少参考文献、引用闭合、
+数值证据和医学质量门槛。这个变化扩大可研究医生覆盖面，不会把其他作者论文归到该医生名下。
+
 当前 `1.6.83` 生产尚未激活上述通用搜索，仍受历史 `direct` 配置限制。若此时收到
 `identity_not_resolved`，它可能只是现网未执行通用发现；在通用搜索版本上线后，公开提示
 会明确为“公开搜索未能把姓名、医院和科室核验为同一医生”，并说明不代表医生不存在。
@@ -276,6 +282,21 @@ python scripts/doctor-research-demo.py `
   --idempotency-key research:his-user-42:case-20260722-001 `
   --output-dir .\doctor-research-output
 ```
+
+也可以不创建请求文件，直接只给三个必填业务字段：
+
+```powershell
+python scripts/doctor-research-demo.py `
+  --doctor-name "陆清声" `
+  --hospital "海军军医大学第一附属医院" `
+  --department "血管外科" `
+  --api-key-file C:\private\doctor-research.key `
+  --output-dir .\doctor-research-output
+```
+
+示例不会要求医生预先进入注册表，也不会要求调用方提供英文姓名或
+`literature_identity`。只有调用方已经从可信来源独立核验中英文身份桥接时，才应把三个
+`--literature-*` 参数作为可选增强信息一起提供；不要由客户端自行翻译或猜测。
 
 也可用 `DOCTOR_RESEARCH_API_KEY` 环境变量代替 `--api-key-file`，两者不能同时使用。
 POSIX key 文件权限必须为 `0600` 或更严格。示例故意不提供命令行 token 参数，拒绝

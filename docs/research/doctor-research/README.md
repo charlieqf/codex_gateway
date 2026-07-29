@@ -101,6 +101,20 @@ and still applies pinned public-address fetching plus exact name, hospital and
 department evidence checks. It must not be described as deployed until the
 search credential is installed and an unregistered-doctor public E2E passes.
 
+The `1.6.84` release candidate also removes a second engineering-only coverage
+assumption: verified doctor-attributed PubMed publications enrich the profile
+but are no longer an admission prerequisite. A doctor with no attributable
+publication may still receive a field review when official identity evidence
+is valid and the independent field-literature search satisfies every existing
+reference and quality gate. The profile keeps representative outputs empty and
+records `doctor_publication_evidence_not_found`. Chinese-only departments use
+one optional 30-second, 1,000-output-token model call to produce at most three
+safe English PubMed terms from bounded, untrusted official excerpts; generic or
+invalid output fails closed. This raises the total call budget from five to six
+without changing the five synthesis/retry/review slots. It is not production
+evidence until Azure has the search credential and an unregistered three-field
+public E2E succeeds.
+
 Real-user `1.6.81` run `drr_fe4729ec07eb42aea302d3289735b33f` then exposed
 a correction-call reliability defect: the QA correction inherited
 `reasoning=low` and an 18,000-token ceiling and timed out at the 175-second

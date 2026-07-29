@@ -512,11 +512,16 @@ Worker disabled. In its isolated Gateway database:
    `research.production.service-feature-policy.example.json`.
 2. Issue a service credential with exactly the `goldencode` public-model
    allowlist and no `doctor_research`, image or admin capability. Its bounded
-   rate must cover five calls per run and three concurrent synthesis calls
-   (`rpm >= 5`, `rpd >= 5`, `concurrent >= 3`). The fifth call is reserved
-   for one bounded shard retry after a retryable transport failure or a
-   remaining unusable fragment contract. Common harmless envelope differences
-   are normalized deterministically and do not consume that retry.
+   rate must cover six calls per run and three concurrent synthesis calls
+   (`rpm >= 6`, `rpd >= 6`, `concurrent >= 3`). One 30-second,
+   1,000-output-token call is reserved for deriving safe English PubMed terms
+   only when verified publications, the official profile and the supplied
+   department provide no deterministic English term. The other five slots
+   retain the existing three synthesis shards, bounded transport/contract
+   retry and concise peer-review/targeted-repair capacity. Common harmless
+   envelope differences are normalized deterministically and do not consume
+   that retry. Per-run token capacity must cover at least 204,000 input and
+   91,000 output tokens with the production per-call ceilings.
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.
@@ -564,7 +569,8 @@ paths. Success requires:
 - exactly three Markdown files and one five-line text file;
 - downloaded sizes and SHA-256 values equal the manifest;
 - measured create-to-terminal wall time below 600 seconds;
-- one bounded three-call synthesis fan-out and at most five total model calls;
+- one bounded three-call synthesis fan-out and at most six total model calls;
+  the optional first call may only derive bounded English search terms;
   the last calls may be a targeted correction, hash-bound section repair or
   compact peer review according to deterministic diagnostics;
 - a rendered 3-8-row core evidence table and no partial artifact publication.

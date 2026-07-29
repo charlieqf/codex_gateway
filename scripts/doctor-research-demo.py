@@ -296,14 +296,24 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
             "arguments."
         ),
     )
-    parser.add_argument("--doctor-name")
-    parser.add_argument("--hospital")
-    parser.add_argument("--department")
+    parser.add_argument(
+        "--doctor-name",
+        help="Required doctor name unless --request-file is used.",
+    )
+    parser.add_argument(
+        "--hospital",
+        help="Required current hospital unless --request-file is used.",
+    )
+    parser.add_argument(
+        "--department",
+        help="Required current department unless --request-file is used.",
+    )
     parser.add_argument(
         "--literature-name",
         help=(
-            "Verified PubMed-indexed name, for example 'Lu Qingsheng'. "
-            "Requires the other two --literature-* arguments."
+            "Advanced optional override: an independently verified "
+            "PubMed-indexed name. It is not required for arbitrary-doctor "
+            "search and requires the other two --literature-* arguments."
         ),
     )
     parser.add_argument("--literature-hospital")
