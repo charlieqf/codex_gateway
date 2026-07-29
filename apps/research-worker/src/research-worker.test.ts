@@ -4131,7 +4131,7 @@ describe("Research Worker controlled-beta workflow", () => {
           return {
             text:
               request.stage === "infer_research_topics"
-                ? '{"terms":["vascular","endovascular"]}'
+                ? '{"terms":["surgery","vascular","endovascular"]}'
                 : JSON.stringify(output),
             gatewayRequestId: `req_model_${request.stage}`,
             usage: {
@@ -4154,6 +4154,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(observedQueries[1]).toContain(
       '"vascular"[Title/Abstract] AND "endovascular"[Title/Abstract]'
     );
+    expect(observedQueries[1]).not.toContain('"surgery"[Title/Abstract]');
     expect(modelStages[0]).toBe("infer_research_topics");
     expect(
       fixture.store.getRunResultForSubject(
