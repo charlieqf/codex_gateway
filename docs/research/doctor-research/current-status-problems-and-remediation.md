@@ -1,6 +1,6 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-07-28
+更新时间：2026-07-29
 
 本文是 Doctor Research API 当前发布状态、已知问题和后续治理方案的
 统一说明。它面向医学团队、产品负责人、研发和运维人员，不替代具体的
@@ -28,10 +28,11 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 | --- | --- | --- |
 | 部署目标 | Azure VM，公网入口为 `https://gw.instmarket.com.au` | 正确；CN1 不是 Doctor Research 部署目标，且本轮未改动 CN1 |
 | 服务状态 | 公网和 VM loopback 均返回 `ready / controlled-trial` | 基础服务可用 |
-| 当前版本 | commit `eb94fa8a5b2ea8ac174832f07d30ba7c4d83d5f4`，执行器 `1.6.83` | 已上线 |
+| 当前版本 | commit `ff5db5f23e8902fc451adba96544b93625e5fd83`，执行器 `1.6.83` | 已上线 |
 | 运行时上限 | 服务端硬截止 570 秒，客户端发布验证最多等待 590 秒 | 满足“整体不超过 10 分钟”的原则 |
-| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 594 个 Vitest、35 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
+| 自动化验证 | 已部署 release 在本地和 Azure 通过 build、40 个测试文件共 596 个 Vitest、36 个 Python 测试；npm audit 为 0，`git diff --check` 通过 | 工程回归通过 |
 | 每日准入额度 | 每个 subject 每个 UTC 自然日 50 次；当日已准入失败/取消仍计数，幂等重放不重复计数 | 已上线；不改变并发、队列、身份、证据和四文件门槛 |
+| 30 天不同医生额度 | 每个 subject 滚动 30 天最多 5 位不同医生；与每日 50 run 独立 | 当前仍为隐私/反批量画像边界；是否提高需单独业务授权 |
 | 医学 Skill | 原始四文件无 Git diff，线上 bundle SHA-256 为 `6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351` | 未做业务文本“优化” |
 | 真实公网 E2E | `1.6.76` 同一工程病例连续 5 次成功；`1.6.83` 三字段发布后 E2E 在 201.212 秒成功 | 三字段兼容、完整时间线和 10 分钟墙钟目标通过；病例代表性仍待医学团队确认 |
 | 当前四文件 | 最新三字段 run 恰好产生 3 MD + 1 TXT，下载大小、manifest、SHA-256 和五行 TXT 全部一致 | 自动化四文件契约通过，仍待医学团队人工内容验收 |
@@ -94,7 +95,7 @@ E2E 全部在 10 分钟内成功并通过四文件完整性校验，服务和基
 - 目标环境：Azure VM
 - Compose project：`codex_gateway_test`
 - 发布目录：
-  `/home/qian/codex-gateway-release-eb94fa8-20260728T062916Z`
+  `/home/qian/codex-gateway-release-ff5db5f-20260729T053039Z`
 - 执行器：`doctor-research-skill.1.6.83`
 - Prompt：`v29`
 - Validation：`v42`
@@ -108,18 +109,26 @@ Worker 报告 `doctor-research-skill.1.6.83`，内部 LLM Gateway 截止为 1750
 OpenAI、strict-tools、八模型 surface 和定向 `goldencode` native-tools smoke 均通过；相关四个
 临时 smoke/E2E 用户均已禁用且活动 key 为 0，临时 entitlement 和文件均已清理。
 
+请求 `req-2bc6c36c-fa4d-4186-967f-14377eebe4e0` 命中的是独立的
+`research_unique_doctors_30d`：该 subject 在滚动 30 天内已经使用 5 位不同医生，本次是
+第 6 位，因此在模型调用前被拒绝。`ff5db5f` 没有放宽这项隐私/反批量画像边界，而是把
+误导性的固定 30 秒重试改为按每位医生最近一次准入计算的真实最早释放时间，并返回
+`rolling_30_days` 及 `maximum/used/requested`。公网验证
+`req-d7e8d1a1-1ead-4a5a-bf6b-94c03a49cf1f` 得到 `5/5/1` 和
+`Retry-After=2519833`，且 run/admission 计数保持 `30/30`，临时 key 已撤销。
+
 ### 3.2 备份与磁盘
 
 当前发布回滚边界使用以下经过完整性、外键和 SHA-256 校验的四数据库备份：
 
 ```text
-/home/qian/codex-gateway-backups/eb94fa8/20260728T062916Z
+/home/qian/codex-gateway-backups/ff5db5f/20260729T053039Z
 ```
 
 四份数据库均通过 SQLite integrity、foreign-key、权限和 SHA-256 检查；部署前的
-`02b74de` 四个镜像已打上 `rollback-02b74de-20260728T062916Z` 标签。数据库哈希分别为
-Gateway `00e0fd40...f7ed`、client-events `3655003e...824e`、Research
-`6b5957a8...009f`、Research LLM `ac6ec4f1...0f42`，完整值见生产 runbook。
+`eb94fa8` 四个镜像已打上 `rollback-eb94fa8-20260729T053039Z` 标签。数据库哈希分别为
+Gateway `bc7dd937...e25a`、client-events `871575c5...4c07`、Research
+`2c54a09a...d70e`、Research LLM `cd07e6fe...0b6d`，完整值见生产 runbook。
 
 ### 3.3 当前可以对用户承诺什么
 

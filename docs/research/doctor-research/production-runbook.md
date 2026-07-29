@@ -7,11 +7,11 @@ Docker listener.
 
 ## Current production deployment
 
-As of 2026-07-28, the public Azure Gateway and all three Research services run
-commit `eb94fa8a5b2ea8ac174832f07d30ba7c4d83d5f4` from:
+As of 2026-07-29, the public Azure Gateway and all three Research services run
+commit `ff5db5f23e8902fc451adba96544b93625e5fd83` from:
 
 ```text
-/home/qian/codex-gateway-release-eb94fa8-20260728T062916Z
+/home/qian/codex-gateway-release-ff5db5f-20260729T053039Z
 ```
 
 The execution contract is `1.6.83`, prompt `v29`, validation contract `v42`
@@ -20,8 +20,8 @@ only to `127.0.0.1:18787`; the three Research services publish no host port.
 All four containers are healthy, have zero restarts and use the exact release
 workdir. Public and loopback health return `ready / controlled-trial`.
 
-Local and Azure release gates passed build, 40 test files with all 594 Vitest
-tests, all 35 Python tests, `git diff --check` and an npm audit with zero
+Local and Azure release gates passed build, 40 test files with all 596 Vitest
+tests, all 36 Python tests, `git diff --check` and an npm audit with zero
 vulnerabilities. The medical-team Skill directory has no Git diff, and the
 deployed four-file bundle SHA-256 remains:
 
@@ -190,35 +190,56 @@ temporary credential/file, and no critical post-activation log marker.
 Maintenance backup `drb_04675f91276241d2a6f519b67119d852` succeeded after
 activation.
 
+Request `req-2bc6c36c-fa4d-4186-967f-14377eebe4e0` was a genuine pre-model
+`research_unique_doctors_30d` rejection: the subject had admitted five distinct
+doctors in the rolling window and requested a sixth. This limit is independent
+of the 50-run UTC-day allowance. The old response incorrectly fell back to a
+generic 30-second retry and omitted usage, which made a weeks-long quota look
+transient. Runtime hotfix `ff5db5f` preserves the five-doctor privacy/anti-bulk
+boundary, calculates the earliest capacity from each existing doctor's latest
+admission, and returns the exact reset interval with `rolling_30_days` and
+`maximum/used/requested`.
+
+Public contract smoke `req-d7e8d1a1-1ead-4a5a-bf6b-94c03a49cf1f` verified
+`maximum=5`, `used=5`, `requested=1` and matching header/body
+`Retry-After=2519833`. The affected subject's run/admission counts remained
+`30/30`, so the rejected create had no side effect. Public OpenAI, strict-tools,
+eight-model-surface and focused `goldencode` native-tools smokes passed. Final
+audit found all four containers healthy with zero restarts, only
+`127.0.0.1:18787` published, no active Research run, no unfinished public or
+internal-LLM reservation, and no active temporary quota-smoke key. Maintenance
+backup `drb_34756cef30d84cd2bfea3b1c6cc890c1` succeeded after activation.
+
 The verified pre-deploy database and image rollback boundary for `1.6.83` is:
 
 ```text
-/home/qian/codex-gateway-backups/eb94fa8/20260728T062916Z
-codex_gateway_test-gateway:rollback-02b74de-20260728T062916Z
-codex_gateway_test-research-llm-gateway:rollback-02b74de-20260728T062916Z
-codex_gateway_test-research-worker:rollback-02b74de-20260728T062916Z
-codex_gateway_test-research-maintenance:rollback-02b74de-20260728T062916Z
+/home/qian/codex-gateway-backups/ff5db5f/20260729T053039Z
+codex_gateway_test-gateway:rollback-eb94fa8-20260729T053039Z
+codex_gateway_test-research-llm-gateway:rollback-eb94fa8-20260729T053039Z
+codex_gateway_test-research-worker:rollback-eb94fa8-20260729T053039Z
+codex_gateway_test-research-maintenance:rollback-eb94fa8-20260729T053039Z
 ```
 
 All copied databases passed SQLite integrity and foreign-key checks. Their
 SHA-256 values are:
 
 ```text
-gateway.db              00e0fd403607bdb1940146a05f61b4ddf9caec8976beac010795094037ecf7ed
-client-events.db        3655003e113e4cbef1ce35fcfc61b315035edab074aaca74dfe66b32824d824e
-research.db             6b5957a8ac6f872696204abffed51a2639574d7f12045db8f51566d9ae68009f
-research-llm-gateway.db ac6ec4f1ef1ca771ecbecf01abd81688796c55d782329251c8a94f994f2f0f42
+gateway.db              bc7dd93756c295d72098934c872714169680007aad42925c8232d6076c90e25a
+client-events.db        871575c5b3714882834c0e975f2904336e07d8f5f53c356f4be7058395164c07
+research.db             2c54a09af405aa4c18c6f829598d375e2f58ecd57275097ee577fc352580d70e
+research-llm-gateway.db cd07e6fe58af592ef5f499fa2340bd37720405ce9efc273cfd5b3e4813670b6d
 ```
 
-The exact deployed image IDs are Gateway `ac44a640e50a`, internal LLM Gateway
-`f91318dba6ca`, maintenance `56a208d572f2`, and Worker `ca749da7c388`.
+The exact deployed image IDs are Gateway `15e8277ab607`, internal LLM Gateway
+`4537a543bbc9`, maintenance `aba70393a0b8`, and Worker `d9d4bbe38a70`.
 The backup is on the same Azure OS disk and supports application rollback, not
 host-loss disaster recovery.
 
-The `1.6.83` disk preflight found about 17 GiB free and post-deploy free space
-was about 16 GiB. No historical backup directory was removed for this release.
+The `ff5db5f` disk preflight found about 15 GiB free and post-deploy use was
+about 89%. No historical backup directory was removed for this release.
 The live volumes and the verified `599fd53`, `2559d3a`, `02b74de` and current
-`eb94fa8/20260728T062916Z` rollback boundaries remain.
+`eb94fa8/20260728T062916Z` plus `ff5db5f/20260729T053039Z` rollback boundaries
+remain.
 
 ## Historical 1.6.72 acceptance record
 

@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 ## Safety Rules That Worked
 
@@ -255,6 +255,15 @@ Last updated: 2026-07-28
   quality boundaries. When the affected subject is already at the former
   ceiling, compare its persisted UTC-day admissions with the newly loaded
   limit instead of consuming another real run only to prove admission.
+- Daily Research runs and rolling unique doctors are separate contracts. A
+  higher daily run allowance must not silently raise the privacy/anti-bulk
+  doctor count. For `research_unique_doctors_30d`, compute capacity from each
+  distinct doctor's most recent admission, return the earliest expiry as the
+  real `Retry-After`, and include `rolling_30_days` plus
+  `maximum/used/requested`; a fixed 30-second retry causes useless create
+  loops. End-user parsers may need to accept seven-digit retry values while
+  still refusing to automatically retry a non-idempotent create or sleep for
+  weeks.
 - A host script copied into a container with mode `0600` may remain root-owned
   and be unreadable by the container's unprivileged Node user. For one-shot,
   import-free diagnostic or SQLite-backup modules, prefer
