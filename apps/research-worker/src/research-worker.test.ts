@@ -4024,6 +4024,226 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("researches an arbitrary three-field Chinese doctor without a registry literature alias", async () => {
+    const input = runInput();
+    input.doctor = {
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科",
+      title: null,
+      city: null,
+      orcid: null
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "arbitrary_three_field_doctor",
+      input
+    );
+    const generalAdapters = adapters(0);
+    const observedQueries: string[] = [];
+    generalAdapters.searchPubMed = async (query) => {
+      observedQueries.push(query);
+      return observedQueries.length === 1 ? [] : ["2002"];
+    };
+    generalAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/lu",
+      title: "陆清声",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "陆清声，海军军医大学第一附属医院血管外科医生。研究方向为血管外科。"
+    });
+    generalAdapters.getPubMedMetadata = async () => ({
+      referenceId: "ref_pubmed_2002",
+      pmid: "2002",
+      doi: null,
+      title: "Contemporary Endovascular Evidence",
+      journal: "Field Evidence Journal",
+      publicationYear: 2026,
+      authors: ["Different Researcher"],
+      authorAffiliations: [
+        {
+          author: "Different Researcher",
+          affiliations: ["Vascular Institute, Another Hospital."]
+        }
+      ],
+      abstractText:
+        "Contemporary endovascular evidence supports cautious synthesis.",
+      sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/2002/",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "c".repeat(64)
+    });
+    const output = modelOutput();
+    output.doctor = {
+      name: input.doctor.name,
+      hospital: input.doctor.hospital,
+      department: input.doctor.department
+    };
+    output.sources[0] = {
+      source_id: "src_official_1",
+      source_type: "official_web",
+      title: "陆清声",
+      url: "https://hospital.example/doctor/lu",
+      accessed_at: "2026-07-18T03:00:00.000Z",
+      content_sha256: "a".repeat(64)
+    };
+    output.sources[1] = {
+      source_id: "src_pubmed_2002",
+      source_type: "pubmed",
+      title: "Contemporary Endovascular Evidence",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2002/",
+      accessed_at: "2026-07-18T03:00:00.000Z",
+      content_sha256: "c".repeat(64)
+    };
+    output.profile.research_directions = ["研究方向为血管外科"];
+    output.profile.claims = [
+      {
+        claim_id: "clm_research_direction_1",
+        claim_type: "research_direction",
+        text: "研究方向为血管外科",
+        source_ids: ["src_official_1"],
+        verification_status: "verified"
+      }
+    ];
+    output.review.core_evidence[0]!.reference_id = "ref_pmid_2002";
+    output.review.references[0] = {
+      reference_id: "ref_pmid_2002",
+      title: "Contemporary Endovascular Evidence",
+      journal: "Field Evidence Journal",
+      publication_year: 2026,
+      pmid: "2002",
+      doi: null,
+      verification_status: "verified"
+    };
+    output.answers = output.answers.map((answer) => ({
+      ...answer,
+      source_ids: ["src_pubmed_2002"]
+    }));
+    const modelStages: string[] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: generalAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate(request) {
+          modelStages.push(request.stage);
+          return {
+            text:
+              request.stage === "infer_research_topics"
+                ? '{"terms":["vascular","endovascular"]}'
+                : JSON.stringify(output),
+            gatewayRequestId: `req_model_${request.stage}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(observedQueries).toHaveLength(2);
+    expect(observedQueries[0]).toContain('"陆清声"[Author]');
+    expect(observedQueries[1]).toContain(
+      '"vascular"[Title/Abstract] AND "endovascular"[Title/Abstract]'
+    );
+    expect(modelStages[0]).toBe("infer_research_topics");
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toMatchObject({
+      result: {
+        profile: { representative_outputs: [] },
+        source_coverage: {
+          warnings: expect.arrayContaining([
+            "doctor_publication_evidence_not_found"
+          ])
+        },
+        quality: {
+          warnings: expect.arrayContaining([
+            "doctor_publication_evidence_not_found"
+          ])
+        }
+      }
+    });
+    fixture.store.close();
+  });
+
+  it("fails closed when bounded topic inference returns only a generic term", async () => {
+    const input = runInput();
+    input.doctor = {
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科",
+      title: null,
+      city: null,
+      orcid: null
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "generic_topic_rejected",
+      input
+    );
+    const generalAdapters = adapters(0);
+    const observedQueries: string[] = [];
+    generalAdapters.searchPubMed = async (query) => {
+      observedQueries.push(query);
+      return [];
+    };
+    generalAdapters.fetchApprovedSource = async () => ({
+      sourceId: "src_official_1",
+      url: "https://hospital.example/doctor/lu",
+      title: "陆清声",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "a".repeat(64),
+      untrustedText:
+        "陆清声，海军军医大学第一附属医院血管外科医生。研究方向为血管外科。"
+    });
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: generalAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          return {
+            text: '{"terms":["healthcare"]}',
+            gatewayRequestId: "req_model_generic_topic",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 10,
+              totalTokens: 110
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "insufficient_research_evidence"
+    });
+    expect(modelCalls).toBe(1);
+    expect(observedQueries).toHaveLength(1);
+    expect(observedQueries[0]).not.toContain("healthcare");
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
   it("uses attributed doctor papers for topic extraction and unrelated field papers for the review", async () => {
     const fixture = createLeasedWorkflowFixture(
       "doctor_and_field_literature"
@@ -4206,7 +4426,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("rejects a publication when only another department is attributed to the target author", async () => {
+  it("excludes a wrong-department publication from the doctor profile while continuing field research", async () => {
     const fixture = createLeasedWorkflowFixture("wrong_department");
     const mismatchedAdapters = adapters();
     mismatchedAdapters.getPubMedMetadata = async () => ({
@@ -4230,6 +4450,7 @@ describe("Research Worker controlled-beta workflow", () => {
       contentSha256: "b".repeat(64)
     });
     let modelCalls = 0;
+    const output = modelOutput();
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -4238,7 +4459,15 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate() {
           modelCalls += 1;
-          throw new Error("Model must not run without attributed literature.");
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_wrong_department",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
         }
       },
       artifactRoot: fixture.artifactRoot,
@@ -4247,16 +4476,27 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "insufficient_research_evidence"
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBeGreaterThan(0);
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toMatchObject({
+      result: {
+        profile: { representative_outputs: [] },
+        source_coverage: {
+          warnings: expect.arrayContaining([
+            "doctor_publication_evidence_not_found"
+          ])
+        }
+      }
     });
-    expect(modelCalls).toBe(0);
-    expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
 
-  it("does not combine a target author's separate publication affiliations", async () => {
+  it("does not combine a target author's separate affiliations into a profile publication", async () => {
     const fixture = createLeasedWorkflowFixture("split_affiliations");
     const splitAffiliationAdapters = adapters();
     splitAffiliationAdapters.getPubMedMetadata = async () => ({
@@ -4283,6 +4523,7 @@ describe("Research Worker controlled-beta workflow", () => {
       contentSha256: "b".repeat(64)
     });
     let modelCalls = 0;
+    const output = modelOutput();
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -4291,7 +4532,15 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate() {
           modelCalls += 1;
-          throw new Error("Model must not run for split affiliations.");
+          return {
+            text: JSON.stringify(output),
+            gatewayRequestId: "req_model_split_affiliations",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
+          };
         }
       },
       artifactRoot: fixture.artifactRoot,
@@ -4300,11 +4549,23 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "insufficient_research_evidence"
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBeGreaterThan(0);
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toMatchObject({
+      result: {
+        profile: { representative_outputs: [] },
+        source_coverage: {
+          warnings: expect.arrayContaining([
+            "doctor_publication_evidence_not_found"
+          ])
+        }
+      }
     });
-    expect(modelCalls).toBe(0);
     fixture.store.close();
   });
 

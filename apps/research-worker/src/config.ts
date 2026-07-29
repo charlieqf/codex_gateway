@@ -6,6 +6,7 @@ import type {
   DoctorResearchWorkflowPolicy,
   LiveResearchAdapterOptions
 } from "@codex-gateway/research-agent";
+import { researchTopicInferenceModelBudget } from "@codex-gateway/research-agent";
 
 export interface ResearchWorkerConfig {
   databasePath: string;
@@ -153,7 +154,7 @@ export function loadResearchWorkerConfig(
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
       "RESEARCH_MAX_LLM_CALLS_PER_RUN",
-      5
+      6
     ),
     inputTokens: boundedInteger(
       env.RESEARCH_MAX_INPUT_TOKENS_PER_RUN,
@@ -471,21 +472,26 @@ export function loadResearchWorkerConfig(
       "RESEARCH_SYNTHESIS_SHARD_COUNT must be 1 or 3."
     );
   }
+  const fullSynthesisCallCount = 5;
+  const requiredOutputTokenBudget =
+    maximumOutputTokensPerCall * fullSynthesisCallCount +
+    researchTopicInferenceModelBudget.maximumOutputTokens;
+  const requiredInputTokenBudget =
+    maximumInputTokensPerCall * fullSynthesisCallCount +
+    researchTopicInferenceModelBudget.maximumInputTokens;
   if (
-    budgets.llmCalls !== 5 ||
-    !Number.isSafeInteger(
-      maximumOutputTokensPerCall * budgets.llmCalls
-    ) ||
-    maximumOutputTokensPerCall * budgets.llmCalls >
-      budgets.outputTokens ||
-    !Number.isSafeInteger(
-      maximumInputTokensPerCall * budgets.llmCalls
-    ) ||
-    maximumInputTokensPerCall * budgets.llmCalls >
-      budgets.inputTokens
+    budgets.llmCalls !== fullSynthesisCallCount + 1 ||
+    maximumOutputTokensPerCall <
+      researchTopicInferenceModelBudget.maximumOutputTokens ||
+    maximumInputTokensPerCall <
+      researchTopicInferenceModelBudget.maximumInputTokens ||
+    !Number.isSafeInteger(requiredOutputTokenBudget) ||
+    requiredOutputTokenBudget > budgets.outputTokens ||
+    !Number.isSafeInteger(requiredInputTokenBudget) ||
+    requiredInputTokenBudget > budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover three bounded synthesis shards, one bounded transport retry, and one concise peer-review call."
+      "Research LLM budgets must cover one bounded topic-inference call, three bounded synthesis shards, one bounded transport retry, and one concise peer-review call."
     );
   }
   const llmTimeoutMs = requiredTimerMilliseconds(

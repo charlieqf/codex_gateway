@@ -32,11 +32,11 @@ describe("Research Worker fail-closed configuration", () => {
         maximumArtifactBytes: 1_000_000,
         maximumRunArtifactBytes: 4_000_000,
         minimumReferences: 3,
-        maximumInputTokensPerCall: 200_000,
+        maximumInputTokensPerCall: 190_000,
         synthesisShardCount: 3,
         budgets: {
           externalRequests: 466,
-          llmCalls: 5
+          llmCalls: 6
         }
       }
     });
@@ -99,7 +99,7 @@ describe("Research Worker fail-closed configuration", () => {
         ...validEnvironment(),
         RESEARCH_MAX_LLM_CALLS_PER_RUN: "2"
       })
-    ).toThrow("must cover three bounded synthesis shards");
+    ).toThrow("must cover one bounded topic-inference call");
 
     expect(() =>
       loadResearchWorkerConfig({
@@ -290,11 +290,11 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "2",
     RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "466",
     RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "932000000",
-    RESEARCH_MAX_LLM_CALLS_PER_RUN: "5",
+    RESEARCH_MAX_LLM_CALLS_PER_RUN: "6",
     RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
-    RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "200000",
-    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000",
-    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "60000",
+    RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "190000",
+    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "954000",
+    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "61000",
     RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "12000",
     RESEARCH_MAX_EXTERNAL_RESPONSE_BYTES_PER_CALL: "2000000",
     RESEARCH_MAX_SOURCE_TEXT_CHARACTERS: "100000",
