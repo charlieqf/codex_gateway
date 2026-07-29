@@ -186,6 +186,9 @@ function windowFor(limitKind: LimitKind) {
   if (limitKind === "token_month") {
     return "month" as const;
   }
+  if (limitKind === "research_unique_doctors_30d") {
+    return "rolling_30_days" as const;
+  }
   if (limitKind === "concurrency") {
     return "concurrency" as const;
   }

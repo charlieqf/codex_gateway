@@ -331,7 +331,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
          FROM research_doctor_admissions
          WHERE subject_id = ?
            AND doctor_key = ?
-           AND admitted_at >= ?`,
+           AND admitted_at > ?`,
         input.subjectId,
         doctorKey,
         windowStart
@@ -341,7 +341,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         `SELECT COUNT(DISTINCT doctor_key) AS count
          FROM research_doctor_admissions
          WHERE subject_id = ?
-           AND admitted_at >= ?`,
+           AND admitted_at > ?`,
         input.subjectId,
         windowStart
       );
@@ -349,11 +349,50 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
         doctorSeen === 0 &&
         uniqueDoctors >= this.limits.uniqueDoctors30dPerSubject
       ) {
+        const requiredExpirations =
+          uniqueDoctors - this.limits.uniqueDoctors30dPerSubject + 1;
+        const capacityAdmission = this.db
+          .prepare(
+            `SELECT last_admitted_at
+             FROM (
+               SELECT MAX(admitted_at) AS last_admitted_at
+               FROM research_doctor_admissions
+               WHERE subject_id = ?
+                 AND admitted_at > ?
+               GROUP BY doctor_key
+             )
+             ORDER BY last_admitted_at
+             LIMIT 1 OFFSET ?`
+          )
+          .get(input.subjectId, windowStart, requiredExpirations - 1) as
+          | { last_admitted_at: string }
+          | undefined;
+        const retryAfterSeconds = capacityAdmission
+          ? Math.max(
+              1,
+              Math.ceil(
+                (new Date(capacityAdmission.last_admitted_at).getTime() +
+                  30 * dayMs -
+                  now.getTime()) /
+                  1_000
+              )
+            )
+          : undefined;
         return admissionRejected(
           this.db,
           input,
           "research_unique_doctors_30d",
-          now
+          now,
+          {
+            ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+            details: {
+              scope: "subject",
+              window: "rolling_30_days",
+              limit: this.limits.uniqueDoctors30dPerSubject,
+              used: uniqueDoctors,
+              requested: 1
+            }
+          }
         );
       }
 

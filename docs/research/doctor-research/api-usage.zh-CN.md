@@ -222,6 +222,40 @@ run 也占用当日额度。相同 `Idempotency-Key` 和相同请求体的重放
 `X-Request-Id` 一起记录并向用户说明可再次创建的时间。并发、全局队列或读取频率限制的
 窗口不同，必须按返回的 `limit_kind` 分别处理，不能把所有 429 都解释为日额度耗尽。
 
+### 30 天不同医生配额
+
+生产受控试用还保留一项独立的隐私和反批量画像限制：每个 subject 在滚动 30 天内最多
+准入 5 位不同医生。它与“每天 50 个 run”不是同一个计数器；同一位医生可以重复运行，
+但首次请求第 6 位不同医生会返回
+`limit_kind=research_unique_doctors_30d`。失败或取消的 run 已经完成准入，因此仍计入该
+滚动窗口。
+
+此类拒绝的 `Retry-After` 和 `retry_after_seconds` 是当前最早一个医生名额释放前的实际
+秒数，`limit.window` 固定为 `rolling_30_days`，同时返回
+`maximum/used/requested`。它可能远大于 30 秒；创建请求不得自动循环更换
+`Idempotency-Key`。Python 示例会解析并显示这段完整指导，但不会为创建请求睡眠数周或
+自动重试。典型响应如下：
+
+```json
+{
+  "error": {
+    "code": "rate_limited",
+    "research_code": "research_quota_exceeded",
+    "message": "Research quota exceeded.",
+    "retry_after_seconds": 2592000,
+    "limit_kind": "research_unique_doctors_30d",
+    "rate_limit_origin": "gateway",
+    "limit": {
+      "scope": "subject",
+      "window": "rolling_30_days",
+      "maximum": 5,
+      "used": 5,
+      "requested": 1
+    }
+  }
+}
+```
+
 ## 8. Python 示例
 
 仓库中的 `scripts/doctor-research-demo.py` 只使用 Python 标准库，完成创建、5 秒轮询、

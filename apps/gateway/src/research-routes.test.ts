@@ -1175,6 +1175,66 @@ describe("Doctor Research control-plane routes", () => {
     await fixture.app.close();
   });
 
+  it("returns the rolling-window release delay and usage for the unique-doctor quota", async () => {
+    const fixture = createFixture({
+      capability: true,
+      uniqueDoctors30dPerSubject: 1
+    });
+    const auth = { authorization: `Bearer ${fixture.token}` };
+    const first = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:unique-doctor-first"
+      },
+      payload: validRequest("Doctor Unique One")
+    });
+    const runId = first.json().run_id as string;
+    fixture.research.database
+      .prepare(
+        `UPDATE research_runs
+         SET status = 'failed', terminal_reason = 'identity_not_resolved',
+             completed_at = updated_at
+         WHERE run_id = ?`
+      )
+      .run(runId);
+
+    const second = await fixture.app.inject({
+      method: "POST",
+      url: "/gateway/research/v1/doctor-runs",
+      headers: {
+        ...auth,
+        "idempotency-key": "research:unique-doctor-second"
+      },
+      payload: validRequest("Doctor Unique Two")
+    });
+
+    expect(first.statusCode).toBe(202);
+    expect(second.statusCode).toBe(429);
+    expect(second.headers["x-gateway-limit-kind"]).toBe(
+      "research_unique_doctors_30d"
+    );
+    expect(second.headers["retry-after"]).toBe("2592000");
+    expect(second.json()).toMatchObject({
+      error: {
+        code: "rate_limited",
+        research_code: "research_quota_exceeded",
+        retry_after_seconds: 2_592_000,
+        limit_kind: "research_unique_doctors_30d",
+        rate_limit_origin: "gateway",
+        limit: {
+          scope: "subject",
+          window: "rolling_30_days",
+          maximum: 1,
+          used: 1,
+          requested: 1
+        }
+      }
+    });
+    await fixture.app.close();
+  });
+
   it("rate limits Research reads and mutations before Store transactions with dedicated limit kinds", async () => {
     const fixture = createFixture({
       capability: true,
@@ -1927,6 +1987,7 @@ function createFixture(input: {
   readRpm?: number;
   mutationRpm?: number;
   dailyRunsPerSubject?: number;
+  uniqueDoctors30dPerSubject?: number;
   acceptWhenWorkerUnavailable?: boolean;
   artifactRoot?: string;
   admissionGuard?: (
@@ -1948,7 +2009,7 @@ function createFixture(input: {
     path: ":memory:",
     limits: {
       dailyRunsPerSubject: input.dailyRunsPerSubject ?? 10,
-      uniqueDoctors30dPerSubject: 10,
+      uniqueDoctors30dPerSubject: input.uniqueDoctors30dPerSubject ?? 10,
       globalActiveRuns: 100,
       needsInputPerSubject: 10
     }

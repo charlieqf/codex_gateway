@@ -33,6 +33,7 @@ MAXIMUM_REQUEST_FILE_BYTES = 65_536
 MAXIMUM_ARTIFACT_BYTES = 1_048_576
 MAXIMUM_RATE_LIMIT_RETRIES = 4
 MAXIMUM_RATE_LIMIT_WAIT_SECONDS = 60
+MAXIMUM_RETRY_AFTER_SECONDS = 31 * 24 * 60 * 60
 RUN_ID_PATTERN = re.compile(r"^drr_[a-f0-9]{32}$")
 ARTIFACT_ID_PATTERN = re.compile(r"^dra_[a-f0-9]{32}$")
 SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
@@ -1171,7 +1172,7 @@ def api_error(status: int, headers: Any, payload: bytes) -> ApiError:
             if (
                 isinstance(retry_value, int)
                 and not isinstance(retry_value, bool)
-                and 0 <= retry_value <= 604_800
+                and 0 <= retry_value <= MAXIMUM_RETRY_AFTER_SECONDS
             ):
                 body_retry_after_seconds = retry_value
             limit = error.get("limit")
@@ -1192,9 +1193,11 @@ def api_error(status: int, headers: Any, payload: bytes) -> ApiError:
     retry_after = headers.get("Retry-After") if headers is not None else None
     request_id = headers.get("X-Request-Id") if headers is not None else None
     retry_after_seconds = None
-    if isinstance(retry_after, str) and re.fullmatch(r"[0-9]{1,6}", retry_after):
-        retry_after_seconds = int(retry_after)
-    elif body_retry_after_seconds is not None:
+    if isinstance(retry_after, str) and re.fullmatch(r"[0-9]{1,7}", retry_after):
+        parsed_retry_after = int(retry_after)
+        if parsed_retry_after <= MAXIMUM_RETRY_AFTER_SECONDS:
+            retry_after_seconds = parsed_retry_after
+    if retry_after_seconds is None and body_retry_after_seconds is not None:
         retry_after_seconds = body_retry_after_seconds
     suffix = ""
     if research_code and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", research_code):

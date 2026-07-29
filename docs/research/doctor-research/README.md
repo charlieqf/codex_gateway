@@ -478,6 +478,9 @@ the asynchronous production API. It:
 - honors integer `Retry-After` guidance for rate-limited authenticated GETs,
   with at most four retries and no more than 60 seconds of added wait for each
   result or artifact request;
+- parses and reports create-time quota guidance through 31 days, including the
+  rolling unique-doctor window, without automatically retrying a POST or
+  sleeping for the full quota window;
 - refuses redirects and non-loopback plain HTTP so the bearer credential is
   not forwarded to an untrusted endpoint;
 - validates the exact four-kind manifest, downloads through authenticated

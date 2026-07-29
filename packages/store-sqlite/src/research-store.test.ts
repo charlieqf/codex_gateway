@@ -369,7 +369,15 @@ describe("ResearchSqliteStore", () => {
       store.createRun(command("subj_a", "key-4", "hash-4", "fp-2", now))
     ).toEqual({
       outcome: "rate_limited",
-      limitKind: "research_unique_doctors_30d"
+      limitKind: "research_unique_doctors_30d",
+      retryAfterSeconds: 2_592_000,
+      details: {
+        scope: "subject",
+        window: "rolling_30_days",
+        limit: 1,
+        used: 1,
+        requested: 1
+      }
     });
 
     expect(
@@ -388,6 +396,100 @@ describe("ResearchSqliteStore", () => {
       )
     );
     expect(reused.outcome).toBe("created");
+    store.close();
+  });
+
+  it("releases unique-doctor capacity from the earliest per-doctor last admission", () => {
+    const store = createResearchSqliteStore({
+      path: ":memory:",
+      limits: {
+        dailyRunsPerSubject: 10,
+        uniqueDoctors30dPerSubject: 2,
+        globalActiveRuns: 10,
+        needsInputPerSubject: 1
+      }
+    });
+    const finish = (result: ReturnType<typeof store.createRun>) => {
+      if (result.outcome !== "created") {
+        throw new Error("Expected a created run.");
+      }
+      store.database
+        .prepare(
+          `UPDATE research_runs
+           SET status = 'failed', terminal_reason = 'identity_not_resolved',
+               completed_at = updated_at
+           WHERE run_id = ?`
+        )
+        .run(result.run.runId);
+    };
+
+    finish(
+      store.createRun(
+        command(
+          "subj_a",
+          "unique-1",
+          "unique-hash-1",
+          "fp-1",
+          new Date("2026-07-01T00:00:00Z")
+        )
+      )
+    );
+    finish(
+      store.createRun(
+        command(
+          "subj_a",
+          "unique-2",
+          "unique-hash-2",
+          "fp-2",
+          new Date("2026-07-02T00:00:00Z")
+        )
+      )
+    );
+    finish(
+      store.createRun(
+        command(
+          "subj_a",
+          "unique-3",
+          "unique-hash-3",
+          "fp-1",
+          new Date("2026-07-10T00:00:00Z")
+        )
+      )
+    );
+
+    expect(
+      store.createRun(
+        command(
+          "subj_a",
+          "unique-4",
+          "unique-hash-4",
+          "fp-3",
+          new Date("2026-07-11T00:00:00Z")
+        )
+      )
+    ).toEqual({
+      outcome: "rate_limited",
+      limitKind: "research_unique_doctors_30d",
+      retryAfterSeconds: 1_814_400,
+      details: {
+        scope: "subject",
+        window: "rolling_30_days",
+        limit: 2,
+        used: 2,
+        requested: 1
+      }
+    });
+
+    const afterRelease = store.createRun(
+      command(
+        "subj_a",
+        "unique-4",
+        "unique-hash-4",
+        "fp-3",
+        new Date("2026-08-01T00:00:00Z")
+      )
+    );
+    expect(afterRelease.outcome).toBe("created");
     store.close();
   });
 

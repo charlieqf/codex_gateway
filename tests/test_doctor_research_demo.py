@@ -231,6 +231,39 @@ class DoctorResearchDemoTests(unittest.TestCase):
         self.assertIn("used=50, maximum=50, requested=1", str(error))
         self.assertIn("retry_after=67729", str(error))
 
+    def test_unique_doctor_quota_keeps_rolling_window_retry_guidance(self):
+        payload = json.dumps(
+            {
+                "error": {
+                    "code": "rate_limited",
+                    "research_code": "research_quota_exceeded",
+                    "message": "Research quota exceeded.",
+                    "retry_after_seconds": 2_592_000,
+                    "limit_kind": "research_unique_doctors_30d",
+                    "limit": {
+                        "scope": "subject",
+                        "window": "rolling_30_days",
+                        "maximum": 5,
+                        "used": 5,
+                        "requested": 1,
+                    },
+                }
+            }
+        ).encode()
+        error = DEMO.api_error(
+            429,
+            {
+                "Retry-After": "2592000",
+                "X-Request-Id": "req-unique-doctor-quota-test",
+            },
+            payload,
+        )
+
+        self.assertEqual(error.retry_after_seconds, 2_592_000)
+        self.assertIn("limit_kind=research_unique_doctors_30d", str(error))
+        self.assertIn("used=5, maximum=5, requested=1", str(error))
+        self.assertIn("retry_after=2592000", str(error))
+
     def test_end_to_end_preserves_four_localized_filenames(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

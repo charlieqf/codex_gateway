@@ -73,7 +73,13 @@ export type LimitScope = "credential" | "subject" | "entitlement" | "request";
 
 export type RateLimitOrigin = "gateway" | "upstream" | "unknown";
 
-export type LimitWindow = "minute" | "day" | "month" | "concurrency" | "request";
+export type LimitWindow =
+  | "minute"
+  | "day"
+  | "month"
+  | "rolling_30_days"
+  | "concurrency"
+  | "request";
 
 export interface LimitDetails {
   scope: LimitScope;

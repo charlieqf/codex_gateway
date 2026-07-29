@@ -1843,7 +1843,9 @@ chat 热路径上的 `tools` 门禁，也不写“未授予 tools 所以调用�
 
 不同医生数量超限返回 `429 rate_limited`，并设置
 `research_code=research_quota_exceeded` 和
-`limit_kind=research_unique_doctors_30d`。
+`limit_kind=research_unique_doctors_30d`。响应必须同时返回滚动窗口中当前
+`maximum/used/requested`、`limit.window=rolling_30_days`，以及最早一个不同医生名额
+自然释放前的真实 `Retry-After`/`retry_after_seconds`；不得复用固定 30 秒提示。
 
 ### 13.3 Worker 与上游配额
 
