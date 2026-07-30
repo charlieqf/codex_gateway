@@ -256,7 +256,7 @@ describe("Doctor Research offline model-response replay", () => {
     expect(refused).toMatchObject({ markdown, changed: false });
   });
 
-  it("normalizes an unambiguous body envelope and preserves artifact hashes", () => {
+  it("normalizes unambiguous body and closing envelopes and preserves artifact hashes", () => {
     const fixture = fixtures.find(
       (item) =>
         item.fixture_id ===
@@ -276,11 +276,40 @@ describe("Doctor Research offline model-response replay", () => {
     expect(first.warnings).toContain(
       "deterministic_body_fragment_envelope_normalization_applied"
     );
+    expect(first.warnings).toContain(
+      "deterministic_review_fragment_envelope_normalization_applied"
+    );
     expect(first.artifacts).toHaveLength(4);
     expect(first.artifactContentSha256).toBe(
       fixture.expected.artifact_semantics.aggregate_content_sha256
     );
     expect(second).toEqual(first);
+  });
+
+  it("rejects ambiguous closing envelopes without choosing model content", () => {
+    const fixture = structuredClone(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!
+    );
+    fixture.fixture_id =
+      "doctor_research_replay_ambiguous_closing_envelope";
+    const closing = fixture.model_calls.find(
+      (call) => call.role === "closing"
+    )!;
+    closing.response_or_error = {
+      type: "synthetic_response",
+      variant: "ambiguous_review_fragment_envelope"
+    };
+
+    const result = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(result.terminalStatus).toBe("failed");
+    expect(result.diagnostics).toEqual(["fragment_contract_error"]);
+    expect(result.artifacts).toEqual([]);
   });
 });
 

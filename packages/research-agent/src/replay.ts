@@ -36,6 +36,8 @@ export type DoctorResearchReplaySyntheticVariant =
   | "missing_citation"
   | "peer_patch"
   | "body_fragment_envelope"
+  | "closing_fragment_envelope"
+  | "ambiguous_review_fragment_envelope"
   | "shard_json_failure";
 
 export interface DoctorResearchReplayFixture {
@@ -305,6 +307,22 @@ function syntheticReplayResponse(
   if (variant === "qa_after_conclusion") {
     closing.markdown +=
       "\n\n## 附加问答\n\n问题：是否可以直接用于诊疗？回答：不能替代专业判断。[1-3]";
+  }
+  if (variant === "closing_fragment_envelope") {
+    return JSON.stringify({
+      schema_version: "doctor_research_review_fragment.v1",
+      result: {
+        review: { markdown: closing.markdown }
+      }
+    });
+  }
+  if (variant === "ambiguous_review_fragment_envelope") {
+    return JSON.stringify({
+      review: { markdown: closing.markdown },
+      result: {
+        markdown: `${closing.markdown}\n\n歧义候选不得被自动选择。[1-3]`
+      }
+    });
   }
   return JSON.stringify(closing);
 }

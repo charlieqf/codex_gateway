@@ -425,6 +425,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_body_fragment_envelope_normalization_applied"
     ],
     [
+      "closing-envelope",
+      "deterministic_review_fragment_envelope_normalization_applied"
+    ],
+    [
       "body-markdown-only",
       "deterministic_body_fragment_qa_deferred_to_targeted_repair"
     ],
@@ -858,7 +862,17 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         3,
-        retryKind === "peer-contract-conclusion-safety"
+        retryKind === "closing-envelope"
+          ? JSON.stringify({
+              schema_version:
+                "doctor_research_review_fragment.v1",
+              result: {
+                review: {
+                  markdown: skillClosingFragment(26, 20, 7, true)
+                }
+              }
+            })
+          : retryKind === "peer-contract-conclusion-safety"
           ? JSON.stringify({
               schema_version:
                 "doctor_research_review_fragment.v1",
@@ -1911,6 +1925,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "section-repair" ||
       retryKind === "correction-timeout" ||
       retryKind === "body-envelope" ||
+      retryKind === "closing-envelope" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
@@ -2652,6 +2667,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
         retryKind === "body-envelope" ||
+        retryKind === "closing-envelope" ||
         retryKind === "section-repair" ||
         retryKind === "correction-timeout"
           ? "peer_review_model_attempted"

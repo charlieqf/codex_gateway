@@ -1315,6 +1315,7 @@ export function replayDoctorResearchSynthesis(input: {
       return fail(fragmentDiagnostics);
     }
     warnings.push(...body.normalizationWarnings);
+    warnings.push(...(closing.normalizationWarnings ?? []));
     const normalizedFoundation =
       normalizeNearMinimumFoundationAbstract(
         foundation,
@@ -2489,6 +2490,7 @@ async function generateAndValidateModelOutput(
 interface ReviewFragment {
   schema_version: "doctor_research_review_fragment.v1";
   markdown: string;
+  normalizationWarnings?: string[];
 }
 
 interface FoundationFragment {
@@ -2971,6 +2973,7 @@ async function generateAndValidateShardedModelOutput(
     ...(!foundationFragment
       ? [
           {
+            index: 0,
             attempt: 1 as const,
             code: "foundation_fragment_contract_error"
           }
@@ -2979,13 +2982,20 @@ async function generateAndValidateShardedModelOutput(
     ...(!middleFragment
       ? [
           {
+            index: 1,
             attempt: 2 as const,
             code: "body_fragment_contract_error"
           }
         ]
       : []),
     ...(!closingFragment
-      ? [{ attempt: 3 as const, code: "fragment_contract_error" }]
+      ? [
+          {
+            index: 2,
+            attempt: 3 as const,
+            code: "fragment_contract_error"
+          }
+        ]
       : [])
   ][0];
   if (remainingContractFailure) {
@@ -2994,7 +3004,12 @@ async function generateAndValidateShardedModelOutput(
       shardContractRetryCompleted
         ? 4
         : remainingContractFailure.attempt,
-      [remainingContractFailure.code]
+      [remainingContractFailure.code],
+      [
+        describeFragmentTransportShape(
+          responses[remainingContractFailure.index]?.text ?? ""
+        )
+      ]
     );
     return null;
   }
@@ -3007,7 +3022,8 @@ async function generateAndValidateShardedModelOutput(
     ...(deterministicClosingTransportFallbackApplied
       ? ["deterministic_closing_transport_fallback_applied"]
       : []),
-    ...middleFragment.normalizationWarnings
+    ...middleFragment.normalizationWarnings,
+    ...(closingFragment.normalizationWarnings ?? [])
   ];
   const normalizedFoundation =
     normalizeNearMinimumFoundationAbstract(
@@ -3130,12 +3146,26 @@ async function generateAndValidateShardedModelOutput(
     if (!foundationFragment || !middleFragment || !closingFragment) {
       context.reportValidationFailure(
         "synthesize_review",
-        4,
-        ["fragment_contract_error"]
+        shardSkillContractRetryAttempt ?? 4,
+        ["fragment_contract_error"],
+        responses.flatMap((response, index) =>
+          response &&
+          [foundationFragment, middleFragment, closingFragment][index] ===
+            null
+            ? [
+                `role=${["foundation", "body", "closing"][index]}|${describeFragmentTransportShape(response.text)}`
+              ]
+            : []
+        )
       );
       return null;
     }
     for (const warning of middleFragment.normalizationWarnings) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
+    }
+    for (const warning of closingFragment.normalizationWarnings ?? []) {
       if (!shardSkillNormalizationWarnings.includes(warning)) {
         shardSkillNormalizationWarnings.push(warning);
       }
@@ -6394,17 +6424,103 @@ function parseReviewFragment(text: string): ReviewFragment | null {
   }
   const value = parsed.value;
   if (
-    !isJsonRecord(value) ||
-    typeof value.markdown !== "string" ||
-    value.markdown.trim().length === 0 ||
-    value.markdown.length > 100_000
+    isJsonRecord(value) &&
+    typeof value.markdown === "string" &&
+    value.markdown.trim().length > 0 &&
+    value.markdown.length <= 100_000
   ) {
+    return {
+      schema_version: "doctor_research_review_fragment.v1",
+      markdown: value.markdown
+    };
+  }
+
+  const normalizedMarkdown =
+    parseUnambiguousReviewFragmentEnvelope(value);
+  if (normalizedMarkdown === null) {
     return null;
   }
   return {
     schema_version: "doctor_research_review_fragment.v1",
-    markdown: value.markdown
+    markdown: normalizedMarkdown,
+    normalizationWarnings: [
+      "deterministic_review_fragment_envelope_normalization_applied"
+    ]
   };
+}
+
+const reviewFragmentEnvelopeKeys = [
+  "review",
+  "review_fragment",
+  "closing",
+  "closing_fragment",
+  "fragment",
+  "response",
+  "result",
+  "data",
+  "output"
+] as const;
+
+const reviewFragmentTextKeys = [
+  "markdown",
+  "content",
+  "text",
+  "output_text"
+] as const;
+
+/**
+ * Normalizes only transport wrappers with one unique Markdown candidate.
+ * The fragment Skill contract and complete-output validator still decide
+ * whether that candidate can be published. Multiple distinct candidates are
+ * rejected because choosing between them would be a content decision.
+ */
+function parseUnambiguousReviewFragmentEnvelope(
+  value: unknown
+): string | null {
+  const candidates: string[] = [];
+  const collect = (
+    candidate: unknown,
+    depth: number,
+    scalarAllowed: boolean
+  ): void => {
+    if (typeof candidate === "string") {
+      if (
+        scalarAllowed &&
+        isUsableReviewMarkdownFragment(candidate.trim())
+      ) {
+        candidates.push(candidate.trim());
+      }
+      return;
+    }
+    if (Array.isArray(candidate)) {
+      if (candidate.length === 1 && depth <= 2) {
+        collect(candidate[0], depth + 1, true);
+      }
+      return;
+    }
+    if (!isJsonRecord(candidate) || depth > 2) {
+      return;
+    }
+    for (const key of reviewFragmentTextKeys) {
+      if (key in candidate) {
+        collect(candidate[key], depth + 1, true);
+      }
+    }
+    if (depth === 2) {
+      return;
+    }
+    for (const key of reviewFragmentEnvelopeKeys) {
+      if (key in candidate) {
+        collect(candidate[key], depth + 1, true);
+      }
+    }
+  };
+
+  collect(value, 0, true);
+  const uniqueCandidates = [...new Set(candidates)];
+  return uniqueCandidates.length === 1
+    ? uniqueCandidates[0]!
+    : null;
 }
 
 function parsePeerReviewDecision(
@@ -6491,6 +6607,38 @@ function parseSectionRepairDecision(
     original_sha256: value.original_sha256,
     replacement: value.replacement
   };
+}
+
+function describeFragmentTransportShape(text: string): string {
+  const characterCount = text.length;
+  if (characterCount === 0) {
+    return "chars=0|json=missing";
+  }
+  const parsed = parseStrictFragmentJson(text);
+  if (!parsed.ok) {
+    return `chars=${characterCount}|json=unparseable`;
+  }
+  if (Array.isArray(parsed.value)) {
+    return `chars=${characterCount}|json=array|items=${parsed.value.length}`;
+  }
+  if (isJsonRecord(parsed.value)) {
+    const keys = Object.keys(parsed.value)
+      .map((key) =>
+        key
+          .normalize("NFKC")
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/gu, "_")
+          .replace(/^_+|_+$/gu, "")
+          .slice(0, 40)
+      )
+      .filter((key) => key.length > 0)
+      .sort()
+      .slice(0, 12);
+    return `chars=${characterCount}|json=record|keys=${keys.join("+") || "unknown"}`;
+  }
+  const type =
+    parsed.value === null ? "null" : typeof parsed.value;
+  return `chars=${characterCount}|json=${type}`;
 }
 
 function parseStrictFragmentJson(

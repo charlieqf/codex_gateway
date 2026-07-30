@@ -274,7 +274,7 @@
       "role": "closing",
       "response_or_error": {
         "type": "synthetic_response",
-        "variant": "valid"
+        "variant": "closing_fragment_envelope"
       }
     }
   ],
