@@ -35,6 +35,7 @@ export type DoctorResearchReplaySyntheticVariant =
   | "unsupported_numeric"
   | "missing_citation"
   | "peer_patch"
+  | "foundation_json_encoding_error"
   | "body_fragment_envelope"
   | "closing_fragment_envelope"
   | "ambiguous_review_fragment_envelope"
@@ -287,7 +288,10 @@ function syntheticReplayResponse(
     );
   }
   if (role === "foundation") {
-    return JSON.stringify(syntheticFoundationFragment());
+    const response = JSON.stringify(syntheticFoundationFragment());
+    return variant === "foundation_json_encoding_error"
+      ? response.replaceAll("\\n", "\n").replace(/\}$/u, ",}")
+      : response;
   }
   if (role === "body") {
     const body = syntheticBodyFragment(evidence);

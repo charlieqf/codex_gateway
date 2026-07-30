@@ -1314,6 +1314,7 @@ export function replayDoctorResearchSynthesis(input: {
     if (!foundation || !body || !closing) {
       return fail(fragmentDiagnostics);
     }
+    warnings.push(...(foundation.normalizationWarnings ?? []));
     warnings.push(...body.normalizationWarnings);
     warnings.push(...(closing.normalizationWarnings ?? []));
     const normalizedFoundation =
@@ -2499,6 +2500,7 @@ interface FoundationFragment {
     DoctorResearchModelDraft["review"],
     "title" | "abstract" | "keywords" | "markdown"
   >;
+  normalizationWarnings?: string[];
 }
 
 interface BodyFragment {
@@ -3022,6 +3024,7 @@ async function generateAndValidateShardedModelOutput(
     ...(deterministicClosingTransportFallbackApplied
       ? ["deterministic_closing_transport_fallback_applied"]
       : []),
+    ...(foundationFragment.normalizationWarnings ?? []),
     ...middleFragment.normalizationWarnings,
     ...(closingFragment.normalizationWarnings ?? [])
   ];
@@ -3161,6 +3164,11 @@ async function generateAndValidateShardedModelOutput(
       return null;
     }
     for (const warning of middleFragment.normalizationWarnings) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
+    }
+    for (const warning of foundationFragment.normalizationWarnings ?? []) {
       if (!shardSkillNormalizationWarnings.includes(warning)) {
         shardSkillNormalizationWarnings.push(warning);
       }
@@ -5274,7 +5282,7 @@ function reviewLanguageInstruction(
 function parseFoundationFragment(
   text: string
 ): FoundationFragment | null {
-  const parsed = parseStrictFragmentJson(text);
+  const parsed = parseFragmentJsonWithBoundedRepair(text);
   if (!parsed.ok) {
     return null;
   }
@@ -5296,12 +5304,15 @@ function parseFoundationFragment(
   }
   return {
     schema_version: "doctor_research_foundation_fragment.v3",
-    review: value.review as unknown as FoundationFragment["review"]
+    review: value.review as unknown as FoundationFragment["review"],
+    normalizationWarnings: parsed.repaired
+      ? ["deterministic_fragment_json_encoding_repair_applied"]
+      : []
   };
 }
 
 function parseBodyFragment(text: string): BodyFragment | null {
-  const parsed = parseStrictFragmentJson(text);
+  const parsed = parseFragmentJsonWithBoundedRepair(text);
   if (!parsed.ok) {
     const markdown =
       parseMalformedReviewMarkdownField(text) ??
@@ -5313,13 +5324,16 @@ function parseBodyFragment(text: string): BodyFragment | null {
   if (!isJsonRecord(parsed.value)) {
     return null;
   }
+  const jsonNormalizationWarnings = parsed.repaired
+    ? ["deterministic_fragment_json_encoding_repair_applied"]
+    : [];
   const value = parsed.value;
   const direct = bodyFragmentFields(value);
   if (direct) {
     return {
       schema_version: "doctor_research_body_fragment.v1",
       ...direct,
-      normalizationWarnings: []
+      normalizationWarnings: jsonNormalizationWarnings
     };
   }
 
@@ -5337,6 +5351,7 @@ function parseBodyFragment(text: string): BodyFragment | null {
       schema_version: "doctor_research_body_fragment.v1",
       ...completeNested[0]!,
       normalizationWarnings: [
+        ...jsonNormalizationWarnings,
         "deterministic_body_fragment_envelope_normalization_applied"
       ]
     };
@@ -5358,7 +5373,10 @@ function parseBodyFragment(text: string): BodyFragment | null {
     !hasAnswers &&
     markdownOnlyCandidates.length === 1
   ) {
-    return bodyFragmentWithDeferredQa(markdownOnlyCandidates[0]!);
+    return bodyFragmentWithDeferredQa(
+      markdownOnlyCandidates[0]!,
+      jsonNormalizationWarnings
+    );
   }
 
   // A complete-draft-shaped response commonly leaves questions and answers
@@ -5382,18 +5400,23 @@ function parseBodyFragment(text: string): BodyFragment | null {
     answers:
       value.answers as DoctorResearchModelDraft["answers"],
     normalizationWarnings: [
+      ...jsonNormalizationWarnings,
       "deterministic_body_fragment_envelope_normalization_applied"
     ]
   };
 }
 
-function bodyFragmentWithDeferredQa(markdown: string): BodyFragment {
+function bodyFragmentWithDeferredQa(
+  markdown: string,
+  normalizationWarnings: readonly string[] = []
+): BodyFragment {
   return {
     schema_version: "doctor_research_body_fragment.v1",
     markdown,
     predicted_questions: [],
     answers: [],
     normalizationWarnings: [
+      ...normalizationWarnings,
       "deterministic_body_fragment_qa_deferred_to_targeted_repair"
     ]
   };
@@ -6410,7 +6433,7 @@ function hasBalancedDelimiter(
 }
 
 function parseReviewFragment(text: string): ReviewFragment | null {
-  const parsed = parseStrictFragmentJson(text);
+  const parsed = parseFragmentJsonWithBoundedRepair(text);
   if (!parsed.ok) {
     const markdown =
       parseMalformedReviewMarkdownField(text) ??
@@ -6431,7 +6454,10 @@ function parseReviewFragment(text: string): ReviewFragment | null {
   ) {
     return {
       schema_version: "doctor_research_review_fragment.v1",
-      markdown: value.markdown
+      markdown: value.markdown,
+      normalizationWarnings: parsed.repaired
+        ? ["deterministic_fragment_json_encoding_repair_applied"]
+        : []
     };
   }
 
@@ -6444,6 +6470,9 @@ function parseReviewFragment(text: string): ReviewFragment | null {
     schema_version: "doctor_research_review_fragment.v1",
     markdown: normalizedMarkdown,
     normalizationWarnings: [
+      ...(parsed.repaired
+        ? ["deterministic_fragment_json_encoding_repair_applied"]
+        : []),
       "deterministic_review_fragment_envelope_normalization_applied"
     ]
   };
@@ -6616,7 +6645,36 @@ function describeFragmentTransportShape(text: string): string {
   }
   const parsed = parseStrictFragmentJson(text);
   if (!parsed.ok) {
-    return `chars=${characterCount}|json=unparseable`;
+    const trimmed = text.trim().replace(/^\uFEFF/u, "");
+    const prefix = /^```json\b/iu.test(trimmed)
+      ? "fenced_json"
+      : /^```(?:markdown|md)?\b/iu.test(trimmed)
+        ? "fenced_markdown"
+        : trimmed.startsWith("{")
+          ? "object"
+          : /^#{1,6}\s/u.test(trimmed)
+            ? "markdown_heading"
+            : "other";
+    const markers = [
+      "schema_version",
+      "review",
+      "title",
+      "abstract",
+      "keywords",
+      "markdown"
+    ].filter((key) =>
+      new RegExp(`(?:^|[,{])\\s*["']${key}["']\\s*:`, "iu").test(
+        trimmed
+      )
+    );
+    return [
+      `chars=${characterCount}`,
+      "json=unparseable",
+      `prefix=${prefix}`,
+      `markers=${markers.join("+") || "none"}`,
+      `braces=${countCharacter(trimmed, "{")}-${countCharacter(trimmed, "}")}`,
+      `quotes=${countCharacter(trimmed, '"') % 2 === 0 ? "even" : "odd"}`
+    ].join("|");
   }
   if (Array.isArray(parsed.value)) {
     return `chars=${characterCount}|json=array|items=${parsed.value.length}`;
@@ -6639,6 +6697,154 @@ function describeFragmentTransportShape(text: string): string {
   const type =
     parsed.value === null ? "null" : typeof parsed.value;
   return `chars=${characterCount}|json=${type}`;
+}
+
+function countCharacter(value: string, expected: string): number {
+  let count = 0;
+  for (const character of value) {
+    if (character === expected) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function parseFragmentJsonWithBoundedRepair(
+  text: string
+):
+  | { ok: true; value: unknown; repaired: boolean }
+  | { ok: false } {
+  const strict = parseStrictFragmentJson(text);
+  if (strict.ok) {
+    return { ...strict, repaired: false };
+  }
+  const trimmed = text.trim().replace(/^\uFEFF/u, "");
+  const objectText = extractSingleJsonObject(trimmed);
+  if (objectText === null) {
+    return { ok: false };
+  }
+  const repairedText = repairBoundedFragmentJsonObject(objectText);
+  if (repairedText === objectText) {
+    return { ok: false };
+  }
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(repairedText),
+      repaired: true
+    };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Repairs only JSON transport encoding: literal control characters inside
+ * strings, invalid bare backslashes, unescaped embedded quotes, and trailing
+ * commas. It never adds, removes, or selects object fields or prose. The
+ * fragment schema plus every medical-Skill and complete-output gate still run.
+ */
+function repairBoundedFragmentJsonObject(value: string): string {
+  let stringRepaired = "";
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]!;
+    if (!inString) {
+      stringRepaired += character;
+      if (character === '"') {
+        inString = true;
+      }
+      continue;
+    }
+    if (escaped) {
+      stringRepaired += character;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      const next = value[index + 1];
+      const validSimpleEscape =
+        next !== undefined && /["\\/bfnrt]/u.test(next);
+      const validUnicodeEscape =
+        next === "u" &&
+        /^[a-f0-9]{4}$/iu.test(value.slice(index + 2, index + 6));
+      if (validSimpleEscape || validUnicodeEscape) {
+        stringRepaired += character;
+        escaped = true;
+      } else {
+        stringRepaired += "\\\\";
+      }
+      continue;
+    }
+    if (character === '"') {
+      const suffix = value.slice(index + 1);
+      const nextMatch = /\S/u.exec(suffix);
+      const nextNonWhitespace = nextMatch?.[0];
+      const afterComma =
+        nextNonWhitespace === "," && nextMatch
+          ? /\S/u.exec(suffix.slice(nextMatch.index + 1))?.[0]
+          : undefined;
+      if (
+        nextNonWhitespace === undefined ||
+        /[:}\]]/u.test(nextNonWhitespace) ||
+        (nextNonWhitespace === "," &&
+          afterComma !== undefined &&
+          /["{}\[\]0-9tfn-]/u.test(afterComma))
+      ) {
+        stringRepaired += character;
+        inString = false;
+      } else {
+        stringRepaired += '\\"';
+      }
+      continue;
+    }
+    const codePoint = character.codePointAt(0)!;
+    if (codePoint < 0x20) {
+      stringRepaired += {
+        0x08: "\\b",
+        0x09: "\\t",
+        0x0a: "\\n",
+        0x0c: "\\f",
+        0x0d: "\\r"
+      }[codePoint] ?? `\\u${codePoint.toString(16).padStart(4, "0")}`;
+      continue;
+    }
+    stringRepaired += character;
+  }
+
+  let commaRepaired = "";
+  inString = false;
+  escaped = false;
+  for (let index = 0; index < stringRepaired.length; index += 1) {
+    const character = stringRepaired[index]!;
+    if (inString) {
+      commaRepaired += character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      commaRepaired += character;
+      continue;
+    }
+    if (character === ",") {
+      const nextNonWhitespace = /\S/u.exec(
+        stringRepaired.slice(index + 1)
+      )?.[0];
+      if (nextNonWhitespace === "}" || nextNonWhitespace === "]") {
+        continue;
+      }
+    }
+    commaRepaired += character;
+  }
+  return commaRepaired;
 }
 
 function parseStrictFragmentJson(

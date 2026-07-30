@@ -970,6 +970,14 @@ describe("Research Worker controlled-beta workflow", () => {
             })
       ]
     ]);
+    if (retryKind === "closing-envelope") {
+      const foundationResponse = fragments.get(1)!;
+      expect(foundationResponse.endsWith("}")).toBe(true);
+      fragments.set(
+        1,
+        `${foundationResponse.slice(0, -1)},}`.replaceAll("\\n", "\n")
+      );
+    }
     const shardRoleForPrompt = (
       prompt: string
     ): 1 | 2 | 3 | null => {
@@ -2637,6 +2645,11 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(result.quality.warnings).toContain(
         "bounded_shard_contract_retry_completed"
+      );
+    }
+    if (retryKind === "closing-envelope") {
+      expect(result.quality.warnings).toContain(
+        "deterministic_fragment_json_encoding_repair_applied"
       );
     }
     if (retryKind === "peer-contract") {

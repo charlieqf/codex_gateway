@@ -256,7 +256,7 @@ describe("Doctor Research offline model-response replay", () => {
     expect(refused).toMatchObject({ markdown, changed: false });
   });
 
-  it("normalizes unambiguous body and closing envelopes and preserves artifact hashes", () => {
+  it("repairs fragment JSON encoding and normalizes unambiguous envelopes without changing artifact hashes", () => {
     const fixture = fixtures.find(
       (item) =>
         item.fixture_id ===
@@ -275,6 +275,9 @@ describe("Doctor Research offline model-response replay", () => {
     expect(first.diagnostics).toEqual([]);
     expect(first.warnings).toContain(
       "deterministic_body_fragment_envelope_normalization_applied"
+    );
+    expect(first.warnings).toContain(
+      "deterministic_fragment_json_encoding_repair_applied"
     );
     expect(first.warnings).toContain(
       "deterministic_review_fragment_envelope_normalization_applied"

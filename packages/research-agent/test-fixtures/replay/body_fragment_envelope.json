@@ -256,7 +256,7 @@
       "role": "foundation",
       "response_or_error": {
         "type": "synthetic_response",
-        "variant": "valid"
+        "variant": "foundation_json_encoding_error"
       }
     },
     {
