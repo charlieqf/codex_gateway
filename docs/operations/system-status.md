@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 ## Current Phase
 
@@ -10,7 +10,45 @@ controlled trial for up to 10 trusted users, but the 2026-07-15 production
 fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
 gateway is also running for domestic-only GLM-5.2 validation.
 
-Completed:
+Current Doctor Research production:
+
+- Azure runtime commit `29790d2784913bfe14c71e8f72d51ae48748e5e7`,
+  execution `1.6.100`, prompt `v30`, validation `v42`, workflow `v77`, from
+  `/home/qian/codex-gateway-release-29790d2-20260730T062157Z`.
+- Gateway, Research LLM Gateway, Worker and maintenance are healthy with zero
+  restarts. Only the Gateway publishes `127.0.0.1:18787`; public and loopback
+  health are `ready / controlled-trial`. CN1, Nginx, public ports and
+  MedEvidence were not changed.
+- Worker-only SerpAPI uses the explicit Google engine for general doctor
+  identity discovery. The identity registry is a cache, not a whitelist.
+  Daily admission is 50 per subject per UTC day and distinct doctors are
+  unlimited; all identity, evidence, quality and artifact gates remain active.
+- Local release gates passed build, 40 files/625 Vitest tests, 36 Python tests,
+  npm audit with zero vulnerabilities, `git diff --check`, and medical-Skill
+  zero diff.
+- Runtime `1.6.99` completed five consecutive strict public engineering-case
+  E2Es in 177.257–257.217 seconds, each with exactly 3 MD + 1 five-line TXT and
+  matching manifest, sizes, SHA-256 and complete Worker/Gateway/provider
+  timelines. Both non-stream disconnect routes also recorded provider
+  cancellation requested/observed `1/1`.
+- Runtime `1.6.100` fixed publication-title connector words entering PubMed
+  topic queries. The supplied minimal three-field case then closed 40 field
+  references; one run failed safely on two model-quality contracts with zero
+  artifacts, and `drr_acadf775c00c42c1924ebf3180a519b7` succeeded in 173.301
+  seconds with strict four-file verification.
+- Rollback boundary
+  `/home/qian/codex-gateway-backups/29790d2/20260730T062157Z` and all four
+  `rollback-cb703da-20260730T062157Z` images are verified. Post-deploy backup
+  `drb_ad694a206a6746d8b1f95a1a07741b72` passed a networkless read-only
+  verification with 320 artifacts.
+- Azure root-disk availability was restored from about 17 GiB to 25–26 GiB
+  while preserving live volumes, current releases and verified rollback
+  boundaries. The temporary E2E key was revoked, user disabled, entitlement
+  cancelled, and all temporary files removed.
+- Access remains controlled-trial until the medical team approves
+  representative cases and manually accepts the four generated files.
+
+Historical rollout record (retained for audit):
 
 - Doctor Research engineering remediation `1.6.83` plus the unlimited-doctor
   admission policy is deployed to the Azure
@@ -505,6 +543,16 @@ npm test
 
 Most recent Azure VM validation:
 
+- 2026-07-30 Doctor Research runtime `1.6.100 @ 29790d2` passed the full local
+  release gate (build, 40 files/625 Vitest, 36 Python, zero-vulnerability audit,
+  diff check and medical-Skill zero diff), verified four-database rollback
+  snapshots, built four immutable candidate images and activated them in
+  dependency order. All services reached healthy with zero restarts and the
+  exact release workdir; only the Gateway retained `127.0.0.1:18787`.
+  Loopback/public eight-model checks, internal one-model check, entitlement,
+  post-deploy networkless backup verification, a real arbitrary-doctor search,
+  complete five-call timeline, and strict four-artifact download verification
+  passed. Temporary access and files were removed afterward.
 - 2026-07-18 the isolated Doctor Research staging Compose project passed the
   live controlled-beta rehearsal documented in
   `docs/research/doctor-research/controlled-beta-evidence.md`. Run

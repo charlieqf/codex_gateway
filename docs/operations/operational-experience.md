@@ -332,6 +332,39 @@ Last updated: 2026-07-29
   an unprivileged checksum failure after mode `0400` is a permissions issue,
   not evidence that an already matched container/host backup hash changed.
 
+- Treat an HTTP 200 from PubMed as transport success, not semantic success.
+  Validate the ESearch payload inside the same bounded sequential retry loop;
+  classify malformed JSON/shape as an external `invalid_payload`, wait for the
+  old attempt to finish before retrying, and allow at most one request-scope
+  Worker replay after adapter retries are exhausted.
+- Publication-title frequency is not enough to derive a PubMed field query.
+  Filter grammatical connectors and generic prose both when terms are derived
+  and again when the query is built. The real `1.6.99` failure used
+  `endovascular AND aortic AND for`; `1.6.100` produced medically meaningful
+  terms and closed 40 references for the same three-field case.
+- A successful general search does not imply every synthesis should publish.
+  When two independent shard quality contracts fail together, retain the
+  bounded fail-closed behavior and zero artifacts. Measure the next independent
+  run and improve deterministic prompt/input defects; do not turn a multi-gate
+  failure into repeated self-rewrites or lower identity/evidence/safety gates.
+- Never interpolate an API key into a remotely quoted shell header. Shell and
+  SSH quote loss can turn the header value into command arguments and expose it
+  in diagnostics. Build authenticated requests inside a process that reads a
+  mode-0600 file, redact all exceptions, and immediately disable/revoke the
+  isolated test credential if any output path exposes it. Verify zero active
+  credentials, cancel the temporary entitlement, and remove its work directory.
+- Deployment validation scripts must accept both supported public-model registry
+  shapes (top-level list and object-with-`models`) before asserting the exact
+  eight IDs. A predeploy script should stop safely after backup/tagging when its
+  own assertion is incompatible; resume with an independently reverified
+  candidate rather than deleting the new rollback boundary or recreating a
+  production container prematurely.
+- Disk recovery is healthy only when it preserves the live volumes, current
+  release, newest verified database backup, and immediate rollback image tags.
+  Record before/after free space and remove only superseded build cache,
+  redundant archives, and backups already replaced by independently verified
+  boundaries.
+
 ## Known Pitfalls
 
 - `npm run <script> -- --arg "value with spaces"` can still become fragile through nested SSH/shell layers. Prefer simple prompts for remote smoke tests.

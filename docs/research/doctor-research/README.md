@@ -61,10 +61,32 @@ length completeness has a lower, versioned release floor. Results below target
 but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
-The current Azure release is commit
-`ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4`, execution `1.6.83`, prompt `v29`,
-validation `v42` and workflow `doctor_research_workflow.v72`. The `1.6.76`
-baseline completed five consecutive same-case public E2Es in 166.765–378.099
+The current Azure runtime release is commit
+`29790d2784913bfe14c71e8f72d51ae48748e5e7`, execution `1.6.100`, prompt
+`doctor-research-prompt.v30`, validation `doctor_research_validation.v42`, and
+workflow `doctor_research_workflow.v77`. It runs from
+`/home/qian/codex-gateway-release-29790d2-20260730T062157Z` with SerpAPI Google
+general identity discovery, a 50-run UTC-day subject limit, and no distinct-
+doctor count limit. All four services are healthy, restart count zero, and only
+the Gateway publishes `127.0.0.1:18787`.
+
+The `1.6.99` release completed five consecutive same-case public E2Es in
+177.257–257.217 seconds; every run produced exactly 3 MD + 1 five-line TXT and
+passed manifest, size, SHA-256 and complete timeline verification. `1.6.100`
+then corrected publication-title connectors entering a real doctor's PubMed
+field query. The user-provided minimal three-field case succeeded as
+`drr_acadf775c00c42c1924ebf3180a519b7` in 173.301 seconds with the same strict
+four-file checks. One immediately preceding attempt failed closed on two
+independent model quality contracts with zero artifacts, so this evidence does
+not justify promising that every stochastic model output will pass.
+
+Medical representative-case approval and manual four-file content acceptance
+remain outstanding; production therefore remains `controlled-trial`. The
+following paragraphs preserve earlier rollout incidents for audit context.
+
+### Historical rollout context
+
+The `1.6.76` baseline completed five consecutive same-case public E2Es in 166.765–378.099
 seconds. A later real-user run showed that an optional one-URL client list could
 replace the complete server-reviewed identity source set. `1.6.79` fixes that
 engineering error by keeping registered sources authoritative and treating
@@ -88,7 +110,7 @@ engineering-allowlisted; it is not a substitute for a medical-team-approved
 representative case or manual content acceptance. The service therefore remains
 `controlled-trial`.
 
-The production identity path has a newly confirmed coverage defect. The
+Release `1.6.83` had a confirmed identity-coverage defect. The
 medical-team Skill requires public discovery for the doctor named by the user,
 with candidate confirmation for ambiguity; it never requires prior doctor
 registration. Release `1.6.83` nevertheless runs the historical `direct`
@@ -98,7 +120,7 @@ search and normally fails at `resolve_identity`. This is an engineering scope
 error, not a medical or business rule. The replacement path treats the
 registry only as a cache, performs one bounded general identity search, and
 still applies pinned public-address fetching plus exact name, hospital and
-department evidence checks. The current production candidate selects
+department evidence checks. The then-current production candidate selected
 SerpAPI's Baidu engine after a same-query provider probe found an official
 hospital result where the Google engine's first five results did not. Brave
 and SerpAPI Google remain supported rollback/evaluation choices; this provider
@@ -185,7 +207,7 @@ the run, verified zero artifacts and revoked its temporary key.
   samples and the superseded Skill archive that must never be discovered as
   golden fixtures or executable inputs.
 
-The production Worker uses frozen execution contract `1.6.83` together with the
+The production Worker uses frozen execution contract `1.6.100` together with the
 hashed medical-team bundle. It loads only the four allowlisted `SKILL.md`
 files; `.skill` archives, samples, assets, references, and scripts are not
 executed or dynamically discovered. The source files remain byte-exact and
@@ -483,26 +505,9 @@ Idempotency-Key: research:<stable-client-id>
 Content-Type: application/json
 
 {
-  "doctor": {
-    "name": "陆清声",
-    "hospital": "海军军医大学第一附属医院",
-    "department": "血管外科",
-    "official_profile_urls": [
-      "https://www.carm.org.cn/gywm/fzjg/zywyh/art/2025/art_8451aeed0bc14fbab6541f37c08b5195.html",
-      "https://www.qk.sjtu.edu.cn/jscp/CN/abstract/abstract45986.shtml"
-    ],
-    "literature_identity": {
-      "name": "Lu Qingsheng",
-      "hospital": "Changhai Hospital",
-      "department": "Vascular Surgery"
-    }
-  },
-  "mode": "brief",
-  "language": "zh-CN",
-  "options": {
-    "publication_years": 5,
-    "citation_style": "vancouver"
-  }
+  "name": "陆清声",
+  "hospital": "海军军医大学第一附属医院",
+  "department": "血管外科"
 }
 ```
 
@@ -524,6 +529,9 @@ the asynchronous production API. It:
   `DOCTOR_RESEARCH_API_KEY`, never from a command-line token argument;
 - accepts either a bounded, strictly validated UTF-8 JSON request file or the
   original per-field command-line arguments, but never mixes the two;
+- sends exactly the three top-level business fields for the minimal CLI form;
+  server defaults supply brief mode, Chinese, five years and Vancouver style,
+  and optional fields are transmitted only when explicitly provided;
 - sends create with a reusable `Idempotency-Key`, polls bounded status, and
   stops without guessing if human identity selection is required;
 - honors integer `Retry-After` guidance for rate-limited authenticated GETs,
@@ -587,7 +595,7 @@ and four-text rendering without network access. Tests run every fixture twice
 and require identical diagnostics, semantic results, artifact bytes, and
 aggregate content SHA-256.
 
-The current suite contains 15 independent sanitized fixtures exercised by 21
+The current suite contains 15 independent sanitized fixtures exercised by 23
 tests; repeated-run variants account for the difference between fixture and
 test counts.
 

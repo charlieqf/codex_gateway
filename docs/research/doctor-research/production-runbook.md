@@ -7,6 +7,76 @@ Docker listener.
 
 ## Current production deployment
 
+As of 2026-07-30, the public Azure Gateway and all three Research services run
+runtime commit `29790d2784913bfe14c71e8f72d51ae48748e5e7` from:
+
+```text
+/home/qian/codex-gateway-release-29790d2-20260730T062157Z
+```
+
+The execution contract is `1.6.100`, prompt
+`doctor-research-prompt.v30`, validation
+`doctor_research_validation.v42`, and workflow
+`doctor_research_workflow.v77`. All four containers are healthy with zero
+restarts and use that exact release workdir. Only the public Gateway publishes
+`127.0.0.1:18787->8787`; the other three services publish no host port. Public
+and loopback health return `ready / controlled-trial`.
+
+The Worker uses its private SerpAPI credential with the explicitly selected
+Google engine. The reviewed identity registry is only a cache: an unregistered
+doctor receives bounded public discovery and the normal name/hospital/
+department evidence checks. Doctor-attributed PubMed papers are optional
+profile evidence; the independent field-literature and all content-quality
+contracts remain mandatory. Admission allows 50 runs per subject per UTC day
+and does not limit distinct-doctor count; single-active-run, Worker concurrency
+1, queue, entitlement, identity and quality limits remain independent.
+
+Release gates passed build, all 40 Vitest files/625 tests, all 36 Python tests,
+`git diff --check`, npm audit with zero vulnerabilities, and medical-Skill zero
+diff. The deployed medical bundle SHA-256 remains:
+
+```text
+6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351
+```
+
+The preceding `1.6.99 @ cb703da` runtime completed five consecutive strict
+public E2Es on the same unregistered engineering case in 257.217, 211.159,
+177.257, 247.307, and 226.116 seconds. Every run published exactly 3 MD + 1
+five-line TXT and passed manifest, byte-size and SHA-256 verification. Worker
+stage calls joined one-to-one to Gateway/provider events, with no cancellation,
+overlap, active-run leak, or unfinished internal reservation. Public non-stream
+disconnect smokes for both `/v1/chat/completions` and `/v1/responses` recorded
+`client_aborted`, `cancel_requested=1`, and `cancel_observed=1`.
+
+The user-provided three-field case `陆清声 / 海军军医大学第一附属医院 / 血管外科`
+then reproduced an engineering search defect: high-frequency connector words
+from publication titles entered the first three PubMed terms. `1.6.100` filters
+those words both during topic derivation and query construction. After rollout,
+both retries closed 40 field references. The first run
+`drr_2a54d1eca9094d90a7752878fe7ae3d7` failed closed in 147.124 seconds with
+zero artifacts because two independent model quality contracts failed. The
+second run `drr_acadf775c00c42c1924ebf3180a519b7` succeeded in 173.301 seconds;
+the Python 1.1 client verified exactly four files, a five-line TXT, manifest
+sizes, and every SHA-256. Its five model calls all returned provider responses,
+joined to complete timelines, and left resource counts at zero.
+
+The verified pre-deploy rollback boundary is
+`/home/qian/codex-gateway-backups/29790d2/20260730T062157Z`, paired with four
+`rollback-cb703da-20260730T062157Z` image tags. All four SQLite snapshots passed
+integrity, foreign-key and independent SHA-256 verification. Post-deploy backup
+`drb_ad694a206a6746d8b1f95a1a07741b72` passed a networkless read-only verify
+with 320 artifacts and database snapshot SHA-256
+`a76d13a5427c6ebff003e10d8fe3da9ea5c4fca3f42e7a9d157218ece22988dd`.
+The temporary E2E key was revoked, its user disabled, entitlement cancelled,
+and all temporary output and operator scripts removed.
+
+This remains a named-user controlled trial. The five-run case is an engineering
+stability case, and the additional user-provided case proves general search can
+complete; neither replaces medical-team approval of representative cases or
+manual acceptance of all four file contents.
+
+## Historical deployment record through 1.6.83
+
 As of 2026-07-29, the public Azure Gateway and all three Research services run
 commit `ddb1dcca5a92d2d032383f9cb01ae5cf65b22be4` from:
 
@@ -403,7 +473,7 @@ The overlay adds:
   Qianfan and Tencent remain disabled rollback entries;
 - one Worker and one independent maintenance process;
 - one Worker-only SerpAPI credential for bounded general doctor identity
-  discovery through the explicitly selected Baidu engine; the token is never
+  discovery through the explicitly selected Google engine; the token is never
   exposed to the public or internal LLM Gateway;
 - separate Research state, verified-backup, internal-LLM-state and log
   volumes.
@@ -451,14 +521,12 @@ secrets/research-production-llm-token
 secrets/research-production-web-search-key
 ```
 
-The web-search filename is provider-neutral. For the current `1.6.84`
-candidate it contains the SerpAPI credential, even though the preceding
-`1.6.83` Compose does not mount or read that file. The credential was verified
-as an active Free Plan with 250 monthly searches and a 250/hour account limit
-before activation. This capacity is acceptable only for the named-user
-controlled trial: check remaining searches around release E2Es and monitor
-usage afterward. Provider quota exhaustion must fail closed and must never
-fall back to `direct` or bypass identity evidence checks.
+The web-search filename is provider-neutral. Current production mounts it only
+into the Worker and selects SerpAPI's Google engine explicitly. Account capacity
+is acceptable only for the named-user controlled trial: check remaining
+searches around release E2Es and monitor usage afterward. Provider quota
+exhaustion must fail closed and must never fall back to `direct` or bypass
+identity evidence checks.
 
 The four env files must be mode `0600`. Provider and service-token files must
 be host owner `999:999`, mode `0400`. Compose local secrets do not enforce the
@@ -486,7 +554,7 @@ The Worker example deliberately fails production startup until:
 - ORCID is either `disabled`, or an approved anonymous/credentialed mode is
   configured.
 - `RESEARCH_WEB_SEARCH_PROVIDER=serpapi`,
-  `RESEARCH_SERPAPI_ENGINE=baidu` and the Worker-only search secret path are
+  `RESEARCH_SERPAPI_ENGINE=google` and the Worker-only search secret path are
   configured. New production code rejects `direct` mode so a healthy
   deployment cannot silently regress to registry-only doctor coverage. Brave
   and SerpAPI Google remain explicit alternatives, never implicit fallbacks.
@@ -505,8 +573,8 @@ Before any build or recreate:
    all four existing provider key names without printing values.
 3. Run online SQLite backup for `gateway.db` and `client-events.db`, then
    verify database hashes, integrity and foreign keys.
-4. Tag the current production image by timestamp and retain the clean
-   `ccccf1c` rollback release.
+4. Tag every current production image by timestamp and retain the exact clean
+   release recorded in the current deployment section.
 5. Confirm at least 10 GiB and 10% filesystem free space.
 6. Render Compose with `config --quiet`; never print the rendered environment.
 
