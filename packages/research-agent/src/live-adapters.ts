@@ -128,7 +128,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         options.officialWeb.provider === "serpapi"
           ? options.officialWeb.serpApiEngine === "baidu"
             ? "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
-            : "serpapi-google-general-identity-search-v1+pinned-source-fetch.v2"
+            : "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
           : options.officialWeb.provider === "brave"
             ? "brave-general-identity-search-v2+pinned-source-fetch.v2"
             : "direct-reviewed-source-fetch.v1"
@@ -567,8 +567,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     signal: AbortSignal
   ): Promise<readonly OfficialSearchResult[]> {
     const engine = this.options.officialWeb.serpApiEngine!;
-    const providerQuery =
-      engine === "baidu" ? localizeBaiduIdentityQuery(query) : query;
+    const providerQuery = localizeSerpApiIdentityQuery(query, engine);
     const url = new URL("https://serpapi.com/search.json");
     setSearchParams(url, {
       engine,
@@ -1092,11 +1091,23 @@ function boundedOfficialIdentityQuery(value: string): string {
   return normalized;
 }
 
-function localizeBaiduIdentityQuery(query: string): string {
-  if (query === "doctor profile") {
-    return "医生 简介";
+function localizeSerpApiIdentityQuery(
+  query: string,
+  engine: "baidu" | "google"
+): string {
+  const localizedIntent =
+    engine === "google" && /\p{Script=Han}/u.test(query)
+      ? "医生 简介 研究方向 研究领域"
+      : engine === "baidu"
+        ? "医生 简介"
+        : null;
+  if (localizedIntent === null) {
+    return query;
   }
-  return query.replace(/\s+doctor profile$/iu, " 医生 简介");
+  if (query === "doctor profile") {
+    return localizedIntent;
+  }
+  return query.replace(/\s+doctor profile$/iu, ` ${localizedIntent}`);
 }
 
 function searchResultMentionsRequestedIdentity(

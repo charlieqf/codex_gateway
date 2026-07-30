@@ -396,7 +396,9 @@ describe("Doctor Research live first-party adapters", () => {
       expect(url.origin).toBe("https://serpapi.com");
       expect(url.pathname).toBe("/search.json");
       expect(url.searchParams.get("engine")).toBe("google");
-      expect(url.searchParams.get("q")).toContain("Example Doctor");
+      expect(url.searchParams.get("q")).toBe(
+        '"Example Doctor" Example Hospital Cardiology doctor profile'
+      );
       expect(url.searchParams.get("num")).toBe("2");
       expect(url.searchParams.get("safe")).toBe("active");
       expect(url.searchParams.get("api_key")).toBe("serpapi-test-key");
@@ -445,7 +447,58 @@ describe("Doctor Research live first-party adapters", () => {
       officialSearchRequestUnits: 2
     });
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-general-identity-search-v1+pinned-source-fetch.v2"
+      "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
+    );
+  });
+
+  it("adds research-direction intent to Chinese SerpAPI Google identity searches", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+      );
+      expect(url.searchParams.get("engine")).toBe("google");
+      expect(url.searchParams.get("q")).toBe(
+        '"沈柏用" 上海交通大学医学院附属瑞金医院 外科 医生 简介 研究方向 研究领域'
+      );
+      return jsonResponse({
+        search_metadata: { status: "Success" },
+        organic_results: [
+          {
+            title: "沈柏用-博士研究生指导教师",
+            link: "https://jiankang.usst.edu.cn/doctor/shen-baiyong",
+            snippet: "沈柏用，瑞金医院普外科，主要研究方向为胰腺癌。"
+          }
+        ]
+      });
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "google",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 5
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchOfficialSources(
+        '"沈柏用" 上海交通大学医学院附属瑞金医院 外科 doctor profile',
+        new AbortController().signal
+      )
+    ).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(adapters.versions.official_web).toBe(
+      "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
     );
   });
 
