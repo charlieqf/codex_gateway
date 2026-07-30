@@ -3485,9 +3485,17 @@ async function generateAndValidateShardedModelOutput(
         medicalSkillBundle
       })
     });
-    const correctedConclusionFragment = parseReviewFragment(
+    const parsedConclusionFragment = parseReviewFragment(
       correctedConclusionResponse.text
     );
+    const normalizedConclusionFragment = parsedConclusionFragment
+      ? normalizeNarrativeNumberFreeCorrectionFragment(
+          parsedConclusionFragment,
+          context.run.language
+        )
+      : null;
+    const correctedConclusionFragment =
+      normalizedConclusionFragment?.fragment ?? null;
     const correctionErrors = correctedConclusionFragment
       ? validateConclusionCorrectionFragment(
           correctedConclusionFragment,
@@ -3558,6 +3566,11 @@ async function generateAndValidateShardedModelOutput(
         "deterministic_core_evidence_projection_completed",
         "peer_review_call_reallocated_to_conclusion_repair",
         "bounded_conclusion_evidence_closure_correction_completed",
+        ...(normalizedConclusionFragment?.changed
+          ? [
+              "deterministic_conclusion_correction_numeric_normalization_applied"
+            ]
+          : []),
         "deterministic_peer_review_self_check_completed",
         ...shardSkillNormalizationWarnings,
         ...(shardTransportRetryCompleted
@@ -4214,9 +4227,17 @@ async function generateAndValidateShardedModelOutput(
           medicalSkillBundle
         })
       });
-      const correctedConclusionFragment = parseReviewFragment(
+      const parsedConclusionFragment = parseReviewFragment(
         correctedConclusionResponse.text
       );
+      const normalizedConclusionFragment = parsedConclusionFragment
+        ? normalizeNarrativeNumberFreeCorrectionFragment(
+            parsedConclusionFragment,
+            context.run.language
+          )
+        : null;
+      const correctedConclusionFragment =
+        normalizedConclusionFragment?.fragment ?? null;
       const correctionErrors = correctedConclusionFragment
         ? validateConclusionCorrectionFragment(
             correctedConclusionFragment,
@@ -4289,6 +4310,11 @@ async function generateAndValidateShardedModelOutput(
           peerReviewFallbackWarning,
           "peer_review_fallback_reallocated_to_conclusion_repair",
           "bounded_conclusion_evidence_closure_correction_completed",
+          ...(normalizedConclusionFragment?.changed
+            ? [
+                "deterministic_conclusion_correction_numeric_normalization_applied"
+              ]
+            : []),
           "deterministic_peer_review_self_check_completed",
           ...shardSkillNormalizationWarnings,
           ...(shardAdmissionGraceElapsed
@@ -5806,6 +5832,24 @@ function validateIntroductionCorrectionFragment(
     )
   );
   return [...new Set(errors)];
+}
+
+function normalizeNarrativeNumberFreeCorrectionFragment(
+  fragment: ReviewFragment,
+  language: ResearchRunRecord["language"]
+): { fragment: ReviewFragment; changed: boolean } {
+  const markdown = removeUnsupportedNumericSentences(
+    fragment.markdown,
+    "",
+    language
+  );
+  return {
+    fragment: {
+      ...fragment,
+      markdown
+    },
+    changed: markdown !== fragment.markdown
+  };
 }
 
 function validateConclusionCorrectionFragment(

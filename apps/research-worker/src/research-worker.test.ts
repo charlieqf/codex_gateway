@@ -627,6 +627,11 @@ describe("Research Worker controlled-beta workflow", () => {
         () =>
           "现有公开摘要支持对研究对象、设计路径、方法差异、结果方向与证据边界进行谨慎综合，但不能替代全文质量评价，也不足以形成确定的因果判断或普遍治疗建议"
       ).join("。")}。[1]`;
+    const numericConclusionCorrectionFragment =
+      closedConclusionCorrectionFragment.replace(
+        "。",
+        "。该结论错误写入999997例未经闭合的样本。"
+      );
     foundation.review.markdown = [
       skillFoundationFragment(
         retryKind === "content" ? 25 : 55
@@ -1453,7 +1458,10 @@ describe("Research Worker controlled-beta workflow", () => {
                 schema_version:
                   "doctor_research_review_fragment.v1",
                 markdown:
-                  closedConclusionCorrectionFragment
+                  retryKind ===
+                  "peer-contract-conclusion-safety"
+                    ? numericConclusionCorrectionFragment
+                    : closedConclusionCorrectionFragment
               }),
               gatewayRequestId:
                 "req_sharded_transport_conclusion_repair",
@@ -2593,12 +2601,14 @@ describe("Research Worker controlled-beta workflow", () => {
         "现有公开摘要支持对研究对象"
       );
       expect(result.review.markdown).not.toContain("999999");
+      expect(result.review.markdown).not.toContain("999997");
       expect(result.quality.warnings).toEqual(
         expect.arrayContaining([
           "peer_review_model_attempted",
           "peer_review_contract_unusable_deterministic_fallback",
           "peer_review_fallback_reallocated_to_conclusion_repair",
           "bounded_conclusion_evidence_closure_correction_completed",
+          "deterministic_conclusion_correction_numeric_normalization_applied",
           "deterministic_peer_review_self_check_completed"
         ])
       );
