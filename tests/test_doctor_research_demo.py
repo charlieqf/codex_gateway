@@ -51,11 +51,12 @@ class DemoHandler(BaseHTTPRequestHandler):
         assert self.headers["Idempotency-Key"].startswith("research:")
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         type(self).last_create_body = body
-        assert body["doctor"]["name"] == DOCTOR_NAME
-        assert body["doctor"]["hospital"]
-        assert body["doctor"]["department"]
-        if "literature_identity" in body["doctor"]:
-            assert body["doctor"]["literature_identity"] == {
+        doctor = body.get("doctor", body)
+        assert doctor["name"] == DOCTOR_NAME
+        assert doctor["hospital"]
+        assert doctor["department"]
+        if "literature_identity" in doctor:
+            assert doctor["literature_identity"] == {
                 "name": "Lu Qingsheng",
                 "hospital": "Changhai Hospital",
                 "department": "Vascular Surgery",
@@ -291,7 +292,7 @@ class DoctorResearchDemoTests(unittest.TestCase):
                 final = json.loads(stdout.getvalue().splitlines()[-1])
                 self.assertEqual(final["outcome"], "succeeded")
                 self.assertEqual(
-                    DemoHandler.last_create_body["doctor"],
+                    DemoHandler.last_create_body,
                     {
                         "name": DOCTOR_NAME,
                         "hospital": "上海长海医院",
@@ -383,17 +384,9 @@ class DoctorResearchDemoTests(unittest.TestCase):
             self.assertEqual(
                 payload,
                 {
-                    "doctor": {
-                        "name": DOCTOR_NAME,
-                        "hospital": "海军军医大学第一附属医院",
-                        "department": "血管外科",
-                    },
-                    "mode": "brief",
-                    "language": "zh-CN",
-                    "options": {
-                        "publication_years": 5,
-                        "citation_style": "vancouver",
-                    },
+                    "name": DOCTOR_NAME,
+                    "hospital": "海军军医大学第一附属医院",
+                    "department": "血管外科",
                 },
             )
 
@@ -433,8 +426,7 @@ class DoctorResearchDemoTests(unittest.TestCase):
         )
         args = DEMO.parse_args(["--request-file", str(request_file)])
         payload = DEMO.build_payload(args)
-        self.assertEqual(payload["mode"], "brief")
-        self.assertEqual(payload["doctor"]["name"], DOCTOR_NAME)
+        self.assertEqual(payload, request_payload())
 
     def test_request_file_cannot_be_mixed_with_body_arguments(self):
         with tempfile.TemporaryDirectory() as temporary:

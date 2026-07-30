@@ -120,7 +120,7 @@ class ResearchClient:
         request_headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "codex-gateway-doctor-research-python-demo/1.0",
+            "User-Agent": "codex-gateway-doctor-research-python-demo/1.1",
             **(headers or {}),
         }
         data = None
@@ -174,7 +174,7 @@ class ResearchClient:
                 else "text/markdown"
             ),
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "codex-gateway-doctor-research-python-demo/1.0",
+            "User-Agent": "codex-gateway-doctor-research-python-demo/1.1",
         }
         started = time.monotonic()
         attempt = 0
@@ -425,7 +425,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         )
         quality_status, warnings = validate_result_quality(result)
         artifacts = validate_manifest(
-            result, run_id=run_id, doctor_name=payload["doctor"]["name"]
+            result,
+            run_id=run_id,
+            doctor_name=request_doctor(payload)["name"],
         )
         output_directory = download_artifacts(
             client,
@@ -519,15 +521,13 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
                 args.literature_department, "literature department"
             ),
         }
-    payload: dict[str, Any] = {
-        "doctor": doctor,
-        "mode": "brief",
-        "language": args.language or "zh-CN",
-        "options": {
-            "publication_years": args.publication_years or 5,
-            "citation_style": "vancouver",
-        },
-    }
+    payload: dict[str, Any] = dict(doctor)
+    if args.language:
+        payload["language"] = args.language
+    if args.publication_years is not None:
+        payload["options"] = {
+            "publication_years": args.publication_years,
+        }
     if args.client_reference:
         payload["client_reference"] = unicodedata.normalize(
             "NFC", args.client_reference.strip()
@@ -694,15 +694,18 @@ def validate_request_payload(value: Any) -> dict[str, Any]:
     if raw_options.get("citation_style", "vancouver") != "vancouver":
         raise DemoError("Only citation_style 'vancouver' is supported.")
 
-    payload: dict[str, Any] = {
-        "doctor": doctor,
-        "mode": "brief",
-        "language": language,
-        "options": {
-            "publication_years": publication_years,
-            "citation_style": "vancouver",
-        },
-    }
+    payload: dict[str, Any] = dict(doctor) if flat_request else {"doctor": doctor}
+    if "mode" in value:
+        payload["mode"] = "brief"
+    if "language" in value:
+        payload["language"] = language
+    normalized_options: dict[str, Any] = {}
+    if "publication_years" in raw_options:
+        normalized_options["publication_years"] = publication_years
+    if "citation_style" in raw_options:
+        normalized_options["citation_style"] = "vancouver"
+    if normalized_options:
+        payload["options"] = normalized_options
     if (
         "client_reference" in value
         and value["client_reference"] not in (None, "")
@@ -715,6 +718,13 @@ def validate_request_payload(value: Any) -> dict[str, Any]:
             value["client_reference"], "client_reference", 1, 128
         )
     return payload
+
+
+def request_doctor(payload: dict[str, Any]) -> dict[str, Any]:
+    value = payload.get("doctor", payload)
+    if not isinstance(value, dict):
+        raise DemoError("Request did not contain a doctor object.")
+    return value
 
 
 def assert_only_keys(
