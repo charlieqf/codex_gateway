@@ -468,7 +468,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "peer-contract-conclusion-safety",
-      "peer_review_fallback_reallocated_to_conclusion_repair"
+      "bounded_single_section_repair_completed"
     ],
     [
       "peer-timeout",
@@ -1371,7 +1371,8 @@ describe("Research Worker controlled-beta workflow", () => {
             );
           }
           if (
-            retryKind === "section-repair" &&
+            (retryKind === "section-repair" ||
+              retryKind === "peer-contract-conclusion-safety") &&
             modelInput.stage === "synthesize_review" &&
             modelInput.attempt === 4
           ) {
@@ -1386,15 +1387,27 @@ describe("Research Worker controlled-beta workflow", () => {
               original_sha256: string;
               heading: string;
             };
+            if (retryKind === "peer-contract-conclusion-safety") {
+              expect(section.heading).toBe("结论");
+              expect(modelInput.prompt).toContain(
+                "Allowed numeric citations: [1]"
+              );
+            }
             return {
               text: JSON.stringify({
                 schema_version:
                   "doctor_research_section_repair.v1",
                 section_id: section.section_id,
                 original_sha256: section.original_sha256,
-                replacement: `## ${section.heading}\n\n${convergenceSafeParagraph}`
+                replacement:
+                  retryKind === "peer-contract-conclusion-safety"
+                    ? closedConclusionCorrectionFragment
+                    : `## ${section.heading}\n\n${convergenceSafeParagraph}`
               }),
-              gatewayRequestId: "req_sharded_section_repair",
+              gatewayRequestId:
+                retryKind === "peer-contract-conclusion-safety"
+                  ? "req_sharded_empty_conclusion_section_repair"
+                  : "req_sharded_section_repair",
               usage: {
                 promptTokens: 100,
                 completionTokens: 100,
@@ -2102,7 +2115,6 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "transport-conclusion-safety" ||
-      retryKind === "peer-contract-conclusion-safety" ||
       retryKind === "skill-conclusion-safety"
     ) {
       expect(retryPrompt).toContain(
@@ -2110,6 +2122,13 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "Numeric citation markers such as [1] are the only allowed digits"
+      );
+    }
+    if (retryKind === "peer-contract-conclusion-safety") {
+      expect(retryPrompt).toContain("BOUNDED SINGLE-SECTION REPAIR");
+      expect(retryPrompt).toContain("Allowed numeric citations: [1]");
+      expect(retryPrompt).toContain(
+        "Failed section and hash-bound source"
       );
     }
     const stored = fixture.store.getRunResultForSubject(
@@ -2629,10 +2648,7 @@ describe("Research Worker controlled-beta workflow", () => {
         expect.arrayContaining([
           "peer_review_model_attempted",
           "peer_review_contract_unusable_deterministic_fallback",
-          "peer_review_fallback_reallocated_to_conclusion_repair",
-          "bounded_conclusion_evidence_closure_correction_completed",
-          "deterministic_conclusion_correction_numeric_normalization_applied",
-          "deterministic_peer_review_self_check_completed"
+          "bounded_single_section_repair_completed"
         ])
       );
       expect(result.quality.warnings).not.toContain(

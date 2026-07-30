@@ -4,6 +4,7 @@ import {
   applyReviewSectionRepair,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
+  selectSectionRepairAllowedCitationNumbers,
   selectPeerReviewConvergenceTarget,
   type ReviewSectionRepairDecision
 } from "./review-section-repair.js";
@@ -82,6 +83,44 @@ describe("Doctor Research targeted section repair", () => {
         }
       })
     ).toBeNull();
+  });
+
+  it("binds an emptied conclusion repair to the complete closed evidence set", () => {
+    expect(
+      selectSectionRepairAllowedCitationNumbers({
+        existingCitationNumbers: [],
+        sectionKind: "conclusion",
+        errorCodes: ["review_conclusion_minimum"],
+        referenceCount: 3
+      })
+    ).toEqual([1, 2, 3]);
+    expect(
+      selectSectionRepairAllowedCitationNumbers({
+        existingCitationNumbers: [2, 2, 9],
+        sectionKind: "conclusion",
+        errorCodes: ["review_conclusion_minimum"],
+        referenceCount: 3
+      })
+    ).toEqual([2]);
+    expect(
+      selectSectionRepairAllowedCitationNumbers({
+        existingCitationNumbers: [],
+        sectionKind: "topic",
+        errorCodes: ["review_topic_section_minimum"],
+        referenceCount: 3
+      })
+    ).toEqual([]);
+    expect(
+      selectSectionRepairAllowedCitationNumbers({
+        existingCitationNumbers: [],
+        sectionKind: "conclusion",
+        errorCodes: [
+          "review_conclusion_minimum",
+          "numeric_evidence_closure"
+        ],
+        referenceCount: 3
+      })
+    ).toEqual([]);
   });
 
   it("fails closed instead of converging across independent hard gates", () => {

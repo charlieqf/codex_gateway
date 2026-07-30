@@ -68,6 +68,7 @@ import {
   applyReviewSectionRepair,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
+  selectSectionRepairAllowedCitationNumbers,
   selectPeerReviewConvergenceTarget,
   type ReviewSectionRepairDecision,
   type ReviewSectionRepairTarget
@@ -6239,16 +6240,15 @@ function selectSingleSectionRepairCandidate(input: {
   ) {
     return null;
   }
-  const allowedCitationNumbers = [
-    ...new Set(
-      extractNumericCitations(section.rawText).filter(
-        (citation) =>
-          Number.isSafeInteger(citation) &&
-          citation >= 1 &&
-          citation <= input.evidence.references.length
-      )
-    )
-  ].sort((left, right) => left - right);
+  const allowedCitationNumbers =
+    selectSectionRepairAllowedCitationNumbers({
+      existingCitationNumbers: extractNumericCitations(
+        section.rawText
+      ),
+      sectionKind: section.kind,
+      errorCodes,
+      referenceCount: input.evidence.references.length
+    });
   if (allowedCitationNumbers.length === 0) {
     return null;
   }

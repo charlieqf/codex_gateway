@@ -58,6 +58,55 @@ export function createReviewSectionRepairTarget(input: {
   };
 }
 
+export function selectSectionRepairAllowedCitationNumbers(input: {
+  existingCitationNumbers: readonly number[];
+  sectionKind:
+    | "introduction"
+    | "topic"
+    | "synthesis"
+    | "limitations"
+    | "conclusion";
+  errorCodes: readonly string[];
+  referenceCount: number;
+}): number[] {
+  const existing = [
+    ...new Set(
+      input.existingCitationNumbers.filter(
+        (citation) =>
+          Number.isSafeInteger(citation) &&
+          citation >= 1 &&
+          citation <= input.referenceCount
+      )
+    )
+  ].sort((left, right) => left - right);
+  if (existing.length > 0) {
+    return existing;
+  }
+  const errorCodes = [...new Set(input.errorCodes)];
+  const conclusionLostAllCitationsDuringSafetyClosure =
+    input.sectionKind === "conclusion" &&
+    errorCodes.includes("review_conclusion_minimum") &&
+    errorCodes.every((code) =>
+      [
+        "review_conclusion_minimum",
+        "review_content_minimum"
+      ].includes(code)
+    );
+  if (!conclusionLostAllCitationsDuringSafetyClosure) {
+    return [];
+  }
+  // A conclusion can be removed in full when every sentence exceeds the
+  // closed evidence. With no surviving marker, deriving the allowlist from
+  // the failed bytes leaves no legal fifth-call repair. A conclusion is a
+  // global synthesis section, so bind its hash-scoped replacement to the
+  // complete closed reference set; ordinary evidence/quality gates still run
+  // against the replacement and the fully assembled output.
+  return Array.from(
+    { length: Math.max(0, input.referenceCount) },
+    (_, index) => index + 1
+  );
+}
+
 export function applyReviewSectionRepair(input: {
   markdown: string;
   target: ReviewSectionRepairTarget;
