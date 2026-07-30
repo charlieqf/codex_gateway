@@ -425,6 +425,14 @@ describe("Research Worker controlled-beta workflow", () => {
       "deterministic_body_fragment_envelope_normalization_applied"
     ],
     [
+      "body-markdown-only",
+      "deterministic_body_fragment_qa_deferred_to_targeted_repair"
+    ],
+    [
+      "body-markdown-only-retry",
+      "peer_review_call_reallocated_to_qa_contract_repair"
+    ],
+    [
       "contract-short-abstract",
       "bounded_shard_contract_retry_completed"
     ],
@@ -785,7 +793,11 @@ describe("Research Worker controlled-beta workflow", () => {
       ],
       [
         2,
-        [
+        retryKind === "body-markdown-only"
+          ? skillBodyFragment(20)
+          : retryKind === "body-markdown-only-retry"
+            ? "not a body fragment JSON object"
+            : [
           "```json",
           retryKind === "body-envelope"
             ? JSON.stringify({
@@ -830,7 +842,7 @@ describe("Research Worker controlled-beta workflow", () => {
             answers: initialBodyAnswers
               }),
           "```"
-        ].join("\n")
+              ].join("\n")
       ],
       [
         3,
@@ -1567,11 +1579,42 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "body-markdown-only-retry" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 5 &&
+            modelInput.prompt.includes(
+              "doctor_research_qa_fragment.v1"
+            )
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version: "doctor_research_qa_fragment.v1",
+                predicted_questions:
+                  foundation.predicted_questions,
+                answers: foundation.answers
+              }),
+              gatewayRequestId:
+                "req_sharded_markdown_only_qa_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
               text:
-                retryKind === "transport" ||
+                retryKind === "body-markdown-only-retry"
+                  ? JSON.stringify({
+                      schema_version:
+                        "doctor_research_body_fragment.v1",
+                      markdown: skillBodyFragment(20)
+                    })
+                  : retryKind === "transport" ||
                 retryKind === "transport-empty" ||
                 retryKind === "admission"
                   ? shardFragmentForPrompt(modelInput.prompt)
@@ -1929,6 +1972,20 @@ describe("Research Worker controlled-beta workflow", () => {
         "Prior body fragment"
       );
     }
+    if (
+      retryKind === "body-markdown-only" ||
+      retryKind === "body-markdown-only-retry"
+    ) {
+      expect(retryPrompt).toContain(
+        "doctor_research_qa_fragment.v1"
+      );
+      expect(retryPrompt).toContain(
+        "Closed evidence allowed for the targeted answers"
+      );
+      expect(retryPrompt).toContain(
+        '"source_id":"src_pubmed_1001"'
+      );
+    }
     if (retryKind === "skill-contract") {
       expect(retryPrompt).toContain(
         "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
@@ -2095,6 +2152,31 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.quality.warnings).not.toContain(
         "peer_review_patch_applied"
       );
+    }
+    if (
+      retryKind === "body-markdown-only" ||
+      retryKind === "body-markdown-only-retry"
+    ) {
+      expect(result.review.markdown).toContain(
+        skillBodyFragment(20)
+      );
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "deterministic_body_fragment_qa_deferred_to_targeted_repair",
+          "bounded_qa_contract_retry_completed"
+        ])
+      );
+      if (retryKind === "body-markdown-only-retry") {
+        expect(result.quality.warnings).toContain(
+          "peer_review_call_reallocated_to_qa_contract_repair"
+        );
+        expect(result.quality.warnings).not.toContain(
+          "peer_review_model_attempted"
+        );
+        expect(result.quality.warnings).not.toContain(
+          "peer_review_model_completed"
+        );
+      }
     }
     if (retryKind === "peer-timeout") {
       expect(result.review.markdown).toContain(
@@ -2513,7 +2595,8 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety" ||
         retryKind === "body-section-repair" ||
-        retryKind === "qa-peer-section-repair"
+        retryKind === "qa-peer-section-repair" ||
+        retryKind === "body-markdown-only-retry"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||

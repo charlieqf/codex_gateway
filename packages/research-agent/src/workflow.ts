@@ -3374,30 +3374,48 @@ async function generateAndValidateShardedModelOutput(
   const initialValidationErrors = validation.ok
     ? []
     : validation.errors;
+  const bodyQaDeferredToTargetedRepair =
+    acceptedMiddleFragment.normalizationWarnings.includes(
+      "deterministic_body_fragment_qa_deferred_to_targeted_repair"
+    );
   const qaContractRetryRequired =
     !validation.ok &&
-    !shardTransportRetryCompleted &&
-    !shardContractRetryCompleted &&
-    !shardSkillContractRetryCompleted &&
     (
-      validation.errorCodes.some((code) =>
-        [
-          "answer_length_contract",
-          "question_length_contract"
-        ].includes(code)
-      ) ||
-      initialValidationErrors.some(
-        (error) =>
-          error.startsWith("numeric_evidence_closure:") &&
-          new RegExp(
-            `(?:^|[|:])answer_(?:${Array.from(
-              { length: reviewContractPolicy.answers.requiredCount },
-              (_, index) => index + 1
-            ).join("|")}):`,
-            "u"
-          ).test(error)
+      bodyQaDeferredToTargetedRepair ||
+      (
+        !shardTransportRetryCompleted &&
+        !shardContractRetryCompleted &&
+        !shardSkillContractRetryCompleted &&
+        (
+          validation.errorCodes.some((code) =>
+            [
+              "answer_length_contract",
+              "question_length_contract"
+            ].includes(code)
+          ) ||
+          initialValidationErrors.some(
+            (error) =>
+              error.startsWith("numeric_evidence_closure:") &&
+              new RegExp(
+                `(?:^|[|:])answer_(?:${Array.from(
+                  {
+                    length:
+                      reviewContractPolicy.answers.requiredCount
+                  },
+                  (_, index) => index + 1
+                ).join("|")}):`,
+                "u"
+              ).test(error)
+          )
+        )
       )
     );
+  const qaContractRetryAttempt: 4 | 5 =
+    shardContractRetryCompleted ||
+    shardSkillContractRetryCompleted ||
+    shardTransportRetryCompleted
+      ? 5
+      : 4;
   const deterministicSafetyPreview = validateGeneratedOutput(
     JSON.stringify(assembledDraft),
     context.run,
@@ -3639,7 +3657,7 @@ async function generateAndValidateShardedModelOutput(
   const qaContractRetryPromise = qaContractRetryRequired
     ? context.generateModel({
         stage: "synthesize_review",
-        attempt: 4,
+        attempt: qaContractRetryAttempt,
         ...boundedCorrectionOptions(8_000),
         system: doctorResearchQaSystemPolicy,
         prompt: buildQaContractCorrectionPrompt({
@@ -3647,6 +3665,7 @@ async function generateAndValidateShardedModelOutput(
           evidence,
           fragment: acceptedMiddleFragment,
           validationErrors: initialValidationErrors,
+          fallbackReferenceIndexes: middleIndexes,
           maximumQuestionContent:
             outputValidationPolicy.maximumQuestionContent,
           minimumAnswerContent:
@@ -3751,7 +3770,7 @@ async function generateAndValidateShardedModelOutput(
     if (!correctedQaFragment) {
       context.reportValidationFailure(
         "synthesize_review",
-        4,
+        qaContractRetryAttempt,
         ["qa_fragment_contract_error"]
       );
       return null;
@@ -3774,7 +3793,7 @@ async function generateAndValidateShardedModelOutput(
     if (!validation.ok) {
       context.reportValidationFailure(
         "synthesize_review",
-        4,
+        qaContractRetryAttempt,
         validation.errorCodes
       );
     }
@@ -3927,6 +3946,64 @@ async function generateAndValidateShardedModelOutput(
         outputValidationPolicy,
         { deterministicSafetyNormalization: true }
       );
+  // When an earlier bounded shard repair already consumed call four, the
+  // targeted QA repair is the fifth and final model call. Do not spend a sixth
+  // call on general peer rewriting: accept only a fully revalidated result and
+  // otherwise fail closed.
+  if (
+    bodyQaDeferredToTargetedRepair &&
+    qaContractRetryAttempt === 5
+  ) {
+    if (correctionUnavailableFallbackApplied) {
+      throw (
+        correctionUnavailableError ??
+        new Error("Targeted QA repair was unavailable.")
+      );
+    }
+    if (
+      !qaContractRetryCompleted ||
+      !postCorrectionSafetyValidation.ok
+    ) {
+      const errorCodes = postCorrectionSafetyValidation.ok
+        ? ["qa_targeted_repair_incomplete"]
+        : postCorrectionSafetyValidation.errorCodes;
+      const errorDetails = postCorrectionSafetyValidation.ok
+        ? undefined
+        : postCorrectionSafetyValidation.errors;
+      context.reportValidationFailure(
+        "validate_outputs",
+        5,
+        errorCodes,
+        errorDetails
+      );
+      return null;
+    }
+    return {
+      output: postCorrectionSafetyValidation.value,
+      warnings: [
+        ...postCorrectionSafetyValidation.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_call_reallocated_to_qa_contract_repair",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardAdmissionGraceElapsed
+          ? ["bounded_initial_shard_admission_grace_elapsed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        "bounded_qa_contract_retry_completed"
+      ]
+    };
+  }
   // The fifth and final call should repair the one section that remains
   // invalid after a successful bounded correction. Sending that slot to a
   // general peer patch would discard the already-structured diagnostic and
@@ -4832,6 +4909,7 @@ function buildQaContractCorrectionPrompt(input: {
   evidence: WorkflowEvidence;
   fragment: BodyFragment;
   validationErrors: readonly string[];
+  fallbackReferenceIndexes: readonly number[];
   maximumQuestionContent: number;
   minimumAnswerContent: number;
   maximumAnswerContent: number;
@@ -4847,12 +4925,22 @@ function buildQaContractCorrectionPrompt(input: {
         : []
     )
   );
+  const fallbackSourceIds = new Set(
+    input.fallbackReferenceIndexes
+      .map((index) => input.evidence.references[index]?.pmid)
+      .filter((pmid): pmid is string => Boolean(pmid))
+      .map((pmid) => `src_pubmed_${pmid}`)
+  );
+  const allowedSourceIds =
+    requestedSourceIds.size > 0
+      ? requestedSourceIds
+      : fallbackSourceIds;
   const evidence = input.evidence.references
     .map((reference) => {
       const sourceId = reference.pmid
         ? `src_pubmed_${reference.pmid}`
         : null;
-      if (!sourceId || !requestedSourceIds.has(sourceId)) {
+      if (!sourceId || !allowedSourceIds.has(sourceId)) {
         return null;
       }
       const publication = input.evidence.publicationEvidence.find(
@@ -4896,7 +4984,7 @@ function buildQaContractCorrectionPrompt(input: {
       predicted_questions: input.fragment.predicted_questions,
       answers: input.fragment.answers
     })}`,
-    `Closed evidence named by the prior answers: ${JSON.stringify(
+    `Closed evidence allowed for the targeted answers: ${JSON.stringify(
       evidence
     )}`
   ].join("\n\n");
@@ -5135,7 +5223,15 @@ function parseFoundationFragment(
 
 function parseBodyFragment(text: string): BodyFragment | null {
   const parsed = parseStrictFragmentJson(text);
-  if (!parsed.ok || !isJsonRecord(parsed.value)) {
+  if (!parsed.ok) {
+    const markdown =
+      parseMalformedReviewMarkdownField(text) ??
+      parseBareMarkdownFragment(text);
+    return markdown === null
+      ? null
+      : bodyFragmentWithDeferredQa(markdown);
+  }
+  if (!isJsonRecord(parsed.value)) {
     return null;
   }
   const value = parsed.value;
@@ -5167,6 +5263,25 @@ function parseBodyFragment(text: string): BodyFragment | null {
     };
   }
 
+  // Keep a valid body review when the model omitted the independent QA
+  // payload. The body Skill contract and the complete output validator still
+  // run, while the existing bounded QA-only call supplies the missing fields
+  // without rewriting any accepted review bytes. Reject partially present or
+  // ambiguous QA payloads instead of guessing which model fields to retain.
+  const hasQuestions = "predicted_questions" in value;
+  const hasAnswers = "answers" in value;
+  const markdownOnlyCandidates = [
+    value.markdown,
+    ...nestedRecords.map((record) => record.markdown)
+  ].filter(isUsableBodyFragmentMarkdown);
+  if (
+    !hasQuestions &&
+    !hasAnswers &&
+    markdownOnlyCandidates.length === 1
+  ) {
+    return bodyFragmentWithDeferredQa(markdownOnlyCandidates[0]!);
+  }
+
   // A complete-draft-shaped response commonly leaves questions and answers
   // at the top level while nesting markdown under review. Accept exactly one
   // such markdown source and reject ambiguous envelopes.
@@ -5189,6 +5304,18 @@ function parseBodyFragment(text: string): BodyFragment | null {
       value.answers as DoctorResearchModelDraft["answers"],
     normalizationWarnings: [
       "deterministic_body_fragment_envelope_normalization_applied"
+    ]
+  };
+}
+
+function bodyFragmentWithDeferredQa(markdown: string): BodyFragment {
+  return {
+    schema_version: "doctor_research_body_fragment.v1",
+    markdown,
+    predicted_questions: [],
+    answers: [],
+    normalizationWarnings: [
+      "deterministic_body_fragment_qa_deferred_to_targeted_repair"
     ]
   };
 }
