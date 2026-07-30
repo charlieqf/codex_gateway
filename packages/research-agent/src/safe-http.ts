@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
 
@@ -25,6 +24,31 @@ export interface ApprovedWebDocument {
   contentSha256: string;
   sizeBytes: number;
 }
+
+export interface ApprovedWebAddress {
+  address: string;
+  family: number;
+}
+
+export interface ApprovedWebPinnedResponse {
+  statusCode: number;
+  headers: import("node:http").IncomingHttpHeaders;
+  bytes: Buffer;
+}
+
+export type ApprovedWebLookup = (
+  hostname: string
+) => Promise<readonly ApprovedWebAddress[]>;
+
+export type ApprovedWebPinnedRequest = (input: {
+  url: URL;
+  address: string;
+  family: number;
+  signal: AbortSignal;
+  timeoutMs: number;
+  maximumBytes: number;
+  userAgent: string;
+}) => Promise<ApprovedWebPinnedResponse>;
 
 export async function fetchBoundedJson<T>(input: {
   url: URL;
@@ -122,6 +146,8 @@ export async function fetchApprovedWebDocument(input: {
   maximumBytes: number;
   maximumRedirects?: number;
   userAgent: string;
+  lookupImpl?: ApprovedWebLookup;
+  requestPinnedAddressImpl?: ApprovedWebPinnedRequest;
 }): Promise<ApprovedWebDocument> {
   validateHttpLimit(input.timeoutMs, "timeoutMs");
   validateHttpLimit(input.maximumBytes, "maximumBytes");
@@ -129,6 +155,19 @@ export async function fetchApprovedWebDocument(input: {
     throw new Error("A non-empty User-Agent is required.");
   }
   const allowedDomains = normalizeAllowedDomains(input.allowedDomains);
+  const signal = AbortSignal.any([
+    input.signal,
+    AbortSignal.timeout(input.timeoutMs)
+  ]);
+  const lookupImpl: ApprovedWebLookup =
+    input.lookupImpl ??
+    (async (hostname) =>
+      await lookup(hostname, {
+        all: true,
+        verbatim: true
+      }));
+  const requestAddress =
+    input.requestPinnedAddressImpl ?? requestPinnedAddress;
   let current = new URL(input.url.toString());
   const maximumRedirects = input.maximumRedirects ?? 3;
   if (
@@ -140,28 +179,52 @@ export async function fetchApprovedWebDocument(input: {
   }
   for (let redirect = 0; redirect <= maximumRedirects; redirect += 1) {
     validateApprovedUrl(current, allowedDomains);
-    const addresses = await lookup(current.hostname, {
-      all: true,
-      verbatim: true
-    });
+    const addresses = await lookupImpl(current.hostname);
     if (
       addresses.length === 0 ||
       addresses.some(
-        (item) => !isPublicResearchAddress(item.address)
+        (item) =>
+          isIP(item.address) !== item.family ||
+          !isPublicResearchAddress(item.address)
       )
     ) {
       throw new Error("Approved source resolved to a non-public address.");
     }
-    const selected = addresses[0]!;
-    const response = await requestPinnedAddress({
-      url: current,
-      address: selected.address,
-      family: selected.family,
-      signal: input.signal,
-      timeoutMs: input.timeoutMs,
-      maximumBytes: input.maximumBytes,
-      userAgent: input.userAgent
-    });
+    const orderedAddresses = [...addresses].sort(
+      (left, right) =>
+        addressFamilyPriority(left.family) -
+        addressFamilyPriority(right.family)
+    );
+    let response: ApprovedWebPinnedResponse | null = null;
+    let lastConnectionError: unknown = null;
+    for (const selected of orderedAddresses) {
+      try {
+        response = await requestAddress({
+          url: current,
+          address: selected.address,
+          family: selected.family,
+          signal,
+          timeoutMs: input.timeoutMs,
+          maximumBytes: input.maximumBytes,
+          userAgent: input.userAgent
+        });
+        break;
+      } catch (error) {
+        if (
+          signal.aborted ||
+          !isRetryableAddressConnectionError(error)
+        ) {
+          throw error;
+        }
+        lastConnectionError = error;
+      }
+    }
+    if (response === null) {
+      throw (
+        lastConnectionError ??
+        new Error("Approved source did not expose a reachable address.")
+      );
+    }
     if (isRedirect(response.statusCode)) {
       if (redirect === maximumRedirects) {
         throw new Error("Approved source exceeded the redirect limit.");
@@ -235,12 +298,7 @@ async function requestPinnedAddress(input: {
   timeoutMs: number;
   maximumBytes: number;
   userAgent: string;
-}): Promise<{
-  statusCode: number;
-  headers: import("node:http").IncomingHttpHeaders;
-  bytes: Buffer;
-}> {
-  const request = input.url.protocol === "https:" ? httpsRequest : httpRequest;
+}): Promise<ApprovedWebPinnedResponse> {
   const signal = AbortSignal.any([
     input.signal,
     AbortSignal.timeout(input.timeoutMs)
@@ -248,26 +306,19 @@ async function requestPinnedAddress(input: {
   return await new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
-    const req = request(
-      input.url,
+    const req = httpsRequest(
       {
+        protocol: "https:",
+        hostname: input.address,
+        port: input.url.port || 443,
+        path: `${input.url.pathname}${input.url.search}`,
         method: "GET",
+        family: input.family === 6 ? 6 : 4,
         headers: {
           accept: "text/html, application/xhtml+xml, text/plain;q=0.9",
           "accept-encoding": "identity",
+          host: input.url.host,
           "user-agent": input.userAgent
-        },
-        lookup: (_hostname, options, callback) => {
-          const family = input.family === 6 ? 6 : 4;
-          if (
-            typeof options === "object" &&
-            options !== null &&
-            options.all
-          ) {
-            callback(null, [{ address: input.address, family }]);
-            return;
-          }
-          callback(null, input.address, family);
         },
         servername: input.url.hostname,
         signal
@@ -300,6 +351,28 @@ async function requestPinnedAddress(input: {
     req.on("error", reject);
     req.end();
   });
+}
+
+function addressFamilyPriority(family: number): number {
+  return family === 4 ? 0 : 1;
+}
+
+function isRetryableAddressConnectionError(error: unknown): boolean {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("code" in error)
+  ) {
+    return false;
+  }
+  return new Set([
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "EHOSTUNREACH",
+    "ENETDOWN",
+    "ENETUNREACH",
+    "ETIMEDOUT"
+  ]).has(String(error.code));
 }
 
 export async function readBoundedResponseBody(

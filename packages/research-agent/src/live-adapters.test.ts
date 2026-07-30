@@ -18,6 +18,85 @@ describe("Doctor Research live first-party adapters", () => {
     expect(isPublicResearchAddress("not-an-address")).toBe(false);
   });
 
+  it("pins an approved dual-stack source to IPv4 before unreachable IPv6", async () => {
+    const requestedAddresses: string[] = [];
+    const result = await fetchApprovedWebDocument({
+      url: new URL("https://hospital.example/doctors/example"),
+      allowedDomains: ["hospital.example"],
+      signal: new AbortController().signal,
+      timeoutMs: 1_000,
+      maximumBytes: 10_000,
+      userAgent: "codex-gateway-research-test/1.0",
+      lookupImpl: async () => [
+        { address: "2606:4700:4700::1111", family: 6 },
+        { address: "202.120.143.40", family: 4 }
+      ],
+      requestPinnedAddressImpl: async (input) => {
+        requestedAddresses.push(input.address);
+        if (input.family === 6) {
+          throw Object.assign(new Error("IPv6 is unreachable"), {
+            code: "ENETUNREACH"
+          });
+        }
+        return {
+          statusCode: 200,
+          headers: {
+            "content-type": "text/html",
+            "content-encoding": "identity"
+          },
+          bytes: Buffer.from(
+            "<html><head><title>Verified profile</title></head><body>Example Doctor at Example Hospital.</body></html>",
+            "utf8"
+          )
+        };
+      }
+    });
+
+    expect(requestedAddresses).toEqual(["202.120.143.40"]);
+    expect(result).toMatchObject({
+      title: "Verified profile",
+      text: "Verified profile Example Doctor at Example Hospital."
+    });
+  });
+
+  it("falls back to the next pinned public address after a connection error", async () => {
+    const requestedAddresses: string[] = [];
+    const result = await fetchApprovedWebDocument({
+      url: new URL("https://hospital.example/doctors/example"),
+      allowedDomains: ["hospital.example"],
+      signal: new AbortController().signal,
+      timeoutMs: 1_000,
+      maximumBytes: 10_000,
+      userAgent: "codex-gateway-research-test/1.0",
+      lookupImpl: async () => [
+        { address: "202.120.143.40", family: 4 },
+        { address: "202.120.143.41", family: 4 }
+      ],
+      requestPinnedAddressImpl: async (input) => {
+        requestedAddresses.push(input.address);
+        if (requestedAddresses.length === 1) {
+          throw Object.assign(new Error("route unavailable"), {
+            code: "ENETUNREACH"
+          });
+        }
+        return {
+          statusCode: 200,
+          headers: {
+            "content-type": "text/plain",
+            "content-encoding": "identity"
+          },
+          bytes: Buffer.from("Verified fallback profile", "utf8")
+        };
+      }
+    });
+
+    expect(requestedAddresses).toEqual([
+      "202.120.143.40",
+      "202.120.143.41"
+    ]);
+    expect(result.text).toBe("Verified fallback profile");
+  });
+
   it("parses bounded PubMed, Crossref, ORCID, and general Brave identity metadata", async () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(
