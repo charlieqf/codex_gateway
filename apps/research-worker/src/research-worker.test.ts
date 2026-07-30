@@ -3964,7 +3964,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("does not replay all adapters after an adapter exhausts its own retries", async () => {
+  it("allows one bounded run replay after a transient adapter HTTP failure", async () => {
     const fixture = createLeasedWorkflowFixture("adapter_transport");
     const unavailableAdapters = adapters();
     unavailableAdapters.searchOfficialSources = async () => {
@@ -3992,10 +3992,52 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({
       outcome: "failed",
       reason: "upstream_unavailable",
-      retryable: false
+      retryable: true,
+      dependencyScope: "request",
+      upstreamStatusCode: 503
     });
     fixture.store.close();
   });
+
+  it.each([
+    [400, "request"],
+    [403, "service"]
+  ] as const)(
+    "does not replay a permanent adapter HTTP %i failure",
+    async (statusCode, dependencyScope) => {
+      const fixture = createLeasedWorkflowFixture(
+        `adapter_http_${statusCode}`
+      );
+      const unavailableAdapters = adapters();
+      unavailableAdapters.searchOfficialSources = async () => {
+        throw new ResearchHttpError(statusCode, null);
+      };
+      const outcome = await executeDoctorResearchWorkflow({
+        lease: fixture.lease,
+        store: fixture.store,
+        adapters: unavailableAdapters,
+        modelClient: {
+          model: "test-model",
+          async generate() {
+            throw new Error("Model must not run after adapter failure.");
+          }
+        },
+        artifactRoot: fixture.artifactRoot,
+        policy: workflowPolicy(),
+        signal: new AbortController().signal,
+        now: () => fixture.now
+      });
+
+      expect(outcome).toEqual({
+        outcome: "failed",
+        reason: "upstream_unavailable",
+        retryable: false,
+        dependencyScope,
+        upstreamStatusCode: statusCode
+      });
+      fixture.store.close();
+    }
+  );
 
   it("bridges a Chinese display identity to verified PubMed metadata without changing localized artifacts", async () => {
     const input = runInput();
@@ -5020,6 +5062,84 @@ describe("Research Worker controlled-beta workflow", () => {
         })
         .find((heartbeat) => heartbeat.workerId === config.workerId)?.state
     ).toBe("draining");
+    observer.close();
+  });
+
+  it("keeps the Worker ready after a request-scoped upstream HTTP failure", async () => {
+    const root = temporaryDirectory();
+    const config = workerConfig(root);
+    const observer = createResearchSqliteStore({
+      path: config.databasePath,
+      limits: config.admissionLimits,
+      ...config.store
+    });
+    cleanupStores.push(observer);
+    const created = observer.createRun({
+      subjectId: "subj_worker_request_failure",
+      credentialId: "cred_worker_request_failure",
+      requestId: "req_worker_request_failure",
+      idempotencyKey: "research:worker-request-failure",
+      requestHash: "request-hash-worker-request-failure",
+      identityFingerprint: "identity-fingerprint-worker-request-failure",
+      input: runInput()
+    });
+    if (created.outcome !== "created") {
+      throw new Error("Research request-failure test run was not created.");
+    }
+    const requestAdapters = adapters();
+    requestAdapters.searchOfficialSources = async () => {
+      throw new ResearchHttpError(400, null);
+    };
+    const controller = new AbortController();
+    const upstreamEvents: Array<Record<string, unknown> | undefined> = [];
+    const runtime = runResearchWorker({
+      config,
+      signal: controller.signal,
+      logger: {
+        info() {},
+        error(event, fields) {
+          if (event === "research_run_upstream_failure") {
+            upstreamEvents.push(fields);
+          }
+        }
+      },
+      dependencies: {
+        adapters: {
+          ...requestAdapters,
+          async assertAvailable() {}
+        },
+        modelClient: {
+          model: "test-model",
+          async assertModelAvailable() {},
+          async generate() {
+            throw new Error("Model must not run after adapter failure.");
+          }
+        }
+      }
+    });
+
+    await waitFor(
+      () =>
+        observer.getRunForSubject(
+          created.run.runId,
+          "subj_worker_request_failure"
+        )?.status === "failed",
+      5_000
+    );
+    expect(
+      observer
+        .listWorkerHeartbeats({ staleAfterSeconds: 45 })
+        .find((heartbeat) => heartbeat.workerId === config.workerId)?.state
+    ).toBe("ready");
+    expect(upstreamEvents).toEqual([
+      expect.objectContaining({
+        dependency_scope: "request",
+        retryable: false,
+        upstream_http_status: 400
+      })
+    ]);
+    controller.abort(new Error("Request-failure test drain."));
+    await runtime;
     observer.close();
   });
 

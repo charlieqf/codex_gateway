@@ -332,6 +332,17 @@ export async function runResearchWorker(input: {
         if (workflow.outcome === "fenced_or_cancelled") {
           convergeCancellation(store, currentToken, config.leaseSeconds);
         } else if (workflow.outcome === "failed") {
+          if (workflow.reason === "upstream_unavailable") {
+            logger.error("research_run_upstream_failure", {
+              run_id: lease.run.runId,
+              lease_generation: currentToken.generation,
+              retryable: workflow.retryable === true,
+              dependency_scope:
+                workflow.dependencyScope ?? "service",
+              upstream_http_status:
+                workflow.upstreamStatusCode ?? null
+            });
+          }
           if (
             workflow.reason === "upstream_unavailable" &&
             workflow.retryable === true &&
@@ -348,7 +359,10 @@ export async function runResearchWorker(input: {
             });
             if (failed.outcome === "fenced_or_cancelled") {
               convergeCancellation(store, currentToken, config.leaseSeconds);
-            } else if (workflow.reason === "upstream_unavailable") {
+            } else if (
+              workflow.reason === "upstream_unavailable" &&
+              workflow.dependencyScope !== "request"
+            ) {
               stopForDependencyFailure();
             }
           }

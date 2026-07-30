@@ -112,6 +112,8 @@ export type DoctorResearchWorkflowResult =
       outcome: "failed";
       reason: ResearchFailureReason;
       retryable?: boolean;
+      dependencyScope?: "request" | "service";
+      upstreamStatusCode?: number;
     };
 
 export async function executeDoctorResearchWorkflow(input: {
@@ -480,10 +482,17 @@ export async function executeDoctorResearchWorkflow(input: {
       };
     }
     if (error instanceof ResearchHttpError) {
+      const transient =
+        error.statusCode === 429 || error.statusCode >= 500;
       return {
         outcome: "failed",
         reason: "upstream_unavailable",
-        retryable: false
+        retryable: transient && context.modelCallsStarted <= 1,
+        dependencyScope:
+          error.statusCode === 401 || error.statusCode === 403
+            ? "service"
+            : "request",
+        upstreamStatusCode: error.statusCode
       };
     }
     return {
