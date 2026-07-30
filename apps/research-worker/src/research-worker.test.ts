@@ -475,6 +475,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "peer_review_patch_fallback_to_deterministic_safety"
     ],
     [
+      "peer-patch-mismatch",
+      "peer_review_patch_fallback_to_deterministic_safety"
+    ],
+    [
       "section-repair",
       "peer_review_contract_unusable_deterministic_fallback"
     ],
@@ -543,7 +547,10 @@ describe("Research Worker controlled-beta workflow", () => {
     foundation.review.title = "公开摘要证据的规范综合";
     foundation.review.abstract =
       "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。针对不同研究对象、数据来源、观察终点和随访框架，本文逐项比较其一致性与差异，并把样本选择、测量误差、偏倚控制及外部适用性纳入证据分级。对于病例报告、观察性队列和其他非随机证据，只描述其技术可行性或统计关联，不将其写成普遍临床获益。对摘要没有披露的统计方法、缺失数据处理和敏感性分析保持沉默，避免以题名或期刊信息补写事实。综述进一步梳理各主题之间的逻辑联系，说明哪些结论得到直接数据支持，哪些仅构成趋势或研究假设，并提出需要前瞻性验证、外部验证和长期患者结局研究的问题。";
-    if (retryKind === "peer-contract") {
+    if (
+      retryKind === "peer-contract" ||
+      retryKind === "peer-patch-mismatch"
+    ) {
       foundation.review.abstract =
         "综述严格限定于公开元数据与摘要证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。针对不同研究对象、数据来源、观察终点和随访框架，本文逐项比较其一致性与差异，并把样本选择、测量误差、偏倚控制及外部适用性纳入证据分级。对于病例报告、观察性队列和其他非随机证据，只描述其技术可行性或统计关联，不将其写成普遍临床获益。该研究错误声称纳入999999例患者并获得确定性临床改善，且据此提出普遍治疗建议，但该数字无法由任何公开摘要核验。";
     }
@@ -1604,6 +1611,35 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "peer-patch-mismatch" &&
+            modelInput.stage === "validate_outputs"
+          ) {
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [
+                  {
+                    target: "markdown",
+                    old_text:
+                      "stale peer-review text that is not present",
+                    new_text:
+                      "This replacement must never be applied."
+                  }
+                ],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_peer_patch_mismatch",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -1863,6 +1899,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "skill-closing-normalization" ||
       retryKind === "skill-normalization" ||
       retryKind === "peer-convergence" ||
+      retryKind === "peer-patch-mismatch" ||
       retryKind === "section-repair" ||
       retryKind === "correction-timeout" ||
       retryKind === "body-envelope" ||

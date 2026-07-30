@@ -4353,6 +4353,7 @@ async function generateAndValidateShardedModelOutput(
       "Peer review decision state is inconsistent after fallback."
     );
   }
+  let peerReviewPatchFallbackApplied = false;
   let patchedDraft = applyPeerReviewPatches(
     assembledDraft,
     peerReview
@@ -4361,9 +4362,23 @@ async function generateAndValidateShardedModelOutput(
     context.reportValidationFailure(
       "validate_outputs",
       peerReviewAttempt,
-      ["peer_review_patch_error"]
+      ["peer_review_patch_error"],
+      postCorrectionSafetyValidation.ok
+        ? undefined
+        : postCorrectionSafetyValidation.errors.length > 0
+          ? postCorrectionSafetyValidation.errors
+          : postCorrectionSafetyValidation.errorCodes
     );
-    return null;
+    // A syntactically valid peer decision can still carry stale or ambiguous
+    // old_text. Never apply such a patch. If the exact pre-patch candidate has
+    // already passed every deterministic quality and evidence gate, retain
+    // that validated candidate just as we do for an unusable peer response.
+    // An unsafe pre-patch candidate remains fail-closed.
+    if (!postCorrectionSafetyValidation.ok) {
+      return null;
+    }
+    patchedDraft = assembledDraft;
+    peerReviewPatchFallbackApplied = true;
   }
   const normalizedPatchedAbstract =
     normalizeNearMinimumDraftAbstract(
@@ -4399,7 +4414,6 @@ async function generateAndValidateShardedModelOutput(
       { deterministicSafetyNormalization: true }
     );
   }
-  let peerReviewPatchFallbackApplied = false;
   if (!validation.ok && peerReview.replacements.length > 0) {
     const unpatchedValidation = validateGeneratedOutput(
       JSON.stringify(assembledDraft),
