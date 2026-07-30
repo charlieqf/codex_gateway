@@ -2,6 +2,12 @@ import { countReviewContractContent } from "./review-contract-policy.js";
 
 export type ReviewContractLanguage = "zh-CN" | "en";
 
+export const reviewProsePromptContract = [
+  "Write every blank-line-separated paragraph as a standalone complete unit with an explicit subject.",
+  "Do not begin a paragraph or post-period sentence with a demonstrative, comparative, research verb, result fragment, or transition whose antecedent exists only in another paragraph or synthesis shard.",
+  "Do not leave truncated numeric prose, unfinished comparisons, unbalanced delimiters, duplicated padding paragraphs, or embedded questions and answers inside the review."
+].join(" ");
+
 const citedResultFragment =
   /[^。！？]{0,220}(?:显示|表明|发现|提示)\s*(\[[0-9,\s-]+\])\s*[。！？]/u;
 const titleInferenceFragment =

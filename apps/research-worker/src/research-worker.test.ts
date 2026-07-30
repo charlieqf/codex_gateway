@@ -2151,6 +2151,17 @@ describe("Research Worker controlled-beta workflow", () => {
         "mandatory concise peer-review self-check"
       );
     }
+    if (retryKind === "peer-contract") {
+      expect(retryPrompt).toContain(
+        "Structured mandatory diagnostic plan"
+      );
+      expect(retryPrompt).toContain(
+        "standalone complete unit with an explicit subject"
+      );
+      expect(retryPrompt).toContain(
+        "Do not stop after repairing only paragraph citations"
+      );
+    }
     if (retryKind === "transport-skill") {
       expect(retryPrompt).toContain(
         "BOUNDED MEDICAL-SKILL CONTRACT RETRY"

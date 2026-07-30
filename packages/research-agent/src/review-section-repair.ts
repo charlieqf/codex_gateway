@@ -161,6 +161,128 @@ export function applyReviewSectionRepair(input: {
   );
 }
 
+export interface PeerReviewDiagnosticGroup {
+  code: string;
+  count: number;
+  details: string[];
+}
+
+export interface PeerReviewDiagnosticLocation {
+  target: "title" | "abstract" | "markdown";
+  paragraph: number | null;
+  exact_text: string;
+  codes: string[];
+  details: string[];
+}
+
+export interface PeerReviewDiagnosticPlan {
+  groups: PeerReviewDiagnosticGroup[];
+  locations: PeerReviewDiagnosticLocation[];
+}
+
+/**
+ * Preserve every deterministic diagnostic category when preparing one bounded
+ * peer decision. A flat prefix can let numerous citation details crowd later
+ * evidence-grade or prose-integrity categories out of the prompt. Locations
+ * carry exact candidate text so the model does not have to count paragraphs
+ * before producing an old_text/new_text patch.
+ */
+export function buildPeerReviewDiagnosticPlan(input: {
+  title: string;
+  abstract: string;
+  markdown: string;
+  errors: readonly string[];
+}): PeerReviewDiagnosticPlan {
+  const groupEntries = new Map<string, string[]>();
+  for (const error of input.errors) {
+    const normalized = error.trim();
+    if (normalized === "") {
+      continue;
+    }
+    const code = normalized.split(":", 1)[0]!;
+    const entries = groupEntries.get(code) ?? [];
+    if (!entries.includes(normalized)) {
+      entries.push(normalized);
+    }
+    groupEntries.set(code, entries);
+  }
+
+  const groups: PeerReviewDiagnosticGroup[] = [...groupEntries].map(
+    ([code, entries]) => ({ code, count: entries.length, details: [] })
+  );
+  let detailBudget = 24;
+  for (let detailIndex = 0; detailBudget > 0; detailIndex += 1) {
+    let added = false;
+    for (const [groupIndex, [, entries]] of [...groupEntries].entries()) {
+      const detail = entries[detailIndex];
+      if (detail === undefined || detailBudget === 0) {
+        continue;
+      }
+      groups[groupIndex]!.details.push(detail);
+      detailBudget -= 1;
+      added = true;
+    }
+    if (!added) {
+      break;
+    }
+  }
+
+  const paragraphs = input.markdown.split(/\n\s*\n/gu);
+  const locations = new Map<string, PeerReviewDiagnosticLocation>();
+  const addLocation = (
+    target: PeerReviewDiagnosticLocation["target"],
+    paragraph: number | null,
+    exactText: string,
+    code: string,
+    detail: string
+  ): void => {
+    const key = `${target}:${paragraph ?? 0}`;
+    const existing = locations.get(key) ?? {
+      target,
+      paragraph,
+      exact_text: exactText,
+      codes: [],
+      details: []
+    };
+    if (!existing.codes.includes(code)) {
+      existing.codes.push(code);
+    }
+    if (!existing.details.includes(detail)) {
+      existing.details.push(detail);
+    }
+    locations.set(key, existing);
+  };
+
+  for (const [code, entries] of groupEntries) {
+    for (const detail of entries) {
+      if (
+        code.includes("abstract") ||
+        /:abstract(?:$|:)/u.test(detail)
+      ) {
+        addLocation("abstract", null, input.abstract, code, detail);
+      }
+      if (code.includes("title") || /:title(?:$|:)/u.test(detail)) {
+        addLocation("title", null, input.title, code, detail);
+      }
+      const paragraphNumbers = new Set<number>();
+      for (const match of detail.matchAll(/paragraph=([1-9][0-9]*)/gu)) {
+        paragraphNumbers.add(Number.parseInt(match[1]!, 10));
+      }
+      for (const match of detail.matchAll(/review_([1-9][0-9]*):/gu)) {
+        paragraphNumbers.add(Number.parseInt(match[1]!, 10));
+      }
+      for (const paragraph of paragraphNumbers) {
+        const exactText = paragraphs[paragraph - 1]?.trim();
+        if (exactText) {
+          addLocation("markdown", paragraph, exactText, code, detail);
+        }
+      }
+    }
+  }
+
+  return { groups, locations: [...locations.values()] };
+}
+
 export function allowsBoundedRepairConvergence(
   errorCodes: readonly string[],
   hasSingleSectionCandidate: boolean

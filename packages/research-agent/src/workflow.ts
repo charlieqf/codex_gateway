@@ -60,12 +60,14 @@ import {
 import {
   repairReviewUnbalancedDelimiters,
   repairReviewProseStarts,
+  reviewProsePromptContract,
   validateCompleteReviewPresentationRules,
   validateReviewProseIntegrityRules
 } from "./review-prose-rules.js";
 import {
   allowsBoundedRepairConvergence,
   applyReviewSectionRepair,
+  buildPeerReviewDiagnosticPlan,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
   selectSectionRepairAllowedCitationNumbers,
@@ -5221,6 +5223,12 @@ function buildPeerReviewPatchPrompt(input: {
   validationErrors: readonly string[];
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
+  const diagnosticPlan = buildPeerReviewDiagnosticPlan({
+    title: input.draft.review.title,
+    abstract: input.draft.review.abstract,
+    markdown: input.draft.review.markdown,
+    errors: input.validationErrors
+  });
   const evidence = input.evidence.references.map((reference, index) => {
     const publication = input.evidence.publicationEvidence.find(
       (item) => item.reference_id === reference.reference_id
@@ -5243,11 +5251,14 @@ function buildPeerReviewPatchPrompt(input: {
     "Check title and abstract accuracy, evidence grading, exact numeric support, paragraph citations, evidence scope, causal language, formal review depth, length, conclusion support, and the target of at least 40 verified references.",
     "Return only a compact patch decision with this exact shape: {\"schema_version\":\"doctor_research_peer_review.v1\",\"approved\":true,\"replacements\":[{\"target\":\"title|abstract|markdown\",\"old_text\":\"exact existing substring\",\"new_text\":\"corrected replacement\"}],\"warnings\":[\"short_machine_code\"]}.",
     "Use at most 12 replacements. Each old_text must be an exact unique substring of its target. Do not return the complete draft.",
+    "Every diagnostic group in the structured mandatory plan must be resolved by this one decision before approved=true. Do not stop after repairing only paragraph citations or the first listed category.",
+    "Prioritize exact numeric evidence closure, evidence grade and causal-language scope, and standalone prose integrity before citation coverage or optional style changes. Remove the smallest unsupported clause instead of inventing support. Downgrade unsupported causal wording to a non-causal association. Replace orphaned demonstratives with an explicit subject already present in the candidate or closed evidence.",
+    "The plan's exact_text values are copied verbatim from the candidate. Use an exact_text value, or a unique exact substring of it, as old_text. One replacement should resolve every listed diagnostic attached to the same location while preserving section length and coherence.",
     `A replacement must not add a source, citation number, identifier, fact, or narrative number absent from the closed evidence. Preserve length and coherence; after all replacements, aim to retain the medical targets of ${reviewContractPolicy.sections.introduction.targetMinimum} content units for the introduction, ${reviewContractPolicy.sections.topic.targetMinimum} for every topic-specific section, ${reviewContractPolicy.sections.synthesis.targetMinimum} for evidence synthesis, ${reviewContractPolicy.sections.limitations.targetMinimum} for limitations and outlook, and ${reviewContractPolicy.sections.conclusion.targetMinimum} for the conclusion.`,
     "Correct the smallest unsafe clause or sentence instead of replacing a complete long paragraph with a short summary. Case reports and case series must not be promoted into routine, standard, or preferred treatment recommendations.",
     "If no correction is needed, set approved=true with an empty replacements array. If corrections are supplied, set approved to whether the corrected review passes the self-check.",
-    `Language: ${input.run.language}. Deterministic server diagnostics: ${JSON.stringify(
-      input.validationErrors.slice(0, 24)
+    `Language: ${input.run.language}. Structured mandatory diagnostic plan: ${JSON.stringify(
+      diagnosticPlan
     )}`,
     `Candidate review: ${JSON.stringify({
       title: input.draft.review.title,
@@ -5271,6 +5282,7 @@ function compactMedicalSkillExecutionContract(
         `${document.relativePath} source_sha256=${document.sha256}`
     ),
     "The Worker loaded and verified the exact read-only medical-team bundle. Retrieval, identity resolution, PubMed metadata verification, citation closure, and artifact formatting are performed by the Worker. The model must preserve the bundle's business requirements without adding new ones.",
+    reviewProsePromptContract,
     `Derived review contract ${reviewContractPolicy.policyVersion} from ${reviewContractPolicy.sourceSkill} at bundle SHA-256 ${reviewContractPolicy.sourceBundleSha256}. The original medical length targets remain the authoring targets; the versioned controlled-trial release floors are server-side acceptance boundaries and require medical review before expanded release.`,
     `Required review form and targets: academic title; ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract; ${reviewContractPolicy.keywords.minimumCount}-${reviewContractPolicy.keywords.maximumCount} keywords; introduction targeting at least ${reviewContractPolicy.sections.introduction.targetMinimum} content units; ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-paper core evidence table; ${reviewContractPolicy.sections.topic.minimumCount}-${reviewContractPolicy.sections.topic.maximumCount} topic-specific body sections targeting at least ${reviewContractPolicy.sections.topic.targetMinimum} content units each; evidence synthesis and controversies targeting at least ${reviewContractPolicy.sections.synthesis.targetMinimum}; limitations and outlook targeting at least ${reviewContractPolicy.sections.limitations.targetMinimum}; conclusion targeting at least ${reviewContractPolicy.sections.conclusion.targetMinimum}; numeric in-text citations; at least ${reviewContractPolicy.coreEvidence.targetReferenceCount} references as the target, with authenticity taking priority.`,
     "Required writing behavior: coherent formal scientific review; paragraphs rather than list substitution; cross-study comparison; explicit evidence strength, disagreement, limits, and actionable research gaps; public metadata and abstract evidence must not be represented as full-text verification.",

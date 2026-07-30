@@ -8,6 +8,7 @@ import {
 import {
   repairReviewUnbalancedDelimiters,
   repairReviewProseStarts,
+  reviewProsePromptContract,
   validateCompleteReviewPresentationRules,
   validateReviewProseIntegrityRules
 } from "./review-prose-rules.js";
@@ -76,6 +77,18 @@ describe("Doctor Research derived review contract", () => {
       ])
     );
     expect(after).toEqual([]);
+  });
+
+  it("projects the shared standalone-paragraph rules into model prompts", () => {
+    expect(reviewProsePromptContract).toContain(
+      "standalone complete unit with an explicit subject"
+    );
+    expect(reviewProsePromptContract).toContain(
+      "demonstrative, comparative, research verb, result fragment"
+    );
+    expect(reviewProsePromptContract).toContain(
+      "truncated numeric prose"
+    );
   });
 
   it("keeps embedded auxiliary output as a language-independent hard error", () => {

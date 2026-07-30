@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   allowsBoundedRepairConvergence,
   applyReviewSectionRepair,
+  buildPeerReviewDiagnosticPlan,
   createReviewSectionRepairTarget,
   listReviewSectionSlices,
   selectSectionRepairAllowedCitationNumbers,
@@ -139,6 +140,91 @@ describe("Doctor Research targeted section repair", () => {
     expect(
       allowsBoundedRepairConvergence(["review_title_language_contract"], false)
     ).toBe(true);
+  });
+
+  it("keeps every hard diagnostic category and binds it to exact candidate text", () => {
+    const paragraphs = Array.from(
+      { length: 30 },
+      (_, index) => `Paragraph ${index + 1} with closed citation [1].`
+    );
+    const errors = [
+      ...paragraphs.map(
+        (_, index) =>
+          `paragraph_citation_coverage:paragraph=${index + 1}`
+      ),
+      "review_orphaned_demonstrative_start:paragraph=9",
+      "numeric_evidence_closure:review_11:7|review_12:8",
+      "causal_claim_evidence_grade:paragraph=4"
+    ];
+
+    const plan = buildPeerReviewDiagnosticPlan({
+      title: "Exact title",
+      abstract: "Exact abstract",
+      markdown: paragraphs.join("\n\n"),
+      errors
+    });
+
+    expect(plan.groups.map((group) => group.code)).toEqual([
+      "paragraph_citation_coverage",
+      "review_orphaned_demonstrative_start",
+      "numeric_evidence_closure",
+      "causal_claim_evidence_grade"
+    ]);
+    expect(
+      plan.groups.reduce(
+        (count, group) => count + group.details.length,
+        0
+      )
+    ).toBe(24);
+    expect(plan.groups.every((group) => group.details.length > 0)).toBe(
+      true
+    );
+    expect(plan.locations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target: "markdown",
+          paragraph: 4,
+          exact_text: paragraphs[3],
+          codes: expect.arrayContaining([
+            "paragraph_citation_coverage",
+            "causal_claim_evidence_grade"
+          ])
+        }),
+        expect.objectContaining({
+          target: "markdown",
+          paragraph: 9,
+          exact_text: paragraphs[8],
+          codes: expect.arrayContaining([
+            "paragraph_citation_coverage",
+            "review_orphaned_demonstrative_start"
+          ])
+        }),
+        expect.objectContaining({
+          target: "markdown",
+          paragraph: 11,
+          exact_text: paragraphs[10],
+          codes: expect.arrayContaining([
+            "numeric_evidence_closure"
+          ])
+        }),
+        expect.objectContaining({
+          target: "markdown",
+          paragraph: 12,
+          exact_text: paragraphs[11],
+          codes: expect.arrayContaining([
+            "numeric_evidence_closure"
+          ])
+        })
+      ])
+    );
+    expect(
+      buildPeerReviewDiagnosticPlan({
+        title: "Exact title",
+        abstract: "Exact abstract",
+        markdown: paragraphs.join("\n\n"),
+        errors
+      })
+    ).toEqual(plan);
   });
 
   it("binds peer convergence to the only failing review field", () => {
