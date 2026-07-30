@@ -7923,7 +7923,8 @@ async function resolveResearchTopicTerms(
 
   const prompt = buildResearchTopicInferencePrompt(
     context.run,
-    identity
+    identity,
+    officialDirection
   );
   const system = [
     "Convert a verified doctor department and bounded official-profile excerpts into PubMed search terms.",
@@ -7958,18 +7959,27 @@ async function resolveResearchTopicTerms(
 
 function buildResearchTopicInferencePrompt(
   run: ResearchRunRecord,
-  identity: ResolvedDoctorResearchIdentity
+  identity: ResolvedDoctorResearchIdentity,
+  officialDirection: DoctorResearchModelOutput["profile"]["claims"][number] | null
 ): string {
-  const sources = identity.sourceEvidence
-    .filter((source) => source.source_type === "official_web")
-    .slice(0, 3)
-    .map((source) => ({
-      source_id: source.source_id,
-      excerpt: mechanicallyBoundPromptText(
-        source.untrusted_text,
-        1_500
-      )
-    }));
+  const sources = officialDirection
+    ? officialDirection.source_ids.map((sourceId) => ({
+        source_id: sourceId,
+        excerpt: mechanicallyBoundPromptText(
+          officialDirection.text,
+          1_000
+        )
+      }))
+    : identity.sourceEvidence
+        .filter((source) => source.source_type === "official_web")
+        .slice(0, 1)
+        .map((source) => ({
+          source_id: source.source_id,
+          excerpt: mechanicallyBoundPromptText(
+            source.untrusted_text,
+            1_000
+          )
+        }));
   return JSON.stringify({
     task: "derive_biomedical_pubmed_search_terms",
     doctor_context: {

@@ -4040,19 +4040,39 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     const generalAdapters = adapters(0);
     const observedQueries: string[] = [];
+    generalAdapters.searchOfficialSources = async () => [
+      "src_official_1",
+      "src_official_2",
+      "src_official_3"
+    ];
     generalAdapters.searchPubMed = async (query) => {
       observedQueries.push(query);
       return observedQueries.length === 1 ? [] : ["2002"];
     };
-    generalAdapters.fetchApprovedSource = async () => ({
-      sourceId: "src_official_1",
-      url: "https://hospital.example/doctor/lu",
-      title: "陆清声",
-      accessedAt: "2026-07-18T03:00:00.000Z",
-      contentSha256: "a".repeat(64),
-      untrustedText:
-        "陆清声，长海医院血管外科医生。研究方向为血管外科。"
-    });
+    generalAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_official_1"
+        ? {
+            sourceId,
+            url: "https://hospital.example/doctor/lu",
+            title: "陆清声",
+            accessedAt: "2026-07-18T03:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText:
+              "陆清声，长海医院血管外科医生。主要研究方向为血管外科。"
+          }
+        : {
+            sourceId,
+            url: `https://hospital.example/doctor/lu-${sourceId.slice(-1)}`,
+            title: "陆清声临床介绍",
+            accessedAt: "2026-07-18T03:00:00.000Z",
+            contentSha256: sourceId.endsWith("2")
+              ? "b".repeat(64)
+              : "d".repeat(64),
+            untrustedText: [
+              "陆清声，长海医院血管外科医生。",
+              "外科临床介绍。".repeat(2_000)
+            ].join("")
+          };
     generalAdapters.getPubMedMetadata = async () => ({
       referenceId: "ref_pubmed_2002",
       pmid: "2002",
@@ -4120,6 +4140,7 @@ describe("Research Worker controlled-beta workflow", () => {
       source_ids: ["src_pubmed_2002"]
     }));
     const modelStages: string[] = [];
+    let topicInferencePrompt = "";
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -4128,6 +4149,9 @@ describe("Research Worker controlled-beta workflow", () => {
         model: "test-model",
         async generate(request) {
           modelStages.push(request.stage);
+          if (request.stage === "infer_research_topics") {
+            topicInferencePrompt = request.prompt;
+          }
           return {
             text:
               request.stage === "infer_research_topics"
@@ -4148,6 +4172,9 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
+    expect(topicInferencePrompt.length).toBeLessThan(2_000);
+    expect(topicInferencePrompt).toContain("研究方向为血管外科");
+    expect(topicInferencePrompt).not.toContain("外科临床介绍");
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(observedQueries).toHaveLength(2);
     expect(observedQueries[0]).toContain('"陆清声"[Author]');
