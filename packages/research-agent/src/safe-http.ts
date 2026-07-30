@@ -89,7 +89,7 @@ export async function fetchBoundedJson<T>(input: {
   try {
     value = JSON.parse(bytes.toString("utf8")) as T;
   } catch {
-    throw new Error("External service returned invalid JSON.");
+    throw new ResearchExternalServiceError("invalid_payload");
   }
   return {
     value,
@@ -287,6 +287,17 @@ export class ResearchHttpError extends Error {
   ) {
     super(`External service returned HTTP ${statusCode}.`);
     this.name = "ResearchHttpError";
+  }
+}
+
+export type ResearchExternalServiceErrorKind =
+  | "invalid_payload"
+  | "transport";
+
+export class ResearchExternalServiceError extends Error {
+  constructor(readonly kind: ResearchExternalServiceErrorKind) {
+    super(`External service ${kind.replaceAll("_", " ")}.`);
+    this.name = "ResearchExternalServiceError";
   }
 }
 

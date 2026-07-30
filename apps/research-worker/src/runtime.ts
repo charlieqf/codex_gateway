@@ -340,7 +340,8 @@ export async function runResearchWorker(input: {
               dependency_scope:
                 workflow.dependencyScope ?? "service",
               upstream_http_status:
-                workflow.upstreamStatusCode ?? null
+                workflow.upstreamStatusCode ?? null,
+              upstream_error_kind: workflow.upstreamErrorKind ?? null
             });
           }
           if (

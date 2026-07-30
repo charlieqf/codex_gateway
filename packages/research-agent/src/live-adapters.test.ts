@@ -3,6 +3,7 @@ import {
   fetchApprovedWebDocument,
   isPublicResearchAddress,
   LiveResearchAdapters,
+  ResearchExternalServiceError,
   ResearchHttpError
 } from "./index.js";
 
@@ -389,6 +390,56 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).resolves.toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a malformed successful PubMed search response within the same call", async () => {
+    const fetchImpl = vi.fn(async () => {
+      if (fetchImpl.mock.calls.length < 3) {
+        return jsonResponse({ error: "temporary malformed response" });
+      }
+      return jsonResponse({ esearchresult: { idlist: ["1001", "1001", "1002"] } });
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: { maximumResults: 5 },
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"]
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchPubMed("verified query", new AbortController().signal)
+    ).resolves.toEqual(["1001", "1002"]);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("classifies an exhausted malformed PubMed response as a request-scoped upstream payload error", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(null));
+    const adapters = new LiveResearchAdapters({
+      ncbi: { maximumResults: 5 },
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"]
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    const error = await adapters
+      .searchPubMed("verified query", new AbortController().signal)
+      .catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(ResearchExternalServiceError);
+    expect(error).toMatchObject({
+      name: "ResearchExternalServiceError",
+      kind: "invalid_payload"
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it("skips unavailable discovered pages while explicit seed URLs stay fail-closed", async () => {

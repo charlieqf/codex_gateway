@@ -11,6 +11,7 @@ import {
   fetchApprovedWebDocument,
   fetchBoundedJson,
   fetchBoundedText,
+  ResearchExternalServiceError,
   ResearchHttpError
 } from "./safe-http.js";
 
@@ -189,17 +190,16 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       email: this.options.ncbi.email,
       api_key: this.options.ncbi.apiKey
     });
-    const response = await this.requestJsonWithRetry<NcbiSearchResponse>(
+    const response = await this.requestJsonWithRetry<unknown>(
       url,
       signal,
-      {}
+      {},
+      3,
+      (value) => extractValidNcbiSearchPmids(value) !== null
     );
-    const values = response.value.esearchresult?.idlist;
-    if (
-      !Array.isArray(values) ||
-      values.some((value) => typeof value !== "string" || !/^[0-9]{1,10}$/.test(value))
-    ) {
-      throw new Error("NCBI ESearch response did not contain valid PMIDs.");
+    const values = extractValidNcbiSearchPmids(response.value);
+    if (values === null) {
+      throw new ResearchExternalServiceError("invalid_payload");
     }
     return [...new Set(values)].slice(0, this.maximumPubMedResults);
   }
@@ -686,7 +686,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     url: URL,
     signal: AbortSignal,
     headers: Readonly<Record<string, string>>,
-    maximumAttempts = 3
+    maximumAttempts = 3,
+    validateValue?: (value: T) => boolean
   ) {
     if (
       !Number.isSafeInteger(maximumAttempts) ||
@@ -699,7 +700,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
       try {
         await this.paceRequest(url, signal);
-        return await fetchBoundedJson<T>({
+        const response = await fetchBoundedJson<T>({
           url,
           signal,
           timeoutMs: this.timeoutMs,
@@ -710,6 +711,10 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
           },
           fetchImpl: this.fetchImpl
         });
+        if (validateValue && !validateValue(response.value)) {
+          throw new ResearchExternalServiceError("invalid_payload");
+        }
+        return response;
       } catch (error) {
         lastError = error;
         if (
@@ -729,7 +734,15 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         }
       }
     }
-    throw lastError;
+    if (
+      lastError instanceof ResearchHttpError ||
+      lastError instanceof ResearchExternalServiceError ||
+      (lastError instanceof DOMException && lastError.name === "TimeoutError") ||
+      signal.aborted
+    ) {
+      throw lastError;
+    }
+    throw new ResearchExternalServiceError("transport");
   }
 
   private async requestTextWithRetry(url: URL, signal: AbortSignal) {
@@ -783,8 +796,28 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   }
 }
 
-interface NcbiSearchResponse {
-  esearchresult?: { idlist?: unknown };
+function extractValidNcbiSearchPmids(value: unknown): readonly string[] | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const esearchResult = Reflect.get(value, "esearchresult");
+  if (
+    esearchResult === null ||
+    typeof esearchResult !== "object" ||
+    Array.isArray(esearchResult)
+  ) {
+    return null;
+  }
+  const idList = Reflect.get(esearchResult, "idlist");
+  if (
+    !Array.isArray(idList) ||
+    idList.some(
+      (item) => typeof item !== "string" || !/^[0-9]{1,10}$/u.test(item)
+    )
+  ) {
+    return null;
+  }
+  return idList;
 }
 
 interface NcbiSummaryRecord {

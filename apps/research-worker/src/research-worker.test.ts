@@ -16,6 +16,7 @@ import {
   readVerifiedResearchArtifact,
   type DoctorResearchModelOutput,
   type ResearchAdapterBundle,
+  ResearchExternalServiceError,
   ResearchHttpError,
   ResearchModelClientError,
   type ResearchModelClient
@@ -4117,6 +4118,38 @@ describe("Research Worker controlled-beta workflow", () => {
       retryable: true,
       dependencyScope: "request",
       upstreamStatusCode: 503
+    });
+    fixture.store.close();
+  });
+
+  it("allows one bounded run replay after an invalid external payload", async () => {
+    const fixture = createLeasedWorkflowFixture("adapter_payload");
+    const unavailableAdapters = adapters();
+    unavailableAdapters.searchOfficialSources = async () => {
+      throw new ResearchExternalServiceError("invalid_payload");
+    };
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: unavailableAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          throw new Error("Model must not run after adapter failure.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "upstream_unavailable",
+      retryable: true,
+      dependencyScope: "request",
+      upstreamErrorKind: "invalid_payload"
     });
     fixture.store.close();
   });

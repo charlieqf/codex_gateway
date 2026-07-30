@@ -79,7 +79,11 @@ import {
   buildResearchPromptProjection,
   mechanicallyBoundPromptText
 } from "./research-prompt-projection.js";
-import { ResearchHttpError } from "./safe-http.js";
+import {
+  ResearchExternalServiceError,
+  type ResearchExternalServiceErrorKind,
+  ResearchHttpError
+} from "./safe-http.js";
 
 export interface DoctorResearchWorkflowPolicy {
   resultTtlSeconds: number;
@@ -117,6 +121,7 @@ export type DoctorResearchWorkflowResult =
       retryable?: boolean;
       dependencyScope?: "request" | "service";
       upstreamStatusCode?: number;
+      upstreamErrorKind?: ResearchExternalServiceErrorKind;
     };
 
 export async function executeDoctorResearchWorkflow(input: {
@@ -496,6 +501,15 @@ export async function executeDoctorResearchWorkflow(input: {
             ? "service"
             : "request",
         upstreamStatusCode: error.statusCode
+      };
+    }
+    if (error instanceof ResearchExternalServiceError) {
+      return {
+        outcome: "failed",
+        reason: "upstream_unavailable",
+        retryable: context.modelCallsStarted <= 1,
+        dependencyScope: "request",
+        upstreamErrorKind: error.kind
       };
     }
     return {
