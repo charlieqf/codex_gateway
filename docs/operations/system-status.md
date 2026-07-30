@@ -41,7 +41,7 @@ Current Doctor Research production:
   `rollback-cb703da-20260730T062157Z` images are verified. Post-deploy backup
   `drb_ad694a206a6746d8b1f95a1a07741b72` passed a networkless read-only
   verification with 320 artifacts.
-- Azure root-disk availability was restored from about 17 GiB to 25–26 GiB
+- Azure root-disk availability was restored from about 17 GiB to 24–26 GiB
   while preserving live volumes, current releases and verified rollback
   boundaries. The temporary E2E key was revoked, user disabled, entitlement
   cancelled, and all temporary files removed.
