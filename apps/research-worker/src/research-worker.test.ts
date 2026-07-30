@@ -441,6 +441,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_shard_contract_retry_completed"
     ],
     [
+      "contract-skill-prose",
+      "peer_review_call_reallocated_to_contract_skill_repair"
+    ],
+    [
       "skill-contract",
       "bounded_shard_skill_contract_retry_completed"
     ],
@@ -813,6 +817,8 @@ describe("Research Worker controlled-beta workflow", () => {
           ? skillBodyFragment(20)
           : retryKind === "body-markdown-only-retry"
             ? "not a body fragment JSON object"
+            : retryKind === "contract-skill-prose"
+              ? "not a body fragment JSON object"
             : [
           "```json",
           retryKind === "body-envelope"
@@ -1481,6 +1487,29 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
+            retryKind === "contract-skill-prose" &&
+            modelInput.attempt === 5 &&
+            modelInput.stage === "synthesize_review"
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_body_fragment.v1",
+                markdown: skillBodyFragment(20),
+                predicted_questions: initialBodyQuestions,
+                answers: initialBodyAnswers
+              }),
+              gatewayRequestId:
+                "req_sharded_contract_skill_repair",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          if (
             (retryKind === "transport-conclusion-safety" ||
               retryKind === "peer-contract-conclusion-safety" ||
               retryKind === "skill-conclusion-safety") &&
@@ -1721,6 +1750,18 @@ describe("Research Worker controlled-beta workflow", () => {
                             20
                           ),
                           "## 结果一致性与证据强度\n\n短段落。[1]"
+                        ].join("\n\n"),
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers
+                      })
+                  : retryKind === "contract-skill-prose"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: [
+                          skillBodyFragment(20),
+                          "术后2.[1]"
                         ].join("\n\n"),
                         predicted_questions:
                           initialBodyQuestions,
@@ -2084,6 +2125,14 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         "review_duplicate_paragraph"
+      );
+      expect(retryPrompt).toContain(
+        "review_truncated_numeric_prose"
+      );
+    }
+    if (retryKind === "contract-skill-prose") {
+      expect(retryPrompt).toContain(
+        "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
       );
       expect(retryPrompt).toContain(
         "review_truncated_numeric_prose"
@@ -2598,6 +2647,22 @@ describe("Research Worker controlled-beta workflow", () => {
         "peer_review_model_completed"
       );
     }
+    if (retryKind === "contract-skill-prose") {
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "bounded_shard_contract_retry_completed",
+          "bounded_shard_skill_contract_retry_completed",
+          "peer_review_call_reallocated_to_contract_skill_repair",
+          "deterministic_peer_review_self_check_completed"
+        ])
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_attempted"
+      );
+      expect(result.quality.warnings).not.toContain(
+        "peer_review_model_completed"
+      );
+    }
     if (retryKind === "transport-conclusion-safety") {
       expect(result.review.markdown).toContain(
         "现有公开摘要支持对研究对象"
@@ -2682,6 +2747,7 @@ describe("Research Worker controlled-beta workflow", () => {
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
         retryKind === "transport-skill" ||
+        retryKind === "contract-skill-prose" ||
         retryKind === "transport-middle-and-closing" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety" ||

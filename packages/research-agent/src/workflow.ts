@@ -3116,14 +3116,13 @@ async function generateAndValidateShardedModelOutput(
       }
     ].filter((entry) => entry.errors.length > 0);
   let remainingFragmentSkillErrors = fragmentSkillErrors();
-  if (
-    remainingFragmentSkillErrors.length === 1 &&
-    !shardContractRetryCompleted
-  ) {
+  if (remainingFragmentSkillErrors.length === 1) {
     const failure = remainingFragmentSkillErrors[0]!;
     const retryInput = shardInputs[failure.index]!;
     shardSkillContractRetryAttempt =
-      shardTransportRetryCompleted ? 5 : 4;
+      shardTransportRetryCompleted || shardContractRetryCompleted
+        ? 5
+        : 4;
     responses[failure.index] = await context.generateModel({
       ...retryInput,
       attempt: shardSkillContractRetryAttempt,
@@ -3633,15 +3632,16 @@ async function generateAndValidateShardedModelOutput(
       ]
     };
   }
-  const peerReviewCallBudgetConsumedByTransportRepair =
+  const peerReviewCallBudgetConsumedByShardRepair =
     bodySectionRepairCompleted ||
     shardTransportRetryCount >= 2 ||
     (
-      shardTransportRetryCompleted &&
+      (shardTransportRetryCompleted ||
+        shardContractRetryCompleted) &&
       shardSkillContractRetryCompleted &&
       shardSkillContractRetryAttempt === 5
     );
-  if (peerReviewCallBudgetConsumedByTransportRepair) {
+  if (peerReviewCallBudgetConsumedByShardRepair) {
     const deterministicSelfReview = validation.ok
       ? validation
       : deterministicSafetyPreview;
@@ -3669,6 +3669,10 @@ async function generateAndValidateShardedModelOutput(
           ? [
               "peer_review_call_reallocated_to_second_transport_retry"
             ]
+          : shardContractRetryCompleted
+          ? [
+              "peer_review_call_reallocated_to_contract_skill_repair"
+            ]
           : [
               "peer_review_call_reallocated_to_transport_skill_repair"
             ]),
@@ -3676,6 +3680,9 @@ async function generateAndValidateShardedModelOutput(
         ...shardSkillNormalizationWarnings,
         ...(shardTransportRetryCompleted
           ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
           : []),
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
