@@ -8612,13 +8612,16 @@ function parseResearchTopicInference(
 const researchTopicStopWords = new Set([
   "about",
   "after",
+  "and",
   "among",
   "analysis",
   "approach",
+  "are",
   "area",
   "article",
   "based",
   "before",
+  "but",
   "case",
   "clinical",
   "comparison",
@@ -8628,15 +8631,23 @@ const researchTopicStopWords = new Set([
   "evidence",
   "experience",
   "first",
+  "for",
   "from",
   "healthcare",
   "hospital",
   "human",
+  "into",
   "listed",
   "medical",
   "medicine",
   "method",
+  "nor",
+  "not",
+  "of",
+  "on",
+  "or",
   "outcome",
+  "over",
   "patient",
   "patients",
   "profile",
@@ -8651,9 +8662,33 @@ const researchTopicStopWords = new Set([
   "review",
   "study",
   "surgery",
+  "than",
+  "that",
+  "the",
+  "their",
+  "then",
+  "there",
+  "these",
+  "this",
+  "those",
+  "through",
+  "to",
   "treatment",
+  "under",
   "using",
+  "via",
+  "was",
+  "were",
+  "when",
+  "where",
+  "which",
+  "while",
+  "who",
+  "whose",
+  "will",
   "with",
+  "within",
+  "without",
   "works"
 ]);
 
@@ -11297,10 +11332,9 @@ function buildFieldPubMedSearchQuery(
   const safeTerms = uniqueBy(
     topicTerms
       .map((term) => term.toLowerCase().trim())
-      .filter((term) => /^[a-z][a-z-]{2,39}$/u.test(term))
-      .slice(0, 3),
+      .filter((term) => isSafeResearchTopicTerm(term)),
     (term) => term
-  );
+  ).slice(0, 3);
   if (safeTerms.length === 0) {
     throw new Error("Research topic extraction produced no safe terms.");
   }

@@ -4351,6 +4351,67 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("filters grammatical connectors from publication-derived PubMed topic terms", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "publication_topic_connectors"
+    );
+    const topicAdapters = adapters(0);
+    const observedQueries: string[] = [];
+    topicAdapters.searchPubMed = async (query) => {
+      observedQueries.push(query);
+      return observedQueries.length === 1 ? ["1001"] : [];
+    };
+    topicAdapters.getPubMedMetadata = async () => ({
+      referenceId: "ref_pubmed_1001",
+      pmid: "1001",
+      doi: null,
+      title:
+        "Endovascular repair for aortic disease and endovascular therapy for aortic repair",
+      journal: "Evidence Journal",
+      publicationYear: 2025,
+      authors: ["Example Doctor"],
+      authorAffiliations: [
+        {
+          author: "Example Doctor",
+          affiliations: ["Cardiology, Example Hospital."]
+        }
+      ],
+      abstractText:
+        "The retrieved abstract reports contemporary vascular evidence.",
+      sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
+      accessedAt: "2026-07-18T03:00:00.000Z",
+      contentSha256: "b".repeat(64)
+    });
+
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: topicAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          throw new Error("Model must not run before field evidence exists.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "insufficient_research_evidence"
+    });
+    expect(observedQueries).toHaveLength(2);
+    expect(observedQueries[1]).toBe(
+      '("endovascular"[Title/Abstract] AND "repair"[Title/Abstract] AND "aortic"[Title/Abstract]) AND (2022:2026[Date - Publication])'
+    );
+    expect(observedQueries[1]).not.toContain('"for"[Title/Abstract]');
+    expect(observedQueries[1]).not.toContain('"and"[Title/Abstract]');
+    fixture.store.close();
+  });
+
   it("researches an arbitrary three-field Chinese doctor with a distinctive derived hospital alias", async () => {
     const input = runInput();
     input.doctor = {
