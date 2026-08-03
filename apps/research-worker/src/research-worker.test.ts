@@ -4581,6 +4581,9 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(observedQueries).toHaveLength(2);
     expect(observedQueries[0]).toContain('"陆清声"[Author]');
     expect(observedQueries[1]).toContain(
+      '"vascular"[Title/Abstract] OR "endovascular"[Title/Abstract]'
+    );
+    expect(observedQueries[1]).not.toContain(
       '"vascular"[Title/Abstract] AND "endovascular"[Title/Abstract]'
     );
     expect(observedQueries[1]).not.toContain('"surgery"[Title/Abstract]');

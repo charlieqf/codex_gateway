@@ -225,14 +225,21 @@ export async function executeDoctorResearchWorkflow(input: {
         doctorLiterature.references.length
     });
 
+    // Bounded inference returns alternative supported topic axes. Requiring
+    // every inferred term can collapse recall, while publication-derived
+    // terms remain co-located and keep the stricter all-term query.
+    const fieldQueryMode =
+      researchTopics.source === "bounded_model" ? "any" : "all";
     const searchQuery = buildFieldPubMedSearchQuery(
       context.run,
-      researchTopics.terms
+      researchTopics.terms,
+      fieldQueryMode
     );
     await context.checkpoint("build_search_strategy", 33, {
-      schema_version: "doctor_research_search_strategy.v2",
+      schema_version: "doctor_research_search_strategy.v3",
       doctor_query_sha256: sha256(doctorSearchQuery),
       field_query_sha256: sha256(searchQuery),
+      field_query_mode: fieldQueryMode,
       publication_years: context.run.input.options.publicationYears
     });
     const literature = await collectLiterature(
@@ -11787,7 +11794,8 @@ function buildDoctorPubMedSearchQuery(run: ResearchRunRecord): string {
 
 function buildFieldPubMedSearchQuery(
   run: ResearchRunRecord,
-  topicTerms: readonly string[]
+  topicTerms: readonly string[],
+  matchMode: "all" | "any"
 ): string {
   const currentYear = run.createdAt.getUTCFullYear();
   const startYear = currentYear - run.input.options.publicationYears + 1;
@@ -11802,7 +11810,7 @@ function buildFieldPubMedSearchQuery(
   }
   const topicQuery = safeTerms
     .map((term) => `"${term}"[Title/Abstract]`)
-    .join(" AND ");
+    .join(matchMode === "any" ? " OR " : " AND ");
   return `(${topicQuery}) AND (${startYear}:${currentYear}[Date - Publication])`;
 }
 

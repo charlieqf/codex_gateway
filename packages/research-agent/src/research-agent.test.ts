@@ -84,8 +84,8 @@ describe("Doctor Research production contracts", () => {
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.6.101",
-      workflowPolicyVersion: "doctor_research_workflow.v78",
+      version: "1.6.102",
+      workflowPolicyVersion: "doctor_research_workflow.v79",
       promptVersion: "doctor-research-prompt.v30",
       validationPolicyVersion: "doctor_research_validation.v42",
       inputSchemaVersion: "doctor_research_run_input.v2",
