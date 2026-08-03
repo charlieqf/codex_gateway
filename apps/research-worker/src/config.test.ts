@@ -57,6 +57,28 @@ describe("Research Worker fail-closed configuration", () => {
     ).toThrow("cannot exceed 300000");
   });
 
+  it("reserves two production-scale workflow attempts after bounded hospital search", () => {
+    const productionScale = {
+      ...validEnvironment(),
+      RESEARCH_MAX_OFFICIAL_RESULTS: "5",
+      RESEARCH_MAX_PUBLICATIONS: "40",
+      RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "964",
+      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "1928000000"
+    };
+    const config = loadResearchWorkerConfig(productionScale);
+    expect(config?.workflowPolicy.budgets).toMatchObject({
+      externalRequests: 964,
+      externalResponseBytes: 1_928_000_000
+    });
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...productionScale,
+        RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "963"
+      })
+    ).toThrow("must reserve two full workflow attempts");
+  });
+
   it("uses zero to disable the rolling unique-doctor admission limit", () => {
     const config = loadResearchWorkerConfig({
       ...validEnvironment(),

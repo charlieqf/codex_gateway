@@ -218,6 +218,18 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", worker)
         self.assertIn("RESEARCH_SERPAPI_ENGINE=google", worker)
         self.assertIn(
+            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.101",
+            worker,
+        )
+        self.assertIn(
+            "RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN=964",
+            worker,
+        )
+        self.assertIn(
+            "RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN=1928000000",
+            worker,
+        )
+        self.assertIn(
             "RESEARCH_WEB_SEARCH_API_KEY_FILE="
             "/run/secrets/research_production_web_search_api_key",
             worker,
