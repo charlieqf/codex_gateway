@@ -173,6 +173,15 @@ export async function executeDoctorResearchWorkflow(input: {
     await context.checkpoint("resolve_identity", 13, {
       schema_version: "doctor_research_identity_checkpoint.v1",
       official_source_count: identityEvidence.officialSources.length,
+      hospital_official_domain_count:
+        identityEvidence.hospitalOfficialDomainCount,
+      hospital_domain_matched_source_count:
+        identityEvidence.hospitalDomainMatchedSourceCount,
+      hospital_alias_candidate_count:
+        identityEvidence.hospitalAliasCandidateCount,
+      hospital_alias_matched_source_count:
+        identityEvidence.hospitalAliasMatchedSourceCount,
+      hospital_alias_ambiguous: identityEvidence.hospitalAliasAmbiguous,
       orcid_resolved: identityEvidence.orcidIdentity !== null
     });
     const identity = resolveIdentity(context.run, identityEvidence);
@@ -954,11 +963,27 @@ class WorkflowContext {
   }
 }
 
+interface VerifiedOfficialIdentitySource extends FrozenOfficialSource {
+  identityMatchBasis:
+    | "exact_hospital_text"
+    | "verified_hospital_domain"
+    | "verified_hospital_alias";
+  verifiedHospitalHostname?: string;
+  verifiedHospitalPhrase?: string;
+  verificationSourceIds?: readonly string[];
+}
+
 async function discoverIdentityEvidence(
   context: WorkflowContext
 ): Promise<{
   orcidIdentity: FrozenIdentityRecord | null;
-  officialSources: FrozenOfficialSource[];
+  officialSources: VerifiedOfficialIdentitySource[];
+  hospitalVerificationSources: FrozenOfficialSource[];
+  hospitalOfficialDomainCount: number;
+  hospitalDomainMatchedSourceCount: number;
+  hospitalAliasCandidateCount: number;
+  hospitalAliasMatchedSourceCount: number;
+  hospitalAliasAmbiguous: boolean;
 }> {
   let orcidIdentity: FrozenIdentityRecord | null = null;
   if (context.run.input.doctor.orcid) {
@@ -987,46 +1012,203 @@ async function discoverIdentityEvidence(
     officialQuery,
     context.callSignal(),
     {
-      seedUrls: doctor.officialProfileUrls ?? []
+      seedUrls: doctor.officialProfileUrls ?? [],
+      ...(doctor.hospital ? { hospital: doctor.hospital } : {})
     }
   );
-  const officialSources: FrozenOfficialSource[] = [];
+  const fetchedSources: FrozenOfficialSource[] = [];
+  for (let offset = 0; offset < sourceIds.length; offset += 3) {
+    const sourceIdBatch = sourceIds.slice(offset, offset + 3);
+    for (const _sourceId of sourceIdBatch) {
+      // Two bounded attempts can each consume the initial response plus
+      // three allowlisted redirects.
+      context.chargeExternal(8);
+    }
+    const settledSources = await Promise.allSettled(
+      sourceIdBatch.map((sourceId) =>
+        context["input"].adapters.fetchApprovedSource(
+          sourceId,
+          context.callSignal()
+        )
+      )
+    );
+    const rejectedSource = settledSources.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    if (rejectedSource) {
+      throw rejectedSource.reason;
+    }
+    for (const result of settledSources) {
+      if (result.status === "fulfilled" && result.value) {
+        fetchedSources.push(result.value);
+      }
+    }
+  }
+  const hospitalOfficialDomains = new Map<string, Set<string>>();
+  const hospitalAliases = new Map<
+    string,
+    { phrase: string; sourceIds: Set<string> }
+  >();
+  for (const source of fetchedSources) {
+    const hostname = hospitalOfficialAnchorHostname(
+      source,
+      doctor.hospital ?? ""
+    );
+    if (hostname !== null) {
+      const sourceIdsForHostname =
+        hospitalOfficialDomains.get(hostname) ?? new Set<string>();
+      sourceIdsForHostname.add(source.sourceId);
+      hospitalOfficialDomains.set(hostname, sourceIdsForHostname);
+    }
+    if (source.discoveryKinds?.includes("hospital_official") === true) {
+      for (const phrase of hospitalAliasesFromEvidence(
+        `${source.title} ${source.untrustedText}`,
+        doctor.hospital ?? ""
+      )) {
+        const normalizedPhrase = normalizeEvidenceText(phrase);
+        const alias = hospitalAliases.get(normalizedPhrase) ?? {
+          phrase,
+          sourceIds: new Set<string>()
+        };
+        alias.sourceIds.add(source.sourceId);
+        hospitalAliases.set(normalizedPhrase, alias);
+      }
+    }
+  }
+  const officialSources: VerifiedOfficialIdentitySource[] = [];
+  const usedHospitalVerificationSourceIds = new Set<string>();
+  const hospitalAliasAmbiguous = hospitalAliasSetIsAmbiguous(
+    [...hospitalAliases.keys()]
+  );
+  let hospitalDomainMatchedSourceCount = 0;
+  let hospitalAliasMatchedSourceCount = 0;
   let remainingOfficialCharacters = Math.max(
     1,
     Math.floor(
       context["input"].policy.maximumSourceTextCharacters / 2
     )
   );
-  for (const sourceId of sourceIds) {
-    // Two bounded attempts can each consume the initial response plus
-    // three allowlisted redirects.
-    context.chargeExternal(8);
-    const source = await context["input"].adapters.fetchApprovedSource(
-      sourceId,
-      context.callSignal()
+  for (const source of fetchedSources) {
+    const exactIdentityWindow = officialIdentityEvidenceWindow(
+      source.untrustedText,
+      doctor
     );
-    const identityWindow = source
-      ? officialIdentityEvidenceWindow(source.untrustedText, doctor)
-      : null;
-    if (source && identityWindow && remainingOfficialCharacters > 0) {
+    const sourceHostname = officialSourceHostname(source.url);
+    const domainVerificationSourceIds =
+      sourceHostname === null
+        ? []
+        : [...(hospitalOfficialDomains.get(sourceHostname) ?? [])];
+    const domainIdentityWindow =
+      exactIdentityWindow === null &&
+      source.discoveryKinds?.includes("doctor_identity") === true &&
+      sourceHostname !== null &&
+      domainVerificationSourceIds.length > 0
+        ? officialDoctorDepartmentEvidenceWindow(source.untrustedText, doctor)
+        : null;
+    let aliasIdentityWindow: string | null = null;
+    let matchedHospitalAlias:
+      | { phrase: string; verificationSourceIds: string[] }
+      | undefined;
+    if (
+      exactIdentityWindow === null &&
+      domainIdentityWindow === null &&
+      !hospitalAliasAmbiguous &&
+      source.discoveryKinds?.includes("doctor_identity") === true
+    ) {
+      for (const alias of hospitalAliases.values()) {
+        const verificationSourceIds = [...alias.sourceIds].filter(
+          (sourceId) => sourceId !== source.sourceId
+        );
+        if (verificationSourceIds.length === 0) {
+          continue;
+        }
+        const candidateWindow = officialIdentityEvidenceWindowForHospitalPhrases(
+          source.untrustedText,
+          doctor,
+          [alias.phrase]
+        );
+        if (candidateWindow !== null) {
+          aliasIdentityWindow = candidateWindow;
+          matchedHospitalAlias = {
+            phrase: alias.phrase,
+            verificationSourceIds
+          };
+          break;
+        }
+      }
+    }
+    const identityWindow =
+      exactIdentityWindow ?? domainIdentityWindow ?? aliasIdentityWindow;
+    if (identityWindow && remainingOfficialCharacters > 0) {
       const untrustedText = Array.from(identityWindow)
         .slice(0, remainingOfficialCharacters)
         .join("");
       remainingOfficialCharacters -= Array.from(untrustedText).length;
+      const identityMatchBasis =
+        exactIdentityWindow !== null
+          ? "exact_hospital_text"
+          : domainIdentityWindow !== null
+            ? "verified_hospital_domain"
+            : "verified_hospital_alias";
+      const verificationSourceIds =
+        identityMatchBasis === "verified_hospital_domain"
+          ? domainVerificationSourceIds
+          : matchedHospitalAlias?.verificationSourceIds ?? [];
+      for (const sourceId of verificationSourceIds) {
+        usedHospitalVerificationSourceIds.add(sourceId);
+      }
       officialSources.push({
         ...source,
-        untrustedText
+        untrustedText,
+        identityMatchBasis,
+        ...(identityMatchBasis === "verified_hospital_domain" &&
+        sourceHostname !== null
+          ? { verifiedHospitalHostname: sourceHostname }
+          : {}),
+        ...(identityMatchBasis === "verified_hospital_alias" &&
+        matchedHospitalAlias
+          ? { verifiedHospitalPhrase: matchedHospitalAlias.phrase }
+          : {}),
+        ...(verificationSourceIds.length > 0
+          ? { verificationSourceIds }
+          : {})
       });
+      if (identityMatchBasis === "verified_hospital_domain") {
+        hospitalDomainMatchedSourceCount += 1;
+      } else if (identityMatchBasis === "verified_hospital_alias") {
+        hospitalAliasMatchedSourceCount += 1;
+      }
     }
   }
-  return { orcidIdentity, officialSources };
+  const hospitalVerificationSources = fetchedSources
+    .filter((source) =>
+      usedHospitalVerificationSourceIds.has(source.sourceId)
+    )
+    .map((source) => ({
+      ...source,
+      untrustedText: hospitalVerificationEvidenceWindow(
+        `${source.title} ${source.untrustedText}`,
+        doctor.hospital ?? ""
+      )
+    }));
+  return {
+    orcidIdentity,
+    officialSources,
+    hospitalVerificationSources,
+    hospitalOfficialDomainCount: hospitalOfficialDomains.size,
+    hospitalDomainMatchedSourceCount,
+    hospitalAliasCandidateCount: hospitalAliases.size,
+    hospitalAliasMatchedSourceCount,
+    hospitalAliasAmbiguous
+  };
 }
 
 function resolveIdentity(
   run: ResearchRunRecord,
   evidence: {
     orcidIdentity: FrozenIdentityRecord | null;
-    officialSources: FrozenOfficialSource[];
+    officialSources: VerifiedOfficialIdentitySource[];
+    hospitalVerificationSources: FrozenOfficialSource[];
   }
 ): ResolvedDoctorResearchIdentity | null {
   const doctor = run.input.doctor;
@@ -1053,7 +1235,7 @@ function resolveIdentity(
     }
   }
   const matchingOfficialSources = evidence.officialSources.filter((source) =>
-    officialSourceMatchesIdentity(source.untrustedText, doctor)
+    verifiedOfficialSourceMatchesIdentity(source, doctor)
   );
   const literatureIdentity = doctor.literatureIdentity;
   if (
@@ -1075,9 +1257,23 @@ function resolveIdentity(
   if (matched.size < 2 || matchingOfficialSources.length === 0) {
     return null;
   }
+  const requiredVerificationSourceIds = new Set(
+    matchingOfficialSources.flatMap((source) => [
+      ...(source.verificationSourceIds ?? [])
+    ])
+  );
+  const officialIdentityEvidence = uniqueBy(
+    [
+      ...matchingOfficialSources,
+      ...evidence.hospitalVerificationSources.filter((source) =>
+        requiredVerificationSourceIds.has(source.sourceId)
+      )
+    ],
+    (source) => source.sourceId
+  );
   const sourceEvidence: Array<
     DoctorResearchSource & { untrusted_text: string }
-  > = matchingOfficialSources.map((source) => ({
+  > = officialIdentityEvidence.map((source) => ({
     source_id: source.sourceId,
     source_type: "official_web",
     title: source.title,
@@ -8769,6 +8965,35 @@ function officialSourceMatchesIdentity(
   return officialIdentityEvidenceWindow(sourceText, doctor) !== null;
 }
 
+function verifiedOfficialSourceMatchesIdentity(
+  source: VerifiedOfficialIdentitySource,
+  doctor: ResearchRunRecord["input"]["doctor"]
+): boolean {
+  if (source.identityMatchBasis === "exact_hospital_text") {
+    return officialSourceMatchesIdentity(source.untrustedText, doctor);
+  }
+  if (source.identityMatchBasis === "verified_hospital_alias") {
+    return (
+      source.discoveryKinds?.includes("doctor_identity") === true &&
+      typeof source.verifiedHospitalPhrase === "string" &&
+      (source.verificationSourceIds?.length ?? 0) > 0 &&
+      officialIdentityEvidenceWindowForHospitalPhrases(
+        source.untrustedText,
+        doctor,
+        [source.verifiedHospitalPhrase]
+      ) !== null
+    );
+  }
+  const hostname = officialSourceHostname(source.url);
+  return (
+    source.discoveryKinds?.includes("doctor_identity") === true &&
+    (source.verificationSourceIds?.length ?? 0) > 0 &&
+    hostname !== null &&
+    hostname === source.verifiedHospitalHostname &&
+    officialDoctorDepartmentEvidenceWindow(source.untrustedText, doctor) !== null
+  );
+}
+
 function officialSourceBridgesLiteratureIdentity(
   sourceText: string,
   displayName: string,
@@ -8811,10 +9036,27 @@ function officialIdentityEvidenceWindow(
   if (!doctor.hospital || !doctor.department) {
     return null;
   }
+  return officialIdentityEvidenceWindowForHospitalPhrases(
+    sourceText,
+    doctor,
+    officialHospitalEvidencePhrases(doctor.hospital)
+  );
+}
+
+function officialIdentityEvidenceWindowForHospitalPhrases(
+  sourceText: string,
+  doctor: ResearchRunRecord["input"]["doctor"],
+  rawHospitalPhrases: readonly string[]
+): string | null {
+  if (!doctor.department) {
+    return null;
+  }
   const source = normalizeEvidenceText(sourceText);
   const name = normalizeEvidenceText(doctor.name);
   const department = normalizeEvidenceText(doctor.department);
-  const hospitalPhrases = officialHospitalEvidencePhrases(doctor.hospital);
+  const hospitalPhrases = rawHospitalPhrases
+    .map(normalizeEvidenceText)
+    .filter((phrase) => phrase.length >= 2);
   if (
     name.length < 2 ||
     department.length < 2 ||
@@ -8838,6 +9080,226 @@ function officialIdentityEvidenceWindow(
     nameAt = evidencePhraseIndexOf(source, name, nameAt + name.length);
   }
   return null;
+}
+
+function hospitalAliasesFromEvidence(
+  sourceText: string,
+  hospital: string
+): string[] {
+  const normalizedHospital = hospital.normalize("NFKC").trim();
+  if (Array.from(normalizedHospital).length < 2) {
+    return [];
+  }
+  const source = sourceText
+    .normalize("NFKC")
+    .replace(/[\t\r\n]+/gu, " ")
+    .replace(/\s+/gu, " ");
+  const hospitalPattern = escapeRegularExpression(normalizedHospital);
+  const patterns = [
+    new RegExp(
+      `${hospitalPattern}\\s*[（(]\\s*([^（）()]{2,60})\\s*[）)]`,
+      "giu"
+    ),
+    new RegExp(
+      `([^。！？!?；;\\n（）()]{2,60})\\s*[（(]\\s*${hospitalPattern}\\s*[）)]`,
+      "giu"
+    ),
+    new RegExp(
+      `${hospitalPattern}\\s*(?:[,，:：]\\s*)?(?:简称(?:为)?|又称|又名|别名(?:为)?|即)\\s*([^。！？!?；;，,（）()]{2,60})`,
+      "giu"
+    ),
+    new RegExp(
+      `([^。！？!?；;，,（）()]{2,60})\\s*[,，:：]?\\s*(?:全称(?:为)?|又名|别名(?:为)?|即)\\s*${hospitalPattern}`,
+      "giu"
+    )
+  ];
+  const aliases: string[] = [];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const alias = validHospitalAliasCandidate(
+        match[1] ?? "",
+        normalizedHospital
+      );
+      if (alias !== null) {
+        aliases.push(alias);
+      }
+    }
+  }
+  return [...new Map(aliases.map((alias) => [normalizeEvidenceText(alias), alias])).values()];
+}
+
+function hospitalAliasSetIsAmbiguous(
+  normalizedAliases: readonly string[]
+): boolean {
+  for (let left = 0; left < normalizedAliases.length; left += 1) {
+    for (let right = left + 1; right < normalizedAliases.length; right += 1) {
+      const leftAlias = normalizedAliases[left]!;
+      const rightAlias = normalizedAliases[right]!;
+      if (!leftAlias.includes(rightAlias) && !rightAlias.includes(leftAlias)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function validHospitalAliasCandidate(
+  value: string,
+  hospital: string
+): string | null {
+  const candidate = value
+    .normalize("NFKC")
+    .trim()
+    .replace(/^[“”‘’"'《》\s]+|[“”‘’"'《》\s]+$/gu, "");
+  const characters = Array.from(candidate);
+  const normalizedCandidate = normalizeEvidenceText(candidate);
+  if (
+    characters.length < 4 ||
+    characters.length > 40 ||
+    normalizedCandidate === normalizeEvidenceText(hospital) ||
+    /以下简称|下称|本院|该院/u.test(candidate) ||
+    !/^[\p{L}\p{N}·&'’\-\s]+$/u.test(candidate) ||
+    !hospitalTitleHasFacilityMarker(normalizedCandidate)
+  ) {
+    return null;
+  }
+  const distinctiveCore = normalizedCandidate
+    .replace(/(?:医院|医学中心|医疗中心|卫生中心|门诊部|hospital|medical center|medical centre|clinic)/giu, "")
+    .replace(/(?:附属|affiliate(?:d)?|university|大学)/giu, "")
+    .replace(/^第[一二三四五六七八九十百0-9]+/u, "")
+    .replace(/\s+/gu, "");
+  return Array.from(distinctiveCore).length >= 2 ? candidate : null;
+}
+
+function hospitalVerificationEvidenceWindow(
+  sourceText: string,
+  hospital: string
+): string {
+  const source = normalizeEvidenceText(sourceText);
+  const normalizedHospital = normalizeEvidenceText(hospital);
+  const hospitalAt = evidencePhraseIndexOf(source, normalizedHospital);
+  if (hospitalAt < 0) {
+    return Array.from(source).slice(0, 2_000).join("");
+  }
+  return source.slice(
+    Math.max(0, hospitalAt - 1_000),
+    Math.min(source.length, hospitalAt + normalizedHospital.length + 1_000)
+  );
+}
+
+function escapeRegularExpression(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function officialDoctorDepartmentEvidenceWindow(
+  sourceText: string,
+  doctor: ResearchRunRecord["input"]["doctor"]
+): string | null {
+  if (!doctor.department) {
+    return null;
+  }
+  const source = normalizeEvidenceText(sourceText);
+  const name = normalizeEvidenceText(doctor.name);
+  const department = normalizeEvidenceText(doctor.department);
+  if (name.length < 2 || department.length < 2) {
+    return null;
+  }
+  let nameAt = evidencePhraseIndexOf(source, name);
+  while (nameAt >= 0) {
+    const windowStart = Math.max(0, nameAt - 5_000);
+    const windowEnd = Math.min(source.length, nameAt + name.length + 5_000);
+    const local = source.slice(windowStart, windowEnd);
+    if (evidencePhraseContains(local, department)) {
+      return local;
+    }
+    nameAt = evidencePhraseIndexOf(source, name, nameAt + name.length);
+  }
+  return null;
+}
+
+function hospitalOfficialAnchorHostname(
+  source: FrozenOfficialSource,
+  hospital: string
+): string | null {
+  if (
+    source.discoveryKinds?.includes("hospital_official") !== true ||
+    hospital.length < 2
+  ) {
+    return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(source.url);
+  } catch {
+    return null;
+  }
+  if (!isRootLikeHospitalUrl(url)) {
+    return null;
+  }
+  const normalizedTitle = normalizeEvidenceText(source.title);
+  const normalizedHospital = normalizeEvidenceText(hospital);
+  const normalizedDocument = normalizeEvidenceText(
+    `${source.title} ${source.untrustedText}`
+  );
+  const titleMatchesHospital =
+    evidencePhraseContains(normalizedTitle, normalizedHospital) ||
+    hospitalAliasesFromEvidence(
+      `${source.title} ${source.untrustedText}`,
+      hospital
+    ).some((alias) =>
+      evidencePhraseContains(normalizedTitle, normalizeEvidenceText(alias))
+    );
+  if (
+    normalizedHospital.length < 2 ||
+    !evidencePhraseContains(normalizedDocument, normalizedHospital) ||
+    !hospitalTitleHasFacilityMarker(normalizedTitle) ||
+    !titleMatchesHospital
+  ) {
+    return null;
+  }
+  return officialSourceHostname(source.url);
+}
+
+function isRootLikeHospitalUrl(url: URL): boolean {
+  const path = url.pathname.replace(/\/{2,}/gu, "/").replace(/\/$/u, "");
+  if (path === "") {
+    return true;
+  }
+  const segments = path.split("/").filter(Boolean);
+  return (
+    segments.length === 1 &&
+    /^(?:index(?:\.(?:html?|php|aspx?))?|home|default(?:\.(?:html?|php|aspx?))?|portal|html|cn|zh|zh-cn)$/iu.test(
+      segments[0]!
+    )
+  );
+}
+
+function hospitalTitleHasFacilityMarker(normalizedTitle: string): boolean {
+  return /医院|医学中心|医疗中心|\bhospital\b|\bmedical (?:center|centre)\b|\bclinic\b/iu.test(
+    normalizedTitle
+  );
+}
+
+function officialSourceHostname(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    (url.port !== "" && url.port !== "443")
+  ) {
+    return null;
+  }
+  const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+  if (hostname.length === 0) {
+    return null;
+  }
+  return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
 }
 
 function officialHospitalEvidencePhrases(hospital: string): string[] {

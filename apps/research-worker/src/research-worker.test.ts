@@ -4412,11 +4412,11 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("researches an arbitrary three-field Chinese doctor with a distinctive derived hospital alias", async () => {
+  it("researches an arbitrary three-field Chinese doctor through explicit hospital-alias evidence", async () => {
     const input = runInput();
     input.doctor = {
       name: "陆清声",
-      hospital: "海军军医大学附属长海医院",
+      hospital: "海军军医大学第一附属医院",
       department: "血管外科",
       title: null,
       city: null,
@@ -4431,14 +4431,26 @@ describe("Research Worker controlled-beta workflow", () => {
     generalAdapters.searchOfficialSources = async () => [
       "src_official_1",
       "src_official_2",
-      "src_official_3"
+      "src_official_3",
+      "src_hospital_alias"
     ];
     generalAdapters.searchPubMed = async (query) => {
       observedQueries.push(query);
       return observedQueries.length === 1 ? [] : ["2002"];
     };
     generalAdapters.fetchApprovedSource = async (sourceId) =>
-      sourceId === "src_official_1"
+      sourceId === "src_hospital_alias"
+        ? {
+            sourceId,
+            url: "https://evidence.example/hospitals/changhai",
+            title: "医院名称资料",
+            accessedAt: "2026-07-18T03:00:00.000Z",
+            contentSha256: "e".repeat(64),
+            untrustedText:
+              "海军军医大学第一附属医院（上海长海医院）位于上海。",
+            discoveryKinds: ["hospital_official"]
+          }
+        : sourceId === "src_official_1"
         ? {
             sourceId,
             url: "https://hospital.example/doctor/lu",
@@ -4446,7 +4458,8 @@ describe("Research Worker controlled-beta workflow", () => {
             accessedAt: "2026-07-18T03:00:00.000Z",
             contentSha256: "a".repeat(64),
             untrustedText:
-              "陆清声，长海医院血管外科医生。主要研究方向为血管外科。"
+              "陆清声，上海长海医院血管外科医生。主要研究方向为血管外科。",
+            discoveryKinds: ["doctor_identity"]
           }
         : {
             sourceId,
@@ -4457,9 +4470,10 @@ describe("Research Worker controlled-beta workflow", () => {
               ? "b".repeat(64)
               : "d".repeat(64),
             untrustedText: [
-              "陆清声，长海医院血管外科医生。",
+              "陆清声，上海长海医院血管外科医生。",
               "外科临床介绍。".repeat(2_000)
-            ].join("")
+            ].join(""),
+            discoveryKinds: ["doctor_identity"]
           };
     generalAdapters.getPubMedMetadata = async () => ({
       referenceId: "ref_pubmed_2002",
@@ -4982,6 +4996,358 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       }
     });
+    fixture.store.close();
+  });
+
+  it("resolves a formal hospital name through one verified same-host hospital home page", async () => {
+    const input = runInput();
+    input.doctor = {
+      ...input.doctor,
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科"
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "verified_hospital_domain_identity",
+      input
+    );
+    const sameHostAdapters = adapters(0);
+    sameHostAdapters.searchOfficialSources = async (
+      _query,
+      _signal,
+      options
+    ) => {
+      expect(options?.hospital).toBe("海军军医大学第一附属医院");
+      return ["src_doctor", "src_hospital_home"];
+    };
+    sameHostAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_hospital_home"
+        ? {
+            sourceId,
+            url: "https://www.changhai.example/",
+            title: "上海长海医院",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "b".repeat(64),
+            untrustedText:
+              "海军军医大学第一附属医院（上海长海医院）官方网站。",
+            discoveryKinds: ["hospital_official"]
+          }
+        : {
+            sourceId,
+            url: "https://changhai.example/doctor/lu-qingsheng",
+            title: "陆清声",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText:
+              "陆清声，血管外科医生。主要研究方向为血管外科。",
+            discoveryKinds: ["doctor_identity"]
+          };
+    sameHostAdapters.searchPubMed = async () => [];
+    const modelStages: string[] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: sameHostAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate(request) {
+          modelStages.push(request.stage);
+          return {
+            text: '{"terms":["healthcare"]}',
+            gatewayRequestId: "req_model_domain_identity",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 10,
+              totalTokens: 110
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "insufficient_research_evidence"
+    });
+    expect(modelStages).toEqual(["infer_research_topics"]);
+    const checkpoint = fixture.store.database
+      .prepare(
+        `SELECT payload_json
+           FROM research_checkpoints
+          WHERE run_id = ? AND stage = 'resolve_identity'`
+      )
+      .get(fixture.lease.run.runId) as { payload_json: string };
+    expect(JSON.parse(checkpoint.payload_json)).toMatchObject({
+      official_source_count: 1,
+      hospital_official_domain_count: 1,
+      hospital_domain_matched_source_count: 1
+    });
+    fixture.store.close();
+  });
+
+  it("resolves an explicit parenthetical hospital alias across two fetched sources", async () => {
+    const input = runInput();
+    input.doctor = {
+      ...input.doctor,
+      name: "陆清声",
+      hospital: "海军军医大学第一附属医院",
+      department: "血管外科"
+    };
+    const fixture = createLeasedWorkflowFixture(
+      "verified_hospital_alias_identity",
+      input
+    );
+    const aliasAdapters = adapters(0);
+    aliasAdapters.searchOfficialSources = async () => [
+      "src_doctor",
+      "src_hospital_alias"
+    ];
+    aliasAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_hospital_alias"
+        ? {
+            sourceId,
+            url: "https://evidence.example/hospital-names/changhai",
+            title: "医院名称资料",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "b".repeat(64),
+            untrustedText:
+              "海军军医大学第一附属医院（上海长海医院）位于上海。",
+            discoveryKinds: ["hospital_official"]
+          }
+        : {
+            sourceId,
+            url: "https://directory.example/doctors/lu-qingsheng",
+            title: "陆清声",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText:
+              "陆清声，上海长海医院血管外科医生，研究方向为血管外科。",
+            discoveryKinds: ["doctor_identity"]
+          };
+    aliasAdapters.searchPubMed = async () => [];
+    const modelStages: string[] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: aliasAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate(request) {
+          modelStages.push(request.stage);
+          return {
+            text: '{"terms":["healthcare"]}',
+            gatewayRequestId: "req_model_alias_identity",
+            usage: {
+              promptTokens: 100,
+              completionTokens: 10,
+              totalTokens: 110
+            }
+          };
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "insufficient_research_evidence"
+    });
+    expect(modelStages).toEqual(["infer_research_topics"]);
+    const checkpoint = fixture.store.database
+      .prepare(
+        `SELECT payload_json
+           FROM research_checkpoints
+          WHERE run_id = ? AND stage = 'resolve_identity'`
+      )
+      .get(fixture.lease.run.runId) as { payload_json: string };
+    expect(JSON.parse(checkpoint.payload_json)).toMatchObject({
+      official_source_count: 1,
+      hospital_official_domain_count: 0,
+      hospital_alias_candidate_count: 1,
+      hospital_alias_matched_source_count: 1,
+      hospital_alias_ambiguous: false
+    });
+    fixture.store.close();
+  });
+
+  it("fails closed when hospital-search evidence yields incompatible aliases", async () => {
+    const fixture = createLeasedWorkflowFixture("ambiguous_hospital_alias");
+    const ambiguousAliasAdapters = adapters(0);
+    ambiguousAliasAdapters.searchOfficialSources = async () => [
+      "src_doctor",
+      "src_hospital_aliases"
+    ];
+    ambiguousAliasAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_hospital_aliases"
+        ? {
+            sourceId,
+            url: "https://evidence.example/hospital-names/example",
+            title: "Hospital name evidence",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "b".repeat(64),
+            untrustedText:
+              "Example Hospital (Alpha Medical Center). Example Hospital (Beta Medical Center).",
+            discoveryKinds: ["hospital_official"]
+          }
+        : {
+            sourceId,
+            url: "https://directory.example/doctors/example",
+            title: "Example Doctor",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText:
+              "Example Doctor works in Cardiology at Alpha Medical Center.",
+            discoveryKinds: ["doctor_identity"]
+          };
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: ambiguousAliasAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run for ambiguous hospital aliases.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "identity_not_resolved"
+    });
+    expect(modelCalls).toBe(0);
+    const checkpoint = fixture.store.database
+      .prepare(
+        `SELECT payload_json
+           FROM research_checkpoints
+          WHERE run_id = ? AND stage = 'resolve_identity'`
+      )
+      .get(fixture.lease.run.runId) as { payload_json: string };
+    expect(JSON.parse(checkpoint.payload_json)).toMatchObject({
+      hospital_alias_candidate_count: 2,
+      hospital_alias_matched_source_count: 0,
+      hospital_alias_ambiguous: true
+    });
+    fixture.store.close();
+  });
+
+  it("does not bridge a doctor page from a different hospital-search host", async () => {
+    const fixture = createLeasedWorkflowFixture("cross_domain_hospital_identity");
+    const crossDomainAdapters = adapters(0);
+    crossDomainAdapters.searchOfficialSources = async () => [
+      "src_doctor",
+      "src_hospital_home"
+    ];
+    crossDomainAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_hospital_home"
+        ? {
+            sourceId,
+            url: "https://hospital.example/",
+            title: "Example Hospital",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "b".repeat(64),
+            untrustedText: "Example Hospital official home page.",
+            discoveryKinds: ["hospital_official"]
+          }
+        : {
+            sourceId,
+            url: "https://directory.example/doctors/example",
+            title: "Example Doctor",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText: "Example Doctor works in Cardiology.",
+            discoveryKinds: ["doctor_identity"]
+          };
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: crossDomainAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run for a cross-domain identity.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "identity_not_resolved"
+    });
+    expect(modelCalls).toBe(0);
+    fixture.store.close();
+  });
+
+  it("does not treat a shared university home page as a hospital-domain anchor", async () => {
+    const fixture = createLeasedWorkflowFixture("shared_domain_hospital_identity");
+    const sharedDomainAdapters = adapters(0);
+    sharedDomainAdapters.searchOfficialSources = async () => [
+      "src_doctor",
+      "src_university_home"
+    ];
+    sharedDomainAdapters.fetchApprovedSource = async (sourceId) =>
+      sourceId === "src_university_home"
+        ? {
+            sourceId,
+            url: "https://university.example/",
+            title: "Example Medical University Hospital Portal",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "b".repeat(64),
+            untrustedText:
+              "Example Medical University includes Example Hospital among several affiliates.",
+            discoveryKinds: ["hospital_official"]
+          }
+        : {
+            sourceId,
+            url: "https://university.example/people/example-doctor",
+            title: "Example Doctor",
+            accessedAt: "2026-08-03T01:00:00.000Z",
+            contentSha256: "a".repeat(64),
+            untrustedText: "Example Doctor works in Cardiology.",
+            discoveryKinds: ["doctor_identity"]
+          };
+    let modelCalls = 0;
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: sharedDomainAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          throw new Error("Model must not run for a shared-domain identity.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "identity_not_resolved"
+    });
+    expect(modelCalls).toBe(0);
     fixture.store.close();
   });
 
