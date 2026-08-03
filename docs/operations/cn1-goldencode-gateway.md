@@ -1,6 +1,6 @@
 # CN1 GoldenCode Gateway
 
-Last updated: 2026-07-03
+Last updated: 2026-08-03
 
 This runbook records the CN1-only Codex Gateway profile on the Aliyun CN1 VM.
 It is deliberately different from the Azure `gw.instmarket.com.au` gateway.
@@ -23,6 +23,13 @@ It is deliberately different from the Azure `gw.instmarket.com.au` gateway.
 - Listener: `127.0.0.1:18787->8787`
 - Public routing: none. No CN1 Nginx public route is configured for this
   gateway yet.
+- Approved but not yet installed edge role: terminate
+  `https://gw.instmarket.com.au:443` in a dedicated CN1 Nginx vhost and proxy
+  to the R760 origin at `https://goldencode.instmarket.com.au:1443`.
+
+The approved edge role does not expose this loopback container. A request for
+`gw.instmarket.com.au` must go to R760, never to CN1
+`127.0.0.1:18787`.
 
 ## Model Profile
 
@@ -57,19 +64,133 @@ GATEWAY_PUBLIC_PHASE=cn1-loopback
 profile does not expose Codex/OpenAI subscription-backed models. The service
 still uses credential auth and SQLite state.
 
+## Approved CN1 Edge Role (Not Enabled)
+
+The domestic production destination is R760, not CN1. R760 will run the public
+Gateway plus the isolated Research LLM Gateway, Worker and maintenance
+containers. CN1 is only the public SNI/TLS reverse-proxy edge required because
+the network administrator declined public `443 -> R760:443`.
+
+Target request path:
+
+```text
+client https://gw.instmarket.com.au:443
+  -> CN1 Nginx, server_name gw.instmarket.com.au
+  -> HTTPS origin with SNI goldencode.instmarket.com.au:1443
+  -> R760 Nginx
+  -> R760 127.0.0.1:18787
+  -> codex_gateway_r760 gateway
+```
+
+Consequences:
+
+- client base URLs remain `https://gw.instmarket.com.au`; no explicit port
+  change is required;
+- R760 must set
+  `GATEWAY_PUBLIC_BASE_URL=https://gw.instmarket.com.au` even though its origin
+  SNI name is `goldencode.instmarket.com.au`;
+- `goldencode.instmarket.com.au:1443` is an origin/staging identity, not the
+  advertised client endpoint;
+- CN1 terminates the `gw` certificate and validates a second TLS connection to
+  the R760 `goldencode` certificate;
+- CN1's existing `codex_gateway_cn1` service, state volumes and three-provider
+  loopback pool remain unchanged and do not receive production traffic;
+- Azure is retained only as a short cutover rollback boundary and is not a
+  permanent proxy. After it is retired, CN1 is the public single point.
+
+The R760 public text-model surface is exactly `goldencode`, backed only by
+direct Qianfan, Tencent and Aliyun GLM-5.2. The other seven Azure text model ids
+and OpenRouter do not migrate. Image generation is a separate API capability:
+R760 retains `medcode-image-default` through `gpt-image-1.5`,
+`grok-imagine-image-quality`, and `gemini-3.1-flash-image`, with no
+`gpt-image-2`. CN1 only transports those image requests and responses.
+
+“Domestic-only” constrains LLM providers, not the controlled SerpAPI, PubMed,
+Crossref, ORCID or official-site retrieval used by Doctor Research, and not the
+separately governed image-provider chain.
+
+### Read-only capacity and latency baseline
+
+The 2026-08-03 baseline found:
+
+- Nginx active/enabled on public `80/443`, with its current configuration test
+  passing;
+- Certbot installed with an active renewal timer;
+- approximately 80 GiB free on the 99 GiB root filesystem;
+- approximately 13 GiB available from 14 GiB RAM and low current load;
+- successful TLS/SNI validation from CN1 to the R760 `:1443` origin. The origin
+  returned the expected `502` because the formal R760 Gateway was stopped. The
+  check used an explicit address override; the `goldencode` origin did not yet
+  have ordinary public A-record resolution.
+
+Thirty fresh CN1-to-R760 HTTPS connections measured:
+
+| phase | p50 | p95 |
+| --- | ---: | ---: |
+| TCP connect | 10.09 ms | 10.89 ms |
+| TCP + TLS | 26.22 ms | 26.89 ms |
+| complete immediate response | 43.81 ms | 45.54 ms |
+
+These are cold-connection network/TLS measurements, not application latency.
+With upstream keepalive and TLS session reuse, steady-state overhead should be
+primarily the roughly 10 ms CN1-R760 round trip. That is small for LLM and
+asynchronous Research requests, but image/artifact transfer throughput must be
+tested because all bytes traverse CN1.
+
+### Edge vhost requirements
+
+During an explicitly approved maintenance action, create a new dedicated CN1
+vhost without changing existing/default vhosts. It must:
+
+- match only `gw.instmarket.com.au` and present a valid independently renewed
+  certificate;
+- proxy to the R760 public NAT `:1443` while setting
+  `proxy_ssl_server_name on` and validating
+  `proxy_ssl_name goldencode.instmarket.com.au`;
+- either pin the validated R760 NAT address in the upstream or add a DNS-only
+  `goldencode` origin record; do not assume the currently absent public lookup
+  will begin working, and do not put this long-request origin behind an
+  unvalidated CDN proxy;
+- use HTTP/1.1 upstream keepalive, an empty upstream `Connection` header and TLS
+  session reuse;
+- disable request/response buffering and caching for SSE and long model calls;
+- set read/send/connect timeouts consistent with Gateway and Doctor Research
+  hard limits;
+- preserve request ids and a trustworthy `X-Forwarded-For` /
+  `X-Forwarded-Proto` chain while sending the R760 origin the expected Host/SNI;
+- support authenticated image and artifact payload sizes without buffering
+  them to the CN1 root disk;
+- expose an HTTPS health monitor covering both the CN1 vhost and the R760
+  Gateway, not ICMP ping;
+- use DNS-only routing for `gw` unless a separately validated CDN plan supports
+  the required long-request timeout;
+- after smoke, restrict R760 `:1443` to CN1 and approved operator sources.
+
+Before DNS cutover, validate the vhost with an explicit local resolution and
+exercise health, credential self-check, the exact one-model surface, non-stream
+chat, SSE, client cancellation, Doctor Research create/poll/result/download and
+all retained image fallbacks. Rollback must be a documented DNS return to Azure
+only during the temporary observation period.
+
+See
+`../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`
+for the destination data, credential, validation and cutover gates.
+
 ## Safety Rules
 
 - Do not modify CN1 Nginx, public ports `80/443`, MedEvidence services, or
-  firewall rules while operating this loopback gateway.
+  firewall rules while operating this loopback gateway. The approved edge
+  design still requires a separate explicit maintenance action before it may be
+  installed.
 - Do not run `docker compose down` unless the project name is explicit and the
   volume impact is understood.
 - Do not print `config/gateway.container.env`, provider keys, admin bearer
   tokens, or full user API keys.
 - Do not copy Azure's full 8-model env onto CN1. Azure and CN1 are separate
   deployment profiles.
-- If exposing CN1 publicly later, add a dedicated hostname/server block that
-  proxies to `http://127.0.0.1:18787`. Do not reuse an existing MedEvidence
-  hostname root path.
+- The new `gw` server block must proxy to R760, not to this service's
+  `http://127.0.0.1:18787`, and must not reuse an existing MedEvidence hostname
+  or default server block.
 
 ## Basic Checks
 

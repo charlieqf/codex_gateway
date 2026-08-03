@@ -5,6 +5,15 @@ existing Azure `codex_gateway_test` Compose project. It keeps the public
 Gateway on `127.0.0.1:18787`, uses the existing Nginx route, and adds no public
 Docker listener.
 
+This remains the authoritative Azure source-production and rollback runbook.
+Do not reinterpret it as a destination-host runbook. The planned domestic
+migration, R760 four-container boundary and cutover gates are documented in
+`../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
+The destination preserves the public client URL through a dedicated CN1
+`gw:443` edge that proxies to R760 `goldencode:1443`; it does not deploy Doctor
+Research on CN1 or send Worker traffic through CN1's loopback Gateway. Azure is
+only the temporary cutover rollback boundary and is not the long-term edge.
+
 ## Current production deployment
 
 As of 2026-07-30, the public Azure Gateway and all three Research services run
@@ -578,6 +587,20 @@ Before any build or recreate:
 5. Confirm at least 10 GiB and 10% filesystem free space.
 6. Render Compose with `config --quiet`; never print the rendered environment.
 
+New-host rehearsals must also verify the operator-side runtime used by the
+smoke scripts. The production images include Node, but the destination host
+may not. Install a pinned Node 24 runtime from the same verified release path,
+or run the administrative parser in an explicitly pinned container; do not
+make the cutover window depend on a live package download.
+
+The runtime image is not required to contain the checked-in plan policy JSON
+files. When bootstrapping a fresh Gateway database, use a one-off admin
+container with the release `config/` directory mounted read-only, for example
+`-v "$PWD/config:/production-config:ro"`, and pass policy paths below
+`/production-config`. Disable `CODEX_GATEWAY_ROLLOUT_ARCHIVE_ON_START` for that
+one-off admin container. Do not assume an `exec` in the long-running Gateway
+can read `/app/config/research.production.*policy*.json`.
+
 The minimum rollback image after writing a `doctor_research` capability remains
 the pinned boundary in `phase0.5-compatibility.md`. Rollback must preserve the
 Research volume and must not delete completed artifacts.
@@ -640,7 +663,12 @@ documents and tickets remain prefix-only.
 
 Run the smoke from the VM against literal loopback
 `http://127.0.0.1:18787`, using separate mode-`0600` token, request and output
-paths. Success requires:
+paths. The request JSON must first be copied from any checked-in `0644` example
+to a canonical, non-symlink mode-`0600` temporary file. The smoke intentionally
+rejects a group/world-readable request file just as it rejects an overbroad
+token file. Remove both temporary inputs after cleanup.
+
+Success requires:
 
 - `POST -> heartbeat/lease -> live sources -> GoldenCode/GLM-5.2 ->
   validation -> succeeded`;

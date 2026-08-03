@@ -1,10 +1,17 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-07-30
+更新时间：2026-08-03
 
 本文是 Doctor Research API 当前发布状态、已知问题和后续治理方案的
 统一说明。它面向医学团队、产品负责人、研发和运维人员，不替代具体的
 API 使用说明或生产操作手册。
+
+文中“CN1 未参与”或“Azure 是部署目标”的表述记录的是对应历史发布和故障调查，
+仍应保留。后继境内四容器目标已确定为 R760，CN1 只承担不改变客户端 URL 的
+`gw:443 -> R760 goldencode:1443` 边缘转发；原有 CN1 loopback Gateway 不处理
+该流量。原定 2026-08-01/02 窗口未切流，Azure 目前仍是权威生产和临时回滚边界。
+计划态、短期 Research Aliyun-only 边界和下一维护窗口的门槛见
+`../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 
 相关文档：
 
@@ -12,8 +19,10 @@ API 使用说明或生产操作手册。
 - Python 示例概览：[`README.md`](README.md#python-api-demo)
 - 生产部署、备份和回滚：[`production-runbook.md`](production-runbook.md)
 - 医学团队原始 Skill：[`../采访skill/`](../采访skill/)
+- 境内搬迁计划：
+  [`domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`](../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 
-## 零、2026-07-30 当前状态
+## 零、截至 2026-08-03 当前状态
 
 Doctor Research API 当前运行在 Azure runtime commit
 `29790d2784913bfe14c71e8f72d51ae48748e5e7`，执行器 `1.6.100`，发布目录为

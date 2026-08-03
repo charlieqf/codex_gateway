@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-07-30
+Last updated: 2026-08-03
 
 ## Current Phase
 
@@ -9,6 +9,13 @@ controlled trial for up to 10 trusted users, but the 2026-07-15 production
 `trial-check` found 77 active users and 73 active API keys, so it no longer
 fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
 gateway is also running for domestic-only GLM-5.2 validation.
+
+Azure remains authoritative at this update. The formal R760 four-container
+project has not been started and `gw.instmarket.com.au` has not been switched.
+The destination host is R760; because the network administrator rejected public
+`443 -> R760:443`, the approved public path is now CN1 Nginx on `gw:443`
+forwarding over HTTPS to the R760 `goldencode:1443` origin. CN1's existing
+loopback Gateway is a separate service and is not in that request path.
 
 Current Doctor Research production:
 
@@ -19,6 +26,10 @@ Current Doctor Research production:
   restarts. Only the Gateway publishes `127.0.0.1:18787`; public and loopback
   health are `ready / controlled-trial`. CN1, Nginx, public ports and
   MedEvidence were not changed.
+- The Worker calls the isolated, non-published Research LLM Gateway. Its
+  production pool currently enables only direct Aliyun GLM-5.2 with
+  `maxConcurrent=3`; Qianfan and Tencent remain disabled entries. It does not
+  call or share capacity with the public `goldencode` pool.
 - Worker-only SerpAPI uses the explicit Google engine for general doctor
   identity discovery. The identity registry is a cache, not a whitelist.
   Daily admission is 50 per subject per UTC day and distinct doctors are
@@ -47,6 +58,70 @@ Current Doctor Research production:
   cancelled, and all temporary files removed.
 - Access remains controlled-trial until the medical team approves
   representative cases and manually accepts the four generated files.
+
+Domestic migration preparation (not cut over):
+
+- The destination is the Dell PowerEdge R760 and the runtime boundary is four
+  containers: the public Gateway, an isolated Research LLM Gateway, one Worker
+  and one maintenance service. Only the public Gateway publishes the R760
+  loopback listener.
+- The destination public text-model surface is exactly `goldencode`. The seven
+  other Azure public model ids are not migrated. `goldencode` uses direct
+  Qianfan, Tencent and Aliyun GLM-5.2 with no OpenRouter.
+- Image generation remains a separate public capability at
+  `/gateway/images/generations` using the stable client model id
+  `medcode-image-default`. The R760 target must exclude `gpt-image-2` and use
+  the existing lower-cost chain: `gpt-image-1.5`,
+  `grok-imagine-image-quality`, and `gemini-3.1-flash-image`. The currently
+  staged formal R760 env predates this decision and still needs its image
+  secrets/model mapping added and revalidated.
+- Only LLM upstreams are constrained to mainland-direct providers. Doctor
+  Research may continue using its controlled SerpAPI, PubMed, Crossref, ORCID
+  and official-site adapters, and the separate image providers are governed by
+  their own cost/security policy.
+- The Research Worker never uses the public pool. Its dedicated internal pool
+  remains Aliyun-only for the migration; a separate three-provider Research
+  pool is deferred to a later phase.
+- R760 Docker/containerd data roots are on `/data`; the clean release and four
+  verified offline images are staged. A production-like isolated rehearsal
+  reached 4/4 healthy, exercised all three public GLM-5.2 members, restored
+  state across a stack restart and completed one strict four-artifact Research
+  E2E after one earlier model-contract failure.
+- Formal private env/secret files and the initial consistent Azure snapshot are
+  present with restricted modes. Six correctly labelled formal volumes were
+  restored and their four SQLite databases, 328 artifacts and backup boundary
+  passed hash/integrity checks. The formal containers remain stopped and
+  `127.0.0.1:18787` remains free.
+- R760's management Netplan now persists the USB NIC by MAC with static address,
+  gateway and DNS; unplugged 10 Gb NICs no longer block boot. SSH, DNS,
+  wait-online, existing MedEvidence health and public `:1443` SNI were
+  revalidated. A future cold-boot drill still requires iDRAC/local-console
+  fallback. The NVIDIA driver is currently unavailable after the kernel change,
+  but the planned Gateway/Research and API-backed image workloads do not depend
+  on the local GPU.
+- The R760 `goldencode.instmarket.com.au` DNS-01 certificate and dedicated SNI
+  vhost are installed; certificate validation through public `:1443` succeeds.
+  The origin returns the expected `502` while the formal Gateway is stopped.
+  This validation used an explicit address override; ordinary public DNS for
+  the `goldencode` origin is not yet present.
+- CN1 has ample current proxy headroom, Nginx/certbot are active, and its existing
+  vhosts/config test pass. Thirty cold CN1-to-R760 HTTPS samples measured TCP
+  p50/p95 `10.09/10.89 ms`, cumulative TLS p50/p95 `26.22/26.89 ms`, and total
+  immediate-response p50/p95 `43.81/45.54 ms`. Upstream keepalive should reduce
+  steady-state overhead primarily to the roughly 10 ms inter-site round trip.
+- CN1's dedicated `gw` certificate/vhost, SSE and long-request settings,
+  upstream keepalive, DNS cutover, monitoring, origin allowlist and rollback
+  drill are not yet implemented. CN1 becomes the public single point after
+  Azure is retired.
+- Public and Research Aliyun credentials were found not to be fully isolated in
+  the prepared state. Separate replacement credentials and a staged rotation
+  are required before cutover; no secret values belong in this document.
+- The original 2026-08-01/02 window passed without cutover. Azure remains the
+  temporary rollback boundary until the next approved deploy/sync/cutover
+  window passes every gate; it is not the permanent edge and is to be retired
+  after the observation window.
+- See
+  `docs/implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
 
 Historical rollout record (retained for audit):
 
@@ -273,7 +348,9 @@ Historical rollout record (retained for audit):
     Research LLM Gateway, Worker and maintenance container identities, start
     times and restart counts were unchanged.
 
-- Doctor Research controlled beta is enabled on the production Azure Gateway:
+- Historical 2026-07-18 Doctor Research controlled-beta profile (superseded by
+  the current Aliyun-only internal Research pool) was enabled on the production
+  Azure Gateway:
   - runtime checkout commit
     `71df0fac7047000f88a057a79ef649e2cad0a819`
     from clean release

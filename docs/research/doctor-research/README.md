@@ -1,10 +1,17 @@
 # Doctor Research
 
 This directory contains the production Doctor Research API guide, deployment
-runbooks, and historical implementation records. The public production target
-is the Azure VM deployment at `https://gw.instmarket.com.au`; CN1 is a
-separate loopback-only GoldenCode environment and is not a Doctor Research
-deployment target.
+runbooks, and historical implementation records. Current public production is
+the Azure VM deployment at `https://gw.instmarket.com.au`. The selected
+destination is R760 with the same four-container boundary. Because public 443
+cannot be forwarded directly to R760, CN1 will terminate the unchanged
+`gw.instmarket.com.au:443` client entry and proxy over HTTPS to the R760
+`goldencode.instmarket.com.au:1443` origin. CN1's existing loopback-only
+GoldenCode Gateway remains separate and does not run Doctor Research or process
+this edge traffic. Azure remains authoritative until every validation and
+cutover gate passes, then is retained only for the temporary observation
+rollback window before retirement. See
+`../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
 
 ## Current production contract
 

@@ -1,5 +1,12 @@
 # Doctor Research Agent API：Azure Codex Gateway 服务化设计方案
 
+> 2026-07-30 后继文档说明：本文保留最初 Azure 服务化架构决策及其历史依据。
+> 当前 Azure 生产 Runbook 继续作为切流前权威；境内四容器搬迁不会覆盖本文。
+> 截至 2026-08-03，目标已确定为 R760，CN1 只作为保持
+> `gw.instmarket.com.au:443` 不变的 HTTPS 边缘并转发到 R760
+> `goldencode.instmarket.com.au:1443`，不运行目标 Doctor Research。后继计划见
+> `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
+
 > 2026-07-20 实现勘误：医学团队提供的
 > `docs/research/采访skill/` 现为权威业务规范。生产镜像原样携带并通过固定白名单
 > 加载四个 `SKILL.md`，记录 bundle SHA-256；平台只负责安全适配器、编排、契约与

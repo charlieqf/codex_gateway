@@ -106,6 +106,20 @@ listener: 127.0.0.1:18787->8787
 public route: none
 ```
 
+Separately, CN1 has an approved but not yet installed edge role for the R760
+migration:
+
+```text
+gw.instmarket.com.au:443
+  -> CN1 Nginx only
+  -> https://goldencode.instmarket.com.au:1443
+  -> R760 Gateway
+```
+
+This edge vhost must not proxy to CN1 `127.0.0.1:18787`, import R760 state or
+read any LLM/image provider key. Installing it is a public `80/443` maintenance
+action and is not authorized by routine loopback checks.
+
 Basic CN1 checks:
 
 ```bash
@@ -117,6 +131,62 @@ curl -fsS http://127.0.0.1:18787/gateway/health
 The CN1 profile exposes only `goldencode`, backed by `qianfan`, `tencent`, and
 `aliyun` GLM-5.2 pool members. OpenRouter is intentionally absent. See
 `docs/operations/cn1-goldencode-gateway.md` for the full runbook.
+
+A four-container domestic Gateway and Doctor Research migration is prepared for
+R760. The existing single-container CN1 commands are neither destination nor
+cutover commands. CN1 is only the future `gw` edge, while R760 owns application
+containers, state and provider credentials. The preparation, validation and
+rollback gates are in
+`docs/implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
+
+## R760 Domestic Destination Access Pattern
+
+Use operator-local access notes for the concrete SSH target and key. Keep those
+details out of this repository.
+
+Approved destination shape:
+
+```text
+app root: /opt/codex-gateway-r760
+compose project: codex_gateway_r760
+public gateway listener: 127.0.0.1:18787->8787
+origin TLS identity: https://goldencode.instmarket.com.au:1443
+advertised public base: https://gw.instmarket.com.au
+public text models: goldencode only
+```
+
+The three other services are `research-llm-gateway`, `research-worker` and
+`research-maintenance`; they publish no host port. Do not install another
+PostgreSQL for this stack: Gateway/Research use their existing SQLite volumes,
+and the host's PostgreSQL 17 data remains under `/data/postgresql/17/main` for
+the services that already depend on it.
+
+Current preparation boundary as of 2026-08-03:
+
+- Docker/containerd roots and Gateway/Research state are under `/data`;
+- four offline images and the clean release are staged;
+- six formal volumes contain a verified initial Azure snapshot;
+- formal Compose config passed while all four enable flags remained false;
+- no formal container is running and `127.0.0.1:18787` is free;
+- the `goldencode` certificate/SNI vhost is installed and public `:1443` TLS
+  works with an explicit address override, returning expected `502` until the
+  Gateway starts; ordinary `goldencode` public DNS is still pending;
+- the management Netplan persists the USB NIC by MAC; a separate cold-boot
+  maintenance drill still requires iDRAC/local-console fallback;
+- the staged env still requires the newly approved low-cost image chain and
+  separate public/Research Aliyun credentials before it may be started.
+
+Destination text requests expose only `goldencode`, backed by direct Qianfan,
+Tencent and Aliyun GLM-5.2. Image generation remains separate at
+`/gateway/images/generations` with client model `medcode-image-default`; target
+upstreams are `gpt-image-1.5`, `grok-imagine-image-quality` and
+`gemini-3.1-flash-image`, never `gpt-image-2`.
+
+Before any R760 Compose mutation, use the exact formal release and private env
+documented by the migration checklist, run `docker compose config --quiet`,
+verify secret owner/mode and confirm the six named volumes. Never print the
+rendered config, env files or secret contents. Routine destination inspection
+must remain read-only until the deploy window is explicitly authorized.
 
 ## VM Project Paths
 
