@@ -32,6 +32,11 @@ export interface FrozenIdentityRecord {
   contentSha256?: string;
 }
 
+export type OfficialSourceDiscoveryKind =
+  | "seed"
+  | "doctor_identity"
+  | "hospital_official";
+
 export interface FrozenOfficialSource {
   sourceId: string;
   url: string;
@@ -39,6 +44,7 @@ export interface FrozenOfficialSource {
   accessedAt: string;
   contentSha256: string;
   untrustedText: string;
+  discoveryKinds?: readonly OfficialSourceDiscoveryKind[];
 }
 
 export interface ResearchAdapterBundle {
@@ -67,6 +73,7 @@ export interface ResearchAdapterBundle {
     signal: AbortSignal,
     options?: {
       seedUrls?: readonly string[];
+      hospital?: string;
     }
   ): Promise<readonly string[]>;
   fetchApprovedSource(

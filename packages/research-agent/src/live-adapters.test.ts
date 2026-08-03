@@ -345,7 +345,7 @@ describe("Doctor Research live first-party adapters", () => {
     });
 
     expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 2
+      officialSearchRequestUnits: 4
     });
     await expect(
       adapters.searchOfficialSources(
@@ -357,6 +357,171 @@ describe("Doctor Research live first-party adapters", () => {
     expect(queries.every((query) => query.length <= 400)).toBe(true);
     expect(queries[0]).toContain("Example Doctor Example Hospital Cardiology");
     expect(queries[0]).not.toContain("site:");
+  });
+
+  it("adds exactly one bounded hospital-site search and labels its candidates", async () => {
+    const requests: Array<{ query: string; maximumResults: string | null }> = [];
+    const adapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "google",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 2
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async (input) => {
+        const url = new URL(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : input.url
+        );
+        const query = url.searchParams.get("q") ?? "";
+        requests.push({
+          query,
+          maximumResults: url.searchParams.get("num")
+        });
+        if (query === '"Example Hospital" official site') {
+          return jsonResponse({
+            search_metadata: { status: "Success" },
+            organic_results: [
+              {
+                title: "Example Hospital",
+                link: "https://hospital.example/",
+                snippet: "Official home page"
+              },
+              {
+                title: "Example Hospital information",
+                link: "https://second-hospital.example/",
+                snippet: "Candidate two"
+              },
+              {
+                title: "Example Hospital information",
+                link: "https://third-hospital.example/",
+                snippet: "Candidate three"
+              },
+              {
+                title: "Example Hospital information",
+                link: "https://fourth-hospital.example/",
+                snippet: "Must be excluded by the fixed top-three bound"
+              }
+            ]
+          });
+        }
+        return jsonResponse({
+          search_metadata: { status: "Success" },
+          organic_results: [
+            {
+              title: "Example Doctor profile",
+              link: "https://hospital.example/doctors/example",
+              snippet: "Example Doctor, Cardiology"
+            }
+          ]
+        });
+      },
+      approvedDocumentFetchImpl: async (input) => ({
+        url: input.url.toString(),
+        title: input.url.pathname === "/" ? "Example Hospital" : "Profile",
+        text:
+          input.url.pathname === "/"
+            ? "Example Hospital official home page"
+            : "Example Doctor, Cardiology",
+        contentSha256: "a".repeat(64),
+        sizeBytes: 100
+      })
+    });
+
+    const sourceIds = await adapters.searchOfficialSources(
+      '"Example Doctor" Example Hospital Cardiology doctor profile',
+      new AbortController().signal,
+      { hospital: "Example Hospital" }
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        {
+          query: '"Example Doctor" Example Hospital Cardiology doctor profile',
+          maximumResults: "2"
+        },
+        {
+          query: '"Example Hospital" official site',
+          maximumResults: "3"
+        }
+      ])
+    );
+    expect(sourceIds).toHaveLength(4);
+    const sources = await Promise.all(
+      sourceIds.map((sourceId) =>
+        adapters.fetchApprovedSource(
+          sourceId,
+          new AbortController().signal
+        )
+      )
+    );
+    expect(
+      sources.find((source) => source?.url.includes("/doctors/example"))
+        ?.discoveryKinds
+    ).toEqual(["doctor_identity"]);
+    expect(
+      sources.filter((source) =>
+        source?.discoveryKinds?.includes("hospital_official")
+      )
+    ).toHaveLength(3);
+    expect(sources.some((source) => source?.url.includes("fourth"))).toBe(false);
+  });
+
+  it("keeps exact identity candidates when the optional hospital search is unavailable", async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+      );
+      if (url.searchParams.get("q") === '"Example Hospital" official site') {
+        return new Response("temporarily unavailable", { status: 503 });
+      }
+      return jsonResponse({
+        search_metadata: { status: "Success" },
+        organic_results: [
+          {
+            title: "Example Doctor profile",
+            link: "https://hospital.example/doctors/example",
+            snippet: "Example Doctor, Example Hospital, Cardiology"
+          }
+        ]
+      });
+    });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {},
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "serpapi",
+        apiKey: "serpapi-test-key",
+        serpApiEngine: "google",
+        allowedDomains: ["hospital.example"],
+        maximumResults: 2
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchOfficialSources(
+        '"Example Doctor" Example Hospital Cardiology doctor profile',
+        new AbortController().signal,
+        { hospital: "Example Hospital" }
+      )
+    ).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it("retries official search only once for transient HTTP failures", async () => {
@@ -574,10 +739,10 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 2
+      officialSearchRequestUnits: 4
     });
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
     );
   });
 
@@ -628,7 +793,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
     );
   });
 
@@ -679,7 +844,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
     );
   });
 
@@ -733,7 +898,7 @@ describe("Doctor Research live first-party adapters", () => {
     );
     expect((error as Error).message).not.toContain("serpapi-test-key");
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
     );
   });
 

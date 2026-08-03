@@ -4,6 +4,7 @@ import {
   type FrozenIdentityRecord,
   type FrozenOfficialSource,
   type FrozenPublicationMetadata,
+  type OfficialSourceDiscoveryKind,
   type ResearchAdapterBundle
 } from "./adapters.js";
 import {
@@ -44,6 +45,8 @@ export interface LiveResearchAdapterOptions {
   approvedDocumentFetchImpl?: typeof fetchApprovedWebDocument;
 }
 
+const MAXIMUM_HOSPITAL_OFFICIAL_RESULTS = 3;
+
 export class LiveResearchAdapters implements ResearchAdapterBundle {
   readonly versions: Readonly<Record<string, string>>;
   readonly budgetHints: {
@@ -65,6 +68,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       snippet: string;
       fetchAllowedDomains: readonly string[];
       required: boolean;
+      discoveryKinds: Set<OfficialSourceDiscoveryKind>;
     }
   >();
 
@@ -128,16 +132,16 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       official_web:
         options.officialWeb.provider === "serpapi"
           ? options.officialWeb.serpApiEngine === "baidu"
-            ? "serpapi-baidu-general-identity-search-v2+pinned-source-fetch.v2"
-            : "serpapi-google-general-identity-search-v2+pinned-source-fetch.v2"
+            ? "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+            : "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
           : options.officialWeb.provider === "brave"
-            ? "brave-general-identity-search-v2+pinned-source-fetch.v2"
+            ? "brave-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
             : "direct-reviewed-source-fetch.v1"
     });
     validateAllowedDomains(options.officialWeb.allowedDomains);
     this.budgetHints = Object.freeze({
       officialSearchRequestUnits:
-        options.officialWeb.provider === "direct" ? 0 : 2
+        options.officialWeb.provider === "direct" ? 0 : 4
     });
     if (
       options.userAgent !== options.userAgent.trim() ||
@@ -476,33 +480,77 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     signal: AbortSignal,
     options: {
       seedUrls?: readonly string[];
+      hospital?: string;
     } = {}
   ): Promise<readonly string[]> {
     const query = boundedOfficialIdentityQuery(normalizedDoctorName);
     this.officialSources.clear();
-    const sourceIds: string[] = [];
+    const doctorSourceIds: string[] = [];
+    const hospitalSourceIds: string[] = [];
+    const registerSource = (input: {
+      sourceUrl: URL;
+      title: string;
+      snippet: string;
+      fetchAllowedDomains: readonly string[];
+      required: boolean;
+      discoveryKind: OfficialSourceDiscoveryKind;
+    }): string => {
+      const sourceId = `src_web_${sha256(input.sourceUrl.toString()).slice(0, 24)}`;
+      const existing = this.officialSources.get(sourceId);
+      if (existing) {
+        existing.required ||= input.required;
+        existing.discoveryKinds.add(input.discoveryKind);
+        return sourceId;
+      }
+      this.officialSources.set(sourceId, {
+        url: input.sourceUrl,
+        title: input.title,
+        snippet: input.snippet,
+        fetchAllowedDomains: input.fetchAllowedDomains,
+        required: input.required,
+        discoveryKinds: new Set([input.discoveryKind])
+      });
+      return sourceId;
+    };
     for (const rawUrl of options.seedUrls ?? []) {
       const sourceUrl = approvedSeedUrl(
         rawUrl,
         this.options.officialWeb.allowedDomains
       );
-      const sourceId = `src_web_${sha256(sourceUrl.toString()).slice(0, 24)}`;
-      this.officialSources.set(sourceId, {
-        url: sourceUrl,
+      doctorSourceIds.push(registerSource({
+        sourceUrl,
         title: sourceUrl.hostname,
         snippet: "",
         fetchAllowedDomains: this.options.officialWeb.allowedDomains,
-        required: true
-      });
-      sourceIds.push(sourceId);
+        required: true,
+        discoveryKind: "seed"
+      }));
     }
     if (this.options.officialWeb.provider === "direct") {
-      return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
+      return [...new Set(doctorSourceIds)].slice(0, this.maximumOfficialResults);
     }
-    const results =
-      this.options.officialWeb.provider === "brave"
-        ? await this.searchBrave(query, signal)
-        : await this.searchSerpApi(query, signal);
+    const hospitalQuery = options.hospital
+      ? boundedHospitalOfficialQuery(options.hospital)
+      : null;
+    const [identitySearch, hospitalSearch] = await Promise.allSettled([
+      this.searchOfficialWeb(query, signal, this.maximumOfficialResults),
+      hospitalQuery
+        ? this.searchOfficialWeb(
+            hospitalQuery,
+            signal,
+            MAXIMUM_HOSPITAL_OFFICIAL_RESULTS
+          )
+        : Promise.resolve<readonly OfficialSearchResult[]>([])
+    ]);
+    if (identitySearch.status === "rejected") {
+      throw identitySearch.reason;
+    }
+    if (hospitalSearch.status === "rejected" && signal.aborted) {
+      throw hospitalSearch.reason;
+    }
+    const results = identitySearch.value;
+    const hospitalResults =
+      hospitalSearch.status === "fulfilled" ? hospitalSearch.value : [];
     for (const result of results.slice(0, this.maximumOfficialResults)) {
       if (
         !result ||
@@ -516,30 +564,72 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       if (!sourceUrl) {
         continue;
       }
-      const sourceId = `src_web_${sha256(sourceUrl.toString()).slice(0, 24)}`;
-      this.officialSources.set(sourceId, {
-        url: sourceUrl,
+      doctorSourceIds.push(registerSource({
+        sourceUrl,
         title: normalizeText(result.title).slice(0, 300),
         snippet:
           typeof result.description === "string"
             ? normalizeText(result.description).slice(0, 2_000)
             : "",
         fetchAllowedDomains: discoveredFetchDomains(sourceUrl),
-        required: false
-      });
-      sourceIds.push(sourceId);
+        required: false,
+        discoveryKind: "doctor_identity"
+      }));
     }
-    return [...new Set(sourceIds)].slice(0, this.maximumOfficialResults);
+    for (const result of hospitalResults.slice(
+      0,
+      MAXIMUM_HOSPITAL_OFFICIAL_RESULTS
+    )) {
+      if (
+        !result ||
+        typeof result.url !== "string" ||
+        typeof result.title !== "string"
+      ) {
+        continue;
+      }
+      const sourceUrl = approvedDiscoveredUrl(result.url);
+      if (!sourceUrl) {
+        continue;
+      }
+      hospitalSourceIds.push(registerSource({
+        sourceUrl,
+        title: normalizeText(result.title).slice(0, 300),
+        snippet:
+          typeof result.description === "string"
+            ? normalizeText(result.description).slice(0, 2_000)
+            : "",
+        fetchAllowedDomains: discoveredFetchDomains(sourceUrl),
+        required: false,
+        discoveryKind: "hospital_official"
+      }));
+    }
+    return [
+      ...new Set([
+        ...[...new Set(doctorSourceIds)].slice(0, this.maximumOfficialResults),
+        ...hospitalSourceIds
+      ])
+    ];
+  }
+
+  private searchOfficialWeb(
+    query: string,
+    signal: AbortSignal,
+    maximumResults: number
+  ): Promise<readonly OfficialSearchResult[]> {
+    return this.options.officialWeb.provider === "brave"
+      ? this.searchBrave(query, signal, maximumResults)
+      : this.searchSerpApi(query, signal, maximumResults);
   }
 
   private async searchBrave(
     query: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    maximumResults: number
   ): Promise<readonly OfficialSearchResult[]> {
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     setSearchParams(url, {
       q: query,
-      count: String(this.maximumOfficialResults),
+      count: String(maximumResults),
       safesearch: "strict",
       extra_snippets: "false"
     });
@@ -564,7 +654,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
 
   private async searchSerpApi(
     query: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    maximumResults: number
   ): Promise<readonly OfficialSearchResult[]> {
     const engine = this.options.officialWeb.serpApiEngine!;
     const providerQuery = localizeSerpApiIdentityQuery(query, engine);
@@ -576,11 +667,11 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       api_key: this.options.officialWeb.apiKey!,
       ...(engine === "google"
         ? {
-            num: String(this.maximumOfficialResults),
+            num: String(maximumResults),
             safe: "active"
           }
         : {
-            rn: String(this.maximumOfficialResults),
+            rn: String(maximumResults),
             ct: "2"
           })
     });
@@ -678,7 +769,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       title: document.title || selected.title,
       accessedAt: new Date().toISOString(),
       contentSha256: document.contentSha256,
-      untrustedText: document.text
+      untrustedText: document.text,
+      discoveryKinds: [...selected.discoveryKinds].sort()
     };
   }
 
@@ -1122,6 +1214,16 @@ function boundedOfficialIdentityQuery(value: string): string {
     throw new Error("Official web search query contains too many words.");
   }
   return normalized;
+}
+
+function boundedHospitalOfficialQuery(value: string): string {
+  const hospital = boundedQuery(value, 200).replaceAll('"', "");
+  if (hospital.length < 2) {
+    throw new Error("Hospital official web search query is invalid.");
+  }
+  return /\p{Script=Han}/u.test(hospital)
+    ? `"${hospital}" 官网`
+    : `"${hospital}" official site`;
 }
 
 function localizeSerpApiIdentityQuery(

@@ -441,8 +441,8 @@ export function loadResearchWorkerConfig(
   }
   const singleAttemptExternalRequestUnits =
     6 +
-    (webProvider === "brave" ? 2 : 0) +
-    maximumOfficialResults * 8 +
+    (webProvider === "direct" ? 0 : 4) +
+    (maximumOfficialResults + (webProvider === "direct" ? 0 : 3)) * 8 +
     3 +
     Math.min(maximumPublications, 5) * 9 +
     maximumPublications * 9;
