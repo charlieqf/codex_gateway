@@ -10256,6 +10256,24 @@ function closeReviewReferenceCitations(input: {
   };
 }
 
+function deterministicSectionSupplementMinimumExisting(
+  minimum: number,
+  eligibilityRatio: number
+): number {
+  // The final medical-Skill floor is never reduced: every supplemented
+  // section is re-counted and fully revalidated against `minimum`. This small
+  // one-percent tolerance applies only to eligibility for the existing
+  // evidence-closed deterministic repair. It absorbs a few content units that
+  // can be removed by citation/numeric safety normalization at the 75% edge
+  // without spending another model call or publishing an underfilled section.
+  const nominalEligibility = Math.ceil(minimum * eligibilityRatio);
+  const normalizationTolerance = Math.max(
+    1,
+    Math.ceil(minimum * 0.01)
+  );
+  return Math.max(1, nominalEligibility - normalizationTolerance);
+}
+
 function supplementReviewSkillSectionBoundaries(input: {
   markdown: string;
   referenceCount: number;
@@ -10358,10 +10376,10 @@ function supplementReviewSkillSectionBoundaries(input: {
           : reviewContractPolicy.sections.topic.minimum;
     const minimumExisting =
       section.kind === "topic"
-        ? Math.ceil(minimum * 0.75)
+        ? deterministicSectionSupplementMinimumExisting(minimum, 0.75)
         : section.kind === "limitations"
-          ? Math.ceil(minimum * 0.5)
-          : Math.ceil(minimum * 0.25);
+          ? deterministicSectionSupplementMinimumExisting(minimum, 0.5)
+          : deterministicSectionSupplementMinimumExisting(minimum, 0.25);
     if (
       count(section.body) >= minimum ||
       count(section.body) < minimumExisting
@@ -10444,7 +10462,8 @@ function supplementNearMinimumBodySections(
     return { fragment, changed: false };
   }
   const minimum = reviewContractPolicy.sections.topic.minimum;
-  const minimumExisting = Math.ceil(minimum * 0.75);
+  const minimumExisting =
+    deterministicSectionSupplementMinimumExisting(minimum, 0.75);
   const count = (value: string): number =>
     countReviewLanguageContent(value, language);
   const templates =

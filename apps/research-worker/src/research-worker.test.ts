@@ -598,18 +598,32 @@ describe("Research Worker controlled-beta workflow", () => {
         ).join("。")
       ].join("。")}。[1]`
     ].join("\n\n");
+    const postSafetyTopicBoundaryParagraph = `${[
+      Array.from(
+        { length: 7 },
+        () =>
+          "研究设计与人群差异部分仅综合所引公开摘要证据，比较研究设计与方法差异，并明确证据边界和适用限制"
+      ).join("。"),
+      "公开摘要证据支持研究比较的方法与解释边界"
+    ].join("。")}。[1]`;
+    expect(
+      postSafetyTopicBoundaryParagraph.match(/\p{Script=Han}/gu)
+        ?.length ?? 0
+    ).toBe(335);
     const postSafetyNearMinimumBodyFragment = (() => {
-      const [first, ...remaining] =
-        nearMinimumSkillBodyFragment().split(
-          /\n\n(?=##\s)/u
-        );
+      const [, ...remaining] = skillBodyFragment(20).split(
+        /\n\n(?=##\s)/u
+      );
       const alreadyUsedBoundaryParagraphs = [
         "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
         "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
         "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。"
       ];
       return [
-        `${first}\n\n${unsafeSectionPaddingSentence}。另一条填充错误写入999998例无法由所引摘要闭合的样本陈述。[1]`,
+        `## 研究设计与人群差异\n\n${postSafetyTopicBoundaryParagraph}\n\n${Array.from(
+          { length: 4 },
+          () => unsafeSectionPaddingSentence
+        ).join("。")}。[1]`,
         ...remaining.map(
           (section, index) =>
             `${section}\n\n${alreadyUsedBoundaryParagraphs[index]} [1]`
