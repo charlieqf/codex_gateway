@@ -1521,7 +1521,10 @@ export function replayDoctorResearchSynthesis(input: {
       ? parseFoundationFragment(foundationCall.responseText)
       : null;
     const body = bodyCall
-      ? parseBodyFragment(bodyCall.responseText)
+      ? parseEvidenceClosedBodyFragment(
+          bodyCall.responseText,
+          input.closedEvidence
+        )
       : null;
     const closing = closingCall
       ? parseReviewFragment(closingCall.responseText)
@@ -3149,7 +3152,10 @@ async function generateAndValidateShardedModelOutput(
   let foundationFragment = parseFoundationFragment(
     foundationResponse.text
   );
-  let middleFragment = parseBodyFragment(middleResponse.text);
+  let middleFragment = parseEvidenceClosedBodyFragment(
+    middleResponse.text,
+    evidence
+  );
   let closingFragment = closingResponse
     ? parseReviewFragment(closingResponse.text)
     : buildDeterministicClosingTransportFallback(
@@ -3185,7 +3191,10 @@ async function generateAndValidateShardedModelOutput(
       ? parseFoundationFragment(foundationResponse.text)
       : null;
     middleFragment = middleResponse
-      ? parseBodyFragment(middleResponse.text)
+      ? parseEvidenceClosedBodyFragment(
+          middleResponse.text,
+          evidence
+        )
       : null;
     closingFragment = closingResponse
       ? parseReviewFragment(closingResponse.text)
@@ -3360,7 +3369,10 @@ async function generateAndValidateShardedModelOutput(
       ? parseFoundationFragment(foundationResponse.text)
       : null;
     middleFragment = middleResponse
-      ? parseBodyFragment(middleResponse.text)
+      ? parseEvidenceClosedBodyFragment(
+          middleResponse.text,
+          evidence
+        )
       : null;
     closingFragment = closingResponse
       ? parseReviewFragment(closingResponse.text)
@@ -4051,16 +4063,34 @@ async function generateAndValidateShardedModelOutput(
   let sectionRepairCompleted = false;
   let introductionCorrectionCompleted = false;
   if (correctedQaResponse) {
-    const correctedQaFragment = parseQaFragment(
+    const parsedCorrectedQaFragment = parseQaFragment(
       correctedQaResponse.text
     );
-    if (!correctedQaFragment) {
+    if (!parsedCorrectedQaFragment) {
       context.reportValidationFailure(
         "synthesize_review",
         qaContractRetryAttempt,
         ["qa_fragment_contract_error"]
       );
       return null;
+    }
+    const normalizedCorrectedQa = normalizeQaFragmentSourceClosure(
+      parsedCorrectedQaFragment,
+      evidence
+    );
+    if (!normalizedCorrectedQa.ok) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        qaContractRetryAttempt,
+        ["qa_fragment_source_closure_error"]
+      );
+      return null;
+    }
+    const correctedQaFragment = normalizedCorrectedQa.fragment;
+    if (normalizedCorrectedQa.changed) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_qa_fragment_unknown_source_removed"
+      );
     }
     acceptedMiddleFragment = {
       ...acceptedMiddleFragment,
@@ -5229,12 +5259,14 @@ function buildQaContractCorrectionPrompt(input: {
   maximumAnswerContent: number;
   medicalSkillBundle: MedicalSkillBundle;
 }): string {
+  const validSourceIds = closedPubMedSourceIds(input.evidence);
   const requestedSourceIds = new Set(
     input.fragment.answers.flatMap((answer) =>
       Array.isArray(answer.source_ids)
         ? answer.source_ids.filter(
             (sourceId): sourceId is string =>
-              typeof sourceId === "string"
+              typeof sourceId === "string" &&
+              validSourceIds.has(sourceId)
           )
         : []
     )
@@ -5244,11 +5276,14 @@ function buildQaContractCorrectionPrompt(input: {
       .map((index) => input.evidence.references[index]?.pmid)
       .filter((pmid): pmid is string => Boolean(pmid))
       .map((pmid) => `src_pubmed_${pmid}`)
+      .filter((sourceId) => validSourceIds.has(sourceId))
   );
   const allowedSourceIds =
     requestedSourceIds.size > 0
       ? requestedSourceIds
-      : fallbackSourceIds;
+      : fallbackSourceIds.size > 0
+        ? fallbackSourceIds
+        : validSourceIds;
   const evidence = input.evidence.references
     .map((reference) => {
       const sourceId = reference.pmid
@@ -5643,6 +5678,52 @@ function parseBodyFragment(text: string): BodyFragment | null {
   };
 }
 
+function parseEvidenceClosedBodyFragment(
+  text: string,
+  evidence: WorkflowEvidence
+): BodyFragment | null {
+  const fragment = parseBodyFragment(text);
+  return fragment === null
+    ? null
+    : normalizeBodyFragmentQaSourceClosure(fragment, evidence);
+}
+
+function normalizeBodyFragmentQaSourceClosure(
+  fragment: BodyFragment,
+  evidence: WorkflowEvidence
+): BodyFragment {
+  const normalized = normalizeQaFragmentSourceClosure(
+    {
+      schema_version: "doctor_research_qa_fragment.v1",
+      predicted_questions: fragment.predicted_questions,
+      answers: fragment.answers
+    },
+    evidence
+  );
+  if (!normalized.ok) {
+    return bodyFragmentWithDeferredQa(fragment.markdown, [
+      ...fragment.normalizationWarnings,
+      normalized.reason === "source_closure"
+        ? "deterministic_body_fragment_qa_source_closure_deferred"
+        : "deterministic_body_fragment_qa_contract_deferred"
+    ]);
+  }
+  if (!normalized.changed) {
+    return fragment;
+  }
+  return {
+    ...fragment,
+    predicted_questions: normalized.fragment.predicted_questions,
+    answers: normalized.fragment.answers,
+    normalizationWarnings: [
+      ...new Set([
+        ...fragment.normalizationWarnings,
+        "deterministic_body_fragment_unknown_qa_source_removed"
+      ])
+    ]
+  };
+}
+
 function bodyFragmentWithDeferredQa(
   markdown: string,
   normalizationWarnings: readonly string[] = []
@@ -5736,6 +5817,91 @@ function parseQaFragment(text: string): QaFragment | null {
     answers:
       value.answers as DoctorResearchModelDraft["answers"]
   };
+}
+
+function normalizeQaFragmentSourceClosure(
+  fragment: QaFragment,
+  evidence: WorkflowEvidence
+):
+  | { ok: true; fragment: QaFragment; changed: boolean }
+  | { ok: false; reason: "contract" | "source_closure" } {
+  if (
+    fragment.predicted_questions.length !==
+      reviewContractPolicy.questions.requiredCount ||
+    fragment.predicted_questions.some(
+      (question) =>
+        typeof question !== "string" || question.trim().length === 0
+    ) ||
+    fragment.answers.length !==
+      reviewContractPolicy.answers.requiredCount ||
+    fragment.answers.some(
+      (answer, index) =>
+        !isJsonRecord(answer) ||
+        answer.question_index !== index + 1 ||
+        typeof answer.answer !== "string" ||
+        answer.answer.trim().length === 0 ||
+        !Array.isArray(answer.source_ids) ||
+        answer.source_ids.length === 0 ||
+        answer.source_ids.some(
+          (sourceId) =>
+            typeof sourceId !== "string" ||
+            sourceId.trim().length === 0
+        )
+    )
+  ) {
+    return { ok: false, reason: "contract" };
+  }
+  const validSourceIds = closedPubMedSourceIds(evidence);
+  let changed = false;
+  const answers = fragment.answers.map((answer) => {
+    const sourceIds = [
+      ...new Set(
+        answer.source_ids.filter((sourceId) =>
+          validSourceIds.has(sourceId)
+        )
+      )
+    ];
+    if (
+      sourceIds.length !== answer.source_ids.length ||
+      sourceIds.some(
+        (sourceId, index) => sourceId !== answer.source_ids[index]
+      )
+    ) {
+      changed = true;
+    }
+    return { ...answer, source_ids: sourceIds };
+  });
+  if (answers.some((answer) => answer.source_ids.length === 0)) {
+    return { ok: false, reason: "source_closure" };
+  }
+  return {
+    ok: true,
+    changed,
+    fragment: {
+      ...fragment,
+      answers
+    }
+  };
+}
+
+function closedPubMedSourceIds(
+  evidence: WorkflowEvidence
+): Set<string> {
+  const sourceIds = new Set(
+    evidence.sources
+      .filter((source) => source.source_type === "pubmed")
+      .map((source) => source.source_id)
+  );
+  return new Set(
+    evidence.references
+      .map((reference) =>
+        reference.pmid ? `src_pubmed_${reference.pmid}` : null
+      )
+      .filter(
+        (sourceId): sourceId is string =>
+          sourceId !== null && sourceIds.has(sourceId)
+      )
+  );
 }
 
 interface SkillReviewSection {
@@ -7697,6 +7863,41 @@ function contractFailureCodes(
   kind: "parse_error" | "schema_error" | "semantic_error",
   errors: readonly string[]
 ): string[] {
+  if (kind === "semantic_error") {
+    const semanticCodes = errors.flatMap((error) => {
+      if (error === "sources must use unique source_id values") {
+        return ["semantic_source_id_unique"];
+      }
+      if (error.startsWith("duplicate claim_id:")) {
+        return ["semantic_claim_id_unique"];
+      }
+      if (/^claim .* references unknown source_id$/u.test(error)) {
+        return ["semantic_claim_source_closure"];
+      }
+      if (
+        error ===
+        "primary_public_source_ids contains an unknown source_id"
+      ) {
+        return ["semantic_primary_source_closure"];
+      }
+      if (error === "references must use unique reference_id values") {
+        return ["semantic_reference_id_unique"];
+      }
+      if (error.startsWith("core evidence references unknown reference_id:")) {
+        return ["semantic_core_evidence_reference_closure"];
+      }
+      if (error.startsWith("answers must use question_index")) {
+        return ["semantic_answer_order"];
+      }
+      if (/^answer [0-9]+ references unknown source_id$/u.test(error)) {
+        return ["semantic_answer_source_closure"];
+      }
+      return [];
+    });
+    return [
+      ...new Set(["semantic_error", ...semanticCodes])
+    ].slice(0, 12);
+  }
   if (kind !== "schema_error") {
     return [kind];
   }

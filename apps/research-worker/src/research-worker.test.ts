@@ -438,6 +438,14 @@ describe("Research Worker controlled-beta workflow", () => {
       "peer_review_call_reallocated_to_qa_contract_repair"
     ],
     [
+      "body-source-closure-retry",
+      "peer_review_call_reallocated_to_qa_contract_repair"
+    ],
+    [
+      "body-source-extra",
+      "deterministic_body_fragment_unknown_qa_source_removed"
+    ],
+    [
       "contract-short-abstract",
       "bounded_shard_contract_retry_completed"
     ],
@@ -830,7 +838,8 @@ describe("Research Worker controlled-beta workflow", () => {
         2,
         retryKind === "body-markdown-only"
           ? skillBodyFragment(20)
-          : retryKind === "body-markdown-only-retry"
+          : retryKind === "body-markdown-only-retry" ||
+              retryKind === "body-source-closure-retry"
             ? "not a body fragment JSON object"
             : retryKind === "contract-skill-prose"
               ? "not a body fragment JSON object"
@@ -876,7 +885,16 @@ describe("Research Worker controlled-beta workflow", () => {
                   : [])
             ].join("\n\n"),
             predicted_questions: initialBodyQuestions,
-            answers: initialBodyAnswers
+            answers:
+              retryKind === "body-source-extra"
+                ? initialBodyAnswers.map((answer) => ({
+                    ...answer,
+                    source_ids: [
+                      ...answer.source_ids,
+                      "src_pubmed_999999999"
+                    ]
+                  }))
+                : initialBodyAnswers
               }),
           "```"
               ].join("\n")
@@ -1674,7 +1692,8 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
-            retryKind === "body-markdown-only-retry" &&
+            (retryKind === "body-markdown-only-retry" ||
+              retryKind === "body-source-closure-retry") &&
             modelInput.stage === "synthesize_review" &&
             modelInput.attempt === 5 &&
             modelInput.prompt.includes(
@@ -1737,6 +1756,20 @@ describe("Research Worker controlled-beta workflow", () => {
                         "doctor_research_body_fragment.v1",
                       markdown: skillBodyFragment(20)
                     })
+                  : retryKind === "body-source-closure-retry"
+                    ? JSON.stringify({
+                        schema_version:
+                          "doctor_research_body_fragment.v1",
+                        markdown: skillBodyFragment(20),
+                        predicted_questions:
+                          initialBodyQuestions,
+                        answers: initialBodyAnswers.map((answer) => ({
+                          ...answer,
+                          source_ids: [
+                            "src_pubmed_999999999"
+                          ]
+                        }))
+                      })
                   : retryKind === "transport" ||
                 retryKind === "transport-empty" ||
                 retryKind === "admission"
@@ -2002,6 +2035,7 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "section-repair" ||
       retryKind === "correction-timeout" ||
       retryKind === "body-envelope" ||
+      retryKind === "body-source-extra" ||
       retryKind === "closing-envelope" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
@@ -2111,7 +2145,8 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "body-markdown-only" ||
-      retryKind === "body-markdown-only-retry"
+      retryKind === "body-markdown-only-retry" ||
+      retryKind === "body-source-closure-retry"
     ) {
       expect(retryPrompt).toContain(
         "doctor_research_qa_fragment.v1"
@@ -2121,6 +2156,9 @@ describe("Research Worker controlled-beta workflow", () => {
       );
       expect(retryPrompt).toContain(
         '"source_id":"src_pubmed_1001"'
+      );
+      expect(retryPrompt).not.toContain(
+        "src_pubmed_999999999"
       );
     }
     if (retryKind === "skill-contract") {
@@ -2227,7 +2265,7 @@ describe("Research Worker controlled-beta workflow", () => {
           limitations: string;
         }>;
       };
-      answers: Array<{ answer: string }>;
+      answers: Array<{ answer: string; source_ids: string[] }>;
     };
     expect(result.profile.research_directions).toEqual([
       "research area cardiology"
@@ -2317,7 +2355,8 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (
       retryKind === "body-markdown-only" ||
-      retryKind === "body-markdown-only-retry"
+      retryKind === "body-markdown-only-retry" ||
+      retryKind === "body-source-closure-retry"
     ) {
       expect(result.review.markdown).toContain(
         skillBodyFragment(20)
@@ -2328,7 +2367,10 @@ describe("Research Worker controlled-beta workflow", () => {
           "bounded_qa_contract_retry_completed"
         ])
       );
-      if (retryKind === "body-markdown-only-retry") {
+      if (
+        retryKind === "body-markdown-only-retry" ||
+        retryKind === "body-source-closure-retry"
+      ) {
         expect(result.quality.warnings).toContain(
           "peer_review_call_reallocated_to_qa_contract_repair"
         );
@@ -2339,6 +2381,31 @@ describe("Research Worker controlled-beta workflow", () => {
           "peer_review_model_completed"
         );
       }
+    }
+    if (retryKind === "body-source-closure-retry") {
+      expect(result.quality.warnings).toContain(
+        "deterministic_body_fragment_qa_source_closure_deferred"
+      );
+      expect(
+        result.answers.every(
+          (answer) =>
+            answer.source_ids.length === 1 &&
+            answer.source_ids[0] === "src_pubmed_1001"
+        )
+      ).toBe(true);
+    }
+    if (retryKind === "body-source-extra") {
+      expect(result.quality.warnings).toContain(
+        "deterministic_body_fragment_unknown_qa_source_removed"
+      );
+      expect(JSON.stringify(result.answers)).not.toContain(
+        "src_pubmed_999999999"
+      );
+      expect(
+        result.answers.every((answer) =>
+          answer.source_ids.includes("src_pubmed_1001")
+        )
+      ).toBe(true);
     }
     if (retryKind === "peer-timeout") {
       expect(result.review.markdown).toContain(
@@ -2779,7 +2846,8 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "skill-conclusion-safety" ||
         retryKind === "body-section-repair" ||
         retryKind === "qa-peer-section-repair" ||
-        retryKind === "body-markdown-only-retry"
+        retryKind === "body-markdown-only-retry" ||
+        retryKind === "body-source-closure-retry"
           ? "deterministic_peer_review_self_check_completed"
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
@@ -2788,6 +2856,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
         retryKind === "body-envelope" ||
+        retryKind === "body-source-extra" ||
         retryKind === "closing-envelope" ||
         retryKind === "section-repair" ||
         retryKind === "correction-timeout"

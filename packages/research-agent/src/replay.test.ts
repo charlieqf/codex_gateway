@@ -289,6 +289,84 @@ describe("Doctor Research offline model-response replay", () => {
     expect(second).toEqual(first);
   });
 
+  it("removes extra unknown QA source IDs without changing accepted replay artifacts", () => {
+    const fixture = structuredClone(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!
+    );
+    fixture.fixture_id =
+      "doctor_research_replay_extra_unknown_qa_source";
+    const body = fixture.model_calls.find(
+      (call) => call.role === "body"
+    )!;
+    body.response_or_error = {
+      type: "synthetic_response",
+      variant: "extra_unknown_qa_source"
+    };
+
+    const first = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+    const second = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(first.terminalStatus).toBe("succeeded");
+    expect(first.diagnostics).toEqual([]);
+    expect(first.warnings).toContain(
+      "deterministic_body_fragment_unknown_qa_source_removed"
+    );
+    expect(first.artifactContentSha256).toBe(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!.expected.artifact_semantics.aggregate_content_sha256
+    );
+    expect(JSON.stringify(first.artifacts)).not.toContain(
+      "src_pubmed_999999999"
+    );
+    expect(second).toEqual(first);
+  });
+
+  it("fails closed when every QA source ID is outside closed evidence", () => {
+    const fixture = structuredClone(
+      fixtures.find(
+        (item) => item.fixture_id === "doctor_research_replay_valid"
+      )!
+    );
+    fixture.fixture_id =
+      "doctor_research_replay_unknown_qa_source";
+    const body = fixture.model_calls.find(
+      (call) => call.role === "body"
+    )!;
+    body.response_or_error = {
+      type: "synthetic_response",
+      variant: "unknown_qa_source"
+    };
+
+    const first = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+    const second = runDoctorResearchReplayFixture({
+      fixture,
+      activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
+    });
+
+    expect(first.terminalStatus).toBe("failed");
+    expect(first.warnings).toEqual(
+      expect.arrayContaining([
+        "deterministic_body_fragment_qa_source_closure_deferred",
+        "deterministic_body_fragment_qa_deferred_to_targeted_repair"
+      ])
+    );
+    expect(first.artifacts).toEqual([]);
+    expect(first.artifactContentSha256).toBeNull();
+    expect(second).toEqual(first);
+  });
+
   it("rejects ambiguous closing envelopes without choosing model content", () => {
     const fixture = structuredClone(
       fixtures.find(

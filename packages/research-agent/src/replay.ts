@@ -37,6 +37,8 @@ export type DoctorResearchReplaySyntheticVariant =
   | "peer_patch"
   | "foundation_json_encoding_error"
   | "body_fragment_envelope"
+  | "extra_unknown_qa_source"
+  | "unknown_qa_source"
   | "closing_fragment_envelope"
   | "ambiguous_review_fragment_envelope"
   | "shard_json_failure";
@@ -296,6 +298,21 @@ function syntheticReplayResponse(
   if (role === "body") {
     const body = syntheticBodyFragment(evidence);
     body.markdown = mutateBodyMarkdown(body.markdown, variant);
+    if (
+      variant === "extra_unknown_qa_source" ||
+      variant === "unknown_qa_source"
+    ) {
+      body.answers = body.answers.map((answer) => ({
+        ...answer,
+        source_ids:
+          variant === "unknown_qa_source"
+            ? ["src_pubmed_999999999"]
+            : [
+                ...answer.source_ids,
+                "src_pubmed_999999999"
+              ]
+      }));
+    }
     return JSON.stringify(
       variant === "body_fragment_envelope"
         ? {
