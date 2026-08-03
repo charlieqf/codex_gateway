@@ -171,8 +171,8 @@ class ResearchDockerContractTests(unittest.TestCase):
             },
             {
                 "qianfan": (False, 1),
-                "tencent": (False, 1),
-                "aliyun": (True, 3),
+                "tencent": (True, 3),
+                "aliyun": (False, 3),
             },
         )
         serialized = json.dumps(registry).lower()
