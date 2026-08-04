@@ -48,13 +48,16 @@ Current operational state:
   then reapplied successfully. The final recreated staging Gateway and its
   unchanged Worker/maintenance containers are all healthy with restart count
   zero. No secret-file permission was broadened.
-- The formal R760 project runs the same four image IDs as current Azure from
-  release
-  `/opt/codex-gateway-r760/releases/4697fba0b74d2ea8aa0ace0699a6117397ad9b01`.
-  All four containers are healthy with zero restarts; only Gateway publishes
-  `127.0.0.1:18787`. SQLite integrity and foreign keys pass, maintenance backup
+- The formal R760 project now has `current` at
+  `/opt/codex-gateway-r760/releases/43e118eb00083ee44164329568a62941169ee78c`
+  and `previous` at the Azure-matching `4697fba0b74d2ea8aa0ace0699a6117397ad9b01`
+  release. Only the public Gateway was recreated for the image-attribution fix;
+  the three Research container IDs stayed unchanged. All four business
+  containers and the separate Mihomo infrastructure container are healthy with
+  zero restarts; only Gateway publishes `127.0.0.1:18787`. SQLite integrity and
+  foreign keys pass, maintenance backup
   `drb_d206cec62645458db6f1e2a750dbc1e6` succeeded, Worker
-  `doctor-research-skill.1.6.104` is ready, and `/data` has about 94.5% free.
+  `doctor-research-skill.1.6.104` is ready, and `/data` is about 1% used.
 - Three R760 real Research runs succeeded once each and published exactly four
   artifacts. Two complete client E2Es passed download size/SHA-256 validation
   in 179 and 183 seconds. The middle server run also succeeded with four
@@ -80,12 +83,23 @@ Current operational state:
   selector controller was loopback-only, then removed, and the pre-probe config
   and cache hashes were restored before production restart. Cache and GeoIP are
   mutable runtime state; ongoing integrity checks cover the static binary and
-  derived config. Local source now records the actual image provider and
-  upstream model before every primary, account-retry and billing-fallback
-  attempt, with OpenAI/xAI/Gemini attribution tests passing. The deployed R760
-  image does not yet include that fix, so the image-provider/model
-  observability acceptance gate remains open until deployment and real smoke
-  revalidation.
+  derived config. Commit `43e118eb00083ee44164329568a62941169ee78c` now records
+  the actual image provider and upstream model before every primary,
+  account-retry and billing-fallback attempt. Build and all 40 test files / 638
+  tests passed before deployment. A real R760 smoke then recorded text request
+  `req-ffe8ee38-9f61-417d-9b6a-b816b000393e` as
+  `tencent / goldencode / glm-5.2` and image request
+  `req-72502774-9ad4-4b49-a797-ef50c43c289e` as
+  `openai-api / medcode-image-default / gpt-image-1.5`; both completed with
+  `status=ok`. The temporary credential, entitlement and user were cleaned.
+  Gemini reachability remains the only open low-cost three-model image gate.
+- The active R760 Gateway image is
+  `sha256:11edd786e8b06f2b7ddc600d829503e3368bf971fd44f15618b76f34afed17f0`.
+  Because Docker Hub was unstable and the host had no usable base-image cache,
+  it was built networklessly as an immutable overlay of the previously verified
+  `4697fba` Gateway image plus the locally tested `apps/gateway/dist` and
+  `packages/core/dist` from `43e118e`. This is an auditable deployment artifact,
+  not a replacement for a later canonical full Dockerfile rebuild.
 - R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
   `8081/8082` checks pass. Azure remains the live `gw` address; CN1 Nginx/DNS
   were not changed. Restricted route backups are under
@@ -95,7 +109,10 @@ Current operational state:
   `/data/codex-gateway-r760/backups/pre-mihomo-20260804T034553Z`; the later
   state-permission boundary is
   `/data/codex-gateway-r760/backups/pre-mihomo-state-umask-20260804T043007Z`; see
-  `docs/operations/r760-mihomo-image-egress.md`.
+  `docs/operations/r760-mihomo-image-egress.md`. The Gateway-only attribution
+  deployment has an additional consistent SQLite boundary at
+  `/data/codex-gateway-r760/backups/pre-image-attribution-20260804T064424Z`;
+  the prior release and rollback-tagged Gateway image remain installed.
 
 Superseded 2026-08-03 status snapshot (retained for audit):
 

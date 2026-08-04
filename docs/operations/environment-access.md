@@ -164,12 +164,17 @@ the services that already depend on it.
 Current destination boundary as of 2026-08-04:
 
 - Docker/containerd roots and Gateway/Research state are under `/data`;
-- the exact Azure `4697fba0b74d2ea8aa0ace0699a6117397ad9b01` release and
-  four matching offline image IDs are installed;
+- `current` is release `43e118eb00083ee44164329568a62941169ee78c` and
+  `previous` is the exact Azure-matching
+  `4697fba0b74d2ea8aa0ace0699a6117397ad9b01` release. Only the public Gateway
+  was updated; its active image is
+  `sha256:11edd786e8b06f2b7ddc600d829503e3368bf971fd44f15618b76f34afed17f0`,
+  while all three Research container IDs remain unchanged;
 - six formal volumes contain the latest verified Azure online snapshots plus
   subsequent R760 E2E state;
-- formal Compose project `codex_gateway_r760` is running 4/4 healthy with zero
-  restarts; only Gateway binds `127.0.0.1:18787`;
+- formal Compose project `codex_gateway_r760` is running all four business
+  containers plus Mihomo healthy with zero restarts; only Gateway binds
+  `127.0.0.1:18787`;
 - the `goldencode` certificate/SNI vhost is installed and public `:1443` TLS
   and Gateway health return 200 with an explicit address override; ordinary
   `goldencode` public DNS is still pending;
@@ -185,8 +190,10 @@ Current destination boundary as of 2026-08-04:
   `gpt-image-1.5` path and direct xAI provider smoke succeed. Gemini still fails
   with Google's unsupported-user-location precondition across all 21 currently
   alive copied nodes, so a supported-region node is still required before the
-  complete three-model image gate passes. Do not expose `7890`, route Research
-  LLM through Mihomo or reuse an OpenEvidence residential proxy.
+  complete three-model image gate passes. A real post-deploy image request event
+  now attributes the selected route to `openai-api / gpt-image-1.5`; the paired
+  text control event remains `tencent / glm-5.2`. Do not expose `7890`, route
+  Research LLM through Mihomo or reuse an OpenEvidence residential proxy.
 
 Destination text requests expose only `goldencode`, backed only by direct
 Tencent GLM-5.2. Image generation remains separate at
@@ -200,6 +207,13 @@ verify secret owner/mode and confirm the six named volumes. Never print the
 rendered config, env files or secret contents. Recreate only the intended
 service and preserve the current release, previous symlink, image tags and
 state backup rollback boundaries.
+
+The 2026-08-04 attribution release used a networkless immutable overlay of the
+verified prior Gateway image plus the tested compiled Gateway/core output,
+because the destination lacked a usable base-image cache and Docker Hub was
+unstable. Preserve its installed release directory, image label and rollback tag; use the
+canonical repository Dockerfile for the next normal rebuild when registry
+access is stable.
 
 Operate and validate the image-egress container with
 [`r760-mihomo-image-egress.md`](./r760-mihomo-image-egress.md). It is a fifth

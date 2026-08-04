@@ -366,12 +366,19 @@ R760 当前存储布局已经具备长期调整余量：
 
 ### 6.5 2026-08-04 正式 loopback 部署结果
 
-- 正式 release 为
+- 正式部署基线 release 为
   `/opt/codex-gateway-r760/releases/4697fba0b74d2ea8aa0ace0699a6117397ad9b01`，
-  `current` 指向该版本；四个镜像 ID 与 Azure 当前四容器逐一一致。旧 release、
-  旧镜像标签和
+  当时四个镜像 ID 与 Azure 当前四容器逐一一致。旧 release、旧镜像标签和
   `/data/codex-gateway-r760/backups/pre-4697fba-20260804T0145Z`
   继续作为本次部署的本机回滚边界。
+- 2026-08-04 图片归因补丁发布后，`current` 已指向
+  `/opt/codex-gateway-r760/releases/43e118eb00083ee44164329568a62941169ee78c`，
+  `previous` 指向上述 `4697fba` 基线；仅 public Gateway 被重建，三个 Research
+  容器 ID 未变化。当前 Gateway 镜像为
+  `sha256:11edd786e8b06f2b7ddc600d829503e3368bf971fd44f15618b76f34afed17f0`。
+  因 R760 无可用基础镜像缓存且 Docker Hub 不稳定，本次采用已验证旧 Gateway
+  镜像叠加本地完整 build/test 后的 Gateway/core `dist`，并以 `--network=none`
+  生成不可变候选镜像；这不是以后常规发布中完整 Dockerfile 重建的替代品。
 - 从运行中的 Azure 通过 SQLite 在线快照取得最终空闲窗口，恢复公共 Gateway、
   Research、内部 LLM Gateway、artifacts、已验证备份和图片 fallback key 文件。
   四个数据库均为 `integrity=ok`、外键违规 0，恢复时 active run 和 unfinished
@@ -404,14 +411,18 @@ R760 当前存储布局已经具备长期调整余量：
   请求仍成功落到 `goldencode-tencent / tencent / glm-5.2`，证明 LLM 未绕境外代理。
 - 公共 `medcode-image-default -> gpt-image-1.5` 已真实生成 48,148 字节 JPEG，xAI
   `grok-imagine-image-quality` 的 provider 级 smoke 已真实生成 54,381 字节 JPEG；
-  配置中仍不存在 `gpt-image-2`。Gemini 尚未通过：Google 返回
+  有效模型映射和真实事件中仍不存在 `gpt-image-2`。Gemini 尚未通过：Google 返回
   `FAILED_PRECONDITION / User location is not supported for the API use`，对复制节点中
   21 个当前 alive 候选逐一做 OpenAI/xAI/Gemini 目录探针后结果相同。临时
   loopback controller 已删除，config/cache 已在生产重启前按探测前哈希恢复；后续 cache/GeoIP
   属于可变运行态，持续完整性校验只覆盖静态二进制和 R760 派生配置。必须增加一个
   Google 支持地区的专用节点并完成 Gemini 实图。图片事件的实际 provider/upstream model
-  归因已在本地源码修复并通过主路径、账户重试和多级 fallback 测试，但尚未部署到 R760；
-  新镜像部署并完成真实事件复验后，图片三模型验收才算关闭；不得改用 OpenEvidence 住宅代理。
+  归因已随 `43e118e` 部署：真实图片事件
+  `req-72502774-9ad4-4b49-a797-ef50c43c289e` 为
+  `openai-api / medcode-image-default / gpt-image-1.5 / ok`，配对文本事件为
+  `tencent / goldencode / glm-5.2 / ok`。临时 key、entitlement、用户和 reservation
+  均已清理。OpenAI 路径的归因门槛已关闭；低成本图片三模型总门槛仍受 Gemini
+  出口地区阻塞，不得改用 OpenEvidence 住宅代理。
 - 本次部署没有修改 CN1 Nginx、DNS 或公网 `gw`；公网
   `gw.instmarket.com.au` 仍解析到 Azure。
 
@@ -602,10 +613,9 @@ loopback 部署已完成，但 CN1 `gw` vhost、正式 DNS 和切流均未执行
 5. 确认公共和 Research 使用的腾讯账号总额度、速率和并发能够覆盖两条路径；
    本次不要求凭据隔离或轮换；
 6. R760 私有 Mihomo、Gateway-only 代理、Tencent 精确 `NO_PROXY`、零宿主机端口、
-   自动重启、OpenAI 实图和 xAI 实图已经验证；继续补充一个 Google 支持地区的
-   节点并完成 Gemini 实图；图片事件实际 provider 与 upstream model 的源码修复已
-   通过自动化测试，仍须部署到 R760 并以真实事件验证。完成前低成本图片三模型门槛
-   仍为 no-go；
+   自动重启、OpenAI 实图和 xAI 实图已经验证；图片事件实际 provider 与 upstream
+   model 的修复已部署并通过真实 OpenAI 事件验证。继续补充一个 Google 支持地区的
+   节点并完成 Gemini 实图；完成前低成本图片三模型门槛仍为 no-go；
 7. 最终数据同步期间采用何种写入冻结方式；
 8. 迁移后的备份是否有目标主机之外的副本；
 9. CN1 单点、双层证书续期、端到端 health、带宽和日志关联的监控负责人；

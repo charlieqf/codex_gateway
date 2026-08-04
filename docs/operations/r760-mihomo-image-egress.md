@@ -129,6 +129,12 @@ Passed on 2026-08-04:
   `grok-imagine-image-quality` request produced a valid JPEG;
 - the public Gateway `medcode-image-default -> gpt-image-1.5` route produced a
   valid JPEG through the SNI origin;
+- Gateway commit `43e118eb00083ee44164329568a62941169ee78c` was deployed and
+  a fresh real request produced a 46,085-byte JPEG. Request event
+  `req-72502774-9ad4-4b49-a797-ef50c43c289e` records
+  `provider=openai-api`, `public_model_id=medcode-image-default`,
+  `upstream_model=gpt-image-1.5` and `status=ok`. The paired text control event
+  records `tencent / goldencode / glm-5.2`;
 - temporary users, API keys and entitlements were cleaned, with zero unfinished
   reservations;
 - all four business containers stayed healthy and only the public Gateway was
@@ -140,12 +146,12 @@ Still open:
   unsupported. All 21 currently alive copied leaf nodes returned the same
   result while OpenAI/xAI remained reachable. Add a dedicated supported-region
   node, then repeat a real `gemini-3.1-flash-image` smoke.
-- Local source now writes the actual image provider and upstream model before
-  every primary, account-retry and billing-fallback attempt, including stable
-  `openai-api`, `xai` and `gemini` provider kinds. The deployed R760 image does
-  not yet include that fix. Do not claim the provider/model observability gate
-  has passed until the new image is deployed and a real request event is
-  revalidated.
+
+The provider/model observability gate is therefore closed for the deployed
+OpenAI path. Automated tests also cover xAI and Gemini attribution across
+primary, account-retry and billing-fallback attempts; their real event fields
+must still be checked whenever those providers become the selected runtime
+path.
 
 The temporary selector controller used for diagnosis was bound only to the
 container loopback, then removed. The installed config and cache were restored
@@ -183,3 +189,14 @@ The final state-permission adjustment boundary is:
 
 It contains the pre-adjustment Compose file and state metadata. The active
 state files were tightened to `0600`; no application volume was changed.
+
+The Gateway attribution deployment boundary is:
+
+```text
+/data/codex-gateway-r760/backups/pre-image-attribution-20260804T064424Z
+```
+
+Its three online SQLite backups pass their SHA-256 manifest, integrity and
+foreign-key checks. `previous` points to release `4697fba`; Gateway image tag
+`rollback-4697fba-pre-43e118e` is retained. Roll back only the public Gateway,
+not Mihomo or the three Research services.
