@@ -113,9 +113,12 @@ Domestic migration preparation (not cut over):
   upstream keepalive, DNS cutover, monitoring, origin allowlist and rollback
   drill are not yet implemented. CN1 becomes the public single point after
   Azure is retired.
-- Public and Research Aliyun credentials were found not to be fully isolated in
-  the prepared state. Separate replacement credentials and a staged rotation
-  are required before cutover; no secret values belong in this document.
+- The business owner confirmed on 2026-08-04 that the public and Research pools
+  may reuse the same Aliyun provider key. New credentials or a rotation are not
+  a cutover gate. The two Gateways, service bearer tokens, secret-file paths,
+  SQLite state, concurrency and usage attribution remain separate; shared
+  upstream quota/rate-limit/billing and correlated key failure are accepted and
+  must be included in capacity validation.
 - The original 2026-08-01/02 window passed without cutover. Azure remains the
   temporary rollback boundary until the next approved deploy/sync/cutover
   window passes every gate; it is not the permanent edge and is to be retired

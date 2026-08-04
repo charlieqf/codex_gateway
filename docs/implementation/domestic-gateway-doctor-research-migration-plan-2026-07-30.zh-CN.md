@@ -93,15 +93,21 @@ Doctor Research Worker
 ```
 
 `research-worker` 不得调用公共 `gateway` 的 `goldencode` 池。公共池与
-Research 专用池必须分别管理：
+Research 专用池必须分别管理运行边界；经业务负责人 2026-08-04 明确确认，两套
+池可以引用同一个阿里 provider key，不要求为了本次搬迁新建或轮换阿里凭据。
+仍须分别管理：
 
-- API key/secret；
 - 服务凭据；
+- provider 配置文件、权限和注入路径（即使其中的阿里 key 值相同）；
 - 并发和速率；
 - sticky 选择；
 - cooldown 和健康状态；
 - token reservation、用量和成本归属；
 - 请求事件和故障诊断。
+
+共享 provider key 意味着两套池共同消耗同一个上游账号的额度、速率和账单，阿里
+侧限流或 key 失效也可能同时影响公共和 Research 路径。该耦合风险已接受，但不能
+进一步合并两套 Gateway、服务 bearer token、SQLite 状态或 Worker 路由。
 
 内部服务可以继续把模型标识命名为 `goldencode`，但这只是内部逻辑名称，不能
 与公共池共享运行状态或容量。
@@ -209,9 +215,9 @@ R760 使用 Compose project `codex_gateway_r760`、发布根目录
 
 2026-08-03 复核发现，已准备的 R760 正式配置仍按“本次不迁图片”的旧边界关闭
 图片能力；在正式启动前必须补齐上面的低成本图片配置，并以仅打印变量名/存在性
-和文件哈希的方式复核。公共池和 Research 池还必须使用彼此隔离的阿里凭据；
-当前发现的复用凭据不得直接带入切流，应先准备替换凭据并按不中断 Azure 的顺序
-轮换。
+和文件哈希的方式复核。公共池和 Research 池可以继续使用当前同一个阿里
+provider key；不需要为切流轮换，但必须分别通过受限 secret 文件注入，并在验收
+中确认共享上游账号的总并发、限流和额度能够覆盖两条路径。
 
 目标端私有文件应沿用生产 Runbook 的权限边界：env 为 `0600`，provider/service
 secret 为容器运行用户可读的 `0400`。必须使用 `docker compose config --quiet`
@@ -245,8 +251,8 @@ secret 为容器运行用户可读的 `0400`。必须使用 `docker compose conf
 - 已按 commit `29790d2784913bfe14c71e8f72d51ae48748e5e7` 暂存 clean release
   和四个校验过的离线镜像；
 - `/opt/codex-gateway-r760/shared/config` 为 `0750`，`shared/secrets` 为
-  `0700`；正式 env、secret 和初步状态已按 6.4 落位，但图片配置和凭据隔离仍须
-  按最新决策修订；
+  `0700`；正式 env、secret 和初步状态已按 6.4 落位，但低成本图片配置和共享
+  阿里凭据的总容量验收仍须按最新决策修订；
 - 当前 Docker 容器数为 0，`127.0.0.1:18787` 未监听；现有 Nginx、
   PostgreSQL、MedEvidence backend/gateway/worker 均保持 active，两个本地 health
   均返回 200；
@@ -540,7 +546,8 @@ CN1 边缘 vhost 的硬性配置边界：
    `goldencode:1443` 的固定地址或 DNS-only 解析方式，以及仅允许 CN1/批准运维
    来源的访问策略；
 4. 所有消费者只使用 `model=goldencode` 的清单；无需修改现有 base URL；
-5. 公共和 Research 彼此隔离的阿里凭据/额度，以及已发现复用凭据的安全轮换；
+5. 确认公共和 Research 共用的阿里 provider key、账号总额度、速率和并发能够
+   覆盖两条路径；不把新建或轮换阿里凭据作为本次切流门槛；
 6. `gpt-image-1.5`、xAI、Gemini 的私有 key、顺序、费用边界和三条真实 smoke；
 7. 最终数据同步期间采用何种写入冻结方式；
 8. 迁移后的备份是否有目标主机之外的副本；

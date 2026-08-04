@@ -173,8 +173,10 @@ Current preparation boundary as of 2026-08-03:
   Gateway starts; ordinary `goldencode` public DNS is still pending;
 - the management Netplan persists the USB NIC by MAC; a separate cold-boot
   maintenance drill still requires iDRAC/local-console fallback;
-- the staged env still requires the newly approved low-cost image chain and
-  separate public/Research Aliyun credentials before it may be started.
+- the staged env still requires the newly approved low-cost image chain before
+  it may be started. Public and Research may reference the same Aliyun provider
+  key, but keep separate secret files/injection paths and validate the shared
+  account's aggregate quota, rate and concurrency.
 
 Destination text requests expose only `goldencode`, backed by direct Qianfan,
 Tencent and Aliyun GLM-5.2. Image generation remains separate at
