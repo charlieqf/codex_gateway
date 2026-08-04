@@ -182,7 +182,11 @@ Current destination boundary as of 2026-08-04:
   maintenance drill still requires iDRAC/local-console fallback;
 - public and Research GLM-5.2 routes are Tencent-only. They may reuse the same
   Tencent provider key, but keep separate Gateway/service/SQLite boundaries and
-  validate the shared account's aggregate quota, rate and concurrency;
+  validate the shared account's aggregate quota, rate and concurrency. A
+  Tencent credential present in the protected local deployment config was
+  exposed to operator terminal output on 2026-08-04 and must be rotated before
+  cutover without printing any secret; architecture still does not require
+  separate credentials for the two pools;
 - a dedicated R760 Mihomo infrastructure container now provides image egress
   only on the private `codex_gateway_r760_default` network. It publishes no host
   port; only the public Gateway receives proxy variables, and Tencent/internal
@@ -244,28 +248,30 @@ chmod 700 "$HOME/codex-gateway-state" "$CODEX_HOME"
 The current live gateway is operated from a clean release checkout:
 
 ```text
-/home/qian/codex-gateway-release-29790d2-20260730T062157Z
+/home/qian/codex-gateway-release-4697fba-20260803T083513Z
 ```
 
 The immutable release marker records runtime commit
-`29790d2784913bfe14c71e8f72d51ae48748e5e7`. The verified immediate rollback
-boundary is `/home/qian/codex-gateway-backups/29790d2/20260730T062157Z` plus
-the four `rollback-cb703da-20260730T062157Z` image tags.
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`. The Tencent-only route change has
+a restricted pre-change backup under
+`/home/qian/codex-gateway-backups/tencent-only-20260804T0255Z`; preserve the
+previous verified releases and image tags until the migration observation and
+rollback windows close.
 
 The current Gateway image is
-`sha256:1c99ca4587e38bd053c2a826699000ef1ccf39a761168b94ad5e9eba85040e59`;
+`sha256:02affff39848b80f280fba44514615e49197bad381ddd3b08c6d722f848a7f47`;
 the current Research LLM Gateway image is
-`sha256:c5183b2ce0c7afc3de7791ef0a9b280843da37cb915555543ea5ffe5cf050504`;
+`sha256:99fc3789ae0920538e3fba202476b8a50162f1d110894cbfa5e26b6cfc012c6a`;
 the current Research Worker image is
-`sha256:be007db4c85b83501a3d73ce107c1d780b1c3fa8cb53723bc30fa25545ad80c2`;
+`sha256:9ca22e9f54dd38c64515bb7143ee3ff145dca4e6bfb1de5ac81b0b5abd4c726c`;
 and the current Research maintenance image is
-`sha256:ea0992aa5163c2ba1e24de8438167152fe309ec425c20666b9cd33c2b851e274`.
+`sha256:dc76e04777f3c8a2b4ff5e5d2931d72643b76af26950cbd89b92550d619451cb`.
 
 Production Compose mutations must now use the base file, Research overlay and
 private Compose env together:
 
 ```bash
-cd /home/qian/codex-gateway-release-29790d2-20260730T062157Z
+cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
 sudo docker compose \
   --env-file config/research.production.compose.env \
   -p codex_gateway_test \
@@ -277,6 +283,11 @@ sudo docker compose \
 Do not recreate `gateway` with only `compose.azure.yml`: that would omit the
 Research API env and Research state mount. Read-only/admin `exec` commands
 against the already-running Gateway may continue to use the base file alone.
+
+Before removing the seven legacy public model IDs or cutting `gw` to R760, read
+[`goldencode-cutover-audit-2026-08-04.zh-CN.md`](./goldencode-cutover-audit-2026-08-04.zh-CN.md).
+The audit found active `max`/`pro` consumers and no account-side proof of the
+shared Tencent quota/rate/concurrency, so both remain cutover blockers.
 
 The live Azure env file in that checkout must be treated as a protected runtime
 artifact. On 2026-07-03, recreating the live container from a stale
@@ -294,13 +305,18 @@ MEDCODE_ALIYUN_DASHSCOPE_API_KEY
 MEDCODE_OPENROUTER_API_KEY
 ```
 
+This preserves Azure's temporary eight-model compatibility/rollback surface; it
+does not mean every enabled legacy route satisfies the Tencent-only target
+policy. The 2026-08-04 audit confirmed enabled Qianfan, Aliyun and OpenRouter
+GLM-5.2 legacy routes even though they had no latest seven-day traffic.
+
 The recovery source for the restored 8-model Azure env on 2026-07-03 was:
 
 ```text
 /home/qian/codex-gateway-release-goldencode-20260702T104451Z/config/gateway.container.env
 ```
 
-Do not copy this file to CN1. Do not print its values. If env lines must be
+Do not copy this file to CN1 or R760. Do not print its values. If env lines must be
 merged, merge only named keys and keep any newer live-only settings, such as
 image fallback secret-file paths and billing/admin token settings.
 
@@ -360,7 +376,7 @@ container environment or `auth.json`, runs the SDK probe with the live model,
 and repairs the SQLite runtime row after a successful probe.
 
 ```bash
-cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
 bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1
 ```
 
@@ -397,12 +413,13 @@ container so image traffic does not route to the broken key.
 
 ## Safe VM Test Commands
 
-Build and unit tests:
+Build and unit tests must run in a separately prepared clean checkout, never by
+fetching/checking out inside the live immutable release:
 
 ```bash
-cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
-git fetch origin main
-git checkout --detach origin/main
+cd /home/qian/codex-gateway-build-<commit>
+git status --short
+test "$(git rev-parse HEAD)" = "<full-commit>"
 export NODE_HOME="$HOME/.local/codex-gateway-node"
 export PATH="$NODE_HOME/bin:$PATH"
 npm ci
@@ -471,7 +488,7 @@ pgrep -af 'node apps/gateway/dist/index.js|codex exec|codex app-server' || true
 Public image smoke for a specific account:
 
 ```bash
-cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
 TARGET_ACCOUNT=codex-pro-1 bash scripts/public-image-plus-smoke.sh
 TARGET_ACCOUNT=sub_openai_codex_dev bash scripts/public-image-plus-smoke.sh
 ```

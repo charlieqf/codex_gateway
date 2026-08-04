@@ -18,7 +18,7 @@ MedCode service is temporarily unavailable.
 - Use the release checkout:
 
 ```bash
-cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
 ```
 
 ## 1. Check Service Shape

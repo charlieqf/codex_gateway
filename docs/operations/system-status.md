@@ -27,12 +27,41 @@ Current operational state:
   workflow `v81`. Its Gateway, isolated Research LLM Gateway, Worker and
   maintenance containers are healthy with zero restarts; only the public
   Gateway publishes `127.0.0.1:18787`.
-- All currently running GLM-5.2 routes have been narrowed to Tencent because
-  the Aliyun and Qianfan subscriptions are temporarily cancelled. Azure public
-  `goldencode`, Azure Research staging, CN1 loopback, R760 public Gateway and
-  R760 Research all have only `goldencode-tencent / tencent / glm-5.2` enabled.
-  Azure production Research keeps Qianfan and Aliyun as disabled registry
-  entries, with Tencent as its sole enabled member and `maxConcurrent=3`.
+- The migration-target routes have been narrowed to Tencent because the Aliyun
+  and Qianfan subscriptions are temporarily cancelled. Azure public
+  `goldencode`, Azure Research staging/production, CN1 loopback, R760 public
+  Gateway and R760 Research use only
+  `goldencode-tencent / tencent / glm-5.2`; Azure production Research keeps
+  Qianfan and Aliyun only as disabled entries and gives Tencent
+  `maxConcurrent=3`. However, Azure's legacy eight-model public registry still
+  has enabled `specialist / qianfan / glm-5.2`,
+  `expert / openrouter / z-ai/glm-5.2` and
+  `advisor / aliyun / glm-5.2` routes. They had no requests in the latest seven
+  days, but their enabled state means Azure as a whole does not yet enforce the
+  Tencent-only LLM policy. No live registry change was made during the audit.
+- A read-only Azure audit at `2026-08-04T07:41Z` found that the planned
+  one-model public surface is not yet safe to cut over. During the prior 30 days,
+  the seven non-`goldencode` IDs handled 7,406 requests and 507,102,322 observed
+  or estimated tokens. The most recent 24 hours still contained 129 `max` and
+  122 `pro` requests from five active consumers; nine active consumers used an
+  old model during the most recent seven days. These clients must move to
+  `model=goldencode`, followed by a zero-use observation period, before the
+  other IDs are removed. See
+  `docs/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`.
+- The same 30-day audit observed 930 public and 68 Research Tencent requests,
+  totalling 56,555,349 observed or estimated tokens. Reconstructed aggregate
+  overlap peaked at 3. The public Tencent pool has no explicit
+  `maxConcurrent`, while Research has 3; this is not an aggregate capacity of
+  6, and the shared Tencent account's contractual concurrency, RPM, TPM, quota,
+  balance and validity remain unverified. Account-side evidence plus a
+  simultaneous R760 public/Research load test are cutover gates.
+- During the local audit, a Tencent provider credential in the protected
+  deployment config was inadvertently displayed in operator terminal output.
+  It was not added to Git or documentation and is not repeated here, but it
+  must be treated as exposed and rotated before cutover across every environment
+  that references it. Credential isolation between the public and Research
+  pools remains optional; rotation is required because of this incident, not
+  because the architecture requires separate keys.
 - The Azure public Gateway was recreated at `2026-08-04T02:56:39Z` after a
   restricted backup and Compose validation. Its first ten post-recreate
   `goldencode` events, including smoke request

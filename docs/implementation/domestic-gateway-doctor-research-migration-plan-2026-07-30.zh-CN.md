@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | R760 正式四容器与私有 Mihomo 已部署；Research E2E、OpenAI/xAI 生图已通过；Gemini 仍缺受支持地区出口；CN1 边缘入口、最终同步和切流尚未启用 |
+| 状态 | R760 正式四容器与私有 Mihomo 已部署；Research E2E、OpenAI/xAI 生图已通过；旧模型消费者、腾讯账号容量证明、provider key 轮换、Gemini 出口、CN1 边缘入口、最终同步和切流仍待关闭 |
 | 首次编制 | 2026-07-30 |
 | 现状更新 | 2026-08-04 |
 | 完成窗口 | 原计划 2026-08-01/02，未切流；下一批准维护窗口待确定 |
@@ -71,6 +71,11 @@ MedEvidence 专用迁移方案实施数据库、账号池、代理出口和入�
 - 禁止：OpenRouter、Codex/Max 及其他境外 LLM 路由；
 - 不限制 Doctor Research 的证据和身份检索来源。
 
+上述是现行目标策略，不是 Azure 八模型面已经完全达到的事实。2026-08-04 只读审计
+确认 Azure 旧 registry 中的 Qianfan/Aliyun/OpenRouter GLM-5.2 路由仍为 enabled，
+只是最近 7 天没有请求；`goldencode`、Research、CN1 和 R760 目标池才已腾讯单路。
+在受控窗口移除旧模型前，必须把这一差异视为待关闭的策略门槛。
+
 该限制也不约束图片生成上游。图片能力按独立的成本、权限、审计和故障转移策略
 管理，不得因为保留图片能力而把 OpenRouter 或其他境外 LLM 成员重新加入
 `goldencode`。
@@ -124,6 +129,10 @@ Research 专用池必须分别管理运行边界；经业务负责人 2026-08-04
 - 阿里和百度成员不进入当前有效配置；
 - 两条路径均不得配置 OpenRouter。
 
+截至 2026-08-04，公网腾讯成员没有显式 `maxConcurrent`，Research 成员为 3。
+这不能解释为共享账号总容量 6；必须取得腾讯账号侧额度/速率/并发证明，并按该证明
+为公网池设置明确上限。
+
 长期范围不纳入本周末切流：
 
 - 为 Research 单独准备百度、腾讯和阿里三套凭据及容量；
@@ -162,7 +171,7 @@ provider 自动切换。图片响应可能明显大于文本响应，因此 CN1 
 | 公网生产 | Azure 八模型 Gateway | 目标端仅公开 `goldencode` 和 Doctor Research API |
 | CN1 | 单 Gateway、loopback-only；Nginx 已占用公网 80/443；尚无 `gw` 边缘 vhost | Nginx 承担 `gw:443` 边缘转发；原 loopback Gateway 保持隔离且不处理该流量 |
 | Doctor Research | Azure 四容器 | 目标端四容器，职责保持不变 |
-| 公共 GoldenCode | Azure 含 OpenRouter；CN1 为境内三家 | R760 仅 Tencent `glm-5.2` |
+| 公共 GoldenCode | Azure `goldencode` 与 CN1 均已收窄为仅 Tencent；Azure 其他旧模型 ID 仍含 Codex/Qianfan/Aliyun/OpenRouter 路由 | R760 仅 Tencent `glm-5.2` |
 | 其他公共文本模型 | Azure 另有七个模型 ID | 全部移除，客户端统一使用 `goldencode` |
 | 图片生成 | Azure 提供，主路径曾使用 `gpt-image-2` 并有低成本 fallback | 保留 `medcode-image-default`；只允许 `gpt-image-1.5`、xAI 和 Gemini 低成本链 |
 | Research LLM | Azure 独立内部 Gateway | R760 独立内部 Gateway，仅 Tencent `glm-5.2` |
@@ -176,9 +185,9 @@ provider 自动切换。图片响应可能明显大于文本响应，因此 CN1 
 `codex_gateway_cn1`，也不得让 CN1 的边缘 vhost 代理到其 `127.0.0.1:18787`。
 
 R760 使用 Compose project `codex_gateway_r760`、发布根目录
-`/opt/codex-gateway-r760` 和未占用的宿主机 loopback 端口
-`127.0.0.1:18787`。四容器启动前仍须以 `docker compose config --quiet`
-复核最终配置；准备阶段不得为了验证环境而启动业务容器。
+`/opt/codex-gateway-r760` 和宿主机 loopback 端口
+`127.0.0.1:18787`。正式四容器已经运行；此后任何 Compose 变更前仍须以
+`docker compose config --quiet` 复核最终配置，并只重建获准的服务。
 
 目标端至少需要以下六类持久化卷：
 
@@ -215,8 +224,12 @@ R760 使用 Compose project `codex_gateway_r760`、发布根目录
 
 2026-08-04 已在不输出凭据的前提下补齐 R760 低成本图片变量和 fallback key
 文件，并确认目标配置不包含 `gpt-image-2`。公共池和 Research 池均已改为仅腾讯；
-两条路径可以复用当前腾讯 provider key，不需要为切流轮换，但必须在验收中确认
-共享上游账号的总并发、限流和额度能够覆盖两条路径。
+架构上两条路径可以复用同一个腾讯 provider key，不要求凭据隔离。
+
+同日只读审计期间，受保护的本地部署配置中一条腾讯 provider credential 曾显示在
+操作终端输出中。该值没有写入 Git 或文档，但必须按已暴露处理：切流前确认所有引用
+环境、完成轮换并分别做公网/Research Tencent-only smoke。轮换过程不得打印 env、
+secret 或 Compose 渲染结果。共享上游账号的总并发、限流和额度仍须独立验收。
 
 目标端私有文件应沿用生产 Runbook 的权限边界：env 为 `0600`，provider/service
 secret 为容器运行用户可读的 `0400`。必须使用 `docker compose config --quiet`
@@ -467,15 +480,37 @@ CN1 边缘 vhost 的硬性配置边界：
 - CN1 是迁移后的公网单点。必须监控 CN1 Nginx、证书到期、CN1-R760 HTTPS、
   R760 Gateway health、带宽和错误率，并保留配置级恢复手册。
 
+### 6.7 旧模型消费者与腾讯容量审计
+
+2026-08-04 只读审计覆盖 Azure 公网与独立 Research LLM Gateway 最近 30 天事件。
+结论为当前 no-go：
+
+- 七个非 `goldencode` 模型仍有 7,406 次请求和 507,102,322 观测/估算 token；
+- 最近 24 小时仍有 5 名 active 消费者使用 `max`/`pro`，最近 7 天有 9 名；
+- Azure 旧 registry 的 Qianfan/Aliyun/OpenRouter GLM-5.2 路由仍为 enabled，当前
+  Azure 整体尚未满足腾讯单路策略；
+- 腾讯公网与 Research 合计 998 次请求、56,555,349 观测/估算 token，历史重叠
+  并发峰值为 3；
+- 腾讯单路切换后的公网样本已成功，但该时段 Research 为零请求，不能证明两条路径
+  同时加压时的共享账号容量；
+- 公网池无显式 `maxConcurrent`，且供应商账号侧最大并发、RPM、TPM、额度、余额和
+  有效期尚未取得证据。
+
+详细方法、消费者清单和关闭条件见
+`docs/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`。在旧模型连续 24 小时
+零使用、腾讯账号容量证明与 R760 双路径并发验证、provider credential 轮换完成前，
+不得删除旧模型或切换公网 DNS。
+
 ## 7. 原定 2026-07-30 至 2026-08-02 计划与下一窗口
 
 日期按澳大利亚悉尼时间记录；中国境内主机时间早 2 小时。本周末日期在两地均为
 8 月 1 日和 8 月 2 日。
 
 截至 2026-08-04，准备、正式状态同步、R760 SNI/TLS、网络持久化和正式四容器
-loopback 部署已完成，但 CN1 `gw` vhost、正式 DNS 和切流均未执行。因此 8 月
-1/2 日是原定窗口记录，不得补记为已完成；剩余 CN1 边缘、最终冻结同步、图片出口
-和切流步骤应移到下一次批准的维护窗口，并在执行前重新生成时间戳和检查清单。
+loopback 部署已完成，但旧模型消费者迁移、腾讯账号容量证明、provider credential
+轮换、CN1 `gw` vhost、正式 DNS 和切流均未执行。因此 8 月 1/2 日是原定窗口记录，
+不得补记为已完成；剩余门槛、最终冻结同步、图片出口和切流步骤应移到下一次批准的
+维护窗口，并在执行前重新生成时间戳和检查清单。
 
 ### 周四 7 月 30 日：范围冻结
 
@@ -609,17 +644,20 @@ loopback 部署已完成，但 CN1 `gw` vhost、正式 DNS 和切流均未执行
 3. R760 `GATEWAY_PUBLIC_BASE_URL=https://gw.instmarket.com.au`、源站
    `goldencode:1443` 的固定地址或 DNS-only 解析方式，以及仅允许 CN1/批准运维
    来源的访问策略；
-4. 所有消费者只使用 `model=goldencode` 的清单；无需修改现有 base URL；
-5. 确认公共和 Research 使用的腾讯账号总额度、速率和并发能够覆盖两条路径；
-   本次不要求凭据隔离或轮换；
-6. R760 私有 Mihomo、Gateway-only 代理、Tencent 精确 `NO_PROXY`、零宿主机端口、
+4. 所有消费者只使用 `model=goldencode` 的清单；无需修改现有 base URL；并在受控
+   窗口移除/禁用 Azure 旧 registry 的其他七个文本模型及非腾讯 LLM 路由；
+5. 确认公共和 Research 使用的腾讯账号总额度、RPM、TPM 和并发能够覆盖两条路径，
+   为公网池设置明确 `maxConcurrent`，并完成 R760 两条路径同时加压验证；
+6. 架构上不要求凭据隔离；但 2026-08-04 终端暴露事件要求在切流前轮换腾讯
+   provider credential，核对所有引用环境并完成公网/Research smoke；
+7. R760 私有 Mihomo、Gateway-only 代理、Tencent 精确 `NO_PROXY`、零宿主机端口、
    自动重启、OpenAI 实图和 xAI 实图已经验证；图片事件实际 provider 与 upstream
    model 的修复已部署并通过真实 OpenAI 事件验证。继续补充一个 Google 支持地区的
    节点并完成 Gemini 实图；完成前低成本图片三模型门槛仍为 no-go；
-7. 最终数据同步期间采用何种写入冻结方式；
-8. 迁移后的备份是否有目标主机之外的副本；
-9. CN1 单点、双层证书续期、端到端 health、带宽和日志关联的监控负责人；
-10. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
+8. 最终数据同步期间采用何种写入冻结方式；
+9. 迁移后的备份是否有目标主机之外的副本；
+10. CN1 单点、双层证书续期、端到端 health、带宽和日志关联的监控负责人；
+11. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
    no-go；未作决定前不得把单次成功当作稳定性通过。
 
 ## 12. 相关文档
@@ -627,6 +665,7 @@ loopback 部署已完成，但 CN1 `gw` vhost、正式 DNS 和切流均未执行
 - `docs/operations/system-status.md`
 - `docs/operations/cn1-goldencode-gateway.md`
 - `docs/operations/r760-mihomo-image-egress.md`
+- `docs/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`
 - `docs/research/doctor-research/README.md`
 - `docs/research/doctor-research/production-runbook.md`
 - `docs/operations/environment-access.md`

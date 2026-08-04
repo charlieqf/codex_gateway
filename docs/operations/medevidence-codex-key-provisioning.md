@@ -114,7 +114,7 @@ $gatewayPrefix = $resolved.codex_gateway.key_prefix
 Then update the live Gateway metadata and backing key inside the container:
 
 ```bash
-cd /home/qian/codex-gateway-release-4e61f98-20260511T230214Z
+cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db \
   update-user <subject-id> --label "<real name>" --name "<real name>" --phone "<phone>"

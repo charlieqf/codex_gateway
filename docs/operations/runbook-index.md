@@ -20,6 +20,7 @@ Deployment and safety:
 10. [CN1 GoldenCode Gateway](./cn1-goldencode-gateway.md)
 11. [R760 Mihomo Image Egress](./r760-mihomo-image-egress.md)
 12. [Domestic Gateway and Doctor Research Migration Plan](../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
+13. [GoldenCode Cutover Consumer and Tencent Capacity Audit](./goldencode-cutover-audit-2026-08-04.zh-CN.md)
 
 Operational workflows now covered:
 
@@ -58,6 +59,9 @@ Operational workflows now covered:
 - R760 domestic migration: one public `goldencode` text model, retained
   low-cost image generation, four-container Doctor Research, CN1 edge cutover,
   state synchronization, validation and temporary Azure rollback.
+- GoldenCode cutover audit: active legacy-model consumers, 30-day Tencent
+  public/Research usage, observed concurrency and the remaining account-capacity
+  evidence required before cutover.
 
 Operational workflows still pending:
 
