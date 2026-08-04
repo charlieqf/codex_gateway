@@ -103,11 +103,10 @@ current release: /opt/codex-gateway-cn1/current
 compose project: codex_gateway_cn1
 container: codex_gateway_cn1-gateway-1
 listener: 127.0.0.1:18787->8787
-public route: none
+loopback Gateway public route: none
 ```
 
-Separately, CN1 has an approved but not yet installed edge role for the R760
-migration:
+Separately, CN1 now has the approved dedicated edge role for the R760 migration:
 
 ```text
 gw.instmarket.com.au:443
@@ -116,9 +115,19 @@ gw.instmarket.com.au:443
   -> R760 Gateway
 ```
 
-This edge vhost must not proxy to CN1 `127.0.0.1:18787`, import R760 state or
-read any LLM/image provider key. Installing it is a public `80/443` maintenance
-action and is not authorized by routine loopback checks.
+The vhost is installed and enabled but remains dark because public
+`gw.instmarket.com.au` DNS still points to Azure. It proxies to the fixed R760
+public NAT `117.186.49.26:1443` with origin SNI
+`goldencode.instmarket.com.au`; it does not proxy to CN1
+`127.0.0.1:18787`, import R760 state or read any LLM/image provider key.
+
+Do not treat the successful Aliyun-to-Aliyun explicit-resolution smoke as
+public cutover approval. A 2026-08-04 Sydney public-Internet check was
+intercepted before Nginx with Aliyun `Non-compliance ICP Filing` on HTTP and a
+TLS reset on HTTPS; Azure-to-CN1 HTTPS was also reset. Resolve this public
+ingress/filing boundary and repeat independent-network tests before changing
+DNS. Further Nginx, certificate or public `80/443` changes still require an
+explicit maintenance action.
 
 Basic CN1 checks:
 

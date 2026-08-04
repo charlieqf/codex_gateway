@@ -1,6 +1,6 @@
 # Operational Experience
 
-Last updated: 2026-07-29
+Last updated: 2026-08-04
 
 ## Safety Rules That Worked
 
@@ -364,6 +364,20 @@ Last updated: 2026-07-29
   Record before/after free space and remove only superseded build cache,
   redundant archives, and backups already replaced by independently verified
   boundaries.
+- A successful same-cloud explicit-resolution edge smoke does not prove public
+  Internet reachability. The CN1 `gw` vhost passed TLS, chat, SSE, Research,
+  artifact and image tests from another Aliyun VM, while a Sydney client saw
+  `403 Server: Beaver / Non-compliance ICP Filing` on HTTP and TLS reset on
+  HTTPS before Nginx; Azure-to-CN1 HTTPS was also reset. Always test a new edge
+  from at least one independent public network and correlate the attempt with
+  Nginx access logs before approving DNS cutover.
+- For a DNS-01 certificate that must renew independently after the old edge is
+  retired, keep the narrowly scoped DNS API token in a root-owned mode-0600
+  credential file on the new edge. Prove token permission with staging
+  issuance, issue the production certificate, run a renewal dry-run, and test
+  the deploy hook separately because Certbot skips deploy hooks during an
+  ordinary dry-run. Do not delete the operator-local source token after copying
+  the persistent edge credential.
 
 ## Known Pitfalls
 

@@ -21,11 +21,12 @@ It is deliberately different from the Azure `gw.instmarket.com.au` gateway.
   - `codex_gateway_cn1_gateway_state`
   - `codex_gateway_cn1_gateway_logs`
 - Listener: `127.0.0.1:18787->8787`
-- Public routing: none. No CN1 Nginx public route is configured for this
-  gateway yet.
-- Approved but not yet installed edge role: terminate
-  `https://gw.instmarket.com.au:443` in a dedicated CN1 Nginx vhost and proxy
-  to the R760 origin at `https://goldencode.instmarket.com.au:1443`.
+- Loopback Gateway public routing: none. The CN1 loopback container remains
+  private and is not used by the edge route.
+- R760 edge role: the dedicated `https://gw.instmarket.com.au:443` CN1 Nginx
+  vhost and independent certificate are installed and enabled. It proxies to
+  the R760 origin at `https://goldencode.instmarket.com.au:1443`, but remains a
+  dark route because public `gw` DNS still points to Azure.
 
 The approved edge role does not expose this loopback container. A request for
 `gw.instmarket.com.au` must go to R760, never to CN1
@@ -70,7 +71,7 @@ GATEWAY_PUBLIC_PHASE=cn1-loopback
 profile does not expose Codex/OpenAI subscription-backed models. The service
 still uses credential auth and SQLite state.
 
-## Approved CN1 Edge Role (Not Enabled)
+## Approved CN1 Edge Role (Enabled, DNS Not Cut Over)
 
 The domestic production destination is R760, not CN1. R760 will run the public
 Gateway plus the isolated Research LLM Gateway, Worker and maintenance
@@ -116,6 +117,59 @@ R760 retains `medcode-image-default` through `gpt-image-1.5`,
 Crossref, ORCID or official-site retrieval used by Doctor Research, and not the
 separately governed image-provider chain.
 
+### Installed edge configuration and 2026-08-04 dark smoke
+
+The explicitly approved maintenance action installed:
+
+- version-controlled vhost source:
+  `ops/nginx/cn1-gw-r760-edge.conf`;
+- CN1 active file:
+  `/etc/nginx/sites-available/gw.instmarket.com.au.conf`, with only its matching
+  symlink in `sites-enabled`;
+- upstream pinned to `117.186.49.26:1443`, with verified origin Host/SNI
+  `goldencode.instmarket.com.au`;
+- client-facing certificate under
+  `/etc/letsencrypt/live/gw.instmarket.com.au`, valid until 2026-11-02;
+- Cloudflare DNS-01 credentials at
+  `/etc/letsencrypt/cloudflare-instmarket.ini`, owned by `root:root` with mode
+  `0600`. Never print or copy this file into Git;
+- deploy hook `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx`, which runs
+  `nginx -t` before reloading;
+- pre-change backup
+  `/opt/codex-gateway-cn1/backups/pre-gw-edge-20260804T182835+1000`.
+
+Cloudflare token verification, Let's Encrypt staging issuance, production
+issuance and `certbot renew --dry-run --cert-name gw.instmarket.com.au` all
+succeeded. The deploy hook was separately executed successfully because
+Certbot intentionally skips deploy hooks during an ordinary dry-run.
+
+The version-controlled `ops/smoke/cn1-edge-dark-smoke.sh` accepts test keys only
+through standard input and stores temporary auth headers in a mode-0600 file.
+From an independent Aliyun VM, an explicit `gw -> 47.116.7.37` resolution
+passed:
+
+- HTTP-to-HTTPS redirect and client-certificate verification;
+- health with `state=ready` and `phase=r760-loopback`, proving the request did
+  not enter CN1 `127.0.0.1:18787`;
+- unauthenticated `401`, opaque credential self-check and exact one-model
+  surface `goldencode`;
+- non-stream chat, SSE and a one-second client disconnect followed by healthy
+  recovery;
+- Doctor Research list, an existing four-artifact result, and an authenticated
+  artifact download whose byte size and SHA-256 matched its manifest;
+- low-quality `medcode-image-default` generation. Representative text/image
+  request ids were `req-82bd95c3-2d9c-4925-8a51-d8359884e365` and
+  `req-c7309ed6-6597-40ca-9617-59c630f44a26`.
+
+This is not yet public cutover approval. A forced CN1 address from the Sydney
+operator workstation returned `403 Server: Beaver` with
+`Non-compliance ICP Filing` on HTTP. HTTPS for `gw`, the existing
+`medevidence` name and the existing `nip.io` name was reset before Nginx; an
+Azure-to-CN1 HTTPS check was also reset. These requests produced no Nginx
+access entry. The upstream Aliyun public-ingress/filing boundary must be
+resolved and revalidated from independent public client networks before DNS is
+changed.
+
 ### Read-only capacity and latency baseline
 
 The 2026-08-03 baseline found:
@@ -147,8 +201,8 @@ tested because all bytes traverse CN1.
 
 ### Edge vhost requirements
 
-During an explicitly approved maintenance action, create a new dedicated CN1
-vhost without changing existing/default vhosts. It must:
+The installed dedicated CN1 vhost does not change existing/default vhosts and
+implements the following contract:
 
 - match only `gw.instmarket.com.au` and present a valid independently renewed
   certificate;
@@ -174,11 +228,32 @@ vhost without changing existing/default vhosts. It must:
   the required long-request timeout;
 - after smoke, restrict R760 `:1443` to CN1 and approved operator sources.
 
-Before DNS cutover, validate the vhost with an explicit local resolution and
-exercise health, credential self-check, the exact one-model surface, non-stream
-chat, SSE, client cancellation, Doctor Research create/poll/result/download and
-all retained image fallbacks. Rollback must be a documented DNS return to Azure
-only during the temporary observation period.
+Before DNS cutover, retain the explicit-resolution smoke and repeat it from
+independent public networks after the filing/ingress block is resolved. The
+2026-08-04 smoke covered health, credential self-check, the exact one-model
+surface, non-stream chat, SSE, client cancellation, Doctor Research
+list/result/download and the default retained image path. A new Research create
+and each non-default image fallback remain part of the final maintenance-window
+smoke. Rollback is a DNS return to Azure only during the temporary observation
+period.
+
+### Edge rollback
+
+Before DNS cutover, disabling the dark route has no client impact. During the
+temporary post-cutover observation period, return `gw` DNS to Azure first and
+wait for the approved TTL boundary, then disable the CN1 file:
+
+```bash
+rm -f /etc/nginx/sites-enabled/gw.instmarket.com.au.conf
+nginx -t
+systemctl reload nginx
+```
+
+Do not delete the certificate, Cloudflare credential, backup or
+`sites-available` source during rollback. Re-enabling is the inverse symlink
+operation followed by `nginx -t` and reload. The backup archive is for
+configuration recovery, not a reason to overwrite unrelated current Nginx
+sites.
 
 See
 `../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`
@@ -187,9 +262,9 @@ for the destination data, credential, validation and cutover gates.
 ## Safety Rules
 
 - Do not modify CN1 Nginx, public ports `80/443`, MedEvidence services, or
-  firewall rules while operating this loopback gateway. The approved edge
-  design still requires a separate explicit maintenance action before it may be
-  installed.
+  firewall rules while operating the loopback Gateway. The edge is installed;
+  any further edge mutation still requires a separate explicit maintenance
+  action.
 - Do not run `docker compose down` unless the project name is explicit and the
   volume impact is understood.
 - Do not print `config/gateway.container.env`, provider keys, admin bearer

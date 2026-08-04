@@ -462,6 +462,24 @@ Nginx、证书或 DNS：
   但健康检查、图片大响应和 artifact 下载仍须实测；
 - 公网 ICMP 不响应，不能以 ping 作为 no-go；正式健康检查必须使用 HTTPS。
 
+2026-08-04 经明确授权完成了 CN1 边缘安装和不切 DNS 暗测：
+
+- 已备份原 Nginx 配置到
+  `/opt/codex-gateway-cn1/backups/pre-gw-edge-20260804T182835+1000`；
+- 已安装 Cloudflare DNS 插件，以权限受限 Token 完成 Let's Encrypt staging、正式
+  ECDSA 证书签发和 `certbot renew --dry-run`；凭据仅保存在 root-owned `0600`
+  文件，续期 timer 和校验后 reload hook 正常；
+- 已启用仅匹配 `gw.instmarket.com.au` 的非默认 vhost，上游固定为
+  `117.186.49.26:1443`，并强制验证
+  `goldencode.instmarket.com.au` SNI/证书；CN1 本机 loopback Gateway 未进入路径；
+- 从另一台阿里云主机强制解析到 CN1 的全链暗测通过 health、credential self-check、
+  仅 `goldencode` 模型面、非流式、SSE、客户端断开恢复、Research 结果与 artifact
+  大小/SHA-256，以及低质量 `medcode-image-default` 实图；
+- 但悉尼公网探针在 HTTP 收到 Aliyun `Server: Beaver / Non-compliance ICP Filing`
+  403，HTTPS 在到达 Nginx 前被重置；Azure 到 CN1 的 HTTPS 也被重置。该公网入口/
+  备案阻断是新的硬性 no-go，必须解决并从独立公网客户端复测后才能切 DNS；
+- `gw.instmarket.com.au` 仍解析到 Azure `4.242.58.89`，本轮没有切流。
+
 CN1 边缘 vhost 的硬性配置边界：
 
 - 只匹配 `gw.instmarket.com.au`，不得成为默认 vhost，也不得覆盖现有站点；
@@ -506,9 +524,10 @@ CN1 边缘 vhost 的硬性配置边界：
 日期按澳大利亚悉尼时间记录；中国境内主机时间早 2 小时。本周末日期在两地均为
 8 月 1 日和 8 月 2 日。
 
-截至 2026-08-04，准备、正式状态同步、R760 SNI/TLS、网络持久化和正式四容器
-loopback 部署已完成，但旧模型消费者迁移、腾讯账号容量证明、provider credential
-轮换、CN1 `gw` vhost、正式 DNS 和切流均未执行。因此 8 月 1/2 日是原定窗口记录，
+截至 2026-08-04，准备、正式状态同步、R760 SNI/TLS、网络持久化、正式四容器
+loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费者迁移、腾讯账号
+容量证明、provider credential 轮换、CN1 公网备案/入口阻断、正式 DNS 和切流均未
+关闭。因此 8 月 1/2 日是原定窗口记录，
 不得补记为已完成；剩余门槛、最终冻结同步、图片出口和切流步骤应移到下一次批准的
 维护窗口，并在执行前重新生成时间戳和检查清单。
 
@@ -593,6 +612,8 @@ loopback 部署已完成，但旧模型消费者迁移、腾讯账号容量证�
 - 无 active run、unfinished reservation、临时 key 或测试文件残留；
 - `gw:443 -> CN1 -> goldencode:1443 -> R760` 两段 TLS、SSE、长请求、取消、图片和
   artifact 下载均已实测；客户端 URL 保持不变；
+- 从阿里云体系外的独立公网客户端访问 CN1 `gw:443`，不得再出现
+  `Non-compliance ICP Filing`、TLS reset 或其他到达 Nginx 前的入口拦截；
 - CN1 和 R760 的证书续期、双层健康检查、日志关联、带宽告警和回切路径均已实测。
 
 ## 9. 回滚触发和步骤
@@ -637,13 +658,14 @@ loopback 部署已完成，但旧模型消费者迁移、腾讯账号容量证�
 
 以下项目必须在下一维护窗口前确定，否则只能继续准备，不能进入切流路径：
 
-1. CN1 `gw.instmarket.com.au` 证书、独立 SNI vhost、upstream keepalive、长请求
-   超时和 SSE/取消配置；
-2. `gw` DNS 到 CN1 的 TTL、操作权限、切换步骤、Azure 临时回切和最终 Azure
-   下线责任人；
-3. R760 `GATEWAY_PUBLIC_BASE_URL=https://gw.instmarket.com.au`、源站
-   `goldencode:1443` 的固定地址或 DNS-only 解析方式，以及仅允许 CN1/批准运维
-   来源的访问策略；
+1. **已完成暗测**：CN1 `gw.instmarket.com.au` 证书、独立 SNI vhost、upstream
+   keepalive、长请求超时、SSE/取消配置和证书续期 dry-run；
+2. 解决 Aliyun `Non-compliance ICP Filing`/境外 TLS reset，完成独立公网多网络
+   复测，并确认 `gw` DNS 到 CN1 的 TTL、操作权限、切换步骤、Azure 临时回切和
+   最终 Azure 下线责任人；
+3. R760 `GATEWAY_PUBLIC_BASE_URL=https://gw.instmarket.com.au` 已确认；CN1
+   upstream 已选择固定 NAT `117.186.49.26:1443` 并校验 `goldencode` SNI。继续完成
+   仅允许 CN1/批准运维来源访问 R760 `:1443` 的策略；
 4. 所有消费者只使用 `model=goldencode` 的清单；无需修改现有 base URL；并在受控
    窗口移除/禁用 Azure 旧 registry 的其他七个文本模型及非腾讯 LLM 路由；
 5. 确认公共和 Research 使用的腾讯账号总额度、RPM、TPM 和并发能够覆盖两条路径，

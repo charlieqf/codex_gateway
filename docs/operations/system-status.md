@@ -12,11 +12,13 @@ gateway is also running for domestic-only GLM-5.2 validation.
 
 Azure remains the authoritative public endpoint and
 `gw.instmarket.com.au` has not been switched. The formal R760 four-container
-project is now running on loopback and has passed real Doctor Research E2E, but
-it has not accepted public `gw` traffic. Because the network administrator
-rejected public `443 -> R760:443`, the approved future public path remains CN1
-Nginx on `gw:443` forwarding over HTTPS to the R760 `goldencode:1443` origin.
-CN1's existing loopback Gateway is a separate service and is not in that path.
+project is running on loopback and has passed real Doctor Research E2E. The
+dedicated CN1 `gw` certificate and Nginx edge vhost are now installed and have
+passed an explicit-resolution dark smoke to the R760 `goldencode:1443` origin;
+CN1's existing loopback Gateway remains a separate service and is not in that
+path. The edge is not cutover-ready: an independent public-Internet request is
+currently intercepted before Nginx with Aliyun's `Non-compliance ICP Filing`
+response on HTTP and a TLS reset on HTTPS.
 
 Current operational state:
 
@@ -130,8 +132,35 @@ Current operational state:
   `packages/core/dist` from `43e118e`. This is an auditable deployment artifact,
   not a replacement for a later canonical full Dockerfile rebuild.
 - R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
-  `8081/8082` checks pass. Azure remains the live `gw` address; CN1 Nginx/DNS
-  were not changed. Restricted route backups are under
+  `8081/8082` checks pass.
+- The approved CN1 edge maintenance was executed on 2026-08-04 without changing
+  public DNS. A dedicated non-default `gw.instmarket.com.au` vhost pins
+  `117.186.49.26:1443`, verifies TLS/SNI as
+  `goldencode.instmarket.com.au`, uses HTTP/1.1 keepalive and TLS session reuse,
+  disables request/response buffering and caching, and keeps the existing
+  5 MiB request limit and 3600-second long-request timeout. The independently
+  issued ECDSA certificate expires on 2026-11-02. Cloudflare DNS-01 staging,
+  production issuance and `certbot renew --dry-run` succeeded; the persistent
+  credential is root-owned mode `0600`, the Certbot timer is active, and the
+  deploy hook separately passed `nginx -t` and a reload. The pre-change Nginx
+  backup is
+  `/opt/codex-gateway-cn1/backups/pre-gw-edge-20260804T182835+1000`.
+- An Aliyun-to-Aliyun explicit-resolution dark smoke proved HTTP redirect,
+  certificate validation, `phase=r760-loopback`, unauthenticated `401`, opaque
+  credential self-check, the exact `goldencode` model surface, non-stream chat,
+  SSE, client disconnect/recovery, Research list/result, four-artifact manifest,
+  authenticated artifact size/SHA-256, and low-quality
+  `medcode-image-default` generation. Representative requests were
+  `req-82bd95c3-2d9c-4925-8a51-d8359884e365` and
+  `req-c7309ed6-6597-40ca-9617-59c630f44a26`.
+- The same forced CN1 address from the Sydney operator workstation returned
+  `403 Server: Beaver` with page title `Non-compliance ICP Filing` on HTTP;
+  HTTPS for `gw`, `medevidence` and the existing `nip.io` name was reset before
+  Nginx and produced no Nginx access entry. Azure-to-CN1 HTTPS was also reset.
+  This upstream public-ingress/filing block must be resolved and retested from
+  independent client networks before DNS cutover. Azure therefore remains the
+  live `gw` address and public DNS still resolves to `4.242.58.89`.
+- Restricted route backups are under
   `/home/qian/codex-gateway-backups/tencent-only-20260804T0255Z` on Azure and
   `/opt/codex-gateway-cn1/backups/tencent-only-20260804T0305Z` on CN1.
   R760 Mihomo rollback files are under
@@ -236,9 +265,11 @@ The superseded snapshot also recorded the following migration preparation:
   immediate-response p50/p95 `43.81/45.54 ms`. Upstream keepalive should reduce
   steady-state overhead primarily to the roughly 10 ms inter-site round trip.
 - CN1's dedicated `gw` certificate/vhost, SSE and long-request settings,
-  upstream keepalive, DNS cutover, monitoring, origin allowlist and rollback
-  drill are not yet implemented. CN1 becomes the public single point after
-  Azure is retired.
+  upstream keepalive, certificate renewal dry-run and dark smoke are complete.
+  Public Internet reachability/ICP handling, DNS cutover, monitoring, the R760
+  origin allowlist and a post-cutover rollback drill remain open. CN1 would
+  become the public single point after Azure is retired, so the observed public
+  ingress block is a hard cutover gate rather than a cosmetic warning.
 - The business owner confirmed on 2026-08-04 that the public and Research pools
   may reuse the same Aliyun provider key. New credentials or a rotation are not
   a cutover gate. The two Gateways, service bearer tokens, secret-file paths,
