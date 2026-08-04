@@ -1,6 +1,6 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-08-03
+更新时间：2026-08-04
 
 本文是 Doctor Research API 当前发布状态、已知问题和后续治理方案的
 统一说明。它面向医学团队、产品负责人、研发和运维人员，不替代具体的
@@ -10,7 +10,8 @@ API 使用说明或生产操作手册。
 仍应保留。后继境内四容器目标已确定为 R760，CN1 只承担不改变客户端 URL 的
 `gw:443 -> R760 goldencode:1443` 边缘转发；原有 CN1 loopback Gateway 不处理
 该流量。原定 2026-08-01/02 窗口未切流，Azure 目前仍是权威生产和临时回滚边界。
-计划态、短期 Research Aliyun-only 边界和下一维护窗口的门槛见
+R760 正式 loopback 部署、当前所有 GLM-5.2 路径 Tencent-only 边界和下一维护
+窗口的门槛见
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 
 相关文档：
@@ -22,7 +23,24 @@ API 使用说明或生产操作手册。
 - 境内搬迁计划：
   [`domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`](../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 
-## 零、截至 2026-08-03 当前状态
+## 零 A、截至 2026-08-04 当前状态
+
+Azure 权威生产和 R760 loopback 目标均运行 commit
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`，执行器 `1.6.104`，Prompt `v30`，
+validation `v42`，workflow `v81`。Azure 与 R760 的正式四容器均 healthy、最终
+重启次数 0；只有各自的 public Gateway 发布 loopback 端口。
+
+由于阿里和百度订阅已暂时取消，Azure 公网 `goldencode`、Azure production
+Research、Azure Research staging、CN1 loopback、R760 公网和 R760 Research 的
+有效 GLM-5.2 路由均已收敛到 Tencent。每个修改后的入口都通过了真实 Tencent
+事件核对；R760 三轮 Research 共 15 次业务 LLM 调用也全部为 Tencent。
+
+R760 已完成最新状态恢复和三次成功服务器端 Research run，其中两次完整客户端
+E2E 在 179 秒和 183 秒通过四文件大小与 SHA-256 验证。R760 尚未接管公网 `gw`；
+CN1 edge、最终写入冻结同步、DNS 切流和低成本图片专用出口仍待完成。图片配置中
+没有 `gpt-image-2`，但当前直连图片 API 的真实请求会受控返回 503。
+
+## 零 B、截至 2026-08-03 的旧状态快照
 
 Doctor Research API 当前运行在 Azure runtime commit
 `29790d2784913bfe14c71e8f72d51ae48748e5e7`，执行器 `1.6.100`，发布目录为

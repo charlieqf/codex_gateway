@@ -18,7 +18,8 @@ Deployment and safety:
 8. [Desktop User Message Query Support](./client-message-query-support.zh-CN.md)
 9. [MedCode Service Unavailable Runbook](./medcode-service-unavailable-runbook.md)
 10. [CN1 GoldenCode Gateway](./cn1-goldencode-gateway.md)
-11. [Domestic Gateway and Doctor Research Migration Plan](../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
+11. [R760 Mihomo Image Egress](./r760-mihomo-image-egress.md)
+12. [Domestic Gateway and Doctor Research Migration Plan](../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 
 Operational workflows now covered:
 
@@ -49,8 +50,11 @@ Operational workflows now covered:
 - `MedCode service is temporarily unavailable` triage, including event/log
   classification and upstream Codex account reauthentication.
 - CN1 domestic-only GoldenCode Gateway operation: loopback Docker service,
-  three-member GLM-5.2 sticky pool, smoke/attribution checks, and the separately
+  current Tencent-only GLM-5.2 route, smoke/attribution checks, and the separately
   approved `gw:443 -> R760:1443` edge role.
+- R760 private Mihomo image egress: secure CN1 snapshot transfer, no-host-port
+  container operation, Gateway-only proxy scope, Tencent `NO_PROXY`, rollback,
+  and the remaining Gemini supported-region gate.
 - R760 domestic migration: one public `goldencode` text model, retained
   low-cost image generation, four-container Doctor Research, CN1 edge cutover,
   state synchronization, validation and temporary Azure rollback.

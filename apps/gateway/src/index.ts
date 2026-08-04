@@ -1695,6 +1695,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       if (parsed instanceof GatewayError) {
         return sendImageError(request, reply, parsed);
       }
+      request.gatewayPublicModelId = parsed.model;
 
       const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
       if (!access || access.status !== "active") {
@@ -1742,12 +1743,11 @@ export function buildGateway(options: GatewayOptions = {}) {
         imageRequestTimeoutMs
       );
       try {
-        if (upstreamPool.accountPoolConfigured) {
-          request.gatewayObservedUpstreamAccount = {
-            id: null,
-            provider: null
-          };
-        }
+        applyImageAttemptAttribution(request, {
+          provider: imageGenerationProvider,
+          upstreamModel,
+          upstreamAccountId: null
+        });
         const result = await runImageGenerationWithAbort(imageGenerationProvider, abort, {
           request: parsed,
           upstreamModel
@@ -3889,7 +3889,7 @@ async function generateImageWithAccountPool(
         return sendImageError(request, reply, lastError ?? lease);
       }
       attemptedAccountIds.add(lease.upstreamAccount.id);
-      applyImageSelection(request, lease);
+      applyImageSelection(request, lease, input.upstreamModel);
 
       try {
         const result = await runImageGenerationWithAbort(lease.imageProvider, abort, {
@@ -4048,10 +4048,11 @@ async function generateImageWithBillingFallbacks(
   let lastError: GatewayError | null = null;
   for (let index = 0; index < input.billingFallbacks.length; index += 1) {
     const fallback = input.billingFallbacks[index];
-    request.gatewayObservedUpstreamAccount = {
-      id: fallback.accountId,
-      provider: null
-    };
+    applyImageAttemptAttribution(request, {
+      provider: fallback.provider,
+      upstreamModel: fallback.upstreamModel,
+      upstreamAccountId: fallback.accountId
+    });
     try {
       const result = await runImageGenerationWithAbort(fallback.provider, abort, {
         request: input.parsed,
@@ -4099,16 +4100,36 @@ function isAbortReason(reason: unknown, message: string): boolean {
   return reason instanceof Error && reason.message === message;
 }
 
-function applyImageSelection(request: FastifyRequest, selection: UpstreamImageLease): void {
+function applyImageSelection(
+  request: FastifyRequest,
+  selection: UpstreamImageLease,
+  upstreamModel: string
+): void {
   const context = getGatewayContext(request);
   request.gatewayContext = {
     ...context,
     upstreamAccount: selection.upstreamAccount
   };
+  applyImageAttemptAttribution(request, {
+    provider: selection.imageProvider,
+    upstreamModel,
+    upstreamAccountId: selection.upstreamAccount.id
+  });
+}
+
+function applyImageAttemptAttribution(
+  request: FastifyRequest,
+  input: {
+    provider: ImageGenerationProvider;
+    upstreamModel: string;
+    upstreamAccountId: string | null;
+  }
+): void {
   request.gatewayObservedUpstreamAccount = {
-    id: selection.upstreamAccount.id,
-    provider: selection.upstreamAccount.provider
+    id: input.upstreamAccountId,
+    provider: input.provider.providerKind
   };
+  request.gatewayUpstreamModel = input.upstreamModel;
 }
 
 function imageOutcomeFromError(error: GatewayError): ImageProviderOutcome | null {

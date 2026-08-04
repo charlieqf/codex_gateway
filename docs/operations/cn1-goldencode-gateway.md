@@ -1,6 +1,6 @@
 # CN1 GoldenCode Gateway
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 This runbook records the CN1-only Codex Gateway profile on the Aliyun CN1 VM.
 It is deliberately different from the Azure `gw.instmarket.com.au` gateway.
@@ -39,13 +39,19 @@ CN1 is a domestic-only, GLM-5.2-only gateway. `/v1/models` should expose only:
 goldencode
 ```
 
-`goldencode` is a sticky HRW pool with these enabled members:
+Because the Aliyun and Qianfan subscriptions are temporarily cancelled,
+`goldencode` currently has exactly one enabled member:
 
 | member | runtime | upstream model |
 | --- | --- | --- |
-| `goldencode-qianfan` | `qianfan` | `glm-5.2` |
 | `goldencode-tencent` | `tencent` | `glm-5.2` |
-| `goldencode-aliyun` | `aliyun` | `glm-5.2` |
+
+The previous three-member env is backed up at
+`/opt/codex-gateway-cn1/backups/tencent-only-20260804T0305Z`. The Gateway was
+recreated healthy with zero restarts, and smoke request
+`req-cb134460-c360-4dd5-93c4-e5cbc94d26ed` succeeded through
+`goldencode-tencent / tencent / glm-5.2`. Do not re-enable Qianfan or Aliyun
+until their subscriptions and the routing decision are explicitly restored.
 
 OpenRouter is intentionally absent from the CN1 profile. Do not add
 `MEDCODE_OPENROUTER_*` env vars or an OpenRouter pool member to CN1 unless the
@@ -93,13 +99,14 @@ Consequences:
   advertised client endpoint;
 - CN1 terminates the `gw` certificate and validates a second TLS connection to
   the R760 `goldencode` certificate;
-- CN1's existing `codex_gateway_cn1` service, state volumes and three-provider
-  loopback pool remain unchanged and do not receive production traffic;
+- CN1's existing `codex_gateway_cn1` service and state volumes remain isolated
+  and do not receive production traffic; its loopback pool is now
+  Tencent-only;
 - Azure is retained only as a short cutover rollback boundary and is not a
   permanent proxy. After it is retired, CN1 is the public single point.
 
 The R760 public text-model surface is exactly `goldencode`, backed only by
-direct Qianfan, Tencent and Aliyun GLM-5.2. The other seven Azure text model ids
+direct Tencent GLM-5.2. The other seven Azure text model ids
 and OpenRouter do not migrate. Image generation is a separate API capability:
 R760 retains `medcode-image-default` through `gpt-image-1.5`,
 `grok-imagine-image-quality`, and `gemini-3.1-flash-image`, with no
@@ -118,10 +125,11 @@ The 2026-08-03 baseline found:
 - Certbot installed with an active renewal timer;
 - approximately 80 GiB free on the 99 GiB root filesystem;
 - approximately 13 GiB available from 14 GiB RAM and low current load;
-- successful TLS/SNI validation from CN1 to the R760 `:1443` origin. The origin
-  returned the expected `502` because the formal R760 Gateway was stopped. The
-  check used an explicit address override; the `goldencode` origin did not yet
-  have ordinary public A-record resolution.
+- successful TLS/SNI validation from CN1 to the R760 `:1443` origin. The
+  2026-08-03 baseline returned the expected `502` while the formal R760 Gateway
+  was stopped; after the 2026-08-04 loopback deployment the same origin health
+  returns 200 with an explicit address override. The `goldencode` origin still
+  does not have ordinary public A-record resolution.
 
 Thirty fresh CN1-to-R760 HTTPS connections measured:
 
@@ -215,7 +223,7 @@ Expected health shape:
 }
 ```
 
-Check that OpenRouter is absent without printing secrets:
+Check that the effective pool is Tencent-only without printing secrets:
 
 ```bash
 cd /opt/codex-gateway-cn1/current
@@ -228,6 +236,15 @@ if printenv MEDCODE_OPENROUTER_API_KEY >/dev/null 2>&1; then
 else
   echo openrouter_env=absent
 fi
+'
+docker compose -p codex_gateway_cn1 -f compose.azure.yml exec -T gateway node -e '
+  const value = JSON.parse(process.env.MEDCODE_PUBLIC_MODELS_JSON);
+  const members = value.goldencode?.pool?.members ?? [];
+  const summary = members.map(({id, runtime, upstreamModel}) => ({id, runtime, upstreamModel}));
+  if (JSON.stringify(summary) !== JSON.stringify([{
+    id: "goldencode-tencent", runtime: "tencent", upstreamModel: "glm-5.2"
+  }])) process.exit(1);
+  console.log(JSON.stringify(summary));
 '
 ```
 
@@ -268,15 +285,13 @@ $COMPOSE exec -T gateway node apps/admin-cli/dist/index.js --db "$DB" revoke "$p
 $COMPOSE exec -T gateway node apps/admin-cli/dist/index.js --db "$DB" disable-user "$USER_ID" >/dev/null
 ```
 
-## Sticky And Load-Balancing Smoke
+## Tencent-Only Routing Smoke
 
-For a fuller self-test, choose one HRW session for each member and send two
-requests per session. The expected result is:
+Send at least one real request and verify its request event. The only accepted
+result is:
 
 ```text
-goldencode-qianfan: 2
-goldencode-tencent: 2
-goldencode-aliyun: 2
+goldencode-tencent / tencent / glm-5.2 / status=ok
 ```
 
 Then verify request events with:
@@ -292,12 +307,16 @@ For every successful smoke event, these fields should match:
 
 ```text
 public_model_id=goldencode
-upstream_account_id=goldencode-qianfan|goldencode-tencent|goldencode-aliyun
-upstream_runtime=qianfan|tencent|aliyun
+upstream_account_id=goldencode-tencent
+upstream_runtime=tencent
 upstream_model=glm-5.2
 reasoning_effort=medium
 status=ok
 ```
+
+Any post-change Qianfan, Aliyun or OpenRouter GLM-5.2 event is a routing
+regression. Stop the rollout and inspect the effective env before sending more
+traffic.
 
 ## Deployment Notes
 
@@ -314,6 +333,22 @@ future image pulls:
 HTTP_PROXY=http://127.0.0.1:7890
 HTTPS_PROXY=http://127.0.0.1:7890
 ```
+
+On 2026-08-04, no-key HTTPS probes through CN1 Mihomo reached OpenAI, xAI and
+Gemini and received application-layer 401, 401 and 403. Read-only inspection
+also found that the CN1 process currently listens on a wildcard `:7890`, not
+loopback as previously assumed; host/cloud ingress controls were not changed in
+this task, so do not describe that listener alone as proof of public reachability
+or safety. A separate security review should narrow it without disrupting the
+Docker daemon proxy dependency.
+
+The approved image-egress implementation no longer tunnels to CN1. The current
+CN1 binary plus active node/config snapshot were copied through SSH to a
+dedicated R760 private-network container. R760 publishes no proxy/controller
+port, only its public Gateway receives proxy variables, and exact `NO_PROXY`
+keeps Tencent direct. Do not repoint R760 to CN1 `:7890` or open either host's
+proxy listener. See `r760-mihomo-image-egress.md` for the active topology and
+remaining Gemini supported-region limitation.
 
 If a future deploy builds on CN1, confirm Docker can pull base images first.
 If Docker Hub remains unstable, prefer loading a trusted image artifact and

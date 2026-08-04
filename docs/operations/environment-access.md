@@ -128,8 +128,8 @@ docker compose -p codex_gateway_cn1 -f compose.azure.yml ps
 curl -fsS http://127.0.0.1:18787/gateway/health
 ```
 
-The CN1 profile exposes only `goldencode`, backed by `qianfan`, `tencent`, and
-`aliyun` GLM-5.2 pool members. OpenRouter is intentionally absent. See
+The CN1 profile exposes only `goldencode`, currently backed only by Tencent
+GLM-5.2. Qianfan, Aliyun and OpenRouter are absent from the effective pool. See
 `docs/operations/cn1-goldencode-gateway.md` for the full runbook.
 
 A four-container domestic Gateway and Doctor Research migration is prepared for
@@ -161,25 +161,35 @@ PostgreSQL for this stack: Gateway/Research use their existing SQLite volumes,
 and the host's PostgreSQL 17 data remains under `/data/postgresql/17/main` for
 the services that already depend on it.
 
-Current preparation boundary as of 2026-08-03:
+Current destination boundary as of 2026-08-04:
 
 - Docker/containerd roots and Gateway/Research state are under `/data`;
-- four offline images and the clean release are staged;
-- six formal volumes contain a verified initial Azure snapshot;
-- formal Compose config passed while all four enable flags remained false;
-- no formal container is running and `127.0.0.1:18787` is free;
+- the exact Azure `4697fba0b74d2ea8aa0ace0699a6117397ad9b01` release and
+  four matching offline image IDs are installed;
+- six formal volumes contain the latest verified Azure online snapshots plus
+  subsequent R760 E2E state;
+- formal Compose project `codex_gateway_r760` is running 4/4 healthy with zero
+  restarts; only Gateway binds `127.0.0.1:18787`;
 - the `goldencode` certificate/SNI vhost is installed and public `:1443` TLS
-  works with an explicit address override, returning expected `502` until the
-  Gateway starts; ordinary `goldencode` public DNS is still pending;
+  and Gateway health return 200 with an explicit address override; ordinary
+  `goldencode` public DNS is still pending;
 - the management Netplan persists the USB NIC by MAC; a separate cold-boot
   maintenance drill still requires iDRAC/local-console fallback;
-- the staged env still requires the newly approved low-cost image chain before
-  it may be started. Public and Research may reference the same Aliyun provider
-  key, but keep separate secret files/injection paths and validate the shared
-  account's aggregate quota, rate and concurrency.
+- public and Research GLM-5.2 routes are Tencent-only. They may reuse the same
+  Tencent provider key, but keep separate Gateway/service/SQLite boundaries and
+  validate the shared account's aggregate quota, rate and concurrency;
+- a dedicated R760 Mihomo infrastructure container now provides image egress
+  only on the private `codex_gateway_r760_default` network. It publishes no host
+  port; only the public Gateway receives proxy variables, and Tencent/internal
+  destinations are covered by exact `NO_PROXY` entries. The public
+  `gpt-image-1.5` path and direct xAI provider smoke succeed. Gemini still fails
+  with Google's unsupported-user-location precondition across all 21 currently
+  alive copied nodes, so a supported-region node is still required before the
+  complete three-model image gate passes. Do not expose `7890`, route Research
+  LLM through Mihomo or reuse an OpenEvidence residential proxy.
 
-Destination text requests expose only `goldencode`, backed by direct Qianfan,
-Tencent and Aliyun GLM-5.2. Image generation remains separate at
+Destination text requests expose only `goldencode`, backed only by direct
+Tencent GLM-5.2. Image generation remains separate at
 `/gateway/images/generations` with client model `medcode-image-default`; target
 upstreams are `gpt-image-1.5`, `grok-imagine-image-quality` and
 `gemini-3.1-flash-image`, never `gpt-image-2`.
@@ -187,8 +197,14 @@ upstreams are `gpt-image-1.5`, `grok-imagine-image-quality` and
 Before any R760 Compose mutation, use the exact formal release and private env
 documented by the migration checklist, run `docker compose config --quiet`,
 verify secret owner/mode and confirm the six named volumes. Never print the
-rendered config, env files or secret contents. Routine destination inspection
-must remain read-only until the deploy window is explicitly authorized.
+rendered config, env files or secret contents. Recreate only the intended
+service and preserve the current release, previous symlink, image tags and
+state backup rollback boundaries.
+
+Operate and validate the image-egress container with
+[`r760-mihomo-image-egress.md`](./r760-mihomo-image-egress.md). It is a fifth
+infrastructure container; the Doctor Research application boundary remains the
+same four containers.
 
 ## VM Project Paths
 

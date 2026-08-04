@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { GatewayError, isRecord, type FeaturePolicy } from "@codex-gateway/core";
+import {
+  GatewayError,
+  isRecord,
+  type FeaturePolicy,
+  type ProviderKind
+} from "@codex-gateway/core";
 import sharp from "sharp";
 
 const supportedSizes = ["1024x1024", "1024x1536", "1536x1024", "auto"] as const;
@@ -46,7 +51,13 @@ export interface ImageGenerationResult {
   usage?: ImageGenerationUsage;
 }
 
+export type ImageGenerationProviderKind = Extract<
+  ProviderKind,
+  "openai-api" | "xai" | "gemini"
+>;
+
 export interface ImageGenerationProvider {
+  readonly providerKind: ImageGenerationProviderKind;
   generate(input: {
     request: ImageGenerationRequest;
     upstreamModel: string;
@@ -305,6 +316,8 @@ export function maxPromptCharsFromEnv(value: string | undefined): number {
 }
 
 export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "openai-api" as const;
+
   constructor(private readonly options: OpenAIImageGenerationProviderOptions) {}
 
   async generate(input: {
@@ -380,6 +393,8 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
 }
 
 export class XAIImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "xai" as const;
+
   constructor(private readonly options: XAIImageGenerationProviderOptions) {}
 
   async generate(input: {
@@ -452,6 +467,8 @@ export class XAIImageGenerationProvider implements ImageGenerationProvider {
 }
 
 export class GeminiImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "gemini" as const;
+
   constructor(private readonly options: GeminiImageGenerationProviderOptions) {}
 
   async generate(input: {

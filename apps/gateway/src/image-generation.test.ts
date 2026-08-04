@@ -24,6 +24,18 @@ const request: ImageGenerationRequest = {
   metadata: {}
 };
 
+describe("image provider attribution", () => {
+  it("exposes stable request-event provider kinds", () => {
+    expect(new OpenAIImageGenerationProvider({ apiKey: "test-openai" }).providerKind).toBe(
+      "openai-api"
+    );
+    expect(new XAIImageGenerationProvider({ apiKey: "test-xai" }).providerKind).toBe("xai");
+    expect(new GeminiImageGenerationProvider({ apiKey: "test-gemini" }).providerKind).toBe(
+      "gemini"
+    );
+  });
+});
+
 describe("OpenAIImageGenerationProvider", () => {
   afterEach(() => {
     vi.restoreAllMocks();

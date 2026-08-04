@@ -5,6 +5,8 @@ export type ProviderKind =
   | "aliyun"
   | "tencent"
   | "openai-api"
+  | "xai"
+  | "gemini"
   | "anthropic"
   | "kimi"
   | "deepseek";

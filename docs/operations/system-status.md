@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 ## Current Phase
 
@@ -10,14 +10,94 @@ controlled trial for up to 10 trusted users, but the 2026-07-15 production
 fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
 gateway is also running for domestic-only GLM-5.2 validation.
 
-Azure remains authoritative at this update. The formal R760 four-container
-project has not been started and `gw.instmarket.com.au` has not been switched.
-The destination host is R760; because the network administrator rejected public
-`443 -> R760:443`, the approved public path is now CN1 Nginx on `gw:443`
-forwarding over HTTPS to the R760 `goldencode:1443` origin. CN1's existing
-loopback Gateway is a separate service and is not in that request path.
+Azure remains the authoritative public endpoint and
+`gw.instmarket.com.au` has not been switched. The formal R760 four-container
+project is now running on loopback and has passed real Doctor Research E2E, but
+it has not accepted public `gw` traffic. Because the network administrator
+rejected public `443 -> R760:443`, the approved future public path remains CN1
+Nginx on `gw:443` forwarding over HTTPS to the R760 `goldencode:1443` origin.
+CN1's existing loopback Gateway is a separate service and is not in that path.
 
-Current Doctor Research production:
+Current operational state:
+
+- Azure production runs commit
+  `4697fba0b74d2ea8aa0ace0699a6117397ad9b01` from
+  `/home/qian/codex-gateway-release-4697fba-20260803T083513Z`.
+  Doctor Research execution is `1.6.104`, prompt `v30`, validation `v42` and
+  workflow `v81`. Its Gateway, isolated Research LLM Gateway, Worker and
+  maintenance containers are healthy with zero restarts; only the public
+  Gateway publishes `127.0.0.1:18787`.
+- All currently running GLM-5.2 routes have been narrowed to Tencent because
+  the Aliyun and Qianfan subscriptions are temporarily cancelled. Azure public
+  `goldencode`, Azure Research staging, CN1 loopback, R760 public Gateway and
+  R760 Research all have only `goldencode-tencent / tencent / glm-5.2` enabled.
+  Azure production Research keeps Qianfan and Aliyun as disabled registry
+  entries, with Tencent as its sole enabled member and `maxConcurrent=3`.
+- The Azure public Gateway was recreated at `2026-08-04T02:56:39Z` after a
+  restricted backup and Compose validation. Its first ten post-recreate
+  `goldencode` events, including smoke request
+  `req-fefde9bc-527e-46ab-b392-5c927d76de2f`, all succeeded through Tencent.
+  Azure Research production has recorded 32 Tencent-only GLM-5.2 successes
+  since its current container start. Azure staging smoke
+  `req-58b14ff4-20e2-4cdf-b25d-9d1408cfb384` and CN1 smoke
+  `req-cb134460-c360-4dd5-93c4-e5cbc94d26ed` also succeeded through Tencent.
+- The staging route change exposed an operator rollback-mode error: a restored
+  non-secret registry temporarily inherited mode `0600`, so its container
+  could not read the file and restarted. The registry was restored to
+  `qian:qian/0644`, staging returned healthy, and the Tencent-only change was
+  then reapplied successfully. The final recreated staging Gateway and its
+  unchanged Worker/maintenance containers are all healthy with restart count
+  zero. No secret-file permission was broadened.
+- The formal R760 project runs the same four image IDs as current Azure from
+  release
+  `/opt/codex-gateway-r760/releases/4697fba0b74d2ea8aa0ace0699a6117397ad9b01`.
+  All four containers are healthy with zero restarts; only Gateway publishes
+  `127.0.0.1:18787`. SQLite integrity and foreign keys pass, maintenance backup
+  `drb_d206cec62645458db6f1e2a750dbc1e6` succeeded, Worker
+  `doctor-research-skill.1.6.104` is ready, and `/data` has about 94.5% free.
+- Three R760 real Research runs succeeded once each and published exactly four
+  artifacts. Two complete client E2Es passed download size/SHA-256 validation
+  in 179 and 183 seconds. The middle server run also succeeded with four
+  artifacts, but an initial smoke key with `rpm=4` received HTTP 429 during
+  download; raising only that temporary key to `rpm=120` closed the client
+  path. All 15 business LLM calls across the three runs used Tencent GLM-5.2.
+  All E2E keys are revoked, entitlements cancelled, users disabled, and no R760
+  temporary directory, nonterminal run or unfinished reservation remains.
+- R760 now runs a dedicated Mihomo `v1.19.23` infrastructure container on the
+  private `codex_gateway_r760_default` network. Its CN1-derived configuration
+  contains 32 embedded nodes and no online proxy-provider dependency. It has a
+  read-only root filesystem, no Linux capabilities, no host-published port and
+  restart self-healing; the CN1 source listener shape was not copied. Only the
+  public Gateway has `HTTP_PROXY`/`HTTPS_PROXY`, while exact `NO_PROXY` entries
+  keep Tencent and the domestic/internal endpoints direct. A fault-injection
+  smoke succeeded through Tencent while Mihomo was stopped.
+- The R760 low-cost image path now succeeds through Mihomo for the public
+  `medcode-image-default -> gpt-image-1.5` route and for a direct xAI
+  `grok-imagine-image-quality` fallback-provider smoke. There is still no
+  `gpt-image-2`. Gemini remains a cutover blocker: its key is accepted far
+  enough to return Google `FAILED_PRECONDITION`, but all 21 currently alive
+  copied nodes report that their exit location is unsupported. The temporary
+  selector controller was loopback-only, then removed, and the pre-probe config
+  and cache hashes were restored before production restart. Cache and GeoIP are
+  mutable runtime state; ongoing integrity checks cover the static binary and
+  derived config. Local source now records the actual image provider and
+  upstream model before every primary, account-retry and billing-fallback
+  attempt, with OpenAI/xAI/Gemini attribution tests passing. The deployed R760
+  image does not yet include that fix, so the image-provider/model
+  observability acceptance gate remains open until deployment and real smoke
+  revalidation.
+- R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
+  `8081/8082` checks pass. Azure remains the live `gw` address; CN1 Nginx/DNS
+  were not changed. Restricted route backups are under
+  `/home/qian/codex-gateway-backups/tencent-only-20260804T0255Z` on Azure and
+  `/opt/codex-gateway-cn1/backups/tencent-only-20260804T0305Z` on CN1.
+  R760 Mihomo rollback files are under
+  `/data/codex-gateway-r760/backups/pre-mihomo-20260804T034553Z`; the later
+  state-permission boundary is
+  `/data/codex-gateway-r760/backups/pre-mihomo-state-umask-20260804T043007Z`; see
+  `docs/operations/r760-mihomo-image-egress.md`.
+
+Superseded 2026-08-03 status snapshot (retained for audit):
 
 - Azure runtime commit `29790d2784913bfe14c71e8f72d51ae48748e5e7`,
   execution `1.6.100`, prompt `v30`, validation `v42`, workflow `v77`, from
@@ -59,7 +139,7 @@ Current Doctor Research production:
 - Access remains controlled-trial until the medical team approves
   representative cases and manually accepts the four generated files.
 
-Domestic migration preparation (not cut over):
+The superseded snapshot also recorded the following migration preparation:
 
 - The destination is the Dell PowerEdge R760 and the runtime boundary is four
   containers: the public Gateway, an isolated Research LLM Gateway, one Worker

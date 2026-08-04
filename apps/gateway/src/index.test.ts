@@ -204,7 +204,12 @@ class HangingThenSuccessChatProvider implements ProviderAdapter {
 class FakeImageGenerationProvider implements ImageGenerationProvider {
   readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
 
-  constructor(private readonly resultOrError?: Awaited<ReturnType<ImageGenerationProvider["generate"]>> | GatewayError) {}
+  constructor(
+    private readonly resultOrError?:
+      | Awaited<ReturnType<ImageGenerationProvider["generate"]>>
+      | GatewayError,
+    readonly providerKind: ImageGenerationProvider["providerKind"] = "openai-api"
+  ) {}
 
   async generate(input: Parameters<ImageGenerationProvider["generate"]>[0]) {
     this.calls.push(input);
@@ -231,6 +236,7 @@ class FakeImageGenerationProvider implements ImageGenerationProvider {
 }
 
 class HangingImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "openai-api" as const;
   readonly calls: Array<Parameters<ImageGenerationProvider["generate"]>[0]> = [];
   readonly started: Promise<void>;
   private resolveStarted!: () => void;
@@ -716,6 +722,9 @@ describe("gateway phase 1 routes", () => {
     expect(store.listRequestEvents({ limit: 5 })).toEqual([
       expect.objectContaining({
         upstreamAccountId: "codex-pro-1",
+        provider: "openai-api",
+        publicModelId: "medcode-image-default",
+        upstreamModel: "gpt-image-2",
         status: "ok"
       })
     ]);
@@ -990,6 +999,9 @@ describe("gateway phase 1 routes", () => {
     expect(store.listRequestEvents({ limit: 5 })).toEqual([
       expect.objectContaining({
         upstreamAccountId: "image-billing-fallback",
+        provider: "openai-api",
+        publicModelId: "medcode-image-default",
+        upstreamModel: "gpt-image-1.5",
         status: "ok"
       })
     ]);
@@ -1007,7 +1019,7 @@ describe("gateway phase 1 routes", () => {
     });
     const primaryImageProvider = new FakeImageGenerationProvider(billingLimitError);
     const exhaustedFallbackProvider = new FakeImageGenerationProvider(billingLimitError);
-    const workingFallbackProvider = new FakeImageGenerationProvider();
+    const workingFallbackProvider = new FakeImageGenerationProvider(undefined, "xai");
     const app = buildGateway({
       authMode: "credential",
       provider: new FakeProvider(),
@@ -1057,6 +1069,9 @@ describe("gateway phase 1 routes", () => {
     expect(store.listRequestEvents({ limit: 5 })).toEqual([
       expect.objectContaining({
         upstreamAccountId: "image-billing-fallback-xai-1",
+        provider: "xai",
+        publicModelId: "medcode-image-default",
+        upstreamModel: "grok-imagine-image-quality",
         status: "ok"
       })
     ]);

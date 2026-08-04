@@ -16,6 +16,41 @@ only the temporary cutover rollback boundary and is not the long-term edge.
 
 ## Current production deployment
 
+As of 2026-08-04, Azure runs runtime commit
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01` from:
+
+```text
+/home/qian/codex-gateway-release-4697fba-20260803T083513Z
+```
+
+The execution contract is `1.6.104`, prompt
+`doctor-research-prompt.v30`, validation
+`doctor_research_validation.v42`, and workflow
+`doctor_research_workflow.v81`. All four production containers are healthy
+with zero restarts. Only the public Gateway publishes
+`127.0.0.1:18787->8787`; the isolated Research LLM Gateway, Worker and
+maintenance services publish no host port.
+
+The current Research LLM registry keeps Qianfan and Aliyun disabled and enables
+only `goldencode-tencent / tencent / glm-5.2` with `maxConcurrent=3`. Since the
+current Research LLM container started, every real GLM-5.2 event has used
+Tencent. This is the required temporary policy while the Aliyun and Qianfan
+subscriptions are cancelled; do not restore the old Aliyun-only policy.
+
+The same 2026-08-04 routing decision was applied to the Azure public
+`goldencode` pool, Azure Research staging and the CN1 loopback Gateway. The
+public Gateway was recreated from a restricted config backup and its first ten
+post-recreate `goldencode` events all succeeded through Tencent. These public
+and staging route changes do not merge their credentials, SQLite state or
+capacity with the isolated Research LLM Gateway.
+
+The exact release and four Azure image IDs are also running as the formal R760
+loopback destination. That deployment and its state/E2E/cutover boundaries are
+recorded in the domestic migration plan; Azure remains authoritative until the
+separate CN1 edge and DNS cutover.
+
+## Preceding 1.6.100 deployment record
+
 As of 2026-07-30, the public Azure Gateway and all three Research services run
 runtime commit `29790d2784913bfe14c71e8f72d51ae48748e5e7` from:
 
@@ -478,8 +513,8 @@ The overlay adds:
 - the Research API configuration and Research state volume to the existing
   public Gateway;
 - an internal, non-published LLM Gateway whose production GoldenCode pool
-  currently enables only direct Aliyun GLM-5.2 with three-call concurrency;
-  Qianfan and Tencent remain disabled rollback entries;
+  currently enables only direct Tencent GLM-5.2 with three-call concurrency;
+  Qianfan and Aliyun remain disabled entries;
 - one Worker and one independent maintenance process;
 - one Worker-only SerpAPI credential for bounded general doctor identity
   discovery through the explicitly selected Google engine; the token is never

@@ -15,9 +15,11 @@ flag.
   entitlements, backup target and upstream capacity are ready.
 - Never copy a production user token, Codex login/upstream account, Gateway
   encryption secret or Research service credential into staging. A bounded
-  staging smoke may reuse only the three existing direct GoldenCode provider
-  API keys on the same host, copied without output into mode-`0400` staging
-  secret files; it must not alter, rotate or expose those keys.
+  staging smoke may reuse only the existing Tencent GoldenCode provider API key
+  on the same host, copied without output into a mode-`0400` staging secret
+  file; it must not alter, rotate or expose that key. Qianfan and Aliyun may
+  remain mounted for rollback compatibility but must not be enabled while their
+  subscriptions are cancelled.
 - Do not expose the staging port publicly or add an Nginx route.
 - Do not enable `RESEARCH_ACCEPT_WHEN_WORKER_UNAVAILABLE`.
 - Do not use a public proxy, scrape Google Scholar, or execute a `.skill`,
@@ -28,9 +30,9 @@ flag.
 
 The Worker intentionally fails startup until all of these are present:
 
-1. Staging-only credentials for the frozen three-member direct GoldenCode
-   pool (`qianfan`, `tencent`, `aliyun`) and exact public model ID
-   `goldencode`. This path uses GLM-5.2; it does not require Max, a Codex
+1. A staging-only credential for the Tencent-only direct GoldenCode pool and
+   exact public model ID `goldencode`. This path uses GLM-5.2; it does not
+   require Qianfan, Aliyun, Max, a Codex
    device login, OpenRouter or another public proxy. The Worker must set an
    explicit `RESEARCH_LLM_REASONING_EFFORT`; the reviewed beta value is `low`
    so the pool's general-purpose default cannot silently expand structured

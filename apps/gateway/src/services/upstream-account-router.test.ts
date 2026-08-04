@@ -31,6 +31,8 @@ class FakeProvider implements ProviderAdapter {
 }
 
 class FakeImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "openai-api" as const;
+
   async generate(): Promise<never> {
     throw new Error("not implemented");
   }

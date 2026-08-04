@@ -69,13 +69,15 @@ but above that floor are explicitly warned; all identity, evidence, safety and
 artifact gates remain fail-closed.
 
 The current Azure runtime release is commit
-`29790d2784913bfe14c71e8f72d51ae48748e5e7`, execution `1.6.100`, prompt
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`, execution `1.6.104`, prompt
 `doctor-research-prompt.v30`, validation `doctor_research_validation.v42`, and
-workflow `doctor_research_workflow.v77`. It runs from
-`/home/qian/codex-gateway-release-29790d2-20260730T062157Z` with SerpAPI Google
+workflow `doctor_research_workflow.v81`. It runs from
+`/home/qian/codex-gateway-release-4697fba-20260803T083513Z` with SerpAPI Google
 general identity discovery, a 50-run UTC-day subject limit, and no distinct-
 doctor count limit. All four services are healthy, restart count zero, and only
-the Gateway publishes `127.0.0.1:18787`.
+the Gateway publishes `127.0.0.1:18787`. The exact release and four image IDs
+also run on the R760 loopback destination, which has not yet received public
+`gw` traffic.
 
 The `1.6.99` release completed five consecutive same-case public E2Es in
 177.257–257.217 seconds; every run produced exactly 3 MD + 1 five-line TXT and
@@ -487,11 +489,12 @@ Work that cannot close its evidence and output contracts in that window fails
 with `deadline_exceeded`; the service never publishes a partial four-file
 result.
 
-Production currently enables only the Aliyun direct GLM member with capacity
-for the three synthesis calls. Qianfan and Tencent remain explicit disabled
-configuration entries for reversible operator rollback; repeated live
-validation showed that a required long fragment could otherwise reach the
-240-second call limit without a response.
+Production currently enables only the Tencent direct GLM member with capacity
+for the three synthesis calls. Qianfan and Aliyun remain explicit disabled
+configuration entries. This temporary policy also applies to every other
+running GLM-5.2 route because the Qianfan and Aliyun subscriptions are
+cancelled; they must not be re-enabled as fallback without a new routing
+decision and live validation.
 
 ## API quick reference
 
