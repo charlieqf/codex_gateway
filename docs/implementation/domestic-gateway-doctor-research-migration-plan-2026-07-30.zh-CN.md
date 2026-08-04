@@ -2,13 +2,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | R760 正式四容器与私有 Mihomo 已部署；Research E2E、OpenAI/xAI 生图已通过；旧模型消费者、腾讯账号容量证明、provider key 轮换、Gemini 出口、CN1 边缘入口、最终同步和切流仍待关闭 |
+| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；客户端分批改址、旧模型零用量观察、最终同步和 Azure 下线仍待关闭；CN1 边缘保持暗路由且不再是切流方案 |
 | 首次编制 | 2026-07-30 |
 | 现状更新 | 2026-08-04 |
 | 完成窗口 | 原计划 2026-08-01/02，未切流；下一批准维护窗口待确定 |
 | 当前生产源 | Azure `gw.instmarket.com.au` |
 | 目标环境 | 本地 Dell PowerEdge R760（Ubuntu 22.04） |
-| 公网入口 | CN1 Nginx 保持 `https://gw.instmarket.com.au:443`，转发到 R760 `https://goldencode.instmarket.com.au:1443` |
+| 公网入口 | 客户端显式使用 `https://goldencode.instmarket.com.au:1443`；DNS-only A 记录直达 R760 公网 NAT，外部 `1443` 映射到 R760 Nginx `443` |
 | 核心目标 | 单一公共文本模型 `goldencode` + 低成本生图 + 四容器 Doctor Research |
 
 ## 1. 结论
@@ -32,28 +32,32 @@ Research 状态和产物。
 只有 `gateway` 可以通过宿主机 loopback 端口接入 Nginx/TLS。其余三个容器
 不得发布宿主机端口。
 
-网管已拒绝公网 `443 -> R760:443`。为了不修改现有消费者 URL，正式入口采用：
+网管已拒绝公网 `443 -> R760:443`；CN1 边缘方案又受到 Aliyun 备案入口拦截，不能
+作为公网切流路径。因此客户端必须修改 URL，当前分批迁移入口为：
 
 ```text
-消费者 https://gw.instmarket.com.au:443
-  -> CN1 Nginx（终止 gw TLS，仅承担边缘反向代理）
-  -> HTTPS + SNI goldencode.instmarket.com.au:1443
-  -> R760 Nginx
+消费者 https://goldencode.instmarket.com.au:1443
+  -> DNS-only A 记录 117.186.49.26
+  -> 公网 NAT（外部 1443 -> R760 192.168.77.242:443）
+  -> R760 Nginx（goldencode SNI/TLS）
   -> 127.0.0.1:18787
   -> R760 gateway
 ```
 
-CN1 现有 `codex_gateway_cn1` loopback Gateway 不在这条请求路径内，不承载
-R760 的用户、凭据或 Doctor Research 状态。R760 运行时的
-`GATEWAY_PUBLIC_BASE_URL` 仍必须是 `https://gw.instmarket.com.au`，使统一 key
-解析和客户端配置继续返回无显式端口的原地址。
+CN1 现有 `codex_gateway_cn1` loopback Gateway 和已安装的 `gw` 边缘 vhost 均不在
+当前直连路径内，不承载 R760 的用户、凭据或 Doctor Research 状态。R760 运行时的
+`GATEWAY_PUBLIC_BASE_URL` 已改为
+`https://goldencode.instmarket.com.au:1443`；统一 key 解析会返回对应的 `/v1` 和
+credential-validation URL。
 
 当前 Azure 生产及其回滚边界在切流验收完成前保持权威。R760 已完成正式
-loopback 四容器部署，但尚未接管 `gw` 公网流量；本文中的切流步骤仍是计划态。
+四容器部署并开放独立直连入口，但不会接管 `gw` DNS；尚未修改配置的客户端仍走
+Azure。本文中的客户端批量改址、最终状态同步和 Azure 下线步骤仍是计划态。
 
 Azure 只作为切换初期的临时回滚边界，不作为迁移后的永久反向代理。通过稳定
-观察并关闭回滚窗口后，应按独立下线清单停止 Azure Gateway；此后 CN1 将成为
-`gw` 的单一公网入口，必须接受并监控这一单点风险。
+观察并关闭回滚窗口后，应按独立下线清单停止 Azure Gateway。迁移后 R760 公网
+NAT、本地线路、Nginx 和单机 Gateway 构成新的单点边界，必须建立对应监控和恢复
+流程；CN1 不在正式请求链中。
 
 MedEvidence/OpenEvidence 也计划迁往 R760，但不与本次 Gateway/Doctor Research
 同时切流。先完成本方案并经过至少 24 小时或一个完整业务周期的稳定观察，再按
@@ -480,7 +484,28 @@ Nginx、证书或 DNS：
   备案阻断是新的硬性 no-go，必须解决并从独立公网客户端复测后才能切 DNS；
 - `gw.instmarket.com.au` 仍解析到 Azure `4.242.58.89`，本轮没有切流。
 
+随后因 CN1 公网备案阻断无法在当前条件下消除，正式入口决策改为客户端显式改址：
+
+- 已创建 DNS-only `A` 记录
+  `goldencode.instmarket.com.au -> 117.186.49.26`，悉尼、CN1、Azure 和权威 DNS
+  解析均一致；公网 `:1443` TLS/health 返回 200；
+- 外部 `117.186.49.26:1443` 由路由器映射到 R760 `192.168.77.242:443`，R760
+  Nginx 再转发到 `127.0.0.1:18787`；
+- R760 `GATEWAY_PUBLIC_BASE_URL` 已切换到
+  `https://goldencode.instmarket.com.au:1443`。完整 base、Research overlay、R760
+  override Compose 校验通过后仅重建了 `gateway`，三个 Research 容器 ID 未变，四个
+  服务均 healthy、零重启；
+- 受限明文备份和 SHA-256 清单位于
+  `/data/codex-gateway-r760/backups/pre-public-base-url-20260804T103816Z`；
+- 真实 `cgu_live` resolve 返回新的 `/v1` 地址；credential validation、仅
+  `goldencode` 模型面、Tencent GLM-5.2 chat、Research 鉴权列表和低质量
+  `medcode-image-default` JPEG 均从普通公网直连验证成功；
+- CN1 vhost 保留为暗配置/审计记录，不再作为当前切流路径。
+
 CN1 边缘 vhost 的硬性配置边界：
+
+以下边界只描述已经安装的暗路由；除非未来先解决 Aliyun 公网入口问题并重新批准，
+不得据此把 `gw` DNS 切到 CN1。
 
 - 只匹配 `gw.instmarket.com.au`，不得成为默认 vhost，也不得覆盖现有站点；
 - CN1 终止 `gw` 证书，向 R760 继续使用 HTTPS；必须启用
@@ -656,18 +681,21 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 
 ## 11. 实施前待确认项
 
-以下项目必须在下一维护窗口前确定，否则只能继续准备，不能进入切流路径：
+以下项目用于关闭分批客户端迁移和最终 Azure 下线；已完成项保留为验收记录：
 
-1. **已完成暗测**：CN1 `gw.instmarket.com.au` 证书、独立 SNI vhost、upstream
-   keepalive、长请求超时、SSE/取消配置和证书续期 dry-run；
-2. 解决 Aliyun `Non-compliance ICP Filing`/境外 TLS reset，完成独立公网多网络
-   复测，并确认 `gw` DNS 到 CN1 的 TTL、操作权限、切换步骤、Azure 临时回切和
-   最终 Azure 下线责任人；
-3. R760 `GATEWAY_PUBLIC_BASE_URL=https://gw.instmarket.com.au` 已确认；CN1
-   upstream 已选择固定 NAT `117.186.49.26:1443` 并校验 `goldencode` SNI。继续完成
-   仅允许 CN1/批准运维来源访问 R760 `:1443` 的策略；
-4. 所有消费者只使用 `model=goldencode` 的清单；无需修改现有 base URL；并在受控
-   窗口移除/禁用 Azure 旧 registry 的其他七个文本模型及非腾讯 LLM 路由；
+1. **已完成并改为历史暗路由**：CN1 `gw.instmarket.com.au` 证书、独立 SNI
+   vhost、upstream keepalive、长请求超时、SSE/取消和证书续期验证；Aliyun
+   `Non-compliance ICP Filing`/境外 TLS reset 使该路径不再承担本次切流；
+2. **已完成**：DNS-only `goldencode` A 记录、独立公网多网络解析/TLS/health、真实
+   resolver/chat/Research list/低成本图片验证；
+3. **已完成**：R760
+   `GATEWAY_PUBLIC_BASE_URL=https://goldencode.instmarket.com.au:1443` 生效，完整
+   Compose 校验和 Gateway-only recreate 通过；
+4. 所有消费者必须同时改为
+   `base_url=https://goldencode.instmarket.com.au:1443/v1` 和
+   `model=goldencode`，逐一确认其网络允许外连 `1443`；至少完成一个零旧模型用量
+   观察窗口后，再移除/禁用 Azure 旧 registry 的其他七个文本模型及非腾讯 LLM
+   路由；
 5. 确认公共和 Research 使用的腾讯账号总额度、RPM、TPM 和并发能够覆盖两条路径，
    为公网池设置明确 `maxConcurrent`，并完成 R760 两条路径同时加压验证；
 6. 架构上不要求凭据隔离；但 2026-08-04 终端暴露事件要求在切流前轮换腾讯
@@ -678,7 +706,7 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
    节点并完成 Gemini 实图；完成前低成本图片三模型门槛仍为 no-go；
 8. 最终数据同步期间采用何种写入冻结方式；
 9. 迁移后的备份是否有目标主机之外的副本；
-10. CN1 单点、双层证书续期、端到端 health、带宽和日志关联的监控负责人；
+10. R760 公网 NAT/线路、单层证书续期、端到端 health、带宽和日志关联的监控负责人；
 11. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
    no-go；未作决定前不得把单次成功当作稳定性通过。
 

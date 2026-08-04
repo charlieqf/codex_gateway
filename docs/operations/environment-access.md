@@ -126,8 +126,10 @@ public cutover approval. A 2026-08-04 Sydney public-Internet check was
 intercepted before Nginx with Aliyun `Non-compliance ICP Filing` on HTTP and a
 TLS reset on HTTPS; Azure-to-CN1 HTTPS was also reset. Resolve this public
 ingress/filing boundary and repeat independent-network tests before changing
-DNS. Further Nginx, certificate or public `80/443` changes still require an
-explicit maintenance action.
+DNS. This CN1 route has since been superseded by direct client migration to the
+DNS-only R760 endpoint; keep the installed vhost dark. Further Nginx,
+certificate or public `80/443` changes still require an explicit maintenance
+action.
 
 Basic CN1 checks:
 
@@ -143,9 +145,10 @@ GLM-5.2. Qianfan, Aliyun and OpenRouter are absent from the effective pool. See
 
 A four-container domestic Gateway and Doctor Research migration is prepared for
 R760. The existing single-container CN1 commands are neither destination nor
-cutover commands. CN1 is only the future `gw` edge, while R760 owns application
-containers, state and provider credentials. The preparation, validation and
-rollback gates are in
+cutover commands. The CN1 edge was evaluated and installed but is no longer the
+selected public path; R760 owns application containers, state and provider
+credentials, and clients migrate to its separate direct endpoint. The
+preparation, validation and rollback gates are in
 `docs/implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
 
 ## R760 Domestic Destination Access Pattern
@@ -160,7 +163,7 @@ app root: /opt/codex-gateway-r760
 compose project: codex_gateway_r760
 public gateway listener: 127.0.0.1:18787->8787
 origin TLS identity: https://goldencode.instmarket.com.au:1443
-advertised public base: https://gw.instmarket.com.au
+advertised public base: https://goldencode.instmarket.com.au:1443
 public text models: goldencode only
 ```
 
@@ -184,9 +187,13 @@ Current destination boundary as of 2026-08-04:
 - formal Compose project `codex_gateway_r760` is running all four business
   containers plus Mihomo healthy with zero restarts; only Gateway binds
   `127.0.0.1:18787`;
-- the `goldencode` certificate/SNI vhost is installed and public `:1443` TLS
-  and Gateway health return 200 with an explicit address override; ordinary
-  `goldencode` public DNS is still pending;
+- the `goldencode` certificate/SNI vhost is installed. A DNS-only `A` record
+  resolves to `117.186.49.26`; public NAT maps external `:1443` to R760 Nginx
+  `:443`, and ordinary public TLS/Gateway health return 200;
+- `GATEWAY_PUBLIC_BASE_URL=https://goldencode.instmarket.com.au:1443` is active.
+  Unified resolve advertises the matching `/v1` and credential-validation URLs.
+  The protected pre-change env backup is
+  `/data/codex-gateway-r760/backups/pre-public-base-url-20260804T103816Z`;
 - the management Netplan persists the USB NIC by MAC; a separate cold-boot
   maintenance drill still requires iDRAC/local-console fallback;
 - public and Research GLM-5.2 routes are Tencent-only. They may reuse the same

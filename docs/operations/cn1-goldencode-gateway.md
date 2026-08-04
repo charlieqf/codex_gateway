@@ -71,12 +71,20 @@ GATEWAY_PUBLIC_PHASE=cn1-loopback
 profile does not expose Codex/OpenAI subscription-backed models. The service
 still uses credential auth and SQLite state.
 
-## Approved CN1 Edge Role (Enabled, DNS Not Cut Over)
+## Installed Dark CN1 Edge (Superseded as the Cutover Path)
+
+As of 2026-08-04 this vhost remains installed for rollback/audit purposes but
+is not the selected public migration path. Aliyun public ingress intercepts
+independent traffic before Nginx, so `gw.instmarket.com.au` will not be moved to
+CN1. Clients instead migrate explicitly to the DNS-only R760 endpoint
+`https://goldencode.instmarket.com.au:1443`; Azure `gw` remains available during
+the phased transition.
 
 The domestic production destination is R760, not CN1. R760 will run the public
 Gateway plus the isolated Research LLM Gateway, Worker and maintenance
-containers. CN1 is only the public SNI/TLS reverse-proxy edge required because
-the network administrator declined public `443 -> R760:443`.
+containers. The following path records the installed but dark reverse-proxy
+design that was evaluated after the network administrator declined public
+`443 -> R760:443`.
 
 Target request path:
 
@@ -89,7 +97,7 @@ client https://gw.instmarket.com.au:443
   -> codex_gateway_r760 gateway
 ```
 
-Consequences:
+Consequences if this historical route were reactivated:
 
 - client base URLs remain `https://gw.instmarket.com.au`; no explicit port
   change is required;
@@ -161,14 +169,14 @@ passed:
   request ids were `req-82bd95c3-2d9c-4925-8a51-d8359884e365` and
   `req-c7309ed6-6597-40ca-9617-59c630f44a26`.
 
-This is not yet public cutover approval. A forced CN1 address from the Sydney
+This is a confirmed reason to keep the CN1 route dark. A forced CN1 address from the Sydney
 operator workstation returned `403 Server: Beaver` with
 `Non-compliance ICP Filing` on HTTP. HTTPS for `gw`, the existing
 `medevidence` name and the existing `nip.io` name was reset before Nginx; an
 Azure-to-CN1 HTTPS check was also reset. These requests produced no Nginx
 access entry. The upstream Aliyun public-ingress/filing boundary must be
-resolved and revalidated from independent public client networks before DNS is
-changed.
+resolved and revalidated from independent public client networks before this
+route could ever be reconsidered.
 
 ### Read-only capacity and latency baseline
 
@@ -182,8 +190,9 @@ The 2026-08-03 baseline found:
 - successful TLS/SNI validation from CN1 to the R760 `:1443` origin. The
   2026-08-03 baseline returned the expected `502` while the formal R760 Gateway
   was stopped; after the 2026-08-04 loopback deployment the same origin health
-  returns 200 with an explicit address override. The `goldencode` origin still
-  does not have ordinary public A-record resolution.
+  returns 200. `goldencode.instmarket.com.au` now has an ordinary DNS-only
+  public A record to `117.186.49.26` and is the explicit client-migration
+  endpoint.
 
 Thirty fresh CN1-to-R760 HTTPS connections measured:
 

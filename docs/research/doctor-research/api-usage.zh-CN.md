@@ -1,9 +1,11 @@
 # Doctor Research API 调用说明与注意事项
 
-本文面向 Doctor Research 受限试用的客户端开发者和调用方。生产入口为
-`https://gw.instmarket.com.au`。该能力仍处于 `controlled-trial`：只能使用分配给
-实名用户且已开通 Doctor Research entitlement 的专用凭据，医学团队完成人工内容
-验收前不得扩大用户范围。
+本文面向 Doctor Research 受限试用的客户端开发者和调用方。尚未迁移的客户端继续
+使用 Azure 生产入口 `https://gw.instmarket.com.au`；经明确安排参加 R760 分批迁移的
+客户端使用 `https://goldencode.instmarket.com.au:1443`，并保留本文现有的
+`/gateway/research/v1/...` 路径，不要在 Research 路径前添加 `/v1`。该能力仍处于
+`controlled-trial`：只能使用分配给实名用户且已开通 Doctor Research entitlement
+的专用凭据，最终状态同步和切换完成前不得自行扩大迁移范围。
 
 ## 1. 调用前准备
 

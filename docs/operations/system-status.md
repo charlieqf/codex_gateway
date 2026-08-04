@@ -4,21 +4,22 @@ Last updated: 2026-08-04
 
 ## Current Phase
 
-The Azure gateway is the live public HTTPS Gateway. It originated as a
+The Azure gateway remains the live default HTTPS Gateway for clients that have
+not yet migrated. It originated as a
 controlled trial for up to 10 trusted users, but the 2026-07-15 production
 `trial-check` found 77 active users and 73 active API keys, so it no longer
 fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
 gateway is also running for domestic-only GLM-5.2 validation.
 
-Azure remains the authoritative public endpoint and
-`gw.instmarket.com.au` has not been switched. The formal R760 four-container
-project is running on loopback and has passed real Doctor Research E2E. The
-dedicated CN1 `gw` certificate and Nginx edge vhost are now installed and have
-passed an explicit-resolution dark smoke to the R760 `goldencode:1443` origin;
-CN1's existing loopback Gateway remains a separate service and is not in that
-path. The edge is not cutover-ready: an independent public-Internet request is
-currently intercepted before Nginx with Aliyun's `Non-compliance ICP Filing`
-response on HTTP and a TLS reset on HTTPS.
+`gw.instmarket.com.au` still resolves to Azure, so it remains the rollback and
+compatibility endpoint during phased client migration. R760 is now also
+publicly reachable through the ordinary DNS-only endpoint
+`https://goldencode.instmarket.com.au:1443`; its formal four-container project
+has passed real Doctor Research E2E, public resolver/chat and low-cost image
+smokes. Clients must explicitly change their base URL to use R760. The installed
+CN1 `gw` vhost remains dark and is no longer the selected cutover path because
+independent public traffic is intercepted before Nginx by Aliyun's
+`Non-compliance ICP Filing`/TLS-reset boundary.
 
 Current operational state:
 
@@ -133,6 +134,22 @@ Current operational state:
   not a replacement for a later canonical full Dockerfile rebuild.
 - R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
   `8081/8082` checks pass.
+- A DNS-only `A` record now resolves `goldencode.instmarket.com.au` directly to
+  `117.186.49.26`. Public NAT maps external `:1443` to R760 Nginx `:443`, which
+  proxies to Gateway on `127.0.0.1:18787`. Public TLS and health pass from the
+  Sydney operator workstation, CN1 and Azure.
+- R760 `GATEWAY_PUBLIC_BASE_URL` was changed from
+  `https://gw.instmarket.com.au` to
+  `https://goldencode.instmarket.com.au:1443` under rollback boundary
+  `/data/codex-gateway-r760/backups/pre-public-base-url-20260804T103816Z`.
+  The full base + Research + R760 override Compose configuration validated, and
+  only `gateway` was force-recreated. All three Research container IDs stayed
+  unchanged; all four services remain healthy with zero restarts. A real
+  `cgu_live` resolve now advertises
+  `https://goldencode.instmarket.com.au:1443/v1`, `/v1/models` returns only
+  `goldencode`, credential validation and a Tencent GLM-5.2 chat return 200,
+  the authenticated Research list returns 200, and a post-change low-quality
+  `medcode-image-default` request returned a valid JPEG.
 - The approved CN1 edge maintenance was executed on 2026-08-04 without changing
   public DNS. A dedicated non-default `gw.instmarket.com.au` vhost pins
   `117.186.49.26:1443`, verifies TLS/SNI as
@@ -157,9 +174,10 @@ Current operational state:
   `403 Server: Beaver` with page title `Non-compliance ICP Filing` on HTTP;
   HTTPS for `gw`, `medevidence` and the existing `nip.io` name was reset before
   Nginx and produced no Nginx access entry. Azure-to-CN1 HTTPS was also reset.
-  This upstream public-ingress/filing block must be resolved and retested from
-  independent client networks before DNS cutover. Azure therefore remains the
-  live `gw` address and public DNS still resolves to `4.242.58.89`.
+  The CN1 route therefore remains installed but dark and is not the selected
+  migration path. Azure remains the live `gw` address at `4.242.58.89`; R760
+  clients instead migrate explicitly to the separate DNS-only `goldencode`
+  endpoint.
 - Restricted route backups are under
   `/home/qian/codex-gateway-backups/tencent-only-20260804T0255Z` on Azure and
   `/opt/codex-gateway-cn1/backups/tencent-only-20260804T0305Z` on CN1.
