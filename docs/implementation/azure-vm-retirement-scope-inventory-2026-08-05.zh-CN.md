@@ -122,6 +122,13 @@ mode 为 `0400`、SHA-256 为
 `quick_check=ok` 且外键违规为 0。工具应用 9 行后重新导出 Azure 对账为零差异，并用
 一把现有有效 handoff key 完成 Azure/R760 双端公网验证。
 
+2026-08-06 权威方向切换已实际执行：R760 的一次受控 entitlement 清理写入触发
+R760→Azure 镜像，Azure 写前备份完成，21 行演练依赖记录一次收敛，随后控制干跑为
+零。Azure 兼容用量的两个固定窗口累计向 R760 去重补入 2,759 条 request event、
+775 条已结算 reservation 和 111 条 admin audit；每个窗口第二次 plan 均为零差异，
+两端 open reservation 均为 0，R760 写前备份、quick check 和外键检查通过。一把现有
+正式 handoff key 在镜像后完成双端验证。本文不记录用户身份或任何完整 key。
+
 ## 5. 后续搬迁方案必须回答的问题
 
 稍后编制的详细方案至少应逐项回答：

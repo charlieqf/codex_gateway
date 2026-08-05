@@ -59,6 +59,22 @@ Current operational state:
   backup remains
   `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`
   (`quick_check=ok`, zero FK violations).
+- The live authority switch was completed on 2026-08-06 after commit `7073011`
+  was pushed. A real R760 entitlement cleanup write created a verified Azure
+  backup and mirrored the 21 R760-only rehearsal dependency rows; the next
+  R760-to-Azure dry-run reported zero changes. One representative existing
+  real-user handoff key then passed both public endpoints. The initial Azure
+  compatibility usage merge plus its validation tail imported 2,759 request
+  events, 775 finalized reservations and 111 admin-audit rows into R760. Both
+  fixed windows converged to zero changes, with zero open reservations and
+  clean SQLite/FK checks. Two verified R760 pre-write backups are recorded in
+  `docs/operations/r760-control-plane-authority.md`.
+- The post-switch R760 daily report completed successfully: public health 200,
+  TLS valid, Gateway healthy, restart count zero and no collector errors. It
+  also passed an authenticated Billing Admin Plan query. The daily report
+  currently has one monitoring-only warning because
+  `/var/lib/codex-gateway/ops-runtime.json` has not been configured on R760;
+  control and usage queries are otherwise operational.
 
 - Azure MedEvidence US was retired reversibly at `2026-08-05T06:19:04Z` after
   confirming `requests=0`, `jobs=0`, no last-30-day events and no non-MedEvidence

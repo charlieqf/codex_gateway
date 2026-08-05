@@ -1,16 +1,14 @@
 # Doctor Research
 
 This directory contains the production Doctor Research API guide, deployment
-runbooks, and historical implementation records. Current public production is
-the Azure VM deployment at `https://gw.instmarket.com.au`. The selected
-destination is R760 with the same four-container boundary. Because public 443
-cannot be forwarded directly to R760, CN1 will terminate the unchanged
-`gw.instmarket.com.au:443` client entry and proxy over HTTPS to the R760
-`goldencode.instmarket.com.au:1443` origin. CN1's existing loopback-only
-GoldenCode Gateway remains separate and does not run Doctor Research or process
-this edge traffic. Azure remains authoritative until every validation and
-cutover gate passes, then is retained only for the temporary observation
-rollback window before retirement. See
+runbooks, and historical implementation records. Azure remains available at
+`https://gw.instmarket.com.au` for old clients, while migrated clients use the
+R760 four-container deployment at
+`https://goldencode.instmarket.com.au:1443`. The installed CN1 edge remains
+dark and is not in the request path. Since 2026-08-06, R760 is authoritative
+for Gateway key/user/Plan/usage operations; Azure Doctor Research is retained
+only while its separate workload/artifact migration and rollback gates are
+closed. See
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
 
 ## Current production contract

@@ -135,3 +135,44 @@ Before stopping the Azure Gateway:
 This gate covers Gateway control and usage data only. The other Azure-hosted
 services in the VM retirement inventory have separate migration/retirement
 gates.
+
+## Initial authority cutover evidence
+
+The live authority switch was executed on 2026-08-06 after commit `7073011`
+was pushed:
+
+- preflight found schema v24, matching encryption-secret digests, healthy
+  SQLite/FKs, zero control drift from Azure into R760 and zero open
+  reservations on both endpoints;
+- one inert rehearsal entitlement that still said `active` was cancelled on
+  R760 through the guarded management wrapper. The corresponding subject was
+  already disabled and its credential revoked;
+- the same operation created a verified Azure backup at
+  `/home/qian/codex-gateway-backups/r760-authority-mirror/azure-pre-control-state-sync-20260805T220444Z-b8092f0c.db`
+  and mirrored 21 R760-only rehearsal dependency rows. A follow-up control
+  dry-run reported zero changes across 11 plans, 626 subjects, 634 credentials,
+  336 entitlements, 90 unified keys, 82 upstream bindings, 86 billing events
+  and 93 billing subject events;
+- the first fixed usage window ended at `2026-08-05T22:05:49.435Z` and imported
+  2,758 request events, 775 finalized reservations and 110 admin-audit rows.
+  A later fixed tail window ending at `2026-08-05T22:09:17.996Z` imported one
+  additional request and one additional audit row created by the dual-endpoint
+  verification. Both windows converged to zero changes on their second plan;
+- the R760 usage backups were
+  `/data/backups/codex-gateway/r760-usage-pre-control-state-sync-20260805T220613Z-6cc03bb7.db`
+  and
+  `/data/backups/codex-gateway/r760-usage-pre-control-state-sync-20260805T221023Z-0197be19.db`.
+  Their SHA-256 values were respectively
+  `4dfd695bc2adb6e4fec4b894d5e27c7dee89b22af56b6f897633b10e6a71118d`
+  and `bc7f18ea99a2be6f508b0f02a3c9c5cdf9849f4cfce160a0c712032093e3bbfb`;
+  both reported `quick_check=ok` and zero foreign-key violations;
+- one existing real-user handoff key passed public validation on R760 and
+  Azure after the mirror. R760 public health returned 200, TLS was valid,
+  Gateway was healthy with zero restarts, and the R760 daily usage query
+  completed without collector errors. The formal R760 Billing Admin token also
+  authenticated a public read-only Plan query successfully. The report's only
+  warning was a missing optional
+  `ops-runtime.json` snapshot; this does not affect the authoritative SQLite
+  control or usage records but remains a monitoring follow-up.
+
+No identity, phone number, key prefix or full credential is recorded here.

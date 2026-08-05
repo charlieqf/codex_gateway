@@ -5,14 +5,16 @@ existing Azure `codex_gateway_test` Compose project. It keeps the public
 Gateway on `127.0.0.1:18787`, uses the existing Nginx route, and adds no public
 Docker listener.
 
-This remains the authoritative Azure source-production and rollback runbook.
-Do not reinterpret it as a destination-host runbook. The planned domestic
+This remains the Azure compatibility-production and rollback runbook for
+Doctor Research. It is not authoritative for Gateway user/key/Plan/usage
+operations, which moved to R760 on 2026-08-06. Do not reinterpret it as a
+destination-host runbook. The domestic
 migration, R760 four-container boundary and cutover gates are documented in
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`.
-The destination preserves the public client URL through a dedicated CN1
-`gw:443` edge that proxies to R760 `goldencode:1443`; it does not deploy Doctor
-Research on CN1 or send Worker traffic through CN1's loopback Gateway. Azure is
-only the temporary cutover rollback boundary and is not the long-term edge.
+Migrated clients connect directly to R760 at
+`https://goldencode.instmarket.com.au:1443`; the installed CN1 `gw` edge remains
+dark. Azure is only the temporary old-client/Research rollback boundary and is
+not the long-term edge.
 
 ## Current production deployment
 
@@ -46,8 +48,9 @@ capacity with the isolated Research LLM Gateway.
 
 The exact release and four Azure image IDs are also running as the formal R760
 loopback destination. That deployment and its state/E2E/cutover boundaries are
-recorded in the domestic migration plan; Azure remains authoritative until the
-separate CN1 edge and DNS cutover.
+recorded in the domestic migration plan. R760 is already authoritative for
+Gateway control/usage; Azure Doctor Research remains available only while its
+separate workload/artifact retirement gates are being closed.
 
 ## Preceding 1.6.100 deployment record
 
