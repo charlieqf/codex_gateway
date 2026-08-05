@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 ## Current Phase
 
@@ -21,7 +21,53 @@ CN1 `gw` vhost remains dark and is no longer the selected cutover path because
 independent public traffic is intercepted before Nginx by Aliyun's
 `Non-compliance ICP Filing`/TLS-reset boundary.
 
+Azure VM retirement is broader than the Gateway cutover and is not a near-term
+delete operation. A 2026-08-05 read-only inventory confirmed that the same VM
+also carries MedEvidence Answer Generator, PubMed Evidence Set, desktop update
+feeds, Research staging and legacy/static Nginx routes; it also retained the
+MedEvidence US/local PostgreSQL and TokenBridge/NewAPI stacks. The latter two
+were then retired reversibly on 2026-08-05 after a no-recent-use audit. Their
+data and rollback artifacts remain on the VM, so this is not permission to
+delete the host. Every remaining item must receive an explicit
+migrate/replace/archive/retire decision before host shutdown. See
+`docs/implementation/azure-vm-retirement-scope-inventory-2026-08-05.zh-CN.md`.
+
 Current operational state:
+
+- Real-user key issuance remains authoritative on Azure through
+  `https://gw.instmarket.com.au` and the `codex_gateway_test` state database.
+  Every valid historical and future Azure-issued key must also work on R760.
+  The two keys issued on 2026-08-05 were copied with their complete dependency
+  rows in one R760 transaction after schema, FK, plan and encryption-secret
+  compatibility checks. Both exact handoff keys then passed public resolve,
+  credential, active-entitlement, image-capability and model-surface checks on
+  Azure and R760; R760 remained `goldencode`-only. The target pre-write backup
+  is `/data/backups/codex-gateway/r760-pre-key-sync-20260805T024027Z.db`.
+  Automation is still absent, and exact post-sync set comparison found one
+  older Azure-only unified key (Azure/R760 totals 90/89). Therefore full
+  historical parity is still open. No user identity, prefix or full key is
+  recorded here.
+
+- Azure MedEvidence US was retired reversibly at `2026-08-05T06:19:04Z` after
+  confirming `requests=0`, `jobs=0`, no last-30-day events and no non-MedEvidence
+  PostgreSQL consumers. Public/internal web plus both workers are inactive,
+  disabled and protected by `RefuseManualStart`; PostgreSQL 16 `main` is down
+  and its units are masked. `8081/8083/5432` have no listeners. This database
+  is neither the Codex Gateway SQLite database nor the CN Aliyun RDS domain;
+  its data remains preserved for rollback and archive, not as a US recovery
+  target.
+- TokenBridge/NewAPI was retired reversibly at `2026-08-05T06:22:05Z`. Its
+  NewAPI, MySQL and Redis containers are exited with restart policy `no`, and
+  `13000/13306/16379` have no listeners. The retained Nginx retired vhost
+  returns HTTP 410 under forced public SNI; the operator workstation's ordinary
+  DNS lookup currently returns no A record. Original containers, bind data,
+  certificate and active-vhost config remain available only for rollback.
+- The same-host rollback directory is
+  `/home/qian/azure-retirement-backups/20260805T061540Z`. It contains protected
+  config, PostgreSQL logical/cold backups and TokenBridge logical/cold backups;
+  gzip/tar and SHA-256 verification passed. It is not an off-host disaster
+  recovery copy, so neither retired stack may be deleted until an off-host
+  copy and restore drill pass.
 
 - Azure production runs commit
   `4697fba0b74d2ea8aa0ace0699a6117397ad9b01` from

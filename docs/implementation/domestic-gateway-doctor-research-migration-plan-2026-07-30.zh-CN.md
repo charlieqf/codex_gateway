@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；客户端分批改址、旧模型零用量观察、最终同步和 Azure 下线仍待关闭；CN1 边缘保持暗路由且不再是切流方案 |
+| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；客户端分批改址、Azure 发钥状态同步、旧模型零用量观察和最终切流仍待关闭；Azure MedEvidence US/PostgreSQL 16 与 TokenBridge/NewAPI 已先行可逆退役，其余 VM 多服务退役另行规划；CN1 边缘保持暗路由且不再是切流方案 |
 | 首次编制 | 2026-07-30 |
-| 现状更新 | 2026-08-04 |
+| 现状更新 | 2026-08-05 |
 | 完成窗口 | 原计划 2026-08-01/02，未切流；下一批准维护窗口待确定 |
 | 当前生产源 | Azure `gw.instmarket.com.au` |
 | 目标环境 | 本地 Dell PowerEdge R760（Ubuntu 22.04） |
@@ -52,12 +52,23 @@ credential-validation URL。
 
 当前 Azure 生产及其回滚边界在切流验收完成前保持权威。R760 已完成正式
 四容器部署并开放独立直连入口，但不会接管 `gw` DNS；尚未修改配置的客户端仍走
-Azure。本文中的客户端批量改址、最终状态同步和 Azure 下线步骤仍是计划态。
+Azure。正式用户发钥脚本也继续以 Azure 的 `gw` 入口和 `codex_gateway_test`
+状态库为权威源。本文中的客户端批量改址、Azure 到 R760 的用户/key/plan 同步和
+最终状态收口仍是计划态。
 
-Azure 只作为切换初期的临时回滚边界，不作为迁移后的永久反向代理。通过稳定
-观察并关闭回滚窗口后，应按独立下线清单停止 Azure Gateway。迁移后 R760 公网
-NAT、本地线路、Nginx 和单机 Gateway 构成新的单点边界，必须建立对应监控和恢复
-流程；CN1 不在正式请求链中。
+由于仍有较多用户使用旧客户端、旧模型和旧入口，Azure Gateway 不能快速下线。
+同时，Azure VM 还承载 Answer Generator、PubMed Evidence Set、桌面更新源、
+Research staging 及其他辅助路由；MedEvidence US/PostgreSQL 16 和公开
+TokenBridge/NewAPI 已于 2026-08-05 先行执行可逆停用，但其数据和同机回滚备份尚未
+删除或转移到主机外。VM 全量退役的范围仍显著大于本方案中的 Gateway/Doctor
+Research。完整资产登记与首批退役证据见
+`docs/implementation/azure-vm-retirement-scope-inventory-2026-08-05.zh-CN.md`，后续
+必须另行编制逐组件迁移/替代/退役方案。
+
+Azure 不作为迁移后的永久反向代理，但最终停止或删除必须晚于旧客户端清退、
+Azure 发钥状态持续同步、全部共享服务处置和独立停机验收。迁移后 R760 公网 NAT、
+本地线路、Nginx 和单机 Gateway 构成新的单点边界，必须建立对应监控和恢复流程；
+CN1 不在正式请求链中。
 
 MedEvidence/OpenEvidence 也计划迁往 R760，但不与本次 Gateway/Doctor Research
 同时切流。先完成本方案并经过至少 24 小时或一个完整业务周期的稳定观察，再按
@@ -632,7 +643,8 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 - Research 专用池只产生 Tencent GLM-5.2 事件；
 - SerpAPI/PubMed/Crossref 及必要官网检索成功；
 - 至少连续两次真实 Doctor Research 均生成恰好四个校验一致的文件；
-- 已迁移用户凭据、entitlement 和 API-key 自检通过；
+- 所有仍有效的 Azure 历史及后续发放 key、用户状态、plan 和 entitlement 已同步
+  到 R760；API-key 双端自检通过；
 - 数据库和 artifacts 一致，备份及隔离恢复通过；
 - 无 active run、unfinished reservation、临时 key 或测试文件残留；
 - `gw:443 -> CN1 -> goldencode:1443 -> R760` 两段 TLS、SSE、长请求、取消、图片和
@@ -709,6 +721,10 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 10. R760 公网 NAT/线路、单层证书续期、端到端 health、带宽和日志关联的监控负责人；
 11. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
    no-go；未作决定前不得把单次成功当作稳定性通过。
+12. 正式发钥继续以 Azure 为权威期间，如何实现 Azure 到 R760 的幂等同步、双端
+    验证、失败不交付和周期性对账。2026-08-05 新增的两个 Azure key 已完成一次受控
+    同步和双端公网验证；但集合对账仍有 1 条更早的 Azure-only 统一 key，且自动化
+    尚未完成，不能关闭此项。文档不得记录完整 key 或用户隐私。
 
 ## 12. 相关文档
 
@@ -716,6 +732,7 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 - `docs/operations/cn1-goldencode-gateway.md`
 - `docs/operations/r760-mihomo-image-egress.md`
 - `docs/operations/goldencode-cutover-audit-2026-08-04.zh-CN.md`
+- `docs/implementation/azure-vm-retirement-scope-inventory-2026-08-05.zh-CN.md`
 - `docs/research/doctor-research/README.md`
 - `docs/research/doctor-research/production-runbook.md`
 - `docs/operations/environment-access.md`

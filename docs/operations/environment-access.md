@@ -81,9 +81,17 @@ systemctl is-active nginx apache2 caddy docker 2>/dev/null || true
 
 Known VM constraints from current testing:
 
-- Existing important app lives under `/opt/medevidence-v2`.
+- The legacy MedEvidence US app remains under `/opt/medevidence-v2`, but its
+  public/internal web and worker units were retired on 2026-08-05. Do not start
+  them during Gateway work; their systemd drop-ins deliberately refuse manual
+  start unless the explicit retirement allow marker is restored.
 - Nginx is active and owns port `80`.
-- Local services have been observed on `127.0.0.1:8081` and `127.0.0.1:5432`.
+- PostgreSQL 16 `main` was retired with MedEvidence US and is masked/down;
+  `127.0.0.1:8081`, `8083` and `5432` no longer listen. This does not apply to
+  the separately running Answer Generator, PubMed Evidence Set, imagegen,
+  Codex production or Research staging services.
+- TokenBridge/NewAPI is also retired: its three containers are exited with
+  restart policy `no`, and the retained SNI vhost returns HTTP 410.
 - Docker Engine and the Docker Compose plugin are installed and active, but the `qian` user is not in the `docker` group.
 - Continue using `sudo docker ...` for controlled gateway tests; do not change Docker daemon settings, network/firewall rules, or host service routing without an explicit maintenance window.
 
