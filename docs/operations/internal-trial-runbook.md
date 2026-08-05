@@ -2,6 +2,13 @@
 
 Last updated: 2026-04-23
 
+> Status note (2026-08-06): this is a historical Azure controlled-trial
+> deployment record. Azure `gw` now serves only old-client compatibility and is
+> not the key/user/Plan/usage authority. Do not use this runbook's raw Azure
+> issue or management commands for current production writes. Use
+> `docs/operations/r760-control-plane-authority.md`; keep the Azure commands
+> below only for compatibility inspection or an explicitly approved rollback.
+
 This runbook is for a small controlled internal trial with up to 10 trusted users who must
 reach the gateway from the public internet. It is not a public beta plan.
 

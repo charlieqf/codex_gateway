@@ -234,10 +234,12 @@ legacy script starts from an already-issued MedEvidence v2 JSON file and writes
 
 ## Legacy cmev1 JSON Provisioning
 
-Use `scripts/provision-medevidence-codex-key.ps1` after the MedEvidence v2 key
-file already exists locally. The script provisions or reuses the matching Codex
-Gateway user, API key, and plan entitlement, then writes a `codex_gateway`
-section and a top-level `unified_key` back into the same JSON file.
+This section is historical recovery guidance only. Do not use
+`scripts/provision-medevidence-codex-key.ps1` for a new user: it defaults to the
+Azure compatibility stack, produces legacy `cmev1.*`, and does not enforce the
+R760-authoritative mirror/dual-validation workflow. Use it only after explicit
+approval for an existing MedEvidence v2 JSON recovery, then reconcile and
+validate the resulting control state separately.
 
 Default legacy cmev1 provisioning settings:
 
@@ -250,7 +252,7 @@ Dry-run the derived user id and label:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\provision-medevidence-codex-key.ps1 `
-  -IssuedJsonPath C:\Users\rdpuser\medevidence_api_keys\issued_20260506-200941_fengqian.json `
+  -IssuedJsonPath C:\Users\rdpuser\medevidence_api_keys\<legacy-issued-file>.json `
   -WhatIf
 ```
 
@@ -258,7 +260,7 @@ Provision or reuse the key:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\provision-medevidence-codex-key.ps1 `
-  -IssuedJsonPath C:\Users\rdpuser\medevidence_api_keys\issued_20260506-200941_fengqian.json
+  -IssuedJsonPath C:\Users\rdpuser\medevidence_api_keys\<legacy-issued-file>.json
 ```
 
 Expected output prints only a masked prefix and operational status, for example:

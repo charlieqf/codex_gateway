@@ -2,6 +2,13 @@
 
 日期：2026-05-11
 
+> 2026-08-06 实施状态勘误：本文主体保留 P0/P1 设计过程，以下“当前缺口”是
+> 2026-05-11 的历史基线。Billing Admin HTTP API、幂等 subject 开户、隐藏
+> MedEvidence v2 建用户/签 key、opaque `cgu_live_*`、plan/entitlement event 和
+> usage 查询已经实现。正式运维以 R760 为 Gateway source of truth；发钥执行
+> R760 创建、Azure 兼容镜像、双端验证后交付，具体见
+> `docs/operations/r760-control-plane-authority.md`。
+
 本文描述 Codex Gateway 为收费、充值团队需要提供的后台接口和服务端改造范围。目标是让支付系统负责订单和资金流，Gateway 负责把支付结果转换为模型访问权益、能力开关、额度展示和用量对账；并把"用户注册建账 + opaque key 签发"也收敛到 Gateway 后端，由收费团队站点的注册页调用。
 
 ## 1. 结论
@@ -23,7 +30,7 @@ P1 再实现充值余额 ledger、按 token / image cost unit 扣减、退款冲
 - MedEvidence v2 是 Gateway 注册路径的**隐藏上游**：v2 账号纯粹是 Gateway 代申请的资源；终端用户、收费团队、客户端都不感知 v2 的存在。v2 必须对外提供 s2s "建用户 + 签 key" 接口，不能依赖运维 CLI / 手工流程。
 - 客户端是否能调用模型，最终以 `GET /gateway/credentials/current` 返回的 entitlement 为准，不以支付订单状态为准。
 
-## 2. 当前基础
+## 2. 原始设计基线（2026-05-11 历史快照）
 
 Gateway 已有以下能力：
 

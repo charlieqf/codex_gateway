@@ -1,6 +1,9 @@
 # Desktop 用户消息查询排障交接说明
 
-本文说明 Gateway 团队应承接的 Desktop 用户消息查询和排障工作。核心原则：凡是依赖 `gw.instmarket.com.au` 的用户身份、API key、Desktop 上传消息或客户端诊断事件的数据查询，都应由 Gateway 运维侧提供稳定、只读、可审计的入口，而不是由 App 或 MedEvidence v2 团队临时 SSH 到生产环境执行 ad-hoc SQL。
+本文说明 Gateway 团队应承接的 Desktop 用户消息查询和排障工作。核心原则：凡是依赖
+Gateway 用户身份、API key、Desktop 上传消息或客户端诊断事件的数据查询，都应由
+Gateway 运维侧提供稳定、只读、可审计的入口，而不是由 App 或 MedEvidence v2 团队
+临时 SSH 到生产环境执行 ad-hoc SQL。
 
 ## 背景
 
@@ -14,7 +17,21 @@ Desktop 会把用户本轮原始问题上传到 Codex/MedCode Gateway：
 
 因此，类似“查用户杜衡在 Desktop app 里最近一个问题”这类支持请求，事实数据源在 Gateway，而不是 MedEvidence v2 的 `requests` 表。MedEvidence v2 只能回答 evidence service 请求本身，例如 `/ask/async` 的 request/job 状态；无法可靠还原 Desktop 用户发给 MedCode agent 的原始消息。
 
-当前 Gateway 生产形态是部署在 Azure VM `4.242.58.89` 上的 Docker Compose 容器：
+自 2026-08-06 起，R760 是 Gateway 控制和用量权威端，新客户端使用
+`https://goldencode.instmarket.com.au:1443`。Azure `https://gw.instmarket.com.au`
+仍接收尚未改址的旧客户端，因此 Desktop 消息/诊断事件可能只存在于实际接收该次
+上传的节点，不能假设用量归并也会迁移 `client-events.db`。
+
+当前两套容器边界：
+
+- R760：Compose project `codex_gateway_r760`，container
+  `codex_gateway_r760-gateway-1`，权威 Gateway DB 和新客户端事件；
+- Azure 兼容端：Compose project `codex_gateway_test`，container
+  `codex_gateway_test-gateway-1`，保留旧客户端事件；
+- 两端容器内数据目录均为 `/var/lib/codex-gateway`，但属于不同 Docker volume，
+  不得整库覆盖或直接相加。
+
+Azure 兼容容器的历史部署形态为：
 
 - 公开入口: `https://gw.instmarket.com.au`，由 VM 主机 Nginx 代理到 `127.0.0.1:18787`
 - compose project: `codex_gateway_test`
@@ -25,7 +42,14 @@ Desktop 会把用户本轮原始问题上传到 Codex/MedCode Gateway：
 
 不要把 VM 主机上的 `/var/lib/codex-gateway` 当成生产路径；当前主机上没有这个目录是正常的。也不要把 `~/codex-gateway-state/gateway.db` 当成当前生产库；这是早期 native/smoke 验证留下的用户目录状态，不承载当前 `gw.instmarket.com.au` 生产流量。
 
-部署状态：新版 admin CLI 已于 2026-05-07 部署到 Azure VM 的 Gateway 容器。容器内 `codex-gateway-admin --help` 已包含 `--client-events-db`、`client-messages`、`client-diagnostics`，并已用生产 `client-events.db` 验证可按用户真实姓名查询 Desktop 消息。
+两端 admin CLI 均具备 `--client-events-db`、`client-messages` 和
+`client-diagnostics`。标准消息查询 wrapper 默认查 R760；只有确认用户仍走旧入口时
+才显式选择 Azure：
+
+```powershell
+python scripts\query-client-messages.py --user "<用户>" --limit 20
+python scripts\query-client-messages.py --azure-compatibility --user "<用户>" --limit 20
+```
 
 ## Gateway 团队应承接的查询
 
@@ -42,7 +66,10 @@ Gateway 运维提供稳定只读命令，覆盖以下常见支持问题：
 
 ## 命令入口
 
-优先使用 admin/ops 只读命令，而不是让操作者手写 SQL。生产查询应进入当前 gateway 容器执行，让 CLI 看到容器内的 `/var/lib/codex-gateway` 挂载路径。默认情况下，`--client-events-db` 会从 `--db` 所在目录推导为同级 `client-events.db`；生产排障建议显式传入，避免误查：
+优先使用上述 wrapper 或 admin/ops 只读命令，而不是让操作者手写 SQL。下列直接
+Compose 示例是 Azure 旧客户端兼容查询；R760 查询应优先用 wrapper，避免误选节点。
+默认情况下，`--client-events-db` 会从 `--db` 所在目录推导为同级
+`client-events.db`；直接排障建议显式传入：
 
 ```bash
 sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \

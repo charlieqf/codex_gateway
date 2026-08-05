@@ -1,17 +1,17 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-08-04
+更新时间：2026-08-06
 
 本文是 Doctor Research API 当前发布状态、已知问题和后续治理方案的
 统一说明。它面向医学团队、产品负责人、研发和运维人员，不替代具体的
 API 使用说明或生产操作手册。
 
 文中“CN1 未参与”或“Azure 是部署目标”的表述记录的是对应历史发布和故障调查，
-仍应保留。后继境内四容器目标已确定为 R760，CN1 只承担不改变客户端 URL 的
-`gw:443 -> R760 goldencode:1443` 边缘转发；原有 CN1 loopback Gateway 不处理
-该流量。原定 2026-08-01/02 窗口未切流，Azure 目前仍是权威生产和临时回滚边界。
-R760 正式 loopback 部署、当前所有 GLM-5.2 路径 Tencent-only 边界和下一维护
-窗口的门槛见
+仍应保留，但不再代表当前 Gateway 权威边界。R760 四容器已经通过 DNS-only
+`https://goldencode.instmarket.com.au:1443` 直接承接迁移后的客户端；CN1 边缘保持
+暗路由，不在正式请求链。自 2026-08-06 起，发钥、用户/key 状态、Plan/entitlement
+和用量查询以 R760 为权威，Azure `gw` 仅兼容旧客户端和保留 Research 回滚边界。
+R760 正式部署、当前所有 GLM-5.2 路径 Tencent-only 边界和后续退役门槛见
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 
 相关文档：
@@ -23,12 +23,14 @@ R760 正式 loopback 部署、当前所有 GLM-5.2 路径 Tencent-only 边界和
 - 境内搬迁计划：
   [`domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`](../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 
-## 零 A、截至 2026-08-04 当前状态
+## 零 A、截至 2026-08-06 当前状态
 
-Azure 权威生产和 R760 loopback 目标均运行 commit
-`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`，执行器 `1.6.104`，Prompt `v30`，
-validation `v42`，workflow `v81`。Azure 与 R760 的正式四容器均 healthy、最终
-重启次数 0；只有各自的 public Gateway 发布 loopback 端口。
+Azure 兼容/回滚部署运行 commit
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`；R760 `current` 为
+`43e118eb00083ee44164329568a62941169ee78c`，其中 Research 三容器继续使用已验证的
+Azure-matching 运行镜像。两端执行器均为 `1.6.104`，Prompt `v30`，validation
+`v42`，workflow `v81`。Azure 与 R760 的正式四容器均 healthy、最终重启次数 0；
+只有各自的 public Gateway 发布 loopback 端口。
 
 由于阿里和百度订阅已暂时取消，Azure 公网 `goldencode`、Azure production
 Research、Azure Research staging、CN1 loopback、R760 公网和 R760 Research 的
@@ -36,9 +38,11 @@ Research、Azure Research staging、CN1 loopback、R760 公网和 R760 Research 
 事件核对；R760 三轮 Research 共 15 次业务 LLM 调用也全部为 Tencent。
 
 R760 已完成最新状态恢复和三次成功服务器端 Research run，其中两次完整客户端
-E2E 在 179 秒和 183 秒通过四文件大小与 SHA-256 验证。R760 尚未接管公网 `gw`；
-CN1 edge、最终写入冻结同步、DNS 切流和低成本图片专用出口仍待完成。图片配置中
-没有 `gpt-image-2`，但当前直连图片 API 的真实请求会受控返回 503。
+E2E 在 179 秒和 183 秒通过四文件大小与 SHA-256 验证。R760 不接管 `gw` DNS；
+迁移客户端显式改用 `goldencode:1443`。R760 私有 Mihomo 已提供 Gateway-only 图片
+出口，OpenAI `gpt-image-1.5` 和 xAI 路径通过；图片配置中没有 `gpt-image-2`，Gemini
+仍缺受支持地区出口。Azure 的最终停写、Research 数据/产物收口和其他 VM 服务处置
+仍待完成。
 
 ## 零 B、截至 2026-08-03 的旧状态快照
 

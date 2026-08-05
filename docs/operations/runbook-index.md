@@ -45,7 +45,10 @@ Operational workflows now covered:
 - R760-authoritative key issuance, user/plan control writes, Azure compatibility
   mirroring, deduplicated usage merge and usage queries, documented in
   `docs/operations/r760-control-plane-authority.md`.
-- MedEvidence v2 handoff JSON to Codex Gateway API key provisioning through `scripts/provision-medevidence-codex-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
+- Legacy Azure `cmev1` handoff recovery through
+  `scripts/provision-medevidence-codex-key.ps1`; explicitly excluded from new
+  user/R760 authority issuance in
+  `docs/operations/medevidence-codex-key-provisioning.md`.
 - Upstream Codex account reauthentication through `scripts/reauth-upstream-codex-account.sh`, documented in `docs/operations/environment-access.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
 - Server-side subscription rollout runbook in `docs/implementation/server-side-subscription-rollout-plan.md`; this explicitly excludes account creation pages, billing pages, and payment systems.

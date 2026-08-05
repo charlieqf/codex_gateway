@@ -2,6 +2,12 @@
 
 Last updated: 2026-04-28
 
+> 2026-08-06 运维勘误：本文保留 API key 数据模型和 CLI 设计说明。线上权威端已切到
+> R760。真实用户发钥必须使用 `scripts/issue-real-user-cgu-key.py`；用户/key、Plan
+> 和 entitlement 写入使用 `scripts/manage-r760-gateway-control.py`，并自动镜像 Azure
+> 兼容端。权威用量查询前先运行 `scripts/sync-azure-r760-gateway-usage.py --apply`。
+> 下文裸 admin CLI 命令仅用于本地开发或明确的低层恢复，不是线上标准写入路径。
+
 ## 目标
 
 - 每个 API key 的发放、吊销、轮换、查看完整 key 都有审计记录。
