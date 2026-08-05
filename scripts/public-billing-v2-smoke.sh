@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://gw.instmarket.com.au}"
-COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_test}"
+BASE_URL="${BASE_URL:-https://goldencode.instmarket.com.au:1443}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_r760}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.azure.yml}"
 GATEWAY_SERVICE="${GATEWAY_SERVICE:-gateway}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-20}"

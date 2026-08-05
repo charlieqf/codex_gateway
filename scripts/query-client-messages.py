@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Query recent Desktop client messages from the live Codex Gateway container.
+Query recent Desktop client messages from a live Codex Gateway container.
 
 This is a read-only wrapper around the deployed admin CLI `client-messages`
-command. By default it prints a readable support view with prompt previews. Use
-`--include-text` only when full user prompts are needed for a support reason.
+command. R760 is the default. Use `--azure-compatibility` only to inspect old
+clients that still send telemetry to Azure. By default the script prints a
+readable support view with prompt previews. Use `--include-text` only when full
+user prompts are needed for a support reason.
 """
 
 from __future__ import annotations
@@ -21,14 +23,22 @@ from typing import Any
 from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
 
 
-DEFAULT_VM_HOST = "4.242.58.89"
-DEFAULT_VM_USER = "qian"
-DEFAULT_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
-DEFAULT_COMPOSE_PROJECT = "codex_gateway_test"
+DEFAULT_VM_HOST = "117.186.49.26"
+DEFAULT_VM_USER = "root"
+DEFAULT_VM_PORT = 7723
+DEFAULT_SSH_KEY = r"~\.ssh\id_ed25519"
+DEFAULT_COMPOSE_PROJECT = "codex_gateway_r760"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 DEFAULT_GATEWAY_DB = "/var/lib/codex-gateway/gateway.db"
 DEFAULT_CLIENT_EVENTS_DB = "/var/lib/codex-gateway/client-events.db"
+
+AZURE_VM_HOST = "4.242.58.89"
+AZURE_VM_USER = "qian"
+AZURE_VM_PORT = 22
+AZURE_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
+AZURE_REMOTE_REPO = "/home/qian/codex-gateway-release-4697fba-20260803T083513Z"
+AZURE_COMPOSE_PROJECT = "codex_gateway_test"
 
 class QueryError(RuntimeError):
     pass
@@ -79,8 +89,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timezone", default="Asia/Shanghai", help="IANA timezone for local timestamps.")
     parser.add_argument("--format", choices=["text", "json"], default="text")
 
+    parser.add_argument(
+        "--azure-compatibility",
+        action="store_true",
+        help="Query the temporary Azure compatibility endpoint for old-client telemetry.",
+    )
     parser.add_argument("--vm-host", default=DEFAULT_VM_HOST)
     parser.add_argument("--vm-user", default=DEFAULT_VM_USER)
+    parser.add_argument("--vm-port", type=positive_int, default=DEFAULT_VM_PORT)
     parser.add_argument("--ssh-key", default=DEFAULT_SSH_KEY)
     parser.add_argument("--remote-repo", default=DEFAULT_REMOTE_REPO)
     parser.add_argument("--compose-project", default=DEFAULT_COMPOSE_PROJECT)
@@ -89,7 +105,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gateway-db", default=DEFAULT_GATEWAY_DB)
     parser.add_argument("--client-events-db", default=DEFAULT_CLIENT_EVENTS_DB)
     parser.add_argument("--timeout-seconds", type=positive_int, default=45)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.azure_compatibility:
+        args.vm_host = AZURE_VM_HOST
+        args.vm_user = AZURE_VM_USER
+        args.vm_port = AZURE_VM_PORT
+        args.ssh_key = AZURE_SSH_KEY
+        args.remote_repo = AZURE_REMOTE_REPO
+        args.compose_project = AZURE_COMPOSE_PROJECT
+    return args
 
 
 def positive_int(value: str) -> int:
@@ -135,9 +159,10 @@ def query_messages(args: argparse.Namespace) -> dict[str, Any]:
         'if(r.stderr)process.stderr.write(r.stderr);'
         'process.exit(r.status===null?1:r.status);'
     )
+    docker_command = "docker" if args.vm_user == "root" else "sudo docker"
     remote_command = (
         f"cd {shell_word(args.remote_repo)} && "
-        f"sudo docker compose -p {shell_word(args.compose_project)} "
+        f"{docker_command} compose -p {shell_word(args.compose_project)} "
         f"-f {shell_word(args.compose_file)} exec -T "
         f"-e ADMIN_ARGS_B64={payload} "
         f"{shell_word(args.gateway_service)} node -e {shell_word(node_script)}"
@@ -174,9 +199,10 @@ def run_ssh(args: argparse.Namespace, remote_command: str) -> subprocess.Complet
         "StrictHostKeyChecking=accept-new",
         "-o",
         "IdentitiesOnly=yes",
-        f"{args.vm_user}@{args.vm_host}",
-        remote_command,
     ]
+    if args.vm_port != 22:
+        command.extend(["-p", str(args.vm_port)])
+    command.extend([f"{args.vm_user}@{args.vm_host}", remote_command])
     completed = subprocess.run(
         command,
         capture_output=True,

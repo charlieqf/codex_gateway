@@ -175,6 +175,13 @@ advertised public base: https://goldencode.instmarket.com.au:1443
 public text models: goldencode only
 ```
 
+As of 2026-08-06, R760 is also the authoritative Gateway control and usage
+endpoint. Real-user issue, user/key state, plan/entitlement writes and daily
+usage queries default to R760. Azure remains a temporary old-client
+compatibility endpoint: mirror R760 control rows to it and merge its usage
+events back to R760. Do not perform direct Azure control writes. Exact commands
+and shutdown gates are in `docs/operations/r760-control-plane-authority.md`.
+
 The three other services are `research-llm-gateway`, `research-worker` and
 `research-maintenance`; they publish no host port. Do not install another
 PostgreSQL for this stack: Gateway/Research use their existing SQLite volumes,

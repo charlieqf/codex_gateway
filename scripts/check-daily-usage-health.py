@@ -31,17 +31,19 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
 
 
-DEFAULT_GATEWAY_BASE_URL = "https://gw.instmarket.com.au"
+DEFAULT_GATEWAY_BASE_URL = "https://goldencode.instmarket.com.au:1443"
 DEFAULT_TIMEZONE = "Australia/Sydney"
-DEFAULT_VM_HOST = "4.242.58.89"
-DEFAULT_VM_USER = "qian"
-DEFAULT_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
-DEFAULT_COMPOSE_PROJECT = "codex_gateway_test"
+DEFAULT_VM_HOST = "117.186.49.26"
+DEFAULT_VM_USER = "root"
+DEFAULT_VM_PORT = 7723
+DEFAULT_SSH_KEY = r"~\.ssh\id_ed25519"
+DEFAULT_COMPOSE_PROJECT = "codex_gateway_r760"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 DEFAULT_GATEWAY_DB = "/var/lib/codex-gateway/gateway.db"
 DEFAULT_RUNTIME_SNAPSHOT = "/var/lib/codex-gateway/ops-runtime.json"
 DEFAULT_LOOPBACK_HEALTH_URL = "http://127.0.0.1:18787/gateway/health"
+DEFAULT_REQUIRED_SERVICES = ["nginx", "docker", "containerd", "postgresql"]
 
 INFRASTRUCTURE_ERROR_CODES = {
     "upstream_timeout",
@@ -144,8 +146,9 @@ def loopback_health(url):
 
 
 repo = config["remote_repo"]
+docker = ["sudo", "-n", "docker"] if config["docker_sudo"] else ["docker"]
 compose = [
-    "sudo", "-n", "docker", "compose",
+    *docker, "compose",
     "-p", config["compose_project"],
     "-f", config["compose_file"],
 ]
@@ -164,9 +167,18 @@ host = {
     "uptime_seconds": uptime_seconds,
     "load_average": list(os.getloadavg()),
     "disk_root": {"total_bytes": disk.total, "used_bytes": disk.used, "free_bytes": disk.free},
+    "disk_data": None,
     "memory": read_meminfo(),
     "services": service_states(config["services"]),
+    "required_services": config["services"],
 }
+if os.path.isdir("/data"):
+    data_disk = shutil.disk_usage("/data")
+    host["disk_data"] = {
+        "total_bytes": data_disk.total,
+        "used_bytes": data_disk.used,
+        "free_bytes": data_disk.free,
+    }
 
 listeners = run(["ss", "-ltnH"], allow_failure=True, timeout=8)
 host["relevant_listeners"] = [
@@ -180,16 +192,16 @@ try:
     if not container_id:
         raise RuntimeError("Gateway container was not found")
     state = json.loads(run([
-        "sudo", "-n", "docker", "inspect", "--format", "{{json .State}}", container_id
+        *docker, "inspect", "--format", "{{json .State}}", container_id
     ]).stdout)
     ports = json.loads(run([
-        "sudo", "-n", "docker", "inspect", "--format", "{{json .NetworkSettings.Ports}}", container_id
+        *docker, "inspect", "--format", "{{json .NetworkSettings.Ports}}", container_id
     ]).stdout)
     name = run([
-        "sudo", "-n", "docker", "inspect", "--format", "{{.Name}}", container_id
+        *docker, "inspect", "--format", "{{.Name}}", container_id
     ]).stdout.strip().lstrip("/")
     restart_count_text = run([
-        "sudo", "-n", "docker", "inspect", "--format", "{{.RestartCount}}", container_id
+        *docker, "inspect", "--format", "{{.RestartCount}}", container_id
     ]).stdout.strip()
     container = {
         "id": container_id[:12],
@@ -204,7 +216,7 @@ try:
         "ports": ports or {},
     }
     stats_text = run(
-        ["sudo", "-n", "docker", "stats", "--no-stream", "--format", "{{json .}}", container_id],
+        [*docker, "stats", "--no-stream", "--format", "{{json .}}", container_id],
         timeout=15,
     ).stdout.strip()
     container["stats"] = json.loads(stats_text) if stats_text else None
@@ -319,6 +331,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gateway-base-url", default=DEFAULT_GATEWAY_BASE_URL)
     parser.add_argument("--vm-host", default=DEFAULT_VM_HOST)
     parser.add_argument("--vm-user", default=DEFAULT_VM_USER)
+    parser.add_argument("--vm-port", type=positive_int, default=DEFAULT_VM_PORT)
     parser.add_argument("--ssh-key", default=DEFAULT_SSH_KEY)
     parser.add_argument("--remote-repo", default=DEFAULT_REMOTE_REPO)
     parser.add_argument("--compose-project", default=DEFAULT_COMPOSE_PROJECT)
@@ -328,6 +341,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runtime-snapshot", default=DEFAULT_RUNTIME_SNAPSHOT)
     parser.add_argument("--loopback-health-url", default=DEFAULT_LOOPBACK_HEALTH_URL)
     parser.add_argument("--timeout-seconds", type=positive_int, default=45)
+    parser.add_argument(
+        "--required-service",
+        action="append",
+        dest="required_services",
+        help="Host systemd service required to be active; repeat as needed.",
+    )
     return parser.parse_args()
 
 
@@ -368,7 +387,8 @@ def collect_report(args: argparse.Namespace) -> dict[str, Any]:
         "since_utc": iso_z(start_utc),
         "until_utc": iso_z(until_utc),
         "timeout_seconds": args.timeout_seconds,
-        "services": ["nginx", "docker", "postgresql", "medevidence-v2", "medevidence-v2-worker"],
+        "services": args.required_services or DEFAULT_REQUIRED_SERVICES,
+        "docker_sudo": args.vm_user != "root",
     }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
@@ -531,6 +551,8 @@ def query_remote(args: argparse.Namespace, config: dict[str, Any]) -> dict[str, 
         "StrictHostKeyChecking=accept-new",
         "-o",
         "IdentitiesOnly=yes",
+        "-p",
+        str(args.vm_port),
         f"{args.vm_user}@{args.vm_host}",
         f"python3 - {payload}",
     ]
@@ -720,7 +742,8 @@ def assess_health(
 
     host = server.get("host") or {}
     services = host.get("services") if isinstance(host.get("services"), dict) else {}
-    for service in ("nginx", "docker", "postgresql", "medevidence-v2", "medevidence-v2-worker"):
+    required_services = host.get("required_services") or DEFAULT_REQUIRED_SERVICES
+    for service in required_services:
         if services.get(service) != "active":
             critical.append(f"host service {service} is {services.get(service) or 'unknown'}")
 
@@ -729,6 +752,11 @@ def assess_health(
     used_percent = int(disk.get("used_bytes") or 0) * 100 / total_bytes if total_bytes else None
     if used_percent is not None and used_percent >= disk_warning_percent:
         warnings.append(f"root disk usage is {used_percent:.1f}%")
+    data_disk = host.get("disk_data") if isinstance(host.get("disk_data"), dict) else {}
+    data_total = int(data_disk.get("total_bytes") or 0)
+    data_percent = int(data_disk.get("used_bytes") or 0) * 100 / data_total if data_total else None
+    if data_percent is not None and data_percent >= disk_warning_percent:
+        warnings.append(f"data disk usage is {data_percent:.1f}%")
 
     tls = server.get("tls") or {}
     if not tls.get("ok"):
@@ -876,8 +904,10 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
         f"{format_container_stats(container.get('stats'))}"
     )
     disk = host.get("disk_root") if isinstance(host.get("disk_root"), dict) else {}
+    data_disk = host.get("disk_data") if isinstance(host.get("disk_data"), dict) else {}
     memory = host.get("memory") if isinstance(host.get("memory"), dict) else {}
     disk_percent = ratio_percent(disk.get("used_bytes"), disk.get("total_bytes"))
+    data_disk_percent = ratio_percent(data_disk.get("used_bytes"), data_disk.get("total_bytes"))
     memory_percent = ratio_percent(
         int(memory.get("total_bytes") or 0) - int(memory.get("available_bytes") or 0),
         memory.get("total_bytes"),
@@ -886,6 +916,7 @@ def format_text_report(report: dict[str, Any], *, include_user_ids: bool) -> str
     lines.append(
         f"  VM：运行 {format_duration(host.get('uptime_seconds'))}，"
         f"负载 {format_load(load)}，根盘 {format_percent(disk_percent)}，"
+        f"/data {format_percent(data_disk_percent)}，"
         f"内存 {format_percent(memory_percent)}"
     )
     lines.append(f"  服务：{format_service_states(host.get('services'))}")

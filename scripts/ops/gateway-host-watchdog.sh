@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-container="${WATCHDOG_CONTAINER:-codex_gateway_test-gateway-1}"
+container="${WATCHDOG_CONTAINER:-codex_gateway_r760-gateway-1}"
 state_dir="${WATCHDOG_STATE_DIR:-/var/lib/codex-gateway-watchdog}"
 gateway_url="${WATCHDOG_GATEWAY_HEALTH_URL:-http://127.0.0.1:18787/gateway/health}"
 allowed_codex_concurrency="${WATCHDOG_ALLOWED_CODEX_CONCURRENCY:-2}"

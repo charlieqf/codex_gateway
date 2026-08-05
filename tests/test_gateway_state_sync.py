@@ -331,7 +331,7 @@ class GatewayStateSyncTests(unittest.TestCase):
                 self.assertEqual(target_db.execute("SELECT COUNT(*) FROM request_events").fetchone()[0], 1)
                 audit = target_db.execute(
                     "SELECT params_json FROM admin_audit_events "
-                    "WHERE action = 'azure-r760-control-state-sync'"
+                    "WHERE action = 'gateway-control-state-sync'"
                 ).fetchone()
                 self.assertIsNotNone(audit)
                 self.assertNotIn("ciphertext-", audit[0])

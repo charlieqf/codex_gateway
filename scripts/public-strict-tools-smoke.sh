@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://gw.instmarket.com.au}"
-COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_test}"
+BASE_URL="${BASE_URL:-https://goldencode.instmarket.com.au:1443}"
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-codex_gateway_r760}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.azure.yml}"
 GATEWAY_SERVICE="${GATEWAY_SERVICE:-gateway}"
 GATEWAY_DB="${GATEWAY_DB:-/var/lib/codex-gateway/gateway.db}"
@@ -99,7 +99,7 @@ echo "temp_prefix=$prefix"
 
 cat > "$tmp_dir/strict-tools-request.json" <<'JSON'
 {
-  "model": "medcode",
+  "model": "goldencode",
   "messages": [
     {
       "role": "user",
@@ -163,7 +163,7 @@ echo "strict_tools=ok tool=$strict_tool_name usage=$strict_usage ${strict_reques
 
 cat > "$tmp_dir/strict-tools-named-request.json" <<'JSON'
 {
-  "model": "medcode",
+  "model": "goldencode",
   "messages": [
     {
       "role": "user",
@@ -247,7 +247,7 @@ echo "strict_tools_named=ok tool=$named_tool_name usage=$named_usage ${named_req
 
 cat > "$tmp_dir/strict-tools-none-request.json" <<'JSON'
 {
-  "model": "medcode",
+  "model": "goldencode",
   "messages": [
     {
       "role": "user",

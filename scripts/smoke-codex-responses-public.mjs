@@ -19,7 +19,7 @@ if (!/^cgu_live_[A-Za-z0-9]{64}$/.test(key)) {
 const baseUrl = normalizeBaseUrl(
   typeof handoff.openai_compatible_base_url === "string"
     ? handoff.openai_compatible_base_url
-    : "https://gw.instmarket.com.au/v1"
+    : "https://goldencode.instmarket.com.au:1443/v1"
 );
 const keyPrefix = typeof handoff.key_prefix === "string"
   ? handoff.key_prefix

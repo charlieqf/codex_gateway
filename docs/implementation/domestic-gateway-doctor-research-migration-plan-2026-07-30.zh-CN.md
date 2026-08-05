@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；Azure 发钥到 R760 的逐行同步、历史统一 key 对齐和正式发钥 fail-closed 已完成，周期性无人值守对账仍待部署；客户端分批改址、旧模型零用量观察和最终切流仍待关闭；Azure MedEvidence US/PostgreSQL 16 与 TokenBridge/NewAPI 已先行可逆退役，其余 VM 多服务退役另行规划；CN1 边缘保持暗路由且不再是切流方案 |
+| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；R760 已切为发钥、用户启停、Plan/entitlement 和用量查询权威端，Azure 仅保留旧客户端兼容入口；控制状态按 R760→Azure 镜像，旧入口用量按 Azure→R760 去重归并；客户端分批改址、旧模型零用量观察和最终切流仍待关闭；Azure MedEvidence US/PostgreSQL 16 与 TokenBridge/NewAPI 已先行可逆退役，其余 VM 多服务退役另行规划；CN1 边缘保持暗路由且不再是切流方案 |
 | 首次编制 | 2026-07-30 |
-| 现状更新 | 2026-08-05 |
+| 现状更新 | 2026-08-06 |
 | 完成窗口 | 原计划 2026-08-01/02，未切流；下一批准维护窗口待确定 |
-| 当前生产源 | Azure `gw.instmarket.com.au` |
+| 当前权威端 | R760 `goldencode.instmarket.com.au:1443`；Azure `gw` 仅兼容旧客户端 |
 | 目标环境 | 本地 Dell PowerEdge R760（Ubuntu 22.04） |
 | 公网入口 | 客户端显式使用 `https://goldencode.instmarket.com.au:1443`；DNS-only A 记录直达 R760 公网 NAT，外部 `1443` 映射到 R760 Nginx `443` |
 | 核心目标 | 单一公共文本模型 `goldencode` + 低成本生图 + 四容器 Doctor Research |
@@ -50,12 +50,13 @@ CN1 现有 `codex_gateway_cn1` loopback Gateway 和已安装的 `gw` 边缘 vhos
 `https://goldencode.instmarket.com.au:1443`；统一 key 解析会返回对应的 `/v1` 和
 credential-validation URL。
 
-当前 Azure 生产及其回滚边界在切流验收完成前保持权威。R760 已完成正式
-四容器部署并开放独立直连入口，但不会接管 `gw` DNS；尚未修改配置的客户端仍走
-Azure。正式用户发钥脚本也继续以 Azure 的 `gw` 入口和 `codex_gateway_test`
-状态库为权威源。2026-08-05 已实现 Azure 到 R760 的用户/key/plan 逐行幂等同步：
-Azure 的 90 条统一 key 已全部包含在 R760 中，正式发钥会在写 handoff 前强制完成
-同步和双端验证。客户端批量改址、周期性无人值守对账及最终状态收口仍是计划态。
+R760 已完成正式四容器部署并开放独立直连入口，但不会接管 `gw` DNS；尚未修改配置
+的客户端仍走 Azure。自 2026-08-06 起，正式发钥、用户启停、key 状态、Plan/
+entitlement 管理和用量查询均以 R760 状态库为权威。正式发钥固定执行“R760 创建 ->
+Azure 兼容镜像 -> 双端验证 -> 写 R760 地址 handoff”；其他控制写入必须通过
+`manage-r760-gateway-control.py`，禁止直接写 Azure。Azure 旧入口产生的请求事件、
+已结算 reservation 和审计记录则按事件主键反向去重归并到 R760。因 Azure 很快退役，
+不建设周期调度；在每次权威用量查询前和 Azure 最终停写后各执行一次手工归并。
 
 由于仍有较多用户使用旧客户端、旧模型和旧入口，Azure Gateway 不能快速下线。
 同时，Azure VM 还承载 Answer Generator、PubMed Evidence Set、桌面更新源、
@@ -67,7 +68,7 @@ Research。完整资产登记与首批退役证据见
 必须另行编制逐组件迁移/替代/退役方案。
 
 Azure 不作为迁移后的永久反向代理，但最终停止或删除必须晚于旧客户端清退、
-Azure 发钥状态持续同步、全部共享服务处置和独立停机验收。迁移后 R760 公网 NAT、
+Azure 兼容用量最终归并、全部共享服务处置和独立停机验收。迁移后 R760 公网 NAT、
 本地线路、Nginx 和单机 Gateway 构成新的单点边界，必须建立对应监控和恢复流程；
 CN1 不在正式请求链中。
 
@@ -185,14 +186,14 @@ provider 自动切换。图片响应可能明显大于文本响应，因此 CN1 
 | 项目 | 当前状态 | 周末目标状态 |
 | --- | --- | --- |
 | 公网生产 | Azure 八模型 Gateway | 目标端仅公开 `goldencode` 和 Doctor Research API |
-| CN1 | 单 Gateway、loopback-only；Nginx 已占用公网 80/443；尚无 `gw` 边缘 vhost | Nginx 承担 `gw:443` 边缘转发；原 loopback Gateway 保持隔离且不处理该流量 |
+| CN1 | 单 Gateway、loopback-only；已安装的 `gw` 边缘 vhost 保持暗路由 | 不进入正式请求链 |
 | Doctor Research | Azure 四容器 | 目标端四容器，职责保持不变 |
 | 公共 GoldenCode | Azure `goldencode` 与 CN1 均已收窄为仅 Tencent；Azure 其他旧模型 ID 仍含 Codex/Qianfan/Aliyun/OpenRouter 路由 | R760 仅 Tencent `glm-5.2` |
 | 其他公共文本模型 | Azure 另有七个模型 ID | 全部移除，客户端统一使用 `goldencode` |
 | 图片生成 | Azure 提供，主路径曾使用 `gpt-image-2` 并有低成本 fallback | 保留 `medcode-image-default`；只允许 `gpt-image-1.5`、xAI 和 Gemini 低成本链 |
 | Research LLM | Azure 独立内部 Gateway | R760 独立内部 Gateway，仅 Tencent `glm-5.2` |
 | Research 检索 | SerpAPI/PubMed/Crossref/ORCID/官网 | 保持，但必须从目标端实测 |
-| 公网边缘 | Azure Nginx/TLS | CN1 `gw:443` -> R760 `goldencode:1443`；消费者 URL 不变 |
+| 公网边缘 | Azure `gw` 兼容旧客户端；R760 `goldencode:1443` 承接已迁移客户端 | R760 DNS-only 直连；消费者显式改 URL |
 
 ## 4. Compose 和持久化边界
 
@@ -644,15 +645,13 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 - Research 专用池只产生 Tencent GLM-5.2 事件；
 - SerpAPI/PubMed/Crossref 及必要官网检索成功；
 - 至少连续两次真实 Doctor Research 均生成恰好四个校验一致的文件；
-- 所有仍有效的 Azure 历史及后续发放 key、用户状态、plan 和 entitlement 已同步
-  到 R760；API-key 双端自检通过；
+- 所有历史有效 key 已在 R760 验证；R760 后续发放 key、用户状态、plan 和
+  entitlement 已镜像到 Azure 兼容端；API-key 双端自检通过；
 - 数据库和 artifacts 一致，备份及隔离恢复通过；
 - 无 active run、unfinished reservation、临时 key 或测试文件残留；
-- `gw:443 -> CN1 -> goldencode:1443 -> R760` 两段 TLS、SSE、长请求、取消、图片和
-  artifact 下载均已实测；客户端 URL 保持不变；
-- 从阿里云体系外的独立公网客户端访问 CN1 `gw:443`，不得再出现
-  `Non-compliance ICP Filing`、TLS reset 或其他到达 Nginx 前的入口拦截；
-- CN1 和 R760 的证书续期、双层健康检查、日志关联、带宽告警和回切路径均已实测。
+- 独立公网客户端直连 `goldencode:1443 -> R760` 的 TLS、SSE、长请求、取消、图片和
+  artifact 下载均已实测；所有消费者已显式改 URL；
+- R760 证书续期、端到端健康检查、日志关联、带宽告警和恢复路径均已实测。
 
 ## 9. 回滚触发和步骤
 
@@ -670,15 +669,16 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 
 回滚时：
 
-1. 停止目标端接收新写入，但保留容器、卷和日志用于取证；
-2. 将 `gw` DNS 路由恢复到 Azure，并停用 CN1 新增边缘 vhost 的流量入口；
-3. 验证 Azure public health、八模型面和 Doctor Research；
-4. 记录目标端已接收的请求和数据边界，禁止盲目反向覆盖 Azure；
-5. 在独立复盘后决定重试，不因周末期限删除任何卷或回滚镜像。
+1. 暂停 R760 新的控制面写入，但保留容器、卷和日志用于取证；
+2. 已迁移客户端只有在明确批准后才临时改回仍在线的 Azure `gw`；CN1 暗路由不参与；
+3. 记录 R760 已接收的控制和用量数据边界，确认未结算 reservation 为零；
+4. 如需恢复 Azure 权威，先备份两端，再显式执行经审核的 R760→Azure 控制镜像，
+   禁止整库覆盖或未经事件去重的用量相加；
+5. 验证 Azure public health、兼容模型面和必要服务后，在独立复盘中决定重试。
 
-该 Azure 回切只适用于切流后的临时观察期。Azure 正式下线后不得再把它作为
-永久边缘代理或默认回滚；届时 CN1 故障需要通过修复 CN1、启用预先建设的第二
-边缘入口，或执行另一个明确批准的灾备方案恢复。
+该 Azure 回切只适用于其仍在线的临时兼容期。Azure 正式下线后不得再把它作为
+永久边缘代理或默认回滚；届时 R760/NAT 故障需通过修复 R760、启用预先建设的第二
+入口，或执行另一个明确批准的灾备方案恢复。
 
 ## 10. 本周末明确不做
 
@@ -722,14 +722,11 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 10. R760 公网 NAT/线路、单层证书续期、端到端 health、带宽和日志关联的监控负责人；
 11. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
    no-go；未作决定前不得把单次成功当作稳定性通过。
-12. **发钥主链已完成，周期调度待完成**：正式发钥继续以 Azure 为权威；
-    `scripts/sync-azure-r760-gateway-state.py` 已实现保留 R760 独有数据的逐行幂等
-    同步、写前一致性备份、schema/secret/FK/完整性门槛和二次零差异对账。历史
-    Azure-only 统一 key 已补齐，Azure 的 90 条统一 key 已全部包含在 R760 中；正式
-    发钥脚本现在强制同步并以同一 key 做 Azure/R760 双端 resolve/credential/
-    entitlement/image 验证，失败不写交付文件。仍需安装周期性无人值守只读对账，
-    在此之前每次用户启停、撤销/轮换或 plan/entitlement 变更后必须手工 apply。
-    文档不得记录完整 key 或用户隐私。
+12. **权威端已切到 R760**：正式发钥、用户启停、key 状态、Plan/entitlement 和
+    用量查询默认 R760。控制写入后立即执行 R760→Azure 兼容镜像；旧入口用量在
+    权威报表前执行 Azure→R760 事件级去重归并。因 Azure 是短期兼容端，不再建设
+    周期性无人值守调度；最终停写后必须完成一次零差异收口。历史 Azure-only 统一
+    key 已在切换前补齐。文档不得记录完整 key 或用户隐私。
 
 ## 12. 相关文档
 

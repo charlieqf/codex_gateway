@@ -26,8 +26,8 @@ def arguments(output_dir: str, **overrides):
         "phone": "0400000000",
         "external_user_id": "test-user-1",
         "provider": "manual_trial",
-        "gateway_base_url": "https://gw.instmarket.com.au",
-        "r760_base_url": "https://goldencode.instmarket.com.au:1443",
+        "gateway_base_url": "https://goldencode.instmarket.com.au:1443",
+        "compatibility_base_url": "https://gw.instmarket.com.au",
         "plan_id": "plan_internal_high_quota_image_v1",
         "scope": "code",
         "entitlement_end": "2027-01-15T00:00:00.000Z",
@@ -37,21 +37,21 @@ def arguments(output_dir: str, **overrides):
         "concurrent": 4,
         "output_dir": output_dir,
         "billing_admin_token_env": "GATEWAY_BILLING_ADMIN_TOKEN",
-        "vm_host": "azure.test",
-        "vm_user": "qian",
-        "vm_port": 22,
-        "ssh_key": "azure-key",
+        "vm_host": "r760.test",
+        "vm_user": "root",
+        "vm_port": 7723,
+        "ssh_key": "r760-key",
         "remote_repo": "/unused",
         "compose_project": "unused",
         "compose_file": "unused.yml",
         "gateway_service": "gateway",
-        "gateway_container": "azure-gateway",
-        "r760_vm_host": "r760.test",
-        "r760_vm_user": "root",
-        "r760_vm_port": 7723,
-        "r760_ssh_key": "r760-key",
-        "r760_gateway_container": "r760-gateway",
-        "r760_backup_root": "/data/backups/codex-gateway",
+        "gateway_container": "r760-gateway",
+        "compatibility_vm_host": "azure.test",
+        "compatibility_vm_user": "qian",
+        "compatibility_vm_port": 22,
+        "compatibility_ssh_key": "azure-key",
+        "compatibility_gateway_container": "azure-gateway",
+        "compatibility_backup_root": "/home/qian/backups",
         "sync_max_passes": 3,
         "timeout_seconds": 45,
         "skip_credential_validation": False,
@@ -119,7 +119,7 @@ def current_response():
 
 
 class IssueRealUserKeyTests(unittest.TestCase):
-    def test_success_syncs_then_validates_and_handoff_points_to_r760(self):
+    def test_success_mirrors_then_validates_and_handoff_points_to_r760(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
             order = []
@@ -160,6 +160,7 @@ class IssueRealUserKeyTests(unittest.TestCase):
             self.assertEqual(result["issued"], "ok")
             self.assertEqual(result["azure_validation"], "ok")
             self.assertEqual(result["r760_validation"], "ok")
+            self.assertTrue(result["azure_compatibility_mirror"]["converged"])
             handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
             self.assertEqual(handoff["base_url"], "https://goldencode.instmarket.com.au:1443")
             self.assertEqual(

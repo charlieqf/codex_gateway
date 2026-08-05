@@ -441,7 +441,7 @@ function assertSourceSubset(db, payload) {
   }
 }
 
-function writeAudit(db, payload, analysis, backupId) {
+function writeAudit(db, payload, analysis, backupId, sourceName, targetName) {
   const counts = Object.fromEntries(
     Object.entries(analysis.summary).map(([table, value]) => [
       table,
@@ -455,11 +455,13 @@ function writeAudit(db, payload, analysis, backupId) {
     ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, NULL, ?)`
   ).run(
     `audit_${randomUUID()}`,
-    "azure-r760-control-state-sync",
+    "gateway-control-state-sync",
     "ok",
     JSON.stringify({
       format: FORMAT,
       source_digest: payload.digest,
+      source: sourceName,
+      target: targetName,
       backup_id: backupId || null,
       counts
     }),
@@ -486,7 +488,7 @@ function exportPayload(db) {
   }
 }
 
-function applyPayload(db, payload, backupId) {
+function applyPayload(db, payload, backupId, sourceName, targetName) {
   db.exec("PRAGMA foreign_keys = ON");
   db.exec("PRAGMA busy_timeout = 15000");
   db.exec("BEGIN IMMEDIATE");
@@ -507,7 +509,7 @@ function applyPayload(db, payload, backupId) {
     }
     assertSourceSubset(db, payload);
     const integrity = assertDatabaseHealthy(db);
-    writeAudit(db, payload, analysis, backupId);
+    writeAudit(db, payload, analysis, backupId, sourceName, targetName);
     db.exec("COMMIT");
     return {
       applied: true,
@@ -596,7 +598,13 @@ async function main() {
           tables: analysis.summary
         }));
       } else {
-        const result = applyPayload(db, payload, argument("--backup-id", false));
+        const result = applyPayload(
+          db,
+          payload,
+          argument("--backup-id", false),
+          argument("--source-name", false) || "unknown",
+          argument("--target-name", false) || "unknown"
+        );
         process.stdout.write(JSON.stringify(result));
       }
     } finally {

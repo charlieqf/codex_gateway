@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-DEFAULT_REMOTE_REPO = "/home/qian/codex-gateway-release-4e61f98-20260511T230214Z"
+DEFAULT_REMOTE_REPO = "/opt/codex-gateway-r760/current"
 
 _SECRET_PATTERNS = [
     (re.compile(r"cgu_live_[A-Za-z0-9]{20,}"), "cgu_live_<redacted>"),

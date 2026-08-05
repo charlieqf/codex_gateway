@@ -26,7 +26,7 @@ from urllib.request import (
 )
 
 
-DEFAULT_BASE_URL = "https://gw.instmarket.com.au"
+DEFAULT_BASE_URL = "https://goldencode.instmarket.com.au:1443"
 DEFAULT_MAX_WAIT_SECONDS = 590
 MAXIMUM_JSON_BYTES = 5_000_000
 MAXIMUM_REQUEST_FILE_BYTES = 65_536

@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 
 ## Current Phase
 
@@ -34,28 +34,31 @@ migrate/replace/archive/retire decision before host shutdown. See
 
 Current operational state:
 
-- Real-user key issuance remains authoritative on Azure through
-  `https://gw.instmarket.com.au` and the `codex_gateway_test` state database.
-  Every valid historical and future Azure-issued key must also work on R760.
-  On 2026-08-05, the additive control-state reconciler was implemented as
-  `scripts/sync-azure-r760-gateway-state.py`. It verifies schema v24, SQLite
-  integrity/FKs and non-plaintext encryption-secret digests, preserves R760-only
-  rows, creates a verified target backup, and then applies Azure rows in one
-  transaction. The first automated run inserted nine dependency rows and
-  closed the prior Azure-only gap: Azure's 90 unified keys are now all present
-  on R760, while seven R760-only rehearsal subject/credential/entitlement rows
-  remain preserved. A fresh second dry-run reported zero changes.
-  The pre-write backup is
-  `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`
-  (mode `0400`, SHA-256
-  `9ad2d4bc4112f27f62f3165eaf8d5a9a9f71eedd2074b2b73c685fd0a84bda23`,
-  `quick_check=ok`, zero FK violations). One current handoff key then passed
-  public resolve, identical runtime-credential, active-entitlement and image
-  capability checks on both endpoints. The formal real-user issue script now
-  performs Azure create -> R760 sync -> dual public validation -> R760 handoff
-  and fails closed before writing the handoff if any step fails. A periodic
-  unattended reconciliation schedule is still open. No user identity, prefix
+- R760 is now the control and usage authority for real-user key issuance, user
+  enable/disable, credential revoke/update, plan/entitlement management and
+  usage reports. The formal issue path is R760 create -> verified Azure
+  compatibility mirror -> dual public validation -> R760 handoff. Guarded
+  management writes use `scripts/manage-r760-gateway-control.py`; independent
+  approved writes reconcile with `scripts/sync-r760-azure-gateway-state.py`.
+  Direct Azure control writes are prohibited during the compatibility window.
+  The old Azure-to-R760 control reconciler remains only for explicit rollback
+  or recovery.
+- Azure still accepts traffic from old clients. Its request events, finalized
+  reservations and admin-audit history therefore merge idempotently into R760
+  through `scripts/sync-azure-r760-gateway-usage.py`; immutable IDs prevent
+  duplicate accounting and token-window updates use only inserted/finalized
+  deltas. The R760 daily health/usage report is the default authoritative query.
+  No periodic job is planned because Azure is temporary: run the merge before
+  an authoritative report and once more after Azure writes are frozen. See
+  `docs/operations/r760-control-plane-authority.md`. No user identity, prefix
   or full key is recorded here.
+- The 2026-08-05 Azure-authoritative phase closed the historical key gap before
+  this direction change. Azure's 90 unified keys were all present on R760, and
+  one current handoff key passed resolve, runtime-credential, entitlement and
+  image-capability checks on both endpoints. The historical R760 pre-write
+  backup remains
+  `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`
+  (`quick_check=ok`, zero FK violations).
 
 - Azure MedEvidence US was retired reversibly at `2026-08-05T06:19:04Z` after
   confirming `requests=0`, `jobs=0`, no last-30-day events and no non-MedEvidence

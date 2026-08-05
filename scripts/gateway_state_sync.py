@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safe Azure-to-R760 Gateway control-plane reconciliation primitives.
+"""Safe Gateway control-plane reconciliation primitives.
 
 Sensitive database rows and runtime credentials are streamed through process
 memory and SSH stdin/stdout only. Public results contain counts and digests,
@@ -28,6 +28,7 @@ DEFAULT_HELPER_LOCAL_PATH = Path(__file__).with_name("gateway-control-state-tran
 DEFAULT_AZURE_BASE_URL = "https://gw.instmarket.com.au"
 DEFAULT_R760_BASE_URL = "https://goldencode.instmarket.com.au:1443"
 DEFAULT_R760_BACKUP_ROOT = "/data/backups/codex-gateway"
+DEFAULT_AZURE_BACKUP_ROOT = "/home/qian/codex-gateway-backups/r760-authority-mirror"
 
 
 class SyncError(RuntimeError):
@@ -208,17 +209,22 @@ def verify_inspections(source: dict[str, Any], target: dict[str, Any]) -> None:
             raise SyncError("Source or target SQLite integrity check failed.")
 
 
-def create_r760_backup(
+def create_target_backup(
     endpoint: RemoteGateway,
     *,
-    backup_root: str = DEFAULT_R760_BACKUP_ROOT,
+    backup_root: str,
+    backup_label: str,
     stamp: str | None = None,
     helper_container_path: str = DEFAULT_HELPER_CONTAINER_PATH,
 ) -> dict[str, Any]:
     stamp = stamp or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     if not re.fullmatch(r"\d{8}T\d{6}Z", stamp):
         raise SyncError("Invalid backup timestamp.")
-    basename = f"r760-pre-control-state-sync-{stamp}-{secrets.token_hex(4)}.db"
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,31}", backup_label):
+        raise SyncError("Invalid target backup label.")
+    basename = (
+        f"{backup_label}-pre-control-state-sync-{stamp}-{secrets.token_hex(4)}.db"
+    )
     container_path = f"/var/lib/codex-gateway/.{basename}"
     host_path = f"{backup_root.rstrip('/')}/{basename}"
     backup = run_helper_json(
@@ -230,22 +236,23 @@ def create_r760_backup(
     )
     expected_sha256 = str(backup.get("sha256") or "")
     if not re.fullmatch(r"[a-f0-9]{64}", expected_sha256):
-        raise SyncError("R760 backup helper did not return a valid SHA-256 digest.")
+        raise SyncError("Target backup helper did not return a valid SHA-256 digest.")
 
+    privilege = "sudo " if endpoint.use_sudo else ""
     remote = " && ".join(
         [
-            f"install -d -m 0700 {shell_word(backup_root.rstrip('/'))}",
-            f"test ! -e {shell_word(host_path)}",
+            f"{privilege}install -d -m 0700 {shell_word(backup_root.rstrip('/'))}",
+            f"{privilege}test ! -e {shell_word(host_path)}",
             f"{docker_command(endpoint)} cp "
             f"{shell_word(endpoint.container + ':' + container_path)} {shell_word(host_path)}",
-            f"chmod 0400 {shell_word(host_path)}",
-            f"sha256sum {shell_word(host_path)}",
+            f"{privilege}chmod 0400 {shell_word(host_path)}",
+            f"{privilege}sha256sum {shell_word(host_path)}",
         ]
     )
     completed = run_ssh(endpoint, remote, timeout_seconds=300)
     actual_sha256 = completed.stdout.strip().split(maxsplit=1)[0] if completed.stdout.strip() else ""
     if actual_sha256 != expected_sha256:
-        raise SyncError("R760 host backup SHA-256 does not match the verified SQLite snapshot.")
+        raise SyncError("Target host backup SHA-256 does not match the verified SQLite snapshot.")
 
     cleanup = (
         f"{docker_command(endpoint)} exec {shell_word(endpoint.container)} "
@@ -261,40 +268,62 @@ def create_r760_backup(
     }
 
 
-def sync_azure_to_r760(
+def create_r760_backup(
+    endpoint: RemoteGateway,
+    *,
+    backup_root: str = DEFAULT_R760_BACKUP_ROOT,
+    stamp: str | None = None,
+    helper_container_path: str = DEFAULT_HELPER_CONTAINER_PATH,
+) -> dict[str, Any]:
+    """Backward-compatible R760 backup helper."""
+    return create_target_backup(
+        endpoint,
+        backup_root=backup_root,
+        backup_label="r760",
+        stamp=stamp,
+        helper_container_path=helper_container_path,
+    )
+
+
+def sync_gateway_control_state(
     *,
     apply: bool,
-    azure: RemoteGateway | None = None,
-    r760: RemoteGateway | None = None,
-    backup_root: str = DEFAULT_R760_BACKUP_ROOT,
+    source: RemoteGateway,
+    target: RemoteGateway,
+    target_backup_root: str,
+    source_name: str | None = None,
+    target_name: str | None = None,
     max_passes: int = 3,
 ) -> dict[str, Any]:
     if max_passes < 1 or max_passes > 5:
         raise SyncError("max_passes must be between 1 and 5.")
-    azure = azure or default_azure_gateway()
-    r760 = r760 or default_r760_gateway()
+    source_name = source_name or source.name
+    target_name = target_name or target.name
+    for value, label in ((source_name, "source"), (target_name, "target")):
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,31}", value):
+            raise SyncError(f"Invalid {label} name.")
     helper_container_path = (
         f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
     )
     installed: list[RemoteGateway] = []
     try:
-        for endpoint in (azure, r760):
+        for endpoint in (source, target):
             install_helper(endpoint, container_path=helper_container_path)
             installed.append(endpoint)
 
         source_inspection = run_helper_json(
-            azure, "inspect", helper_container_path=helper_container_path
+            source, "inspect", helper_container_path=helper_container_path
         )
         target_inspection = run_helper_json(
-            r760, "inspect", helper_container_path=helper_container_path
+            target, "inspect", helper_container_path=helper_container_path
         )
         verify_inspections(source_inspection, target_inspection)
 
         payload = run_helper_json(
-            azure, "export", helper_container_path=helper_container_path, timeout_seconds=300
+            source, "export", helper_container_path=helper_container_path, timeout_seconds=300
         )
         plan = run_helper_json(
-            r760,
+            target,
             "plan",
             payload=payload,
             helper_container_path=helper_container_path,
@@ -302,6 +331,8 @@ def sync_azure_to_r760(
         )
         result: dict[str, Any] = {
             "mode": "apply" if apply else "dry-run",
+            "source": source_name,
+            "target": target_name,
             "preflight": "ok",
             "schema_version": source_inspection.get("migration"),
             "encryption_secret_match": True,
@@ -313,9 +344,10 @@ def sync_azure_to_r760(
         if not apply or plan.get("changed_rows") == 0:
             return result
 
-        backup = create_r760_backup(
-            r760,
-            backup_root=backup_root,
+        backup = create_target_backup(
+            target,
+            backup_root=target_backup_root,
+            backup_label=target_name,
             helper_container_path=helper_container_path,
         )
         result["backup"] = backup
@@ -323,10 +355,17 @@ def sync_azure_to_r760(
 
         for pass_number in range(1, max_passes + 1):
             applied = run_helper_json(
-                r760,
+                target,
                 "apply",
                 payload=payload,
-                extra_args=["--backup-id", backup_id],
+                extra_args=[
+                    "--backup-id",
+                    backup_id,
+                    "--source-name",
+                    source_name,
+                    "--target-name",
+                    target_name,
+                ],
                 helper_container_path=helper_container_path,
                 timeout_seconds=300,
             )
@@ -334,13 +373,13 @@ def sync_azure_to_r760(
             result["last_apply"] = applied
 
             fresh_payload = run_helper_json(
-                azure,
+                source,
                 "export",
                 helper_container_path=helper_container_path,
                 timeout_seconds=300,
             )
             final_plan = run_helper_json(
-                r760,
+                target,
                 "plan",
                 payload=fresh_payload,
                 helper_container_path=helper_container_path,
@@ -353,11 +392,50 @@ def sync_azure_to_r760(
             payload = fresh_payload
 
         raise SyncError(
-            "Azure control state kept changing and did not converge on R760 within the allowed passes."
+            f"{source_name} control state kept changing and did not converge on "
+            f"{target_name} within the allowed passes."
         )
     finally:
         for endpoint in reversed(installed):
             remove_helper_best_effort(endpoint, container_path=helper_container_path)
+
+
+def sync_azure_to_r760(
+    *,
+    apply: bool,
+    azure: RemoteGateway | None = None,
+    r760: RemoteGateway | None = None,
+    backup_root: str = DEFAULT_R760_BACKUP_ROOT,
+    max_passes: int = 3,
+) -> dict[str, Any]:
+    return sync_gateway_control_state(
+        apply=apply,
+        source=azure or default_azure_gateway(),
+        target=r760 or default_r760_gateway(),
+        target_backup_root=backup_root,
+        source_name="azure",
+        target_name="r760",
+        max_passes=max_passes,
+    )
+
+
+def sync_r760_to_azure(
+    *,
+    apply: bool,
+    r760: RemoteGateway | None = None,
+    azure: RemoteGateway | None = None,
+    backup_root: str = DEFAULT_AZURE_BACKUP_ROOT,
+    max_passes: int = 3,
+) -> dict[str, Any]:
+    return sync_gateway_control_state(
+        apply=apply,
+        source=r760 or default_r760_gateway(),
+        target=azure or default_azure_gateway(),
+        target_backup_root=backup_root,
+        source_name="r760",
+        target_name="azure",
+        max_passes=max_passes,
+    )
 
 
 def _http_json(

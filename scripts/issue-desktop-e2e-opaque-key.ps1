@@ -26,7 +26,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\issue-desktop-e2e-op
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-  [string]$GatewayBaseUrl = "https://gw.instmarket.com.au",
+  [string]$GatewayBaseUrl = "https://goldencode.instmarket.com.au:1443",
   [string]$Provider = "desktop_e2e",
   [string]$ExternalUserId,
   [string]$DisplayName = "Desktop E2E Automation",
@@ -37,11 +37,12 @@ param(
   [string]$OutputDir = "C:\Users\rdpuser\medevidence_api_keys",
 
   [string]$BillingAdminToken = $env:GATEWAY_BILLING_ADMIN_TOKEN,
-  [string]$VmHost = "4.242.58.89",
-  [string]$VmUser = "qian",
-  [string]$SshKey = "$HOME\.ssh\medevidence_azure_wus2_ed25519",
-  [string]$RemoteRepo = "/home/qian/codex-gateway-release-4e61f98-20260511T230214Z",
-  [string]$ComposeProject = "codex_gateway_test",
+  [string]$VmHost = "117.186.49.26",
+  [string]$VmUser = "root",
+  [int]$VmPort = 7723,
+  [string]$SshKey = "$env:USERPROFILE\.ssh\id_ed25519",
+  [string]$RemoteRepo = "/opt/codex-gateway-r760/current",
+  [string]$ComposeProject = "codex_gateway_r760",
   [string]$ComposeFile = "compose.azure.yml",
   [string]$GatewayService = "gateway",
 
@@ -92,8 +93,9 @@ function Get-BillingAdminToken {
   }
 
   $remote = "$VmUser@$VmHost"
-  $remoteCommand = "cd $RemoteRepo && sudo docker compose -p $ComposeProject -f $ComposeFile exec -T $GatewayService printenv GATEWAY_BILLING_ADMIN_TOKEN"
-  $token = (& ssh -i $SshKey $remote $remoteCommand)
+  $dockerCommand = if ($VmUser -eq "root") { "docker" } else { "sudo docker" }
+  $remoteCommand = "cd $RemoteRepo && $dockerCommand compose -p $ComposeProject -f $ComposeFile exec -T $GatewayService printenv GATEWAY_BILLING_ADMIN_TOKEN"
+  $token = (& ssh -i $SshKey -p $VmPort $remote $remoteCommand)
   if ($LASTEXITCODE -ne 0) {
     throw "Failed to read GATEWAY_BILLING_ADMIN_TOKEN from the live Gateway container."
   }

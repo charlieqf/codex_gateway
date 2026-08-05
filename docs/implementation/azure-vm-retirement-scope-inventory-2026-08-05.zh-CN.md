@@ -4,7 +4,7 @@
 | --- | --- |
 | 状态 | 范围已登记；MedEvidence US + PostgreSQL 16 与 TokenBridge/NewAPI 已完成可逆停用并标记退役，其余组件的详细搬迁/退役方案待单独设计 |
 | 登记日期 | 2026-08-05 |
-| 当前主机角色 | GoldenCode 旧入口、正式发钥权威源，以及多项 MedEvidence/配套服务的共享生产主机 |
+| 当前主机角色 | GoldenCode 旧客户端兼容入口，以及多项 MedEvidence/配套服务的共享生产主机；不再是 Gateway 控制或用量权威源 |
 | 目标 | 在未来设计 Azure VM 全量退役方案时，逐项决定迁移、替代、归档或明确退役，避免只搬 Codex Gateway 后误删仍在使用的组件 |
 
 ## 1. 当前结论
@@ -19,14 +19,14 @@ internal web、两类 Worker 和本机 PostgreSQL 16）以及 TokenBridge/NewAPI
 Gateway、Doctor Research、Answer Generator、PubMed Evidence Set、桌面更新源和其他
 辅助路由仍需继续运行和另行处置的结论。
 
-正式用户发钥流程当前继续以 Azure 的
-`https://gw.instmarket.com.au`、Compose project `codex_gateway_test` 和其
-Gateway 状态库为权威源。迁移期必须满足以下硬约束：
+自 2026-08-06 起，正式用户发钥、用户启停、key 状态、Plan/entitlement 和用量查询
+以 R760 为权威。Azure 的 `https://gw.instmarket.com.au` 只保留旧客户端兼容流量。
+迁移期必须满足以下硬约束：
 
 - 所有仍有效、未过期且未撤销的 Azure 历史 key 均可在 R760 使用；
-- 以后通过正式 Azure 发钥脚本创建的 key，也必须在交付用户前同步并验证到 R760；
-- 用户启停、key 轮换/撤销、plan 和 entitlement 变更也必须沿
-  `Azure -> R760` 同步；
+- 以后通过正式脚本在 R760 创建的 key，必须在交付用户前镜像并验证到 Azure；
+- 用户启停、key 撤销/更新、plan 和 entitlement 变更只在 R760 发起，并沿
+  `R760 -> Azure` 镜像；禁止直接写 Azure；
 - 2026-08-05 新增的两个 Azure key 已完成一次受控、逐行、单事务同步，并已用相同
   交付 key 在 Azure/R760 公网入口完成 resolve、credential、entitlement、模型面和
   生图能力验证。R760 写前备份保存在目标主机；本文不记录用户、手机号、key prefix
@@ -34,9 +34,11 @@ Gateway 状态库为权威源。迁移期必须满足以下硬约束：
 - 同日已实现并首次执行自动逐行对账。工具补入 9 条依赖记录，Azure 的 90 条统一
   key 现已全部包含在 R760 的 90 条统一 key 中；R760 独有的 7 组预演
   subject/credential/entitlement 记录被保留，第二次只读运行报告零差异；
-- 正式发钥脚本现在固定执行“Azure 创建 -> R760 幂等同步 -> 同一 key 双端公网
-  验证 -> 写入 R760 地址 handoff”，任一步失败都不交付。周期性无人值守对账调度
-  尚待部署，因此用户启停、撤销或 plan 变更后仍必须立即手工运行同步工具。
+- 正式发钥脚本现在固定执行“R760 创建 -> Azure 兼容镜像 -> 同一 key 双端公网
+  验证 -> 写入 R760 地址 handoff”，任一步失败都不交付；
+- Azure 旧入口产生的 request event、已结算 token reservation 和审计记录按不可变
+  主键去重归并到 R760。因 Azure 很快退役，不建设周期调度；权威报表前及 Azure
+  最终停写后必须手工归并。
 
 本文件只登记退役范围和依赖，不提前决定每项服务必须原样搬到 R760。后续方案应对
 每项分别作出“迁移到 R760 / 使用其他长期托管 / 归档后退役 / 确认废弃”的明确决定。
@@ -75,34 +77,43 @@ Gateway 状态库为权威源。迁移期必须满足以下硬约束：
 所有 env、API key、数据库密码、服务 bearer token、Cookie、代理凭据和完整用户 key
 都只能通过受控私有配置迁移；仓库文档只记录变量名、文件角色、权限和校验摘要。
 
-## 4. Azure 发钥与 R760 兼容门槛
+## 4. R760 权威端与 Azure 兼容门槛
 
-迁移期继续保留 Azure 为正式发钥权威源，且不得使用整库覆盖。2026-08-05 已落地
-`scripts/sync-azure-r760-gateway-state.py` 和容器内临时执行 helper；当前实现如下：
+迁移期以 R760 为正式权威源，且不得使用整库覆盖。控制状态使用
+`scripts/sync-r760-azure-gateway-state.py`，用量使用
+`scripts/sync-azure-r760-gateway-usage.py`；当前实现如下：
 
 1. 默认命令为只读 dry-run，逐表报告 insert/update/unchanged/target-only 数量；
    `--apply` 才允许写入。它不复制整库，也不删除 R760 独有记录。
-2. 单向同步 `plans`、`subjects`、`access_credentials`、`entitlements`、
+2. 控制面从 R760 单向镜像 `plans`、`subjects`、`access_credentials`、`entitlements`、
    `unified_client_keys`、`upstream_v2_bindings`、`billing_events` 和
    `billing_subject_events`；请求、用量、session 和本地 audit 不参与复制。
 3. 写前强制核对两端 schema、`quick_check`、外键和
    `GATEWAY_API_KEY_ENCRYPTION_SECRET` 非明文 SHA-256；自然键或不可变密文冲突时
    在事务开始前 fail closed。
-4. 每次有差异的 apply 先通过 SQLite backup API 生成一致快照，复制到 R760
-   `/data/backups/codex-gateway`，核对 SHA-256/完整性后设为 `0400`；随后以
+4. 每次控制面有差异的 apply 先通过 SQLite backup API 生成 Azure 一致快照，保存到
+   `/home/qian/codex-gateway-backups/r760-authority-mirror`，核对 SHA-256/完整性；随后以
    `BEGIN IMMEDIATE` 单事务补行/更新，并再次逐行和 FK/完整性校验。
-5. 正式发钥脚本已改为 Azure 创建 -> R760 幂等同步 -> 同一 key 双端 resolve/
+5. 正式发钥脚本已改为 R760 创建 -> Azure 兼容镜像 -> 同一 key 双端 resolve/
    credential validation -> 成功后才生成 R760 地址的 handoff；同步或验证失败会
-   禁用本次部分创建的 Azure subject，并尽力把禁用状态再次同步到 R760。
-6. 用户禁用、plan 可变状态、entitlement、key 撤销/轮换均可由同一工具同步；周期性
-   无人值守只读对账仍需部署。在此之前，每次非发钥控制面变更后必须手工执行：
+   禁用本次部分创建的 R760 subject，并尽力把禁用状态再次镜像到 Azure。
+6. 用户禁用、plan 可变状态、entitlement 和 key 撤销/更新由安全 wrapper 在 R760
+   执行并立即镜像：
 
    ```powershell
-   python scripts\sync-azure-r760-gateway-state.py --apply
+   python scripts\manage-r760-gateway-control.py -- disable-user <user>
    ```
 
-7. 双运行期间的 token 用量仍须按事件主键去重汇总并保留 `azure`/`r760` 来源字段；
-   不能直接把两份包含共同历史快照的数据相加。
+7. 双运行期间的 token 用量按 request/reservation 主键去重归并到 R760，token window
+   只应用新增/结算差量；不能直接把两份包含共同历史快照的数据相加。权威查询前执行：
+
+   ```powershell
+   python scripts\sync-azure-r760-gateway-usage.py --apply
+   python scripts\check-daily-usage-health.py --format json
+   ```
+
+完整操作规则见 `docs/operations/r760-control-plane-authority.md`。下列首次自动 apply
+证据属于 2026-08-05 的旧方向历史基线，继续保留用于审计：
 
 首次自动 apply 的写前备份为
 `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`；其
@@ -129,13 +140,14 @@ mode 为 `0400`、SHA-256 为
 在以下条件全部满足前，不得删除 Azure VM：
 
 - 旧客户端、旧模型和旧入口已完成迁移，或已由经过验证的兼容入口继续承接；
-- 所有 Azure 历史和未来有效 key 在 R760 的同步、双端验证和持续对账已自动化；
+- 所有历史有效 key 已在 R760 验证；新 key 只在 R760 创建并完成 Azure 兼容镜像；
 - 本文每一项服务都有明确的迁移、替代或退役结论，并完成对应验收；
 - 所有运行数据库、静态更新文件、Research artifacts、必要日志和审计记录都有
   主机外校验副本，并至少完成一次恢复演练；
 - 所有域名、TLS、更新 feed、内部服务 URL、客户端和 allowlist 已切换并从独立
   网络验证；
-- Azure 停止接收新写入后完成最终增量同步，观察期内没有漏流量或未完成任务；
+- Azure 停止接收新写入后完成最终用量增量归并与零差异干跑，观察期内没有漏流量
+  或未完成任务；
 - 已形成可审计的停机清单，并先执行可恢复的停机观察，再执行 VM 删除。
 
 ## 7. 2026-08-05 首批退役执行记录

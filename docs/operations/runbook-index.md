@@ -21,6 +21,7 @@ Deployment and safety:
 11. [R760 Mihomo Image Egress](./r760-mihomo-image-egress.md)
 12. [Domestic Gateway and Doctor Research Migration Plan](../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 13. [GoldenCode Cutover Consumer and Tencent Capacity Audit](./goldencode-cutover-audit-2026-08-04.zh-CN.md)
+14. [R760 Gateway Control-Plane Authority](./r760-control-plane-authority.md)
 
 Operational workflows now covered:
 
@@ -41,6 +42,9 @@ Operational workflows now covered:
 - Partner trial checklist for MedEvidence, OpenCode CLI, and OpenCode Desktop.
 - Public API key self-validation through `GET /gateway/credentials/current`, including client-facing guidance in `docs/client-api-key-validation-guide.md`.
 - Real user and Desktop E2E opaque `cgu_live_*` key issuance through the Gateway-owned billing/v2 path, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
+- R760-authoritative key issuance, user/plan control writes, Azure compatibility
+  mirroring, deduplicated usage merge and usage queries, documented in
+  `docs/operations/r760-control-plane-authority.md`.
 - MedEvidence v2 handoff JSON to Codex Gateway API key provisioning through `scripts/provision-medevidence-codex-key.ps1`, documented in `docs/operations/medevidence-codex-key-provisioning.md`.
 - Upstream Codex account reauthentication through `scripts/reauth-upstream-codex-account.sh`, documented in `docs/operations/environment-access.md`.
 - Current API key management and token usage recording guidance in `docs/implementation/medcode-api-key-management.md` and `docs/implementation/medcode-api-key-token-budget.md`.
