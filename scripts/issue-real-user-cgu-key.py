@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 import re
@@ -24,6 +25,14 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
+from gateway_state_sync import (
+    DEFAULT_R760_BACKUP_ROOT,
+    DEFAULT_R760_BASE_URL,
+    RemoteGateway,
+    SyncError,
+    sync_azure_to_r760,
+    validate_unified_key_pair,
+)
 
 
 DEFAULT_GATEWAY_BASE_URL = "https://gw.instmarket.com.au"
@@ -39,7 +48,14 @@ DEFAULT_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
 DEFAULT_COMPOSE_PROJECT = "codex_gateway_test"
 DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
+DEFAULT_GATEWAY_CONTAINER = "codex_gateway_test-gateway-1"
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
+
+DEFAULT_R760_VM_HOST = "117.186.49.26"
+DEFAULT_R760_VM_USER = "root"
+DEFAULT_R760_VM_PORT = 7723
+DEFAULT_R760_SSH_KEY = r"~\.ssh\id_ed25519"
+DEFAULT_R760_GATEWAY_CONTAINER = "codex_gateway_r760-gateway-1"
 
 class IssueError(RuntimeError):
     pass
@@ -101,13 +117,27 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--vm-host", default=DEFAULT_VM_HOST)
     parser.add_argument("--vm-user", default=DEFAULT_VM_USER)
+    parser.add_argument("--vm-port", type=positive_int, default=22)
     parser.add_argument("--ssh-key", default=DEFAULT_SSH_KEY)
     parser.add_argument("--remote-repo", default=DEFAULT_REMOTE_REPO)
     parser.add_argument("--compose-project", default=DEFAULT_COMPOSE_PROJECT)
     parser.add_argument("--compose-file", default=DEFAULT_COMPOSE_FILE)
     parser.add_argument("--gateway-service", default=DEFAULT_GATEWAY_SERVICE)
+    parser.add_argument("--gateway-container", default=DEFAULT_GATEWAY_CONTAINER)
+    parser.add_argument("--r760-base-url", default=DEFAULT_R760_BASE_URL)
+    parser.add_argument("--r760-vm-host", default=DEFAULT_R760_VM_HOST)
+    parser.add_argument("--r760-vm-user", default=DEFAULT_R760_VM_USER)
+    parser.add_argument("--r760-vm-port", type=positive_int, default=DEFAULT_R760_VM_PORT)
+    parser.add_argument("--r760-ssh-key", default=DEFAULT_R760_SSH_KEY)
+    parser.add_argument("--r760-gateway-container", default=DEFAULT_R760_GATEWAY_CONTAINER)
+    parser.add_argument("--r760-backup-root", default=DEFAULT_R760_BACKUP_ROOT)
+    parser.add_argument("--sync-max-passes", type=positive_int, default=3)
     parser.add_argument("--timeout-seconds", type=positive_int, default=45)
-    parser.add_argument("--skip-credential-validation", action="store_true")
+    parser.add_argument(
+        "--skip-credential-validation",
+        action="store_true",
+        help="Deprecated and rejected for real-user issuance; dual validation is mandatory.",
+    )
     parser.add_argument(
         "--no-require-image-capability",
         action="store_true",
@@ -132,6 +162,12 @@ def positive_int(value: str) -> int:
 
 def issue_key(args: argparse.Namespace) -> dict[str, Any]:
     base_url = normalize_base_url(args.gateway_base_url)
+    r760_base_url = normalize_base_url(args.r760_base_url)
+    if args.skip_credential_validation:
+        raise IssueError(
+            "--skip-credential-validation is no longer permitted for real-user issuance; "
+            "Azure and R760 validation must both pass."
+        )
     external_user_id = args.external_user_id or default_external_user_id(args.phone)
     validate_external_user_id(external_user_id)
     resolve_expiration_defaults(args)
@@ -140,19 +176,21 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
     validate_minimum_expiration(args.entitlement_end, "entitlement-end")
     validate_minimum_expiration(args.key_expires_at, "key-expires-at")
     stamp = utc_stamp()
-    safe_user_slug = safe_slug(external_user_id)
+    safe_user_slug = pseudonymous_slug(external_user_id)
     handoff_path = str(Path(args.output_dir) / f"real_user_cgu_{stamp}_{safe_user_slug}.json")
 
     if args.what_if:
         return {
             "what_if": True,
             "provider": args.provider,
-            "external_user_id": external_user_id,
-            "display_name": args.name,
-            "phone": args.phone,
-            "gateway_base_url": base_url,
+            "external_user_id": "provided" if args.external_user_id else "generated_from_phone",
+            "identity_fields": "provided",
+            "authoritative_gateway_base_url": base_url,
+            "handoff_gateway_base_url": r760_base_url,
             "plan_id": args.plan_id,
             "requires_image_generation": not args.no_require_image_capability,
+            "azure_to_r760_sync": "required",
+            "dual_endpoint_validation": "required",
             "entitlement_end": iso_millis_z(parse_iso_utc(args.entitlement_end)),
             "key_expires_at": iso_millis_z(parse_iso_utc(args.key_expires_at)),
             "rate": {
@@ -204,22 +242,34 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
         update_user(args, subject_id)
         update_key(args, gateway_prefix, label)
 
-        current = None
-        capabilities: list[str] = []
-        if not args.skip_credential_validation:
-            current = current_credential(args, base_url, codex_api_key)
-            if not current.get("valid") or get_path(current, "subject", "id") != subject_id:
-                raise IssueError("Gateway credential validation failed.")
-            if get_path(current, "entitlement", "state") != "active":
-                raise IssueError("Gateway credential validation did not return an active entitlement.")
-            capabilities = list(get_path(current, "entitlement", "feature_policy", "capabilities") or [])
-            if not args.no_require_image_capability and "image_generation" not in capabilities:
-                raise IssueError("Issued credential does not include image_generation capability.")
+        current = current_credential(args, base_url, codex_api_key)
+        if not current.get("valid") or get_path(current, "subject", "id") != subject_id:
+            raise IssueError("Azure Gateway credential validation failed.")
+        if get_path(current, "entitlement", "state") != "active":
+            raise IssueError("Azure Gateway credential validation did not return an active entitlement.")
+        capabilities = list(get_path(current, "entitlement", "feature_policy", "capabilities") or [])
+        if not args.no_require_image_capability and "image_generation" not in capabilities:
+            raise IssueError("Issued credential does not include image_generation capability.")
+
+        sync_result = sync_issued_state(args)
+        if not sync_result.get("converged"):
+            raise IssueError("Azure-to-R760 control-state sync did not converge.")
+        try:
+            dual_validation = validate_unified_key_pair(
+                opaque_key,
+                expected_subject_id=subject_id,
+                azure_base_url=base_url,
+                r760_base_url=r760_base_url,
+                require_image_capability=not args.no_require_image_capability,
+                timeout_seconds=args.timeout_seconds,
+            )
+        except SyncError as exc:
+            raise IssueError(str(exc)) from exc
 
         write_handoff(
             args=args,
             path=Path(handoff_path),
-            base_url=base_url,
+            base_url=r760_base_url,
             opaque_key=opaque_key,
             create=create,
             entitlement=entitlement_record,
@@ -247,8 +297,10 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
                 "concurrentRequests": args.concurrent,
             },
             "backing_key_expires_at": args.key_expires_at,
-            "resolve_validation": "ok",
-            "credential_validation": "skipped" if args.skip_credential_validation else "ok",
+            "azure_validation": dual_validation.get("azure"),
+            "r760_validation": dual_validation.get("r760"),
+            "runtime_credentials_match": dual_validation.get("runtime_credentials_match"),
+            "r760_sync": public_sync_subset(sync_result),
             "handoff_path": handoff_path,
         }
     finally:
@@ -258,7 +310,9 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             and subject_id
             and created_subject_this_run
         ):
-            disable_subject_best_effort(args, base_url, billing_token, subject_id)
+            disabled = disable_subject_best_effort(args, base_url, billing_token, subject_id)
+            if disabled:
+                reconcile_failed_issue_best_effort(args)
 
 
 def create_subject(
@@ -380,12 +434,70 @@ def update_key(args: argparse.Namespace, gateway_prefix: str, label: str) -> dic
     )
 
 
+def sync_issued_state(args: argparse.Namespace) -> dict[str, Any]:
+    try:
+        return sync_azure_to_r760(
+            apply=True,
+            azure=RemoteGateway(
+                name="azure",
+                host=args.vm_host,
+                user=args.vm_user,
+                ssh_key=args.ssh_key,
+                container=args.gateway_container,
+                port=args.vm_port,
+                use_sudo=True,
+            ),
+            r760=RemoteGateway(
+                name="r760",
+                host=args.r760_vm_host,
+                user=args.r760_vm_user,
+                ssh_key=args.r760_ssh_key,
+                container=args.r760_gateway_container,
+                port=args.r760_vm_port,
+            ),
+            backup_root=args.r760_backup_root,
+            max_passes=args.sync_max_passes,
+        )
+    except SyncError as exc:
+        raise IssueError(f"Azure-to-R760 control-state sync failed: {exc}") from exc
+
+
+def public_sync_subset(value: dict[str, Any]) -> dict[str, Any]:
+    backup = value.get("backup") if isinstance(value.get("backup"), dict) else None
+    return {
+        "converged": value.get("converged") is True,
+        "passes": value.get("passes"),
+        "changed_rows": get_path(value, "initial_plan", "changed_rows"),
+        "backup_path": backup.get("backup_path") if backup else None,
+    }
+
+
+def reconcile_failed_issue_best_effort(args: argparse.Namespace) -> None:
+    try:
+        result = sync_issued_state(args)
+        if result.get("converged"):
+            print(
+                "warning: reconciled the disabled partial subject state to R760",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "warning: disabled partial subject state did not converge on R760",
+                file=sys.stderr,
+            )
+    except Exception as exc:
+        print(
+            redact_secrets(f"warning: cleanup reconciliation to R760 failed: {exc}"),
+            file=sys.stderr,
+        )
+
+
 def disable_subject_best_effort(
     args: argparse.Namespace,
     base_url: str,
     billing_token: str,
     subject_id: str,
-) -> None:
+) -> bool:
     try:
         http_json(
             "POST",
@@ -395,8 +507,10 @@ def disable_subject_best_effort(
             args.timeout_seconds,
         )
         print(f"warning: disabled partial subject {subject_id} after issue failure", file=sys.stderr)
+        return True
     except Exception as exc:
         print(redact_secrets(f"warning: cleanup disable failed for {subject_id}: {exc}"), file=sys.stderr)
+        return False
 
 
 def write_handoff(
@@ -521,9 +635,7 @@ def get_billing_admin_token(args: argparse.Namespace) -> str:
             f"{args.billing_admin_token_env} is not set and SSH key was not found: {ssh_key}"
         )
     remote_command = (
-        f"cd {shell_word(args.remote_repo)} && "
-        f"sudo docker compose -p {shell_word(args.compose_project)} "
-        f"-f {shell_word(args.compose_file)} exec -T {shell_word(args.gateway_service)} "
+        f"sudo docker exec {shell_word(args.gateway_container)} "
         "printenv GATEWAY_BILLING_ADMIN_TOKEN"
     )
     completed = run_ssh(args, remote_command)
@@ -550,11 +662,9 @@ def run_remote_admin(args: argparse.Namespace, admin_args: list[str]) -> dict[st
         'process.exit(r.status===null?1:r.status);'
     )
     remote_command = (
-        f"cd {shell_word(args.remote_repo)} && "
-        f"sudo docker compose -p {shell_word(args.compose_project)} "
-        f"-f {shell_word(args.compose_file)} exec -T "
+        f"sudo docker exec -i -w /app "
         f"-e ADMIN_ARGS_B64={payload} "
-        f"{shell_word(args.gateway_service)} node -e {shell_word(node_script)}"
+        f"{shell_word(args.gateway_container)} node -e {shell_word(node_script)}"
     )
     completed = run_ssh(args, remote_command)
     stdout = completed.stdout.strip()
@@ -577,6 +687,8 @@ def run_ssh(args: argparse.Namespace, remote_command: str) -> subprocess.Complet
         "StrictHostKeyChecking=accept-new",
         "-o",
         "IdentitiesOnly=yes",
+        "-p",
+        str(args.vm_port),
         f"{args.vm_user}@{args.vm_host}",
         remote_command,
     ]
@@ -639,6 +751,10 @@ def validate_minimum_expiration(value: str, name: str) -> None:
 def safe_slug(value: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._")
     return slug[:48] or "user"
+
+
+def pseudonymous_slug(value: str) -> str:
+    return "user-" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def parse_iso_utc(value: str) -> datetime:

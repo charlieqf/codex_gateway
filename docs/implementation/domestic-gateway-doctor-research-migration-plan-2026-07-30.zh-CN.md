@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；客户端分批改址、Azure 发钥状态同步、旧模型零用量观察和最终切流仍待关闭；Azure MedEvidence US/PostgreSQL 16 与 TokenBridge/NewAPI 已先行可逆退役，其余 VM 多服务退役另行规划；CN1 边缘保持暗路由且不再是切流方案 |
+| 状态 | R760 正式四容器、私有 Mihomo、DNS-only 直连入口和统一 key 新地址已部署；Research E2E、真实 GLM 与低成本生图已通过；Azure 发钥到 R760 的逐行同步、历史统一 key 对齐和正式发钥 fail-closed 已完成，周期性无人值守对账仍待部署；客户端分批改址、旧模型零用量观察和最终切流仍待关闭；Azure MedEvidence US/PostgreSQL 16 与 TokenBridge/NewAPI 已先行可逆退役，其余 VM 多服务退役另行规划；CN1 边缘保持暗路由且不再是切流方案 |
 | 首次编制 | 2026-07-30 |
 | 现状更新 | 2026-08-05 |
 | 完成窗口 | 原计划 2026-08-01/02，未切流；下一批准维护窗口待确定 |
@@ -53,8 +53,9 @@ credential-validation URL。
 当前 Azure 生产及其回滚边界在切流验收完成前保持权威。R760 已完成正式
 四容器部署并开放独立直连入口，但不会接管 `gw` DNS；尚未修改配置的客户端仍走
 Azure。正式用户发钥脚本也继续以 Azure 的 `gw` 入口和 `codex_gateway_test`
-状态库为权威源。本文中的客户端批量改址、Azure 到 R760 的用户/key/plan 同步和
-最终状态收口仍是计划态。
+状态库为权威源。2026-08-05 已实现 Azure 到 R760 的用户/key/plan 逐行幂等同步：
+Azure 的 90 条统一 key 已全部包含在 R760 中，正式发钥会在写 handoff 前强制完成
+同步和双端验证。客户端批量改址、周期性无人值守对账及最终状态收口仍是计划态。
 
 由于仍有较多用户使用旧客户端、旧模型和旧入口，Azure Gateway 不能快速下线。
 同时，Azure VM 还承载 Answer Generator、PubMed Evidence Set、桌面更新源、
@@ -721,10 +722,14 @@ loopback 部署以及 CN1 `gw` vhost/证书暗测已完成，但旧模型消费�
 10. R760 公网 NAT/线路、单层证书续期、端到端 health、带宽和日志关联的监控负责人；
 11. 多分片同时违反输出契约时，是在下一窗口前补充有界修复，还是将任何复现视为
    no-go；未作决定前不得把单次成功当作稳定性通过。
-12. 正式发钥继续以 Azure 为权威期间，如何实现 Azure 到 R760 的幂等同步、双端
-    验证、失败不交付和周期性对账。2026-08-05 新增的两个 Azure key 已完成一次受控
-    同步和双端公网验证；但集合对账仍有 1 条更早的 Azure-only 统一 key，且自动化
-    尚未完成，不能关闭此项。文档不得记录完整 key 或用户隐私。
+12. **发钥主链已完成，周期调度待完成**：正式发钥继续以 Azure 为权威；
+    `scripts/sync-azure-r760-gateway-state.py` 已实现保留 R760 独有数据的逐行幂等
+    同步、写前一致性备份、schema/secret/FK/完整性门槛和二次零差异对账。历史
+    Azure-only 统一 key 已补齐，Azure 的 90 条统一 key 已全部包含在 R760 中；正式
+    发钥脚本现在强制同步并以同一 key 做 Azure/R760 双端 resolve/credential/
+    entitlement/image 验证，失败不写交付文件。仍需安装周期性无人值守只读对账，
+    在此之前每次用户启停、撤销/轮换或 plan/entitlement 变更后必须手工 apply。
+    文档不得记录完整 key 或用户隐私。
 
 ## 12. 相关文档
 

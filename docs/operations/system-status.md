@@ -37,16 +37,25 @@ Current operational state:
 - Real-user key issuance remains authoritative on Azure through
   `https://gw.instmarket.com.au` and the `codex_gateway_test` state database.
   Every valid historical and future Azure-issued key must also work on R760.
-  The two keys issued on 2026-08-05 were copied with their complete dependency
-  rows in one R760 transaction after schema, FK, plan and encryption-secret
-  compatibility checks. Both exact handoff keys then passed public resolve,
-  credential, active-entitlement, image-capability and model-surface checks on
-  Azure and R760; R760 remained `goldencode`-only. The target pre-write backup
-  is `/data/backups/codex-gateway/r760-pre-key-sync-20260805T024027Z.db`.
-  Automation is still absent, and exact post-sync set comparison found one
-  older Azure-only unified key (Azure/R760 totals 90/89). Therefore full
-  historical parity is still open. No user identity, prefix or full key is
-  recorded here.
+  On 2026-08-05, the additive control-state reconciler was implemented as
+  `scripts/sync-azure-r760-gateway-state.py`. It verifies schema v24, SQLite
+  integrity/FKs and non-plaintext encryption-secret digests, preserves R760-only
+  rows, creates a verified target backup, and then applies Azure rows in one
+  transaction. The first automated run inserted nine dependency rows and
+  closed the prior Azure-only gap: Azure's 90 unified keys are now all present
+  on R760, while seven R760-only rehearsal subject/credential/entitlement rows
+  remain preserved. A fresh second dry-run reported zero changes.
+  The pre-write backup is
+  `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`
+  (mode `0400`, SHA-256
+  `9ad2d4bc4112f27f62f3165eaf8d5a9a9f71eedd2074b2b73c685fd0a84bda23`,
+  `quick_check=ok`, zero FK violations). One current handoff key then passed
+  public resolve, identical runtime-credential, active-entitlement and image
+  capability checks on both endpoints. The formal real-user issue script now
+  performs Azure create -> R760 sync -> dual public validation -> R760 handoff
+  and fails closed before writing the handoff if any step fails. A periodic
+  unattended reconciliation schedule is still open. No user identity, prefix
+  or full key is recorded here.
 
 - Azure MedEvidence US was retired reversibly at `2026-08-05T06:19:04Z` after
   confirming `requests=0`, `jobs=0`, no last-30-day events and no non-MedEvidence

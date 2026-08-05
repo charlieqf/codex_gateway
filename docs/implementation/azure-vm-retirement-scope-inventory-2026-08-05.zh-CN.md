@@ -31,9 +31,12 @@ Gateway 状态库为权威源。迁移期必须满足以下硬约束：
   交付 key 在 Azure/R760 公网入口完成 resolve、credential、entitlement、模型面和
   生图能力验证。R760 写前备份保存在目标主机；本文不记录用户、手机号、key prefix
   或完整 key；
-- 本次同步后，Azure/R760 分别有 90/89 条统一 key，精确集合对账仍发现 1 条更早的
-  Azure-only 记录。因此“两条新增 key 已可用”不等于“全部历史 key 已对齐”；
-- 在自动同步机制完成前，不能把“Azure 已发放”视为“R760 已可使用”。
+- 同日已实现并首次执行自动逐行对账。工具补入 9 条依赖记录，Azure 的 90 条统一
+  key 现已全部包含在 R760 的 90 条统一 key 中；R760 独有的 7 组预演
+  subject/credential/entitlement 记录被保留，第二次只读运行报告零差异；
+- 正式发钥脚本现在固定执行“Azure 创建 -> R760 幂等同步 -> 同一 key 双端公网
+  验证 -> 写入 R760 地址 handoff”，任一步失败都不交付。周期性无人值守对账调度
+  尚待部署，因此用户启停、撤销或 plan 变更后仍必须立即手工运行同步工具。
 
 本文件只登记退役范围和依赖，不提前决定每项服务必须原样搬到 R760。后续方案应对
 每项分别作出“迁移到 R760 / 使用其他长期托管 / 归档后退役 / 确认废弃”的明确决定。
@@ -74,22 +77,39 @@ Gateway 状态库为权威源。迁移期必须满足以下硬约束：
 
 ## 4. Azure 发钥与 R760 兼容门槛
 
-迁移期继续保留 Azure 为正式发钥权威源，但不能继续依赖偶发整库快照。后续实施方案
-至少要包括：
+迁移期继续保留 Azure 为正式发钥权威源，且不得使用整库覆盖。2026-08-05 已落地
+`scripts/sync-azure-r760-gateway-state.py` 和容器内临时执行 helper；当前实现如下：
 
-1. 对现有 Azure/R760 Gateway 状态作逐行只读差异报告；不得把 R760 当前数据库
-   用 Azure 整库覆盖，因为两端已经分别产生新请求、用户和审计写入。
-2. 从 Azure 单向同步有效用户、`access_credentials`、`unified_client_keys`、
-   plan、entitlement、billing subject/event 和必要的 MedEvidence binding；保留
-   R760 独有且经确认的记录。
-3. 核对两端 `GATEWAY_API_KEY_ENCRYPTION_SECRET` 的非明文摘要一致；否则复制的
-   可恢复凭据 ciphertext 无法在 R760 解密。
-4. 修改正式发钥流程为：Azure 创建 -> R760 幂等同步 -> 同一 key 双端 resolve/
-   credential validation -> 成功后才生成/交付 handoff。同步失败必须 fail closed。
-5. 对用户禁用、plan 变更、key 撤销/轮换建立相同的变更同步，并增加周期性只读
-   对账作为补偿措施。
-6. 双运行期间的 token 用量按事件主键去重汇总并保留 `azure`/`r760` 来源字段；
+1. 默认命令为只读 dry-run，逐表报告 insert/update/unchanged/target-only 数量；
+   `--apply` 才允许写入。它不复制整库，也不删除 R760 独有记录。
+2. 单向同步 `plans`、`subjects`、`access_credentials`、`entitlements`、
+   `unified_client_keys`、`upstream_v2_bindings`、`billing_events` 和
+   `billing_subject_events`；请求、用量、session 和本地 audit 不参与复制。
+3. 写前强制核对两端 schema、`quick_check`、外键和
+   `GATEWAY_API_KEY_ENCRYPTION_SECRET` 非明文 SHA-256；自然键或不可变密文冲突时
+   在事务开始前 fail closed。
+4. 每次有差异的 apply 先通过 SQLite backup API 生成一致快照，复制到 R760
+   `/data/backups/codex-gateway`，核对 SHA-256/完整性后设为 `0400`；随后以
+   `BEGIN IMMEDIATE` 单事务补行/更新，并再次逐行和 FK/完整性校验。
+5. 正式发钥脚本已改为 Azure 创建 -> R760 幂等同步 -> 同一 key 双端 resolve/
+   credential validation -> 成功后才生成 R760 地址的 handoff；同步或验证失败会
+   禁用本次部分创建的 Azure subject，并尽力把禁用状态再次同步到 R760。
+6. 用户禁用、plan 可变状态、entitlement、key 撤销/轮换均可由同一工具同步；周期性
+   无人值守只读对账仍需部署。在此之前，每次非发钥控制面变更后必须手工执行：
+
+   ```powershell
+   python scripts\sync-azure-r760-gateway-state.py --apply
+   ```
+
+7. 双运行期间的 token 用量仍须按事件主键去重汇总并保留 `azure`/`r760` 来源字段；
    不能直接把两份包含共同历史快照的数据相加。
+
+首次自动 apply 的写前备份为
+`/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`；其
+mode 为 `0400`、SHA-256 为
+`9ad2d4bc4112f27f62f3165eaf8d5a9a9f71eedd2074b2b73c685fd0a84bda23`，
+`quick_check=ok` 且外键违规为 0。工具应用 9 行后重新导出 Azure 对账为零差异，并用
+一把现有有效 handoff key 完成 Azure/R760 双端公网验证。
 
 ## 5. 后续搬迁方案必须回答的问题
 

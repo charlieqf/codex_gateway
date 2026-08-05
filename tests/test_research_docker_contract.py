@@ -95,11 +95,7 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertTrue(model["pool"]["requireAllMembers"])
         self.assertEqual(
             [(member["runtime"], member["upstreamModel"]) for member in members],
-            [
-                ("qianfan", "glm-5.2"),
-                ("tencent", "glm-5.2"),
-                ("aliyun", "glm-5.2"),
-            ],
+            [("tencent", "glm-5.2")],
         )
         self.assertNotIn("research_web_search_api_key", compose)
         self.assertNotIn("research_orcid_client_secret", compose)
