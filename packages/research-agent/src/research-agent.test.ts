@@ -21,6 +21,7 @@ import {
   evaluateDoctorResearchResult,
   extractNumericCitations,
   FrozenResearchAdapters,
+  parseAndValidateDoctorResearchModelDraft,
   parseAndValidateDoctorResearchResult,
   parseAndValidateDoctorResearchModelOutput,
   probeResearchStorageAdmission,
@@ -81,13 +82,38 @@ describe("Doctor Research production contracts", () => {
     });
   });
 
+  it("accepts a synthesis draft with no unsupported personal research claims", () => {
+    const result = validResult();
+    const {
+      references: _references,
+      search_report: _searchReport,
+      ...review
+    } = result.review;
+    const parsed = parseAndValidateDoctorResearchModelDraft(
+      JSON.stringify({
+        schema_version: "doctor_research_model_draft.v1",
+        profile: {
+          ...result.profile,
+          research_directions: [],
+          representative_outputs: [],
+          claims: []
+        },
+        review,
+        predicted_questions: result.predicted_questions,
+        answers: result.answers
+      })
+    );
+    expect(parsed).toMatchObject({ ok: true });
+  });
+
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.6.104",
-      workflowPolicyVersion: "doctor_research_workflow.v81",
-      promptVersion: "doctor-research-prompt.v30",
-      validationPolicyVersion: "doctor_research_validation.v42",
+      version: "1.6.105",
+      workflowPolicyVersion: "doctor_research_workflow.v82",
+      promptVersion: "doctor-research-prompt.v31",
+      validationPolicyVersion: "doctor_research_validation.v43",
+      artifactPolicyVersion: "doctor_research_artifacts.v3",
       inputSchemaVersion: "doctor_research_run_input.v2",
       modelOutputSchemaVersion: "doctor_research_model_draft.v1",
       outputSchemaVersion: "doctor_research_result.v1",
@@ -110,14 +136,14 @@ describe("Doctor Research production contracts", () => {
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        promptVersion: "doctor-research-prompt.v31"
+        promptVersion: "doctor-research-prompt.v32"
       })
     ).toThrow("strictly newer semantic version");
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
         version: "1.7.0",
-        promptVersion: "doctor-research-prompt.v31"
+        promptVersion: "doctor-research-prompt.v32"
       })
     ).not.toThrow();
   });
@@ -424,6 +450,20 @@ describe("Doctor Research artifact renderer and crash harness", () => {
     );
     expect(rendered[3]!.content).toContain("**Verified sources**:");
     expect(rendered[3]!.content).toContain("(src\\_pubmed\\_1)");
+  });
+
+  it("renders a clear evidence boundary when personal research directions are absent", () => {
+    const result = validResult();
+    result.profile.research_directions = [];
+    const rendered = renderDoctorResearchArtifacts(result, "en");
+    const profile = rendered.find((artifact) => artifact.kind === "profile");
+    expect(profile?.content).toContain("## Research Directions");
+    expect(profile?.content).toContain(
+      "personal research directions were not confirmed by verified public sources"
+    );
+    expect(profile?.content).toContain(
+      "does not represent the doctor's own research output or views"
+    );
   });
 
   it("escapes untrusted inline metadata while preserving only the verified source link", () => {

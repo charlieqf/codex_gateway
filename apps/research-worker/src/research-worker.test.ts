@@ -3901,7 +3901,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("does not infer a missing research direction without an explicit official label", async () => {
+  it("completes a related-field review without inventing a missing personal research direction", async () => {
     const fixture = createLeasedWorkflowFixture(
       "explicit_research_direction_required"
     );
@@ -3958,17 +3958,64 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({
-      outcome: "failed",
-      reason: "model_contract_error"
+    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(modelCalls).toBe(2);
+    expect(validationCodes).toEqual([]);
+    expect(existsSync(fixture.artifactRoot)).toBe(true);
+    const stored = fixture.store.getRunResultForSubject(
+      fixture.lease.run.runId,
+      fixture.lease.run.subjectId
+    );
+    const result = stored?.result as unknown as {
+      profile: {
+        research_directions: string[];
+        claims: Array<{ claim_type: string; text: string }>;
+      };
+      source_coverage: { warnings: string[] };
+      quality: { warnings: string[] };
+      artifacts: Array<{ artifact_id: string; kind: string }>;
+    };
+    expect(result.profile.research_directions).toEqual([]);
+    expect(result.profile.claims).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ claim_type: "research_direction" })
+      ])
+    );
+    expect(JSON.stringify(result.profile)).not.toContain(
+      "Invented oncology program"
+    );
+    expect(result.source_coverage.warnings).toContain(
+      "doctor_research_direction_evidence_not_found"
+    );
+    expect(result.quality.warnings).toContain(
+      "doctor_research_direction_evidence_not_found"
+    );
+    const profileManifest = result.artifacts.find(
+      (artifact) => artifact.kind === "profile"
+    );
+    if (!profileManifest) {
+      throw new Error("Profile artifact is missing.");
+    }
+    const profileRecord = fixture.store.getArtifactForSubject(
+      profileManifest.artifact_id,
+      fixture.lease.run.subjectId
+    );
+    if (!profileRecord) {
+      throw new Error("Profile artifact metadata is missing.");
+    }
+    const profileBytes = await readVerifiedResearchArtifact({
+      root: fixture.artifactRoot,
+      artifact: {
+        artifactId: profileRecord.artifactId,
+        storageRelativePath: profileRecord.storageRelativePath,
+        sha256: profileRecord.sha256,
+        sizeBytes: profileRecord.sizeBytes
+      },
+      maximumArtifactBytes: 200_000
     });
-    expect(modelCalls).toBe(3);
-    expect(validationCodes).toEqual([
-      ["verified_research_direction_required"],
-      ["verified_research_direction_required"],
-      ["verified_research_direction_required"]
-    ]);
-    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    expect(profileBytes.toString("utf8")).toContain(
+      "personal research directions were not confirmed by verified public sources"
+    );
     fixture.store.close();
   });
 

@@ -348,7 +348,7 @@ export const doctorResearchResultSchema = {
         positions: stringArray(),
         expertise: stringArray(),
         education_and_career: stringArray(),
-        research_directions: stringArray(1),
+        research_directions: stringArray(),
         representative_outputs: stringArray(),
         claims: {
           type: "array",
@@ -626,7 +626,16 @@ export const doctorResearchModelDraftSchema = {
   ],
   properties: {
     schema_version: { const: doctorResearchModelDraftSchemaVersion },
-    profile: doctorResearchResultSchema.properties.profile,
+    profile: {
+      ...doctorResearchResultSchema.properties.profile,
+      properties: {
+        ...doctorResearchResultSchema.properties.profile.properties,
+        claims: {
+          ...doctorResearchResultSchema.properties.profile.properties.claims,
+          minItems: 0
+        }
+      }
+    },
     review: {
       ...doctorResearchResultSchema.properties.review,
       required: doctorResearchResultSchema.properties.review.required.filter(

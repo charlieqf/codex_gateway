@@ -365,6 +365,9 @@ export async function executeDoctorResearchWorkflow(input: {
             ...(doctorLiterature.references.length === 0
               ? ["doctor_publication_evidence_not_found"]
               : []),
+            ...(generated.profile.research_directions.length === 0
+              ? ["doctor_research_direction_evidence_not_found"]
+              : []),
             ...generatedResult.warnings,
             ...(literature.references.length <
               input.policy.maximumPublications
@@ -1595,9 +1598,6 @@ export function replayDoctorResearchSynthesis(input: {
       input.identity,
       run.input.doctor.name
     );
-    if (!profile) {
-      return fail(["verified_research_direction_required"]);
-    }
     const foundationEvidence = subsetWorkflowEvidence(
       input.closedEvidence,
       referenceIndexes(
@@ -2863,14 +2863,6 @@ async function generateAndValidateShardedModelOutput(
     identity,
     context.run.input.doctor.name
   );
-  if (!deterministicProfile) {
-    context.reportValidationFailure(
-      "synthesize_review",
-      1,
-      ["verified_research_direction_required"]
-    );
-    return null;
-  }
   // Preserve every medical-Skill section floor while avoiding the former
   // engineering over-allocation that independently asked the three shards
   // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer,
@@ -7658,6 +7650,9 @@ function validateGeneratedOutput(
         ...(evidence.doctorLiterature.references.length === 0
           ? ["doctor_publication_evidence_not_found"]
           : []),
+        ...(closedProfile.profile.research_directions.length === 0
+          ? ["doctor_research_direction_evidence_not_found"]
+          : []),
         ...(evidence.references.length < policy.maximumPublications
           ? ["verified_reference_target_not_reached"]
           : [])
@@ -8487,12 +8482,6 @@ function closeProfileToOfficialEvidence(
     seenClaimText.add(normalizedClaim);
     rebuilt[field].push(claim.text);
   }
-  if (rebuilt.research_directions.length === 0) {
-    return {
-      ok: false,
-      errors: ["verified_research_direction_required"]
-    };
-  }
   return {
     ok: true,
     profile: {
@@ -8506,7 +8495,7 @@ function closeProfileToOfficialEvidence(
 function buildDeterministicVerifiedProfile(
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
   doctorName: string
-): DoctorResearchModelDraft["profile"] | null {
+): DoctorResearchModelDraft["profile"] {
   type ProfileClaim = DoctorResearchModelDraft["profile"]["claims"][number];
   type ExtractedClaimType = Exclude<
     ProfileClaim["claim_type"],
@@ -8642,10 +8631,6 @@ function buildDeterministicVerifiedProfile(
       claims.push(derived);
     }
   }
-  if (!claims.some((claim) => claim.claim_type === "research_direction")) {
-    return null;
-  }
-
   const values = (
     claimType: ExtractedClaimType
   ): string[] =>
@@ -9611,7 +9596,7 @@ function buildModelPrompt(
     "The excerpt must describe the target doctor and occur near that doctor's name in the cited source, not in navigation, another profile, or a generic site section.",
     "Use only these non-identity claim_type values: position, expertise, education_and_career, research_direction. Leave representative_outputs empty; the Worker adds only PubMed-attributed records verified to the doctor.",
     "The five profile arrays must contain exactly the claim text values for their corresponding claim_type, in claim order. Do not emit an identity claim; the Worker creates it.",
-    "At least one exact-source research_direction claim is required. If the evidence does not contain one, return schema-invalid empty research_directions so the run fails closed.",
+    "Emit a research_direction claim only when an exact factual excerpt in the supplied official evidence supports it. Otherwise leave research_directions empty; the Worker will disclose the evidence gap and keep the related-field review separate from the doctor's own work.",
     "The review literature set is related field evidence and must not be described as the doctor's own work.",
     "Do not use causal wording for observational evidence. Explicitly scope in-vitro, animal, retrospective, case-series, and abstract-only findings.",
     "Never write placeholder facts such as unverified or 未核验. Omit an unsupported claim instead.",

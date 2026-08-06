@@ -288,8 +288,8 @@ export function renderDoctorResearchArtifacts(
       language === "zh-CN" ? "从业与教育经历" : "Education and Career",
       result.profile.education_and_career
     ),
-    section(
-      language === "zh-CN" ? "核心研究方向" : "Research Directions",
+    profileResearchDirectionsSection(
+      language,
       result.profile.research_directions
     ),
     section(
@@ -679,6 +679,26 @@ function section(title: string, values: readonly string[]): string {
     `## ${title}`,
     "",
     ...values.map((value) => `- ${markdownInline(value)}`),
+    ""
+  ].join("\n");
+}
+
+function profileResearchDirectionsSection(
+  language: "zh-CN" | "en",
+  values: readonly string[]
+): string {
+  if (values.length > 0) {
+    return section(
+      language === "zh-CN" ? "核心研究方向" : "Research Directions",
+      values
+    );
+  }
+  return [
+    `## ${language === "zh-CN" ? "核心研究方向" : "Research Directions"}`,
+    "",
+    language === "zh-CN"
+      ? "未从已核实的公开来源确认该医生的个人研究方向。以下综述依据已核实的身份与科室信息及相关领域文献生成，不代表该医生本人的研究成果或观点。"
+      : "The doctor's personal research directions were not confirmed by verified public sources. The related-field review is based on the verified identity, department, and field literature; it does not represent the doctor's own research output or views.",
     ""
   ].join("\n");
 }
