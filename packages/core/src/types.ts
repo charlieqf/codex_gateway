@@ -4,6 +4,7 @@ export type ProviderKind =
   | "qianfan"
   | "aliyun"
   | "tencent"
+  | "tokenswitch"
   | "openai-api"
   | "xai"
   | "gemini"

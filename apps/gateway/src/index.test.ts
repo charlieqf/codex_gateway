@@ -5786,7 +5786,7 @@ describe("gateway phase 1 routes", () => {
             observationStore: store,
             logger: false
           });
-          const sessionId = "golden-session-1";
+          const sessionId = sessionIdForGoldencodeMember("goldencode-tokenswitch");
           const expectedMemberId = hrwAccountForKey(
             `client_session:${sessionId}`,
             goldencodeMemberIds()
@@ -5854,7 +5854,11 @@ describe("gateway phase 1 routes", () => {
             const captured = goldencode.captured[expectedRuntime];
             expect(captured).toHaveLength(1);
             expect(captured[0].body.model).toBe(expectedUpstreamModel);
-            if (expectedRuntime === "aliyun" || expectedRuntime === "tencent") {
+            if (
+              expectedRuntime === "aliyun" ||
+              expectedRuntime === "tencent" ||
+              expectedRuntime === "tokenswitch"
+            ) {
               expect(captured[0].body.reasoning_effort).toBe("medium");
               expect(captured[0].body).not.toHaveProperty("reasoning");
             } else {
@@ -6022,6 +6026,8 @@ describe("gateway phase 1 routes", () => {
       MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
       MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
+      MEDCODE_TOKENSWITCH_API_KEY: "provider-test-key",
+      MEDCODE_TOKENSWITCH_BASE_URL: server.baseUrl,
       MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
       MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL: server.baseUrl,
       MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
@@ -13845,6 +13851,7 @@ async function startGoldencodeRuntimeServers(): Promise<{
   const captured: Record<GoldencodeRuntime, CapturedOpenAICompatibleRequest[]> = {
     qianfan: [],
     tencent: [],
+    tokenswitch: [],
     aliyun: [],
     openrouter: []
   };
@@ -13857,6 +13864,11 @@ async function startGoldencodeRuntimeServers(): Promise<{
     "tencent-goldencode-ok",
     captured.tencent,
     { "x-request-id": "tencent_req_goldencode" }
+  );
+  const tokenswitch = await startOpenAICompatibleCaptureServer(
+    "tokenswitch-goldencode-ok",
+    captured.tokenswitch,
+    { "x-request-id": "tokenswitch_req_goldencode" }
   );
   const aliyun = await startOpenAICompatibleCaptureServer(
     "aliyun-goldencode-ok",
@@ -13875,13 +13887,21 @@ async function startGoldencodeRuntimeServers(): Promise<{
       MEDCODE_QIANFAN_BASE_URL: qianfan.baseUrl,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
       MEDCODE_TENCENT_TOKENHUB_BASE_URL: tencent.baseUrl,
+      MEDCODE_TOKENSWITCH_API_KEY: "provider-test-key",
+      MEDCODE_TOKENSWITCH_BASE_URL: tokenswitch.baseUrl,
       MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
       MEDCODE_ALIYUN_TOKEN_PLAN_BASE_URL: aliyun.baseUrl,
       MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
       MEDCODE_OPENROUTER_BASE_URL: openrouter.baseUrl
     },
     close: async () => {
-      await Promise.all([qianfan.close(), tencent.close(), aliyun.close(), openrouter.close()]);
+      await Promise.all([
+        qianfan.close(),
+        tencent.close(),
+        tokenswitch.close(),
+        aliyun.close(),
+        openrouter.close()
+      ]);
     }
   };
 }

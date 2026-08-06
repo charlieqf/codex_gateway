@@ -19,7 +19,13 @@ import {
   type UpstreamSoftAffinity
 } from "./upstream-account-router.js";
 
-export type UpstreamRuntimeKind = "codex" | "openrouter" | "qianfan" | "aliyun" | "tencent";
+export type UpstreamRuntimeKind =
+  | "codex"
+  | "openrouter"
+  | "qianfan"
+  | "aliyun"
+  | "tencent"
+  | "tokenswitch";
 type ExternalRuntimeKind = OpenAICompatibleRuntimeKind;
 
 export interface ChatRuntimeContext {
@@ -66,11 +72,13 @@ export interface ChatRuntimeDispatcherInput {
   qianfanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
   aliyunAccount?: UpstreamAccount;
   tencentAccount?: UpstreamAccount;
+  tokenSwitchAccount?: UpstreamAccount;
 }
 
 export function createChatRuntimeDispatcher(
@@ -98,6 +106,10 @@ export function createChatRuntimeDispatcher(
     tencent: {
       account: input.tencentAccount ?? defaultTencentVirtualAccount(),
       adapterForModel: input.tencentAdapterForModel ?? (() => null)
+    },
+    tokenswitch: {
+      account: input.tokenSwitchAccount ?? defaultTokenSwitchVirtualAccount(),
+      adapterForModel: input.tokenSwitchAdapterForModel ?? (() => null)
     }
   };
   return {
@@ -357,6 +369,18 @@ function defaultTencentVirtualAccount(): UpstreamAccount {
     provider: "tencent",
     label: "Tencent TokenHub Main",
     credentialRef: "ENV:MEDCODE_TENCENT_TOKENHUB_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultTokenSwitchVirtualAccount(): UpstreamAccount {
+  return {
+    id: "tokenswitch-main",
+    provider: "tokenswitch",
+    label: "TokenSwitch Main",
+    credentialRef: "ENV:MEDCODE_TOKENSWITCH_API_KEY",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null

@@ -59,6 +59,11 @@ export function goldencodePoolConfig(): GoldencodePublicModelFixture {
           upstreamModel: "glm-5.2"
         },
         {
+          id: "goldencode-tokenswitch",
+          runtime: "tokenswitch",
+          upstreamModel: "glm-5.2"
+        },
+        {
           id: "goldencode-aliyun",
           runtime: "aliyun",
           upstreamModel: "glm-5.2"

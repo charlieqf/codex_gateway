@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { GatewayError, isRecord } from "@codex-gateway/core";
 
-export type OpenAICompatibleRuntimeKind = "openrouter" | "qianfan" | "aliyun" | "tencent";
+export type OpenAICompatibleRuntimeKind =
+  | "openrouter"
+  | "qianfan"
+  | "aliyun"
+  | "tencent"
+  | "tokenswitch";
 export type ChatRuntimeKind = "codex" | OpenAICompatibleRuntimeKind | "pool";
 export type PublicModelPoolStickyKey = "client_session" | "credential" | "subject";
 
@@ -51,6 +56,7 @@ export interface PublicModelAvailability {
   qianfanAvailable?: boolean;
   aliyunAvailable?: boolean;
   tencentAvailable?: boolean;
+  tokenSwitchAvailable?: boolean;
   poolMemberAdapterKeys?: ReadonlySet<string>;
 }
 
@@ -169,6 +175,9 @@ function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailabili
   }
   if (model.runtime === "tencent") {
     return input.tencentAvailable === true;
+  }
+  if (model.runtime === "tokenswitch") {
+    return input.tokenSwitchAvailable === true;
   }
   return true;
 }
@@ -328,12 +337,13 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
     value === "qianfan" ||
     value === "aliyun" ||
     value === "tencent" ||
+    value === "tokenswitch" ||
     value === "pool"
   ) {
     return value;
   }
   throw new Error(
-    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, or pool.`
+    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, tokenswitch, or pool.`
   );
 }
 
@@ -460,11 +470,17 @@ function parsePoolMemberRuntime(
   modelId: string,
   index: number
 ): OpenAICompatibleRuntimeKind {
-  if (value === "openrouter" || value === "qianfan" || value === "aliyun" || value === "tencent") {
+  if (
+    value === "openrouter" ||
+    value === "qianfan" ||
+    value === "aliyun" ||
+    value === "tencent" ||
+    value === "tokenswitch"
+  ) {
     return value;
   }
   throw new Error(
-    `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, or tencent.`
+    `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch.`
   );
 }
 

@@ -430,13 +430,19 @@ export function buildGateway(options: GatewayOptions = {}) {
   const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
   const aliyunAdapters = createAliyunAdapters(publicModelRegistry.models, process.env, app.log);
   const tencentAdapters = createTencentAdapters(publicModelRegistry.models, process.env, app.log);
+  const tokenSwitchAdapters = createTokenSwitchAdapters(
+    publicModelRegistry.models,
+    process.env,
+    app.log
+  );
   const publicModelPoolRouters = createPublicModelPoolRouters(
     publicModelRegistry.models,
     {
       openrouter: openRouterAdapters,
       qianfan: qianfanAdapters,
       aliyun: aliyunAdapters,
-      tencent: tencentAdapters
+      tencent: tencentAdapters,
+      tokenswitch: tokenSwitchAdapters
     },
     clock
   );
@@ -446,22 +452,26 @@ export function buildGateway(options: GatewayOptions = {}) {
     qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null,
     aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
     tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null,
+    tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
     poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
   const qianfanAvailable = qianfanAdapters.size > 0;
   const aliyunAvailable = aliyunAdapters.size > 0;
   const tencentAvailable = tencentAdapters.size > 0;
+  const tokenSwitchAvailable = tokenSwitchAdapters.size > 0;
   const publicModelAvailability = {
     openRouterAvailable,
     qianfanAvailable,
     aliyunAvailable,
     tencentAvailable,
+    tokenSwitchAvailable,
     poolMemberAdapterKeys: poolMemberAdapterKeys({
       openrouter: openRouterAdapters,
       qianfan: qianfanAdapters,
       aliyun: aliyunAdapters,
-      tencent: tencentAdapters
+      tencent: tencentAdapters,
+      tokenswitch: tokenSwitchAdapters
     })
   };
   const configuredAuthMode = options.authMode ?? parseAuthMode(process.env.GATEWAY_AUTH_MODE);
@@ -4854,7 +4864,8 @@ function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boole
     runtime === "openrouter" ||
     runtime === "qianfan" ||
     runtime === "aliyun" ||
-    runtime === "tencent"
+    runtime === "tencent" ||
+    runtime === "tokenswitch"
   );
 }
 
@@ -6698,12 +6709,47 @@ function createTencentAdapters(
   });
 }
 
+function createTokenSwitchAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): OpenAICompatibleAdapterMap {
+  const baseUrl = env.MEDCODE_TOKENSWITCH_BASE_URL?.trim();
+  if (!baseUrl) {
+    if (openAICompatibleAdapterTargets(models, "tokenswitch").length > 0) {
+      logger?.warn(
+        { base_url_env: "MEDCODE_TOKENSWITCH_BASE_URL" },
+        "TokenSwitch public models are configured but the Base URL env is missing; those models will not be exposed."
+      );
+    }
+    return new Map();
+  }
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "tokenswitch",
+    providerKind: "tokenswitch",
+    displayName: "TokenSwitch",
+    apiKeyEnvName:
+      env.MEDCODE_TOKENSWITCH_API_KEY_ENV?.trim() || "MEDCODE_TOKENSWITCH_API_KEY",
+    baseUrl,
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_TOKENSWITCH_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_TOKENSWITCH_TIMEOUT_MS"
+    ),
+    reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
+    reasoningParameterStyle: "effort_field"
+  });
+}
+
 function createOpenAICompatibleAdapters(input: {
   models: PublicModelConfig[];
   env: NodeJS.ProcessEnv;
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void };
-  runtime: "openrouter" | "qianfan" | "aliyun" | "tencent";
-  providerKind: "openrouter" | "qianfan" | "aliyun" | "tencent";
+  runtime: "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch";
+  providerKind: "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch";
   displayName: string;
   apiKeyEnvName: string;
   baseUrl: string;

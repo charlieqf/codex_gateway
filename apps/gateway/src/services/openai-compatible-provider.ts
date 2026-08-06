@@ -15,7 +15,10 @@ import {
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
 
 export interface OpenAICompatibleProviderOptions {
-  providerKind: Extract<ProviderKind, "openrouter" | "qianfan" | "aliyun" | "tencent">;
+  providerKind: Extract<
+    ProviderKind,
+    "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch"
+  >;
   baseUrl: string;
   apiKey: string;
   apiKeyEnv: string;
