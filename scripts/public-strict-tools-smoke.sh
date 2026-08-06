@@ -309,7 +309,7 @@ const outputPath = process.argv[3];
 const first = JSON.parse(fs.readFileSync(firstPath, "utf8"));
 const toolCalls = first.choices[0].message.tool_calls;
 const body = {
-  model: "medcode",
+  model: "goldencode",
   messages: [
     {
       role: "user",

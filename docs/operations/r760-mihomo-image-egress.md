@@ -1,6 +1,6 @@
 # R760 Mihomo Image Egress
 
-Last updated: 2026-08-04
+Last updated: 2026-08-06
 
 This runbook covers the dedicated R760 image-egress proxy. It is infrastructure
 for the public Gateway, not a fifth Doctor Research business service and not a
@@ -197,6 +197,20 @@ The Gateway attribution deployment boundary is:
 ```
 
 Its three online SQLite backups pass their SHA-256 manifest, integrity and
-foreign-key checks. `previous` points to release `4697fba`; Gateway image tag
-`rollback-4697fba-pre-43e118e` is retained. Roll back only the public Gateway,
-not Mihomo or the three Research services.
+foreign-key checks. At that deployment, `previous` pointed to release
+`4697fba`; Gateway image tag `rollback-4697fba-pre-43e118e` is retained. Roll
+back only the public Gateway, not Mihomo or the three Research services.
+
+The later long-output P0 shadow deployment boundary is:
+
+```text
+/data/codex-gateway-r760/backups/pre-long-output-p0-20260806T033029Z
+```
+
+Its online backups of `gateway.db`, `client-events.db` and `research.db` pass
+their SHA-256 manifest, integrity and foreign-key checks. `current` is now
+release `9ba088508d1df2de30441adb4814409b1d757bc8`, `previous` is `43e118e`, and
+Gateway image tag `rollback-43e118e-pre-9ba0885` is retained. The effective
+long-output recovery mode is `shadow` and active chunk remains 0%. Roll back
+only the public Gateway to `43e118e`; do not recreate Mihomo or any Research
+service.

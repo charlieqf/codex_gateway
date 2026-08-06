@@ -155,9 +155,9 @@ Current operational state:
   unchanged Worker/maintenance containers are all healthy with restart count
   zero. No secret-file permission was broadened.
 - The formal R760 project now has `current` at
-  `/opt/codex-gateway-r760/releases/43e118eb00083ee44164329568a62941169ee78c`
-  and `previous` at the Azure-matching `4697fba0b74d2ea8aa0ace0699a6117397ad9b01`
-  release. Only the public Gateway was recreated for the image-attribution fix;
+  `/opt/codex-gateway-r760/releases/9ba088508d1df2de30441adb4814409b1d757bc8`
+  and `previous` at `43e118eb00083ee44164329568a62941169ee78c`.
+  Only the public Gateway was recreated for the long-output P0 shadow release;
   the three Research container IDs stayed unchanged. All four business
   containers and the separate Mihomo infrastructure container are healthy with
   zero restarts; only Gateway publishes `127.0.0.1:18787`. SQLite integrity and
@@ -200,12 +200,29 @@ Current operational state:
   `status=ok`. The temporary credential, entitlement and user were cleaned.
   Gemini reachability remains the only open low-cost three-model image gate.
 - The active R760 Gateway image is
-  `sha256:11edd786e8b06f2b7ddc600d829503e3368bf971fd44f15618b76f34afed17f0`.
+  `sha256:3e783ea7d6d6b811d10adaed708321465faf5ac7232e00053aa55a3b3022a9bf`.
   Because Docker Hub was unstable and the host had no usable base-image cache,
   it was built networklessly as an immutable overlay of the previously verified
-  `4697fba` Gateway image plus the locally tested `apps/gateway/dist` and
-  `packages/core/dist` from `43e118e`. This is an auditable deployment artifact,
+  `43e118e` Gateway image plus the locally tested `apps/gateway/dist` and
+  `packages/core/dist` from `9ba0885`. This is an auditable deployment artifact,
   not a replacement for a later canonical full Dockerfile rebuild.
+- R760 commit `9ba0885` adds completion assessment, UTF-8 tool-argument byte
+  diagnostics, dedicated output-length/tool-call truncation contracts,
+  validation subtypes and lossless per-attempt duration/usage aggregation. The
+  production recovery-mode variable remains unset, so the effective mode is the
+  code default `shadow`; `error` has not been enabled for production credentials
+  and active chunk remains 0%. The pre-change online backups of `gateway.db`,
+  `client-events.db` and `research.db` passed integrity, foreign-key and SHA-256
+  checks under
+  `/data/codex-gateway-r760/backups/pre-long-output-p0-20260806T033029Z`.
+  Public post-deploy checks passed the exact `goldencode` model surface,
+  non-stream chat, SSE, required/named/none/follow-up tool calls, Tencent
+  `glm-5.2` attribution and the new attempt/argument-byte audit fields. Gateway
+  restart count is zero, all temporary credentials/users were cleaned and no
+  smoke reservation remains unfinished. The deterministic local long-task
+  fixture passed, but a full Desktop/R760 long-task agent-loop E2E has not yet
+  run; this shadow release therefore does not close the original user-visible
+  incident.
 - R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
   `8081/8082` checks pass.
 - A DNS-only `A` record now resolves `goldencode.instmarket.com.au` directly to

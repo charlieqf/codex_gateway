@@ -2,7 +2,7 @@
 
 > 日期：2026-08-06
 >
-> 状态：已按阶段 0 首轮审核及 Desktop 团队条件批准意见修订；Gateway P0 分类/错误/审计已在本地实现并通过测试；尚未部署，主动 chunk 保持 0%
+> 状态：已按阶段 0 首轮审核及 Desktop 团队条件批准意见修订；Gateway P0 分类/错误/审计已部署到 R760 `shadow`；主动 chunk 保持 0%，真实 Desktop 长任务 E2E 尚未完成
 >
 > 范围：R760 公网 Codex Gateway、MedEvidence Desktop、腾讯 GLM-5.2
 > 原生客户端工具调用链路
@@ -69,13 +69,13 @@
 用户当前的“新建 Build 会话、只读取已有 Markdown、先生成短摘要、完整 HTML 分块
 写入”仅是恢复工作的临时规避，不是最终产品责任边界。
 
-### 1.1 本地实施状态（不代表生产已生效）
+### 1.1 实施与 R760 部署状态
 
 截至 2026-08-06，本仓库已完成 Gateway P0 的 completion assessment、UTF-8 工具参数
 byte 观测、`legacy|shadow|error|chunk` 配置骨架（`chunk` 实际退化为 `error`）、专用
 length 错误、validation subtype、streaming/non-streaming 错误 metadata，以及多次
 provider attempt 的 duration/usage/校验结果无损聚合。默认模式为 `shadow`，未修改生产
-配置，也未部署到 R760。
+配置。
 
 本地验证结果：
 
@@ -85,6 +85,23 @@ provider attempt 的 duration/usage/校验结果无损聚合。默认模式为 `
   问题材料而跳过；
 - 显式设置 `MEDCODE_LONG_TASK_FIXTURE_DIR=issues/长任务测试` 后，杜衡长任务的 2 项精确
   fixture replay 均通过。
+
+上述实现已以 commit `9ba088508d1df2de30441adb4814409b1d757bc8` 部署到 R760：
+
+- `current` 为 `9ba088508d1df2de30441adb4814409b1d757bc8`，`previous` 为
+  `43e118eb00083ee44164329568a62941169ee78c`；
+- 活跃 Gateway 镜像为
+  `sha256:3e783ea7d6d6b811d10adaed708321465faf5ac7232e00053aa55a3b3022a9bf`；
+- 只重建了公网 Gateway，三个 Research 容器 ID 未变化，四个业务容器与独立 Mihomo
+  均为 healthy，Gateway restart count 为 0；
+- `MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE` 未在生产配置中设置，因此使用代码默认
+  `shadow`；`error` 尚未对生产 credential 启用，主动 `chunk` 比例为 0%；
+- 部署前对 `gateway.db`、`client-events.db` 和 `research.db` 做了在线一致性备份，完整性、
+  外键和 SHA-256 清单均通过；回滚边界为
+  `/data/codex-gateway-r760/backups/pre-long-output-p0-20260806T033029Z`；
+- 公网 `/v1/models`、non-stream、SSE、required/named/none/follow-up 工具调用 smoke 均通过，
+  request event 可见 Tencent `glm-5.2` 归因、attempt duration/usage、finish reason 和
+  UTF-8 工具参数 bytes；所有临时 key 已撤销、临时用户已禁用，未完成 reservation 为 0。
 
 尚未实现或启用：`artifact-write-v1` 主动 chunk、accepted-capability 首事件/响应头、
 artifact/recovery ID 校验与跨请求持久化计数、有效模型预算协商、Desktop artifact
@@ -1090,6 +1107,11 @@ npx vitest run apps/gateway/src/long-task-regression.test.ts
    validation subtype、recovery owner/id/count 和终态；
 7. 临时用户/key 按 runbook 清理，Gateway 仍只监听 loopback，由现有 Nginx/SNI 对外服务。
 
+2026-08-06 的 R760 `shadow` 部署已完成其中的 one-model surface、non-stream、SSE、小型
+native tool、attempt/usage/argument-bytes 对账和清理检查。大型 Markdown 的部署后真实
+provider replay、指定测试 credential 的 `error` canary，以及完整 Desktop agent-loop 长任务
+E2E 尚未执行；主动 `chunk` 明确未启用。现有 smoke 证据不能替代这些待完成项。
+
 合成 smoke 通过后，再以明确授权的测试 credential 执行一次上述杜衡长任务。该 E2E 必须：
 
 - 使用固定 hash 的两份输入，记录 `client_turn_id`、session、请求链和总 wall time，但诊断
@@ -1197,6 +1219,9 @@ npx vitest run apps/gateway/src/long-task-regression.test.ts
 - 审核 shadow 数据后，先把指定测试 credential 切到 `error`，确认截断停止盲重试；
 - 不启用主动 chunk，不在同一 session 回退到 Azure。
 
+截至 2026-08-06，阶段 1 已完成，阶段 2 的首个 `shadow` 部署和基础 smoke 已完成；
+`error` credential canary、shadow 数据复审与大型产物/完整 Desktop E2E 仍待执行。
+
 ### 阶段 3：Desktop capability、事务与动态预算
 
 - 发布 `artifact-write-v1`、稳定 user-message `client_turn_id`、客户端创建并持久化的
@@ -1303,5 +1328,6 @@ npx vitest run apps/gateway/src/long-task-regression.test.ts
 不建议批准：固定把所有请求提升到 128k、静默修补截断 JSON、流式未校验参数直接落盘、
 Gateway 删除历史消息、Gateway/客户端双重恢复、无上限重试或跨 Azure/R760 重试同一 session。
 
-本文获得审核通过之前，不应把用户临时规避说明当作问题已经关闭；生产 Gateway 当前
-仍可能在类似的长上下文完整文件任务中重复出现相同失败。
+不应把用户临时规避说明或本次 `shadow` 部署当作问题已经关闭；在 `error` canary、动态
+预算、Desktop artifact transaction 和完整长任务 E2E 关闭前，生产 Gateway 当前仍可能在
+类似的长上下文完整文件任务中重复出现相同用户可见失败。
