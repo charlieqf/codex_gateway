@@ -223,6 +223,17 @@ Current operational state:
   fixture passed, but a full Desktop/R760 long-task agent-loop E2E has not yet
   run; this shadow release therefore does not close the original user-visible
   incident.
+- During the final 2026-08-06 post-deploy status query, an operator-side shell
+  quoting error caused the running Gateway's environment to be printed in the
+  operator tool output. No secret value was committed to Git or copied into
+  documentation, and values must not be repeated. Treat every non-empty secret
+  shown there as exposed, including provider API keys and Gateway internal,
+  admin, billing and encryption credentials. Rotation has not been attempted
+  automatically because the encryption credential and cross-service tokens
+  require a backed-up, coordinated migration to avoid invalidating stored
+  ciphertext or causing an outage. The owners must inventory all affected
+  consumers, rotate/re-encrypt through an approved rollback-safe procedure,
+  validate both R760 and compatibility dependencies, and record closure.
 - R760 origin `:1443`, loopback/SNI health and the existing MedEvidence
   `8081/8082` checks pass.
 - A DNS-only `A` record now resolves `goldencode.instmarket.com.au` directly to
