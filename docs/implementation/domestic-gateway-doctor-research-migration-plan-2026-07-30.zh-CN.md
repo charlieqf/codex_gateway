@@ -456,6 +456,33 @@ R760 当前存储布局已经具备长期调整余量：
 - 本次部署没有修改 CN1 Nginx、DNS 或公网 `gw`；公网
   `gw.instmarket.com.au` 仍解析到 Azure。
 
+### 6.5.1 2026-08-06 Doctor Research 降级修复与双平台公共池
+
+- R760 `current` 已切换为
+  `/opt/codex-gateway-r760/releases/573a7a9d6d3fd123c01a60bcd11a4db7a73028b2`，
+  `previous` 为 `9ba088508d1df2de30441adb4814409b1d757bc8`；一致性备份与配置回滚边界为
+  `/data/codex-gateway-r760/backups/pre-573a7a9-20260806T101350Z`。
+- `drr_54b3658520f84736b1b065529675d7d7` 仅存在于 Azure 兼容端。旧 Worker 已核实
+  身份并取得相关领域文献，但因官网没有可逐字引用的个人研究方向而触发
+  `verified_research_direction_required` 硬失败；这不是模型供应商不可用，也不表示用户必须
+  提供医生主页。R760 `doctor-research-skill.1.6.105` 改为：个人方向证据缺失时保留空列表、
+  明示证据边界并继续相关领域综述，且禁止把领域文献归因给医生本人。
+- R760 公共文本面仍只有 `goldencode`，对外契约为 200k context / 128k output；其
+  HRW-sticky pool 现在恰好包含腾讯与 TokenSwitch 两个 `glm-5.2` 成员，并设置
+  `requireAllMembers=false`。定向生产 smoke 分别命中两成员，均记录 HTTP 200、`status=ok`、
+  `upstream_model=glm-5.2` 和有效工具调用。Research 内部 LLM Gateway 仍保持独立、
+  Tencent-only、`maxConcurrent=3`，不复用公共池或 Mihomo。
+- Gateway 与 Worker 新镜像均由上一验证镜像在 `--network=none` 下叠加构建；切换后
+  Gateway、Worker、未重建的 Research LLM Gateway、未重建的 maintenance 与 Mihomo 全部
+  healthy、零重启。三库 integrity/FK、Worker `1.6.105/ready` 心跳、空个人研究方向的
+  部署产物契约、严格工具调用、双成员归因和临时 key 清理均通过；无 active Research run
+  或 unfinished public/internal reservation。
+- TokenSwitch 密钥只以受保护文件挂载到 Gateway，但最初经聊天消息提供，因此仍按已暴露
+  密钥处理，后续须在回滚保护下轮换。不得在文档、日志或交付消息中复述密钥值。
+- Desktop `2.0.0-beta.26` 仍未完成 `context-compaction-v1` 和精确
+  `artifact-write-v1` 的 Gateway 协商/E2E；本次服务端发布只关闭上述 Research 失败和公共
+  双平台池，不得宣称长任务协议已完整修复。
+
 ### 6.6 CN1 边缘入口准备状态和实测
 
 2026-08-03 已完成只读基线和 CN1 到 R760 源站的连通性测量，尚未修改 CN1

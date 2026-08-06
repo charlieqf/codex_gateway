@@ -11,7 +11,7 @@ API 使用说明或生产操作手册。
 `https://goldencode.instmarket.com.au:1443` 直接承接迁移后的客户端；CN1 边缘保持
 暗路由，不在正式请求链。自 2026-08-06 起，发钥、用户/key 状态、Plan/entitlement
 和用量查询以 R760 为权威，Azure `gw` 仅兼容旧客户端和保留 Research 回滚边界。
-R760 正式部署、当前所有 GLM-5.2 路径 Tencent-only 边界和后续退役门槛见
+R760 正式部署、Research 内部 Tencent-only 边界、公共双平台池和后续退役门槛见
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 
 相关文档：
@@ -26,16 +26,27 @@ R760 正式部署、当前所有 GLM-5.2 路径 Tencent-only 边界和后续退�
 ## 零 A、截至 2026-08-06 当前状态
 
 Azure 兼容/回滚部署运行 commit
-`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`；R760 `current` 为
-`43e118eb00083ee44164329568a62941169ee78c`，其中 Research 三容器继续使用已验证的
-Azure-matching 运行镜像。两端执行器均为 `1.6.104`，Prompt `v30`，validation
-`v42`，workflow `v81`。Azure 与 R760 的正式四容器均 healthy、最终重启次数 0；
-只有各自的 public Gateway 发布 loopback 端口。
+`4697fba0b74d2ea8aa0ace0699a6117397ad9b01`，其执行器仍为 `1.6.104`、Prompt `v30`、
+validation `v42`、workflow `v81`。R760 `current` 已更新为
+`573a7a9d6d3fd123c01a60bcd11a4db7a73028b2`，`previous` 为
+`9ba088508d1df2de30441adb4814409b1d757bc8`；R760 Worker 为 `1.6.105`、Prompt `v31`、
+validation `v43`、workflow `v82`、artifact policy `v3`。Azure 与 R760 的正式四业务容器
+均 healthy、最终重启次数 0；只有各自的 public Gateway 发布 loopback 端口。
 
-由于阿里和百度订阅已暂时取消，Azure 公网 `goldencode`、Azure production
-Research、Azure Research staging、CN1 loopback、R760 公网和 R760 Research 的
-有效 GLM-5.2 路由均已收敛到 Tencent。每个修改后的入口都通过了真实 Tencent
-事件核对；R760 三轮 Research 共 15 次业务 LLM 调用也全部为 Tencent。
+由于阿里和百度订阅已暂时取消，Azure 公网 `goldencode`、Azure production Research、
+Azure Research staging、CN1 loopback 和 R760 Research 的有效 GLM-5.2 路由仍收敛到
+Tencent。R760 公共 `goldencode` 是明确例外：它现在只包含腾讯与 TokenSwitch 两个
+`glm-5.2` 成员，对外仍只展示一个 200k/128k 的 `goldencode`。定向生产 smoke 已分别
+命中两个成员并记录 HTTP 200、`status=ok` 和有效工具调用。Research 内部 Gateway 继续
+Tencent-only，不共享公共池、密钥或 Mihomo。
+
+`drr_54b3658520f84736b1b065529675d7d7` 的记录只在 Azure 兼容端。旧执行器已经完成身份
+核验并取得相关领域文献，但官网没有可逐字引用的个人研究方向，因此在合成前被
+`verified_research_direction_required` 错误地当成硬失败。该失败不是上游供应商宕机，也
+不表示用户必须提供医生主页；客户端显示的 `UnknownError`、temporarily unavailable 和
+`T:R26DR1A9` 是遮蔽真实终态的通用映射。R760 `1.6.105` 已把这一路径改成安全降级：个人
+方向为空，输出明确证据边界，继续相关领域综述，且不得把领域文献归因给医生本人。旧 run
+保持不可变，修复适用于 R760 上的新 run。
 
 R760 已完成最新状态恢复和三次成功服务器端 Research run，其中两次完整客户端
 E2E 在 179 秒和 183 秒通过四文件大小与 SHA-256 验证。R760 不接管 `gw` DNS；

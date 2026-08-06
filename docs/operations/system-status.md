@@ -75,6 +75,66 @@ Current operational state:
   currently has one monitoring-only warning because
   `/var/lib/codex-gateway/ops-runtime.json` has not been configured on R760;
   control and usage queries are otherwise operational.
+- R760 now runs release
+  `573a7a9d6d3fd123c01a60bcd11a4db7a73028b2`; `previous` is
+  `9ba088508d1df2de30441adb4814409b1d757bc8`. The public Gateway image is
+  `sha256:3ce6a2124ea7d79b2c7d5ef298501b62eafe2cdb114b94594a5724a141701591`
+  and the Research Worker image is
+  `sha256:6132ce8c4614cff2f31f72ae48f101cc9fe5f5f720b8f9d6b4e3a0fe2a911ed9`.
+  Both are networkless overlays of their preceding verified images. Gateway,
+  Worker, the unchanged isolated Research LLM Gateway, unchanged maintenance
+  service and Mihomo are healthy with zero restarts. The consistent pre-switch
+  database/config rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-573a7a9-20260806T101350Z`.
+- R760's only public text model remains `goldencode`, advertised as 200,000
+  context and 128,000 maximum output tokens. It is now an HRW-sticky pool with
+  exactly two enabled `glm-5.2` members:
+  `goldencode-tencent / tencent` and
+  `goldencode-tokenswitch / tokenswitch`; `requireAllMembers=false` preserves
+  bounded retry/failover when one member is unavailable. Production strict
+  required/named/none/follow-up tool calls passed. Directed live requests then
+  selected each member independently and persisted `status=ok`, HTTP 200,
+  `upstream_model=glm-5.2` and one tool call for both runtimes. Research remains
+  on its separate Tencent-only internal Gateway and does not inherit the public
+  pool or Mihomo route.
+- The TokenSwitch credential is stored on R760 only as the protected
+  root-managed source file mounted read-only into Gateway (`999:999/0400`), and
+  the operator workstation copy is DPAPI-protected and excluded from Git. The
+  credential was originally supplied in a chat message, so it must still be
+  treated as exposed and rotated through the normal rollback-safe secret update
+  after this deployment; its value is not recorded in source, logs or docs.
+- Doctor Research Worker `doctor-research-skill.1.6.105` is ready with workflow
+  `v82`, prompt `v31`, validation `v43` and artifact policy `v3`. The deployed
+  runtime contract accepts an empty personal `research_directions` list,
+  renders an explicit evidence-gap disclosure and rejects unsupported personal
+  direction attribution while continuing a related-field review. All 167
+  focused Gateway/Research tests, 9 Python contract tests, build, typecheck and
+  the full 657-pass/2-skip Vitest suite passed before deployment. Post-deploy
+  SQLite integrity/FK checks passed; there were no active Research runs or
+  unfinished public/internal reservations, the Worker heartbeat was fresh, and
+  all temporary smoke credentials were disabled and revoked.
+- Run `drr_54b3658520f84736b1b065529675d7d7` exists only on the Azure
+  compatibility stack, not R760. Azure execution `1.6.104` verified one
+  official identity source, found no doctor-attributed publication and retained
+  40 related-field PubMed papers, then hard-failed before synthesis with
+  `verified_research_direction_required` because the official source did not
+  contain an exact citable personal research-direction statement. This was not
+  a provider outage and did not mean that the user had to supply a homepage.
+  The client-facing `UnknownError`/temporary-unavailable message and turn code
+  `T:R26DR1A9` were a generic mapping that hid the terminal Research reason; no
+  matching client-diagnostic upload was present. Existing failed runs are
+  immutable, so the repaired behavior applies to a new run on R760.
+- Desktop `2.0.0-beta.26` still must not be described as a complete long-task
+  protocol fix. It has active summary/UI state and local chunked artifact
+  transaction foundations (`chunked-file-write-v1` and
+  `artifact-completion-v1`, default off), but not the complete negotiated
+  `context-compaction-v1` or exact `artifact-write-v1` protocol. Stable
+  generation/id, Gateway special-error handling, one-shot retry, anti-loop
+  rules, protocol guarantees for todo/tool state and immutable artifact ID/hash,
+  and packaged Desktop-to-R760 protocol E2E remain incomplete. The Gateway does
+  not currently accept the experimental capability headers, so beta.26 does not
+  enable that recovery path even though core cancellation/restart/chunk/hash/
+  atomic-commit tests and a real R760 long task passed.
 
 - Azure MedEvidence US was retired reversibly at `2026-08-05T06:19:04Z` after
   confirming `requests=0`, `jobs=0`, no last-30-day events and no non-MedEvidence
@@ -104,13 +164,14 @@ Current operational state:
   workflow `v81`. Its Gateway, isolated Research LLM Gateway, Worker and
   maintenance containers are healthy with zero restarts; only the public
   Gateway publishes `127.0.0.1:18787`.
-- The migration-target routes have been narrowed to Tencent because the Aliyun
-  and Qianfan subscriptions are temporarily cancelled. Azure public
-  `goldencode`, Azure Research staging/production, CN1 loopback, R760 public
-  Gateway and R760 Research use only
-  `goldencode-tencent / tencent / glm-5.2`; Azure production Research keeps
-  Qianfan and Aliyun only as disabled entries and gives Tencent
-  `maxConcurrent=3`. However, Azure's legacy eight-model public registry still
+- The migration-target routes were narrowed to Tencent when the Aliyun and
+  Qianfan subscriptions were cancelled. Azure public `goldencode`, Azure
+  Research staging/production, CN1 loopback and R760 Research remain
+  `goldencode-tencent / tencent / glm-5.2`. R760 public `goldencode` is the one
+  deliberate exception: it now balances Tencent with TokenSwitch as recorded
+  above. Azure production Research keeps Qianfan and Aliyun only as disabled
+  entries and gives Tencent `maxConcurrent=3`. However, Azure's legacy
+  eight-model public registry still
   has enabled `specialist / qianfan / glm-5.2`,
   `expert / openrouter / z-ai/glm-5.2` and
   `advisor / aliyun / glm-5.2` routes. They had no requests in the latest seven
@@ -154,7 +215,7 @@ Current operational state:
   then reapplied successfully. The final recreated staging Gateway and its
   unchanged Worker/maintenance containers are all healthy with restart count
   zero. No secret-file permission was broadened.
-- The formal R760 project now has `current` at
+- Before the current `573a7a9` release, the formal R760 project had `current` at
   `/opt/codex-gateway-r760/releases/9ba088508d1df2de30441adb4814409b1d757bc8`
   and `previous` at `43e118eb00083ee44164329568a62941169ee78c`.
   Only the public Gateway was recreated for the long-output P0 shadow release;
@@ -199,7 +260,7 @@ Current operational state:
   `openai-api / medcode-image-default / gpt-image-1.5`; both completed with
   `status=ok`. The temporary credential, entitlement and user were cleaned.
   Gemini reachability remains the only open low-cost three-model image gate.
-- The active R760 Gateway image is
+- The preceding `9ba0885` R760 Gateway image was
   `sha256:3e783ea7d6d6b811d10adaed708321465faf5ac7232e00053aa55a3b3022a9bf`.
   Because Docker Hub was unstable and the host had no usable base-image cache,
   it was built networklessly as an immutable overlay of the previously verified
