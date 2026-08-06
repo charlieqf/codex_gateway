@@ -5,7 +5,8 @@ import {
   GatewayError,
   isRecord,
   type StreamEvent,
-  type TokenUsage
+  type TokenUsage,
+  type ToolCallValidationFailureKind
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
@@ -337,16 +338,23 @@ export function parseStrictToolDecision(input: {
 
   if (parsed.type === "message") {
     if (input.toolChoice === "required") {
-      return toolCallValidationFailed("tool_choice=required requires a tool_calls output.");
+      return toolCallValidationFailed(
+        "tool_choice=required requires a tool_calls output.",
+        "tool_choice_mismatch"
+      );
     }
     const forcedToolName = forcedToolChoiceName(input.toolChoice);
     if (forcedToolName) {
       return toolCallValidationFailed(
-        `tool_choice requires tool '${forcedToolName}' to be called.`
+        `tool_choice requires tool '${forcedToolName}' to be called.`,
+        "tool_choice_mismatch"
       );
     }
     if (typeof parsed.content !== "string") {
-      return toolCallValidationFailed("Strict message output must include string content.");
+      return toolCallValidationFailed(
+        "Strict message output must include string content.",
+        "schema_mismatch"
+      );
     }
     return {
       type: "message",
@@ -355,7 +363,10 @@ export function parseStrictToolDecision(input: {
   }
 
   if (parsed.type !== "tool_calls" || !Array.isArray(parsed.tool_calls)) {
-    return toolCallValidationFailed("Strict output must be type=message or type=tool_calls.");
+    return toolCallValidationFailed(
+      "Strict output must be type=message or type=tool_calls.",
+      "schema_mismatch"
+    );
   }
 
   const registry = new Map(input.tools.map((tool) => [tool.function.name, tool]));
@@ -363,21 +374,31 @@ export function parseStrictToolDecision(input: {
   const toolCalls: OpenAIChatToolCall[] = [];
   for (const [index, item] of parsed.tool_calls.entries()) {
     if (!isRecord(item)) {
-      return toolCallValidationFailed(`tool_calls[${index}] must be an object.`);
+      return toolCallValidationFailed(
+        `tool_calls[${index}] must be an object.`,
+        "schema_mismatch"
+      );
     }
 
     const name = strictToolCallName(item);
     if (typeof name !== "string" || name.length === 0) {
-      return toolCallValidationFailed(`tool_calls[${index}].name must be a non-empty string.`);
+      return toolCallValidationFailed(
+        `tool_calls[${index}].name must be a non-empty string.`,
+        "schema_mismatch"
+      );
     }
 
     const tool = registry.get(name);
     if (!tool) {
-      return toolCallValidationFailed(`Tool '${name}' was not declared by the client.`);
+      return toolCallValidationFailed(
+        `Tool '${name}' was not declared by the client.`,
+        "undeclared_tool"
+      );
     }
     if (forcedToolName && name !== forcedToolName) {
       return toolCallValidationFailed(
-        `tool_choice requires tool '${forcedToolName}', but tool_calls[${index}] used '${name}'.`
+        `tool_choice requires tool '${forcedToolName}', but tool_calls[${index}] used '${name}'.`,
+        "tool_choice_mismatch"
       );
     }
 
@@ -388,12 +409,18 @@ export function parseStrictToolDecision(input: {
       return argumentValue;
     }
     if (!isJsonSerializable(argumentValue)) {
-      return toolCallValidationFailed(`Tool '${name}' arguments must be JSON serializable.`);
+      return toolCallValidationFailed(
+        `Tool '${name}' arguments must be JSON serializable.`,
+        "schema_mismatch"
+      );
     }
 
     const validationError = validateAgainstToolSchema(tool, argumentValue);
     if (validationError) {
-      return toolCallValidationFailed(`Tool '${name}' arguments invalid: ${validationError}`);
+      return toolCallValidationFailed(
+        `Tool '${name}' arguments invalid: ${validationError}`,
+        "schema_mismatch"
+      );
     }
 
     const id = typeof item.id === "string" && item.id.length > 0 ? item.id : input.createToolCallId();
@@ -408,7 +435,10 @@ export function parseStrictToolDecision(input: {
   }
 
   if (toolCalls.length === 0) {
-    return toolCallValidationFailed("type=tool_calls requires at least one tool call.");
+    return toolCallValidationFailed(
+      "type=tool_calls requires at least one tool call.",
+      "schema_mismatch"
+    );
   }
 
   return {
@@ -751,11 +781,11 @@ function parseJsonObject(value: string): Record<string, unknown> | GatewayError 
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (!isRecord(parsed)) {
-      return toolCallValidationFailed("Expected a JSON object.");
+      return toolCallValidationFailed("Expected a JSON object.", "schema_mismatch");
     }
     return parsed;
   } catch {
-    return toolCallValidationFailed("Expected valid JSON object output.");
+    return toolCallValidationFailed("Expected valid JSON object output.", "invalid_json");
   }
 }
 
@@ -887,11 +917,19 @@ function isJsonSerializable(value: unknown): boolean {
   }
 }
 
-function toolCallValidationFailed(message: string): GatewayError {
+function toolCallValidationFailed(
+  message: string,
+  failureKind: ToolCallValidationFailureKind
+): GatewayError {
   return new GatewayError({
     code: "tool_call_validation_failed",
     message,
-    httpStatus: 502
+    httpStatus: 502,
+    contractVersion: 1,
+    failureKind,
+    transformedRetryAllowed: true,
+    recommendedAction: "correct_tool_call",
+    recoveryOwner: "client"
   });
 }
 

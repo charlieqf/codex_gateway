@@ -33,6 +33,9 @@ describe("gatewayErrorMetadata", () => {
     expect(gatewayErrorCodes).toEqual(
       expect.arrayContaining([
         "model_not_allowed_for_credential",
+        "context_compaction_required",
+        "output_length_exceeded",
+        "tool_call_output_truncated",
         "research_capability_required",
         "resource_access_denied",
         "run_not_found",
@@ -91,6 +94,27 @@ describe("gatewayErrorMetadata", () => {
       rate_limit_contract_version: 1,
       limit_kind: null,
       rate_limit_origin: "upstream"
+    });
+  });
+
+  it("publishes versioned output-truncation recovery metadata", () => {
+    const error = new GatewayError({
+      code: "tool_call_output_truncated",
+      message: "The generated tool call was truncated and was not delivered.",
+      httpStatus: 502,
+      contractVersion: 1,
+      failureKind: "confirmed_output_limit",
+      transformedRetryAllowed: true,
+      recommendedAction: "compact_and_generate_in_chunks",
+      recoveryOwner: "client"
+    });
+
+    expect(gatewayErrorMetadata(error)).toEqual({
+      contract_version: 1,
+      failure_kind: "confirmed_output_limit",
+      transformed_retry_allowed: true,
+      recommended_action: "compact_and_generate_in_chunks",
+      recovery_owner: "client"
     });
   });
 

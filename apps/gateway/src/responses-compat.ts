@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { GatewayError, isRecord } from "@codex-gateway/core";
+import {
+  gatewayErrorMetadata,
+  gatewayErrorRetryable
+} from "./http/error-response.js";
 import type {
   ChatCompletionRequest,
   ChatCompletionMessage,
@@ -274,7 +278,13 @@ export function createResponsesFailedEvent(
     }),
     error: {
       code: error.code,
-      message: error.message
+      message: error.message,
+      ...(error.contractVersion !== undefined
+        ? {
+            retryable: gatewayErrorRetryable(error),
+            ...gatewayErrorMetadata(error)
+          }
+        : {})
     }
   };
   return event("response.failed", { response });

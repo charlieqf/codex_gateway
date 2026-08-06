@@ -165,6 +165,7 @@ import {
   type ImageGenerationProvider
 } from "./image-generation.js";
 import {
+  assessProviderCompletion,
   attachProviderStreamSummary,
   combineProviderStreamSummaries,
   collectProviderMessage,
@@ -175,7 +176,8 @@ import {
   type CollectedProviderMessage,
   type ProviderStreamAttemptContext,
   type ProviderStreamSummary,
-  type ProviderToolCall
+  type ProviderToolCall,
+  type OutputTruncationMode
 } from "./services/provider-stream.js";
 import { InMemorySessionStore } from "./services/session-store.js";
 import {
@@ -386,6 +388,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
   const nativeToolForceRequiredMode = parseNativeToolForceRequiredMode(
     process.env.MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE,
+    (message) => app.log.warn(message)
+  );
+  const nativeFileToolRecoveryPolicy = parseNativeFileToolRecoveryPolicy(
+    process.env,
     (message) => app.log.warn(message)
   );
   const toolLoopShadowPolicy = parseToolLoopShadowPolicy(process.env, (message) =>
@@ -2085,6 +2091,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             reasoningEffort: attempt.reasoningEffort,
             request: parsed,
             prompt,
+            nativeFileToolRecoveryPolicy,
             signal: deadline.signal,
             requestId: request.id,
             log: request.log,
@@ -2148,6 +2155,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             request: parsed,
             prompt,
             nativeToolForceRequiredMode,
+            nativeFileToolRecoveryPolicy,
             signal: deadline.signal,
             requestId: request.id,
             log: request.log,
@@ -2209,7 +2217,11 @@ export function buildGateway(options: GatewayOptions = {}) {
           const providerSummaries: ProviderStreamSummary[] = [];
           while (true) {
             const onProviderError = createProviderErrorLogger(request);
-            const providerSummary = new ProviderStreamSummaryCollector();
+            const providerSummary = new ProviderStreamSummaryCollector({
+              softToolArgumentBytes: nativeFileToolRecoveryPolicy.softArgumentBytes,
+              hardToolArgumentBytes: nativeFileToolRecoveryPolicy.hardArgumentBytes,
+              outputTruncationMode: nativeFileToolRecoveryPolicy.mode
+            });
             const attemptKind = statelessAttempts > 1 ? "stateless_retry" : "primary";
             const bufferedToolCalls: Array<
               Extract<StreamEvent, { type: "tool_call" }>
@@ -2311,7 +2323,10 @@ export function buildGateway(options: GatewayOptions = {}) {
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
-              const completionError = providerCompletionError(successSummary);
+              const completionError = providerCompletionError(successSummary, {
+                outputTruncationMode: nativeFileToolRecoveryPolicy.mode,
+                outputKind: "auto"
+              });
               if (completionError) {
                 const errorSummary =
                   providerStreamSummaryFromError(completionError) ?? successSummary;
@@ -2425,6 +2440,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           reasoningEffort: attempt.reasoningEffort,
           request: parsed,
           prompt,
+          nativeFileToolRecoveryPolicy,
           signal: deadline.signal,
           requestId: request.id,
           log: request.log,
@@ -2458,6 +2474,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           request: parsed,
           prompt,
           nativeToolForceRequiredMode,
+          nativeFileToolRecoveryPolicy,
           signal: deadline.signal,
           requestId: request.id,
           log: request.log,
@@ -2501,7 +2518,11 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderError,
             onProviderEvent,
             suppressToolCalls: parsed.toolChoice === "none",
-            suppressTextAfterToolCall: true
+            suppressTextAfterToolCall: true,
+            outputTruncationMode: nativeFileToolRecoveryPolicy.mode,
+            outputKind: "auto",
+            softToolArgumentBytes: nativeFileToolRecoveryPolicy.softArgumentBytes,
+            hardToolArgumentBytes: nativeFileToolRecoveryPolicy.hardArgumentBytes
           });
           if (attemptResult instanceof GatewayError) {
             const providerSummary = providerStreamSummaryFromError(attemptResult);
@@ -2868,6 +2889,7 @@ interface StrictClientToolsInput {
   log?: StrictClientToolsLogger;
   onProviderError?: (diagnostic: ProviderErrorDiagnostic) => void;
   onProviderEvent?: (event: StreamEvent) => void;
+  nativeFileToolRecoveryPolicy: NativeFileToolRecoveryPolicy;
 }
 
 interface NativeClientToolsInput extends StrictClientToolsInput {
@@ -2922,6 +2944,8 @@ async function runNativeClientTools(
     firstToolChoice
   );
   if (firstResult instanceof GatewayError) {
+    const firstResultSummary =
+      providerStreamSummaryFromError(firstResult) ?? first.providerSummary;
     const retryPlan = nativeValidationRetryPlan(
       input.request,
       input.upstreamModel,
@@ -2950,7 +2974,7 @@ async function runNativeClientTools(
       retryPlan.kind
     );
     if (second instanceof GatewayError) {
-      return second;
+      return attachPreviousProviderStreamSummaries(second, [firstResultSummary]);
     }
 
     const secondResult = nativeCollectionToResult(
@@ -2958,7 +2982,7 @@ async function runNativeClientTools(
       second,
       addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(second.usage)),
       retryPlan.validationToolChoice,
-      combineProviderStreamSummaries([first.providerSummary, second.providerSummary]) ??
+      combineProviderStreamSummaries([firstResultSummary, second.providerSummary]) ??
         second.providerSummary
     );
     if (secondResult instanceof GatewayError) {
@@ -2994,7 +3018,7 @@ async function runNativeClientTools(
     retryPlan.kind
   );
   if (second instanceof GatewayError) {
-    return second;
+    return attachPreviousProviderStreamSummaries(second, [first.providerSummary]);
   }
 
   const secondUsage = openAIUsageFromTokenUsage(second.usage);
@@ -3012,9 +3036,26 @@ async function runNativeClientTools(
   if (retryPlan.kind === "auto_ack_after_tool_to_auto") {
     return validateNativeCompletion(secondResult);
   }
-  return validateNativeCompletion(
-    secondResult.toolCalls.length > 0 ? secondResult : firstResult
-  );
+  if (secondResult.toolCalls.length > 0) {
+    return validateNativeCompletion(secondResult);
+  }
+  return validateNativeCompletion({
+    ...firstResult,
+    usage: secondResult.usage,
+    providerSummary: secondResult.providerSummary
+  });
+}
+
+function attachPreviousProviderStreamSummaries(
+  error: GatewayError,
+  previous: ProviderStreamSummary[]
+): GatewayError {
+  const current = providerStreamSummaryFromError(error);
+  const combined = combineProviderStreamSummaries([
+    ...previous,
+    ...(current ? [current] : [])
+  ]);
+  return combined ? attachProviderStreamSummary(error, combined) : error;
 }
 
 async function collectNativeClientTools(
@@ -3042,7 +3083,11 @@ async function collectNativeClientTools(
     onProviderError: input.onProviderError,
     onProviderEvent: input.onProviderEvent,
     suppressTextAfterToolCall: true,
-    deferEmptyCompletionError: true
+    deferEmptyCompletionError: true,
+    outputTruncationMode: input.nativeFileToolRecoveryPolicy.mode,
+    outputKind: "auto",
+    softToolArgumentBytes: input.nativeFileToolRecoveryPolicy.softArgumentBytes,
+    hardToolArgumentBytes: input.nativeFileToolRecoveryPolicy.hardArgumentBytes
   });
 }
 
@@ -3078,9 +3123,41 @@ function nativeCollectionToResult(
     createToolCallId
   });
   if (parsed instanceof GatewayError) {
-    return providerSummary
-      ? attachProviderStreamSummary(parsed, providerSummary)
-      : parsed;
+    if (!providerSummary) {
+      return parsed;
+    }
+    const assessment = assessProviderCompletion(
+      providerSummary,
+      parsed.failureKind === "invalid_json" ||
+      parsed.failureKind === "schema_mismatch" ||
+      parsed.failureKind === "undeclared_tool" ||
+      parsed.failureKind === "tool_choice_mismatch"
+        ? parsed.failureKind
+        : "none"
+    );
+    const validationError = attachProviderStreamSummary(parsed, providerSummary);
+    if (
+      assessment.validationKind !== "invalid_json" ||
+      !assessment.argumentBudgetExceeded
+    ) {
+      return validationError;
+    }
+    const validationSummary =
+      providerStreamSummaryFromError(validationError) ?? providerSummary;
+    return attachProviderStreamSummary(
+      new GatewayError({
+        code: "tool_call_validation_failed",
+        message:
+          "The tool call arguments exceeded the configured byte budget and were not delivered.",
+        httpStatus: 502,
+        contractVersion: 1,
+        failureKind: "argument_budget_exceeded",
+        transformedRetryAllowed: true,
+        recommendedAction: "compact_and_generate_in_chunks",
+        recoveryOwner: "client"
+      }),
+      validationSummary
+    );
   }
   const result = strictDecisionToResult(parsed, usage, providerSummary);
   if (serializedToolCalls && result.toolCalls.length > 0) {
@@ -3205,6 +3282,9 @@ function nativeValidationRetryPlan(
   if (error.code !== "tool_call_validation_failed") {
     return null;
   }
+  if (error.failureKind === "argument_budget_exceeded") {
+    return null;
+  }
 
   const retryToolChoice = usesAutoRetryNativeTools(upstreamModel)
     ? "auto"
@@ -3220,6 +3300,99 @@ function nativeValidationRetryPlan(
 }
 
 type NativeToolForceRequiredMode = "first_step" | "disabled" | "legacy";
+
+interface NativeFileToolRecoveryPolicy {
+  mode: OutputTruncationMode;
+  softArgumentBytes: number;
+  hardArgumentBytes: number | null;
+  canaryPercent: number;
+}
+
+function parseNativeFileToolRecoveryPolicy(
+  env: NodeJS.ProcessEnv,
+  onWarning?: (message: string) => void
+): NativeFileToolRecoveryPolicy {
+  const rawMode = env.MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE?.trim().toLowerCase();
+  const mode: OutputTruncationMode =
+    rawMode === "legacy" ||
+    rawMode === "shadow" ||
+    rawMode === "error" ||
+    rawMode === "chunk"
+      ? rawMode
+      : "shadow";
+  if (rawMode && mode === "shadow" && rawMode !== "shadow") {
+    onWarning?.(
+      `Invalid MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE=${rawMode}; using shadow.`
+    );
+  }
+
+  const softArgumentBytes = parseOptionalPositiveIntegerEnv(
+    env.MEDCODE_NATIVE_FILE_TOOL_SOFT_ARGUMENT_BYTES,
+    "MEDCODE_NATIVE_FILE_TOOL_SOFT_ARGUMENT_BYTES",
+    onWarning
+  ) ?? 64 * 1024;
+  let hardArgumentBytes = parseOptionalPositiveIntegerEnv(
+    env.MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES,
+    "MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES",
+    onWarning
+  );
+  if (hardArgumentBytes !== null && hardArgumentBytes < softArgumentBytes) {
+    onWarning?.(
+      "MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES is below the soft byte candidate; ignoring the hard limit."
+    );
+    hardArgumentBytes = null;
+  }
+
+  const canaryPercent = parsePercentageEnv(
+    env.MEDCODE_NATIVE_FILE_TOOL_RECOVERY_CANARY_PERCENT,
+    "MEDCODE_NATIVE_FILE_TOOL_RECOVERY_CANARY_PERCENT",
+    onWarning
+  ) ?? 0;
+  if (mode === "chunk" && canaryPercent > 0) {
+    onWarning?.(
+      "Active artifact chunk recovery is not implemented; chunk mode currently degrades to error."
+    );
+  }
+
+  return {
+    mode,
+    softArgumentBytes,
+    hardArgumentBytes,
+    canaryPercent
+  };
+}
+
+function parseOptionalPositiveIntegerEnv(
+  value: string | undefined,
+  name: string,
+  onWarning?: (message: string) => void
+): number | null {
+  if (value === undefined || value.trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    onWarning?.(`Invalid ${name}=${value}; ignoring it.`);
+    return null;
+  }
+  return parsed;
+}
+
+function parsePercentageEnv(
+  value: string | undefined,
+  name: string,
+  onWarning?: (message: string) => void
+): number | null {
+  if (value === undefined || value.trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    onWarning?.(`Invalid ${name}=${value}; using 0.`);
+    return null;
+  }
+  return parsed;
+}
 
 function parseNativeToolForceRequiredMode(
   value: string | undefined,
@@ -3455,6 +3628,8 @@ async function runStrictClientTools(
   if (!(parsed instanceof GatewayError)) {
       return strictDecisionToResult(parsed, firstUsage, first.collected.providerSummary);
   }
+  const firstSummary =
+    providerStreamSummaryFromError(parsed) ?? first.collected.providerSummary;
 
   input.log?.warn(
     {
@@ -3477,7 +3652,7 @@ async function runStrictClientTools(
     return repairedSummary
       ? attachProviderStreamSummary(
           repaired,
-          combineProviderStreamSummaries([first.collected.providerSummary, repairedSummary]) ??
+          combineProviderStreamSummaries([firstSummary, repairedSummary]) ??
             repairedSummary
         )
       : repaired;
@@ -3485,6 +3660,8 @@ async function runStrictClientTools(
 
   const repairedParsed = repaired.parsed;
   if (repairedParsed instanceof GatewayError) {
+    const repairedSummary =
+      providerStreamSummaryFromError(repairedParsed) ?? repaired.collected.providerSummary;
     const repairedCompletionError = providerCompletionError(
       repaired.collected.providerSummary
     );
@@ -3495,7 +3672,7 @@ async function runStrictClientTools(
       return attachProviderStreamSummary(
         repairedCompletionError,
         combineProviderStreamSummaries([
-          first.collected.providerSummary,
+          firstSummary,
           repairedErrorSummary
         ]) ?? repairedErrorSummary
       );
@@ -3523,8 +3700,8 @@ async function runStrictClientTools(
         { type: "message", content: first.collected.content },
         addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage)),
         combineProviderStreamSummaries([
-          first.collected.providerSummary,
-          repaired.collected.providerSummary
+          firstSummary,
+          repairedSummary
         ])
       );
     }
@@ -3541,9 +3718,9 @@ async function runStrictClientTools(
     return attachProviderStreamSummary(
       repairedParsed,
       combineProviderStreamSummaries([
-        first.collected.providerSummary,
-        repaired.collected.providerSummary
-      ]) ?? repaired.collected.providerSummary
+        firstSummary,
+        repairedSummary
+      ]) ?? repairedSummary
     );
   }
 
@@ -3559,7 +3736,7 @@ async function runStrictClientTools(
     repairedParsed,
     addOpenAIUsage(firstUsage, openAIUsageFromTokenUsage(repaired.collected.usage)),
     combineProviderStreamSummaries([
-      first.collected.providerSummary,
+      firstSummary,
       repaired.collected.providerSummary
     ])
   );
@@ -3618,20 +3795,32 @@ async function collectStrictToolDecision(
     onProviderError: input.onProviderError,
     onProviderEvent: input.onProviderEvent,
     suppressToolCalls: true,
-    deferEmptyCompletionError: true
+    deferEmptyCompletionError: true,
+    outputTruncationMode: input.nativeFileToolRecoveryPolicy.mode,
+    outputKind:
+      input.request.toolChoice === "required" ||
+      typeof input.request.toolChoice === "object"
+        ? "tool_call"
+        : "auto",
+    softToolArgumentBytes: input.nativeFileToolRecoveryPolicy.softArgumentBytes,
+    hardToolArgumentBytes: input.nativeFileToolRecoveryPolicy.hardArgumentBytes
   });
   if (collected instanceof GatewayError) {
     return collected;
   }
 
+  const parsed = parseStrictToolDecision({
+    text: collected.content,
+    tools: input.request.tools ?? [],
+    toolChoice: input.request.toolChoice,
+    createToolCallId
+  });
   return {
     collected,
-    parsed: parseStrictToolDecision({
-      text: collected.content,
-      tools: input.request.tools ?? [],
-      toolChoice: input.request.toolChoice,
-      createToolCallId
-    })
+    parsed:
+      parsed instanceof GatewayError
+        ? attachProviderStreamSummary(parsed, collected.providerSummary)
+        : parsed
   };
 }
 
@@ -3730,7 +3919,9 @@ function addOpenAIUsage(
     prompt_tokens: first.prompt_tokens + second.prompt_tokens,
     completion_tokens: first.completion_tokens + second.completion_tokens,
     total_tokens: first.total_tokens + second.total_tokens,
-    ...(cachedTokens > 0 ? { prompt_tokens_details: { cached_tokens: cachedTokens } } : {}),
+    ...(first.prompt_tokens_details || second.prompt_tokens_details
+      ? { prompt_tokens_details: { cached_tokens: cachedTokens } }
+      : {}),
     ...(first.completion_tokens_details || second.completion_tokens_details
       ? { completion_tokens_details: { reasoning_tokens: reasoningTokens } }
       : {})
@@ -5877,6 +6068,7 @@ function markProviderStreamSummary(
   if (!summary) {
     return;
   }
+  markTokenUsage(request, summary.usage ?? undefined);
   if (
     summary.errorCode === "rate_limited" ||
     summary.upstreamHttpStatus === 429 ||

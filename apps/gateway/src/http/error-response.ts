@@ -44,6 +44,21 @@ export function gatewayErrorMetadata(
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(error.contractVersion !== undefined
+      ? { contract_version: error.contractVersion }
+      : {}),
+    ...(error.failureKind !== undefined
+      ? { failure_kind: error.failureKind }
+      : {}),
+    ...(error.transformedRetryAllowed !== undefined
+      ? { transformed_retry_allowed: error.transformedRetryAllowed }
+      : {}),
+    ...(error.recommendedAction !== undefined
+      ? { recommended_action: error.recommendedAction }
+      : {}),
+    ...(error.recoveryOwner !== undefined
+      ? { recovery_owner: error.recoveryOwner }
+      : {}),
     ...(context.requestId && isRateLimited ? { request_id: context.requestId } : {}),
     ...(retryAfterSeconds !== undefined
       ? { retry_after_seconds: retryAfterSeconds }

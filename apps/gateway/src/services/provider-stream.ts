@@ -12,6 +12,7 @@ import {
   type ClientToolChoice,
   type ClientToolDefinition,
   type TokenUsage,
+  type ToolCallValidationFailureKind,
   type UpstreamAccount,
   type UpstreamAttemptSummary
 } from "@codex-gateway/core";
@@ -48,7 +49,48 @@ export interface ProviderStreamSummary {
   rawResponseChars: number | null;
   emptyStop: boolean | null;
   terminationKind: ProviderStreamTermination | null;
+  durationMs: number;
+  usage: TokenUsage | null;
+  maxToolArgumentBytes: number | null;
+  totalToolArgumentBytes: number | null;
+  maxToolArgumentCodeUnits: number | null;
+  outputLimitHit: boolean;
+  streamIncomplete: boolean;
+  argumentBudgetCandidate: boolean;
+  argumentBudgetExceeded: boolean;
+  truncationConfidence: "confirmed" | "suspected" | "none";
+  gatewayRecoveryAction: UpstreamAttemptSummary["gatewayRecoveryAction"];
   attempts: UpstreamAttemptSummary[];
+}
+
+export type OutputTruncationMode = "legacy" | "shadow" | "error" | "chunk";
+export type ProviderOutputKind = "auto" | "text" | "tool_call";
+
+export interface ProviderStreamSummaryCollectorOptions {
+  softToolArgumentBytes?: number | null;
+  hardToolArgumentBytes?: number | null;
+  outputTruncationMode?: OutputTruncationMode;
+  now?: () => number;
+}
+
+export interface ProviderCompletionErrorOptions {
+  outputTruncationMode?: OutputTruncationMode;
+  outputKind?: ProviderOutputKind;
+}
+
+export interface ProviderCompletionAssessment {
+  finishReason: string | null;
+  toolNames: string[];
+  toolCallCount: number;
+  maxToolArgumentBytes: number | null;
+  totalToolArgumentBytes: number | null;
+  maxToolArgumentCodeUnits: number | null;
+  validationKind: "none" | ToolCallValidationFailureKind;
+  outputLimitHit: boolean;
+  streamIncomplete: boolean;
+  argumentBudgetCandidate: boolean;
+  argumentBudgetExceeded: boolean;
+  truncationConfidence: "confirmed" | "suspected" | "none";
 }
 
 export interface ProviderStreamAttemptContext {
@@ -62,6 +104,11 @@ export interface ProviderStreamAttemptContext {
 
 export class ProviderStreamSummaryCollector {
   private readonly normalizedHash = createHash("sha256");
+  private readonly now: () => number;
+  private readonly startedAtMs: number;
+  private readonly softToolArgumentBytes: number | null;
+  private readonly hardToolArgumentBytes: number | null;
+  private readonly outputTruncationMode: OutputTruncationMode;
   private normalizedChars = 0;
   private completed = false;
   private contentChars = 0;
@@ -76,6 +123,18 @@ export class ProviderStreamSummaryCollector {
   private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
   private normalizedDigest: string | null = null;
+  private usage: TokenUsage | null = null;
+  private maxToolArgumentBytes: number | null = null;
+  private totalToolArgumentBytes: number | null = null;
+  private maxToolArgumentCodeUnits: number | null = null;
+
+  constructor(options: ProviderStreamSummaryCollectorOptions = {}) {
+    this.now = options.now ?? Date.now;
+    this.startedAtMs = this.now();
+    this.softToolArgumentBytes = options.softToolArgumentBytes ?? null;
+    this.hardToolArgumentBytes = options.hardToolArgumentBytes ?? null;
+    this.outputTruncationMode = options.outputTruncationMode ?? "legacy";
+  }
 
   record(event: StreamEvent): void {
     if (event.type === "message_delta") {
@@ -85,17 +144,29 @@ export class ProviderStreamSummaryCollector {
       return;
     }
     if (event.type === "tool_call") {
+      const serializedArguments =
+        event.argumentsJson ?? safeJson(event.arguments ?? {});
+      const argumentCodeUnits = serializedArguments.length;
+      const argumentBytes = Buffer.byteLength(serializedArguments, "utf8");
       this.toolCallCount += 1;
       this.toolNames.add(event.name);
+      this.maxToolArgumentBytes = Math.max(this.maxToolArgumentBytes ?? 0, argumentBytes);
+      this.totalToolArgumentBytes = (this.totalToolArgumentBytes ?? 0) + argumentBytes;
+      this.maxToolArgumentCodeUnits = Math.max(
+        this.maxToolArgumentCodeUnits ?? 0,
+        argumentCodeUnits
+      );
       this.recordNormalized({
         type: event.type,
         name: event.name,
-        arguments_chars: event.argumentsJson?.length ?? safeJson(event.arguments ?? {}).length
+        arguments_code_units: argumentCodeUnits,
+        arguments_bytes: argumentBytes
       });
       return;
     }
     if (event.type === "completed") {
       this.completed = true;
+      this.usage = event.usage ? { ...event.usage } : null;
       this.applyProviderSummary(event.responseSummary);
       this.recordNormalized({
         type: event.type,
@@ -117,6 +188,25 @@ export class ProviderStreamSummaryCollector {
 
   snapshot(attempt?: ProviderStreamAttemptContext): ProviderStreamSummary {
     const finishReason = this.finishReason;
+    const outputLimitHit = finishReason === "length";
+    const streamIncomplete =
+      this.errorCode === "upstream_incomplete_stream" ||
+      this.terminationKind === "eof_before_terminal" ||
+      (!this.completed && this.errorCode === null);
+    const argumentBudgetCandidate =
+      this.softToolArgumentBytes !== null &&
+      ((this.maxToolArgumentBytes ?? 0) >= this.softToolArgumentBytes ||
+        (this.totalToolArgumentBytes ?? 0) >= this.softToolArgumentBytes);
+    const argumentBudgetExceeded =
+      this.hardToolArgumentBytes !== null &&
+      ((this.maxToolArgumentBytes ?? 0) >= this.hardToolArgumentBytes ||
+        (this.totalToolArgumentBytes ?? 0) >= this.hardToolArgumentBytes);
+    const truncationConfidence =
+      outputLimitHit || streamIncomplete
+        ? "confirmed"
+        : argumentBudgetExceeded
+          ? "suspected"
+          : "none";
     const summary: ProviderStreamSummary = {
       completed: this.completed,
       finishReason,
@@ -130,6 +220,21 @@ export class ProviderStreamSummaryCollector {
       rawResponseHash: this.upstreamRawHash ?? this.normalizedRawHash(),
       rawResponseChars: this.upstreamRawChars ?? this.normalizedChars,
       terminationKind: this.terminationKind,
+      durationMs: Math.max(0, this.now() - this.startedAtMs),
+      usage: this.usage ? { ...this.usage } : null,
+      maxToolArgumentBytes: this.maxToolArgumentBytes,
+      totalToolArgumentBytes: this.totalToolArgumentBytes,
+      maxToolArgumentCodeUnits: this.maxToolArgumentCodeUnits,
+      outputLimitHit,
+      streamIncomplete,
+      argumentBudgetCandidate,
+      argumentBudgetExceeded,
+      truncationConfidence,
+      gatewayRecoveryAction: outputLimitHit
+        ? this.outputTruncationMode === "chunk"
+          ? "error"
+          : this.outputTruncationMode
+        : null,
       emptyStop:
         finishReason === null || this.errorCode !== null
           ? null
@@ -207,12 +312,20 @@ export interface CollectProviderMessageInput {
   attemptToolChoice?: string | null;
   upstreamRuntime?: string | null;
   upstreamModel?: string | null;
+  outputTruncationMode?: OutputTruncationMode;
+  outputKind?: ProviderOutputKind;
+  softToolArgumentBytes?: number | null;
+  hardToolArgumentBytes?: number | null;
 }
 
 export async function collectProviderMessage(
   input: CollectProviderMessageInput
 ): Promise<CollectedProviderMessage | GatewayError> {
-  const collector = new ProviderStreamSummaryCollector();
+  const collector = new ProviderStreamSummaryCollector({
+    softToolArgumentBytes: input.softToolArgumentBytes,
+    hardToolArgumentBytes: input.hardToolArgumentBytes,
+    outputTruncationMode: input.outputTruncationMode
+  });
   const result: CollectedProviderMessage = {
     content: "",
     toolCalls: [],
@@ -272,7 +385,10 @@ export async function collectProviderMessage(
   }
 
   result.providerSummary = collector.snapshot(providerAttemptContext(input));
-  const completionError = providerCompletionError(result.providerSummary);
+  const completionError = providerCompletionError(result.providerSummary, {
+    outputTruncationMode: input.outputTruncationMode,
+    outputKind: resolveCollectedOutputKind(input.outputKind ?? "auto", result)
+  });
   if (
     completionError &&
     !(input.deferEmptyCompletionError && completionError.code === "upstream_empty_response")
@@ -393,6 +509,16 @@ export function combineProviderStreamSummaries(
   );
   const toolCallCount = present.reduce((total, summary) => total + summary.toolCallCount, 0);
   const toolNames = [...new Set(present.flatMap((summary) => summary.toolNames))].sort();
+  const usage = combineTokenUsages(present.map((summary) => summary.usage));
+  const maxToolArgumentBytes = maxNullable(
+    present.map((summary) => summary.maxToolArgumentBytes)
+  );
+  const totalToolArgumentBytes = sumNullable(
+    present.map((summary) => summary.totalToolArgumentBytes)
+  );
+  const maxToolArgumentCodeUnits = maxNullable(
+    present.map((summary) => summary.maxToolArgumentCodeUnits)
+  );
   const finishReason = present[present.length - 1]?.finishReason ?? null;
   const attempts = present.flatMap((summary) =>
     summary.attempts.length > 0 ? summary.attempts : [providerSummaryToAttempt(summary)]
@@ -411,6 +537,20 @@ export function combineProviderStreamSummaries(
     rawResponseHash: hash.digest("hex"),
     rawResponseChars: hasRawChars ? rawChars : null,
     terminationKind: present[present.length - 1]?.terminationKind ?? null,
+    durationMs: present.reduce((total, summary) => total + summary.durationMs, 0),
+    usage,
+    maxToolArgumentBytes,
+    totalToolArgumentBytes,
+    maxToolArgumentCodeUnits,
+    outputLimitHit: present.some((summary) => summary.outputLimitHit),
+    streamIncomplete: present.some((summary) => summary.streamIncomplete),
+    argumentBudgetCandidate: present.some(
+      (summary) => summary.argumentBudgetCandidate
+    ),
+    argumentBudgetExceeded: present.some((summary) => summary.argumentBudgetExceeded),
+    truncationConfidence: combinedTruncationConfidence(present),
+    gatewayRecoveryAction:
+      present.findLast((summary) => summary.gatewayRecoveryAction)?.gatewayRecoveryAction ?? null,
     emptyStop:
       finishReason === null ? null : finishReason === "stop" && contentChars === 0 && toolCallCount === 0,
     attempts: attempts.map((attempt, index) => ({ ...attempt, index: index + 1 }))
@@ -431,8 +571,27 @@ export function attachProviderStreamSummary(
   error: GatewayError,
   summary: ProviderStreamSummary
 ): GatewayError {
+  const attempts = summary.attempts.map((attempt, index) =>
+    index === summary.attempts.length - 1
+      ? {
+          ...attempt,
+          errorCode: error.code,
+          ...(isToolCallValidationFailureKind(error.failureKind)
+            ? { toolValidationFailureKind: error.failureKind }
+            : {}),
+          ...(error.recoveryOwner
+            ? { gatewayRecoveryOwner: error.recoveryOwner }
+            : {}),
+          gatewayRecoveryResult: error.code
+        }
+      : attempt
+  );
   Object.defineProperty(error, "providerSummary", {
-    value: summary,
+    value: {
+      ...summary,
+      errorCode: error.code,
+      attempts
+    } satisfies ProviderStreamSummary,
     configurable: true
   });
   return error;
@@ -456,17 +615,14 @@ export function providerTruncatedWithoutOutputError(
     httpStatus: 413
   });
 
-  return attachProviderStreamSummary(error, {
-    ...summary,
-    errorCode: error.code,
-    attempts: summary.attempts.map((attempt) => ({
-      ...attempt,
-      errorCode: attempt.errorCode ?? error.code
-    }))
-  });
+  return providerProtocolError(summary, error);
 }
 
-export function providerCompletionError(summary: ProviderStreamSummary): GatewayError | null {
+export function providerCompletionError(
+  summary: ProviderStreamSummary,
+  options: ProviderCompletionErrorOptions = {}
+): GatewayError | null {
+  const assessment = assessProviderCompletion(summary);
   if (summary.finishReason === "content_filter") {
     return providerProtocolError(
       summary,
@@ -490,6 +646,13 @@ export function providerCompletionError(summary: ProviderStreamSummary): Gateway
       })
     );
   }
+  if (
+    assessment.outputLimitHit &&
+    (options.outputTruncationMode === "error" ||
+      options.outputTruncationMode === "chunk")
+  ) {
+    return providerOutputLengthError(summary, options.outputKind ?? "auto");
+  }
   const truncatedWithoutOutputError = providerTruncatedWithoutOutputError(summary);
   if (truncatedWithoutOutputError) {
     return truncatedWithoutOutputError;
@@ -511,9 +674,76 @@ export function providerCompletionError(summary: ProviderStreamSummary): Gateway
   );
 }
 
+export function assessProviderCompletion(
+  summary: ProviderStreamSummary,
+  validationKind: ProviderCompletionAssessment["validationKind"] = "none"
+): ProviderCompletionAssessment {
+  return {
+    finishReason: summary.finishReason,
+    toolNames: [...summary.toolNames],
+    toolCallCount: summary.toolCallCount,
+    maxToolArgumentBytes: summary.maxToolArgumentBytes,
+    totalToolArgumentBytes: summary.totalToolArgumentBytes,
+    maxToolArgumentCodeUnits: summary.maxToolArgumentCodeUnits,
+    validationKind,
+    outputLimitHit: summary.outputLimitHit,
+    streamIncomplete: summary.streamIncomplete,
+    argumentBudgetCandidate: summary.argumentBudgetCandidate,
+    argumentBudgetExceeded: summary.argumentBudgetExceeded,
+    truncationConfidence: summary.truncationConfidence
+  };
+}
+
 export function providerStreamSummaryFromError(error: GatewayError): ProviderStreamSummary | null {
   const summary = (error as GatewayError & { providerSummary?: unknown }).providerSummary;
   return isProviderStreamSummary(summary) ? summary : null;
+}
+
+function providerOutputLengthError(
+  summary: ProviderStreamSummary,
+  outputKind: ProviderOutputKind
+): GatewayError {
+  const isToolOutput =
+    outputKind === "tool_call" ||
+    (outputKind === "auto" && summary.toolCallCount > 0);
+  const error = isToolOutput
+    ? new GatewayError({
+        code: "tool_call_output_truncated",
+        message:
+          "The generated tool call reached the request output limit and was not delivered.",
+        httpStatus: 502,
+        contractVersion: 1,
+        failureKind: "confirmed_output_limit",
+        transformedRetryAllowed: true,
+        recommendedAction: "compact_and_generate_in_chunks",
+        recoveryOwner: "client"
+      })
+    : new GatewayError({
+        code: "output_length_exceeded",
+        message: "The model reached the request output limit before completing its response.",
+        httpStatus: 502,
+        contractVersion: 1,
+        failureKind: "confirmed_output_limit",
+        transformedRetryAllowed: true,
+        recommendedAction: "continue_with_more_output_budget",
+        recoveryOwner: "client"
+      });
+
+  return providerProtocolError(summary, error);
+}
+
+function resolveCollectedOutputKind(
+  requested: ProviderOutputKind,
+  collected: Pick<CollectedProviderMessage, "content" | "toolCalls">
+): ProviderOutputKind {
+  if (requested !== "auto" || collected.toolCalls.length > 0) {
+    return requested;
+  }
+  return /["']type["']\s*:\s*["']tool_calls["']|["']tool_calls["']\s*:/i.test(
+    collected.content
+  )
+    ? "tool_call"
+    : "auto";
 }
 
 function providerAttemptContext(input: CollectProviderMessageInput): ProviderStreamAttemptContext {
@@ -549,7 +779,27 @@ function providerSummaryToAttempt(
     rawResponseHash: summary.rawResponseHash,
     rawResponseChars: summary.rawResponseChars,
     emptyStop: summary.emptyStop,
-    terminationKind: summary.terminationKind
+    terminationKind: summary.terminationKind,
+    durationMs: summary.durationMs,
+    promptTokens: summary.usage?.promptTokens ?? null,
+    completionTokens: summary.usage?.completionTokens ?? null,
+    totalTokens: summary.usage?.totalTokens ?? null,
+    cachedPromptTokens: summary.usage?.cachedPromptTokens ?? null,
+    reasoningTokens: summary.usage?.reasoningTokens ?? null,
+    maxToolArgumentBytes: summary.maxToolArgumentBytes,
+    totalToolArgumentBytes: summary.totalToolArgumentBytes,
+    maxToolArgumentCodeUnits: summary.maxToolArgumentCodeUnits,
+    toolValidationFailureKind: null,
+    outputLimitHit: summary.outputLimitHit,
+    streamIncomplete: summary.streamIncomplete,
+    argumentBudgetCandidate: summary.argumentBudgetCandidate,
+    argumentBudgetExceeded: summary.argumentBudgetExceeded,
+    truncationConfidence: summary.truncationConfidence,
+    gatewayRecoveryId: null,
+    gatewayRecoveryOwner: null,
+    gatewayRecoveryAction: summary.gatewayRecoveryAction,
+    gatewayRecoveryResult: null,
+    turnRecoveryCount: null
   };
 }
 
@@ -578,6 +828,69 @@ function isProviderStreamSummary(value: unknown): value is ProviderStreamSummary
   );
 }
 
+function isToolCallValidationFailureKind(
+  value: GatewayError["failureKind"]
+): value is "invalid_json" | "schema_mismatch" | "undeclared_tool" | "tool_choice_mismatch" {
+  return (
+    value === "invalid_json" ||
+    value === "schema_mismatch" ||
+    value === "undeclared_tool" ||
+    value === "tool_choice_mismatch"
+  );
+}
+
+function combineTokenUsages(usages: Array<TokenUsage | null | undefined>): TokenUsage | null {
+  const present = usages.filter((usage): usage is TokenUsage => usage !== null && usage !== undefined);
+  if (present.length === 0) {
+    return null;
+  }
+  const hasCachedPromptTokens = present.some((usage) => usage.cachedPromptTokens !== undefined);
+  const hasReasoningTokens = present.some((usage) => usage.reasoningTokens !== undefined);
+  return {
+    promptTokens: present.reduce((total, usage) => total + usage.promptTokens, 0),
+    completionTokens: present.reduce((total, usage) => total + usage.completionTokens, 0),
+    totalTokens: present.reduce((total, usage) => total + usage.totalTokens, 0),
+    ...(hasCachedPromptTokens
+      ? {
+          cachedPromptTokens: present.reduce(
+            (total, usage) => total + (usage.cachedPromptTokens ?? 0),
+            0
+          )
+        }
+      : {}),
+    ...(hasReasoningTokens
+      ? {
+          reasoningTokens: present.reduce(
+            (total, usage) => total + (usage.reasoningTokens ?? 0),
+            0
+          )
+        }
+      : {})
+  };
+}
+
+function maxNullable(values: Array<number | null>): number | null {
+  const present = values.filter((value): value is number => value !== null);
+  return present.length > 0 ? Math.max(...present) : null;
+}
+
+function sumNullable(values: Array<number | null>): number | null {
+  const present = values.filter((value): value is number => value !== null);
+  return present.length > 0 ? present.reduce((total, value) => total + value, 0) : null;
+}
+
+function combinedTruncationConfidence(
+  summaries: ProviderStreamSummary[]
+): ProviderStreamSummary["truncationConfidence"] {
+  if (summaries.some((summary) => summary.truncationConfidence === "confirmed")) {
+    return "confirmed";
+  }
+  if (summaries.some((summary) => summary.truncationConfidence === "suspected")) {
+    return "suspected";
+  }
+  return "none";
+}
+
 function safeJson(value: unknown): string {
   try {
     return JSON.stringify(value);
@@ -601,6 +914,17 @@ function emptyProviderStreamSummary(): ProviderStreamSummary {
     rawResponseChars: null,
     emptyStop: null,
     terminationKind: null,
+    durationMs: 0,
+    usage: null,
+    maxToolArgumentBytes: null,
+    totalToolArgumentBytes: null,
+    maxToolArgumentCodeUnits: null,
+    outputLimitHit: false,
+    streamIncomplete: false,
+    argumentBudgetCandidate: false,
+    argumentBudgetExceeded: false,
+    truncationConfidence: "none",
+    gatewayRecoveryAction: null,
     attempts: []
   };
 }
@@ -614,7 +938,6 @@ function providerProtocolError(
     errorCode: error.code,
     attempts: summary.attempts.map((attempt) => ({
       ...attempt,
-      errorCode: attempt.errorCode ?? error.code,
       ...(summary.terminationKind === "eof_before_terminal" &&
       (attempt.terminationKind === null ||
         attempt.terminationKind === undefined)

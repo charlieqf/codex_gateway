@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assessProviderCompletion,
   collectProviderMessage,
   providerStreamSummaryFromError,
   streamErrorToGatewayError
@@ -66,6 +67,254 @@ describe("streamErrorToGatewayError", () => {
 });
 
 describe("collectProviderMessage", () => {
+  it("rejects a length-truncated tool call before it can be delivered", async () => {
+    const argumentsJson = '{"content":"医学"}';
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "tool_call",
+          callId: "call_truncated_write",
+          name: "write_file",
+          arguments: { content: "医学" },
+          argumentsJson
+        },
+        {
+          type: "completed",
+          usage: {
+            promptTokens: 101,
+            completionTokens: 32,
+            totalTokens: 133,
+            cachedPromptTokens: 0
+          },
+          responseSummary: {
+            finishReason: "length",
+            terminationKind: "finish_reason_and_done"
+          }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "write a file",
+      outputTruncationMode: "error",
+      outputKind: "auto"
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect(result).toMatchObject({
+      code: "tool_call_output_truncated",
+      httpStatus: 502,
+      contractVersion: 1,
+      failureKind: "confirmed_output_limit",
+      transformedRetryAllowed: true,
+      recoveryOwner: "client"
+    });
+    expect(providerStreamSummaryFromError(result as GatewayError)).toMatchObject({
+      finishReason: "length",
+      outputLimitHit: true,
+      truncationConfidence: "confirmed",
+      maxToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8"),
+      totalToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8"),
+      maxToolArgumentCodeUnits: argumentsJson.length,
+      usage: {
+        promptTokens: 101,
+        completionTokens: 32,
+        totalTokens: 133,
+        cachedPromptTokens: 0
+      },
+      attempts: [
+        expect.objectContaining({
+          errorCode: "tool_call_output_truncated",
+          outputLimitHit: true,
+          promptTokens: 101,
+          completionTokens: 32,
+          totalTokens: 133,
+          cachedPromptTokens: 0,
+          maxToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8"),
+          durationMs: expect.any(Number),
+          gatewayRecoveryAction: "error",
+          gatewayRecoveryOwner: "client"
+        })
+      ]
+    });
+  });
+
+  it("returns output_length_exceeded for ordinary text in error mode", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        { type: "message_delta", text: "partial response" },
+        {
+          type: "completed",
+          responseSummary: { finishReason: "length" }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      outputTruncationMode: "error",
+      outputKind: "text"
+    });
+
+    expect(result).toMatchObject({
+      code: "output_length_exceeded",
+      httpStatus: 502,
+      failureKind: "confirmed_output_limit"
+    });
+  });
+
+  it("keeps strict auto message output distinct from a truncated tool envelope", async () => {
+    const messageResult = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "message_delta",
+          text: '{"type":"message","content":"partial answer"}'
+        },
+        { type: "completed", responseSummary: { finishReason: "length" } }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "answer or use a tool",
+      outputTruncationMode: "error",
+      outputKind: "auto"
+    });
+    const toolResult = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "message_delta",
+          text: '{"type":"tool_calls","tool_calls":[{"name":"write","arguments":'
+        },
+        { type: "completed", responseSummary: { finishReason: "length" } }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "answer or use a tool",
+      outputTruncationMode: "error",
+      outputKind: "auto"
+    });
+
+    expect(messageResult).toMatchObject({ code: "output_length_exceeded" });
+    expect(toolResult).toMatchObject({ code: "tool_call_output_truncated" });
+  });
+
+  it("records the shadow decision without changing length-truncated tool behavior", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "tool_call",
+          callId: "call_shadow",
+          name: "read",
+          argumentsJson: '{"path":"notes.md"}'
+        },
+        {
+          type: "completed",
+          responseSummary: { finishReason: "length" }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "read",
+      outputTruncationMode: "shadow"
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) {
+      throw result;
+    }
+    expect(assessProviderCompletion(result.providerSummary)).toMatchObject({
+      finishReason: "length",
+      toolNames: ["read"],
+      toolCallCount: 1,
+      outputLimitHit: true,
+      truncationConfidence: "confirmed"
+    });
+    expect(result.providerSummary.attempts[0]).toMatchObject({
+      gatewayRecoveryAction: "shadow",
+      outputLimitHit: true
+    });
+  });
+
+  it("marks an argument budget hit as suspected rather than confirmed truncation", async () => {
+    const argumentsJson = '{"content":"abcdef"}';
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "tool_call",
+          callId: "call_budget",
+          name: "write_file",
+          argumentsJson
+        },
+        {
+          type: "completed",
+          responseSummary: { finishReason: "stop" }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "write",
+      outputTruncationMode: "shadow",
+      hardToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8")
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) {
+      throw result;
+    }
+    expect(result.providerSummary).toMatchObject({
+      outputLimitHit: false,
+      streamIncomplete: false,
+      argumentBudgetCandidate: false,
+      argumentBudgetExceeded: true,
+      truncationConfidence: "suspected"
+    });
+  });
+
+  it("records a soft argument byte candidate without changing behavior or confidence", async () => {
+    const argumentsJson = '{"content":"医学证据"}';
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "tool_call",
+          callId: "call_soft_candidate",
+          name: "write_file",
+          argumentsJson
+        },
+        { type: "completed", responseSummary: { finishReason: "stop" } }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "write",
+      outputTruncationMode: "shadow",
+      softToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8")
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) {
+      throw result;
+    }
+    expect(result.providerSummary).toMatchObject({
+      argumentBudgetCandidate: true,
+      argumentBudgetExceeded: false,
+      truncationConfidence: "none"
+    });
+    expect(result.providerSummary.attempts[0]).toMatchObject({
+      argumentBudgetCandidate: true,
+      maxToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8")
+    });
+  });
+
   it("maps length-truncated empty provider output to a context error", async () => {
     const result = await collectProviderMessage({
       provider: fakeProvider([

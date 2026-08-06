@@ -265,6 +265,26 @@ export interface UpstreamAttemptSummary {
   rawResponseChars: number | null;
   emptyStop: boolean | null;
   terminationKind?: ProviderStreamTermination | null;
+  durationMs?: number | null;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  totalTokens?: number | null;
+  cachedPromptTokens?: number | null;
+  reasoningTokens?: number | null;
+  maxToolArgumentBytes?: number | null;
+  totalToolArgumentBytes?: number | null;
+  maxToolArgumentCodeUnits?: number | null;
+  toolValidationFailureKind?: import("./errors.js").ToolCallValidationFailureKind | null;
+  outputLimitHit?: boolean;
+  streamIncomplete?: boolean;
+  argumentBudgetCandidate?: boolean;
+  argumentBudgetExceeded?: boolean;
+  truncationConfidence?: "confirmed" | "suspected" | "none";
+  gatewayRecoveryId?: string | null;
+  gatewayRecoveryOwner?: import("./errors.js").GatewayRecoveryOwner | null;
+  gatewayRecoveryAction?: "legacy" | "shadow" | "error" | "chunk" | null;
+  gatewayRecoveryResult?: string | null;
+  turnRecoveryCount?: number | null;
 }
 
 export interface ClientMessageEventRecord {

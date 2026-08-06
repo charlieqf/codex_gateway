@@ -393,5 +393,32 @@ describe("Responses compatibility", () => {
         }
       }
     });
+
+    const truncated = createResponsesFailedEvent(
+      parsed,
+      start.state,
+      new GatewayError({
+        code: "tool_call_output_truncated",
+        message: "The generated tool call was truncated.",
+        httpStatus: 502,
+        contractVersion: 1,
+        failureKind: "confirmed_output_limit",
+        transformedRetryAllowed: true,
+        recommendedAction: "compact_and_generate_in_chunks",
+        recoveryOwner: "client"
+      })
+    );
+    expect(truncated.data.response).toMatchObject({
+      status: "failed",
+      error: {
+        code: "tool_call_output_truncated",
+        contract_version: 1,
+        failure_kind: "confirmed_output_limit",
+        retryable: false,
+        transformed_retry_allowed: true,
+        recommended_action: "compact_and_generate_in_chunks",
+        recovery_owner: "client"
+      }
+    });
   });
 });

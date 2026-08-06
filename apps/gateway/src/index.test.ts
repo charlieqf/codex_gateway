@@ -7532,7 +7532,33 @@ describe("gateway phase 1 routes", () => {
             expect(retryMessages[1].content).toContain("questions");
             expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
               publicModelId: "expert",
-              status: "ok"
+              status: "ok",
+              promptTokens: 85,
+              completionTokens: 14,
+              totalTokens: 99,
+              upstreamAttemptCount: 2,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  index: 1,
+                  kind: "native_initial",
+                  errorCode: "tool_call_validation_failed",
+                  toolValidationFailureKind: "schema_mismatch",
+                  promptTokens: 40,
+                  completionTokens: 6,
+                  totalTokens: 46,
+                  durationMs: expect.any(Number)
+                }),
+                expect.objectContaining({
+                  index: 2,
+                  kind: "validation_failed_to_auto",
+                  errorCode: null,
+                  toolValidationFailureKind: null,
+                  promptTokens: 45,
+                  completionTokens: 8,
+                  totalTokens: 53,
+                  durationMs: expect.any(Number)
+                })
+              ]
             });
           } finally {
             await app.close();
@@ -8276,8 +8302,256 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("rejects a schema-valid length-truncated native tool call without generic repair", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const argumentsJson = '{"path":"summary.html","content":"<html></html>"}';
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_length_file",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: argumentsJson
+                    }
+                  }
+                ]
+              },
+              finish_reason: "length"
+            }
+          ],
+          usage: {
+            prompt_tokens: 101,
+            completion_tokens: 32,
+            total_tokens: 133
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: "error",
+          MEDCODE_NATIVE_FILE_TOOL_RECOVERY_CANARY_PERCENT: "0",
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Create a complete HTML file." }],
+                tool_choice: "auto",
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+            const requestId = expectRequestIdHeader(response);
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "tool_call_output_truncated",
+              type: "server_error",
+              request_id: requestId,
+              contract_version: 1,
+              failure_kind: "confirmed_output_limit",
+              retryable: false,
+              transformed_retry_allowed: true,
+              recommended_action: "compact_and_generate_in_chunks",
+              recovery_owner: "client"
+            });
+            expect(captured).toHaveLength(1);
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              status: "error",
+              errorCode: "tool_call_output_truncated",
+              promptTokens: 101,
+              completionTokens: 32,
+              totalTokens: 133,
+              upstreamAttemptCount: 1,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  index: 1,
+                  finishReason: "length",
+                  errorCode: "tool_call_output_truncated",
+                  outputLimitHit: true,
+                  truncationConfidence: "confirmed",
+                  maxToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8"),
+                  totalToolArgumentBytes: Buffer.byteLength(argumentsJson, "utf8"),
+                  maxToolArgumentCodeUnits: argumentsJson.length,
+                  promptTokens: 101,
+                  completionTokens: 32,
+                  totalTokens: 133,
+                  gatewayRecoveryAction: "error",
+                  gatewayRecoveryOwner: "client"
+                })
+              ]
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("stops same-shape repair for oversized invalid native arguments without claiming truncation", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const argumentsJson = '{"path":"summary.html","content":"unfinished';
+    const argumentBytes = Buffer.byteLength(argumentsJson, "utf8");
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_budget_invalid",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: argumentsJson
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ]
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: "error",
+          MEDCODE_NATIVE_FILE_TOOL_SOFT_ARGUMENT_BYTES: "1",
+          MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES: String(argumentBytes),
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Create a file." }],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "tool_call_validation_failed",
+              failure_kind: "argument_budget_exceeded",
+              retryable: false,
+              transformed_retry_allowed: true
+            });
+            expect(captured).toHaveLength(1);
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              status: "error",
+              errorCode: "tool_call_validation_failed",
+              upstreamAttemptCount: 1,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  errorCode: "tool_call_validation_failed",
+                  toolValidationFailureKind: "invalid_json",
+                  maxToolArgumentBytes: argumentBytes,
+                  argumentBudgetExceeded: true,
+                  outputLimitHit: false,
+                  truncationConfidence: "suspected"
+                })
+              ]
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("rejects undeclared native OpenRouter tool calls", async () => {
+    let providerAttempt = 0;
     const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      providerAttempt += 1;
       response.writeHead(200, { "content-type": "text/event-stream" });
       response.write(
         `data: ${JSON.stringify({
@@ -8298,7 +8572,12 @@ describe("gateway phase 1 routes", () => {
               },
               finish_reason: "tool_calls"
             }
-          ]
+          ],
+          usage: {
+            prompt_tokens: providerAttempt === 1 ? 20 : 25,
+            completion_tokens: providerAttempt === 1 ? 4 : 5,
+            total_tokens: providerAttempt === 1 ? 24 : 30
+          }
         })}\n\n`
       );
       response.end("data: [DONE]\n\n");
@@ -8351,9 +8630,39 @@ describe("gateway phase 1 routes", () => {
 
             expect(response.statusCode).toBe(502);
             expect(response.json().error).toMatchObject({
-              code: "tool_call_validation_failed"
+              code: "tool_call_validation_failed",
+              failure_kind: "undeclared_tool",
+              retryable: false,
+              transformed_retry_allowed: true
             });
             expect(response.json().error.message).toContain("was not declared");
+            expect(providerAttempt).toBe(2);
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              status: "error",
+              errorCode: "tool_call_validation_failed",
+              promptTokens: 45,
+              completionTokens: 9,
+              totalTokens: 54,
+              upstreamAttemptCount: 2,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  index: 1,
+                  errorCode: "tool_call_validation_failed",
+                  toolValidationFailureKind: "undeclared_tool",
+                  promptTokens: 20,
+                  completionTokens: 4,
+                  totalTokens: 24
+                }),
+                expect.objectContaining({
+                  index: 2,
+                  errorCode: "tool_call_validation_failed",
+                  toolValidationFailureKind: "undeclared_tool",
+                  promptTokens: 25,
+                  completionTokens: 5,
+                  totalTokens: 30
+                })
+              ]
+            });
           } finally {
             await app.close();
           }
@@ -8442,6 +8751,130 @@ describe("gateway phase 1 routes", () => {
               code: "tool_call_validation_failed"
             });
             expect(response.json().error.message).toContain("must be string");
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("keeps the first validation attempt when the native repair collection fails", async () => {
+    let providerAttempt = 0;
+    const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {
+      providerAttempt += 1;
+      if (providerAttempt === 2) {
+        response.writeHead(503, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: { message: "provider unavailable" } }));
+        return;
+      }
+
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_bad_then_error",
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      arguments: '{"path":123,"content":"draft"}'
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: 30,
+            completion_tokens: 7,
+            total_tokens: 37
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+          MEDCODE_OPENROUTER_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["pro"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "pro",
+                messages: [{ role: "user", content: "Create a file." }],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write_file",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ]
+              }
+            });
+
+            expect(response.statusCode).toBe(503);
+            expect(response.json().error.code).toBe("upstream_unavailable");
+            expect(providerAttempt).toBe(2);
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              status: "error",
+              errorCode: "upstream_unavailable",
+              promptTokens: 30,
+              completionTokens: 7,
+              totalTokens: 37,
+              upstreamAttemptCount: 2,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  index: 1,
+                  errorCode: "tool_call_validation_failed",
+                  toolValidationFailureKind: "schema_mismatch",
+                  promptTokens: 30,
+                  completionTokens: 7,
+                  totalTokens: 37
+                }),
+                expect.objectContaining({
+                  index: 2,
+                  errorCode: "upstream_unavailable",
+                  promptTokens: null,
+                  completionTokens: null,
+                  totalTokens: null
+                })
+              ]
+            });
           } finally {
             await app.close();
           }
@@ -9133,6 +9566,96 @@ describe("gateway phase 1 routes", () => {
     expect(provider.messages[0].message).toContain("medevidence");
 
     await app.close();
+  });
+
+  it("classifies length-limited strict auto messages separately from tool calls", async () => {
+    await withTemporaryEnv(
+      { MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: "error" },
+      async () => {
+        const messageProvider = new FakeProvider([
+          {
+            type: "message_delta",
+            text: JSON.stringify({ type: "message", content: "partial answer" })
+          },
+          {
+            type: "completed",
+            responseSummary: { finishReason: "length" }
+          }
+        ]);
+        const toolProvider = new FakeProvider([
+          {
+            type: "message_delta",
+            text: JSON.stringify({
+              type: "tool_calls",
+              tool_calls: [
+                {
+                  name: "write",
+                  arguments: { content: "schema-valid but incomplete artifact" }
+                }
+              ]
+            })
+          },
+          {
+            type: "completed",
+            responseSummary: { finishReason: "length" }
+          }
+        ]);
+        const messageApp = buildGateway({
+          accessToken: "secret",
+          provider: messageProvider,
+          logger: false
+        });
+        const toolApp = buildGateway({
+          accessToken: "secret",
+          provider: toolProvider,
+          logger: false
+        });
+        const payload = {
+          model: "medcode",
+          messages: [{ role: "user", content: "Answer or write an artifact." }],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "write",
+                parameters: {
+                  type: "object",
+                  properties: { content: { type: "string" } },
+                  required: ["content"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ],
+          tool_choice: "auto"
+        };
+
+        try {
+          const messageResponse = await messageApp.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers: { authorization: "Bearer secret" },
+            payload
+          });
+          const toolResponse = await toolApp.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers: { authorization: "Bearer secret" },
+            payload
+          });
+
+          expect(messageResponse.statusCode).toBe(502);
+          expect(messageResponse.json().error.code).toBe("output_length_exceeded");
+          expect(toolResponse.statusCode).toBe(502);
+          expect(toolResponse.json().error.code).toBe("tool_call_output_truncated");
+          expect(messageProvider.messages).toHaveLength(1);
+          expect(toolProvider.messages).toHaveLength(1);
+        } finally {
+          await messageApp.close();
+          await toolApp.close();
+        }
+      }
+    );
   });
 
   it("accepts draft 2020-12 schemas for strict client-defined tools", async () => {
@@ -10045,6 +10568,91 @@ describe("gateway phase 1 routes", () => {
     expect(response.json().error.message).toContain("additional properties");
 
     await app.close();
+  });
+
+  it("uses the same output_length_exceeded contract before and after SSE starts", async () => {
+    await withTemporaryEnv(
+      { MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: "error" },
+      async () => {
+        const events: StreamEvent[] = [
+          { type: "message_delta", text: "partial response" },
+          {
+            type: "completed",
+            usage: {
+              promptTokens: 12,
+              completionTokens: 4,
+              totalTokens: 16
+            },
+            responseSummary: { finishReason: "length" }
+          }
+        ];
+        const nonStreamingApp = buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(events),
+          logger: false
+        });
+        const streamingApp = buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(events),
+          logger: false
+        });
+
+        try {
+          const nonStreaming = await nonStreamingApp.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers: { authorization: "Bearer secret" },
+            payload: {
+              model: "medcode",
+              messages: [{ role: "user", content: "Write a long answer." }]
+            }
+          });
+          const streaming = await streamingApp.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers: { authorization: "Bearer secret" },
+            payload: {
+              model: "medcode",
+              stream: true,
+              messages: [{ role: "user", content: "Write a long answer." }]
+            }
+          });
+
+          expect(nonStreaming.statusCode).toBe(502);
+          expect(nonStreaming.json().error).toMatchObject({
+            code: "output_length_exceeded",
+            type: "server_error",
+            contract_version: 1,
+            failure_kind: "confirmed_output_limit",
+            retryable: false,
+            transformed_retry_allowed: true,
+            recovery_owner: "client"
+          });
+
+          expect(streaming.statusCode).toBe(200);
+          const streamFrames = parseOpenAISseData(streaming.payload);
+          const streamError = streamFrames.find(
+            (frame) =>
+              typeof frame === "object" &&
+              frame !== null &&
+              "error" in frame
+          ) as { error?: Record<string, unknown> } | undefined;
+          expect(streamError?.error).toMatchObject({
+            code: "output_length_exceeded",
+            type: "server_error",
+            contract_version: 1,
+            failure_kind: "confirmed_output_limit",
+            retryable: false,
+            transformed_retry_allowed: true,
+            recovery_owner: "client"
+          });
+          expect(streaming.payload).toContain("partial response");
+        } finally {
+          await nonStreamingApp.close();
+          await streamingApp.close();
+        }
+      }
+    );
   });
 
   it("streams OpenAI tool call chunks with tool_calls finish reason", async () => {

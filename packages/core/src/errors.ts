@@ -32,11 +32,14 @@ export const gatewayErrorCodes = [
   "unsupported_format",
   "content_policy_violation",
   "context_length_exceeded",
+  "context_compaction_required",
+  "output_length_exceeded",
   "client_aborted",
   "upstream_timeout",
   "upstream_unavailable",
   "upstream_incomplete_stream",
   "upstream_empty_response",
+  "tool_call_output_truncated",
   "tool_call_validation_failed",
   // Public compatibility error code; do not rename during upstream account cleanup.
   "subscription_unavailable",
@@ -58,11 +61,30 @@ export const gatewayErrorCodes = [
 
 export type GatewayErrorCode = (typeof gatewayErrorCodes)[number];
 
+export type ToolCallValidationFailureKind =
+  | "invalid_json"
+  | "schema_mismatch"
+  | "undeclared_tool"
+  | "tool_choice_mismatch";
+
+export type GatewayFailureKind =
+  | ToolCallValidationFailureKind
+  | "confirmed_output_limit"
+  | "argument_budget_exceeded"
+  | "upstream_incomplete";
+
+export type GatewayRecoveryOwner = "client" | "gateway";
+
 export class GatewayError extends Error {
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
   readonly retryAfterSeconds?: number;
   readonly upstreamStatus?: number;
+  readonly contractVersion?: number;
+  readonly failureKind?: GatewayFailureKind;
+  readonly transformedRetryAllowed?: boolean;
+  readonly recommendedAction?: string;
+  readonly recoveryOwner?: GatewayRecoveryOwner;
 
   constructor(input: {
     code: GatewayErrorCode;
@@ -70,6 +92,11 @@ export class GatewayError extends Error {
     httpStatus: number;
     retryAfterSeconds?: number;
     upstreamStatus?: number;
+    contractVersion?: number;
+    failureKind?: GatewayFailureKind;
+    transformedRetryAllowed?: boolean;
+    recommendedAction?: string;
+    recoveryOwner?: GatewayRecoveryOwner;
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -77,6 +104,11 @@ export class GatewayError extends Error {
     this.httpStatus = input.httpStatus;
     this.retryAfterSeconds = input.retryAfterSeconds;
     this.upstreamStatus = input.upstreamStatus;
+    this.contractVersion = input.contractVersion;
+    this.failureKind = input.failureKind;
+    this.transformedRetryAllowed = input.transformedRetryAllowed;
+    this.recommendedAction = input.recommendedAction;
+    this.recoveryOwner = input.recoveryOwner;
   }
 }
 
