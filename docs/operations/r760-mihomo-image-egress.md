@@ -18,6 +18,10 @@ R760 public Gateway
 Tencent GLM-5.2 and internal/domestic endpoints
   -> exact NO_PROXY match
   -> direct connection, never Mihomo
+
+Private Cloudflare R2 vision asset endpoint
+  -> exact NO_PROXY match plus explicit direct HTTPS storage transport
+  -> direct connection, never Mihomo
 ```
 
 The Mihomo container publishes no host port. Do not add `ports`, bind host
@@ -115,7 +119,10 @@ NO_PROXY
 
 Never print that env file. Validate only that the running public Gateway has the
 expected proxy URL and that `NO_PROXY` includes Tencent TokenHub, the domestic
-Gateway v2 upstream, loopback, Docker service names and the metadata address.
+Gateway v2 upstream, the exact private R2 account hostname, loopback, Docker
+service names and the metadata address. R2's authenticated verification and
+cleanup requests also use a dedicated direct HTTPS transport so model-egress
+proxy initialization cannot affect private object visibility.
 The 2026-08-04 fault injection stopped Mihomo and sent a real `goldencode`
 request; it still succeeded as
 `goldencode-tencent / tencent / glm-5.2`, proving Tencent bypass.
@@ -139,6 +146,19 @@ Passed on 2026-08-04:
   reservations;
 - all four business containers stayed healthy and only the public Gateway was
   recreated.
+
+Passed on 2026-08-08 for URL-only vision input:
+
+- Gateway release `abb137325bfddda7cb5621bbffb202a040f5bd12` completed private
+  R2 create, presigned PUT, full-body SHA-256 validation, read-URL refresh,
+  overwrite rejection and deletion through the public R760 endpoint;
+- Chat Completions and Responses API both passed an initial chart question and
+  a follow-up after refreshing the signed URL and replaying the original image;
+- four vision events record `xai / goldencode / grok-4.5`, while the paired
+  text control records `tencent / goldencode / glm-5.2`;
+- temporary credentials and unfinished reservations are zero, the R2 test
+  bucket audit is empty, and Gateway, Research and Mihomo are healthy with zero
+  restarts.
 
 Still open:
 
@@ -208,9 +228,23 @@ The later long-output P0 shadow deployment boundary is:
 ```
 
 Its online backups of `gateway.db`, `client-events.db` and `research.db` pass
-their SHA-256 manifest, integrity and foreign-key checks. `current` is now
-release `9ba088508d1df2de30441adb4814409b1d757bc8`, `previous` is `43e118e`, and
+their SHA-256 manifest, integrity and foreign-key checks. At that deployment,
+`current` was release `9ba088508d1df2de30441adb4814409b1d757bc8`, `previous` was `43e118e`, and
 Gateway image tag `rollback-43e118e-pre-9ba0885` is retained. The effective
 long-output recovery mode is `shadow` and active chunk remains 0%. Roll back
 only the public Gateway to `43e118e`; do not recreate Mihomo or any Research
 service.
+
+The URL-only vision release boundaries are:
+
+```text
+/data/codex-gateway-r760/backups/pre-abb137325bfd-20260808T094843Z
+/data/codex-gateway-r760/backups/pre-8d3ff289126e-20260808T093934Z
+/data/codex-gateway-r760/backups/pre-r2-no-proxy-20260808T092757Z
+```
+
+The active release is `abb137325bfddda7cb5621bbffb202a040f5bd12`; `previous`
+is `8d3ff289126e8742f0199c19334434a08e3c8d6b`. The first boundary is the
+preferred code rollback point. Restore the protected env only if also rolling
+back the R2 route, run Compose validation, then force-recreate only Gateway.
+Do not recreate Mihomo or any Research container.

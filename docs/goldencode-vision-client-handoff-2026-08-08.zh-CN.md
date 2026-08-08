@@ -1,63 +1,156 @@
-# GoldenCode 图片理解能力：客户端接入说明
+# GoldenCode 图片理解：客户端 URL-only 接入说明
 
 日期：2026-08-08
 
-适用环境：R760 生产 Gateway
+环境：R760 生产 Gateway
 
-公网地址：`https://goldencode.instmarket.com.au:1443`
+Base URL：`https://goldencode.instmarket.com.au:1443`
 
 客户端模型名：`goldencode`
 
 ## 1. 上线结论
 
-R760 已上线 GoldenCode 图片理解能力，客户端不需要新增模型名或切换 API 地址：
+R760 已上线 URL-only 图片理解流程：
 
-- 请求历史中包含图片时，Gateway 自动路由到 xAI `grok-4.5`。
-- 请求中没有图片时，仍按原规则在腾讯与 TokenSwitch 的 `glm-5.2` 之间负载均衡。
-- 图片上游失败时不会静默降级到文本模型，避免模型在看不到图片的情况下猜测。
+- 所有图片先由客户端直传私有 Cloudflare R2，再把 Gateway 返回的短时签名 HTTPS URL 放入模型请求；客户端不要发送 base64 图片。
+- 完整请求历史中只要包含图片，Gateway 就路由到 xAI `grok-4.5`。
+- 纯文本请求仍在腾讯与 TokenSwitch 的 `glm-5.2` 双平台之间负载均衡。
+- 图片请求不会静默降级到文本模型，避免模型没有读取图片却继续猜测。
 - 公网模型合同保持 `200k context / 128k max output`。
-- Research Worker、Research LLM 和其他 R760 服务没有随本次发布变更。
+- Chat Completions 与 Responses API 均已验证首问和追问。
 
-xAI 官方当前声明 `grok-4.5` 支持文本和图片输入；图片格式为 JPEG、PNG，单张上限为 20 MiB。参见 [xAI Image Understanding](https://docs.x.ai/developers/model-capabilities/images/understanding) 和 [xAI Grok 4.5](https://docs.x.ai/developers/models/grok-4.5)。
+生产 release：`abb137325bfddda7cb5621bbffb202a040f5bd12`
 
-## 2. 客户端必须遵守的输入合同
+xAI 图片输入的上游约束可参考 [xAI Image Understanding](https://docs.x.ai/developers/model-capabilities/images/understanding) 与 [xAI Grok 4.5](https://docs.x.ai/developers/models/grok-4.5)。
 
-### 2.1 格式
+## 2. 必须实现的上传流程
 
-第一版只支持：
+客户端对每张图片依次执行以下操作：
 
-- PNG：`data:image/png;base64,...`
-- JPEG：`data:image/jpeg;base64,...`
-- 可由 xAI 公网访问的 HTTPS 图片 URL
+1. 在本地完成旋转、压缩和去除 EXIF，然后计算原始二进制的精确字节数及小写 SHA-256。
+2. 调用 Gateway 创建 asset，取得稳定 `asset_id` 和一次性预签名 PUT URL。
+3. 把图片原始二进制直接 PUT 到 R2。不要使用 JSON、base64、multipart，也不要把 Gateway API key 发给 R2。
+4. 调用 complete；Gateway 会重新读取对象并校验类型、大小、PNG/JPEG 文件头和 SHA-256。
+5. 使用 complete 返回的 `image_url` 发起模型请求。
+6. 每次追问前用稳定 `asset_id` 换取新的 `image_url`，并替换历史中的旧签名 URL。
+7. 用户删除附件、关闭会话或任务结束时调用 DELETE。
 
-暂不支持 WebP、GIF、HEIC、TIFF、SVG、PDF 页面、`file_id` 或 `multipart/form-data` 上传。`image/jpg` 也不要使用，应统一为 `image/jpeg`。
+### 2.1 创建 asset
 
-HTTPS URL 不得带 `user:password@host` 形式的嵌入凭据，URL 总长度不得超过 16,384 字符。允许使用短时有效的签名 URL，但 xAI 必须能够从公网读取该 URL。
+```http
+POST /gateway/vision/assets
+Authorization: Bearer <GATEWAY_API_KEY>
+Content-Type: application/json
+```
 
-### 2.2 数量与大小
+```json
+{
+  "content_type": "image/png",
+  "size_bytes": 21151,
+  "sha256": "<64 位小写十六进制>"
+}
+```
 
-- 一个请求的完整历史中最多 8 张图片。
-- 单张 base64 图片解码后不得超过 20 MiB。
-- 同一请求中所有 base64 图片解码后的合计不得超过 20 MiB。
-- Gateway 的 JSON body 上限为 30 MiB。
-- 当前 R760 公网 Nginx 入口仍为 20 MiB body 上限。base64 会增加约三分之一体积，因此客户端当前应将“所有原始图片合计”硬限制为 **14 MiB**，给 JSON 和 base64 开销留出余量。
+成功返回 `201`：
 
-如果确实需要发送 14–20 MiB 的单张图片，优先使用短时 HTTPS 签名 URL；如必须使用 base64，需要 Gateway 团队另行批准并把公网 Nginx 上限提高到至少 30 MiB。
+```json
+{
+  "asset_id": "va1.<signed-payload>.<signature>",
+  "state": "pending_upload",
+  "content_type": "image/png",
+  "size_bytes": 21151,
+  "sha256": "<sha256>",
+  "upload": {
+    "method": "PUT",
+    "url": "https://<private-r2-presigned-url>",
+    "headers": {
+      "Content-Type": "image/png",
+      "If-None-Match": "*"
+    },
+    "expires_at": "<ISO-8601>"
+  },
+  "asset_expires_at": "<ISO-8601>",
+  "limits": {
+    "maximum_bytes": 20971520,
+    "maximum_images_per_model_request": 8
+  }
+}
+```
 
-### 2.3 图片预处理建议
+客户端应把 `asset_id` 作为附件的稳定服务端标识保存。签名 URL 只是短期凭据，不能作为附件主键，也不要写入日志、埋点或崩溃报告。
 
-以下是客户端体验建议，不是协议硬限制：
+### 2.2 直传 R2
 
-- 截图、柱状图、表格优先使用 PNG，避免压缩造成小字模糊。
-- 普通照片优先使用 JPEG，质量建议 85–90。
-- 自动处理 EXIF 方向，上传前把图片旋转到正确方向。
-- 普通图片可把最长边压缩到约 2,048–3,072 像素；包含小字号坐标、表格或医学标注时不要过度缩小。
-- 上传前移除不需要的 EXIF/GPS 元数据。
-- 客户端应展示缩略图、文件大小、上传/分析状态，并允许用户在发送前删除图片。
+```http
+PUT <upload.url>
+Content-Type: image/png
+If-None-Match: *
 
-## 3. Chat Completions 请求
+<图片原始二进制>
+```
 
-首轮图片请求使用现有 `POST /v1/chat/completions`。推荐图表使用 `detail: "high"`；可选值为 `auto`、`low`、`high`。
+必须原样使用 `upload.headers`；不要添加 Gateway 的 `Authorization`。成功状态为 `200`。`If-None-Match: *` 防止相同对象键被覆盖。
+
+Desktop 第一版应在 Electron main process 或原生网络层执行 PUT。Renderer/browser 直传会受 R2 CORS 约束，目前不作为已上线合同；如果必须从 renderer 上传，请先把准确的生产 Origin 提供给 Gateway 团队，再配置最小范围 CORS，不能使用宽泛的 `*`。
+
+### 2.3 完成校验
+
+```http
+POST /gateway/vision/assets/<asset_id>/complete
+Authorization: Bearer <GATEWAY_API_KEY>
+```
+
+成功返回 `200`：
+
+```json
+{
+  "asset_id": "<asset_id>",
+  "state": "ready",
+  "content_type": "image/png",
+  "size_bytes": 21151,
+  "sha256": "<sha256>",
+  "image_url": "https://<private-r2-presigned-read-url>",
+  "read_url_expires_at": "<ISO-8601>",
+  "asset_expires_at": "<ISO-8601>"
+}
+```
+
+只有 complete 成功后才能把图片交给模型。当前时效为：上传 URL 10 分钟、读取 URL 30 分钟、asset 24 小时。
+
+### 2.4 刷新读取 URL
+
+```http
+POST /gateway/vision/assets/<asset_id>/read-url
+Authorization: Bearer <GATEWAY_API_KEY>
+Content-Type: application/json
+
+{}
+```
+
+成功返回与 complete 相同结构的新 `image_url`。建议每次发送图片请求或追问前都刷新，而不是判断旧 URL 是否即将过期。
+
+### 2.5 删除
+
+```http
+DELETE /gateway/vision/assets/<asset_id>
+Authorization: Bearer <GATEWAY_API_KEY>
+```
+
+成功返回 `204`。客户端应持久化待清理的 `asset_id`，即使应用崩溃，也应在下次启动时补做 DELETE。
+
+## 3. 图片约束与预处理
+
+- 仅支持 `image/png` 和 `image/jpeg`；不要发送 WebP、GIF、HEIC、TIFF、SVG 或 PDF。
+- 单张图片最大 `20 MiB`，完整模型请求历史最多 8 张图片。
+- 每张图片都单独创建 asset；不要把多张图片拼成一个 multipart 上传。
+- 截图、柱状图、表格优先使用 PNG；普通照片优先使用 JPEG，质量建议 85–90。
+- 自动处理 EXIF 方向并移除不需要的 EXIF/GPS 元数据。
+- 普通图片最长边可缩放到约 2,048–3,072 像素；小字号坐标、表格和医学标注不要过度缩小。
+- 客户端应显示缩略图、上传进度、校验状态和失败重试入口。
+
+## 4. 模型请求
+
+### 4.1 Chat Completions 首问
 
 ```json
 {
@@ -73,7 +166,7 @@ HTTPS URL 不得带 `user:password@host` 形式的嵌入凭据，URL 总长度�
         {
           "type": "image_url",
           "image_url": {
-            "url": "data:image/png;base64,<BASE64_DATA>",
+            "url": "<complete 返回的 image_url>",
             "detail": "high"
           }
         }
@@ -85,21 +178,7 @@ HTTPS URL 不得带 `user:password@host` 形式的嵌入凭据，URL 总长度�
 }
 ```
 
-使用 HTTPS URL 时只需替换 `url`：
-
-```json
-{
-  "type": "image_url",
-  "image_url": {
-    "url": "https://example.com/temporary/chart.png?signature=...",
-    "detail": "high"
-  }
-}
-```
-
-## 4. Responses API 请求
-
-也可使用 `POST /v1/responses`：
+### 4.2 Responses API 首问
 
 ```json
 {
@@ -115,7 +194,7 @@ HTTPS URL 不得带 `user:password@host` 形式的嵌入凭据，URL 总长度�
         },
         {
           "type": "input_image",
-          "image_url": "data:image/png;base64,<BASE64_DATA>",
+          "image_url": "<complete 返回的 image_url>",
           "detail": "high"
         }
       ]
@@ -129,20 +208,16 @@ HTTPS URL 不得带 `user:password@host` 形式的嵌入凭据，URL 总长度�
 }
 ```
 
-当前 Gateway 是无状态接口：
+当前 Gateway 是无状态接口：`store: true` 和 `previous_response_id` 不属于已上线合同。Responses API 应显式发送 `store: false`。
 
-- `store: true` 不支持。
-- `previous_response_id` 不支持。
-- 客户端应显式发送 `store: false`，并在每次请求中重放所需的完整对话历史。
+## 5. 图片追问的正确实现
 
-## 5. 针对图片继续追问
+Gateway 不保存模型会话，追问时不能只发送“哪个最高？”。客户端必须：
 
-图片追问不能只发送一句“哪个最高？”。Gateway 不保存图片，也不会通过上一条 response ID 恢复图片。每次需要模型继续观察原图时，客户端必须同时重放：
-
-1. 原始用户问题；
-2. 原始图片内容或同一可访问 URL；
-3. 上一轮 assistant 回答；
-4. 本轮追问。
+1. 用 `asset_id` 调用 read-url，取得新的签名 URL；
+2. 重放原始用户问题和原图，并把历史中的旧 URL 替换为新 URL；
+3. 重放上一轮 assistant 完整回答；
+4. 追加本轮追问。
 
 Chat Completions 示例：
 
@@ -160,7 +235,7 @@ Chat Completions 示例：
         {
           "type": "image_url",
           "image_url": {
-            "url": "data:image/png;base64,<BASE64_DATA>",
+            "url": "<read-url 刷新后的 image_url>",
             "detail": "high"
           }
         }
@@ -168,7 +243,7 @@ Chat Completions 示例：
     },
     {
       "role": "assistant",
-      "content": "上一轮模型返回的完整文本"
+      "content": "<上一轮模型返回的完整文本>"
     },
     {
       "role": "user",
@@ -179,45 +254,67 @@ Chat Completions 示例：
 }
 ```
 
-只要完整请求历史的任意位置仍包含图片，整次请求就会继续路由到 xAI。若客户端追问时省略原图，请求会被视为纯文本并回到 `glm-5.2`，模型将无法重新查看图片。
+Responses API 使用同样原则，把原始 `input_image`、上一轮 assistant message 和新 user message 一起放入新的 `input` 数组。不要依赖旧签名 URL，也不要依赖 `previous_response_id`。
 
-对于 HTTPS 签名 URL，客户端必须确保该 URL 在所有追问完成前仍然有效；否则应重新生成 URL 并在重放历史时替换。
+只要本次完整历史中仍有图片，Gateway 就继续路由到 xAI。若追问时省略图片，请求会按纯文本路由到 `glm-5.2`，模型无法重新观察原图。
 
-## 6. 错误处理
+## 6. 重试与错误处理
 
-客户端不要自动把图片请求改成纯文本重试。建议按以下方式展示：
-
-| HTTP 状态 | 含义 | 客户端建议 |
+| 状态/错误码 | 含义 | 客户端处理 |
 |---|---|---|
-| `400` | base64、URL、格式、`detail` 或请求结构无效 | 指明不支持的文件或字段，让用户重新选择 |
-| `413` | 图片数量或体积超限；也可能由公网 Nginx 提前拒绝 | 压缩图片、减少数量，或改用 HTTPS URL |
-| `401/403` | 凭据或权限问题 | 重新校验 API key，不要重复上传 |
-| `429` | 频率或额度限制 | 延迟后有限次数重试 |
-| `502/503/504` | xAI、代理或上游暂时不可用 | 保留用户输入，提示稍后重试；不得降级到文本模型 |
+| `400 invalid_request` | 字段或请求结构错误 | 修正请求，不要原样重试 |
+| `400 unsupported_format` | 不是 PNG/JPEG | 在本地转换后重新创建 asset |
+| `400 unsupported_size` | 空文件或超过 20 MiB | 压缩或重新选择 |
+| R2 PUT `412` | 相同 grant 的对象已存在，常见于“请求实际成功但客户端未收到响应” | 不要覆盖；直接调用 complete，让 Gateway 校验内容 |
+| `404 vision_asset_not_found` | asset_id 不属于当前用户，或上传尚不存在 | 核对 asset_id 和 PUT 结果；不要无限重试 |
+| `410 vision_asset_expired` | asset 已超过 24 小时 | 从本地源文件重新上传 |
+| `422 vision_asset_invalid` | 类型、大小、文件头或 SHA-256 不一致 | 丢弃本次 asset，重新处理图片并上传 |
+| `429` | Gateway 频率/额度限制 | 指数退避并限制次数 |
+| `503 service_unavailable` | R2、xAI 或相关链路暂时不可用 | 保留本地图片，稍后有限次数重试 |
 
-每次请求都应记录响应头 `X-Request-Id`。发生问题时，请把该值、客户端时间、版本号、接口路径和 HTTP 状态一并提供给 Gateway 团队；不要在日志中记录完整 base64、签名 URL 或 API key。
+只有在没有取得 `asset_id` 时才重新调用 create；PUT、complete、read-url 和 DELETE 可以在网络失败后有限次数重试。图片模型请求不得自动降级为纯文本请求。
 
-## 7. 隐私与合规
+所有 Gateway 请求都应保存响应头 `X-Request-Id`；问题上报需附客户端时间、版本、接口路径和 HTTP 状态。不得记录 Gateway API key、完整 `asset_id`、完整签名 URL 或图片内容。
 
-图片请求会从 R760 经出海代理发送给 xAI。Gateway 对 xAI 请求显式设置 `store: false`，但这不等于图片未离开本地环境。
+## 7. 隐私、删除与生命周期
 
-客户端在开放医学图片上传前应确认产品和合规要求，至少做到：
+R2 bucket 为私有 bucket，但预签名 URL 在有效期内属于 bearer credential，拿到 URL 的一方即可执行 URL 所允许的动作。
 
-- 明确告知用户图片将交由第三方模型处理；
-- 上传前去除姓名、证件号、住院号、二维码、人脸及其他非必要身份信息；
+图片最终会由 xAI 从 R2 读取，因此医学图片上线前必须完成产品告知和合规确认，并至少做到：
+
+- 上传前移除姓名、证件号、住院号、二维码、人脸及其他非必要身份信息；
 - 未获得适当授权时，不上传可识别患者身份的原始医学影像；
-- 客户端日志、崩溃报告和埋点不得保存图片 base64 或完整签名 URL。
+- 日志、崩溃报告、剪贴板同步和分析埋点不得保存图片或签名 URL；
+- 用户删除附件、关闭会话及任务结束时主动调用 DELETE。
 
-## 8. R760 验证记录
+`asset_expires_at` 表示 Gateway 不再签发读取 URL，不等同于 R2 对象已物理删除。当前对象级凭据无权修改 bucket lifecycle，因此客户端不能依赖自动删除；Gateway 团队仍需按 [Cloudflare R2 Object Lifecycles](https://developers.cloudflare.com/r2/buckets/object-lifecycles/) 在控制台为前缀 `vision-temp/` 增加“1 天后删除”的 lifecycle 兜底。该事项不影响当前上传、理解、追问和显式删除流程。
 
-上线 release：`aa9a0ec88a5cc6911a933f16c5337be90c77604a`
+## 8. R760 生产验证记录
 
-2026-08-08 已在公网完成以下验证：
+2026-08-08 使用程序生成的 PNG 柱状图完成了公网端到端验证：
 
-- Chat Completions：上传程序生成的 PNG 三色柱状图，正确识别红、蓝、绿及最高柱。
-- Responses API：重放原图和历史后追问最低柱，正确回答红色。
-- 数据库归因：两次图片请求均为 `provider=xai`、`upstream_runtime=xai`、`upstream_model=grok-4.5`、`upstream_account_id=xai-vision-main`。
-- 纯文本对照：仍路由到 `glm-5.2`；本次命中 TokenSwitch。
-- 所有 R760 服务健康，重启计数均为 0；测试结束后未留下临时凭据或未结算 reservation。
+- asset create：`req-5781a605-7129-493e-82fc-486cf6bf4226`；
+- R2 PUT、完整 SHA-256 校验及 complete：`req-c2d8b10d-f9e4-407a-847a-eda0da570eac`；
+- Chat 首问：`req-4abd0a8e-b815-447f-bd5d-e714b97dab9e`；
+- Chat 追问：`req-eef87e32-f1a1-49e6-b232-f8062b22c78f`；
+- Responses 首问：`req-8ce7066d-da17-42b5-8c0d-846dc68bdfab`；
+- Responses 追问：`req-94d8f6e7-f651-488f-ae5b-07089bd9e16c`；
+- 纯文本对照：`req-c42646f6-d2b6-47e0-bc2b-cf079957f5cc`。
 
-客户端联调建议至少覆盖：PNG、JPEG、两张图片、追问重放、URL 过期、WebP 拒绝、超过 8 张、413、xAI 暂时不可用和取消请求。
+四次图片模型请求的数据库归因均为 `provider=xai`、`upstream_runtime=xai`、`upstream_model=grok-4.5`、`upstream_account_id=xai-vision-main`。纯文本对照为腾讯 `glm-5.2`。追问前均刷新了读取 URL 并重放原图；模型正确回答图表差值和指定数值对应类别。
+
+验证还覆盖了不可覆盖 PUT（`412`）、删除（`204`）、删除后 read-url（`404`）、临时用户/API key 清理和未完成 reservation 归零。最终 Gateway 健康且重启计数为 0；测试遗留的 4 个未完成对象已按内容哈希精确清理，bucket 对象审计为 0。
+
+## 9. 客户端联调验收项
+
+- PNG 和 JPEG；
+- 1 张及多张图片，完整历史不超过 8 张；
+- 每张图片统一走 create → PUT → complete；
+- Chat 与 Responses 的首问；
+- 刷新 URL、重放原图及连续追问；
+- 上传响应丢失后 PUT `412` → complete 恢复；
+- URL/asset 过期后重新上传；
+- WebP、超过 20 MiB、错误 SHA-256 的拒绝路径；
+- 删除附件、关闭会话、应用崩溃后的补偿 DELETE；
+- R2/xAI 暂时不可用、取消请求及有限重试；
+- 日志和崩溃报告中不出现 API key、asset_id、签名 URL 或图片内容。
