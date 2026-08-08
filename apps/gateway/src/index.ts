@@ -232,6 +232,11 @@ import { resolveEntitlementAccessForChat } from "./services/entitlement-access.j
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
+  resolveVisionAssetService,
+  type VisionAssetService
+} from "./services/vision-asset-service.js";
+import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
+import {
   modelNotFoundError,
   openAIModelObject,
   publicModelPoolMemberAdapterKey,
@@ -293,6 +298,7 @@ export interface GatewayOptions {
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackModel?: string;
   imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
+  visionAssetService?: VisionAssetService | null;
   activeRequestRegistry?: ActiveRequestRegistry;
   now?: () => Date;
   logger?: boolean;
@@ -576,6 +582,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     "MEDCODE_IMAGE_REQUEST_TIMEOUT_MS"
   );
   const requireEntitlement = process.env.GATEWAY_REQUIRE_ENTITLEMENT === "1";
+  const visionAssetService =
+    options.visionAssetService === undefined
+      ? resolveVisionAssetService(process.env, { now: clock })
+      : options.visionAssetService;
   const clientEventsStore =
     options.clientEventsStore === undefined
       ? createDefaultClientEventsStore()
@@ -702,6 +712,52 @@ export function buildGateway(options: GatewayOptions = {}) {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
     request.gatewayClientDisconnect?.cleanup();
+  });
+
+  registerVisionAssetRoutes(app, {
+    service: visionAssetService,
+    authorize: (request) => {
+      const context = getGatewayContext(request);
+      const allowedVisionModel = publicModelRegistry.models.some(
+        (model) =>
+          model.vision?.enabled === true &&
+          xaiVisionAdapters.has(model.id) &&
+          credentialAllowsPublicModel(
+            context.credential.allowedPublicModels,
+            model.id,
+            publicModelAliasGroups
+          )
+      );
+      if (!allowedVisionModel) {
+        return new GatewayError({
+          code: "model_not_allowed_for_credential",
+          message: "Credential is not allowed to use a vision-capable model.",
+          httpStatus: 403
+        });
+      }
+      const access = resolveEntitlementAccessForChat({
+        context,
+        entitlementStore: planEntitlementStore,
+        requireEntitlement,
+        now: clock()
+      });
+      if (access instanceof GatewayError) {
+        return access;
+      }
+      if (
+        access.decision?.status === "active" &&
+        !access.decision.entitlement.featurePolicySnapshot.capabilities.includes(
+          "chat"
+        )
+      ) {
+        return new GatewayError({
+          code: "plan_capability_required",
+          message: "The active plan does not allow chat or vision requests.",
+          httpStatus: 403
+        });
+      }
+      return null;
+    }
   });
 
   if (researchStore) {

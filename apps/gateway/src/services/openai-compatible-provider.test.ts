@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   GatewayError,
   type GatewaySession,
+  type ProviderErrorDiagnostic,
   type Subject,
   type UpstreamAccount
 } from "@codex-gateway/core";
@@ -178,6 +179,55 @@ describe("OpenAICompatibleProviderAdapter", () => {
           { type: "text", text: "Describe the chart." }
         ]
       });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("redacts R2 presigned URL credentials from upstream diagnostics", async () => {
+    const diagnostics: ProviderErrorDiagnostic[] = [];
+    const server = await startSseServer(async (_request, _body, response) => {
+      response.writeHead(400, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          error:
+            "invalid image https://account.example.com/object?X-Amz-Credential=access-id%2Fscope&X-Amz-Signature=bearer-signature"
+        })
+      );
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "xai",
+        apiKey: "xai-test-redacted",
+        apiKeyEnv: "MEDCODE_VISION_XAI_API_KEY",
+        baseUrl: server.baseUrl,
+        upstreamModel: "grok-4.5",
+        timeoutMs: 5_000
+      });
+      await collectProviderMessage({
+        provider,
+        upstreamAccount: {
+          ...openRouterAccount(),
+          id: "xai-vision-main",
+          provider: "xai"
+        },
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "Describe the image.",
+        onProviderError: (diagnostic) => diagnostics.push(diagnostic)
+      });
+
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0].rawMessage).toContain(
+        "X-Amz-Credential=<redacted>"
+      );
+      expect(diagnostics[0].rawMessage).toContain(
+        "X-Amz-Signature=<redacted>"
+      );
+      expect(diagnostics[0].rawMessage).not.toContain("access-id");
+      expect(diagnostics[0].rawMessage).not.toContain("bearer-signature");
     } finally {
       await server.close();
     }

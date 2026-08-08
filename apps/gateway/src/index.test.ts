@@ -34,6 +34,7 @@ import {
 } from "./services/rate-limiter.js";
 import { ActiveRequestRegistry } from "./services/active-request-registry.js";
 import { estimatePromptTokens } from "./services/token-budget-hook.js";
+import type { VisionAssetService } from "./services/vision-asset-service.js";
 import {
   goldencodeMemberIds,
   goldencodePoolConfig,
@@ -6229,6 +6230,86 @@ describe("gateway phase 1 routes", () => {
       rmSync(tempDir, { recursive: true, force: true });
       await upstream.close();
     }
+  });
+
+  it("registers the authenticated vision asset broker for vision-capable GoldenCode users", async () => {
+    const productionPool = goldencodePoolConfig();
+    productionPool.pool.requireAllMembers = false;
+    const registry = {
+      goldencode: {
+        ...productionPool,
+        vision: {
+          runtime: "xai",
+          upstreamModel: "grok-4.5",
+          contextWindow: 200000,
+          maxOutputTokens: 128000,
+          enabled: true
+        }
+      }
+    };
+    let createdOwnerId: string | null = null;
+    const service: VisionAssetService = {
+      createAsset: (ownerId, input) => {
+        createdOwnerId = ownerId;
+        return {
+          assetId: "va1.test.signature",
+          contentType: input.contentType,
+          sizeBytes: input.sizeBytes,
+          sha256: input.sha256,
+          uploadUrl: "https://account.example.com/upload-signed",
+          uploadHeaders: {
+            "Content-Type": input.contentType,
+            "If-None-Match": "*"
+          },
+          uploadExpiresAt: new Date("2026-08-08T12:10:00.000Z"),
+          assetExpiresAt: new Date("2026-08-09T12:00:00.000Z")
+        };
+      },
+      completeAsset: async () => {
+        throw new Error("not used");
+      },
+      createReadUrl: async () => {
+        throw new Error("not used");
+      },
+      deleteAsset: async () => undefined
+    };
+
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
+        MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+        MEDCODE_TOKENSWITCH_API_KEY: undefined,
+        MEDCODE_VISION_XAI_API_KEY: "xai-test-key"
+      },
+      async () => {
+        const app = buildGateway({
+          accessToken: "secret",
+          provider: new FakeProvider(),
+          visionAssetService: service,
+          logger: false
+        });
+        try {
+          const response = await app.inject({
+            method: "POST",
+            url: "/gateway/vision/assets",
+            headers: { authorization: "Bearer secret" },
+            payload: {
+              content_type: "image/png",
+              size_bytes: 68,
+              sha256: "a".repeat(64)
+            }
+          });
+          expect(response.statusCode).toBe(201);
+          expect(response.json()).toMatchObject({
+            asset_id: "va1.test.signature",
+            state: "pending_upload"
+          });
+          expect(createdOwnerId).toBeTruthy();
+        } finally {
+          await app.close();
+        }
+      }
+    );
   });
 
   it("does not expose GoldenCode when a required pool member adapter is missing", async () => {
