@@ -12,7 +12,9 @@ import {
   readFileSync,
   realpathSync
 } from "node:fs";
+import { request as httpsRequest } from "node:https";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { GatewayError } from "@codex-gateway/core";
 
 export const visionAssetMaximumBytes = 20 * 1_024 * 1_024;
@@ -65,8 +67,13 @@ export interface R2VisionAssetServiceOptions {
   requestTimeoutMs?: number;
   now?: () => Date;
   randomUUID?: () => string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: VisionAssetFetch;
 }
+
+type VisionAssetFetch = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>;
 
 interface VisionAssetTokenPayload {
   v: 1;
@@ -104,7 +111,7 @@ const assetTokenPrefix = "va1";
 
 export class R2VisionAssetService implements VisionAssetService {
   private readonly endpoint: URL;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: VisionAssetFetch;
   private readonly now: () => Date;
   private readonly randomUUID: () => string;
   private readonly uploadUrlTtlSeconds: number;
@@ -142,7 +149,10 @@ export class R2VisionAssetService implements VisionAssetService {
       120_000,
       "R2 vision request timeout"
     );
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // R2 is deliberately direct even when the Gateway's model traffic uses an
+    // environment proxy. This also keeps signed storage operations on the same
+    // network view as client-side presigned uploads.
+    this.fetchImpl = options.fetchImpl ?? directHttpsFetch;
     this.now = options.now ?? (() => new Date());
     this.randomUUID = options.randomUUID ?? nodeRandomUUID;
     this.assetSigningKey = createHmac("sha256", options.secretAccessKey)
@@ -612,7 +622,7 @@ export function resolveVisionAssetService(
   env: NodeJS.ProcessEnv,
   options: {
     now?: () => Date;
-    fetchImpl?: typeof fetch;
+    fetchImpl?: VisionAssetFetch;
   } = {}
 ): VisionAssetService | null {
   const enabled = env.MEDCODE_VISION_R2_ENABLED?.trim();
@@ -1033,6 +1043,87 @@ function visionAssetStorageUnavailable(upstreamStatus?: number): GatewayError {
 
 async function cancelResponse(response: Response): Promise<void> {
   await response.body?.cancel().catch(() => undefined);
+}
+
+function directHttpsFetch(
+  input: string | URL | Request,
+  init: RequestInit = {}
+): Promise<Response> {
+  const url = new URL(input instanceof Request ? input.url : input.toString());
+  if (url.protocol !== "https:") {
+    return Promise.reject(new Error("Vision asset transport requires HTTPS."));
+  }
+  const method = (
+    init.method ?? (input instanceof Request ? input.method : "GET")
+  ).toUpperCase();
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init.headers).forEach((value, name) => headers.set(name, value));
+  const body = init.body;
+  if (
+    body !== undefined &&
+    body !== null &&
+    typeof body !== "string" &&
+    !(body instanceof Uint8Array)
+  ) {
+    return Promise.reject(
+      new Error("Vision asset transport received an unsupported body.")
+    );
+  }
+  if (body instanceof Uint8Array && !headers.has("content-length")) {
+    headers.set("content-length", String(body.byteLength));
+  }
+  const outgoingHeaders = Object.fromEntries(headers.entries());
+
+  return new Promise<Response>((resolve, reject) => {
+    const request = httpsRequest(
+      url,
+      {
+        method,
+        headers: outgoingHeaders,
+        signal: init.signal ?? undefined,
+        agent: false
+      },
+      (incoming) => {
+        const status = incoming.statusCode;
+        if (status === undefined) {
+          incoming.destroy();
+          reject(new Error("Vision asset transport received no status."));
+          return;
+        }
+        const responseHeaders = new Headers();
+        for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
+          responseHeaders.append(
+            incoming.rawHeaders[index]!,
+            incoming.rawHeaders[index + 1]!
+          );
+        }
+        const hasBody =
+          method !== "HEAD" && status !== 204 && status !== 205 && status !== 304;
+        if (!hasBody) {
+          incoming.resume();
+        }
+        try {
+          resolve(
+            new Response(
+              hasBody
+                ? (Readable.toWeb(incoming) as ReadableStream<Uint8Array>)
+                : null,
+              {
+                status,
+                statusText: incoming.statusMessage,
+                headers: responseHeaders
+              }
+            )
+          );
+        } catch (error) {
+          incoming.destroy();
+          reject(error);
+        }
+      }
+    );
+    request.once("error", reject);
+    request.end(body === null || body === undefined ? undefined : body);
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
