@@ -233,6 +233,7 @@ import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-pr
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
   resolveVisionAssetService,
+  visionAssetMaximumIdCharacters,
   type VisionAssetService
 } from "./services/vision-asset-service.js";
 import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
@@ -375,7 +376,10 @@ interface ChatCompletionExecutionFailure {
 export function buildGateway(options: GatewayOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
-    genReqId: () => `req-${randomUUID()}`
+    genReqId: () => `req-${randomUUID()}`,
+    routerOptions: {
+      maxParamLength: visionAssetMaximumIdCharacters
+    }
   });
   const accessToken = options.accessToken ?? process.env.GATEWAY_DEV_ACCESS_TOKEN;
   const clock = options.now ?? (() => new Date());

@@ -6233,6 +6233,7 @@ describe("gateway phase 1 routes", () => {
   });
 
   it("registers the authenticated vision asset broker for vision-capable GoldenCode users", async () => {
+    const longAssetId = `va1.${"a".repeat(300)}.signature`;
     const productionPool = goldencodePoolConfig();
     productionPool.pool.requireAllMembers = false;
     const registry = {
@@ -6248,6 +6249,8 @@ describe("gateway phase 1 routes", () => {
       }
     };
     let createdOwnerId: string | null = null;
+    let completedAssetId: string | null = null;
+    let deletedAssetId: string | null = null;
     const service: VisionAssetService = {
       createAsset: (ownerId, input) => {
         createdOwnerId = ownerId;
@@ -6265,13 +6268,24 @@ describe("gateway phase 1 routes", () => {
           assetExpiresAt: new Date("2026-08-09T12:00:00.000Z")
         };
       },
-      completeAsset: async () => {
-        throw new Error("not used");
+      completeAsset: async (_ownerId, assetId) => {
+        completedAssetId = assetId;
+        return {
+          assetId,
+          contentType: "image/png",
+          sizeBytes: 68,
+          sha256: "a".repeat(64),
+          imageUrl: "https://account.example.com/read-signed",
+          readUrlExpiresAt: new Date("2026-08-08T12:30:00.000Z"),
+          assetExpiresAt: new Date("2026-08-09T12:00:00.000Z")
+        };
       },
       createReadUrl: async () => {
         throw new Error("not used");
       },
-      deleteAsset: async () => undefined
+      deleteAsset: async (_ownerId, assetId) => {
+        deletedAssetId = assetId;
+      }
     };
 
     await withTemporaryEnv(
@@ -6305,6 +6319,26 @@ describe("gateway phase 1 routes", () => {
             state: "pending_upload"
           });
           expect(createdOwnerId).toBeTruthy();
+
+          const completed = await app.inject({
+            method: "POST",
+            url: `/gateway/vision/assets/${longAssetId}/complete`,
+            headers: { authorization: "Bearer secret" }
+          });
+          expect(completed.statusCode).toBe(200);
+          expect(completed.json()).toMatchObject({
+            asset_id: longAssetId,
+            state: "ready"
+          });
+          expect(completedAssetId).toBe(longAssetId);
+
+          const deleted = await app.inject({
+            method: "DELETE",
+            url: `/gateway/vision/assets/${longAssetId}`,
+            headers: { authorization: "Bearer secret" }
+          });
+          expect(deleted.statusCode).toBe(204);
+          expect(deletedAssetId).toBe(longAssetId);
         } finally {
           await app.close();
         }

@@ -19,6 +19,7 @@ import { GatewayError } from "@codex-gateway/core";
 
 export const visionAssetMaximumBytes = 20 * 1_024 * 1_024;
 export const visionAssetMaximumImagesPerRequest = 8;
+export const visionAssetMaximumIdCharacters = 2_048;
 
 export type VisionAssetContentType = "image/png" | "image/jpeg";
 
@@ -572,7 +573,7 @@ export class R2VisionAssetService implements VisionAssetService {
     validateOwnerId(ownerId);
     if (
       assetId.length < 64 ||
-      assetId.length > 2_048 ||
+      assetId.length > visionAssetMaximumIdCharacters ||
       !/^[A-Za-z0-9._-]+$/u.test(assetId)
     ) {
       throw visionAssetNotFound();
