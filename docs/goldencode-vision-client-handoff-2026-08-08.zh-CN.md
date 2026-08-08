@@ -1,8 +1,11 @@
 # GoldenCode 图片理解能力：客户端接入说明
 
-日期：2026-08-08  
-适用环境：R760 生产 Gateway  
-公网地址：`https://goldencode.instmarket.com.au:1443`  
+日期：2026-08-08
+
+适用环境：R760 生产 Gateway
+
+公网地址：`https://goldencode.instmarket.com.au:1443`
+
 客户端模型名：`goldencode`
 
 ## 1. 上线结论
