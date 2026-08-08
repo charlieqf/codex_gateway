@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { GatewayError, isRecord } from "@codex-gateway/core";
+import {
+  GatewayError,
+  isRecord,
+  type MessageImageInput
+} from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
   gatewayErrorRetryable
 } from "./http/error-response.js";
-import type {
-  ChatCompletionRequest,
-  ChatCompletionMessage,
-  ChatCompletionToolChoice,
-  OpenAIChatToolCall,
-  OpenAIChatToolDefinition
+import {
+  appendMessageImageInput,
+  type ChatCompletionRequest,
+  type ChatCompletionMessage,
+  type ChatCompletionToolChoice,
+  type OpenAIChatToolCall,
+  type OpenAIChatToolDefinition
 } from "./openai-compat.js";
 
 export interface ParsedResponsesRequest {
@@ -80,10 +85,11 @@ export function parseResponsesRequest(
   }
 
   const messages: ChatCompletionMessage[] = [];
+  const images: MessageImageInput[] = [];
   if (instructions?.trim()) {
     messages.push({ role: "developer", content: instructions });
   }
-  const inputError = appendResponsesInput(messages, body.input);
+  const inputError = appendResponsesInput(messages, images, body.input);
   if (inputError) {
     return inputError;
   }
@@ -143,6 +149,7 @@ export function parseResponsesRequest(
     model,
     messages,
     stream: false,
+    ...(images.length > 0 ? { images } : {}),
     ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
     ...(maximumOutputTokens !== undefined ? { maximumOutputTokens } : {}),
     ...(tools.length > 0 ? { tools } : {}),
@@ -292,6 +299,7 @@ export function createResponsesFailedEvent(
 
 function appendResponsesInput(
   messages: ChatCompletionMessage[],
+  images: MessageImageInput[],
   input: unknown
 ): GatewayError | null {
   if (typeof input === "string") {
@@ -316,7 +324,11 @@ function appendResponsesInput(
       ) {
         return invalidRequest(`input[${index}].role is not supported.`);
       }
-      const text = responsesContentText(item.content, `input[${index}].content`);
+      const text = responsesContentText(
+        item.content,
+        `input[${index}].content`,
+        images
+      );
       if (text instanceof GatewayError) {
         return text;
       }
@@ -353,7 +365,7 @@ function appendResponsesInput(
       if (typeof item.call_id !== "string" || !item.call_id) {
         return invalidRequest(`input[${index}].call_id must be a non-empty string.`);
       }
-      const output = toolOutputText(item.output, `input[${index}].output`);
+      const output = toolOutputText(item.output, `input[${index}].output`, images);
       if (output instanceof GatewayError) {
         return output;
       }
@@ -365,7 +377,11 @@ function appendResponsesInput(
   return null;
 }
 
-function responsesContentText(value: unknown, path: string): string | GatewayError {
+function responsesContentText(
+  value: unknown,
+  path: string,
+  images: MessageImageInput[]
+): string | GatewayError {
   if (typeof value === "string") {
     return value;
   }
@@ -389,7 +405,16 @@ function responsesContentText(value: unknown, path: string): string | GatewayErr
       continue;
     }
     if (part.type === "input_image") {
-      parts.push("\n[Image attachment omitted: GoldenCode cannot access image content.]\n");
+      const error = appendMessageImageInput(
+        images,
+        part.image_url,
+        part.detail,
+        `${path}[${index}]`
+      );
+      if (error) {
+        return error;
+      }
+      parts.push("\n[Image attachment provided separately to the vision model.]\n");
       continue;
     }
     if (part.type === "input_file") {
@@ -404,12 +429,16 @@ function responsesContentText(value: unknown, path: string): string | GatewayErr
   return parts.join("");
 }
 
-function toolOutputText(value: unknown, path: string): string | GatewayError {
+function toolOutputText(
+  value: unknown,
+  path: string,
+  images: MessageImageInput[]
+): string | GatewayError {
   if (typeof value === "string") {
     return value;
   }
   if (Array.isArray(value)) {
-    return responsesContentText(value, path);
+    return responsesContentText(value, path, images);
   }
   if (value === null || value === undefined) {
     return "";

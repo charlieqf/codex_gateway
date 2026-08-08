@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   GatewayError,
   type GatewaySession,
+  type MessageImageInput,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type ProviderResponseSummary,
@@ -298,6 +299,7 @@ export interface CollectProviderMessageInput {
   scope: Scope;
   session: GatewaySession;
   message: string;
+  images?: MessageImageInput[];
   reasoningEffort?: string | null;
   maximumOutputTokens?: number;
   clientTools?: ClientToolDefinition[];
@@ -339,6 +341,7 @@ export async function collectProviderMessage(
     scope: input.scope,
     session: input.session,
     message: input.message,
+    images: input.images,
     reasoningEffort: input.reasoningEffort,
     maximumOutputTokens: input.maximumOutputTokens,
     clientTools: input.clientTools,

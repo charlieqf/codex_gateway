@@ -25,7 +25,8 @@ export type UpstreamRuntimeKind =
   | "qianfan"
   | "aliyun"
   | "tencent"
-  | "tokenswitch";
+  | "tokenswitch"
+  | "xai";
 type ExternalRuntimeKind = OpenAICompatibleRuntimeKind;
 
 export interface ChatRuntimeContext {
@@ -56,6 +57,7 @@ export interface ChatRuntimeDispatcher {
 
 interface RuntimeBeginInput {
   model: PublicModelConfig;
+  modality?: "text" | "vision";
   reasoningEffort: string | null;
   reasoningEffortSource: "default" | "request";
   subject: Subject;
@@ -73,12 +75,14 @@ export interface ChatRuntimeDispatcherInput {
   aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  xaiVisionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
   qianfanAccount?: UpstreamAccount;
   aliyunAccount?: UpstreamAccount;
   tencentAccount?: UpstreamAccount;
   tokenSwitchAccount?: UpstreamAccount;
+  xaiVisionAccount?: UpstreamAccount;
 }
 
 export function createChatRuntimeDispatcher(
@@ -114,6 +118,9 @@ export function createChatRuntimeDispatcher(
   };
   return {
     begin: (beginInput) => {
+      if (beginInput.modality === "vision") {
+        return beginVisionRuntime(input, beginInput);
+      }
       if (beginInput.model.runtime === "codex") {
         return beginCodexRuntime(input.codexRouter, beginInput);
       }
@@ -153,6 +160,54 @@ export function createChatRuntimeDispatcher(
         recordError: () => false
       };
     }
+  };
+}
+
+function beginVisionRuntime(
+  dispatcherInput: ChatRuntimeDispatcherInput,
+  input: RuntimeBeginInput
+): ChatRuntimeContext | GatewayError {
+  const vision = input.model.vision;
+  if (!vision?.enabled) {
+    return new GatewayError({
+      code: "invalid_request",
+      message: `Model '${input.model.id}' does not support image input.`,
+      httpStatus: 400
+    });
+  }
+  const adapter = dispatcherInput.xaiVisionAdapterForModel?.(input.model) ?? null;
+  if (!adapter) {
+    return new GatewayError({
+      code: "service_unavailable",
+      message: "MedCode vision service is temporarily unavailable.",
+      httpStatus: 503,
+      retryAfterSeconds: 30
+    });
+  }
+  const virtualAccount = dispatcherInput.xaiVisionAccount ?? defaultXaiVisionVirtualAccount();
+  const session = input.createSession(input.subject.id, virtualAccount.id);
+  return {
+    publicModelId: input.model.id,
+    runtime: "xai",
+    runtimeInstanceId: virtualAccount.id,
+    providerKind: virtualAccount.provider,
+    upstreamModel: vision.upstreamModel,
+    reasoningEffort:
+      input.reasoningEffortSource === "request"
+        ? input.reasoningEffort
+        : reasoningEffortFromConfig(vision.reasoning) ?? input.reasoningEffort,
+    limits: {
+      contextWindow: vision.contextWindow,
+      maxOutputTokens: vision.maxOutputTokens
+    },
+    adapter,
+    adapterInputUpstreamAccount: virtualAccount,
+    subject: input.subject,
+    scope: input.scope,
+    session,
+    release: () => undefined,
+    recordSuccess: () => undefined,
+    recordError: () => false
   };
 }
 
@@ -381,6 +436,18 @@ function defaultTokenSwitchVirtualAccount(): UpstreamAccount {
     provider: "tokenswitch",
     label: "TokenSwitch Main",
     credentialRef: "ENV:MEDCODE_TOKENSWITCH_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultXaiVisionVirtualAccount(): UpstreamAccount {
+  return {
+    id: "xai-vision-main",
+    provider: "xai",
+    label: "xAI Vision Main",
+    credentialRef: "VISION:XAI",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null

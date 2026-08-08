@@ -6111,6 +6111,126 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("routes GoldenCode images to xAI while pure text remains in the GLM-5.2 pool", async () => {
+    const captured: CapturedOpenAICompatibleRequest[] = [];
+    const upstream = await startOpenAICompatibleCaptureServer("vision-or-text-ok", captured);
+    const tempDir = mkdtempSync(path.join(tmpdir(), "codex-gateway-xai-vision-"));
+    const fallbackKeysFile = path.join(tempDir, "image-fallback.keys");
+    writeFileSync(
+      fallbackKeysFile,
+      "openai:openai-test-key\nxai:xai-test-key\ngemini:gemini-test-key\n",
+      "utf8"
+    );
+    const productionPool = goldencodePoolConfig();
+    productionPool.pool.requireAllMembers = false;
+    productionPool.pool.members = productionPool.pool.members.filter(
+      (member) => member.runtime === "tencent" || member.runtime === "tokenswitch"
+    );
+    const registry = {
+      goldencode: {
+        ...productionPool,
+        vision: {
+          runtime: "xai",
+          upstreamModel: "grok-4.5",
+          contextWindow: 200000,
+          maxOutputTokens: 128000,
+          reasoning: { effort: "medium" },
+          enabled: true
+        }
+      }
+    };
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(registry),
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+          MEDCODE_TOKENSWITCH_API_KEY: undefined,
+          MEDCODE_TOKENSWITCH_BASE_URL: undefined,
+          MEDCODE_VISION_XAI_API_KEY: undefined,
+          MEDCODE_VISION_XAI_API_KEY_FILE: undefined,
+          MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl,
+          MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE: fallbackKeysFile
+        },
+        async () => {
+          const app = buildGateway({
+            accessToken: "secret",
+            provider: new FakeProvider(),
+            logger: false
+          });
+          try {
+            const vision = await app.inject({
+              method: "POST",
+              url: "/v1/responses",
+              headers: { authorization: "Bearer secret" },
+              payload: {
+                model: "goldencode",
+                input: [
+                  {
+                    type: "message",
+                    role: "user",
+                    content: [
+                      { type: "input_text", text: "Describe this chart." },
+                      {
+                        type: "input_image",
+                        image_url: "data:image/png;base64,aGVsbG8=",
+                        detail: "high"
+                      }
+                    ]
+                  }
+                ]
+              }
+            });
+            const text = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers: { authorization: "Bearer secret" },
+              payload: {
+                model: "goldencode",
+                messages: [{ role: "user", content: "Text control." }]
+              }
+            });
+
+            expect(vision.statusCode).toBe(200);
+            expect(text.statusCode).toBe(200);
+            expect(captured).toHaveLength(2);
+            expect(captured[0].body).toMatchObject({
+              model: "grok-4.5",
+              store: false
+            });
+            const visionMessages = captured[0].body.messages as Array<{
+              role: string;
+              content: unknown;
+            }>;
+            expect(visionMessages[1].content).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  type: "image_url",
+                  image_url: expect.objectContaining({
+                    url: "data:image/png;base64,aGVsbG8=",
+                    detail: "high"
+                  })
+                })
+              ])
+            );
+            expect(captured[1].body).toMatchObject({ model: "glm-5.2" });
+            const textMessages = captured[1].body.messages as Array<{
+              role: string;
+              content: unknown;
+            }>;
+            expect(typeof textMessages[1].content).toBe("string");
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+      await upstream.close();
+    }
+  });
+
   it("does not expose GoldenCode when a required pool member adapter is missing", async () => {
     await withTemporaryEnv(
       {

@@ -257,6 +257,51 @@ describe("public model registry", () => {
     });
   });
 
+  it("parses an independent xAI vision route without changing the text pool", () => {
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        goldencode: {
+          ...goldencodePoolConfig(),
+          vision: {
+            runtime: "xai",
+            upstreamModel: "grok-4.5",
+            contextWindow: 200000,
+            maxOutputTokens: 128000,
+            reasoning: { effort: "medium" }
+          }
+        }
+      })
+    });
+
+    const model = registry.get("goldencode");
+    expect(model?.runtime).toBe("pool");
+    expect(model?.pool?.members[0].upstreamModel).toBe("glm-5.2");
+    expect(model?.vision).toEqual({
+      runtime: "xai",
+      upstreamModel: "grok-4.5",
+      contextWindow: 200000,
+      maxOutputTokens: 128000,
+      reasoning: { effort: "medium" },
+      enabled: true
+    });
+  });
+
+  it("rejects unsupported public-model vision runtimes", () => {
+    expect(() =>
+      resolvePublicModelRegistry({
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          goldencode: {
+            ...goldencodePoolConfig(),
+            vision: {
+              runtime: "gemini",
+              upstreamModel: "gemini-flash"
+            }
+          }
+        })
+      })
+    ).toThrow("vision.runtime must be xai");
+  });
+
   it("requires every enabled pool member when requireAllMembers is true", () => {
     const registry = resolvePublicModelRegistry({
       MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({

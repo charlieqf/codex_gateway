@@ -10,6 +10,16 @@
     "reasoning": {
       "effort": "medium"
     },
+    "vision": {
+      "runtime": "xai",
+      "upstreamModel": "grok-4.5",
+      "contextWindow": 200000,
+      "maxOutputTokens": 128000,
+      "enabled": true,
+      "reasoning": {
+        "effort": "medium"
+      }
+    },
     "pool": {
       "selection": {
         "strategy": "hrw_sticky",

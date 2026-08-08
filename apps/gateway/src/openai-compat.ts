@@ -4,6 +4,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   GatewayError,
   isRecord,
+  type MessageImageInput,
   type StreamEvent,
   type TokenUsage,
   type ToolCallValidationFailureKind
@@ -70,6 +71,7 @@ export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
   stream: boolean;
+  images?: MessageImageInput[];
   reasoningEffort?: string;
   maximumOutputTokens?: number;
   tools?: OpenAIChatToolDefinition[];
@@ -111,6 +113,7 @@ export function parseChatCompletionRequest(
   }
 
   const messages: ChatCompletionMessage[] = [];
+  const images: MessageImageInput[] = [];
   for (const [index, message] of body.messages.entries()) {
     if (!isRecord(message)) {
       return invalidRequest(`messages[${index}] must be an object.`);
@@ -126,6 +129,15 @@ export function parseChatCompletionRequest(
       return invalidRequest(
         `messages[${index}].role must be system, developer, user, assistant, or tool.`
       );
+    }
+
+    const imageError = collectChatMessageImages(
+      message.content,
+      `messages[${index}].content`,
+      images
+    );
+    if (imageError) {
+      return imageError;
     }
 
     let toolCalls: OpenAIChatToolCall[] | undefined;
@@ -198,6 +210,7 @@ export function parseChatCompletionRequest(
     model,
     messages,
     stream,
+    ...(images.length > 0 ? { images } : {}),
     ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
     ...(maximumOutputTokens !== undefined ? { maximumOutputTokens } : {}),
     tools,
@@ -776,6 +789,155 @@ function contentToText(content: unknown): string {
   return safeJson(content);
 }
 
+const maximumImageInputs = 8;
+const maximumInlineImageBytes = 20 * 1_024 * 1_024;
+const maximumRemoteImageUrlChars = 16_384;
+
+function collectChatMessageImages(
+  content: unknown,
+  path: string,
+  images: MessageImageInput[]
+): GatewayError | null {
+  if (!Array.isArray(content)) {
+    return null;
+  }
+  for (const [index, part] of content.entries()) {
+    if (!isRecord(part)) {
+      continue;
+    }
+    const partPath = `${path}[${index}]`;
+    if (part.type === "image_url") {
+      if (!isRecord(part.image_url)) {
+        return invalidRequest(`${partPath}.image_url must be an object.`);
+      }
+      const error = appendMessageImageInput(
+        images,
+        part.image_url.url,
+        part.image_url.detail,
+        `${partPath}.image_url`
+      );
+      if (error) {
+        return error;
+      }
+      continue;
+    }
+    if (part.type === "input_image") {
+      const error = appendMessageImageInput(
+        images,
+        part.image_url,
+        part.detail,
+        partPath
+      );
+      if (error) {
+        return error;
+      }
+    }
+  }
+  return null;
+}
+
+export function appendMessageImageInput(
+  images: MessageImageInput[],
+  rawImageUrl: unknown,
+  rawDetail: unknown,
+  path: string
+): GatewayError | null {
+  if (typeof rawImageUrl !== "string" || rawImageUrl.trim().length === 0) {
+    return invalidRequest(`${path}.url must be a non-empty string.`);
+  }
+  if (
+    rawDetail !== undefined &&
+    rawDetail !== null &&
+    rawDetail !== "auto" &&
+    rawDetail !== "low" &&
+    rawDetail !== "high"
+  ) {
+    return invalidRequest(`${path}.detail must be auto, low, or high when provided.`);
+  }
+  if (images.length >= maximumImageInputs) {
+    return imageRequestTooLarge(`A request may contain at most ${maximumImageInputs} images.`);
+  }
+
+  const imageUrl = rawImageUrl.trim();
+  const inlineBytes = inlineImageByteLength(imageUrl, path);
+  if (inlineBytes instanceof GatewayError) {
+    return inlineBytes;
+  }
+  if (inlineBytes === null) {
+    if (imageUrl.length > maximumRemoteImageUrlChars) {
+      return invalidRequest(`${path}.url is too long.`);
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(imageUrl);
+    } catch {
+      return invalidRequest(
+        `${path}.url must be a PNG/JPEG data URL or a public HTTPS URL.`
+      );
+    }
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+      return invalidRequest(
+        `${path}.url must be a PNG/JPEG data URL or a public HTTPS URL without embedded credentials.`
+      );
+    }
+  } else {
+    const currentInlineBytes = images.reduce(
+      (total, image) => total + (inlineImageByteLengthUnchecked(image.imageUrl) ?? 0),
+      0
+    );
+    if (inlineBytes > maximumInlineImageBytes) {
+      return imageRequestTooLarge("An inline image may not exceed 20 MiB.");
+    }
+    if (currentInlineBytes + inlineBytes > maximumInlineImageBytes) {
+      return imageRequestTooLarge(
+        "The combined inline image data in one request may not exceed 20 MiB."
+      );
+    }
+  }
+
+  images.push({
+    imageUrl,
+    ...(rawDetail === "auto" || rawDetail === "low" || rawDetail === "high"
+      ? { detail: rawDetail }
+      : {})
+  });
+  return null;
+}
+
+function inlineImageByteLength(imageUrl: string, path: string): number | null | GatewayError {
+  if (!imageUrl.toLowerCase().startsWith("data:")) {
+    return null;
+  }
+  const match = imageUrl.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/]*={0,2})$/iu);
+  if (!match || !match[2] || match[2].length % 4 === 1) {
+    return invalidRequest(
+      `${path}.url must contain valid base64 PNG or JPEG image data.`
+    );
+  }
+  return decodedBase64ByteLength(match[2]);
+}
+
+function inlineImageByteLengthUnchecked(imageUrl: string): number | null {
+  const separator = imageUrl.indexOf(",");
+  if (separator < 0 || !imageUrl.toLowerCase().startsWith("data:image/")) {
+    return null;
+  }
+  return decodedBase64ByteLength(imageUrl.slice(separator + 1));
+}
+
+function decodedBase64ByteLength(value: string): number {
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  return Math.floor((value.length * 3) / 4) - padding;
+}
+
+function imageRequestTooLarge(message: string): GatewayError {
+  return new GatewayError({
+    code: "invalid_request",
+    message,
+    httpStatus: 413
+  });
+}
+
 function parseJsonObject(value: string): Record<string, unknown> | GatewayError {
   const trimmed = stripJsonFence(value.trim());
   try {
@@ -945,6 +1107,9 @@ function contentPartToText(part: unknown): string {
   }
   if (part.type === "output_text" && typeof part.text === "string") {
     return part.text;
+  }
+  if (part.type === "image_url" || part.type === "input_image") {
+    return "[Image attachment provided separately to the vision model.]";
   }
   return safeJson(part);
 }

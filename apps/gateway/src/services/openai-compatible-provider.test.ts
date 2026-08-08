@@ -106,6 +106,83 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
+  it("sends image inputs to xAI as multimodal content with server storage disabled", async () => {
+    const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
+    const server = await startSseServer(async (request, body, response) => {
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "red, blue, green" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 20, completion_tokens: 4, total_tokens: 24 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "xai",
+        apiKey: "xai-test-redacted",
+        apiKeyEnv: "MEDCODE_VISION_XAI_API_KEY",
+        baseUrl: server.baseUrl,
+        upstreamModel: "grok-4.5",
+        reasoning: { effort: "medium" },
+        reasoningParameterStyle: "effort_field",
+        timeoutMs: 5_000
+      });
+      const result = await collectProviderMessage({
+        provider,
+        upstreamAccount: {
+          ...openRouterAccount(),
+          id: "xai-vision-main",
+          provider: "xai"
+        },
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "Describe the chart.",
+        images: [
+          {
+            imageUrl: "data:image/png;base64,aGVsbG8=",
+            detail: "high"
+          }
+        ]
+      });
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({ content: "red, blue, green" });
+      expect(captured).toHaveLength(1);
+      expect(captured[0].body).toMatchObject({
+        model: "grok-4.5",
+        store: false,
+        reasoning_effort: "medium"
+      });
+      const messages = captured[0].body.messages as Array<{
+        role: string;
+        content: unknown;
+      }>;
+      expect(messages[1]).toEqual({
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: "data:image/png;base64,aGVsbG8=",
+              detail: "high"
+            }
+          },
+          { type: "text", text: "Describe the chart." }
+        ]
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
   it("passes native tools to OpenRouter and maps streaming tool calls", async () => {
     const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
     const server = await startSseServer(async (request, body, response) => {

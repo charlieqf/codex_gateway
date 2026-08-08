@@ -28,6 +28,15 @@ export interface PublicModelPoolConfig {
   members: PublicModelPoolMemberConfig[];
 }
 
+export interface PublicModelVisionConfig {
+  runtime: "xai";
+  upstreamModel: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  reasoning?: Record<string, unknown>;
+  enabled: boolean;
+}
+
 export interface PublicModelConfig {
   id: string;
   aliases: string[];
@@ -35,6 +44,7 @@ export interface PublicModelConfig {
   runtime: ChatRuntimeKind;
   upstreamModel: string;
   pool?: PublicModelPoolConfig;
+  vision?: PublicModelVisionConfig;
   contextWindow: number;
   maxContextWindow: number;
   upstreamContextWindow: number;
@@ -284,6 +294,18 @@ function parsePublicModelConfig(
   const reasoning = isRecord(value.reasoning)
     ? value.reasoning
     : defaultReasoningForRuntime(runtime);
+  const maxOutputTokens = parsePositiveInteger(
+    value.maxOutputTokens ?? value.max_output_tokens,
+    fallbackOutput,
+    `public model '${id}' maxOutputTokens`
+  );
+  const vision = parseVisionConfig(
+    value.vision,
+    id,
+    contextWindow,
+    maxOutputTokens,
+    reasoning
+  );
 
   return {
     id,
@@ -295,16 +317,13 @@ function parsePublicModelConfig(
     contextWindow,
     maxContextWindow,
     upstreamContextWindow,
-    maxOutputTokens: parsePositiveInteger(
-      value.maxOutputTokens ?? value.max_output_tokens,
-      fallbackOutput,
-      `public model '${id}' maxOutputTokens`
-    ),
+    maxOutputTokens,
     enabled:
       value.enabled === undefined
         ? true
         : parseBoolean(value.enabled, `Public model '${id}' enabled`),
     ...(pool ? { pool } : {}),
+    ...(vision ? { vision } : {}),
     ...(reasoning ? { reasoning } : {})
   };
 }
@@ -349,6 +368,48 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
 
 function defaultReasoningForRuntime(runtime: ChatRuntimeKind): Record<string, unknown> | undefined {
   return runtime === "pool" ? { effort: "medium" } : undefined;
+}
+
+function parseVisionConfig(
+  value: unknown,
+  id: string,
+  fallbackContextWindow: number,
+  fallbackMaxOutputTokens: number,
+  fallbackReasoning: Record<string, unknown> | undefined
+): PublicModelVisionConfig | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`Public model '${id}' vision must be a JSON object.`);
+  }
+  if (value.runtime !== "xai") {
+    throw new Error(`Public model '${id}' vision.runtime must be xai.`);
+  }
+  const upstreamModel = parseOptionalString(value.upstreamModel ?? value.upstream_model);
+  if (!upstreamModel) {
+    throw new Error(`Public model '${id}' vision.upstreamModel must be a non-empty string.`);
+  }
+  const reasoning = isRecord(value.reasoning) ? value.reasoning : fallbackReasoning;
+  return {
+    runtime: "xai",
+    upstreamModel,
+    contextWindow: parsePositiveInteger(
+      value.contextWindow ?? value.context_window,
+      fallbackContextWindow,
+      `public model '${id}' vision.contextWindow`
+    ),
+    maxOutputTokens: parsePositiveInteger(
+      value.maxOutputTokens ?? value.max_output_tokens,
+      fallbackMaxOutputTokens,
+      `public model '${id}' vision.maxOutputTokens`
+    ),
+    enabled:
+      value.enabled === undefined
+        ? true
+        : parseBoolean(value.enabled, `public model '${id}' vision.enabled`),
+    ...(reasoning ? { reasoning } : {})
+  };
 }
 
 function parsePoolConfig(value: unknown, id: string): PublicModelPoolConfig {

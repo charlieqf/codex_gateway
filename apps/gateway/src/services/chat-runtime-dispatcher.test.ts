@@ -43,6 +43,81 @@ const subject: Subject = {
 };
 
 describe("chat runtime dispatcher pool runtime", () => {
+  it("routes image input only to the configured xAI vision runtime", () => {
+    const model = goldencodeModel();
+    model.vision = {
+      runtime: "xai",
+      upstreamModel: "grok-4.5",
+      contextWindow: 200000,
+      maxOutputTokens: 128000,
+      reasoning: { effort: "medium" },
+      enabled: true
+    };
+    const visionProvider = new FakeProvider();
+    const dispatcher = createChatRuntimeDispatcher({
+      codexRouter: poolRouter(model),
+      openRouterAdapterForModel: () => null,
+      poolRouterForModel: () => poolRouter(model),
+      xaiVisionAdapterForModel: () => visionProvider
+    });
+
+    const vision = dispatcher.begin({
+      model,
+      modality: "vision",
+      reasoningEffort: "medium",
+      reasoningEffortSource: "default",
+      subject,
+      scope: "code",
+      affinityKey: "client_session:image",
+      createSession
+    });
+
+    expect(vision).not.toBeInstanceOf(GatewayError);
+    if (vision instanceof GatewayError) throw vision;
+    expect(vision).toMatchObject({
+      runtime: "xai",
+      runtimeInstanceId: "xai-vision-main",
+      providerKind: "xai",
+      upstreamModel: "grok-4.5",
+      reasoningEffort: "medium",
+      adapter: visionProvider,
+      limits: { contextWindow: 200000, maxOutputTokens: 128000 }
+    });
+    expect(vision.beginRetry).toBeUndefined();
+    vision.release();
+  });
+
+  it("fails a vision request when xAI is unavailable instead of falling back to text", () => {
+    const model = goldencodeModel();
+    model.vision = {
+      runtime: "xai",
+      upstreamModel: "grok-4.5",
+      contextWindow: 200000,
+      maxOutputTokens: 128000,
+      enabled: true
+    };
+    const dispatcher = createChatRuntimeDispatcher({
+      codexRouter: poolRouter(model),
+      openRouterAdapterForModel: () => null,
+      poolRouterForModel: () => poolRouter(model),
+      xaiVisionAdapterForModel: () => null
+    });
+
+    const result = dispatcher.begin({
+      model,
+      modality: "vision",
+      reasoningEffort: "medium",
+      reasoningEffortSource: "default",
+      subject,
+      scope: "code",
+      affinityKey: null,
+      createSession
+    });
+
+    expect(result).toBeInstanceOf(GatewayError);
+    expect(result).toMatchObject({ code: "service_unavailable", httpStatus: 503 });
+  });
+
   it("uses HRW sticky selection for pool members and records member attribution", () => {
     const model = goldencodeModel();
     const router = poolRouter(model);

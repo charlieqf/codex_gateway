@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GatewayError } from "@codex-gateway/core";
 import {
+  chatMessagesToPrompt,
+  parseChatCompletionRequest,
   parseStrictToolDecision,
   type OpenAIChatToolDefinition
 } from "./openai-compat.js";
@@ -19,6 +21,84 @@ const readTool: OpenAIChatToolDefinition = {
     }
   }
 };
+
+describe("multimodal chat compatibility", () => {
+  it("extracts PNG/JPEG images without copying base64 data into the text prompt", () => {
+    const encoded = "aGVsbG8=";
+    const parsed = parseChatCompletionRequest(
+      {
+        model: "goldencode",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Describe this chart." },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${encoded}`,
+                  detail: "high"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "goldencode"
+    );
+
+    expect(parsed).not.toBeInstanceOf(GatewayError);
+    if (parsed instanceof GatewayError) return;
+    expect(parsed.images).toEqual([
+      {
+        imageUrl: `data:image/png;base64,${encoded}`,
+        detail: "high"
+      }
+    ]);
+    const prompt = chatMessagesToPrompt(parsed);
+    expect(prompt).toContain("Describe this chart.");
+    expect(prompt).toContain("Image attachment provided separately");
+    expect(prompt).not.toContain(encoded);
+  });
+
+  it("rejects unsupported image formats and excessive image counts", () => {
+    const unsupported = parseChatCompletionRequest(
+      {
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: "data:image/webp;base64,aGVsbG8=" }
+              }
+            ]
+          }
+        ]
+      },
+      "goldencode"
+    );
+    expect(unsupported).toBeInstanceOf(GatewayError);
+    expect((unsupported as GatewayError).httpStatus).toBe(400);
+
+    const excessive = parseChatCompletionRequest(
+      {
+        messages: [
+          {
+            role: "user",
+            content: Array.from({ length: 9 }, () => ({
+              type: "image_url",
+              image_url: { url: "https://images.example.test/chart.png" }
+            }))
+          }
+        ]
+      },
+      "goldencode"
+    );
+    expect(excessive).toBeInstanceOf(GatewayError);
+    expect((excessive as GatewayError).httpStatus).toBe(413);
+  });
+});
 
 describe("parseStrictToolDecision validation subtypes", () => {
   it.each([

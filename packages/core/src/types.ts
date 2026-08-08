@@ -454,12 +454,18 @@ export interface ProviderHealth {
   detail?: string;
 }
 
+export interface MessageImageInput {
+  imageUrl: string;
+  detail?: "auto" | "low" | "high";
+}
+
 export interface MessageInput {
   upstreamAccount: UpstreamAccount;
   session: GatewaySession;
   subject: Subject;
   scope: Scope;
   message: string;
+  images?: MessageImageInput[];
   reasoningEffort?: string | null;
   maximumOutputTokens?: number;
   clientTools?: ClientToolDefinition[];

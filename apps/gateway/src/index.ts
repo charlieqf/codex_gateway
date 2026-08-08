@@ -343,6 +343,7 @@ interface OpenAICompatibleAdapterTarget {
 }
 
 const maxStatelessAttempts = 2;
+const estimatedTokensPerVisionImage = 4_096;
 const defaultImageBillingFallbackModel = "gpt-image-1.5";
 const defaultXAIImageBillingFallbackModel = "grok-imagine-image-quality";
 const defaultGeminiImageBillingFallbackModel = "gemini-3.1-flash-image";
@@ -397,6 +398,11 @@ export function buildGateway(options: GatewayOptions = {}) {
   const toolLoopShadowPolicy = parseToolLoopShadowPolicy(process.env, (message) =>
     app.log.warn(message)
   );
+  const visionRequestBodyLimitBytes = parsePositiveIntegerEnv(
+    process.env.MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES,
+    30 * 1_024 * 1_024,
+    "MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES"
+  );
   const subject = options.subject ?? defaultSubject();
   const sessions = options.sessionStore ?? createDefaultSessionStore(app.log);
   const upstreamPool = resolveUpstreamAccountPool(options, process.env, sessions, app.log);
@@ -435,6 +441,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     process.env,
     app.log
   );
+  const xaiVisionAdapters = createXaiVisionAdapters(
+    publicModelRegistry.models,
+    process.env,
+    app.log
+  );
   const publicModelPoolRouters = createPublicModelPoolRouters(
     publicModelRegistry.models,
     {
@@ -453,6 +464,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
     tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null,
     tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
+    xaiVisionAdapterForModel: (model) => xaiVisionAdapters.get(model.id) ?? null,
     poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
   });
   const openRouterAvailable = openRouterAdapters.size > 0;
@@ -1906,6 +1918,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const { subject, scope } = gatewayContext;
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
+      modality: parsed.images?.length ? "vision" : "text",
       reasoningEffort,
       reasoningEffortSource: parsed.reasoningEffort === undefined ? "default" : "request",
       subject,
@@ -1918,7 +1931,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
     applyChatRuntimeContext(request, attempt);
     const shape = createChatCompletionShape(parsed.model);
-    const nativeClientTools = hasNativeClientTools(parsed, publicModel);
+    const nativeClientTools = hasNativeClientTools(parsed, attempt.runtime);
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     request.gatewayToolChoice = serializeToolChoice(
       nativeClientTools
@@ -1955,7 +1968,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     request.gatewayEstimatedTokens = estimatePromptTokens(
       prompt,
       chatCompletionEstimateExtras(parsed, strictClientTools, attempt.runtime)
-    );
+    ) + (parsed.images?.length ?? 0) * estimatedTokensPerVisionImage;
     request.gatewayEstimatedPromptTokens = request.gatewayEstimatedTokens;
     request.gatewayPromptEstimateMethod = PROMPT_TOKEN_ESTIMATE_METHOD;
     request.gatewayToolLoopGuard = toolLoopGuardNotAssessed(
@@ -2244,6 +2257,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               scope: attempt.scope,
               session: attempt.session,
               message: prompt,
+              images: parsed.images,
               reasoningEffort: attempt.reasoningEffort,
               maximumOutputTokens,
               clientTools: nativeClientTools ? parsed.tools : undefined,
@@ -2516,6 +2530,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             scope: attempt.scope,
             session: attempt.session,
             message: prompt,
+            images: parsed.images,
             reasoningEffort: attempt.reasoningEffort,
             maximumOutputTokens,
             clientTools: nativeClientTools ? parsed.tools : undefined,
@@ -2627,9 +2642,16 @@ export function buildGateway(options: GatewayOptions = {}) {
     });
   };
 
-  app.post<{ Body: unknown }>("/v1/chat/completions", chatCompletionsHandler);
+  app.post<{ Body: unknown }>(
+    "/v1/chat/completions",
+    { bodyLimit: visionRequestBodyLimitBytes },
+    chatCompletionsHandler
+  );
 
-  app.post<{ Body: unknown }>("/v1/responses", async (request, reply) => {
+  app.post<{ Body: unknown }>(
+    "/v1/responses",
+    { bodyLimit: visionRequestBodyLimitBytes },
+    async (request, reply) => {
     const parsed = parseResponsesRequest(request.body);
     if (parsed instanceof GatewayError) {
       return sendOpenAIError(request, reply, parsed);
@@ -2711,7 +2733,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       sse.end();
     }
     return;
-  });
+    }
+  );
 
   app.get("/sessions", async (request) => {
     const { subject } = getGatewayContext(request);
@@ -3081,6 +3104,7 @@ async function collectNativeClientTools(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    images: input.request.images,
     reasoningEffort: input.reasoningEffort,
     maximumOutputTokens: input.request.maximumOutputTokens,
     clientTools: input.request.tools,
@@ -3795,6 +3819,7 @@ async function collectStrictToolDecision(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    images: input.request.images,
     reasoningEffort: input.reasoningEffort,
     maximumOutputTokens: input.request.maximumOutputTokens,
     attemptKind,
@@ -4854,9 +4879,9 @@ function chatCompletionEstimateExtras(
 
 function hasNativeClientTools(
   request: ChatCompletionRequest,
-  publicModel: PublicModelConfig
+  runtime: ChatRuntimeContext["runtime"]
 ): boolean {
-  return usesOpenAICompatiblePublicRuntime(publicModel.runtime) && hasStrictClientTools(request);
+  return runtime !== "codex" && hasStrictClientTools(request);
 }
 
 function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boolean {
@@ -6742,6 +6767,74 @@ function createTokenSwitchAdapters(
     reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
     reasoningParameterStyle: "effort_field"
   });
+}
+
+function createXaiVisionAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): OpenAICompatibleAdapterMap {
+  const adapters: OpenAICompatibleAdapterMap = new Map();
+  const targets = models.filter(
+    (model) => model.enabled && model.vision?.enabled && model.vision.runtime === "xai"
+  );
+  if (targets.length === 0) {
+    return adapters;
+  }
+
+  const apiKeyEnvName = env.MEDCODE_VISION_XAI_API_KEY_ENV?.trim() ||
+    "MEDCODE_VISION_XAI_API_KEY";
+  const dedicatedSecret = resolveProviderApiKey(env, apiKeyEnvName);
+  let apiKey = dedicatedSecret.apiKey;
+  let sourceEnvName = dedicatedSecret.sourceEnvName;
+  if (!apiKey) {
+    const fallbackKeysFile = env.MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE?.trim();
+    const fallbackEntry = fallbackKeysFile
+      ? parseImageBillingFallbackKeysFile(fallbackKeysFile).find(
+          (entry) => entry.provider === "xai"
+        )
+      : undefined;
+    apiKey = fallbackEntry?.apiKey ?? null;
+    if (apiKey) {
+      sourceEnvName = "MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE[xai]";
+    }
+  }
+  if (!apiKey) {
+    logger?.warn(
+      {
+        api_key_env: apiKeyEnvName,
+        api_key_file_env: `${apiKeyEnvName}_FILE`,
+        fallback_keys_file_env: "MEDCODE_IMAGE_BILLING_FALLBACK_KEYS_FILE",
+        public_model_ids: targets.map((model) => model.id)
+      },
+      "xAI vision is configured but no xAI API key is available; image requests will be unavailable."
+    );
+    return adapters;
+  }
+
+  const baseUrl = env.MEDCODE_VISION_XAI_BASE_URL?.trim() || "https://api.x.ai/v1";
+  const timeoutMs = parsePositiveIntegerEnv(
+    env.MEDCODE_VISION_XAI_TIMEOUT_MS,
+    300_000,
+    "MEDCODE_VISION_XAI_TIMEOUT_MS"
+  );
+  for (const model of targets) {
+    const vision = model.vision!;
+    adapters.set(
+      model.id,
+      new OpenAICompatibleProviderAdapter({
+        providerKind: "xai",
+        baseUrl,
+        apiKey,
+        apiKeyEnv: sourceEnvName,
+        upstreamModel: vision.upstreamModel,
+        reasoning: vision.reasoning,
+        reasoningParameterStyle: "effort_field",
+        timeoutMs
+      })
+    );
+  }
+  return adapters;
 }
 
 function createOpenAICompatibleAdapters(input: {

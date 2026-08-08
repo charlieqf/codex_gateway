@@ -278,7 +278,7 @@ describe("Responses compatibility", () => {
     }
   });
 
-  it("preserves visible attachment placeholders and mixed assistant tool history", () => {
+  it("extracts vision images, preserves visible placeholders, and keeps mixed tool history", () => {
     const parsed = parseResponsesRequest({
       model: "goldencode",
       input: [
@@ -311,8 +311,11 @@ describe("Responses compatibility", () => {
     }
     expect(parsed.chatRequest.messages[0]).toMatchObject({
       role: "user",
-      content: expect.stringContaining("Image attachment omitted")
+      content: expect.stringContaining("Image attachment provided separately")
     });
+    expect(parsed.chatRequest.images).toEqual([
+      { imageUrl: "data:image/png;base64,ignored" }
+    ]);
     expect(parsed.chatRequest.messages[0]).toMatchObject({
       content: expect.stringContaining("File attachment omitted")
     });

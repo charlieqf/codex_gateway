@@ -17,7 +17,7 @@ import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.
 export interface OpenAICompatibleProviderOptions {
   providerKind: Extract<
     ProviderKind,
-    "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch"
+    "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch" | "xai"
   >;
   baseUrl: string;
   apiKey: string;
@@ -196,7 +196,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         },
         {
           role: "user",
-          content: input.message
+          content: this.userContent(input)
         }
       ],
       stream: true,
@@ -212,8 +212,28 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
             tools: input.clientTools,
             tool_choice: input.clientToolChoice ?? "auto"
           }
-        : {})
+        : {}),
+      ...(this.options.providerKind === "xai" ? { store: false } : {})
     };
+  }
+
+  private userContent(input: MessageInput): string | Array<Record<string, unknown>> {
+    if (!input.images || input.images.length === 0) {
+      return input.message;
+    }
+    return [
+      ...input.images.map((image) => ({
+        type: "image_url",
+        image_url: {
+          url: image.imageUrl,
+          ...(image.detail ? { detail: image.detail } : {})
+        }
+      })),
+      {
+        type: "text",
+        text: input.message
+      }
+    ];
   }
 
   private reasoningPayload(input: MessageInput): Record<string, unknown> {
