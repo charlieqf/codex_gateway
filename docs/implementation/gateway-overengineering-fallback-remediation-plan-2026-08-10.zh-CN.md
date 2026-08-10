@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 实施中；M0、M1 已完成，M1 已部署 R760；M2 至 M7 尚未实施或部署 |
+| 状态 | 实施中；M0、M1 已完成，M1 已部署 R760、四产物成功路径验收未通过；M2 至 M7 尚未实施或部署 |
 | 建立日期 | 2026-08-10 |
 | 最后更新 | 2026-08-10 |
 | 审查基线 | `6ca36cda2855a89d1e77e574e81a9a177daa4c96` |
@@ -104,7 +104,7 @@ env 值。配置审计只记录变量名、是否存在和是否合法。
 | 顺序 | 里程碑 | 核心交付 | 优先级 | 前置 | 负责人/目标日期 | 实现状态 | R760 | 证据/PR |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
 | 0 | M0 行为与配置基线 | 固定失败/成功语义、全量测试基线、R760 配置合法性预检 | P1 | 无 | Codex / 2026-08-10 | 已完成 | 不适用 | 本文 §5.1-§5.2 |
-| 1 | M1 Research fail-closed | 删除 transport 成功兜底；限制 semantic normalization | P1 | M0 | Codex / 2026-08-10 | 已完成 | 已部署；限量验收 | `977639f`；本文 M1 R760 发布记录 |
+| 1 | M1 Research fail-closed | 删除 transport 成功兜底；限制 semantic normalization | P1 | M0 | Codex / 2026-08-10 | 已完成 | 已部署；成功路径未通过 | `977639f`；本文 M1 R760 发布记录 |
 | 2 | M2 关键配置 fail-fast | 区分缺失与非法配置；先预检再启用启动失败 | P1 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
 | 3 | M3 quota reset 审计一致性 | 取消静默 audit 失败；明确部分成功/持久审计契约 | P1 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
 | 4 | M4 fallback 可观测性 | image attempt ledger 与降级成功标记 | P2 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
@@ -394,13 +394,39 @@ Worker 时遇到同一缺失链接，造成一次短暂服务中断。随后使�
 | public `goldencode` 非流式文本 | 通过；request `chatcmpl_c6eb870c141f4db497f30629e31d8abe` 返回非空内容 |
 | Doctor Research | run `drr_e4d8e73f636942d8955b619204136db3` 在五次有界模型阶段后以 `model_contract_error` 失败；Skill `1.6.106`、prompt `v31`；零 result、零 artifact |
 | fail-closed 结论 | 通过：不合格模型内容没有被 semantic filler、机械引用或固定报告加工成成功 |
-| 四产物成功路径 | 本次未实证；遵守单次 Research E2E 边界，不追加重试来筛选成功样本 |
+| 四产物成功路径 | 部署当次未实证；后续经需求方明确启动的单次验证仍未通过，详见下节 |
 | 清理 | 临时 key 已 revoked、entitlement 已 cancelled、用户已 disabled；active credential 与 live entitlement 均为 0，临时 token/request/download 目录已删除 |
 | 最终状态 | 四个服务均 running/healthy、restart 0；public/internal reservation、active/needs-input run 均为 0；三库 integrity `ok`、外键违规 0 |
 
 因此当前事实是“代码与部署完成，危险伪成功路径及真实 fail-closed 已验证”，不是“真实四产物
 成功路径全绿”。若需要证明发布成功率，应另行批准代表性样本与明确次数；不得把重复运行直到
 成功当作本次验收，也不得为提高成功率恢复已删除的 semantic fallback。
+
+### 四产物成功路径后续验证（2026-08-10）
+
+需求方明确启动后，只执行了一次新的 Research E2E，没有重复 public text、Azure、图片、
+Billing、容量或故障注入矩阵。Run `drr_ed3866e05b8744c7a92253f3bd29f378` 使用 release
+`977639f`、Skill `1.6.106` 和 prompt `v31`，约 235 秒后以
+`model_contract_error` 结束；五个有界模型 stage attempt 均无 transport `error_code`，但最终
+仍为零 result、零 artifact。
+
+脱敏 validation code 显示：
+
+- 初始 synthesis 在 attempt 3 仍违反 `citation_reference_closure`、
+  `paragraph_citation_coverage`、`review_orphaned_demonstrative_start`、
+  `answer_length_contract` 和 `numeric_evidence_closure`；
+- attempt 5 的 peer review 自身触发 `peer_review_contract_error`，且上述五类内容错误仍未关闭；
+- Worker 因此没有发布任何部分或替代 artifact。该结果不是版本错配、鉴权、队列、数据库或
+  provider transport 故障。
+
+清理后临时用户为 disabled，active credential 和 live entitlement 均为 0，临时 token、请求和
+下载目录已删除。public/internal unfinished reservation 与 active/needs-input run 均为 0；三库
+integrity `ok`、外键违规 0；四个服务保持 running/healthy、restart 0。
+
+截至本次验证，四产物成功路径仍未通过，不能记为验收完成。连续重跑同一输入直到偶然成功会
+把模型合规率问题隐藏成成功样本，因此本轮在一次明确授权的尝试后停止。下一步应在“接受当前
+失败率并定义固定样本/次数”与“单独改进模型生成/纠错、保持全部 fail-closed 门禁”之间做明确
+选择；不得恢复服务器 semantic filler。
 
 ## 7. M2：关键配置 fail-fast
 
@@ -645,3 +671,4 @@ git diff --check
 | 2026-08-10 | 完成 M1-A Research transport fail-closed | M1 从未开始变为进行中；M1-A 已完成、M1-B 未开始；R760 未部署 | 删除 closing 固定报告生成器及专属放宽分支；目标测试、90 项 Worker、77 项 Research 定向、676 项全量 Vitest 和 51 项 Python 测试通过；无 schema/config/运行时/Azure 变更 |
 | 2026-08-10 | 完成 M1-B presentation-only 发布契约 | M1 从进行中变为已完成；M1-A、M1-B 均完成；R760 未部署 | 删除 semantic normalizer、固定段落/章节/答案 filler 和机械引用；空白 core evidence fail-closed；117 项 Worker/replay、77 项 Research 定向、677 项全量 Vitest、51 项 Python 测试通过；无 public schema/config/运行时/Azure 变更 |
 | 2026-08-10 | 发布 M1 到 R760 并执行限量验收 | M1 保持已完成；R760 从未部署变为已部署、限量验收 | release `977639f`；public 文本通过；真实 Research run `drr_e4d8…` 因 `model_contract_error` fail-closed 且零 artifacts；未追加成功率重试；临时凭据已清理，四服务 healthy/restart 0，三库完整、无活动 run/未结算 reservation；Azure 未操作 |
+| 2026-08-10 | 执行四产物成功路径后续验证 | R760 保持已部署；四产物成功路径标记为未通过 | run `drr_ed3866…` 在五次有界模型阶段后因引用闭合、段落覆盖、孤立指代、答案长度、数字证据与 peer-review contract 未关闭而 fail-closed；零 result/artifact；无 transport error；临时状态已清理，服务与三库正常；未继续重跑 |
