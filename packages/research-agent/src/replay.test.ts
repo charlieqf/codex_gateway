@@ -174,7 +174,7 @@ describe("Doctor Research offline model-response replay", () => {
     expect(result.artifacts).toHaveLength(4);
   });
 
-  it("repairs the bounded presentation-integrity bundle deterministically", () => {
+  it("refuses presentation repair when semantic evidence failures are also present", () => {
     const fixture = structuredClone(
       fixtures.find(
         (item) => item.fixture_id === "doctor_research_replay_valid"
@@ -201,18 +201,18 @@ describe("Doctor Research offline model-response replay", () => {
       activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
     });
 
-    expect(first.terminalStatus).toBe("succeeded");
+    expect(first.terminalStatus).toBe("failed");
     expect(first.diagnostics).toEqual([
       "paragraph_citation_coverage",
       "review_unbalanced_delimiter",
       "review_inline_enumeration_sequence",
       "numeric_evidence_closure"
     ]);
-    expect(first.warnings).toContain(
-      "deterministic_safety_normalization_applied"
+    expect(first.warnings).not.toContain(
+      "deterministic_delimiter_balance_applied"
     );
-    expect(first.artifacts).toHaveLength(4);
-    expect(first.artifactContentSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(first.artifacts).toEqual([]);
+    expect(first.artifactContentSha256).toBeNull();
     expect(second).toEqual(first);
   });
 
@@ -289,7 +289,7 @@ describe("Doctor Research offline model-response replay", () => {
     expect(second).toEqual(first);
   });
 
-  it("removes extra unknown QA source IDs without changing accepted replay artifacts", () => {
+  it("fails closed when any QA source ID is outside closed evidence", () => {
     const fixture = structuredClone(
       fixtures.find(
         (item) => item.fixture_id === "doctor_research_replay_valid"
@@ -314,19 +314,15 @@ describe("Doctor Research offline model-response replay", () => {
       activeSkillBundleSha256: getDefaultMedicalSkillBundle().digest
     });
 
-    expect(first.terminalStatus).toBe("succeeded");
-    expect(first.diagnostics).toEqual([]);
-    expect(first.warnings).toContain(
-      "deterministic_body_fragment_unknown_qa_source_removed"
+    expect(first.terminalStatus).toBe("failed");
+    expect(first.warnings).toEqual(
+      expect.arrayContaining([
+        "deterministic_body_fragment_qa_source_closure_deferred",
+        "deterministic_body_fragment_qa_deferred_to_targeted_repair"
+      ])
     );
-    expect(first.artifactContentSha256).toBe(
-      fixtures.find(
-        (item) => item.fixture_id === "doctor_research_replay_valid"
-      )!.expected.artifact_semantics.aggregate_content_sha256
-    );
-    expect(JSON.stringify(first.artifacts)).not.toContain(
-      "src_pubmed_999999999"
-    );
+    expect(first.artifacts).toEqual([]);
+    expect(first.artifactContentSha256).toBeNull();
     expect(second).toEqual(first);
   });
 

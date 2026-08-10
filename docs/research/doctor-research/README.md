@@ -39,10 +39,9 @@ The engineering-side derived thresholds are declared once in
 the authoritative Skill path, medical-team ownership, and the exact reviewed
 bundle SHA-256. Workflow admission fails closed when the active bundle digest
 does not match it, so a Skill update cannot silently reuse stale prompt,
-validator, or supplementer rules. The prompt builders, fragment and complete
-validators,
-deterministic supplementers, JSON contract, and language counters all consume
-that policy. Prose defect detection and deterministic repair share
+validator, or presentation-repair rules. The prompt builders, fragment and
+complete validators, JSON contract, and language counters all consume that
+policy. Prose defect detection and bounded presentation repair share
 `review-prose-rules.ts`; the replay suite must pass unchanged before either
 derived rule source is released.
 
@@ -242,8 +241,9 @@ excerpts, so the model does not receive or regenerate that profile. A final
 call performs only the medical Skill's concise peer-review self-check and
 returns bounded exact-text corrections instead of rewriting the complete
 article. That compact peer-review call has a 120-second engineering deadline;
-if its transport is unavailable, deterministic evidence-closure may accept
-the assembled draft only when every medical Skill content gate still passes.
+if its transport is unavailable, the assembled draft may be accepted only
+when it already passes every medical Skill and evidence gate, optionally after
+the bounded presentation-only repair described below.
 When complete validation isolates the remaining hard failure to one body or
 closing section, the bounded correction path sends only that section, its
 structured diagnostics, and the closed evidence already cited by that
@@ -263,208 +263,70 @@ normal 6,000-character review floor. The middle call is explicitly balanced
 across exactly four topic sections, and the closing call emits exactly the
 three required closing sections without a nonessential transition section.
 
-When evidence-safety removal makes an otherwise substantive limitations or
-conclusion section underfill the medical Skill's explicit section floor, the
-fallback may append only pre-reviewed evidence-boundary prose: at least half
-of the limitations section and one quarter of the conclusion must remain, and
-the original 600/200 content floors are never reduced.
-The same post-safety conservative closure applies to a model body topic only
-when at least 75% of the Skill's 600-character floor remains and the section
-contains verified citations. It can add only pre-reviewed evidence-boundary
-prose tied to those same citations; a shorter or uncited topic still fails
-closed.
+Post-model processing is explicitly split into two classes. Approved
+presentation repair covers bounded JSON string encoding, one unambiguous
+transport envelope, delimiter balance, exact duplicate-paragraph removal,
+and inline enumeration formatting. Semantic repair includes deleting or
+rewriting claims, replacing evidence fields, padding answers, adding review
+paragraphs or sections, dropping an underfilled section, and assigning
+citations to server-authored prose.
 
-Execution `1.6.76` also closes model-fragment presentation defects without
-rewriting medical content: a paragraph-level dangling transition such as
-`但该研究...` is made self-contained, and a subjectless scope sentence such as
-`涵盖...` is anchored to the evidence in the review. Dangling post-safety
-phrases such as `该关联`, `该趋势`, `该个案`, `该发现`, or a paragraph-leading
-`该大样本研究` are removed or given an explicit source referent. A single
-leaked question/answer marker, a heading such as `简短学术问答`, a horizontal
-rule, and anything following it after the conclusion are removed. A comparison
-sentence that ends at `相比` and a result sentence that ends at bare `显示 [n]`
-are treated as incomplete rather than published, and a claim inferred only
-from a paper title is replaced by an explicit abstract-availability boundary.
-Presentation-only sentence removal and demonstrative closure run to a bounded
-fixed point, because deleting an unsupported leading sentence can expose a
-formerly internal `该发现`, `该结果`, `该趋势`, `该病例`, or `该个案` as the new
-paragraph start. This convergence changes no medical fact and must still pass
-the complete evidence validator.
-Deterministic length or reference-closure paragraphs are inserted into the
-evidence-synthesis section instead of being appended after the conclusion.
-For a Chinese question
-that explicitly asks for an effectiveness or success rate, the deterministic
-answer check may add only explicitly labelled rate or shrinkage metrics found
-in that answer's already-bound PubMed abstract. It never searches for or
-invents a replacement fact, and the normal numeric evidence-closure and
-100-300-character answer gates still apply.
-If evidence-safety removal leaves a Chinese question about target-vessel
-patency or EASIX prognostic value with only boundary language, execution
-`1.6.76` may copy only the explicitly labelled patency, odds-ratio, or
-hazard-ratio values from that answer's already-bound PubMed abstract. The
-mapping is keyword-limited, idempotent, and remains subject to the same numeric
-and statistic-label evidence closure; it does not infer a clinical
-recommendation or use another reference's values. The same exact-source rule
-closes an AVP/endoleak effectiveness question with the abstract's explicitly
-labelled technical-success, immediate angiographic-success, and shrinkage
-metrics. It also closes a D-dimer surveillance answer or review paragraph with
-the abstract's explicitly labelled adjusted hazard ratio and sensitivity odds
-ratio when model prose was truncated, and can restore the two explicitly
-labelled EASIX prognostic estimates when a fragment dropped their subject.
-Core-evidence sample flow also retains both the source-cohort and
-actually included counts when the abstract reports both, instead of selecting
-only the larger number. An abstract that does not expose a specific study
-design now receives a neutral methods boundary rather than a duplicated
-`原始表述为准。设计` phrase.
+Only the presentation class may turn an otherwise invalid candidate into a
+published result. The Worker retains the first stable validation codes,
+applies presentation repair only when every original code belongs to that
+class, and reruns the complete schema, medical-Skill, evidence, citation,
+length, and artifact gates. A mixed presentation/semantic failure is not
+partially repaired. Unsupported numbers, causal overclaims, orphaned prose,
+missing citations, short required sections, and incomplete answers must be
+corrected by a bounded model response or the run fails with zero artifacts.
 
-When several near-minimum body sections require deterministic boundary
-completion, execution `1.6.76` rotates distinct pre-reviewed paragraphs across
-sections so the completion step cannot create duplicate prose. It repeats the
-unchanged section-floor check after whole-review paragraph deduplication, since
-a shared model paragraph may otherwise leave a section just below its floor.
-The post-safety topic pool contains enough distinct boundary paragraphs for
-all allowed topic sections, so earlier supplements in other sections cannot
-exhaust the final floor-closing pass.
-That final check can add only a boundary paragraph not already present in the
-review; it does not lower or reinterpret any medical content gate. A substantive
-closing limitations or conclusion section that is near its unchanged Skill
-floor is completed before fragment contract evaluation, using the same
-claim-free evidence-boundary text and citation checks already used after
-safety normalization. This prevents two mechanically repairable diagnostics
-from consuming model retries or failing the whole run.
+The server no longer inserts fixed evidence-boundary paragraphs, section
+templates, citation-closure prose, or generic core-evidence text. It does not
+pad or truncate a short answer to make the length contract pass. Whitespace-
+only core-evidence fields fail with `core_evidence_field_contract`. The
+sharded core table remains a server-owned projection from closed publication
+metadata and abstracts; it is not used to replace a missing model shard.
 
-Before spending the medical Skill's peer-review call, the Worker previews the
-same deterministic evidence closure used by the unavailable-peer fallback. If
-that closure would remove the complete introduction while the original
-fragment passed its Skill floor, one bounded correction call runs concurrently
-with peer review. It regenerates only the introduction from the five verified
-foundation abstracts, forbids narrative numbers, retains the 800-character
-floor, and does not alter any medical-team Skill text or any thematic section.
+Unknown QA source IDs are never removed from an otherwise accepted answer.
+The original QA payload is withheld and a bounded QA-only model correction
+must return source IDs wholly inside the closed evidence set. If that
+correction is absent or invalid, the run fails closed. Chinese quantities may
+still be converted to Arabic notation before validation so the exact-number
+gate can see them; this representation change does not add content or relax
+the answer-length contract.
 
-If an upstream transport timeout consumes the first bounded shard retry and
-the returned fragment still misses a medical Skill section contract, the
-remaining fifth call is reallocated to that exact fragment. Because the five
-call budget is then exhausted, the Worker's evidence, citation, prose, length,
-and presentation gates perform the required concise pre-publication self-check.
-The run publishes only if every unchanged medical Skill requirement passes;
-otherwise it fails closed before the 570-second wall deadline.
-
-Before applying the medical Skill's four-section and per-section length gates,
-the Worker removes only exactly duplicated body paragraphs under the same
-normalization used by the duplicate-prose validator. It then recomputes every
-section floor and all evidence gates, so repeated model text cannot be counted
-as substantive length and removal cannot waive a medical Skill requirement.
-
-When any transport, format, or Skill retry has consumed the fourth call, the
-Worker previews its
-deterministic evidence closure before allocating the fifth call. If that
-preview shows an otherwise present conclusion would be removed entirely, the
-fifth call regenerates only the conclusion from five verified abstracts,
-forbids narrative numbers and treatment recommendations, and retains the
-medical Skill's 200-character floor. Full deterministic self-review then runs
-over the assembled document; any remaining failure is rejected.
-
-The Worker projects only the required fields from model fragment envelopes and
-accepts a closing fragment returned directly as bounded Markdown. This
-transport normalization does not waive any content check: every fragment is
-checked against the medical Skill's target language and exact section/length
-contract before assembly. The middle shard always supplies four substantive
-topic sections, and the closing shard supplies exactly one
-evidence-synthesis/controversy section, one limitations/outlook section, and
-one conclusion. Empty sections,
-duplicate substantive paragraphs, unbalanced delimiters, truncated numeric
-prose, and low-information, English-substituted, or duplicated Chinese
-core-evidence fields are rejected. The deterministic core table obtains study
-type and sample size only from the verified PubMed title/abstract, and reuses
-evidence-closed Chinese sentences from the validated introduction for methods
-and results where available. A combined method/result sentence is split only
-at an explicit result or reported-rate marker; otherwise the methods cell uses
-the conservative study-design fallback while the complete evidence sentence
-remains available to the results cell. Subjectless result starts in the
-deterministic core table are repaired with evidence-neutral study attribution.
-Study-design matching is sentence-bounded, so a
-retrospective study is not mislabeled as prospective merely because its
-conclusion asks for prospective validation. Safety normalization treats decimal
-points as part of a number rather than a sentence boundary, repairs a bounded
-set of subjectless or comparison-only Chinese sentence starts left by safe
-clause deletion, renumbers damaged inline outlook enumerations, strips an
-accidentally appended Q&A block from the review while preserving any later
-independently generated synthesis, limitations, and conclusion sections, and
-also strips repeated orphan `答：` paragraphs after the conclusion even when
-their Q&A heading was lost during evidence closure. It removes duplicate
-substantive paragraphs that arise only after unsupported
-numerical sentences are closed. A prescriptive treatment sentence supported
-only by case reports or case series is removed instead of being promoted into
-a general recommendation.
-
-Answer length is closed deterministically with evidence-neutral boundary
-language before the Worker decides whether to spend its one bounded correction
-slot. This avoids an unnecessary model rewrite of otherwise valid Q&A content.
-Chinese factual quantities in answers are normalized to Arabic digits before
-the exact-number evidence gate, so spelled-out quantities cannot bypass
-closure against their cited abstracts. A case-report-only or case-series-only
-answer also receives and validates an explicit non-generalization boundary.
-Repeated evidence-boundary sentences are removed, and repeated length closure
-is idempotent. Mean-versus-median follow-up labels are checked against the
-cited abstract and deterministically corrected when the exact statistic and
-unit identify an unambiguous mismatch. Chinese answers with a subjectless
-finding verb receive an evidence-neutral study subject. When a question
-explicitly asks whether female and male outcomes are comparable, a comparable
-outcome statement is projected only when that exact relationship is present in
-the cited abstract. Review study-design labels are corrected from the cited
-abstract, and a sentence claiming spinal-cord injury is removed when none of
-that paragraph's cited abstracts reports that clinical topic. A collective
-answer may call multiple sources retrospective only when every cited abstract
-explicitly reports a retrospective design; otherwise that unsupported design
-label is removed and the two studies are named directly.
-After the concise peer-review patch, the Worker first validates the corrected
-draft without rewriting it and invokes deterministic safety normalization only
-when a gate still fails. If that normalization would leave a medical-Skill
-section under its explicit length floor, and the fifth model-call slot is still
-available, one 90-second exact-text convergence pass may repair only the
-remaining review diagnostics. Case-report or case-series evidence that is used
-to recommend routine, standard, or preferred treatment is now a direct
-validation error as well as a deterministic removal rule.
-
+A peer-review timeout or unusable patch can retain the unpatched candidate
+only when that candidate already passes every hard gate, optionally after an
+approved presentation-only repair. A stale or inapplicable peer patch follows
+the same rule. No deterministic semantic normalization is available as an
+approval substitute.
 If exactly one synthesis shard encounters a retryable transport failure, an
 unusable envelope, or a medical-Skill contract violation, execution may spend
 one additional call to retry only that shard inside the same hard deadline.
 Foundation retries are capped at 120 seconds, middle-fragment retries at
 170 seconds, and closing-fragment retries at 90 seconds. If both the original
 closing call and its bounded retry fail after the foundation and four-topic
-body have succeeded, execution `1.6.76` builds only the three closing sections
-from pre-reviewed evidence-boundary prose. When body and closing transport
-failures overlap, the non-reconstructable body retry is scheduled ahead of
-the closing retry; if that body then succeeds but closing transport remains
-unavailable, the same bounded closing fallback is used. A remaining call still
-attempts compact peer review; when both transport retries consumed the
-five-call budget, the unchanged deterministic evidence-safety validator
-performs the final self-check. Every identity rule, citation rule, numeric
-closure, evidence-grade rule, five-question contract, section-count rule, and
-artifact integrity check is unchanged. The production controlled-trial policy
+body have succeeded, the source workflow now returns the existing
+`upstream_unavailable` terminal failure. It does not assemble a complete result
+or publish artifacts, and the failed model attempts remain available through
+the stage-run transport diagnostics. When body and closing transport failures
+overlap, the body retry is still scheduled ahead of the closing retry; the run
+continues only when every required shard ultimately supplies a valid response.
+Every identity rule, citation rule, numeric closure, evidence-grade rule,
+five-question contract, section-count rule, and artifact integrity check is
+unchanged. The production controlled-trial policy
 keeps the medical Skill's 6000/800/600/800/600/200 content values as authoring
 targets while using the versioned 5000/640/450/640/450/160 release floors. A
 result between a floor and its target is published only with an explicit
 `controlled_trial_*_below_target` quality warning. Missing sections and content
-below any release floor still fail closed. The closing fallback records
-`deterministic_closing_transport_fallback_applied`. Foundation or body
-transport exhaustion, or any remaining validation failure, still fails
-closed. The 570-second run deadline remains the outer limit.
+below any release floor still fail closed. Foundation, body, or closing
+transport exhaustion, and any remaining validation failure, all fail closed.
+The 570-second run deadline remains the outer limit.
 Short-lived `429` admission responses are retried within the same recorded
-stage attempt. A short but substantive abstract may be completed with whole
-evidence-closed sentences selected from that same fragment's validated
-introduction, followed when needed by one fixed claim-free evidence-boundary
-sentence. An underfilled optional closing topic is removed because the four
-mandatory topic sections are already complete. These actions are recorded as
-warnings and consume no additional model call. Numeric safety normalization
-first preserves only complete,
-substantive Chinese clauses from the model's original sentence whose numbers
-are all closed against the cited abstracts. It removes the complete sentence
-when no such clause is safe, never splits decimal points, and rejects
-unbalanced or truncated results. Citation-closure paragraphs are rechecked for
-case, in-vitro, and observational scope. Deterministic evidence-boundary
-supplements are never repeated merely to reach the length floor. The Worker
-then assembles the fragments, renders the
+stage attempt. A near-minimum abstract or required section is not completed by
+server prose, and an underfilled optional topic is not silently removed. A
+bounded model retry must return a complete fragment that passes the original
+contract. The Worker then assembles the accepted fragments, renders the
 3-8-paper core evidence table from verified publication metadata and
 abstracts, adds verified identity, sources, all reference metadata, search
 report, coverage and quality fields, and validates the unchanged public result
@@ -475,9 +337,10 @@ evidence, safety, identity, question/answer, section-count, or artifact gate.
 
 The peer-review model is always attempted. If that bounded call times out or
 returns an unusable patch envelope, the Worker records a transparent warning
-and applies the same deterministic safety, citation, number, evidence-grade
-and length gates to the unpatched assembled draft. It never treats an
-unparseable peer-review response as approval.
+and runs the unchanged complete validator against the unpatched assembled
+draft. Only the approved presentation repair may run before revalidation. It
+never treats an unparseable peer-review response as approval or adds semantic
+content to obtain approval.
 
 The API has a non-negotiable ten-minute wall-clock ceiling measured from run
 creation, including queue wait and retries. Production is configured with a
@@ -598,12 +461,13 @@ Reviewed replay fixtures live only under
 `packages/research-agent/test-fixtures/replay/`. The replay entry accepts a
 sanitized run input, fixed closed evidence, an injected clock, and the ordered
 model response-or-error sequence. It performs the production fragment parse,
-deterministic normalization, merge, complete validation, peer substring patch,
-and four-text rendering without network access. Tests run every fixture twice
-and require identical diagnostics, semantic results, artifact bytes, and
-aggregate content SHA-256.
+approved presentation repair, merge, complete validation, peer substring
+patch, and four-text rendering without network access. Semantic-invalid
+fixtures remain failed with no artifacts. Tests run every fixture twice and
+require identical diagnostics, terminal results, artifact bytes, and aggregate
+content SHA-256.
 
-The current suite contains 15 independent sanitized fixtures exercised by 23
+The current suite contains 15 independent sanitized fixtures exercised by 26
 tests; repeated-run variants account for the difference between fixture and
 test counts.
 

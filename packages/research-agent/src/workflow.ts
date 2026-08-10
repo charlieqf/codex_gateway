@@ -59,7 +59,6 @@ import {
 } from "./review-contract-policy.js";
 import {
   repairReviewUnbalancedDelimiters,
-  repairReviewProseStarts,
   reviewProsePromptContract,
   validateCompleteReviewPresentationRules,
   validateReviewProseIntegrityRules
@@ -1543,51 +1542,17 @@ export function replayDoctorResearchSynthesis(input: {
     warnings.push(...(foundation.normalizationWarnings ?? []));
     warnings.push(...body.normalizationWarnings);
     warnings.push(...(closing.normalizationWarnings ?? []));
-    const normalizedFoundation =
-      normalizeNearMinimumFoundationAbstract(
-        foundation,
-        run.language
-      );
-    const normalizedBody = supplementNearMinimumBodySections(
-      body,
-      run.language
-    );
-    const normalizedClosing =
-      dropUnderfilledOptionalClosingTopic(closing, run.language);
-    const skillClosedClosing = supplementReviewSkillSectionBoundaries({
-      markdown: normalizedClosing.fragment.markdown,
-      referenceCount: input.closedEvidence.references.length,
-      language: run.language
-    });
-    warnings.push(...normalizedFoundation.warnings);
-    if (normalizedBody.changed) {
-      warnings.push(
-        "deterministic_body_section_boundary_supplement_applied"
-      );
-    }
-    if (normalizedClosing.changed) {
-      warnings.push("deterministic_underfilled_optional_topic_removed");
-    }
-    if (skillClosedClosing.changed) {
-      warnings.push(
-        "deterministic_closing_section_boundary_supplement_applied"
-      );
-    }
-    const normalizedClosingFragment: ReviewFragment = {
-      ...normalizedClosing.fragment,
-      markdown: skillClosedClosing.markdown
-    };
     const skillDiagnostics = [
       ...validateFoundationFragmentSkillContract(
-        normalizedFoundation.fragment,
+        foundation,
         run.language
       ),
       ...validateBodyFragmentSkillContract(
-        normalizedBody.fragment,
+        body,
         run.language
       ),
       ...validateClosingFragmentSkillContract(
-        normalizedClosingFragment,
+        closing,
         run.language
       )
     ].map((diagnostic) => diagnostic.split(":", 1)[0]!);
@@ -1609,32 +1574,27 @@ export function replayDoctorResearchSynthesis(input: {
       schema_version: "doctor_research_model_draft.v1",
       profile,
       review: {
-        title: normalizedFoundation.fragment.review.title,
-        abstract: normalizedFoundation.fragment.review.abstract,
-        keywords: normalizedFoundation.fragment.review.keywords,
+        title: foundation.review.title,
+        abstract: foundation.review.abstract,
+        keywords: foundation.review.keywords,
         markdown: [
-          normalizedFoundation.fragment.review.markdown.trim(),
-          normalizedBody.fragment.markdown.trim(),
-          normalizedClosingFragment.markdown.trim()
+          foundation.review.markdown.trim(),
+          body.markdown.trim(),
+          closing.markdown.trim()
         ].join("\n\n"),
         core_evidence: buildDeterministicCoreEvidence(
           foundationEvidence,
           run.language,
-          normalizedFoundation.fragment.review.markdown
+          foundation.review.markdown
         )
       },
-      predicted_questions:
-        normalizedBody.fragment.predicted_questions,
-      answers: normalizedBody.fragment.answers.map((answer) => ({
+      predicted_questions: body.predicted_questions,
+      answers: body.answers.map((answer) => ({
         ...answer,
-        answer: boundAnswerContent(
+        answer:
           run.language === "zh-CN"
             ? normalizeChineseQuantitiesToArabic(answer.answer)
-            : answer.answer,
-          run.language,
-          input.policy.minimumAnswerContent,
-          input.policy.maximumAnswerContent
-        )
+            : answer.answer
       }))
     };
     const peerCall = callsByRole.get("peer_review");
@@ -1673,7 +1633,7 @@ export function replayDoctorResearchSynthesis(input: {
       input.identity,
       input.closedEvidence,
       input.policy,
-      { deterministicSafetyNormalization: true }
+      { presentationRepair: true }
     );
   }
   if (!validation.ok) {
@@ -2393,44 +2353,20 @@ async function generateAndValidateModelOutput(
       2,
       validation.errorCodes
     );
-    if (
-      validation.errorCodes.every((code) =>
-        [
-          "paragraph_citation_coverage",
-          "numeric_evidence_closure",
-          "in_vitro_scope_required",
-          "case_evidence_scope_required",
-          "case_evidence_answer_scope_required",
-          "case_evidence_prescriptive_claim",
-          "statistic_label_evidence_closure",
-          "answer_duplicate_sentence",
-          "review_embedded_auxiliary_output",
-          "review_orphaned_prose_start",
-          "review_orphaned_demonstrative_start",
-          "review_orphaned_comparative_start",
-          "review_evidence_topic_mismatch",
-          "review_study_design_label_mismatch",
-          "answer_orphaned_prose_start",
-          "answer_question_evidence_coverage",
-          "answer_study_design_label_mismatch",
-          "review_inline_enumeration_sequence",
-          "causal_claim_evidence_grade"
-        ].includes(code)
-      )
-    ) {
-      const normalizedValidation = validateGeneratedOutput(
+    if (isBoundedPresentationRepairCandidate(validation.errorCodes)) {
+      const presentationRepairedValidation = validateGeneratedOutput(
         reviewed.text,
         context.run,
         identity,
         evidence,
         context.input.policy,
-        { deterministicSafetyNormalization: true }
+        { presentationRepair: true }
       );
-      if (normalizedValidation.ok) {
+      if (presentationRepairedValidation.ok) {
         return {
-          output: normalizedValidation.value,
+          output: presentationRepairedValidation.value,
           warnings: [
-            ...normalizedValidation.warnings,
+            ...presentationRepairedValidation.warnings,
             "peer_review_model_completed"
           ]
         };
@@ -2509,29 +2445,7 @@ async function generateAndValidateModelOutput(
     }
     if (
       !validation.ok &&
-      validation.errorCodes.every((code) =>
-        [
-          "paragraph_citation_coverage",
-          "numeric_evidence_closure",
-          "in_vitro_scope_required",
-          "case_evidence_scope_required",
-          "case_evidence_answer_scope_required",
-          "case_evidence_prescriptive_claim",
-          "statistic_label_evidence_closure",
-          "answer_duplicate_sentence",
-          "review_embedded_auxiliary_output",
-          "review_orphaned_prose_start",
-          "review_orphaned_demonstrative_start",
-          "review_orphaned_comparative_start",
-          "review_evidence_topic_mismatch",
-          "review_study_design_label_mismatch",
-          "answer_orphaned_prose_start",
-          "answer_question_evidence_coverage",
-          "answer_study_design_label_mismatch",
-          "review_inline_enumeration_sequence",
-          "causal_claim_evidence_grade"
-        ].includes(code)
-      )
+      isBoundedPresentationRepairCandidate(validation.errorCodes)
     ) {
       validation = validateGeneratedOutput(
         repaired.text,
@@ -2539,7 +2453,7 @@ async function generateAndValidateModelOutput(
         identity,
         evidence,
         context.input.policy,
-        { deterministicSafetyNormalization: true }
+        { presentationRepair: true }
       );
     }
     if (
@@ -2637,29 +2551,7 @@ async function generateAndValidateModelOutput(
       );
       if (
         !validation.ok &&
-        validation.errorCodes.every((code) =>
-          [
-            "paragraph_citation_coverage",
-            "numeric_evidence_closure",
-            "in_vitro_scope_required",
-            "case_evidence_scope_required",
-            "case_evidence_answer_scope_required",
-            "case_evidence_prescriptive_claim",
-            "statistic_label_evidence_closure",
-            "answer_duplicate_sentence",
-            "review_embedded_auxiliary_output",
-            "review_orphaned_prose_start",
-            "review_orphaned_demonstrative_start",
-            "review_orphaned_comparative_start",
-            "review_evidence_topic_mismatch",
-            "review_study_design_label_mismatch",
-            "answer_orphaned_prose_start",
-            "answer_question_evidence_coverage",
-            "answer_study_design_label_mismatch",
-            "review_inline_enumeration_sequence",
-            "causal_claim_evidence_grade"
-          ].includes(code)
-        )
+        isBoundedPresentationRepairCandidate(validation.errorCodes)
       ) {
         validation = validateGeneratedOutput(
           converged.text,
@@ -2667,7 +2559,7 @@ async function generateAndValidateModelOutput(
           identity,
           evidence,
           context.input.policy,
-          { deterministicSafetyNormalization: true }
+          { presentationRepair: true }
         );
       }
       if (!validation.ok) {
@@ -2866,9 +2758,9 @@ async function generateAndValidateShardedModelOutput(
   // Preserve every medical-Skill section floor while avoiding the former
   // engineering over-allocation that independently asked the three shards
   // for 34%, 84%, and 92% of the complete article. A 15% aggregate buffer,
-  // weighted toward the four-section body, leaves room for evidence-safety
-  // removal without making the closing shard produce almost a second complete
-  // review.
+  // weighted toward the four-section body, leaves room for bounded model
+  // correction without making the closing shard produce almost a second
+  // complete review.
   const targetReviewContent = reviewContentTarget(context.input.policy);
   const foundationMinimum = Math.max(
     1_200,
@@ -2978,7 +2870,6 @@ async function generateAndValidateShardedModelOutput(
   let shardTransportRetryCount = 0;
   let shardAdmissionGraceElapsed = false;
   let terminalShardError: unknown = null;
-  let deterministicClosingTransportFallbackApplied = false;
   const shardAdmissionGraceMs = Math.min(
     15_000,
     Math.max(
@@ -3089,17 +2980,13 @@ async function generateAndValidateShardedModelOutput(
       isRetryableShardTransportError(settlement.reason);
     const retryableShardEnvelopeError =
       isRetryableShardEnvelopeError(settlement.reason);
-    if (
-      settlement.index === 2 &&
-      shardTransportRetryCount >= 1 &&
-      responses[0] !== null &&
-      responses[1] !== null &&
-      retryableShardTransportError
-    ) {
-      deterministicClosingTransportFallbackApplied = true;
-      continue;
-    }
-    const shardTransportRetryLimit = retryableShardEnvelopeError ? 1 : 2;
+    const shardTransportRetryLimit =
+      retryableShardEnvelopeError ||
+      (settlement.index === 2 &&
+        responses[0] !== null &&
+        responses[1] !== null)
+        ? 1
+        : 2;
     if (
       shardTransportRetryCount < shardTransportRetryLimit &&
       nextAttempt <= 5 &&
@@ -3118,9 +3005,8 @@ async function generateAndValidateShardedModelOutput(
       if (settlement.index === 2) {
         pendingIndexes.push(settlement.index);
       } else {
-        // Foundation and body carry non-reconstructable model content. Put
-        // their retries ahead of the closing shard, whose three prescribed
-        // sections have an evidence-bounded deterministic fallback.
+        // Keep foundation and body retries ahead of a pending closing call so
+        // the required fragments converge in document order.
         pendingIndexes.unshift(settlement.index);
       }
       continue;
@@ -3132,12 +3018,7 @@ async function generateAndValidateShardedModelOutput(
     throw terminalShardError;
   }
   let [foundationResponse, middleResponse, closingResponse] = responses;
-  if (
-    !foundationResponse ||
-    !middleResponse ||
-    (!closingResponse &&
-      !deterministicClosingTransportFallbackApplied)
-  ) {
+  if (!foundationResponse || !middleResponse || !closingResponse) {
     throw new Error("Research synthesis shard response is missing.");
   }
 
@@ -3148,12 +3029,7 @@ async function generateAndValidateShardedModelOutput(
     middleResponse.text,
     evidence
   );
-  let closingFragment = closingResponse
-    ? parseReviewFragment(closingResponse.text)
-    : buildDeterministicClosingTransportFallback(
-        evidence,
-        context.run.language
-      );
+  let closingFragment = parseReviewFragment(closingResponse.text);
   const contractFailureIndexes = [
     ...(foundationFragment ? [] : [0]),
     ...(middleFragment ? [] : [1]),
@@ -3242,24 +3118,10 @@ async function generateAndValidateShardedModelOutput(
     );
   }
   const shardSkillNormalizationWarnings: string[] = [
-    ...(deterministicClosingTransportFallbackApplied
-      ? ["deterministic_closing_transport_fallback_applied"]
-      : []),
     ...(foundationFragment.normalizationWarnings ?? []),
     ...middleFragment.normalizationWarnings,
     ...(closingFragment.normalizationWarnings ?? [])
   ];
-  const normalizedFoundation =
-    normalizeNearMinimumFoundationAbstract(
-      foundationFragment,
-      context.run.language
-  );
-  foundationFragment = normalizedFoundation.fragment;
-  for (const warning of normalizedFoundation.warnings) {
-    if (!shardSkillNormalizationWarnings.includes(warning)) {
-      shardSkillNormalizationWarnings.push(warning);
-    }
-  }
   const deduplicatedMiddle = deduplicateReviewParagraphs(
     middleFragment.markdown,
     context.run.language
@@ -3271,41 +3133,6 @@ async function generateAndValidateShardedModelOutput(
   if (deduplicatedMiddle.changed) {
     shardSkillNormalizationWarnings.push(
       "deterministic_body_duplicate_paragraph_removed"
-    );
-  }
-  const normalizedMiddle = supplementNearMinimumBodySections(
-    middleFragment,
-    context.run.language
-  );
-  middleFragment = normalizedMiddle.fragment;
-  if (normalizedMiddle.changed) {
-    shardSkillNormalizationWarnings.push(
-      "deterministic_body_section_boundary_supplement_applied"
-    );
-  }
-  const normalizedClosing =
-    dropUnderfilledOptionalClosingTopic(
-      closingFragment,
-      context.run.language
-    );
-  closingFragment = normalizedClosing.fragment;
-  if (normalizedClosing.changed) {
-    shardSkillNormalizationWarnings.push(
-      "deterministic_underfilled_optional_topic_removed"
-    );
-  }
-  const skillClosedClosing = supplementReviewSkillSectionBoundaries({
-    markdown: closingFragment.markdown,
-    referenceCount,
-    language: context.run.language
-  });
-  closingFragment = {
-    ...closingFragment,
-    markdown: skillClosedClosing.markdown
-  };
-  if (skillClosedClosing.changed) {
-    shardSkillNormalizationWarnings.push(
-      "deterministic_closing_section_boundary_supplement_applied"
     );
   }
   const fragmentSkillErrors = (): Array<{
@@ -3401,17 +3228,6 @@ async function generateAndValidateShardedModelOutput(
         shardSkillNormalizationWarnings.push(warning);
       }
     }
-    const normalizedRetryFoundation =
-      normalizeNearMinimumFoundationAbstract(
-        foundationFragment,
-        context.run.language
-    );
-    foundationFragment = normalizedRetryFoundation.fragment;
-    for (const warning of normalizedRetryFoundation.warnings) {
-      if (!shardSkillNormalizationWarnings.includes(warning)) {
-        shardSkillNormalizationWarnings.push(warning);
-      }
-    }
     const deduplicatedRetryMiddle = deduplicateReviewParagraphs(
       middleFragment.markdown,
       context.run.language
@@ -3428,57 +3244,6 @@ async function generateAndValidateShardedModelOutput(
     ) {
       shardSkillNormalizationWarnings.push(
         "deterministic_body_duplicate_paragraph_removed"
-      );
-    }
-    const normalizedRetryMiddle = supplementNearMinimumBodySections(
-      middleFragment,
-      context.run.language
-    );
-    middleFragment = normalizedRetryMiddle.fragment;
-    if (
-      normalizedRetryMiddle.changed &&
-      !shardSkillNormalizationWarnings.includes(
-        "deterministic_body_section_boundary_supplement_applied"
-      )
-    ) {
-      shardSkillNormalizationWarnings.push(
-        "deterministic_body_section_boundary_supplement_applied"
-      );
-    }
-    const normalizedRetryClosing =
-      dropUnderfilledOptionalClosingTopic(
-        closingFragment,
-        context.run.language
-      );
-    closingFragment = normalizedRetryClosing.fragment;
-    if (
-      normalizedRetryClosing.changed &&
-      !shardSkillNormalizationWarnings.includes(
-        "deterministic_underfilled_optional_topic_removed"
-      )
-    ) {
-      shardSkillNormalizationWarnings.push(
-        "deterministic_underfilled_optional_topic_removed"
-      );
-    }
-    const skillClosedRetryClosing =
-      supplementReviewSkillSectionBoundaries({
-        markdown: closingFragment.markdown,
-        referenceCount,
-        language: context.run.language
-      });
-    closingFragment = {
-      ...closingFragment,
-      markdown: skillClosedRetryClosing.markdown
-    };
-    if (
-      skillClosedRetryClosing.changed &&
-      !shardSkillNormalizationWarnings.includes(
-        "deterministic_closing_section_boundary_supplement_applied"
-      )
-    ) {
-      shardSkillNormalizationWarnings.push(
-        "deterministic_closing_section_boundary_supplement_applied"
       );
     }
     remainingFragmentSkillErrors = fragmentSkillErrors();
@@ -3569,26 +3334,7 @@ async function generateAndValidateShardedModelOutput(
   let acceptedMiddleFragment = middleFragment;
   let acceptedClosingFragment = closingFragment;
   let acceptedReviewMarkdownOverride: string | null = null;
-  // A transport-degraded closing still preserves every medical-Skill section
-  // floor. Only the aggregate prose target is reduced, by at most one sixth,
-  // so two evidence-closed model fragments can produce a useful result rather
-  // than being discarded after the bounded closing retry also times out.
-  const outputValidationPolicy =
-    deterministicClosingTransportFallbackApplied
-      ? {
-          ...context.input.policy,
-          minimumReviewContent: Math.min(
-            context.input.policy.minimumReviewContent,
-            Math.max(
-              5_000,
-              Math.ceil(
-                (context.input.policy.minimumReviewContent * 5) /
-                  6
-              )
-            )
-          )
-        }
-      : context.input.policy;
+  const outputValidationPolicy = context.input.policy;
   const assembleDraft = (): DoctorResearchModelDraft => ({
     schema_version: "doctor_research_model_draft.v1",
     profile: deterministicProfile,
@@ -3610,20 +3356,16 @@ async function generateAndValidateShardedModelOutput(
       )
     },
     predicted_questions: acceptedMiddleFragment.predicted_questions,
-    // Answer formatting and length closure are deterministic and
-    // evidence-neutral. Arabic notation makes factual quantities visible to
-    // the exact-number evidence gate instead of allowing spelled-out Chinese
-    // quantities to bypass it.
+    // Arabic notation makes factual quantities visible to the exact-number
+    // evidence gate instead of allowing spelled-out Chinese quantities to
+    // bypass it. Length remains a model-output contract and is not padded or
+    // truncated by the server.
     answers: acceptedMiddleFragment.answers.map((answer) => ({
       ...answer,
-      answer: boundAnswerContent(
+      answer:
         context.run.language === "zh-CN"
           ? normalizeChineseQuantitiesToArabic(answer.answer)
-          : answer.answer,
-        context.run.language,
-        outputValidationPolicy.minimumAnswerContent,
-        outputValidationPolicy.maximumAnswerContent
-      )
+          : answer.answer
     }))
   });
   let assembledDraft = assembleDraft();
@@ -3692,7 +3434,7 @@ async function generateAndValidateShardedModelOutput(
     identity,
     evidence,
     outputValidationPolicy,
-    { deterministicSafetyNormalization: true }
+    { presentationRepair: true }
   );
   const sectionRepairCandidate =
     !shardTransportRetryCompleted &&
@@ -3758,14 +3500,7 @@ async function generateAndValidateShardedModelOutput(
     const parsedConclusionFragment = parseReviewFragment(
       correctedConclusionResponse.text
     );
-    const normalizedConclusionFragment = parsedConclusionFragment
-      ? normalizeNarrativeNumberFreeCorrectionFragment(
-          parsedConclusionFragment,
-          context.run.language
-        )
-      : null;
-    const correctedConclusionFragment =
-      normalizedConclusionFragment?.fragment ?? null;
+    const correctedConclusionFragment = parsedConclusionFragment;
     const correctionErrors = correctedConclusionFragment
       ? validateConclusionCorrectionFragment(
           correctedConclusionFragment,
@@ -3816,7 +3551,7 @@ async function generateAndValidateShardedModelOutput(
           identity,
           evidence,
           outputValidationPolicy,
-          { deterministicSafetyNormalization: true }
+          { presentationRepair: true }
         );
     if (!deterministicSelfReview.ok) {
       context.reportValidationFailure(
@@ -3836,11 +3571,6 @@ async function generateAndValidateShardedModelOutput(
         "deterministic_core_evidence_projection_completed",
         "peer_review_call_reallocated_to_conclusion_repair",
         "bounded_conclusion_evidence_closure_correction_completed",
-        ...(normalizedConclusionFragment?.changed
-          ? [
-              "deterministic_conclusion_correction_numeric_normalization_applied"
-            ]
-          : []),
         "deterministic_peer_review_self_check_completed",
         ...shardSkillNormalizationWarnings,
         ...(shardTransportRetryCompleted
@@ -4066,11 +3796,11 @@ async function generateAndValidateShardedModelOutput(
       );
       return null;
     }
-    const normalizedCorrectedQa = normalizeQaFragmentSourceClosure(
+    const correctedQaSourceClosure = validateQaFragmentSourceClosure(
       parsedCorrectedQaFragment,
       evidence
     );
-    if (!normalizedCorrectedQa.ok) {
+    if (!correctedQaSourceClosure.ok) {
       context.reportValidationFailure(
         "synthesize_review",
         qaContractRetryAttempt,
@@ -4078,12 +3808,7 @@ async function generateAndValidateShardedModelOutput(
       );
       return null;
     }
-    const correctedQaFragment = normalizedCorrectedQa.fragment;
-    if (normalizedCorrectedQa.changed) {
-      shardSkillNormalizationWarnings.push(
-        "deterministic_qa_fragment_unknown_source_removed"
-      );
-    }
+    const correctedQaFragment = parsedCorrectedQaFragment;
     acceptedMiddleFragment = {
       ...acceptedMiddleFragment,
       predicted_questions:
@@ -4253,7 +3978,7 @@ async function generateAndValidateShardedModelOutput(
         identity,
         evidence,
         outputValidationPolicy,
-        { deterministicSafetyNormalization: true }
+        { presentationRepair: true }
       );
   // When an earlier bounded shard repair already consumed call four, the
   // targeted QA repair is the fifth and final model call. Do not spend a sixth
@@ -4391,7 +4116,7 @@ async function generateAndValidateShardedModelOutput(
           identity,
           evidence,
           outputValidationPolicy,
-          { deterministicSafetyNormalization: true }
+          { presentationRepair: true }
         );
     if (!repairedValidation.ok) {
       context.reportValidationFailure(
@@ -4501,7 +4226,7 @@ async function generateAndValidateShardedModelOutput(
       identity,
       evidence,
       outputValidationPolicy,
-      { deterministicSafetyNormalization: true }
+      { presentationRepair: true }
     );
     const fallbackErrorCodes = validation.ok
       ? []
@@ -4526,14 +4251,7 @@ async function generateAndValidateShardedModelOutput(
       const parsedConclusionFragment = parseReviewFragment(
         correctedConclusionResponse.text
       );
-      const normalizedConclusionFragment = parsedConclusionFragment
-        ? normalizeNarrativeNumberFreeCorrectionFragment(
-            parsedConclusionFragment,
-            context.run.language
-          )
-        : null;
-      const correctedConclusionFragment =
-        normalizedConclusionFragment?.fragment ?? null;
+      const correctedConclusionFragment = parsedConclusionFragment;
       const correctionErrors = correctedConclusionFragment
         ? validateConclusionCorrectionFragment(
             correctedConclusionFragment,
@@ -4584,7 +4302,7 @@ async function generateAndValidateShardedModelOutput(
             identity,
             evidence,
             outputValidationPolicy,
-            { deterministicSafetyNormalization: true }
+            { presentationRepair: true }
           );
       if (!deterministicSelfReview.ok) {
         context.reportValidationFailure(
@@ -4606,11 +4324,6 @@ async function generateAndValidateShardedModelOutput(
           peerReviewFallbackWarning,
           "peer_review_fallback_reallocated_to_conclusion_repair",
           "bounded_conclusion_evidence_closure_correction_completed",
-          ...(normalizedConclusionFragment?.changed
-            ? [
-                "deterministic_conclusion_correction_numeric_normalization_applied"
-              ]
-            : []),
           "deterministic_peer_review_self_check_completed",
           ...shardSkillNormalizationWarnings,
           ...(shardAdmissionGraceElapsed
@@ -4702,22 +4415,9 @@ async function generateAndValidateShardedModelOutput(
     patchedDraft = assembledDraft;
     peerReviewPatchFallbackApplied = true;
   }
-  const normalizedPatchedAbstract =
-    normalizeNearMinimumDraftAbstract(
-      patchedDraft,
-      context.run.language
-    );
-  patchedDraft = normalizedPatchedAbstract.draft;
-  for (const warning of normalizedPatchedAbstract.warnings) {
-    if (!shardSkillNormalizationWarnings.includes(warning)) {
-      shardSkillNormalizationWarnings.push(warning);
-    }
-  }
   // A peer-reviewed draft that already passes every deterministic gate should
-  // remain intact. Safety normalization is a bounded repair path, not a
-  // mandatory rewrite: running it unconditionally can remove enough unsafe
-  // clauses from an otherwise corrected, borderline section to put that
-  // section below the medical Skill's explicit length floor.
+  // remain intact. The optional second pass only applies bounded presentation
+  // repair and reruns the complete validator before acceptance.
   let rawPatchedValidation = validateGeneratedOutput(
     JSON.stringify(patchedDraft),
     context.run,
@@ -4733,7 +4433,7 @@ async function generateAndValidateShardedModelOutput(
       identity,
       evidence,
       outputValidationPolicy,
-      { deterministicSafetyNormalization: true }
+      { presentationRepair: true }
     );
   }
   if (!validation.ok && peerReview.replacements.length > 0) {
@@ -4752,7 +4452,7 @@ async function generateAndValidateShardedModelOutput(
           identity,
           evidence,
           outputValidationPolicy,
-          { deterministicSafetyNormalization: true }
+          { presentationRepair: true }
         );
     if (normalizedUnpatchedValidation.ok) {
       validation = normalizedUnpatchedValidation;
@@ -4813,7 +4513,7 @@ async function generateAndValidateShardedModelOutput(
               medicalSkillBundle
             }),
             "BOUNDED CONVERGENCE RETRY",
-            "The prior peer-review patch still failed one deterministic gate after evidence-safety normalization. Return a new complete patch decision against this exact candidate while preserving every medical-Skill floor."
+            "The prior peer-review patch still failed one deterministic gate after complete validation. Return a new complete patch decision against this exact candidate while preserving every medical-Skill floor."
           ].join("\n\n"),
       system: convergenceSectionCandidate
         ? doctorResearchSectionRepairSystemPolicy
@@ -4868,17 +4568,6 @@ async function generateAndValidateShardedModelOutput(
       );
       return null;
     }
-    const normalizedConvergedAbstract =
-      normalizeNearMinimumDraftAbstract(
-        convergedDraft,
-        context.run.language
-      );
-    convergedDraft = normalizedConvergedAbstract.draft;
-    for (const warning of normalizedConvergedAbstract.warnings) {
-      if (!shardSkillNormalizationWarnings.includes(warning)) {
-        shardSkillNormalizationWarnings.push(warning);
-      }
-    }
     rawPatchedValidation = validateGeneratedOutput(
       JSON.stringify(convergedDraft),
       context.run,
@@ -4908,7 +4597,7 @@ async function generateAndValidateShardedModelOutput(
         identity,
         evidence,
         outputValidationPolicy,
-        { deterministicSafetyNormalization: true }
+        { presentationRepair: true }
       );
     }
     peerReviewConvergenceCompleted = true;
@@ -4965,7 +4654,7 @@ async function generateAndValidateShardedModelOutput(
         ? ["peer_review_patch_applied"]
         : []),
       ...(peerReviewPatchFallbackApplied
-        ? ["peer_review_patch_fallback_to_deterministic_safety"]
+        ? ["peer_review_patch_fallback_to_validated_candidate"]
         : []),
       ...(peerReviewConvergenceCompleted
         ? ["bounded_peer_review_convergence_completed"]
@@ -5022,123 +4711,6 @@ function subsetWorkflowEvidence(
     references,
     publicationEvidence: evidence.publicationEvidence.filter(
       (publication) => referenceIds.has(publication.reference_id)
-    )
-  };
-}
-
-function buildDeterministicClosingTransportFallback(
-  evidence: WorkflowEvidence,
-  language: ResearchRunRecord["language"]
-): ReviewFragment {
-  const safeReferenceIndex = evidence.references.findIndex((reference) => {
-    const publication = evidence.publicationEvidence.find(
-      (item) => item.reference_id === reference.reference_id
-    );
-    return !/\b(?:case report|case series|in vitro|cell line|cultured cells?)\b/iu.test(
-      publication?.abstract ?? ""
-    );
-  });
-  const citationIndex =
-    safeReferenceIndex >= 0 ? safeReferenceIndex + 1 : 1;
-  const citation = `[${citationIndex}]`;
-  const selectedReference = evidence.references[citationIndex - 1];
-  const selectedPublication = evidence.publicationEvidence.find(
-    (item) => item.reference_id === selectedReference?.reference_id
-  );
-  const selectedAbstract = selectedPublication?.abstract ?? "";
-  const scopeQualifier =
-    language === "zh-CN"
-      ? [
-          /\b(?:case report|case series)\b/iu.test(selectedAbstract)
-            ? "所引病例或患者层面证据仅用于界定相应研究范围。"
-            : "",
-          /\b(?:in vitro|cell line|cultured cells?)\b/iu.test(
-            selectedAbstract
-          )
-            ? "所引体外或细胞层面证据不外推为临床效果。"
-            : ""
-        ].join("")
-      : [
-          /\b(?:case report|case series)\b/iu.test(selectedAbstract)
-            ? "The cited case or patient-level evidence is used only within its reported scope. "
-            : "",
-          /\b(?:in vitro|cell line|cultured cells?)\b/iu.test(
-            selectedAbstract
-          )
-            ? "The cited in-vitro or cell evidence is not generalized to clinical effects. "
-            : ""
-        ].join("");
-  const synthesisSeed =
-    language === "zh-CN"
-      ? [
-          "证据综合首先按研究问题、研究对象、设计能力、方法路径和结局定义分层，而不是只比较摘要结论的措辞强弱。能够相互印证的内容应保留其共同边界，方向不一致的内容则应回到纳入来源、测量方式、随访框架和统计处理逐项解释；公开摘要没有披露的环节不补写为事实，也不把技术可行性、预测表现、统计关联或病例经验直接改写为普遍临床获益。",
-          "横向比较需要同时呈现支持证据和限制条件。相似结果只有在对象、方法和终点具有可比性时才构成较强的一致性线索；研究目的或资料来源不同，则更适合作为互补证据而非可直接合并的效应。综述因此保留不同证据等级之间的距离，把可复核发现、合理解释与尚待验证的问题分开表达，并以所引公开摘要作为当前判断的上限。",
-          "未解争议主要来自摘要层面无法完成的全套方法学判断，包括选择过程、偏倚控制、缺失资料、亚组设定、结局定义和外部适用性。现有资料可以形成可追溯的证据地图，但不能替代全文级质量评价。后续讨论应优先把分歧转化为可以由全文复核、前瞻性研究、外部验证或独立重复回答的问题，而不是用确定性语言消除仍然存在的不确定性。"
-        ]
-      : [
-          "Evidence synthesis is organized by research question, population, design capability, method, and endpoint rather than by the strength of abstract conclusions alone. Convergent findings retain their shared boundary, while disagreement must be interpreted through sampling, measurement, follow-up, and analysis. Information absent from public abstracts is not reconstructed as fact, and technical feasibility, predictive performance, association, or case experience is not rewritten as general clinical benefit.",
-          "Cross-study interpretation presents both supporting evidence and limiting conditions. Similar findings provide stronger convergence only when populations, methods, and endpoints are comparable; otherwise, the records are complementary rather than directly poolable. The review therefore keeps evidence grades separate and distinguishes auditable findings, bounded interpretation, and questions that still require verification.",
-          "The unresolved issues are mainly those that public abstracts cannot settle, including selection, bias control, missing data, subgroup definitions, endpoint ascertainment, and external applicability. The current records can support a traceable evidence map but cannot replace full-text quality appraisal. Remaining disagreement should become a set of questions for full-text review, prospective work, external validation, or independent replication."
-        ];
-  const limitationsSeed =
-    language === "zh-CN"
-      ? [
-          "本次产物以已核验的公开元数据和摘要为直接证据边界，因此无法替代对全文、补充材料、研究方案和统计分析计划的审阅。摘要压缩了纳入排除标准、基线差异、失访处理、敏感性分析和不良事件定义，未披露内容不能通过相邻研究、题名或期刊信息推定。由此形成的判断适合支持研究梳理和问题发现，不适合作为脱离原文的确定性疗效或安全性结论。",
-          "纳入记录之间可能存在研究对象、中心来源、技术路径、比较条件、观察窗口和终点口径的差异。即使结论方向接近，这些差异也会限制直接合并和跨人群外推。观察性关联、预测模型表现、技术成功、病例经验和临床有效性回答的是不同问题；综合时必须保留证据等级，避免把一种设计能够回答的问题扩展为另一种设计才能支持的结论。",
-          "后续完善应优先取得全文并复核方案、统计方法、偏倚控制、失访、并发症定义和长期患者结局，同时关注外部验证与独立重复。任何面向具体患者的解释仍需结合完整研究资料、适用指南、患者特征和专业判断。本综述提供的是可追溯的研究证据入口及其不确定性边界，不替代诊断、治疗决策或正式的系统评价。"
-        ]
-      : [
-          "This output is bounded by verified public metadata and abstracts and cannot replace review of full texts, supplements, protocols, or statistical analysis plans. Abstracts compress eligibility, baseline differences, attrition, sensitivity analyses, and adverse-event definitions. Missing details are not inferred from neighboring papers, titles, or journals, so the result supports research mapping rather than a stand-alone conclusion about effectiveness or safety.",
-          "Included records may differ in populations, centers, technical pathways, comparators, observation windows, and endpoint definitions. Similar directions therefore do not by themselves justify pooling or broader applicability. Observational association, predictive performance, technical success, case experience, and clinical effectiveness answer different questions and must retain their distinct evidence grades.",
-          "Further appraisal should obtain full texts and verify protocols, analysis, bias control, attrition, complication definitions, and longer-term patient outcomes, with attention to external validation and independent replication. Patient-specific interpretation still requires complete evidence, applicable guidance, clinical context, and professional judgment. This review is an auditable evidence entry point and does not replace diagnosis, treatment decisions, or a formal systematic review."
-        ];
-  const conclusionSeed =
-    language === "zh-CN"
-      ? [
-          "综合现有公开证据，可以形成结构化、可复核的研究脉络，并识别研究设计、方法路径、观察终点与证据等级之间的联系和差异。结论应始终限定在所引研究明确报告的范围内，不把摘要缺失的信息补写为事实，也不把相关性、预测性能、技术可行性或病例经验越级解释为确定因果关系和普遍临床获益。",
-          "因此，这份综述最适合用于定位证据、核对原文和规划后续验证。正式学术判断仍应回到全文、补充材料及持续更新的研究证据，并结合适用指南与独立专业评估；当前产物不替代具体患者的诊疗决策。"
-        ]
-      : [
-          "The verified public evidence supports a structured and auditable research map that distinguishes designs, methods, endpoints, and evidence grades. Conclusions remain within what the cited studies explicitly report: information absent from abstracts is not supplied as fact, and association, predictive performance, feasibility, or case experience is not promoted to causality or general clinical benefit.",
-          "This review is therefore best used to locate evidence, check full texts, and plan further validation. Formal academic judgment still requires complete papers, supplements, continuing evidence updates, applicable guidance, and independent professional assessment; the output does not replace patient-specific diagnosis or treatment decisions."
-        ];
-  const qualifyAndCite = (paragraphs: readonly string[]): string =>
-    paragraphs
-      .map(
-        (paragraph) =>
-          `${scopeQualifier}${paragraph.trim()} ${citation}`
-      )
-      .join("\n\n");
-  const synthesis = supplementReviewEvidenceBoundary({
-    markdown: [
-      language === "zh-CN"
-        ? "## 证据综合与未解争议"
-        : "## Evidence synthesis and unresolved controversies",
-      qualifyAndCite(synthesisSeed)
-    ].join("\n\n"),
-    referenceCount: Math.max(1, evidence.references.length),
-    language,
-    minimumContent: 1_000
-  });
-  const initialMarkdown = [
-    synthesis.markdown,
-    language === "zh-CN"
-      ? "## 局限性与展望"
-      : "## Limitations and outlook",
-    qualifyAndCite(limitationsSeed),
-    language === "zh-CN" ? "## 结论" : "## Conclusion",
-    qualifyAndCite(conclusionSeed)
-  ].join("\n\n");
-  const closed = supplementReviewSkillSectionBoundaries({
-    markdown: initialMarkdown,
-    referenceCount: Math.max(1, evidence.references.length),
-    language
-  });
-  return {
-    schema_version: "doctor_research_review_fragment.v1",
-    markdown: closed.markdown.replace(
-      /\[[0-9,\s-]+\]/gu,
-      citation
     )
   };
 }
@@ -5677,14 +5249,14 @@ function parseEvidenceClosedBodyFragment(
   const fragment = parseBodyFragment(text);
   return fragment === null
     ? null
-    : normalizeBodyFragmentQaSourceClosure(fragment, evidence);
+    : deferBodyFragmentWithInvalidQa(fragment, evidence);
 }
 
-function normalizeBodyFragmentQaSourceClosure(
+function deferBodyFragmentWithInvalidQa(
   fragment: BodyFragment,
   evidence: WorkflowEvidence
 ): BodyFragment {
-  const normalized = normalizeQaFragmentSourceClosure(
+  const validation = validateQaFragmentSourceClosure(
     {
       schema_version: "doctor_research_qa_fragment.v1",
       predicted_questions: fragment.predicted_questions,
@@ -5692,28 +5264,15 @@ function normalizeBodyFragmentQaSourceClosure(
     },
     evidence
   );
-  if (!normalized.ok) {
+  if (!validation.ok) {
     return bodyFragmentWithDeferredQa(fragment.markdown, [
       ...fragment.normalizationWarnings,
-      normalized.reason === "source_closure"
+      validation.reason === "source_closure"
         ? "deterministic_body_fragment_qa_source_closure_deferred"
         : "deterministic_body_fragment_qa_contract_deferred"
     ]);
   }
-  if (!normalized.changed) {
-    return fragment;
-  }
-  return {
-    ...fragment,
-    predicted_questions: normalized.fragment.predicted_questions,
-    answers: normalized.fragment.answers,
-    normalizationWarnings: [
-      ...new Set([
-        ...fragment.normalizationWarnings,
-        "deterministic_body_fragment_unknown_qa_source_removed"
-      ])
-    ]
-  };
+  return fragment;
 }
 
 function bodyFragmentWithDeferredQa(
@@ -5811,11 +5370,11 @@ function parseQaFragment(text: string): QaFragment | null {
   };
 }
 
-function normalizeQaFragmentSourceClosure(
+function validateQaFragmentSourceClosure(
   fragment: QaFragment,
   evidence: WorkflowEvidence
 ):
-  | { ok: true; fragment: QaFragment; changed: boolean }
+  | { ok: true }
   | { ok: false; reason: "contract" | "source_closure" } {
   if (
     fragment.predicted_questions.length !==
@@ -5844,36 +5403,18 @@ function normalizeQaFragmentSourceClosure(
     return { ok: false, reason: "contract" };
   }
   const validSourceIds = closedPubMedSourceIds(evidence);
-  let changed = false;
-  const answers = fragment.answers.map((answer) => {
-    const sourceIds = [
-      ...new Set(
-        answer.source_ids.filter((sourceId) =>
-          validSourceIds.has(sourceId)
+  if (
+    fragment.answers.some(
+      (answer) =>
+        new Set(answer.source_ids).size !== answer.source_ids.length ||
+        answer.source_ids.some(
+          (sourceId) => !validSourceIds.has(sourceId)
         )
-      )
-    ];
-    if (
-      sourceIds.length !== answer.source_ids.length ||
-      sourceIds.some(
-        (sourceId, index) => sourceId !== answer.source_ids[index]
-      )
-    ) {
-      changed = true;
-    }
-    return { ...answer, source_ids: sourceIds };
-  });
-  if (answers.some((answer) => answer.source_ids.length === 0)) {
+    )
+  ) {
     return { ok: false, reason: "source_closure" };
   }
-  return {
-    ok: true,
-    changed,
-    fragment: {
-      ...fragment,
-      answers
-    }
-  };
+  return { ok: true };
 }
 
 function closedPubMedSourceIds(
@@ -5907,148 +5448,6 @@ interface SkillReviewSection {
     | "conclusion";
 }
 
-function normalizeNearMinimumFoundationAbstract(
-  fragment: FoundationFragment,
-  language: ResearchRunRecord["language"]
-): {
-  fragment: FoundationFragment;
-  changed: boolean;
-  warnings: string[];
-} {
-  const originalCount = countReviewLanguageContent(
-    fragment.review.abstract,
-    language
-  );
-  const abstractPolicy =
-    language === "zh-CN"
-      ? reviewContractPolicy.abstract.zhCN
-      : reviewContractPolicy.abstract.en;
-  const minimum = abstractPolicy.minimum;
-  const maximum = abstractPolicy.maximum;
-  const nearMinimum = abstractPolicy.nearMinimum;
-  const closedIntroductionMinimum = abstractPolicy.repairFloor;
-  if (
-    originalCount < closedIntroductionMinimum ||
-    originalCount >= minimum
-  ) {
-    return { fragment, changed: false, warnings: [] };
-  }
-  let abstract = fragment.review.abstract.trim();
-  let current = originalCount;
-  let introductionSupplemented = false;
-  if (current < nearMinimum) {
-    for (const sentence of completeReviewSentences(
-      fragment.review.markdown,
-      language
-    )) {
-      const normalizedSentence = sentence
-        .replace(/\[[0-9,\s-]+\]/gu, "")
-        .replace(/\s+/gu, " ")
-        .trim();
-      if (
-        normalizedSentence === "" ||
-        normalizeEvidenceText(abstract).includes(
-          normalizeEvidenceText(normalizedSentence)
-        )
-      ) {
-        continue;
-      }
-      const candidate = `${abstract}${language === "zh-CN" ? "" : " "}${normalizedSentence}`;
-      const candidateCount = countReviewLanguageContent(
-        candidate,
-        language
-      );
-      if (candidateCount > maximum) {
-        continue;
-      }
-      abstract = candidate;
-      current = candidateCount;
-      introductionSupplemented = true;
-      if (current >= minimum) {
-        break;
-      }
-    }
-  }
-  const boundary =
-    language === "zh-CN"
-      ? "全部结论仅限于本次核验的公开摘要证据，研究设计、样本来源和结果解释仍需结合文献全文进一步评价。"
-      : "All conclusions remain limited to the verified public abstracts; study design, sample provenance, and interpretation still require full-text appraisal.";
-  let boundarySupplemented = false;
-  if (current < minimum) {
-    const candidate = `${abstract}${language === "zh-CN" ? "" : " "}${boundary}`;
-    const candidateCount = countReviewLanguageContent(
-      candidate,
-      language
-    );
-    if (candidateCount <= maximum) {
-      abstract = candidate;
-      current = candidateCount;
-      boundarySupplemented = true;
-    }
-  }
-  if (
-    current < minimum ||
-    current > maximum
-  ) {
-    return { fragment, changed: false, warnings: [] };
-  }
-  return {
-    fragment: {
-      ...fragment,
-      review: {
-        ...fragment.review,
-        abstract
-      }
-    },
-    changed: true,
-    warnings: [
-      ...(introductionSupplemented
-        ? [
-            "deterministic_abstract_closed_introduction_supplement_applied"
-          ]
-        : []),
-      ...(boundarySupplemented
-        ? [
-            "deterministic_abstract_evidence_boundary_supplement_applied"
-          ]
-        : [])
-    ]
-  };
-}
-
-function normalizeNearMinimumDraftAbstract(
-  draft: DoctorResearchModelDraft,
-  language: ResearchRunRecord["language"]
-): {
-  draft: DoctorResearchModelDraft;
-  warnings: string[];
-} {
-  const normalized = normalizeNearMinimumFoundationAbstract(
-    {
-      schema_version: "doctor_research_foundation_fragment.v3",
-      review: {
-        title: draft.review.title,
-        abstract: draft.review.abstract,
-        keywords: draft.review.keywords,
-        markdown: draft.review.markdown
-      }
-    },
-    language
-  );
-  return {
-    draft: normalized.changed
-      ? {
-          ...draft,
-          review: {
-            ...draft.review,
-            abstract: normalized.fragment.review.abstract
-          }
-        }
-      : draft,
-    warnings: normalized.warnings
-  };
-}
-
 function completeReviewSentences(
   markdown: string,
   language: ResearchRunRecord["language"]
@@ -6066,51 +5465,6 @@ function completeReviewSentences(
       countReviewLanguageContent(sentence, language) >=
       (language === "zh-CN" ? 20 : 10)
   );
-}
-
-function dropUnderfilledOptionalClosingTopic(
-  fragment: ReviewFragment,
-  language: ResearchRunRecord["language"]
-): { fragment: ReviewFragment; changed: boolean } {
-  const sections = parseSkillReviewSections(fragment.markdown);
-  const topics = sections.filter(
-    (section) => section.kind === "topic"
-  );
-  if (
-    topics.length !== 1 ||
-    topics[0]!.heading === "" ||
-    countReviewLanguageContent(topics[0]!.body, language) >=
-      reviewContractPolicy.sections.topic.minimum
-  ) {
-    return { fragment, changed: false };
-  }
-  const requiredKinds: SkillReviewSection["kind"][] = [
-    "synthesis",
-    "limitations",
-    "conclusion"
-  ];
-  if (
-    requiredKinds.some(
-      (kind) =>
-        sections.filter((section) => section.kind === kind)
-          .length !== 1
-    )
-  ) {
-    return { fragment, changed: false };
-  }
-  return {
-    fragment: {
-      ...fragment,
-      markdown: sections
-        .filter((section) => section !== topics[0])
-        .map(
-          (section) =>
-            `## ${section.heading}\n\n${section.body.trim()}`
-        )
-        .join("\n\n")
-    },
-    changed: true
-  };
 }
 
 function validateFoundationFragmentSkillContract(
@@ -6289,24 +5643,6 @@ function validateIntroductionCorrectionFragment(
     )
   );
   return [...new Set(errors)];
-}
-
-function normalizeNarrativeNumberFreeCorrectionFragment(
-  fragment: ReviewFragment,
-  language: ResearchRunRecord["language"]
-): { fragment: ReviewFragment; changed: boolean } {
-  const markdown = removeUnsupportedNumericSentences(
-    fragment.markdown,
-    "",
-    language
-  );
-  return {
-    fragment: {
-      ...fragment,
-      markdown
-    },
-    changed: markdown !== fragment.markdown
-  };
 }
 
 function validateConclusionCorrectionFragment(
@@ -6756,6 +6092,17 @@ const boundedReviewPresentationErrorCodes = new Set([
   "review_inline_enumeration_sequence"
 ]);
 
+function isBoundedPresentationRepairCandidate(
+  errorCodes: readonly string[]
+): boolean {
+  return (
+    errorCodes.length > 0 &&
+    errorCodes.every((code) =>
+      boundedReviewPresentationErrorCodes.has(code)
+    )
+  );
+}
+
 /**
  * Applies only lossless or monotonically subtractive presentation repairs.
  * The caller must rerun the complete output contract before accepting the
@@ -6772,12 +6119,7 @@ export function repairBoundedReviewPresentationIntegrity(input: {
   delimiterBalanceRepaired: boolean;
   inlineEnumerationNormalized: boolean;
 } {
-  if (
-    input.errorCodes.length === 0 ||
-    input.errorCodes.some(
-      (code) => !boundedReviewPresentationErrorCodes.has(code)
-    )
-  ) {
+  if (!isBoundedPresentationRepairCandidate(input.errorCodes)) {
     return {
       markdown: input.markdown,
       changed: false,
@@ -7511,7 +6853,7 @@ function validateGeneratedOutput(
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
   evidence: WorkflowEvidence,
   policy: DoctorResearchWorkflowPolicy,
-  options: { deterministicSafetyNormalization?: boolean } = {}
+  options: { presentationRepair?: boolean } = {}
 ):
   | {
       ok: true;
@@ -7622,10 +6964,6 @@ function validateGeneratedOutput(
     },
     review: {
       ...draft.review,
-      core_evidence: closeEmptyCoreEvidenceFields(
-        draft.review.core_evidence,
-        run.language
-      ),
       references: evidence.references,
       search_report: {
         databases: evidence.literatureDatabases,
@@ -7672,32 +7010,6 @@ function validateGeneratedOutput(
       warnings: []
     }
   };
-  let deterministicSafetyNormalizationApplied = false;
-  let deterministicEvidenceBoundarySupplementApplied = false;
-  let deterministicSkillSectionBoundarySupplementApplied = false;
-  let deterministicCoreNumericFallbackApplied = false;
-  let deterministicReferenceCitationClosureApplied = false;
-  let deterministicAbstractSupplementWarnings: string[] = [];
-  if (options.deterministicSafetyNormalization) {
-    const normalized = normalizeFinalModelOutputForSafety(
-      candidate,
-      evidence,
-      run.language,
-      policy
-    );
-    candidate = normalized.value;
-    deterministicSafetyNormalizationApplied = normalized.changed;
-    deterministicEvidenceBoundarySupplementApplied =
-      normalized.evidenceBoundarySupplemented;
-    deterministicSkillSectionBoundarySupplementApplied =
-      normalized.skillSectionBoundarySupplemented;
-    deterministicCoreNumericFallbackApplied =
-      normalized.coreNumericFallbackApplied;
-    deterministicReferenceCitationClosureApplied =
-      normalized.referenceCitationClosureApplied;
-    deterministicAbstractSupplementWarnings =
-      normalized.abstractSupplementWarnings;
-  }
   const reparsed = parseAndValidateDoctorResearchModelOutput(
     JSON.stringify(candidate)
   );
@@ -7722,7 +7034,7 @@ function validateGeneratedOutput(
   let deterministicDelimiterBalanceApplied = false;
   let deterministicReviewDuplicateParagraphRemoved = false;
   let deterministicInlineEnumerationNormalizationApplied = false;
-  if (options.deterministicSafetyNormalization) {
+  if (options.presentationRepair) {
     const presentationRepair =
       repairBoundedReviewPresentationIntegrity({
         markdown: finalizedValue.review.markdown,
@@ -7768,27 +7080,6 @@ function validateGeneratedOutput(
         value: finalizedValue,
         draft,
         warnings: [
-          ...(deterministicSafetyNormalizationApplied
-            ? ["deterministic_safety_normalization_applied"]
-            : []),
-          ...(deterministicEvidenceBoundarySupplementApplied
-            ? [
-                "deterministic_evidence_boundary_supplement_applied"
-              ]
-            : []),
-          ...(deterministicSkillSectionBoundarySupplementApplied
-            ? [
-                "deterministic_skill_section_boundary_supplement_applied"
-              ]
-            : []),
-          ...(deterministicCoreNumericFallbackApplied
-            ? ["deterministic_core_numeric_fallback_applied"]
-            : []),
-          ...(deterministicReferenceCitationClosureApplied
-            ? [
-                "deterministic_reference_citation_closure_applied"
-              ]
-            : []),
           ...(deterministicDelimiterBalanceApplied
             ? ["deterministic_delimiter_balance_applied"]
             : []),
@@ -7802,7 +7093,6 @@ function validateGeneratedOutput(
                 "deterministic_inline_enumeration_normalization_applied"
               ]
             : []),
-          ...deterministicAbstractSupplementWarnings,
           ...collectReviewContractTargetWarnings(
             finalizedValue,
             policy,
@@ -7816,42 +7106,6 @@ function validateGeneratedOutput(
         errorCodes: stableValidationCodes(qualityErrors),
         candidate: finalizedValue
       };
-}
-
-function closeEmptyCoreEvidenceFields(
-  items: DoctorResearchModelDraft["review"]["core_evidence"],
-  language: ResearchRunRecord["language"]
-): DoctorResearchModelDraft["review"]["core_evidence"] {
-  const fallback =
-    language === "zh-CN"
-      ? {
-          study_type: "研究设计以所引 PubMed 摘要的原始表述为准。",
-          sample_and_source: "证据来源为公开 PubMed 元数据与摘要。",
-          methods: "方法信息仅按所引摘要概括。",
-          key_results: "研究结果请以所引 PubMed 摘要的原始报告为准。",
-          limitations: "当前仅核验公开元数据与摘要，不能替代全文评价。"
-        }
-      : {
-          study_type:
-            "The study design is limited to the description in the cited PubMed abstract.",
-          sample_and_source:
-            "Evidence is limited to public PubMed metadata and the abstract.",
-          methods:
-            "Methods are summarized only at the level reported in the cited abstract.",
-          key_results:
-            "Reported findings remain limited to the cited PubMed abstract.",
-          limitations:
-            "Only public metadata and abstract-level evidence were verified; this does not replace full-text appraisal."
-        };
-  return items.map((item) => ({
-    ...item,
-    study_type: item.study_type.trim() || fallback.study_type,
-    sample_and_source:
-      item.sample_and_source.trim() || fallback.sample_and_source,
-    methods: item.methods.trim() || fallback.methods,
-    key_results: item.key_results.trim() || fallback.key_results,
-    limitations: item.limitations.trim() || fallback.limitations
-  }));
 }
 
 function contractFailureCodes(
@@ -8142,6 +7396,19 @@ function validateRuntimeQuality(
     )
   ) {
     errors.push("core_evidence_reference_coverage");
+  }
+  if (
+    output.review.core_evidence.some((item) =>
+      [
+        item.study_type,
+        item.sample_and_source,
+        item.methods,
+        item.key_results,
+        item.limitations
+      ].some((field) => field.trim().length === 0)
+    )
+  ) {
+    errors.push("core_evidence_field_contract");
   }
   const questionLengths = output.predicted_questions.map(count);
   if (
@@ -9635,616 +8902,6 @@ function buildModelPrompt(
   ].join("\n\n");
 }
 
-function normalizeFinalModelOutputForSafety(
-  output: DoctorResearchModelOutput,
-  evidence: WorkflowEvidence,
-  language: ResearchRunRecord["language"],
-  policy: DoctorResearchWorkflowPolicy
-): {
-  value: DoctorResearchModelOutput;
-  changed: boolean;
-  evidenceBoundarySupplemented: boolean;
-  skillSectionBoundarySupplemented: boolean;
-  coreNumericFallbackApplied: boolean;
-  referenceCitationClosureApplied: boolean;
-  abstractSupplementWarnings: string[];
-} {
-  let changed = false;
-  const reviewWithoutEmbeddedAuxiliaryOutput =
-    stripEmbeddedAuxiliaryReviewOutput(
-      output.review.markdown,
-      language
-    );
-  if (
-    reviewWithoutEmbeddedAuxiliaryOutput !==
-    output.review.markdown
-  ) {
-    changed = true;
-  }
-  const abstractByReferenceId = new Map(
-    evidence.publicationEvidence.map((publication) => [
-      publication.reference_id,
-      publication.abstract ?? ""
-    ])
-  );
-  const referenceIdByCitation = new Map(
-    output.review.references.map((reference, index) => [
-      index + 1,
-      reference.reference_id
-    ])
-  );
-  const sanitize = (value: string, allowedEvidence: string): string => {
-    const normalized = removeUnsupportedNumericSentences(
-      value,
-      allowedEvidence,
-      language
-    );
-    if (normalized !== value) {
-      changed = true;
-    }
-    return normalized;
-  };
-  const sanitizeAbstract = (
-    value: string,
-    allowedEvidence: string
-  ): string => {
-    const sanitized = sanitize(value, allowedEvidence);
-    const normalized = normalizeObservationalAbstractLanguage(
-      sanitized,
-      language
-    );
-    if (normalized !== sanitized) {
-      changed = true;
-    }
-    return normalized;
-  };
-  const count = (value: string): number =>
-    countReviewContractContent(value, language);
-  const paragraphEvidence = (paragraph: string) => {
-    const referenceIds = extractNumericCitations(paragraph)
-      .map((citation) => referenceIdByCitation.get(citation))
-      .filter((referenceId): referenceId is string => Boolean(referenceId));
-    return {
-      referenceIds,
-      text: referenceIds
-        .map((referenceId) => abstractByReferenceId.get(referenceId) ?? "")
-        .join("\n")
-    };
-  };
-  const applyRequiredEvidenceScope = (value: string): string => {
-    let paragraph = value;
-    const scope = paragraphEvidence(paragraph);
-    const normalizedCitedEvidence = scope.text.toLowerCase();
-    if (
-      scope.referenceIds.length > 0 &&
-      /\b(?:in vitro|cell line|cultured cells?)\b/u.test(
-        normalizedCitedEvidence
-      ) &&
-      !/\b(?:in vitro|cell|cellular)\b|体外|细胞/u.test(
-        paragraph.toLowerCase()
-      )
-    ) {
-      paragraph = `${paragraph}${
-        language === "zh-CN"
-          ? " 该段所引证据包含体外或细胞研究，不能直接外推为临床效果。"
-          : " The cited evidence includes in-vitro or cellular research and cannot be directly extrapolated to clinical effects."
-      }`;
-      changed = true;
-    }
-    if (
-      scope.referenceIds.length > 0 &&
-      hasCausalClaim(paragraph) &&
-      isObservationalOnlyEvidence(scope.text) &&
-      !hasExplicitNonCausalQualification(paragraph)
-    ) {
-      paragraph = `${paragraph}${
-        language === "zh-CN"
-          ? " 该段所引证据为观察性资料；上述表述仅指关联，不能推断因果。"
-          : " The cited evidence is observational; this describes an association and cannot establish causality."
-      }`;
-      changed = true;
-    }
-    if (
-      scope.referenceIds.length > 0 &&
-      /\b(?:case report|case series)\b/u.test(
-        normalizedCitedEvidence
-      ) &&
-      !/\b(?:case report|case series|patient|patients)\b|病例|患者/u.test(
-        paragraph.toLowerCase()
-      )
-    ) {
-      paragraph = `${paragraph}${
-        language === "zh-CN"
-          ? " 该段所引证据包括病例报告或病例系列，仅反映特定患者经验，不能直接外推。"
-          : " The cited evidence includes a case report or case series, reflects experience in specific patients, and cannot be directly generalized."
-      }`;
-      changed = true;
-    }
-    return paragraph;
-  };
-  const removeCaseOnlyPrescriptiveSentences = (
-    value: string
-  ): string => {
-    if (language !== "zh-CN") {
-      return value;
-    }
-    const referenceById = new Map(
-      output.review.references.map((reference) => [
-        reference.reference_id,
-        reference
-      ])
-    );
-    return value.replace(/[^。！？]*[。！？]/gu, (sentence) => {
-      if (
-        !/(?:应|应该|必须|务必)(?:被)?(?:定位|视为|作为|采用)|(?:首选|常规|标准)治疗/u.test(
-          sentence
-        ) ||
-        /(?:不能|不可|不应|尚不能|无法|仅能|不宜).{0,24}(?:推广|外推|建议|治疗|方案)/u.test(
-          sentence
-        )
-      ) {
-        return sentence;
-      }
-      const referenceIds = extractNumericCitations(sentence)
-        .map((citation) => referenceIdByCitation.get(citation))
-        .filter((referenceId): referenceId is string =>
-          Boolean(referenceId)
-        );
-      if (referenceIds.length === 0) {
-        return sentence;
-      }
-      const caseOnly = referenceIds.every((referenceId) => {
-        const reference = referenceById.get(referenceId);
-        const evidenceText = [
-          reference?.title ?? "",
-          abstractByReferenceId.get(referenceId) ?? ""
-        ].join(" ");
-        return /\bcase report\b|\bcase series\b|病例报告|病例系列/iu.test(
-          evidenceText
-        );
-      });
-      if (!caseOnly) {
-        return sentence;
-      }
-      changed = true;
-      return "";
-    });
-  };
-  const normalizedParagraphs: string[] = [];
-  for (const originalParagraph of reviewWithoutEmbeddedAuxiliaryOutput.split(
-    /\n\s*\n/gu
-  )) {
-    let paragraph = normalizeReviewCitationMarkers(
-      originalParagraph,
-      output.review.references.length
-    );
-    if (paragraph !== originalParagraph) {
-      changed = true;
-    }
-    const enumerationClosed =
-      normalizeInlineChineseEnumeration(paragraph);
-    if (enumerationClosed !== paragraph) {
-      changed = true;
-      paragraph = enumerationClosed;
-    }
-    let scope = paragraphEvidence(paragraph);
-    // Removing an unsupported numeric clause may also remove one of the
-    // paragraph's citations. Re-close against the citations that actually
-    // remain until the monotonic clause removal reaches a fixed point.
-    for (let iteration = 0; iteration < 64; iteration += 1) {
-      scope = paragraphEvidence(paragraph);
-      const next = sanitize(paragraph, scope.text);
-      if (next === paragraph) {
-        break;
-      }
-      paragraph = next;
-    }
-    scope = paragraphEvidence(paragraph);
-    const statisticLabelsClosed =
-      normalizeEvidenceStatisticLabels(
-        paragraph,
-        scope.text,
-        language
-      );
-    if (statisticLabelsClosed !== paragraph) {
-      changed = true;
-      paragraph = statisticLabelsClosed;
-    }
-    const evidenceAligned = normalizeReviewEvidenceAlignment(
-      paragraph,
-      scope.text,
-      language
-    );
-    if (evidenceAligned.value !== paragraph) {
-      changed = true;
-      paragraph = evidenceAligned.value;
-    }
-    // Sentence removal can expose a formerly internal demonstrative as the
-    // new paragraph start. Re-run the presentation closure to a bounded fixed
-    // point so the repair rule is at least as broad as the final validator.
-    for (let iteration = 0; iteration < 8; iteration += 1) {
-      const next = repairReviewProseStarts(
-        removeCaseOnlyPrescriptiveSentences(paragraph),
-        language
-      );
-      if (next === paragraph) {
-        break;
-      }
-      changed = true;
-      paragraph = next;
-    }
-    scope = paragraphEvidence(paragraph);
-    const isHeading = /^#{1,6}\s/u.test(paragraph);
-    const isSubstantive =
-      !isHeading &&
-      count(paragraph) >= (language === "zh-CN" ? 20 : 10);
-    if (
-      isSubstantive &&
-      extractNumericCitations(paragraph).length === 0
-    ) {
-      changed = true;
-      continue;
-    }
-    paragraph = applyRequiredEvidenceScope(paragraph);
-    if (paragraph.trim() !== "") {
-      normalizedParagraphs.push(paragraph);
-    }
-  }
-  const skillSectionClosedReview =
-    supplementReviewSkillSectionBoundaries({
-      markdown: normalizedParagraphs.join("\n\n"),
-      referenceCount: output.review.references.length,
-      language
-    });
-  if (skillSectionClosedReview.changed) {
-    changed = true;
-  }
-  let supplementedReview = supplementReviewEvidenceBoundary({
-    markdown: skillSectionClosedReview.markdown,
-    referenceCount: output.review.references.length,
-    language,
-    minimumContent: policy.minimumReviewContent
-  });
-  if (supplementedReview.changed) {
-    changed = true;
-  }
-  supplementedReview = {
-    ...supplementedReview,
-    markdown: supplementedReview.markdown
-      .split(/\n\s*\n/gu)
-      .map(applyRequiredEvidenceScope)
-      .join("\n\n")
-  };
-  const deduplicatedReview = deduplicateReviewParagraphs(
-    supplementedReview.markdown,
-    language
-  );
-  if (deduplicatedReview.changed) {
-    changed = true;
-    supplementedReview = {
-      ...supplementedReview,
-      markdown: deduplicatedReview.markdown
-    };
-  }
-  // Deduplication can remove a boundary paragraph that was shared across
-  // sections and leave a previously closed section one character short.
-  // Re-close the section floors with a paragraph not already present.
-  const finalSkillSectionClosedReview =
-    supplementReviewSkillSectionBoundaries({
-      markdown: supplementedReview.markdown,
-      referenceCount: output.review.references.length,
-      language
-    });
-  if (finalSkillSectionClosedReview.changed) {
-    changed = true;
-    supplementedReview = {
-      ...supplementedReview,
-      markdown: finalSkillSectionClosedReview.markdown
-        .split(/\n\s*\n/gu)
-        .map(applyRequiredEvidenceScope)
-        .join("\n\n")
-    };
-  }
-  const allAbstracts = evidence.publicationEvidence
-    .map((publication) => publication.abstract ?? "")
-    .join("\n");
-  const referenceByPubMedSource = new Map(
-    evidence.references
-      .filter(
-        (
-          reference
-        ): reference is DoctorResearchReference & { pmid: string } =>
-          reference.pmid !== null
-      )
-      .map((reference) => [
-        `src_pubmed_${reference.pmid}`,
-        reference.reference_id
-      ])
-  );
-  let normalizedValue: DoctorResearchModelOutput = {
-      ...output,
-      review: {
-        ...output.review,
-        title: sanitize(output.review.title, allAbstracts),
-        abstract: sanitizeAbstract(output.review.abstract, allAbstracts),
-        keywords: output.review.keywords.map((keyword) =>
-          sanitize(keyword, allAbstracts)
-        ),
-        markdown: supplementedReview.markdown,
-        core_evidence: closeEmptyCoreEvidenceFields(
-          output.review.core_evidence.map((item) => {
-            const source =
-              abstractByReferenceId.get(item.reference_id) ?? "";
-            const sanitizedKeyResults = sanitize(
-              item.key_results,
-              source
-            );
-            const normalizedKeyResults =
-              closeLocalizedCoreResultProseStart(
-                normalizeEvidenceStatisticLabels(
-                  sanitizedKeyResults,
-                  source,
-                  language
-                )
-              );
-            if (normalizedKeyResults !== item.key_results) {
-              changed = true;
-            }
-            return {
-              ...item,
-              study_type: sanitize(item.study_type, source),
-              sample_and_source: sanitize(
-                item.sample_and_source,
-                source
-              ),
-              methods: sanitize(item.methods, source),
-              key_results: normalizedKeyResults,
-              limitations: sanitize(item.limitations, source)
-            };
-          }),
-          language
-        )
-      },
-      predicted_questions: output.predicted_questions.map((question) =>
-        sanitize(question, allAbstracts)
-      ),
-      answers: output.answers.map((answer) => {
-        const sourceAbstracts = answer.source_ids
-          .map((sourceId) => referenceByPubMedSource.get(sourceId))
-          .filter((referenceId): referenceId is string =>
-            Boolean(referenceId)
-          )
-          .map(
-            (referenceId) =>
-              abstractByReferenceId.get(referenceId) ?? ""
-          )
-          .filter(Boolean);
-        const source = sourceAbstracts.join("\n");
-        const normalizedAnswer =
-          language === "zh-CN"
-            ? normalizeChineseQuantitiesToArabic(answer.answer)
-            : answer.answer;
-        const statisticClosed = normalizeEvidenceStatisticLabels(
-          sanitize(normalizedAnswer, source),
-          source,
-          language
-        );
-        const evidenceAligned = normalizeAnswerEvidenceAlignment(
-          statisticClosed,
-          output.predicted_questions[answer.question_index - 1] ?? "",
-          source,
-          language,
-          sourceAbstracts
-        );
-        const sanitized = deduplicateAnswerSentences(
-          evidenceAligned
-        );
-        if (sanitized !== normalizedAnswer) {
-          changed = true;
-        }
-        let bounded = boundAnswerContent(
-          sanitized,
-          language,
-          policy.minimumAnswerContent,
-          policy.maximumAnswerContent
-        );
-        const caseOnly =
-          sourceAbstracts.length > 0 &&
-          sourceAbstracts.every((abstract) =>
-            /\b(?:case report|case series)\b/iu.test(abstract)
-          );
-        const hasCaseBoundary =
-          /\b(?:cannot be generalized|cannot be directly generalized|case-level evidence|specific patients?)\b|不能(?:直接)?外推|病例级证据|特定患者经验/iu.test(
-            bounded
-          );
-        if (caseOnly && !hasCaseBoundary) {
-          const boundary =
-            language === "zh-CN"
-              ? "该回答依据病例报告或病例系列，仅反映特定患者经验，不能直接外推为普遍疗效或常规治疗建议。"
-              : "This answer is based on a case report or case series, reflects experience in specific patients, and cannot be directly generalized to routine treatment.";
-          const countAnswer = (value: string): number =>
-            countReviewContractContent(value, language);
-          const maximumBase = Math.max(
-            1,
-            policy.maximumAnswerContent - countAnswer(boundary)
-          );
-          bounded = [
-            truncateAnswerContent(
-              bounded,
-              language,
-              maximumBase
-            ),
-            boundary
-          ]
-            .filter(Boolean)
-            .join(" ");
-          changed = true;
-        }
-        if (bounded !== sanitized) {
-          changed = true;
-        }
-        return {
-          ...answer,
-          answer: bounded
-        };
-      })
-    };
-  const residualReviewParagraphs = new Set(
-    [...unsupportedNarrativeNumericTokens(normalizedValue, evidence)]
-      .map((error) => /^review_([0-9]+):/u.exec(error)?.[1])
-      .filter((index): index is string => Boolean(index))
-      .map(Number)
-  );
-  if (residualReviewParagraphs.size > 0) {
-    changed = true;
-    const retained = normalizedValue.review.markdown
-      .split(/\n\s*\n/gu)
-      .filter((_, index) => !residualReviewParagraphs.has(index + 1))
-      .join("\n\n");
-    const resupplemented = supplementReviewEvidenceBoundary({
-      markdown: retained,
-      referenceCount: normalizedValue.review.references.length,
-      language,
-      minimumContent: policy.minimumReviewContent
-    });
-    normalizedValue = {
-      ...normalizedValue,
-      review: {
-        ...normalizedValue.review,
-        markdown: deduplicateReviewParagraphs(
-          resupplemented.markdown
-            .split(/\n\s*\n/gu)
-            .map(applyRequiredEvidenceScope)
-            .join("\n\n"),
-          language
-        ).markdown
-      }
-    };
-    if (resupplemented.changed) {
-      supplementedReview = resupplemented;
-    }
-  }
-  let coreNumericFallbackApplied = false;
-  const residualCoreReferenceIds = new Set(
-    [...unsupportedNarrativeNumericTokens(normalizedValue, evidence)]
-      .map((error) => /^core_(.+):[^:]+$/u.exec(error)?.[1])
-      .filter((referenceId): referenceId is string =>
-        Boolean(referenceId)
-      )
-  );
-  if (residualCoreReferenceIds.size > 0) {
-    coreNumericFallbackApplied = true;
-    changed = true;
-    normalizedValue = {
-      ...normalizedValue,
-      review: {
-        ...normalizedValue.review,
-        core_evidence: closeEmptyCoreEvidenceFields(
-          normalizedValue.review.core_evidence.map((item) => {
-            if (!residualCoreReferenceIds.has(item.reference_id)) {
-              return item;
-            }
-            const allowed = new Set(
-              extractNumericTokens(
-                abstractByReferenceId.get(item.reference_id) ?? ""
-              )
-            );
-            const closeField = (value: string): string =>
-              extractNarrativeNumericTokens(value).every((token) =>
-                allowed.has(token)
-              )
-                ? value
-                : "";
-            return {
-              ...item,
-              study_type: closeField(item.study_type),
-              sample_and_source: closeField(item.sample_and_source),
-              methods: closeField(item.methods),
-              key_results: closeField(item.key_results),
-              limitations: closeField(item.limitations)
-            };
-          }),
-          language
-        )
-      }
-    };
-  }
-  const citationClosedReview = closeReviewReferenceCitations({
-    markdown: normalizedValue.review.markdown,
-    referenceCount: normalizedValue.review.references.length,
-    language
-  });
-  if (citationClosedReview.changed) {
-    changed = true;
-    const scopedCitationClosedReview = deduplicateReviewParagraphs(
-      citationClosedReview.markdown
-        .split(/\n\s*\n/gu)
-        .map(applyRequiredEvidenceScope)
-        .join("\n\n"),
-      language
-    );
-    normalizedValue = {
-      ...normalizedValue,
-      review: {
-        ...normalizedValue.review,
-        markdown: scopedCitationClosedReview.markdown
-      }
-    };
-  }
-  const normalizedAbstract = normalizeNearMinimumFoundationAbstract(
-    {
-      schema_version: "doctor_research_foundation_fragment.v3",
-      review: {
-        title: normalizedValue.review.title,
-        abstract: normalizedValue.review.abstract,
-        keywords: normalizedValue.review.keywords,
-        markdown: normalizedValue.review.markdown
-      }
-    },
-    language
-  );
-  if (normalizedAbstract.changed) {
-    changed = true;
-    normalizedValue = {
-      ...normalizedValue,
-      review: {
-        ...normalizedValue.review,
-        abstract: normalizedAbstract.fragment.review.abstract
-      }
-    };
-  }
-  return {
-    value: normalizedValue,
-    changed,
-    evidenceBoundarySupplemented: supplementedReview.changed,
-    skillSectionBoundarySupplemented:
-      skillSectionClosedReview.changed ||
-      finalSkillSectionClosedReview.changed,
-    coreNumericFallbackApplied,
-    referenceCitationClosureApplied: citationClosedReview.changed,
-    abstractSupplementWarnings: normalizedAbstract.warnings
-  };
-}
-
-function normalizeReviewCitationMarkers(
-  value: string,
-  referenceCount: number
-): string {
-  return value.replace(/\[([0-9,\s-]+)\]/gu, (marker: string) => {
-    const citations = [
-      ...new Set(
-        extractNumericCitations(marker).filter(
-          (citation) =>
-            Number.isSafeInteger(citation) &&
-            citation >= 1 &&
-            citation <= referenceCount
-        )
-      )
-    ];
-    return citations.length > 0 ? `[${citations.join(",")}]` : "";
-  });
-}
-
 function stripEmbeddedAuxiliaryReviewOutput(
   value: string,
   language: ResearchRunRecord["language"]
@@ -10383,444 +9040,6 @@ function normalizeInlineChineseEnumeration(value: string): string {
     index += 1;
     return `（${ordinal}）`;
   });
-}
-
-function closeReviewReferenceCitations(input: {
-  markdown: string;
-  referenceCount: number;
-  language: ResearchRunRecord["language"];
-}): { markdown: string; changed: boolean } {
-  const cited = new Set(extractNumericCitations(input.markdown));
-  const missing = Array.from(
-    { length: input.referenceCount },
-    (_, index) => index + 1
-  ).filter((citation) => !cited.has(citation));
-  if (missing.length === 0) {
-    return { markdown: input.markdown, changed: false };
-  }
-  const evidenceBoundary =
-    input.language === "zh-CN"
-      ? "为保持纳入证据与参考文献编号闭合，以下编号仅表示相应文献已进入本综述的公开元数据和摘要级证据集；对公开摘要未披露的信息不作推断。"
-      : "To close the included evidence set against the reference numbering, the following identifiers mean only that the corresponding records are part of the verified public metadata and abstract-level evidence set; no inference is made about information absent from the public abstracts.";
-  const boundaryParagraph = `${evidenceBoundary} [${missing.join(",")}]`;
-  const sections = parseSkillReviewSections(input.markdown);
-  const targetIndex = sections.findIndex(
-    (section) => section.kind === "synthesis"
-  );
-  const fallbackIndex = sections.findIndex(
-    (section) => section.kind === "conclusion"
-  );
-  const insertionIndex = targetIndex >= 0 ? targetIndex : fallbackIndex;
-  if (
-    insertionIndex >= 0 &&
-    sections.every((section) => section.heading !== "")
-  ) {
-    return {
-      markdown: sections
-        .map((section, index) => ({
-          ...section,
-          body:
-            index === insertionIndex
-              ? [section.body.trim(), boundaryParagraph]
-                  .filter(Boolean)
-                  .join("\n\n")
-              : section.body
-        }))
-        .map(
-          (section) =>
-            `## ${section.heading}\n\n${section.body.trim()}`
-        )
-        .join("\n\n"),
-      changed: true
-    };
-  }
-  return {
-    markdown: [input.markdown.trim(), boundaryParagraph]
-      .filter(Boolean)
-      .join("\n\n"),
-    changed: true
-  };
-}
-
-function deterministicSectionSupplementMinimumExisting(
-  minimum: number,
-  eligibilityRatio: number
-): number {
-  // The final medical-Skill floor is never reduced: every supplemented
-  // section is re-counted and fully revalidated against `minimum`. This small
-  // one-percent tolerance applies only to eligibility for the existing
-  // evidence-closed deterministic repair. It absorbs a few content units that
-  // can be removed by citation/numeric safety normalization at the 75% edge
-  // without spending another model call or publishing an underfilled section.
-  const nominalEligibility = Math.ceil(minimum * eligibilityRatio);
-  const normalizationTolerance = Math.max(
-    1,
-    Math.ceil(minimum * 0.01)
-  );
-  return Math.max(1, nominalEligibility - normalizationTolerance);
-}
-
-function supplementReviewSkillSectionBoundaries(input: {
-  markdown: string;
-  referenceCount: number;
-  language: ResearchRunRecord["language"];
-}): { markdown: string; changed: boolean } {
-  if (input.referenceCount <= 0) {
-    return { markdown: input.markdown, changed: false };
-  }
-  const sections = parseSkillReviewSections(input.markdown);
-  if (
-    sections.some((section) => section.heading === "") ||
-    sections.filter((section) => section.kind === "limitations")
-      .length !== 1 ||
-    sections.filter((section) => section.kind === "conclusion")
-      .length !== 1
-  ) {
-    return { markdown: input.markdown, changed: false };
-  }
-  const count = (value: string): number =>
-    countReviewLanguageContent(value, input.language);
-  const templates =
-    input.language === "zh-CN"
-      ? {
-          topic: [
-            "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
-            "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
-            "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。",
-            "本节把摘要明确报告的发现与解释性推断分开呈现。结论方向相近并不自动代表研究对象、方法和终点可比，差异本身应保留为证据不确定性的组成部分。",
-            "证据强度应与研究设计能够回答的问题相匹配。统计关联、模型区分能力、操作可行性和患者结局属于不同层次，不能因措辞相似而被合并为同一种临床判断。",
-            "对摘要未说明的纳入标准、偏倚控制、缺失资料和亚组分析保持沉默，可以避免从题名、期刊或相邻研究补写事实，也使后续全文复核具有明确入口。",
-            "跨研究综合应同时核对资料来源、测量方式、比较条件和观察时间。只有这些要素具有足够可比性时，结果方向的一致才构成更稳健的学术线索。",
-            "面向后续研究，本节把尚未闭合的问题转化为可验证任务，包括全文复核、前瞻性检验、外部验证和独立重复；这些方向用于界定证据缺口，不预设验证结果。"
-          ],
-          limitations: [
-            "本节的判断边界是已核验的公开元数据和摘要。摘要未披露的纳入细节、统计设定、缺失数据处理、亚组分析与敏感性分析仍需回到全文复核，不能由题名、期刊或相邻研究补写。",
-            "研究对象、资料来源、技术路径、终点定义与随访框架的差异会限制横向比较。即使结果方向相近，也不能在缺少同质设计和完整统计资料时直接合并效应或扩大适用人群。",
-            "观察性研究、病例资料、预测模型、技术可行性研究和临床效果研究回答的问题不同。综合时应保留证据等级差异，不把相关性、病例经验或技术成功直接解释为因果关系或普遍获益。",
-            "公开摘要可以支持可复核的证据地图，但不足以完成全文级偏倚评价。发表选择、样本选择、测量误差、结局报告不完整及外部适用性仍是不确定性来源。",
-            "后续复核应优先取得全文和补充材料，核对方案、统计方法、失访、并发症定义与长期结局。需要前瞻性研究、外部验证和独立重复来检验当前摘要层面的线索。",
-            "因此，本节保留无法由公开摘要解决的争议，不以确定语气填补证据空白。任何临床解释都应结合具体患者、完整研究资料、指南和独立专业判断。"
-          ],
-          conclusion: [
-            "综合而言，当前公开证据能够界定研究对象、方法路径和摘要明确报告的结局，但不能替代全文评价，也不足以把研究发现直接转化为常规临床建议。",
-            "结论应限定在各研究的设计、样本、终点和随访范围内，并持续区分关联、预测性能、技术可行性、病例经验与临床有效性，避免跨越证据等级。",
-            "现阶段更稳妥的用途是形成可复核的证据地图和后续问题。前瞻性验证、外部验证、完整随访和患者结局资料仍是收敛不确定性的必要条件。",
-            "具体实践仍需结合全文、患者特征、适用指南与独立临床评估；本综述不替代诊疗决策，也不对摘要未披露的信息作推断。"
-          ]
-        }
-      : {
-          topic: [
-            "This section compares only populations, designs, methods, and outcomes directly supported by the cited public abstracts. Full-text details omitted from an abstract are not treated as facts and do not justify broader applicability.",
-            "Cross-study interpretation must distinguish sample provenance, technical pathways, endpoint definitions, and follow-up frameworks. Those differences limit direct pooling and require observational association, technical feasibility, and clinical effectiveness to remain separate claims.",
-            "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies.",
-            "Apparently similar findings may have different meanings when eligibility, measurement, follow-up, or outcome ascertainment differs. Evidence synthesis should retain those uncertainties instead of filling absent information with confident language.",
-            "Findings explicitly reported in abstracts remain separate from interpretive inference. Similar conclusion wording does not establish comparable populations, methods, or endpoints, and those differences remain part of the uncertainty.",
-            "Evidence strength must match the question a design can answer. Association, model discrimination, procedural feasibility, and patient outcomes occupy different levels and are not interchangeable clinical claims.",
-            "Eligibility, bias control, missing-data handling, and subgroup analyses that are absent from abstracts remain unknown. Titles, journals, and adjacent studies cannot supply those missing facts.",
-            "A cross-study synthesis should check provenance, measurement, comparators, and observation windows together. Agreement in direction is more informative only when those elements are sufficiently comparable."
-          ],
-          limitations: [
-            "The verified boundary for this section is public metadata and abstracts. Eligibility details, statistical specifications, missing-data handling, subgroup analyses, and sensitivity analyses that are absent from an abstract still require full-text review and cannot be reconstructed from titles, journals, or adjacent studies.",
-            "Differences in populations, data provenance, technical pathways, endpoint definitions, and follow-up frameworks limit cross-study comparison. Similar directions of findings do not make effects directly combinable or justify broader applicability when designs and complete statistical information are not homogeneous.",
-            "Observational studies, case material, prediction models, feasibility studies, and clinical-effectiveness studies answer different questions. Synthesis must preserve those evidence grades and must not translate association, case experience, or technical success directly into causality or general clinical benefit.",
-            "Public abstracts can support an auditable evidence map but cannot complete a full-text risk-of-bias appraisal. Publication selection, sample selection, measurement error, incomplete outcome reporting, and external applicability therefore remain sources of uncertainty.",
-            "Further appraisal should obtain full texts and supplements and verify protocols, statistical methods, attrition, complication definitions, and longer-term outcomes. Prospective studies, external validation, and independent replication are still needed to test signals reported only at abstract level.",
-            "Accordingly, this section retains disputes that public abstracts cannot resolve and does not fill evidence gaps with confident wording. Any clinical interpretation must also consider the individual patient, complete study reports, applicable guidance, and independent professional judgment."
-          ],
-          conclusion: [
-            "Overall, the public evidence can define studied populations, methodological pathways, and outcomes explicitly reported in abstracts, but it cannot replace full-text appraisal or convert research findings directly into routine clinical recommendations.",
-            "Conclusions should remain within each study's design, sample, endpoints, and follow-up, while distinguishing association, predictive performance, technical feasibility, case experience, and clinical effectiveness so that evidence grades are not crossed.",
-            "The most defensible present use is an auditable evidence map and a set of follow-up questions. Prospective validation, external validation, complete follow-up, and patient-outcome data remain necessary to narrow uncertainty.",
-            "Practice decisions still require full texts, patient-specific factors, applicable guidance, and independent clinical assessment. This review does not replace diagnosis or treatment decisions and does not infer information omitted from public abstracts."
-          ]
-        };
-  let changed = false;
-  let templateOffset = 0;
-  const usedParagraphs = new Set(
-    input.markdown
-      .split(/\n\s*\n/gu)
-      .map((paragraph) => paragraph.trim())
-      .filter(
-        (paragraph) =>
-          paragraph !== "" && !/^#{1,6}\s/u.test(paragraph)
-      )
-      .map(normalizeReviewParagraphForDuplicateCheck)
-  );
-  const closed = sections.map((section) => {
-    if (
-      section.kind !== "topic" &&
-      section.kind !== "limitations" &&
-      section.kind !== "conclusion"
-    ) {
-      return section;
-    }
-    const minimum =
-      section.kind === "conclusion"
-        ? reviewContractPolicy.sections.conclusion.minimum
-        : section.kind === "limitations"
-          ? reviewContractPolicy.sections.limitations.minimum
-          : reviewContractPolicy.sections.topic.minimum;
-    const minimumExisting =
-      section.kind === "topic"
-        ? deterministicSectionSupplementMinimumExisting(minimum, 0.75)
-        : section.kind === "limitations"
-          ? deterministicSectionSupplementMinimumExisting(minimum, 0.5)
-          : deterministicSectionSupplementMinimumExisting(minimum, 0.25);
-    if (
-      count(section.body) >= minimum ||
-      count(section.body) < minimumExisting
-    ) {
-      return section;
-    }
-    const paragraphs = [section.body.trim()].filter(Boolean);
-    const sectionTemplates = templates[section.kind];
-    const existingCitations = [
-      ...new Set(extractNumericCitations(section.body))
-    ];
-    if (
-      section.kind === "topic" &&
-      existingCitations.length === 0
-    ) {
-      templateOffset += 1;
-      return section;
-    }
-    for (
-      let index = 0;
-      count(paragraphs.join("\n\n")) < minimum &&
-      index < sectionTemplates.length;
-      index += 1
-    ) {
-      const citation =
-        section.kind === "topic"
-          ? `[${existingCitations.join(",")}]`
-          : (() => {
-              const start =
-                ((templateOffset + index * 5) %
-                  input.referenceCount) +
-                1;
-              const end = Math.min(
-                input.referenceCount,
-                start + 4
-              );
-              return start === end
-                ? `[${start}]`
-                : `[${start}-${end}]`;
-            })();
-      const candidate = `${sectionTemplates[index]} ${citation}`;
-      const normalizedCandidate =
-        normalizeReviewParagraphForDuplicateCheck(candidate);
-      if (usedParagraphs.has(normalizedCandidate)) {
-        continue;
-      }
-      usedParagraphs.add(normalizedCandidate);
-      paragraphs.push(candidate);
-      changed = true;
-    }
-    templateOffset += 1;
-    return {
-      ...section,
-      body: paragraphs.join("\n\n")
-    };
-  });
-  return {
-    markdown: closed
-      .map(
-        (section) =>
-          `## ${section.heading}\n\n${section.body.trim()}`
-      )
-      .join("\n\n"),
-    changed
-  };
-}
-
-function supplementNearMinimumBodySections(
-  fragment: BodyFragment,
-  language: ResearchRunRecord["language"]
-): { fragment: BodyFragment; changed: boolean } {
-  const sections = parseSkillReviewSections(fragment.markdown);
-  if (
-    sections.length !==
-      reviewContractPolicy.sections.topic.bodyFragmentCount ||
-    sections.some(
-      (section) => section.heading === "" || section.kind !== "topic"
-    )
-  ) {
-    return { fragment, changed: false };
-  }
-  const minimum = reviewContractPolicy.sections.topic.minimum;
-  const minimumExisting =
-    deterministicSectionSupplementMinimumExisting(minimum, 0.75);
-  const count = (value: string): number =>
-    countReviewLanguageContent(value, language);
-  const templates =
-    language === "zh-CN"
-      ? [
-          "本节只在所引公开摘要能够直接支持的研究对象、设计、方法与结局范围内比较证据，摘要未披露的全文细节不作为事实，也不据此扩大适用人群。",
-          "横向解释还需区分样本来源、技术路径、终点定义与随访框架；这些差异会限制结果的直接合并，也要求把观察性关联、技术可行性和临床效果分层表述。",
-          "因此，当前证据更适合形成可复核的研究线索，而不是确定的临床因果判断；完整方法学评价、外部验证和长期患者结局仍需结合全文及后续研究完成。",
-          "本节把摘要明确报告的发现与解释性推断分开呈现。结论方向相近并不自动代表研究对象、方法和终点可比，差异本身应保留为证据不确定性的组成部分。",
-          "证据强度应与研究设计能够回答的问题相匹配。统计关联、模型区分能力、操作可行性和患者结局属于不同层次，不能因措辞相似而被合并为同一种临床判断。",
-          "对摘要未说明的纳入标准、偏倚控制、缺失资料和亚组分析保持沉默，可以避免从题名、期刊或相邻研究补写事实，也使后续全文复核具有明确入口。",
-          "跨研究综合应同时核对资料来源、测量方式、比较条件和观察时间。只有这些要素具有足够可比性时，结果方向的一致才构成更稳健的学术线索。",
-          "面向后续研究，本节把尚未闭合的问题转化为可验证任务，包括全文复核、前瞻性检验、外部验证和独立重复；这些方向用于界定证据缺口，不预设验证结果。"
-        ]
-      : [
-          "This section compares only populations, designs, methods, and outcomes directly supported by the cited public abstracts. Full-text details omitted from an abstract are not treated as facts and do not justify broader applicability.",
-          "Cross-study interpretation must also distinguish sample provenance, technical pathways, endpoint definitions, and follow-up frameworks. Those differences limit direct pooling and require observational association, technical feasibility, and clinical effectiveness to remain separate claims.",
-          "The current evidence therefore supports an auditable research signal rather than a definitive clinical causal judgment. Complete methodological appraisal, external validation, and longer-term patient outcomes still require full texts and further studies.",
-          "Apparently similar findings may have different meanings when eligibility, measurement, follow-up, or outcome ascertainment differs. Evidence synthesis should retain those uncertainties instead of filling absent information with confident language.",
-          "Findings explicitly reported in abstracts remain separate from interpretive inference. Similar conclusion wording does not establish comparable populations, methods, or endpoints, and those differences remain part of the uncertainty.",
-          "Evidence strength must match the question a design can answer. Association, model discrimination, procedural feasibility, and patient outcomes occupy different levels and are not interchangeable clinical claims.",
-          "Eligibility, bias control, missing-data handling, and subgroup analyses that are absent from abstracts remain unknown. Titles, journals, and adjacent studies cannot supply those missing facts.",
-          "A cross-study synthesis should check provenance, measurement, comparators, and observation windows together. Agreement in direction is more informative only when those elements are sufficiently comparable."
-        ];
-  let changed = false;
-  let templateOffset = 0;
-  const closed = sections.map((section) => {
-    const sectionCount = count(section.body);
-    if (
-      sectionCount >= minimum ||
-      sectionCount < minimumExisting
-    ) {
-      templateOffset += 1;
-      return section;
-    }
-    const citations = [
-      ...new Set(extractNumericCitations(section.body))
-    ];
-    if (citations.length === 0) {
-      templateOffset += 1;
-      return section;
-    }
-    const citation = `[${citations.join(",")}]`;
-    const paragraphs = [section.body.trim()];
-    let addedTemplates = 0;
-    for (
-      let index = 0;
-      count(paragraphs.join("\n\n")) < minimum &&
-      index < templates.length;
-      index += 1
-    ) {
-      paragraphs.push(
-        `${templates[(templateOffset + index) % templates.length]} ${citation}`
-      );
-      addedTemplates += 1;
-      changed = true;
-    }
-    templateOffset += Math.max(1, addedTemplates);
-    return {
-      ...section,
-      body: paragraphs.join("\n\n")
-    };
-  });
-  return {
-    fragment: {
-      ...fragment,
-      markdown: closed
-        .map(
-          (section) =>
-            `## ${section.heading}\n\n${section.body.trim()}`
-        )
-        .join("\n\n")
-    },
-    changed
-  };
-}
-
-function supplementReviewEvidenceBoundary(input: {
-  markdown: string;
-  referenceCount: number;
-  language: ResearchRunRecord["language"];
-  minimumContent: number;
-}): { markdown: string; changed: boolean } {
-  const count = (value: string): number =>
-    countReviewContractContent(value, input.language);
-  if (
-    count(input.markdown) >= input.minimumContent ||
-    input.referenceCount <= 0
-  ) {
-    return { markdown: input.markdown, changed: false };
-  }
-  const maximumSupplement = Math.max(
-    800,
-    Math.ceil(input.minimumContent * 0.2)
-  );
-  const templates =
-    input.language === "zh-CN"
-      ? [
-          "本组证据的可核验范围限于公开元数据与摘要。综合时只采用摘要明确报告的研究设计、研究对象、方法、结局和局限，未在摘要出现的全文细节不作为事实，也不依据题名或期刊信息推断临床效果。",
-          "证据等级需要分层理解。观察性资料用于描述关联与真实世界特征，不能替代因果检验；病例、体外或机制证据用于界定科学假设与适用边界，不能直接外推为普遍临床获益。",
-          "跨研究比较应优先核对研究对象、纳入来源、方法路径、终点定义和随访框架。若这些要素不一致，结果方向即使相近也不代表效应可以直接合并，差异本身应作为不确定性来源。",
-          "摘要层面的阳性结果不等同于完整证据。正式学术判断仍需回到全文复核统计方法、缺失数据处理、偏倚控制、亚组定义和敏感性分析，避免把摘要未披露的信息写成确定结论。",
-          "对研究结论的表达应与设计能力相匹配。相关性、预测性能、技术可行性和临床有效性属于不同问题；证据综合必须保留这一层级差异，并明确哪些判断仍需要前瞻性或外部验证。",
-          "本综述采用保守的证据闭合原则：具体数字只在所引摘要直接支持时保留，无法闭合的数字不用于论证；定性结论也仅限于相应研究对象、方法和终点所允许的解释范围。",
-          "证据之间的一致性需要结合来源与方法解释，而不能只比较结论措辞。样本来源、选择偏倚、测量方式和评价终点均可能改变结果含义，因此跨研究综合应同时呈现支持证据与限制条件。",
-          "面向后续研究，优先任务是把当前摘要层面的线索转化为可复核问题，包括前瞻性验证、外部验证、真实世界评估、机制复核和患者结局研究；这些方向用于界定证据缺口，不预设未来结果。"
-        ]
-      : [
-          "The verifiable evidence boundary is public metadata and abstracts. Synthesis is limited to designs, populations, methods, outcomes, and limitations explicitly reported there; missing full-text detail is not treated as fact.",
-          "Evidence grades require separate interpretation. Observational material can describe associations but cannot replace causal testing, while case, in-vitro, and mechanistic evidence cannot be generalized directly to clinical benefit.",
-          "Cross-study comparison should distinguish populations, data sources, methods, endpoints, and follow-up frameworks. Similar directions do not make effects directly combinable when those elements differ.",
-          "A positive abstract-level result is not complete evidence. Formal academic use still requires full-text review of statistical methods, missing-data handling, bias control, subgroup definitions, and sensitivity analyses.",
-          "Claims must remain proportional to study design. Association, predictive performance, technical feasibility, and clinical effectiveness are different questions and require different levels of validation.",
-          "This review uses conservative evidence closure: a number is retained only when the cited abstract supports it, and qualitative interpretation remains within the reported population, methods, and endpoints.",
-          "Consistency across papers must be interpreted with methods and provenance, not conclusion wording alone. Sampling, selection bias, measurement, and endpoint definitions can change the meaning of apparently similar findings.",
-          "Future work should turn abstract-level signals into auditable questions through prospective, external, real-world, mechanistic, and patient-outcome validation without presuming their results."
-        ];
-  const paragraphs: string[] = [];
-  let supplemented = 0;
-  for (
-    let index = 0;
-    count(input.markdown) + supplemented < input.minimumContent &&
-    supplemented < maximumSupplement &&
-    index < templates.length;
-    index += 1
-  ) {
-    const start = (index * 5) % input.referenceCount + 1;
-    const end = Math.min(input.referenceCount, start + 4);
-    const citation = start === end ? `[${start}]` : `[${start}-${end}]`;
-    const paragraph = `${templates[index % templates.length]} ${citation}`;
-    const paragraphContent = count(paragraph);
-    if (supplemented + paragraphContent > maximumSupplement) {
-      break;
-    }
-    paragraphs.push(paragraph);
-    supplemented += paragraphContent;
-  }
-  if (paragraphs.length === 0) {
-    return { markdown: input.markdown, changed: false };
-  }
-  const sections = parseSkillReviewSections(input.markdown);
-  const insertionIndex = sections.findIndex(
-    (section) => section.kind === "synthesis"
-  );
-  if (
-    insertionIndex >= 0 &&
-    sections.every((section) => section.heading !== "")
-  ) {
-    return {
-      markdown: sections
-        .map((section, index) => ({
-          ...section,
-          body:
-            index === insertionIndex
-              ? [section.body.trim(), ...paragraphs]
-                  .filter(Boolean)
-                  .join("\n\n")
-              : section.body
-        }))
-        .map(
-          (section) =>
-            `## ${section.heading}\n\n${section.body.trim()}`
-        )
-        .join("\n\n"),
-      changed: true
-    };
-  }
-  return {
-    markdown: [input.markdown, ...paragraphs].join("\n\n"),
-    changed: true
-  };
 }
 
 function normalizeChineseQuantitiesToArabic(value: string): string {
@@ -11395,26 +9614,6 @@ function hasCollectiveRetrospectiveDesignMismatch(
   );
 }
 
-function deduplicateAnswerSentences(value: string): string {
-  const sentences = value
-    .split(
-      /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s+/u
-    )
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-  const seen = new Set<string>();
-  return sentences
-    .filter((sentence) => {
-      const normalized = normalizeEvidenceText(sentence);
-      if (seen.has(normalized)) {
-        return false;
-      }
-      seen.add(normalized);
-      return true;
-    })
-    .join(" ");
-}
-
 function hasDuplicateAnswerSentence(value: string): boolean {
   const seen = new Set<string>();
   for (const sentence of value
@@ -11430,165 +9629,6 @@ function hasDuplicateAnswerSentence(value: string): boolean {
     seen.add(normalized);
   }
   return false;
-}
-
-function boundAnswerContent(
-  value: string,
-  language: ResearchRunRecord["language"],
-  minimumContent: number,
-  maximumContent: number
-): string {
-  const count = (content: string): number =>
-    countReviewContractContent(content, language);
-  let bounded = truncateAnswerContent(
-    value.trim(),
-    language,
-    maximumContent
-  );
-  if (count(bounded) >= minimumContent) {
-    return bounded;
-  }
-  const evidenceBoundaryClauses =
-    language === "zh-CN"
-      ? [
-          "上述回答仅基于已核验的公开摘要，具体方法、适用范围与结论强度仍需结合原文核对，不能直接外推为确定的临床获益。",
-          "解读时还应区分研究设计、研究对象和观察终点，避免把相关性写成因果关系。",
-          "若用于正式学术判断，应回到所引文献全文复核。",
-          "摘要没有披露的纳入标准、统计细节和亚组结果不应被补写为已知事实。",
-          "不同中心、器械和随访框架之间的结果不能在缺少可比性评价时直接合并。",
-          "任何临床应用都需结合患者特征、完整证据和专业判断重新评估。"
-        ]
-      : [
-          "This answer is limited to verified public abstracts; methods, applicability, and strength of inference still require confirmation against the full papers.",
-          "Interpretation should distinguish study design, population, and endpoints, and should not convert an association into a causal conclusion.",
-          "A formal academic judgment should return to the cited full texts for verification.",
-          "Eligibility criteria, statistical details, and subgroup findings absent from the abstracts must not be treated as established facts.",
-          "Results from different centers, devices, populations, and follow-up frameworks should not be combined without a direct comparability assessment.",
-          "Any clinical application requires a new assessment of patient characteristics, complete evidence, uncertainty, and professional judgment.",
-          "The cited findings describe the reported study setting and do not independently establish effectiveness, safety, or routine treatment value."
-        ];
-  for (const clause of evidenceBoundaryClauses) {
-    if (bounded.includes(clause)) {
-      continue;
-    }
-    bounded = [bounded, clause].filter(Boolean).join(" ");
-    if (count(bounded) >= minimumContent) {
-      break;
-    }
-  }
-  return truncateAnswerContent(
-    bounded,
-    language,
-    maximumContent
-  );
-}
-
-function truncateAnswerContent(
-  value: string,
-  language: ResearchRunRecord["language"],
-  maximumContent: number
-): string {
-  if (language !== "zh-CN") {
-    return value
-      .trim()
-      .split(/\s+/u)
-      .slice(0, maximumContent)
-      .join(" ");
-  }
-  let hanCharacters = 0;
-  let result = "";
-  for (const character of Array.from(value.normalize("NFC"))) {
-    if (/\p{Script=Han}/u.test(character)) {
-      if (hanCharacters >= maximumContent) {
-        break;
-      }
-      hanCharacters += 1;
-    }
-    result += character;
-  }
-  return result.trim().replace(/[，、：；\s]+$/u, "");
-}
-
-function removeUnsupportedNumericSentences(
-  value: string,
-  allowedEvidence: string,
-  language: ResearchRunRecord["language"]
-): string {
-  const allowed = new Set(extractNumericTokens(allowedEvidence));
-  // Remove a complete sentence or semicolon-delimited claim when one of its
-  // narrative numbers is unsupported. Cutting at a Chinese comma can leave
-  // orphaned units, unmatched parentheses, and misleading sentence
-  // fragments even when each retained token is independently supported.
-  // A decimal point is not a sentence boundary. Splitting `2.7` into `2.`
-  // and `7` can preserve a misleading truncated fragment when those integer
-  // tokens happen to occur elsewhere in the cited abstract.
-  const sentences = value.split(
-    /(?<=[。！？；;!?])\s*|(?<=\.)(?![0-9])\s*/u
-  );
-  const retained = sentences
-    .map((sentence) => {
-      if (
-        extractNarrativeNumericTokens(sentence).every((token) =>
-          allowed.has(token)
-        )
-      ) {
-        return sentence;
-      }
-      if (language !== "zh-CN") {
-        return null;
-      }
-      const terminal =
-        /[。！？；;!?.]$/u.exec(sentence.trim())?.[0] ?? "。";
-      const body = sentence.trim().replace(/[。！？；;!?.]+$/u, "");
-      const clauses = body
-        .split(/[，,]/u)
-        .map((clause) =>
-          clause
-            .trim()
-            .replace(
-              /^(?:但是|但|而且|而|并且|且|同时|其中|因此|然而)[，,\s]*/u,
-              ""
-            )
-        )
-        .filter(
-          (clause) =>
-            countHanCharacters(clause) >= 12 &&
-            extractNarrativeNumericTokens(clause).every((token) =>
-              allowed.has(token)
-            )
-        );
-      if (clauses.length === 0) {
-        return null;
-      }
-      let candidate = clauses.join("，");
-      const citations =
-        sentence.match(/\[[0-9,\s-]+\]/gu) ?? [];
-      if (
-        citations.length > 0 &&
-        extractNumericCitations(candidate).length === 0
-      ) {
-        candidate = `${candidate} ${[
-          ...new Set(citations)
-        ].join("")}`;
-      }
-      candidate = `${candidate}${terminal}`;
-      if (
-        countHanCharacters(candidate) < 20 ||
-        !hasBalancedDelimiter(candidate, "(", ")") ||
-        !hasBalancedDelimiter(candidate, "（", "）") ||
-        !hasBalancedDelimiter(candidate, "[", "]") ||
-        /(?:率|比例|占|为|达|至|约|术后|随访|纳入|共)\s*[0-9]+[.。](?![0-9])/u.test(
-          candidate
-        )
-      ) {
-        return null;
-      }
-      return candidate;
-    })
-    .filter((sentence): sentence is string => sentence !== null);
-  return retained
-    .join(language === "zh-CN" ? "" : " ")
-    .trim();
 }
 
 function unsupportedNarrativeNumericTokens(

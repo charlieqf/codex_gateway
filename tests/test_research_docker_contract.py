@@ -214,7 +214,7 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", worker)
         self.assertIn("RESEARCH_SERPAPI_ENGINE=google", worker)
         self.assertIn(
-            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.105",
+            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.106",
             worker,
         )
         self.assertIn(

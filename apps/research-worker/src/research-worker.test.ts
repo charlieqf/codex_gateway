@@ -391,10 +391,7 @@ describe("Research Worker controlled-beta workflow", () => {
   it.each([
     ["transport", "bounded_shard_transport_retry_completed"],
     ["transport-empty", "bounded_shard_transport_retry_completed"],
-    [
-      "transport-double",
-      "deterministic_closing_transport_fallback_applied"
-    ],
+    ["transport-double", null],
     [
       "transport-middle-and-closing",
       "bounded_shard_transport_retry_completed"
@@ -409,15 +406,15 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "transport-conclusion-safety",
-      "deterministic_peer_review_self_check_completed"
+      null
     ],
     [
       "skill-conclusion-safety",
-      "deterministic_peer_review_self_check_completed"
+      null
     ],
     [
       "introduction-safety",
-      "bounded_introduction_correction_completed"
+      null
     ],
     ["admission", "bounded_shard_transport_retry_completed"],
     ["contract", "bounded_shard_contract_retry_completed"],
@@ -443,11 +440,11 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "body-source-extra",
-      "deterministic_body_fragment_unknown_qa_source_removed"
+      "bounded_qa_contract_retry_completed"
     ],
     [
       "contract-short-abstract",
-      "bounded_shard_contract_retry_completed"
+      null
     ],
     [
       "contract-skill-prose",
@@ -463,45 +460,45 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "skill-normalization",
-      "peer_review_contract_unusable_deterministic_fallback"
+      null
     ],
     [
       "skill-closing-normalization",
-      "deterministic_closing_section_boundary_supplement_applied"
+      null
     ],
-    ["body", "bounded_qa_contract_retry_completed"],
+    ["body", null],
     [
       "qa-peer-section-repair",
-      "peer_review_call_reallocated_to_post_correction_section_repair"
+      null
     ],
     ["content", "bounded_review_content_correction_completed"],
     [
       "peer-contract",
-      "peer_review_contract_unusable_deterministic_fallback"
+      null
     ],
     [
       "peer-contract-conclusion-safety",
-      "bounded_single_section_repair_completed"
+      null
     ],
     [
       "peer-timeout",
-      "peer_review_model_unavailable_deterministic_fallback"
+      null
     ],
     [
       "peer-convergence",
-      "peer_review_patch_fallback_to_deterministic_safety"
+      "peer_review_patch_fallback_to_validated_candidate"
     ],
     [
       "peer-patch-mismatch",
-      "peer_review_patch_fallback_to_deterministic_safety"
+      null
     ],
     [
       "section-repair",
-      "peer_review_contract_unusable_deterministic_fallback"
+      null
     ],
     [
       "correction-timeout",
-      "peer_review_contract_unusable_deterministic_fallback"
+      null
     ],
     [
       "body-section-repair",
@@ -509,18 +506,18 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "citation-closure",
-      "peer_review_model_unavailable_deterministic_fallback"
+      null
     ],
     [
       "section-closure",
-      "peer_review_model_unavailable_deterministic_fallback"
+      null
     ],
     [
       "grace",
       "bounded_initial_shard_admission_grace_elapsed"
     ]
   ] as const)(
-    "runs concurrent synthesis shards, bounded corrections, and peer review fallback for %s",
+    "runs concurrent synthesis shards with bounded retry and follow-up handling for %s",
     async (retryKind, retryWarning) => {
     const input = {
       ...runInput(),
@@ -1676,22 +1673,6 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
-            retryKind === "transport-double" &&
-            modelInput.attempt === 5 &&
-            modelInput.stage === "synthesize_review"
-          ) {
-            return {
-              text: fragments.get(3)!,
-              gatewayRequestId:
-                "req_sharded_second_transport_retry",
-              usage: {
-                promptTokens: 100,
-                completionTokens: 1_000,
-                totalTokens: 1_100
-              }
-            };
-          }
-          if (
             (retryKind === "body-markdown-only-retry" ||
               retryKind === "body-source-closure-retry") &&
             modelInput.stage === "synthesize_review" &&
@@ -1986,6 +1967,95 @@ describe("Research Worker controlled-beta workflow", () => {
       attempts.length,
       JSON.stringify({ outcome, validationEvents })
     ).toBeGreaterThan(0);
+    const failClosedScenario = retryWarning === null;
+    if (failClosedScenario) {
+      if (retryKind !== "transport-double") {
+        expect(
+          outcome,
+          JSON.stringify({ attempts, modelCalls, validationEvents })
+        ).toEqual(
+          retryKind === "introduction-safety"
+            ? {
+                outcome: "failed",
+                reason: "upstream_unavailable",
+                retryable: false
+              }
+            : {
+                outcome: "failed",
+                reason: "model_contract_error"
+              }
+        );
+        expect(validationEvents.length).toBeGreaterThan(0);
+        if (retryKind === "skill-closing-normalization") {
+          expect(retryPrompt).toContain(
+            "closing_limitations_minimum:450"
+          );
+        }
+        expect(
+          fixture.store.getRunResultForSubject(
+            fixture.lease.run.runId,
+            fixture.lease.run.subjectId
+          )
+        ).toBeNull();
+        expect(
+          fixture.store.database
+            .prepare(
+              "SELECT COUNT(*) AS count FROM research_artifacts WHERE run_id = ?"
+            )
+            .get(fixture.lease.run.runId)
+        ).toEqual({ count: 0 });
+        expect(existsSync(fixture.artifactRoot)).toBe(false);
+        return;
+      }
+      expect(
+        outcome,
+        JSON.stringify({ attempts, modelCalls, validationEvents })
+      ).toEqual({
+        outcome: "failed",
+        reason: "upstream_unavailable",
+        retryable: false
+      });
+      expect(
+        fixture.store.database
+          .prepare(
+            `SELECT attempt, gateway_request_id, error_code, terminal_source
+             FROM research_stage_runs
+             WHERE run_id = ?
+               AND stage = 'synthesize_review'
+               AND error_code IS NOT NULL
+             ORDER BY attempt ASC`
+          )
+          .all(fixture.lease.run.runId)
+      ).toEqual([
+        {
+          attempt: 3,
+          gateway_request_id: "req_sharded_1",
+          error_code: "model_upstream_error",
+          terminal_source: "provider_response"
+        },
+        {
+          attempt: 4,
+          gateway_request_id: "req_sharded_double_transport_retry",
+          error_code: "model_upstream_error",
+          terminal_source: "provider_response"
+        }
+      ]);
+      expect(
+        fixture.store.getRunResultForSubject(
+          fixture.lease.run.runId,
+          fixture.lease.run.subjectId
+        )
+      ).toBeNull();
+      expect(
+        fixture.store.database
+          .prepare(
+            "SELECT COUNT(*) AS count FROM research_artifacts WHERE run_id = ?"
+          )
+          .get(fixture.lease.run.runId)
+      ).toEqual({ count: 0 });
+      expect(existsSync(fixture.artifactRoot)).toBe(false);
+      return;
+    }
     expect(
       outcome,
       JSON.stringify({ attempts, modelCalls, validationEvents })
@@ -2027,15 +2097,11 @@ describe("Research Worker controlled-beta workflow", () => {
       retryKind === "citation-closure" ||
       retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
-      retryKind === "section-closure" ||
-      retryKind === "skill-closing-normalization" ||
-      retryKind === "skill-normalization" ||
       retryKind === "peer-convergence" ||
       retryKind === "peer-patch-mismatch" ||
       retryKind === "section-repair" ||
       retryKind === "correction-timeout" ||
       retryKind === "body-envelope" ||
-      retryKind === "body-source-extra" ||
       retryKind === "closing-envelope" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
@@ -2346,12 +2412,6 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(
         result.answers.some((answer) => answer.answer.includes("7例"))
       ).toBe(false);
-      expect(result.quality.warnings).toContain(
-        "peer_review_patch_fallback_to_deterministic_safety"
-      );
-      expect(result.quality.warnings).not.toContain(
-        "peer_review_patch_applied"
-      );
     }
     if (
       retryKind === "body-markdown-only" ||
@@ -2395,8 +2455,12 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toBe(true);
     }
     if (retryKind === "body-source-extra") {
-      expect(result.quality.warnings).toContain(
-        "deterministic_body_fragment_unknown_qa_source_removed"
+      expect(result.quality.warnings).toEqual(
+        expect.arrayContaining([
+          "deterministic_body_fragment_qa_source_closure_deferred",
+          "deterministic_body_fragment_qa_deferred_to_targeted_repair",
+          "bounded_qa_contract_retry_completed"
+        ])
       );
       expect(JSON.stringify(result.answers)).not.toContain(
         "src_pubmed_999999999"
@@ -2424,9 +2488,6 @@ describe("Research Worker controlled-beta workflow", () => {
           /跨分片共用的公开摘要边界说明仅用于界定证据范围/gu
         )
       ).toHaveLength(1);
-      expect(result.quality.warnings).toContain(
-        "deterministic_safety_normalization_applied"
-      );
       expect(result.review.markdown).toContain(
         "一项研究发现公开摘要证据与观察结果相关"
       );
@@ -2595,9 +2656,6 @@ describe("Research Worker controlled-beta workflow", () => {
         convergenceUnsafeParagraph
       );
       expect(result.quality.warnings).toContain(
-        "deterministic_safety_normalization_applied"
-      );
-      expect(result.quality.warnings).toContain(
         "controlled_trial_topic_section_below_target"
       );
     }
@@ -2615,20 +2673,11 @@ describe("Research Worker controlled-beta workflow", () => {
             )
           )
       ).toContain("病例报告或病例系列");
-      expect(result.quality.warnings).toContain(
-        "deterministic_safety_normalization_applied"
-      );
       expect(result.answers[4]?.answer).toContain(
         "所引两项研究均为小样本研究"
       );
       expect(result.answers[4]?.answer).not.toContain(
         "均为小样本回顾性研究"
-      );
-      expect(result.quality.warnings).toContain(
-        "deterministic_reference_citation_closure_applied"
-      );
-      expect(result.quality.warnings).not.toContain(
-        "deterministic_evidence_boundary_supplement_applied"
       );
     }
     if (retryKind === "section-closure") {
@@ -2667,17 +2716,8 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toBe(true);
       expect(result.review.markdown).not.toContain("2025例");
       expect(result.review.markdown).not.toContain("999998例");
-      expect(result.quality.warnings).toContain(
-        "deterministic_skill_section_boundary_supplement_applied"
-      );
     }
     if (retryKind === "skill-normalization") {
-      expect(result.quality.warnings).toContain(
-        "deterministic_abstract_evidence_boundary_supplement_applied"
-      );
-      expect(result.quality.warnings).toContain(
-        "deterministic_underfilled_optional_topic_removed"
-      );
       expect(result.quality.warnings).not.toContain(
         "bounded_shard_skill_contract_retry_completed"
       );
@@ -2709,9 +2749,6 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toBe(true);
       expect(result.quality.warnings).toContain(
         "controlled_trial_topic_section_below_target"
-      );
-      expect(result.quality.warnings).not.toContain(
-        "deterministic_body_section_boundary_supplement_applied"
       );
     }
     if (retryKind === "transport") {
@@ -2815,9 +2852,6 @@ describe("Research Worker controlled-beta workflow", () => {
     }
     if (retryKind === "contract-short-abstract") {
       expect(result.quality.warnings).toContain(
-        "deterministic_abstract_closed_introduction_supplement_applied"
-      );
-      expect(result.quality.warnings).toContain(
         "bounded_shard_contract_retry_completed"
       );
     }
@@ -2827,9 +2861,6 @@ describe("Research Worker controlled-beta workflow", () => {
       );
     }
     if (retryKind === "peer-contract") {
-      expect(result.quality.warnings).toContain(
-        "deterministic_abstract_evidence_boundary_supplement_applied"
-      );
       expect(new Set(result.quality.warnings).size).toBe(
         result.quality.warnings.length
       );
@@ -2856,7 +2887,6 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
         retryKind === "body-envelope" ||
-        retryKind === "body-source-extra" ||
         retryKind === "closing-envelope" ||
         retryKind === "section-repair" ||
         retryKind === "correction-timeout"
@@ -2968,7 +2998,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ).toMatchObject({ llm_calls: 0 });
   });
 
-  it("closes a transposed numeric claim after peer review without publishing unsafe text", async () => {
+  it("rejects a repeated transposed numeric claim instead of deleting it server-side", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -3061,8 +3091,11 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => now
     });
 
-    expect(outcome).toEqual({ outcome: "succeeded" });
-    expect(modelCalls).toBe(2);
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(modelCalls).toBe(3);
     expect(repairPrompt).toContain("Preserve every required draft field");
     expect(repairPrompt).toContain("Draft schema:");
     expect(repairPrompt).toContain("untrusted_official_sources");
@@ -3083,6 +3116,11 @@ describe("Research Worker controlled-beta workflow", () => {
         stage: "validate_outputs",
         attempt: 2,
         errorCodes: ["numeric_evidence_closure"]
+      }),
+      expect.objectContaining({
+        stage: "validate_outputs",
+        attempt: 3,
+        errorCodes: ["numeric_evidence_closure"]
       })
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
@@ -3095,22 +3133,8 @@ describe("Research Worker controlled-beta workflow", () => {
       lease.run.runId,
       "subj_profile_closure"
     );
-    expect(stored).not.toBeNull();
-    expect(JSON.stringify(stored?.result)).not.toContain(
-      "Invented oncology program"
-    );
-    expect(JSON.stringify(stored?.result)).not.toContain("2025 patients");
-    expect(JSON.stringify(stored?.result)).not.toContain(
-      "attacker.invalid"
-    );
-    expect(stored?.result).toMatchObject({
-      quality: {
-        warnings: expect.arrayContaining([
-          "deterministic_safety_normalization_applied"
-        ])
-      }
-    });
-    expect(existsSync(artifactRoot)).toBe(true);
+    expect(stored).toBeNull();
+    expect(existsSync(artifactRoot)).toBe(false);
     store.close();
   });
 
@@ -3539,7 +3563,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("applies only conservative evidence-closure normalization after the final bounded correction", async () => {
+  it("does not publish server-authored evidence or citations after bounded model corrections fail", async () => {
     const fixture = createLeasedWorkflowFixture(
       "final_evidence_closure_normalization"
     );
@@ -3588,6 +3612,7 @@ describe("Research Worker controlled-beta workflow", () => {
     };
     let modelCalls = 0;
     const validationEvents: string[][] = [];
+    const basePolicy = workflowPolicy();
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -3608,7 +3633,15 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       },
       artifactRoot: fixture.artifactRoot,
-      policy: workflowPolicy(),
+      policy: {
+        ...basePolicy,
+        budgets: {
+          ...basePolicy.budgets,
+          llmCalls: 4,
+          inputTokens: 400_000,
+          outputTokens: 48_000
+        }
+      },
       signal: new AbortController().signal,
       onValidationFailure(event) {
         validationEvents.push([...event.errorCodes]);
@@ -3617,58 +3650,102 @@ describe("Research Worker controlled-beta workflow", () => {
     });
 
     expect(outcome, JSON.stringify(validationEvents)).toEqual({
-      outcome: "succeeded"
+      outcome: "failed",
+      reason: "model_contract_error"
     });
-    expect(modelCalls).toBe(2);
-    expect(validationEvents).toEqual([
-      [
-        "paragraph_citation_coverage",
-        "numeric_evidence_closure",
-        "in_vitro_scope_required",
-        "case_evidence_scope_required",
-        "case_evidence_answer_scope_required"
-      ],
-      [
-        "paragraph_citation_coverage",
-        "numeric_evidence_closure",
-        "in_vitro_scope_required",
-        "case_evidence_scope_required",
-        "case_evidence_answer_scope_required"
-      ]
-    ]);
-    const stored = fixture.store.getRunResultForSubject(
-      fixture.lease.run.runId,
-      fixture.lease.run.subjectId
+    expect(modelCalls).toBe(4);
+    expect(validationEvents).toHaveLength(4);
+    expect(validationEvents.every(
+      (codes) => codes.includes("paragraph_citation_coverage")
+    )).toBe(true);
+    expect(validationEvents.every(
+      (codes) => codes.includes("numeric_evidence_closure")
+    )).toBe(true);
+    expect(validationEvents.slice(1).every(
+      (codes) => JSON.stringify(codes) === JSON.stringify(validationEvents[0])
+    )).toBe(true);
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toBeNull();
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
+    fixture.store.close();
+  });
+
+  it("does not fill empty core evidence fields with default medical prose", async () => {
+    const fixture = createLeasedWorkflowFixture(
+      "empty_core_evidence_fail_closed"
     );
-    const result = stored?.result as
-      | {
-          review: {
-            markdown: string;
-            core_evidence: Array<{ key_results: string }>;
+    const output = modelOutput();
+    for (const item of output.review.core_evidence) {
+      item.study_type = " ";
+      item.sample_and_source = " ";
+      item.methods = " ";
+      item.key_results = " ";
+      item.limitations = " ";
+    }
+    const invalidDraft = {
+      schema_version: "doctor_research_model_draft.v1" as const,
+      profile: output.profile,
+      review: {
+        title: output.review.title,
+        abstract: output.review.abstract,
+        keywords: output.review.keywords,
+        markdown: output.review.markdown,
+        core_evidence: output.review.core_evidence
+      },
+      predicted_questions: output.predicted_questions,
+      answers: output.answers
+    };
+    let modelCalls = 0;
+    const validationEvents: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: adapters(),
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          modelCalls += 1;
+          return {
+            text: JSON.stringify(invalidDraft),
+            gatewayRequestId: `req_model_empty_core_${modelCalls}`,
+            usage: {
+              promptTokens: 100,
+              completionTokens: 100,
+              totalTokens: 200
+            }
           };
-          quality: { warnings: string[] };
         }
-      | undefined;
-    expect(result?.review.markdown).toContain(
-      "included 42 samples"
-    );
-    expect(result?.review.markdown).toContain(
-      "follow-up of 2.7 years"
-    );
-    expect(result?.review.markdown).toContain(
-      "cannot be directly extrapolated to clinical effects"
-    );
-    expect(result?.review.markdown).toContain(
-      "reflects experience in specific patients"
-    );
-    expect(result?.review.core_evidence[0]?.key_results).toContain(
-      "Reported findings remain limited to the cited PubMed abstract"
-    );
-    expect(result?.review.markdown).not.toContain("uncited contextual");
-    expect(result?.review.markdown).not.toContain("2025 patients");
-    expect(result?.quality.warnings).toContain(
-      "deterministic_safety_normalization_applied"
-    );
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      onValidationFailure(event) {
+        validationEvents.push([...event.errorCodes]);
+      },
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(modelCalls).toBe(3);
+    expect(validationEvents).toEqual([
+      ["core_evidence_field_contract"],
+      ["core_evidence_field_contract"],
+      ["core_evidence_field_contract"]
+    ]);
+    expect(
+      fixture.store.getRunResultForSubject(
+        fixture.lease.run.runId,
+        fixture.lease.run.subjectId
+      )
+    ).toBeNull();
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
 
@@ -3720,7 +3797,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("qualifies causal overclaiming from observational evidence after peer review", async () => {
+  it("rejects repeated causal overclaiming instead of rewriting it server-side", async () => {
     const fixture = createLeasedWorkflowFixture(
       "observational_causality"
     );
@@ -3743,6 +3820,8 @@ describe("Research Worker controlled-beta workflow", () => {
     output.review.markdown =
       "The retrospective study proves that the treatment directly reduces mortality and prevents adverse outcomes [1].";
     const validationCodes: string[][] = [];
+    const basePolicy = workflowPolicy();
+    let modelCalls = 0;
     const outcome = await executeDoctorResearchWorkflow({
       lease: fixture.lease,
       store: fixture.store,
@@ -3750,6 +3829,7 @@ describe("Research Worker controlled-beta workflow", () => {
       modelClient: {
         model: "test-model",
         async generate() {
+          modelCalls += 1;
           return {
             text: JSON.stringify(output),
             gatewayRequestId: "req_model_observational_causality",
@@ -3762,7 +3842,15 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       },
       artifactRoot: fixture.artifactRoot,
-      policy: workflowPolicy(),
+      policy: {
+        ...basePolicy,
+        budgets: {
+          ...basePolicy.budgets,
+          llmCalls: 4,
+          inputTokens: 400_000,
+          outputTokens: 48_000
+        }
+      },
       signal: new AbortController().signal,
       onValidationFailure(event) {
         validationCodes.push([...event.errorCodes]);
@@ -3770,27 +3858,18 @@ describe("Research Worker controlled-beta workflow", () => {
       now: () => fixture.now
     });
 
-    expect(outcome).toEqual({ outcome: "succeeded" });
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "model_contract_error"
+    });
+    expect(modelCalls).toBe(4);
     expect(validationCodes).toEqual([
+      ["causal_claim_evidence_grade"],
+      ["causal_claim_evidence_grade"],
       ["causal_claim_evidence_grade"],
       ["causal_claim_evidence_grade"]
     ]);
-    const stored = fixture.store.getRunResultForSubject(
-      fixture.lease.run.runId,
-      fixture.lease.run.subjectId
-    );
-    const result = stored?.result as
-      | {
-          review: { markdown: string };
-          quality: { warnings: string[] };
-        }
-      | undefined;
-    expect(result?.review.markdown).toContain(
-      "this describes an association and cannot establish causality"
-    );
-    expect(result?.quality.warnings).toContain(
-      "deterministic_safety_normalization_applied"
-    );
+    expect(existsSync(fixture.artifactRoot)).toBe(false);
     fixture.store.close();
   });
 

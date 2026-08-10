@@ -4,8 +4,8 @@
   "fixture_kind": "synthetic_derived",
   "skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
   "prompt_version": "doctor-research-prompt.v31",
-  "validation_version": "doctor_research_validation.v43",
-  "workflow_version": "doctor_research_workflow.v82",
+  "validation_version": "doctor_research_validation.v44",
+  "workflow_version": "doctor_research_workflow.v83",
   "response_template_version": "doctor_research_synthetic_response.v1",
   "run_input": {
     "doctor": {
@@ -279,7 +279,7 @@
     }
   ],
   "expected": {
-    "terminal_status": "succeeded",
+    "terminal_status": "failed",
     "diagnostics": [
       "review_orphaned_demonstrative_start"
     ],
@@ -293,7 +293,7 @@
       "markdown_count": 3,
       "text_count": 1,
       "deterministic_content_sha256": true,
-      "aggregate_content_sha256": "3039d4ae03ed93ff0288184e4dafb10de0802cefbd5a83da62ed15240487fa4d"
+      "aggregate_content_sha256": null
     }
   }
 }
