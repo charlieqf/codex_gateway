@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 实施中；M0、M1 已完成，M2 至 M7 尚未实施或部署 |
+| 状态 | 实施中；M0、M1 已完成，M1 已部署 R760；M2 至 M7 尚未实施或部署 |
 | 建立日期 | 2026-08-10 |
 | 最后更新 | 2026-08-10 |
 | 审查基线 | `6ca36cda2855a89d1e77e574e81a9a177daa4c96` |
@@ -104,7 +104,7 @@ env 值。配置审计只记录变量名、是否存在和是否合法。
 | 顺序 | 里程碑 | 核心交付 | 优先级 | 前置 | 负责人/目标日期 | 实现状态 | R760 | 证据/PR |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
 | 0 | M0 行为与配置基线 | 固定失败/成功语义、全量测试基线、R760 配置合法性预检 | P1 | 无 | Codex / 2026-08-10 | 已完成 | 不适用 | 本文 §5.1-§5.2 |
-| 1 | M1 Research fail-closed | 删除 transport 成功兜底；限制 semantic normalization | P1 | M0 | Codex / 2026-08-10 | 已完成 | 未部署 | 本文 M1-A、M1-B 执行记录 |
+| 1 | M1 Research fail-closed | 删除 transport 成功兜底；限制 semantic normalization | P1 | M0 | Codex / 2026-08-10 | 已完成 | 已部署；限量验收 | `977639f`；本文 M1 R760 发布记录 |
 | 2 | M2 关键配置 fail-fast | 区分缺失与非法配置；先预检再启用启动失败 | P1 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
 | 3 | M3 quota reset 审计一致性 | 取消静默 audit 失败；明确部分成功/持久审计契约 | P1 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
 | 4 | M4 fallback 可观测性 | image attempt ledger 与降级成功标记 | P2 | M0 | 待认领/待定 | 未开始 | 未部署 | 待填 |
@@ -358,6 +358,50 @@ admission 并 roll forward；本次没有执行部署、smoke、远程写入或 
 回滚不得恢复服务器语义补写；若上线后成功率不可接受，应使用现有 Doctor Research admission
 边界停止新任务并 roll forward 修正。
 
+### M1 R760 发布记录（2026-08-10）
+
+M1-A、M1-B 与发布版本闭合在 clean commit
+`977639f4161f99c8f2a8282e1f804c48698b5cec`。运行时版本为 Skill `1.6.106`、prompt
+`v31`、workflow `v83`、validation `v44`；没有 schema、artifact policy、provider、模型、
+医疗 Skill 或 Azure 变更。发布前 `typecheck`、build、677 项 Vitest、51 项 Python contract
+与 diff check 均通过；2 项依赖外部 fixture 的测试按既有条件跳过。
+
+R760 只重建 public Gateway 与 Research Worker：
+
+| 项目 | 实际结果 |
+| --- | --- |
+| release | `/opt/codex-gateway-r760/releases/977639f4161f99c8f2a8282e1f804c48698b5cec` |
+| Gateway image | `sha256:6b9ee9bdfd7edcc5e8dfc03575aa52c2ec733038cc200ad73d778c5e6dafb8f0` |
+| Worker image | `sha256:4651fadd9ff284cfce5959e8538b3d6fad936ca6386947c352a34c680fd07501` |
+| 未变服务 | Research LLM Gateway `sha256:99fc3789ae0920538e3fba202476b8a50162f1d110894cbfa5e26b6cfc012c6a`；maintenance `sha256:dc76e04777f3c8a2b4ff5e5d2931d72643b76af26950cbd89b92550d619451cb` |
+| 回滚边界 | `/data/codex-gateway-r760/backups/pre-977639f-20260810T025725Z`；旧 Gateway/Worker image tag、旧 Worker env、public Gateway 与 Research SQLite 快照 |
+| Azure | 未检查、未写入、未部署 |
+
+第一次正式切换在创建 Worker 时发现新 release 缺少历史发布已有的
+`secrets -> /opt/codex-gateway-r760/shared/secrets` 链接。自动回滚恢复了旧 env、image tag 和
+release link，但因当时 `current` 是只重建过 Gateway 的 `abb1373` release，使用它重建旧
+Worker 时遇到同一缺失链接，造成一次短暂服务中断。随后使用已验证旧 Gateway/Worker 镜像、
+`1.6.105` env 和同一个受保护 shared secret 目录恢复，两容器回到 healthy/restart 0；数据库
+未迁移。补齐新 release 的同构只读链接后，第二次切换成功。secret 内容和 `999:999/0400`
+宿主机权限均未修改或输出。
+
+按需求方要求，本次生产验收限制为最小集合，不执行 Azure、图片、Billing、容量/压力、取消、
+越权、遍历或多轮成功率矩阵：
+
+| 验收 | 结果 |
+| --- | --- |
+| public health | `ready / goldencode / r760-loopback` |
+| public `goldencode` 非流式文本 | 通过；request `chatcmpl_c6eb870c141f4db497f30629e31d8abe` 返回非空内容 |
+| Doctor Research | run `drr_e4d8e73f636942d8955b619204136db3` 在五次有界模型阶段后以 `model_contract_error` 失败；Skill `1.6.106`、prompt `v31`；零 result、零 artifact |
+| fail-closed 结论 | 通过：不合格模型内容没有被 semantic filler、机械引用或固定报告加工成成功 |
+| 四产物成功路径 | 本次未实证；遵守单次 Research E2E 边界，不追加重试来筛选成功样本 |
+| 清理 | 临时 key 已 revoked、entitlement 已 cancelled、用户已 disabled；active credential 与 live entitlement 均为 0，临时 token/request/download 目录已删除 |
+| 最终状态 | 四个服务均 running/healthy、restart 0；public/internal reservation、active/needs-input run 均为 0；三库 integrity `ok`、外键违规 0 |
+
+因此当前事实是“代码与部署完成，危险伪成功路径及真实 fail-closed 已验证”，不是“真实四产物
+成功路径全绿”。若需要证明发布成功率，应另行批准代表性样本与明确次数；不得把重复运行直到
+成功当作本次验收，也不得为提高成功率恢复已删除的 semantic fallback。
+
 ## 7. M2：关键配置 fail-fast
 
 任务：
@@ -600,3 +644,4 @@ git diff --check
 | 2026-08-10 | 完成 M0 行为与配置基线 | M0 从未开始变为已完成；D-01 已确认，D-02 冻结最小变更边界 | TypeScript/typecheck/build、676 项 Vitest、51 项 Python 测试通过；2 项 external fixture 测试按条件跳过；R760/8 份示例配置脱敏预检合法；无部署或运行时写入 |
 | 2026-08-10 | 完成 M1-A Research transport fail-closed | M1 从未开始变为进行中；M1-A 已完成、M1-B 未开始；R760 未部署 | 删除 closing 固定报告生成器及专属放宽分支；目标测试、90 项 Worker、77 项 Research 定向、676 项全量 Vitest 和 51 项 Python 测试通过；无 schema/config/运行时/Azure 变更 |
 | 2026-08-10 | 完成 M1-B presentation-only 发布契约 | M1 从进行中变为已完成；M1-A、M1-B 均完成；R760 未部署 | 删除 semantic normalizer、固定段落/章节/答案 filler 和机械引用；空白 core evidence fail-closed；117 项 Worker/replay、77 项 Research 定向、677 项全量 Vitest、51 项 Python 测试通过；无 public schema/config/运行时/Azure 变更 |
+| 2026-08-10 | 发布 M1 到 R760 并执行限量验收 | M1 保持已完成；R760 从未部署变为已部署、限量验收 | release `977639f`；public 文本通过；真实 Research run `drr_e4d8…` 因 `model_contract_error` fail-closed 且零 artifacts；未追加成功率重试；临时凭据已清理，四服务 healthy/restart 0，三库完整、无活动 run/未结算 reservation；Azure 未操作 |
