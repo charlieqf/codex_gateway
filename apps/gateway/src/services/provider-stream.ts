@@ -44,6 +44,8 @@ export interface ProviderStreamSummary {
   errorCode: string | null;
   contentChars: number;
   semanticOutputChars: number;
+  /** Output the caller can observe; excludes reasoning. */
+  visibleOutputChars: number;
   toolCallCount: number;
   toolNames: string[];
   rawResponseHash: string | null;
@@ -114,6 +116,7 @@ export class ProviderStreamSummaryCollector {
   private completed = false;
   private contentChars = 0;
   private semanticOutputChars = 0;
+  private visibleOutputChars = 0;
   private toolCallCount = 0;
   private readonly toolNames = new Set<string>();
   private finishReason: string | null = null;
@@ -141,6 +144,7 @@ export class ProviderStreamSummaryCollector {
     if (event.type === "message_delta") {
       this.contentChars += event.text.length;
       this.semanticOutputChars += event.text.length;
+      this.visibleOutputChars += event.text.length;
       this.recordNormalized({ type: event.type, text: event.text });
       return;
     }
@@ -216,6 +220,7 @@ export class ProviderStreamSummaryCollector {
       errorCode: this.errorCode,
       contentChars: this.contentChars,
       semanticOutputChars: this.semanticOutputChars,
+      visibleOutputChars: this.visibleOutputChars,
       toolCallCount: this.toolCallCount,
       toolNames: [...this.toolNames].sort(),
       rawResponseHash: this.upstreamRawHash ?? this.normalizedRawHash(),
@@ -279,6 +284,12 @@ export class ProviderStreamSummaryCollector {
       summary.semanticOutputChars !== null
     ) {
       this.semanticOutputChars = summary.semanticOutputChars;
+    }
+    if (
+      summary.visibleOutputChars !== undefined &&
+      summary.visibleOutputChars !== null
+    ) {
+      this.visibleOutputChars = summary.visibleOutputChars;
     }
     if (summary.rawResponseHash !== undefined) {
       this.upstreamRawHash = summary.rawResponseHash;
@@ -510,6 +521,10 @@ export function combineProviderStreamSummaries(
     (total, summary) => total + summary.semanticOutputChars,
     0
   );
+  const visibleOutputChars = present.reduce(
+    (total, summary) => total + summary.visibleOutputChars,
+    0
+  );
   const toolCallCount = present.reduce((total, summary) => total + summary.toolCallCount, 0);
   const toolNames = [...new Set(present.flatMap((summary) => summary.toolNames))].sort();
   const usage = combineTokenUsages(present.map((summary) => summary.usage));
@@ -535,6 +550,7 @@ export function combineProviderStreamSummaries(
     errorCode: present.findLast((summary) => summary.errorCode !== null)?.errorCode ?? null,
     contentChars,
     semanticOutputChars,
+    visibleOutputChars,
     toolCallCount,
     toolNames,
     rawResponseHash: hash.digest("hex"),
@@ -605,7 +621,7 @@ export function providerTruncatedWithoutOutputError(
 ): GatewayError | null {
   if (
     summary.finishReason !== "length" ||
-    summary.semanticOutputChars > 0 ||
+    summary.visibleOutputChars > 0 ||
     summary.toolCallCount > 0
   ) {
     return null;
@@ -661,6 +677,9 @@ export function providerCompletionError(
     return truncatedWithoutOutputError;
   }
   if (
+    // A completed turn that only reasoned is a legitimate empty answer, so this
+    // fallback keeps counting reasoning as a response. Truncation is judged by
+    // `providerTruncatedWithoutOutputError` above, which does not.
     summary.semanticOutputChars > 0 ||
     summary.toolCallCount > 0
   ) {
@@ -911,6 +930,7 @@ function emptyProviderStreamSummary(): ProviderStreamSummary {
     errorCode: null,
     contentChars: 0,
     semanticOutputChars: 0,
+    visibleOutputChars: 0,
     toolCallCount: 0,
     toolNames: [],
     rawResponseHash: null,

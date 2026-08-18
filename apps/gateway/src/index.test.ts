@@ -8789,6 +8789,322 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  // Regression fixtures for GoldenCode turn T:3XAWRBRS (2026-08-18 03:19:07Z,
+  // gateway request req-d03908c5, 680,756 ms, first byte at 680,755 ms).
+  //
+  // The Desktop client declares `write` with `maxLength: 12000` on `content`.
+  // The model produced a larger write, the gateway rejected it as
+  // `schema_mismatch` and retried the whole turn. The retry spent its entire
+  // output budget on reasoning and stopped at `finish_reason=length` with zero
+  // content and zero tool calls. `reasoning_content` reaches no client event
+  // but still increments `semanticOutputChars`
+  // (`openai-compatible-provider.ts:473-481`), so the
+  // `providerTruncatedWithoutOutputError` guard is skipped and the turn is
+  // reported as a successful empty completion.
+  const t3xawrbrsTools = [
+    {
+      type: "function" as const,
+      function: {
+        name: "write",
+        parameters: {
+          type: "object",
+          properties: {
+            path: { type: "string" },
+            content: { type: "string", maxLength: 12000 }
+          },
+          required: ["path", "content"],
+          additionalProperties: false
+        }
+      }
+    }
+  ];
+
+  async function startT3xawrbrsProvider(
+    attempts: Array<Record<string, unknown>>,
+    options: { retryEmitsReasoning: boolean }
+  ) {
+    return startOpenAICompatibleSseServer(async (_request, body, response) => {
+      attempts.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      if (attempts.length === 1) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: "call_write_oversized",
+                      type: "function",
+                      function: {
+                        name: "write",
+                        arguments: JSON.stringify({
+                          path: "glioma-treatment.md",
+                          content: "胶".repeat(12_500)
+                        })
+                      }
+                    }
+                  ]
+                },
+                finish_reason: "tool_calls"
+              }
+            ],
+            usage: { prompt_tokens: 64_555, completion_tokens: 21_725, total_tokens: 86_280 }
+          })}\n\n`
+        );
+        response.end("data: [DONE]\n\n");
+        return;
+      }
+      if (options.retryEmitsReasoning) {
+        response.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { reasoning_content: "推理".repeat(4_000) } }]
+          })}\n\n`
+        );
+      }
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "length" }],
+          usage: { prompt_tokens: 64_643, completion_tokens: 32_000, total_tokens: 96_643 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+  }
+
+  function t3xawrbrsEnv(baseUrl: string) {
+    return {
+      // Production parity: R760 sets none of the recovery knobs, so the code
+      // default `shadow` applies and no hard argument budget exists.
+      MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: undefined,
+      MEDCODE_NATIVE_FILE_TOOL_SOFT_ARGUMENT_BYTES: undefined,
+      MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES: undefined,
+      MEDCODE_OPENROUTER_API_KEY: "sk-test-redacted",
+      MEDCODE_OPENROUTER_BASE_URL: baseUrl,
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify(publicModelRegistryFixture())
+    };
+  }
+
+  async function runT3xawrbrsTurn(
+    retryEmitsReasoning: boolean,
+    assertions: (input: {
+      response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
+      store: ReturnType<typeof createModelEntitledStore>["store"];
+      attempts: Array<Record<string, unknown>>;
+    }) => void
+  ): Promise<void> {
+    const attempts: Array<Record<string, unknown>> = [];
+    const server = await startT3xawrbrsProvider(attempts, { retryEmitsReasoning });
+
+    try {
+      await withTemporaryEnv(t3xawrbrsEnv(server.baseUrl), async () => {
+        const { store, headers } = createModelEntitledStore(["pro"]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        try {
+          const response = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "pro",
+              messages: [{ role: "user", content: "生成胶质瘤治疗方案的 PPT。" }],
+              tools: t3xawrbrsTools
+            }
+          });
+          assertions({ response, store, attempts });
+        } finally {
+          await app.close();
+        }
+      });
+    } finally {
+      await server.close();
+    }
+  }
+
+  it("T:3XAWRBRS: a reasoning-only truncated retry is refused instead of reported as an empty success", async () => {
+    await runT3xawrbrsTurn(true, ({ response, store, attempts }) => {
+      // The schema_mismatch triggers a full regeneration.
+      expect(attempts).toHaveLength(2);
+
+      // Production returned `200` with an empty message after 680,756 ms
+      // because reasoning counted as output.
+      expect(response.statusCode).toBe(413);
+      expect(response.json().error).toMatchObject({
+        code: "context_length_exceeded"
+      });
+
+      const event = store.listRequestEvents({ limit: 1 })[0];
+      expect(event).toMatchObject({
+        status: "error",
+        errorCode: "context_length_exceeded",
+        upstreamFinishReason: "length",
+        upstreamContentChars: 0,
+        upstreamAttemptCount: 2
+      });
+      expect(event.upstreamAttempts?.[0]).toMatchObject({
+        kind: "native_initial",
+        finishReason: "tool_calls",
+        errorCode: "tool_call_validation_failed",
+        toolValidationFailureKind: "schema_mismatch",
+        outputLimitHit: false
+      });
+      expect(event.upstreamAttempts?.[1]).toMatchObject({
+        kind: "validation_failed_to_same",
+        finishReason: "length",
+        toolCallCount: 0,
+        contentChars: 0,
+        outputLimitHit: true,
+        truncationConfidence: "confirmed",
+        gatewayRecoveryAction: "shadow"
+      });
+    });
+  });
+
+  it("T:3XAWRBRS control: the same retry without reasoning content is refused the same way", async () => {
+    await runT3xawrbrsTurn(false, ({ response, store, attempts }) => {
+      expect(attempts).toHaveLength(2);
+      // Identical turn, minus `reasoning_content`: reasoning must not change
+      // the verdict, so both shapes are refused the same way.
+      expect(response.statusCode).toBe(413);
+      expect(response.json().error).toMatchObject({
+        code: "context_length_exceeded"
+      });
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+        status: "error",
+        errorCode: "context_length_exceeded"
+      });
+    });
+  });
+
+  // Blast-radius probes for the same defect without the validation retry: one
+  // upstream attempt that only ever emits `reasoning_content` and stops at
+  // `finish_reason=length`, with and without client tools, streaming and not.
+  async function runReasoningOnlyTurn(
+    payloadExtras: Record<string, unknown>,
+    assertions: (input: {
+      response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
+      store: ReturnType<typeof createModelEntitledStore>["store"];
+      attempts: Array<Record<string, unknown>>;
+    }) => void
+  ): Promise<void> {
+    const attempts: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      attempts.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { reasoning_content: "推理".repeat(4_000) } }]
+        })}\n\n`
+      );
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: {}, finish_reason: "length" }],
+          usage: { prompt_tokens: 64_643, completion_tokens: 32_000, total_tokens: 96_643 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(t3xawrbrsEnv(server.baseUrl), async () => {
+        const { store, headers } = createModelEntitledStore(["pro"]);
+        const app = buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: store,
+          observationStore: store,
+          logger: false
+        });
+
+        try {
+          const response = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "pro",
+              messages: [{ role: "user", content: "生成胶质瘤治疗方案的 PPT。" }],
+              ...payloadExtras
+            }
+          });
+          assertions({ response, store, attempts });
+        } finally {
+          await app.close();
+        }
+      });
+    } finally {
+      await server.close();
+    }
+  }
+
+  it("T:3XAWRBRS blast radius: a single reasoning-only attempt without tools is refused", async () => {
+    await runReasoningOnlyTurn({}, ({ response, store, attempts }) => {
+      // No validation failure and no tools: the defect never needed either.
+      expect(attempts).toHaveLength(1);
+      expect(response.statusCode).toBe(413);
+      expect(response.json().error).toMatchObject({
+        code: "context_length_exceeded"
+      });
+
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+        status: "error",
+        errorCode: "context_length_exceeded",
+        upstreamFinishReason: "length",
+        upstreamContentChars: 0,
+        upstreamToolCallCount: 0,
+        upstreamAttemptCount: 1
+      });
+    });
+  });
+
+  it("T:3XAWRBRS blast radius: a single reasoning-only attempt with native tools is refused", async () => {
+    await runReasoningOnlyTurn({ tools: t3xawrbrsTools }, ({ response, store, attempts }) => {
+      expect(attempts).toHaveLength(1);
+      expect(response.statusCode).toBe(413);
+      expect(response.json().error).toMatchObject({
+        code: "context_length_exceeded"
+      });
+
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+        status: "error",
+        errorCode: "context_length_exceeded",
+        upstreamFinishReason: "length",
+        upstreamContentChars: 0,
+        upstreamAttemptCount: 1
+      });
+    });
+  });
+
+  it("T:3XAWRBRS blast radius: a streaming reasoning-only attempt is refused instead of closing as a normal stop", async () => {
+    await runReasoningOnlyTurn(
+      { stream: true, tools: t3xawrbrsTools },
+      ({ response, store, attempts }) => {
+        expect(attempts).toHaveLength(1);
+        // Before the fix this streamed three frames and closed with
+        // `finish_reason: "stop"`, so a truncated turn was indistinguishable
+        // from an empty answer.
+        expect(response.statusCode).toBe(413);
+        expect(parseOpenAISseData(response.payload)).toEqual([]);
+
+        expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+          status: "error",
+          errorCode: "context_length_exceeded",
+          upstreamFinishReason: "length",
+          upstreamContentChars: 0,
+          upstreamAttemptCount: 1
+        });
+      }
+    );
+  });
+
   it("rejects undeclared native OpenRouter tool calls", async () => {
     let providerAttempt = 0;
     const server = await startOpenAICompatibleSseServer(async (_request, _body, response) => {

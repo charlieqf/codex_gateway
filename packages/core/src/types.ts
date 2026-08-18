@@ -391,6 +391,13 @@ export interface ProviderResponseSummary {
   upstreamRequestId?: string | null;
   upstreamHttpStatus?: number | null;
   semanticOutputChars?: number | null;
+  /**
+   * Output the client can actually observe: content, refusals and structured
+   * tool-call arguments, but never reasoning. `semanticOutputChars` counts
+   * reasoning too, so it answers "did the upstream respond", not "did the
+   * caller receive anything usable".
+   */
+  visibleOutputChars?: number | null;
   rawResponseHash?: string | null;
   rawResponseChars?: number | null;
   terminationKind?: ProviderStreamTermination | null;

@@ -82,6 +82,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       let usage: TokenUsage | undefined;
       let finishReason: string | null = null;
       let semanticOutputChars = 0;
+      let visibleOutputChars = 0;
       let sawDone = false;
       let sawFinishReason = false;
       const rawResponseHash = createHash("sha256");
@@ -112,6 +113,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
               upstreamRequestId: upstreamRequestId(response.headers),
               upstreamHttpStatus: response.status,
               semanticOutputChars,
+              visibleOutputChars,
               rawResponseHash: rawResponseHash.digest("hex"),
               rawResponseChars,
               terminationKind: "error"
@@ -121,6 +123,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         }
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
         semanticOutputChars += event.semanticOutputChars;
+        visibleOutputChars += event.visibleOutputChars;
         for (const mappedEvent of event.events) {
           yield mappedEvent;
         }
@@ -138,6 +141,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         upstreamRequestId: upstreamRequestId(response.headers),
         upstreamHttpStatus: response.status,
         semanticOutputChars,
+        visibleOutputChars,
         rawResponseHash: rawResponseHash.digest("hex"),
         rawResponseChars,
         terminationKind
@@ -359,6 +363,7 @@ interface ParsedOpenAIChunk {
   usage?: TokenUsage;
   finishReason: string | null;
   semanticOutputChars: number;
+  visibleOutputChars: number;
 }
 
 interface ParsedOpenAISseData {
@@ -445,20 +450,21 @@ function mapOpenAIStreamChunk(
   nativeToolCalls: NativeToolCallAccumulator | null = null
 ): ParsedOpenAIChunk {
   if (!isRecord(chunk)) {
-    return { events: [], finishReason: null, semanticOutputChars: 0 };
+    return { events: [], finishReason: null, semanticOutputChars: 0, visibleOutputChars: 0 };
   }
   const usage = mapUsage(chunk.usage);
   const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
   const choice = choices[0];
   if (!isRecord(choice)) {
     return usage
-      ? { events: [], usage, finishReason: null, semanticOutputChars: 0 }
-      : { events: [], finishReason: null, semanticOutputChars: 0 };
+      ? { events: [], usage, finishReason: null, semanticOutputChars: 0, visibleOutputChars: 0 }
+      : { events: [], finishReason: null, semanticOutputChars: 0, visibleOutputChars: 0 };
   }
 
   const events: StreamEvent[] = [];
   const delta = choice.delta;
   let semanticOutputChars = 0;
+  let reasoningOutputChars = 0;
   if (isRecord(delta)) {
     const content = delta.content;
     if (typeof content === "string" && content.length > 0) {
@@ -477,7 +483,10 @@ function mapOpenAIStreamChunk(
           ? delta.reasoning
           : "";
     if (reasoningContent.length > 0) {
+      // Reasoning never reaches the caller as an event, so it counts as
+      // upstream activity only.
       semanticOutputChars += reasoningContent.length;
+      reasoningOutputChars += reasoningContent.length;
     }
     if (nativeToolCalls === null) {
       semanticOutputChars += structuredOutputChars(delta.tool_calls);
@@ -491,7 +500,8 @@ function mapOpenAIStreamChunk(
     ...(usage ? { usage } : {}),
     finishReason:
       typeof choice.finish_reason === "string" ? choice.finish_reason : null,
-    semanticOutputChars
+    semanticOutputChars,
+    visibleOutputChars: semanticOutputChars - reasoningOutputChars
   };
 }
 
