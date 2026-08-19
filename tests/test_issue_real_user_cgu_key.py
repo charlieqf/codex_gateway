@@ -53,6 +53,7 @@ def arguments(output_dir: str, **overrides):
         "compatibility_gateway_container": "azure-gateway",
         "compatibility_backup_root": "/home/qian/backups",
         "sync_max_passes": 3,
+        "r760_only": False,
         "timeout_seconds": 45,
         "skip_credential_validation": False,
         "no_require_image_capability": False,
@@ -200,6 +201,57 @@ class IssueRealUserKeyTests(unittest.TestCase):
             reconcile.assert_called_once_with(args)
             self.assertEqual(list(Path(directory).glob("*.json")), [])
 
+    def test_r760_only_skips_azure_and_writes_handoff_after_r760_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = arguments(directory, r760_only=True)
+            resolved = resolved_response()
+            resolved["codex_gateway"].update(
+                {
+                    "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
+                    "credential_validation_url": (
+                        "https://goldencode.instmarket.com.au:1443/gateway/credentials/current"
+                    ),
+                }
+            )
+            with (
+                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
+                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
+                mock.patch.object(ISSUE, "grant_entitlement", return_value=entitlement_response()),
+                mock.patch.object(ISSUE, "resolve_opaque_key", return_value=resolved),
+                mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
+                mock.patch.object(ISSUE, "update_user", return_value={}),
+                mock.patch.object(ISSUE, "update_key", return_value={}),
+                mock.patch.object(ISSUE, "sync_issued_state") as sync,
+                mock.patch.object(ISSUE, "validate_unified_key_pair") as dual_validate,
+                mock.patch.object(ISSUE, "tighten_file_permissions"),
+            ):
+                result = ISSUE.issue_key(args)
+
+            sync.assert_not_called()
+            dual_validate.assert_not_called()
+            self.assertEqual(result["authority_mode"], "r760_only")
+            self.assertEqual(result["azure_validation"], "skipped")
+            self.assertEqual(result["r760_validation"], "ok")
+            self.assertTrue(result["azure_compatibility_mirror"]["skipped"])
+            handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(handoff["authority_mode"], "r760_only")
+
+    def test_r760_only_failure_does_not_reconcile_to_azure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = arguments(directory, r760_only=True)
+            with (
+                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
+                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
+                mock.patch.object(ISSUE, "grant_entitlement", side_effect=ISSUE.IssueError("failed")),
+                mock.patch.object(ISSUE, "disable_subject_best_effort", return_value=True) as disable,
+                mock.patch.object(ISSUE, "reconcile_failed_issue_best_effort") as reconcile,
+            ):
+                with self.assertRaises(ISSUE.IssueError):
+                    ISSUE.issue_key(args)
+
+            disable.assert_called_once()
+            reconcile.assert_not_called()
+
     def test_skip_validation_is_rejected_before_issuance(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory, skip_credential_validation=True)
@@ -216,6 +268,17 @@ class IssueRealUserKeyTests(unittest.TestCase):
             self.assertNotIn(args.name, rendered)
             self.assertNotIn(args.phone, rendered)
             self.assertEqual(result["dual_endpoint_validation"], "required")
+
+    def test_r760_only_what_if_marks_azure_as_skipped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = arguments(directory, what_if=True, r760_only=True)
+            result = ISSUE.issue_key(args)
+            self.assertEqual(result["authority_mode"], "r760_only")
+            self.assertEqual(
+                result["r760_to_azure_compatibility_mirror"],
+                "skipped_by_explicit_r760_only",
+            )
+            self.assertEqual(result["dual_endpoint_validation"], "r760_only")
 
 
 if __name__ == "__main__":

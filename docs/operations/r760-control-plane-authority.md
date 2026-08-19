@@ -1,6 +1,6 @@
 # R760 Gateway Control-Plane Authority
 
-Last updated: 2026-08-06
+Last updated: 2026-08-17
 
 ## Authority boundary
 
@@ -36,6 +36,19 @@ python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>"
 It performs R760 create, R760-to-Azure control-state mirror, public validation
 on both endpoints, and only then writes the R760-address handoff file. It fails
 closed before handoff if the mirror or either endpoint validation fails.
+
+When the owner explicitly directs that a new key must not be synchronized to
+Azure, use the opt-in R760-only mode:
+
+```powershell
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --r760-only
+```
+
+This skips all Azure access, performs the same R760 create, resolve, backing
+credential, entitlement and capability checks, and marks the local handoff as
+`authority_mode=r760_only`. The new key is intended only for the R760 endpoint
+and is not expected to work on the Azure compatibility endpoint. The default
+without `--r760-only` remains the compatibility mirror and dual validation.
 
 The historical `issue-desktop-e2e-opaque-key.ps1` now also defaults to R760,
 but remains a diagnostic/E2E helper and is not approved for real-user delivery.

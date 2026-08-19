@@ -36,6 +36,17 @@ Recommended one-command path:
 python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>"
 ```
 
+If the owner explicitly says not to synchronize the new key to Azure, use:
+
+```powershell
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --r760-only
+```
+
+`--r760-only` performs no Azure access. It still requires R760 unified-key
+resolve, backing credential, active entitlement and capability validation
+before writing the handoff. The issued key is R760-only; the default command
+continues to mirror and validate Azure compatibility.
+
 Codex/operator shortcut for a typical request like
 "给新用户 张三 13800138000 发key":
 
@@ -63,6 +74,9 @@ entitlement and image capability on Azure and R760. It writes the full
 `cgu_live_*` key only to a pseudonymously named local handoff JSON under
 `C:\Users\rdpuser\medevidence_api_keys`. `--skip-credential-validation` is
 intentionally rejected for real-user issuance.
+
+The mirror is mandatory for the default mode. It is explicitly skipped only
+with the owner-authorized `--r760-only` flag described above.
 
 After a successful run, share only the safe summary in chat: `key_prefix`,
 `subject_id`, `capabilities`, and `handoff_path`. Deliver the full key only
