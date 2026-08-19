@@ -40,14 +40,20 @@ npm --workspace @codex-gateway/admin-cli run dev -- --db <gateway.db> `
 
 ## 页面使用
 
-1. 填 Billing Admin token（只存本标签页 sessionStorage），点「载入 Plan 列表」。
+1. 填 Billing Admin token（只存本标签页 sessionStorage），点「确认套餐」。
 2. 填姓名、手机号。手机号决定 `external_user_id`（`phone_<数字>`），同号重复发放会被拒。
-3. 四个下拉：
-   - **Token Plan**：来自 `GET /plans` 的 active plan，选中后展示其 capabilities 与 token 配额
-   - **Scope**：受所选 Plan 的 `scope_allowlist` 约束
+3. 两个下拉：
    - **有效期**：默认 92 天，最少 90 天
    - **限额档位**：标准 10/分·200/日·4 并发；加强 30/600/8；或自定义
 4. 点「发放 Key」→ 立即返回 job，页面轮询进度。
+
+**Plan 是固定的**，不给选：`plan_internal_high_quota_image_v1`，即真实用户的既定默认（含
+`chat`/`tools`/`image_generation`）。页面仍会调 `GET /plans` 把它的能力和 token 配额显示出来，
+让发放人看得见自己在发什么，但不提供切换。**Scope 也不再出现在界面上**，由服务端取该 Plan 的
+`scope_allowlist[0]`（即 `code`）。
+
+接口层仍然接受 `plan_id` 和 `scope` 两个可选字段并照常校验，所以需要非默认套餐时走 API 或本机
+脚本，不必改页面。要更换页面固定的套餐，改 `defaultRealUserPlanId`。
 
 ## 为什么是后台任务
 
@@ -71,8 +77,13 @@ npm --workspace @codex-gateway/admin-cli run dev -- --db <gateway.db> `
 完整 `cgu_live_*` 只存在于 Gateway 进程内存的 job 记录里，**15 分钟**后自动抹除，且只回传给发起该
 job 的那个 token 前缀。它不写日志、不落盘、不进审计参数。
 
-超时或容器重启后拿不到完整 key 时（subject 与 key 本身仍然有效）：由管理员用 admin CLI `reveal`
-取回，或轮换后重新交付。`GATEWAY_API_KEY_ENCRYPTION_SECRET` 稳定是 reveal 可行的前提。
+超时或容器重启后拿不到完整 key 时，**没有找回途径，只能轮换重发**。`cgu_live_*` 在
+`unified_client_keys` 里只存哈希（`hashUnifiedClientKey`），不是密文，因此 admin CLI 的
+`reveal-key` 对它无效——`reveal-key` 能还原的是后端 Gateway 运行态 key（`cgw.*`），那把是用
+`GATEWAY_API_KEY_ENCRYPTION_SECRET` 加密存储的，不是交付给用户的那把。
+
+轮换用 `POST /gateway/admin/billing/v1/subjects/<subjectId>/keys`，它同样只在响应里返回一次新
+key，旧 key 按请求参数吊销。所以运维上的硬要求是：**发放当场必须复制走**。
 
 ## 失败处理
 

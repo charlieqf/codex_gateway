@@ -1623,6 +1623,11 @@ describe("gateway phase 1 routes", () => {
       expect(page.body).toContain("发放用户 Key");
       expect(page.body).toContain('BASE = "/gateway/admin/billing/v1"');
       expect(page.body).toContain('BASE + "/real-user-issue"');
+      // The plan is fixed and the scope is derived from it; neither may come
+      // back as an operator-facing control.
+      expect(page.body).toContain("plan_internal_high_quota_image_v1");
+      expect(page.body).not.toContain('id="plan"');
+      expect(page.body).not.toContain('id="scope"');
       // The page shell must never carry a credential of its own.
       expect(page.body).not.toContain("billing-admin-token-1234567890");
 

@@ -128,7 +128,7 @@ export function renderRealUserIssuePage(input: {
       <input id="token" type="password" placeholder="bat_test_... / bat_live_..." autocomplete="off" spellcheck="false">
       <p class="hint">只存在本标签页的 sessionStorage，关闭即失效。每人一个独立令牌，审计可追溯到发放人。</p>
       <div class="row-actions">
-        <button id="loadPlans" class="ghost" type="button">载入 Plan 列表</button>
+        <button id="loadPlans" class="ghost" type="button">确认套餐</button>
       </div>
       <div id="tokenNotice" class="notice err"></div>
     </section>
@@ -146,15 +146,7 @@ export function renderRealUserIssuePage(input: {
           <p class="hint">用于生成 external_user_id（phone_&lt;数字&gt;），同号重复发放会被拒绝。</p>
         </div>
       </div>
-      <div class="grid three" style="margin-top:14px">
-        <div>
-          <label for="plan">Token Plan</label>
-          <select id="plan"><option value="">先载入 Plan 列表</option></select>
-        </div>
-        <div>
-          <label for="scope">Scope</label>
-          <select id="scope"><option value="code">code</option><option value="medical">medical</option></select>
-        </div>
+      <div class="grid" style="margin-top:14px">
         <div>
           <label for="validity">有效期</label>
           <select id="validity">
@@ -164,8 +156,6 @@ export function renderRealUserIssuePage(input: {
             <option value="custom">自定义…</option>
           </select>
         </div>
-      </div>
-      <div class="grid three" style="margin-top:14px">
         <div>
           <label for="ratePreset">请求限额档位</label>
           <select id="ratePreset">
@@ -174,10 +164,10 @@ export function renderRealUserIssuePage(input: {
             <option value="custom">自定义…</option>
           </select>
         </div>
-        <div id="validityCustomWrap" class="hidden">
-          <label for="validityDays">自定义天数</label>
-          <input id="validityDays" type="number" min="90" step="1" value="92">
-        </div>
+      </div>
+      <div id="validityCustomWrap" class="hidden" style="margin-top:14px">
+        <label for="validityDays">自定义天数</label>
+        <input id="validityDays" type="number" min="90" step="1" value="92">
       </div>
       <div id="rateCustomWrap" class="grid three hidden" style="margin-top:14px">
         <div><label for="rpm">每分钟请求</label><input id="rpm" type="number" min="1" step="1" value="10"></div>
@@ -187,7 +177,7 @@ export function renderRealUserIssuePage(input: {
       <div id="planInfo" class="plan-info"></div>
       <div class="row-actions">
         <button id="submit" type="button" disabled>发放 Key</button>
-        <span class="sub" id="submitHint">载入 Plan 列表后可发放</span>
+        <span class="sub" id="submitHint">正在确认套餐…</span>
       </div>
       <div id="formNotice" class="notice err"></div>
     </section>
@@ -198,7 +188,7 @@ export function renderRealUserIssuePage(input: {
       <div id="jobNotice" class="notice err"></div>
       <div id="resultWrap" style="display:none">
         <div class="keybox">
-          <strong>完整 Key（仅显示一次，请立即复制并通过约定私密渠道交付）</strong>
+          <strong>完整 Key（仅此一次，错过无法找回，请立即复制并通过约定私密渠道交付）</strong>
           <code id="fullKey"></code>
           <button id="copyKey" type="button">复制</button>
           <span class="sub" id="keyCountdown"></span>
@@ -218,13 +208,13 @@ export function renderRealUserIssuePage(input: {
   <script>
     var CONFIG = ${config};
     var BASE = "/gateway/admin/billing/v1";
-    var plans = [];
+    var fixedPlan = null;
     var pollTimer = null;
     var countdownTimer = null;
     var currentJobId = null;
 
     var els = {};
-    ["token","loadPlans","tokenNotice","name","phone","plan","scope","validity","validityCustomWrap",
+    ["token","loadPlans","tokenNotice","name","phone","validity","validityCustomWrap",
      "validityDays","ratePreset","rateCustomWrap","rpm","rpd","concurrent","planInfo","submit","submitHint",
      "formNotice","progressPanel","steps","jobNotice","resultWrap","fullKey","copyKey","keyCountdown",
      "resultKv","jobRows","status"].forEach(function (id) { els[id] = document.getElementById(id); });
@@ -237,7 +227,6 @@ export function renderRealUserIssuePage(input: {
         sessionStorage.setItem("gatewayBillingAdminToken", els.token.value);
       });
       els.loadPlans.addEventListener("click", loadPlans);
-      els.plan.addEventListener("change", renderPlanInfo);
       els.validity.addEventListener("change", function () {
         toggle(els.validityCustomWrap, els.validity.value === "custom");
       });
@@ -264,54 +253,40 @@ export function renderRealUserIssuePage(input: {
         var response = await fetch(BASE + "/plans", { headers: authHeaders(), cache: "no-store" });
         var payload = await response.json();
         if (!response.ok) { throw new Error(errorMessage(payload)); }
-        plans = Array.isArray(payload.plans) ? payload.plans : [];
-        renderPlanOptions();
-        setStatus("已载入 " + plans.length + " 个 Plan");
-        els.submit.disabled = plans.length === 0;
-        els.submitHint.textContent = plans.length ? "" : "没有可用的 active Plan";
+        var all = Array.isArray(payload.plans) ? payload.plans : [];
+        fixedPlan = all.filter(function (plan) { return plan.id === CONFIG.defaultPlanId; })[0] || null;
+        renderFixedPlan();
+        if (!fixedPlan) {
+          els.submit.disabled = true;
+          els.submitHint.textContent = "";
+          notice(els.tokenNotice, "套餐 " + CONFIG.defaultPlanId + " 不存在或未启用，请联系运维。", "err");
+          setStatus("套餐不可用");
+          return;
+        }
+        els.submit.disabled = false;
+        els.submitHint.textContent = "";
+        setStatus("就绪");
         refreshJobs();
       } catch (error) {
-        plans = [];
-        renderPlanOptions();
+        fixedPlan = null;
+        renderFixedPlan();
         els.submit.disabled = true;
+        els.submitHint.textContent = "";
         notice(els.tokenNotice, error.message || String(error), "err");
         setStatus("载入失败");
       }
     }
 
-    function renderPlanOptions() {
-      if (!plans.length) {
-        els.plan.innerHTML = "<option value=\\"\\">先载入 Plan 列表</option>";
-        els.planInfo.textContent = "";
+    function renderFixedPlan() {
+      if (!fixedPlan) {
+        els.planInfo.innerHTML = "<div>套餐 " + escapeHtml(CONFIG.defaultPlanId) + "：未确认</div>";
         return;
       }
-      els.plan.innerHTML = plans.map(function (plan) {
-        var name = plan.display_name && plan.display_name !== plan.id
-          ? plan.display_name + " (" + plan.id + ")"
-          : plan.id;
-        return "<option value=\\"" + escapeAttr(plan.id) + "\\">" + escapeHtml(name) + "</option>";
-      }).join("");
-      var preferred = plans.filter(function (plan) { return plan.id === CONFIG.defaultPlanId; })[0];
-      els.plan.value = preferred ? preferred.id : plans[0].id;
-      renderPlanInfo();
-    }
-
-    function selectedPlan() {
-      return plans.filter(function (plan) { return plan.id === els.plan.value; })[0] || null;
-    }
-
-    function renderPlanInfo() {
-      var plan = selectedPlan();
-      if (!plan) { els.planInfo.textContent = ""; return; }
-      var scopes = plan.scope_allowlist || [];
-      els.scope.innerHTML = (scopes.length ? scopes : ["code"]).map(function (scope) {
-        return "<option value=\\"" + escapeAttr(scope) + "\\">" + escapeHtml(scope) + "</option>";
-      }).join("");
-      var capabilities = (plan.feature_policy && plan.feature_policy.capabilities) || [];
+      var capabilities = (fixedPlan.feature_policy && fixedPlan.feature_policy.capabilities) || [];
       var badges = capabilities.map(function (capability) {
         return "<span class=\\"badge\\">" + escapeHtml(capability) + "</span>";
       }).join("");
-      var policy = plan.token_policy || {};
+      var policy = fixedPlan.token_policy || {};
       var limits = [
         ["每分钟 tokens", policy.tokens_per_minute],
         ["每日 tokens", policy.tokens_per_day],
@@ -321,7 +296,12 @@ export function renderRealUserIssuePage(input: {
       ].filter(function (pair) { return pair[1] !== null && pair[1] !== undefined; })
        .map(function (pair) { return pair[0] + " " + Number(pair[1]).toLocaleString(); })
        .join(" · ");
-      els.planInfo.innerHTML = "<div>" + badges + "</div>" +
+      var name = fixedPlan.display_name && fixedPlan.display_name !== fixedPlan.id
+        ? fixedPlan.display_name + "（" + fixedPlan.id + "）"
+        : fixedPlan.id;
+      els.planInfo.innerHTML =
+        "<div><strong>套餐</strong> " + escapeHtml(name) + "</div>" +
+        "<div style=\\"margin-top:6px\\">" + badges + "</div>" +
         (limits ? "<div style=\\"margin-top:6px\\">Token 配额：" + escapeHtml(limits) + "</div>"
                 : "<div style=\\"margin-top:6px\\">Token 配额：未设置上限</div>");
     }
@@ -346,8 +326,7 @@ export function renderRealUserIssuePage(input: {
       var phone = els.phone.value.trim();
       if (!name) { return notice(els.formNotice, "请填写姓名。", "err"); }
       if (!/^[0-9+\\-\\s]{6,20}$/.test(phone)) { return notice(els.formNotice, "手机号格式不正确。", "err"); }
-      var plan = selectedPlan();
-      if (!plan) { return notice(els.formNotice, "请选择 Token Plan。", "err"); }
+      if (!fixedPlan) { return notice(els.formNotice, "套餐尚未确认，请先点「确认套餐」。", "err"); }
       var days = readValidityDays();
       if (!Number.isFinite(days) || days < CONFIG.minValidityDays) {
         return notice(els.formNotice, "有效期不能少于 " + CONFIG.minValidityDays + " 天。", "err");
@@ -366,7 +345,7 @@ export function renderRealUserIssuePage(input: {
           method: "POST",
           headers: Object.assign({ "content-type": "application/json" }, authHeaders()),
           body: JSON.stringify({
-            name: name, phone: phone, plan_id: plan.id, scope: els.scope.value,
+            name: name, phone: phone, plan_id: fixedPlan.id,
             validity_days: days, rpm: rate.rpm, rpd: rate.rpd, concurrent: rate.concurrent
           }),
           cache: "no-store"
@@ -438,7 +417,7 @@ export function renderRealUserIssuePage(input: {
         els.fullKey.textContent = job.unified_key;
         startCountdown(job.key_expires_at);
       } else {
-        els.fullKey.textContent = "（完整 key 已过可见窗口，请让管理员 reveal 或轮换）";
+        els.fullKey.textContent = "（完整 key 已过可见窗口，无法找回，请让管理员轮换后重新发放）";
         els.keyCountdown.textContent = "";
       }
       var rate = result.rate || {};
@@ -513,7 +492,7 @@ export function renderRealUserIssuePage(input: {
     }
 
     function resetSubmit() {
-      els.submit.disabled = plans.length === 0;
+      els.submit.disabled = !fixedPlan;
       els.submit.textContent = "发放 Key";
     }
 
