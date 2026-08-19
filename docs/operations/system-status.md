@@ -23,17 +23,29 @@ independent public traffic is intercepted before Nginx by Aliyun's
 
 Azure VM retirement is broader than the Gateway cutover and is not a near-term
 delete operation. A 2026-08-05 read-only inventory confirmed that the same VM
-also carries MedEvidence Answer Generator, PubMed Evidence Set, desktop update
-feeds, Research staging and legacy/static Nginx routes; it also retained the
-MedEvidence US/local PostgreSQL and TokenBridge/NewAPI stacks. The latter two
-were then retired reversibly on 2026-08-05 after a no-recent-use audit. Their
-data and rollback artifacts remain on the VM, so this is not permission to
-delete the host. Every remaining item must receive an explicit
-migrate/replace/archive/retire decision before host shutdown. See
+also carries MedEvidence Answer Generator, PubMed Evidence Set, Research
+staging and legacy/static Nginx routes; at that point it also hosted the
+authoritative Desktop update feeds and retained the MedEvidence US/local
+PostgreSQL and TokenBridge/NewAPI stacks. By 2026-08-06 Desktop distribution
+had moved to Cloudflare R2, while Azure retained only a rollback copy. The
+latter two application stacks were retired reversibly on 2026-08-05 after a
+no-recent-use audit. Their data and rollback artifacts remain on the VM, so
+this is not permission to delete the host. Every remaining item must receive
+an explicit migrate/replace/archive/retire decision before host shutdown. See
 `docs/implementation/azure-vm-retirement-scope-inventory-2026-08-05.zh-CN.md`.
 
 Current operational state:
 
+- Desktop update distribution is authoritative in Cloudflare R2 bucket
+  `goldencode-updates` through `https://updates.instmarket.com.au`; the public
+  feed URLs did not change. GitHub Releases hold immutable version archives.
+  Azure `/var/www` static files are now a temporary rollback mirror and must
+  not be used to publish or validate a new release. MedEvidence
+  `v2.0.0-beta.26` passed R2 manifest, HEAD, Range and full-hash validation;
+  all four feed pointers passed. The MedEvidence trailing-slash changelog alias
+  was added, while the GoldenCode alias remained a documented static-site gap
+  in that validation window. The canonical release procedure is
+  `C:\work\code\medevidence-opencode-stable\docs\desktop-release-r2.md`.
 - R760 is now the control and usage authority for real-user key issuance, user
   enable/disable, credential revoke/update, plan/entitlement management and
   usage reports. The formal issue path is R760 create -> verified Azure
