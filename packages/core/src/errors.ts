@@ -59,6 +59,10 @@ export const gatewayErrorCodes = [
   "research_worker_unavailable",
   "research_storage_unavailable",
   "research_backup_stale",
+  "issue_job_not_found",
+  "issue_already_running",
+  "issue_validation_unreachable",
+  "issue_validation_failed",
   "service_unavailable"
 ] as const;
 

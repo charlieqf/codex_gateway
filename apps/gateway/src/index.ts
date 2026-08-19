@@ -80,7 +80,8 @@ import {
   registerBillingAdminRoutes,
   resolveBillingAdminAccess,
   resolveBillingAdminTokenMode,
-  type BillingAdminTokenMode
+  type BillingAdminTokenMode,
+  type BillingSubjectMetadataStore
 } from "./billing-admin.js";
 import {
   parseDoctorResearchRunRequest,
@@ -1500,6 +1501,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     ratePolicy: billingAdminRatePolicy,
     upstreamV2Client,
     apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null,
+    subjectMetadataStore: isSubjectMetadataStore(sessions) ? sessions : undefined,
+    publicBaseUrl: publicGatewayBaseUrl,
     publicModels: publicModelRegistry.models.map((model) => ({
       id: model.id,
       aliases: model.aliases,
@@ -7339,6 +7342,12 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
       throw new Error("Production billing admin API requires GATEWAY_API_KEY_ENCRYPTION_SECRET.");
     }
   }
+}
+
+function isSubjectMetadataStore(
+  store: GatewayStore
+): store is GatewayStore & BillingSubjectMetadataStore {
+  return typeof (store as Partial<BillingSubjectMetadataStore>).updateSubject === "function";
 }
 
 function isCredentialAuthStore(store: GatewayStore): store is GatewayStore & CredentialAuthStore {

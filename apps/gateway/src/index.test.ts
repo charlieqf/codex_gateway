@@ -1587,6 +1587,153 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("serves the real-user issuance UI and guards its job routes", async () => {
+    const previousSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+    const previousPublicBaseUrl = process.env.GATEWAY_PUBLIC_BASE_URL;
+    process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = "real-user-issue-secret-1234567890";
+    process.env.GATEWAY_PUBLIC_BASE_URL = "https://goldencode.invalid:1443";
+    const store = createSqliteStore({ path: ":memory:" });
+    store.createPlan({
+      id: "plan_billing_v1",
+      displayName: "Billing Pro",
+      scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(),
+      featurePolicy: imageFeaturePolicy(),
+      now: new Date("2026-05-01T00:00:00Z")
+    });
+    const billingHeaders = { authorization: "Bearer billing-admin-token-1234567890" };
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      billingAdminToken: "billing-admin-token-1234567890",
+      upstreamV2Client: new FakeUpstreamV2Client(),
+      logger: false
+    });
+
+    try {
+      const page = await app.inject({
+        method: "GET",
+        url: "/gateway/admin/billing/v1/real-user-issue-ui"
+      });
+      expect(page.statusCode).toBe(200);
+      expect(page.headers["content-type"]).toContain("text/html");
+      expect(page.headers["cache-control"]).toBe("no-store");
+      expect(page.headers["content-security-policy"]).toContain("connect-src 'self'");
+      expect(page.body).toContain("发放用户 Key");
+      expect(page.body).toContain('BASE = "/gateway/admin/billing/v1"');
+      expect(page.body).toContain('BASE + "/real-user-issue"');
+      // The page shell must never carry a credential of its own.
+      expect(page.body).not.toContain("billing-admin-token-1234567890");
+
+      const anonymous = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        payload: { name: "张三", phone: "13800138000", plan_id: "plan_billing_v1" }
+      });
+      expect(anonymous.statusCode).toBe(401);
+
+      const unknownPlan = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: { name: "张三", phone: "13800138000", plan_id: "plan_missing" }
+      });
+      expect(unknownPlan.statusCode).toBe(400);
+      expect(unknownPlan.json().error.message).toContain("plan_missing");
+
+      const badPhone = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: { name: "张三", phone: "abc", plan_id: "plan_billing_v1" }
+      });
+      expect(badPhone.statusCode).toBe(400);
+
+      const shortValidity = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: {
+          name: "张三",
+          phone: "13800138000",
+          plan_id: "plan_billing_v1",
+          validity_days: 30
+        }
+      });
+      expect(shortValidity.statusCode).toBe(400);
+      expect(shortValidity.json().error.message).toContain("90");
+
+      const scopeMismatch = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: {
+          name: "张三",
+          phone: "13800138000",
+          plan_id: "plan_billing_v1",
+          scope: "medical"
+        }
+      });
+      expect(scopeMismatch.statusCode).toBe(400);
+      expect(scopeMismatch.json().error.message).toContain("medical");
+
+      const unknownJob = await app.inject({
+        method: "GET",
+        url: "/gateway/admin/billing/v1/real-user-issue/rui_missing",
+        headers: billingHeaders
+      });
+      expect(unknownJob.statusCode).toBe(404);
+      expect(unknownJob.json().error.code).toBe("issue_job_not_found");
+
+      // A valid request is accepted immediately; the operator polls for the
+      // rest because issuance takes far longer than one request should stay open.
+      const accepted = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: { name: "张三", phone: "13800138000", plan_id: "plan_billing_v1" }
+      });
+      expect(accepted.statusCode).toBe(202);
+      const acceptedBody = accepted.json();
+      expect(acceptedBody.job_id).toMatch(/^rui_/);
+      expect(acceptedBody.authority_mode).toBe("r760_only");
+      expect(acceptedBody.phone_tail).toBe("8000");
+      expect(acceptedBody.unified_key).toBeUndefined();
+      expect(acceptedBody.steps).toHaveLength(5);
+
+      const duplicate = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: { name: "张三", phone: "13800138000", plan_id: "plan_billing_v1" }
+      });
+      expect(duplicate.statusCode).toBe(409);
+      expect(duplicate.json().error.code).toBe("issue_already_running");
+
+      const jobs = await app.inject({
+        method: "GET",
+        url: "/gateway/admin/billing/v1/real-user-issues",
+        headers: billingHeaders
+      });
+      expect(jobs.statusCode).toBe(200);
+      expect(jobs.json().jobs).toHaveLength(1);
+      expect(jobs.json().jobs[0].unified_key).toBeUndefined();
+    } finally {
+      await app.close();
+      if (previousSecret === undefined) {
+        delete process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
+      } else {
+        process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = previousSecret;
+      }
+      if (previousPublicBaseUrl === undefined) {
+        delete process.env.GATEWAY_PUBLIC_BASE_URL;
+      } else {
+        process.env.GATEWAY_PUBLIC_BASE_URL = previousPublicBaseUrl;
+      }
+    }
+  });
+
   it("resets request and token quota through billing admin", async () => {
     const tokenPolicy = {
       tokensPerMinute: null,

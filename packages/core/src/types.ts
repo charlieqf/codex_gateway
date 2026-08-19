@@ -152,6 +152,7 @@ export type AdminAuditAction =
   | "rotate"
   | "reveal-key"
   | "update-user"
+  | "real-user-issue"
   | "disable-user"
   | "enable-user"
   | "prune-events"
