@@ -215,7 +215,10 @@ The 426 JSON is `errors.client_upgrade_required` in `fixtures.json` and
 requires `minimum_version`, `download_url` and `request_id`. Desktop must not
 parse `message` for upgrade data. The fixture's valid SemVer and URL are test
 values, not the operational minimum version; the maintenance-window checklist
-records the actual configured values without changing this wire shape. Every
+records the actual configured values without changing this wire shape. Because
+MedEvidence and GoldenCode send the same `medevidence-desktop` client literal,
+the operational URL must be a brand-neutral page that offers both installers;
+Desktop opens the returned URL without guessing or replacing it. Every
 426 response on every covered route returns `Cache-Control: no-store` and
 `Pragma: no-cache`.
 

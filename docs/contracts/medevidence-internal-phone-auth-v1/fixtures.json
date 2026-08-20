@@ -172,7 +172,7 @@
         "message": "A newer MedEvidence Desktop version is required.",
         "request_id": "req_example",
         "minimum_version": "9.9.9-fixture.1",
-        "download_url": "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+        "download_url": "https://github.com/charlieqf/medevidence-app/releases"
       }
     },
     "service_unavailable": {
