@@ -1,0 +1,186 @@
+{
+  "contract_id": "medevidence-internal-phone-auth-v1",
+  "contract_version": 1,
+  "artifact_state": "contract_candidate",
+  "requests": {
+    "login_start": {
+      "phone": "13800138000",
+      "client": "medevidence-desktop",
+      "device_id": "desktop-device-example-01",
+      "contract_version": 1
+    },
+    "token_refresh": {
+      "refresh_token": "<opaque-refresh-token>",
+      "client": "medevidence-desktop",
+      "device_id": "desktop-device-example-01",
+      "contract_version": 1
+    },
+    "unified_key_resolve": {}
+  },
+  "responses": {
+    "login_start_authenticated": {
+      "status": "authenticated",
+      "auth_method": "transition_phone_only",
+      "token_type": "Bearer",
+      "access_token": "<access-jwt>",
+      "expires_in_seconds": 900,
+      "refresh_token": "<opaque-refresh-token>",
+      "refresh_idle_expires_in_seconds": 2592000,
+      "session_absolute_expires_at": "2027-02-11T00:00:00.000Z",
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      }
+    },
+    "refresh_authenticated": {
+      "status": "authenticated",
+      "auth_method": "transition_phone_only",
+      "token_type": "Bearer",
+      "access_token": "<new-access-jwt>",
+      "expires_in_seconds": 900,
+      "refresh_token": "<new-opaque-refresh-token>",
+      "refresh_idle_expires_in_seconds": 2592000,
+      "session_absolute_expires_at": "2027-02-11T00:00:00.000Z",
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      }
+    },
+    "bootstrap": {
+      "contract_version": 1,
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      },
+      "unified_key": {
+        "key": "<runtime-only-cgu-live-key>",
+        "key_prefix": "cgu_live_example",
+        "expires_at": "2027-08-20T00:00:00.000Z"
+      },
+      "resolver_url": "https://goldencode.instmarket.com.au:1443/gateway/unified-keys/resolve",
+      "account_url": "https://goldencode.instmarket.com.au:1443/gateway/account/v1/current"
+    },
+    "resolve": {
+      "valid": true,
+      "unified_key": {
+        "prefix": "cgu_live_example",
+        "label": "medevidence-internal",
+        "expires_at": "2027-08-20T00:00:00.000Z"
+      },
+      "subject": {
+        "id": "subj_example",
+        "label": "Internal user"
+      },
+      "codex_gateway": {
+        "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
+        "credential_validation_url": "https://goldencode.instmarket.com.au:1443/gateway/credentials/current",
+        "key_prefix": "cgw.example",
+        "api_key": "<runtime-only-cgw-key>"
+      },
+      "medevidence": {
+        "base_url": "<approved-medevidence-base-url>",
+        "key_prefix": "<medevidence-key-prefix>",
+        "api_key": "<runtime-only-medevidence-key>"
+      }
+    },
+    "credentials_current": {
+      "valid": true,
+      "subject": {
+        "id": "subj_example",
+        "label": "Internal user"
+      },
+      "credential": {
+        "prefix": "cgw.example",
+        "scope": "code",
+        "expires_at": null,
+        "allowed_public_models": [
+          "goldencode"
+        ]
+      },
+      "plan": {
+        "display_name": "Internal",
+        "scope_allowlist": [
+          "code"
+        ]
+      },
+      "entitlement": {
+        "period_kind": "unlimited",
+        "period_start": "2026-08-20T00:00:00.000Z",
+        "period_end": null,
+        "state": "active",
+        "feature_policy": {
+          "capabilities": [
+            "chat",
+            "tools",
+            "image_generation"
+          ]
+        }
+      }
+    },
+    "account_current_internal": {
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      },
+      "identity": {
+        "kind": "internal",
+        "plan_id": "plan_internal_example",
+        "period_end": null
+      },
+      "token_wallet": null,
+      "image_credits": null,
+      "capabilities": [
+        "chat",
+        "tools",
+        "image_generation"
+      ]
+    }
+  },
+  "errors": {
+    "invalid_request": {
+      "error": {
+        "code": "invalid_request",
+        "message": "Request does not match contract version 1.",
+        "request_id": "req_example"
+      }
+    },
+    "phone_not_registered": {
+      "error": {
+        "code": "phone_not_registered",
+        "message": "This phone is not enabled for internal access.",
+        "request_id": "req_example"
+      }
+    },
+    "refresh_token_invalid": {
+      "error": {
+        "code": "refresh_token_invalid",
+        "message": "The refresh session is invalid.",
+        "request_id": "req_example"
+      }
+    },
+    "auth_rate_limited": {
+      "error": {
+        "code": "auth_rate_limited",
+        "message": "Too many login attempts.",
+        "request_id": "req_example",
+        "retry_after_seconds": 60
+      }
+    },
+    "client_upgrade_required": {
+      "error": {
+        "code": "client_upgrade_required",
+        "message": "A newer MedEvidence Desktop version is required.",
+        "request_id": "req_example",
+        "minimum_version": "9.9.9-fixture.1",
+        "download_url": "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+      }
+    },
+    "service_unavailable": {
+      "error": {
+        "code": "service_unavailable",
+        "message": "Service temporarily unavailable.",
+        "request_id": "req_example"
+      }
+    }
+  }
+}

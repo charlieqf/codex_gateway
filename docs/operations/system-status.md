@@ -1,46 +1,44 @@
 # System Status
 
-Last updated: 2026-08-06
+Last updated: 2026-08-20
 
 ## Current Phase
 
-The Azure gateway remains the live default HTTPS Gateway for clients that have
-not yet migrated. It originated as a
-controlled trial for up to 10 trusted users, but the 2026-07-15 production
-`trial-check` found 77 active users and 73 active API keys, so it no longer
-fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
-gateway is also running for domestic-only GLM-5.2 validation.
+R760 is the only supported Gateway runtime, control plane and usage authority.
+The supported client origin is
+`https://goldencode.instmarket.com.au:1443`.
 
-`gw.instmarket.com.au` still resolves to Azure, so it remains the rollback and
-compatibility endpoint during phased client migration. R760 is now also
-publicly reachable through the ordinary DNS-only endpoint
-`https://goldencode.instmarket.com.au:1443`; its formal four-container project
-has passed real Doctor Research E2E, public resolver/chat and low-cost image
-smokes. Clients must explicitly change their base URL to use R760. The installed
-CN1 `gw` vhost remains dark and is no longer the selected cutover path because
-independent public traffic is intercepted before Nginx by Aliyun's
-`Non-compliance ICP Filing`/TLS-reset boundary.
+The former Azure Gateway is logically offline as of the 2026-08-20 owner
+decision. Its VM, DNS, containers, databases or static files may still be
+physically present or running, but they are not:
 
-Azure VM retirement is broader than the Gateway cutover and is not a near-term
-delete operation. A 2026-08-05 read-only inventory confirmed that the same VM
-also carries MedEvidence Answer Generator, PubMed Evidence Set, Research
-staging and legacy/static Nginx routes; at that point it also hosted the
-authoritative Desktop update feeds and retained the MedEvidence US/local
-PostgreSQL and TokenBridge/NewAPI stacks. By 2026-08-06 Desktop distribution
-had moved to Cloudflare R2, while Azure retained only a rollback copy. The
-latter two application stacks were retired reversibly on 2026-08-05 after a
-no-recent-use audit. Their data and rollback artifacts remain on the VM, so
-this is not permission to delete the host. Every remaining item must receive
-an explicit migrate/replace/archive/retire decision before host shutdown. See
-`docs/implementation/azure-vm-retirement-scope-inventory-2026-08-05.zh-CN.md`.
+- a supported client endpoint;
+- a compatibility or retry target;
+- a control-state mirror;
+- a usage source that must be merged into R760;
+- a release-success or rollback condition.
+
+Do not run routine R760-to-Azure control mirror or Azure-to-R760 usage merge
+workflows. Do not direct a client back to the old endpoint. Existing VM assets
+remain preserved only for audit, unrelated-service ownership and separately
+authorized data recovery; this decision is not permission to delete or stop
+the shared VM.
+
+A separate CN1 loopback-only GoldenCode gateway may remain physically running
+for domestic validation, but it is not a second public authority or fallback.
+The installed CN1 `gw` vhost remains dark.
+
+This section supersedes every older compatibility, mirror, merge or shutdown
+gate statement retained later in this file. Those statements are historical
+evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
 - Desktop update distribution is authoritative in Cloudflare R2 bucket
   `goldencode-updates` through `https://updates.instmarket.com.au`; the public
   feed URLs did not change. GitHub Releases hold immutable version archives.
-  Azure `/var/www` static files are now a temporary rollback mirror and must
-  not be used to publish or validate a new release. MedEvidence
+  Any retained VM static copy has no current release or rollback role and must
+  not be used to publish or validate a release. MedEvidence
   `v2.0.0-beta.26` passed R2 manifest, HEAD, Range and full-hash validation;
   all four feed pointers passed. The MedEvidence trailing-slash changelog alias
   was added, while the GoldenCode alias remained a documented static-site gap
@@ -48,39 +46,19 @@ Current operational state:
   `C:\work\code\medevidence-opencode-stable\docs\desktop-release-r2.md`.
 - R760 is now the control and usage authority for real-user key issuance, user
   enable/disable, credential revoke/update, plan/entitlement management and
-  usage reports. The formal issue path is R760 create -> verified Azure
-  compatibility mirror -> dual public validation -> R760 handoff. Guarded
-  management writes use `scripts/manage-r760-gateway-control.py`; independent
-  approved writes reconcile with `scripts/sync-r760-azure-gateway-state.py`.
-  Direct Azure control writes are prohibited during the compatibility window.
-  The old Azure-to-R760 control reconciler remains only for explicit rollback
-  or recovery.
-- Azure still accepts traffic from old clients. Its request events, finalized
-  reservations and admin-audit history therefore merge idempotently into R760
-  through `scripts/sync-azure-r760-gateway-usage.py`; immutable IDs prevent
-  duplicate accounting and token-window updates use only inserted/finalized
-  deltas. The R760 daily health/usage report is the default authoritative query.
-  No periodic job is planned because Azure is temporary: run the merge before
-  an authoritative report and once more after Azure writes are frozen. See
-  `docs/operations/r760-control-plane-authority.md`. No user identity, prefix
-  or full key is recorded here.
-- The 2026-08-05 Azure-authoritative phase closed the historical key gap before
-  this direction change. Azure's 90 unified keys were all present on R760, and
-  one current handoff key passed resolve, runtime-credential, entitlement and
-  image-capability checks on both endpoints. The historical R760 pre-write
-  backup remains
-  `/data/backups/codex-gateway/r760-pre-control-state-sync-20260805T092941Z.db`
-  (`quick_check=ok`, zero FK violations).
-- The live authority switch was completed on 2026-08-06 after commit `7073011`
-  was pushed. A real R760 entitlement cleanup write created a verified Azure
-  backup and mirrored the 21 R760-only rehearsal dependency rows; the next
-  R760-to-Azure dry-run reported zero changes. One representative existing
-  real-user handoff key then passed both public endpoints. The initial Azure
-  compatibility usage merge plus its validation tail imported 2,759 request
-  events, 775 finalized reservations and 111 admin-audit rows into R760. Both
-  fixed windows converged to zero changes, with zero open reservations and
-  clean SQLite/FK checks. Two verified R760 pre-write backups are recorded in
-  `docs/operations/r760-control-plane-authority.md`.
+  usage reports. Real-user issuance must use
+  `scripts/issue-real-user-cgu-key.py --r760-only` and validate only R760.
+  `scripts/manage-r760-gateway-control.py` currently performs an automatic
+  compatibility mirror and is therefore not an approved current mutation path
+  until it gains and validates an R760-only mode; other control writes require
+  a separately reviewed R760-only procedure.
+- Authoritative usage reports query R760 directly. Do not run
+  `scripts/sync-azure-r760-gateway-usage.py` as a reporting prerequisite and do
+  not add physically retained legacy events to R760 totals.
+- The 2026-08-05/06 mirror and usage-merge records remain preserved in
+  `docs/operations/r760-control-plane-authority.md` as historical cutover
+  evidence only. They do not authorize another mirror, merge or dual-endpoint
+  validation.
 - The post-switch R760 daily report completed successfully: public health 200,
   TLS valid, Gateway healthy, restart count zero and no collector errors. It
   also passed an authenticated Billing Admin Plan query. The daily report

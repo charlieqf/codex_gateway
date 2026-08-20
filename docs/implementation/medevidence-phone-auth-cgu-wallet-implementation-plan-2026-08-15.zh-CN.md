@@ -2,18 +2,27 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 方案已形成；尚未实施、测试或部署 |
+| 状态 | 非规范性 Gateway 实现参考；尚未实施、测试或部署 |
 | 建立日期 | 2026-08-15 |
 | 适用仓库 | `C:\work\code\codex-gateway` |
 | 运行权威 | R760 `https://goldencode.instmarket.com.au:1443` |
+| 当前实施范围 | 仅 T：少量可协调内部用户的一次手机号登录与客户端升级 |
 | T：内部过渡期 | 管理员预先准备完整内部账户；已注册内部手机号直接登录；JWT、`cgu_live_*`、现有内部 Plan；不依赖短信、钱包或支付 |
-| F：公开免费期 | 真实短信验证、自动开户注册、免费永久 Token、免费图片次数、最低客户端版本 |
-| P：后续付费期 | 月付/年付购买、支付专用 JWT、订单入账、付费 Doctor Research |
+| F：公开免费期 | 后续保留设计；不属于当前实施或发布门槛 |
+| P：后续付费期 | 后续保留设计；不属于当前实施或发布门槛 |
 | 核心原则 | 一个规范化手机号对应一个 Gateway Subject 和一个当前有效的 `cgu_live_*`；JWT 负责登录会话，`cgu_live_*` 继续承载底层运行授权 |
 
-本文把 2026-08-15 已确认的产品决定映射为可实施的 Gateway 方案。本文是代码、联调、迁移和发布的共同基线，不代表相关功能已经完成，也不授权直接修改或关闭生产环境。
+本文把 2026-08-15 的产品方向映射为 Gateway 实现参考，不代表相关功能已经完成，也不授权直接修改或关闭生产环境。本文不再是跨团队 wire contract 或签收门槛；冲突时以共同协调文档和双方签收的 contract fixture 为准。
 
-Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，不建设 Azure/R760 双写钱包，也不保留 `https://gw.instmarket.com.au` 作为旧客户端兼容入口。用户必须安装满足最低版本要求的新客户端。
+跨团队范围、责任、维护窗口和签收统一维护在
+[`medevidence-desktop-gateway-phone-auth-wallet-v1.zh-CN.md`](../coordination/medevidence-desktop-gateway-phone-auth-wallet-v1.zh-CN.md)。
+方法、路径、字段、响应和错误映射统一维护在
+[`medevidence-internal-phone-auth-v1` contract fixture](../contracts/medevidence-internal-phone-auth-v1/README.md)。
+本文只维护 Gateway 内部实现思路，不承担双方状态台账或规范效力。
+
+除 R760 外的运行环境在本方案中一律视为已经下线，不纳入实施、联调、兼容或发布门槛。新功能只在 R760 实现，不建设双写钱包或兼容回退入口。用户必须安装满足最低版本要求的新客户端。
+
+当前执行以共同协调文档的“内部用户简化版”为准：Gateway 与 Desktop 并行实现，只冻结最小内部登录 contract，并在业务负责人协调的单次维护窗口完成部署、统一升级和一次最终 E2E。本文后续 F/P、短信、免费钱包、图片赠送和支付章节仅保留为未来技术设计，不是本次 T 实施的前置步骤；各团队的中间测试过程不进入共同台账。
 
 相关讨论稿 [`medevidence-desktop-phone-jwt-login-gateway-contract-discussion-2026-08-15.zh-CN.md`](../inbox/medevidence-desktop-phone-jwt-login-gateway-contract-discussion-2026-08-15.zh-CN.md) 早于本文最终决策，其中“JWT 由收费/身份团队签发”“本阶段不做永久余额”“不把 `cgu_live_*` 返回给受信任客户端进程”等内容已被本文替代；其余关于密钥隔离、幂等开户注册和错误稳定性的原则继续有效。
 
@@ -29,9 +38,9 @@ Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，
 4. 客户端凭 Access JWT 取得当前 `cgu_live_*`，只放入受信任进程内存；
 5. 客户端继续复用现有 resolver 和底层 Gateway/MedEvidence 凭据链；
 6. 内部用户使用现有内部 Plan/额度，不进入消费钱包，也不领取免费注册赠送；
-7. Windows/macOS 安装包在真实 R760 完成对话和图片联调。
+7. Windows x64 安装包在真实 R760 完成一次最终登录和对话联调；若当前内部用户实际使用 macOS，再为该用户补充对应平台验证。
 
-该模式是明确接受风险的内部过渡能力，不是短信验证。因为只有管理员维护的内部用户，产品决定不为过渡期引入额外凭据轮换或复杂风控状态机。
+该模式是带有明确冒用风险的内部过渡能力，不是短信验证。是否接受该风险只以共同协调文档中的业务风险负责人签收为准；签收前不得启用，若决定需要第二因素则必须先更新 contract fixture。
 
 ### 1.2 F：公开免费期必须交付的结果
 
@@ -55,7 +64,7 @@ Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，
 - 不提供手机号自助或后台日常换绑功能；
 - 不让 JWT 直接替代模型 API 的底层 Gateway credential；
 - 不让 Desktop 持有 Billing Admin Token；
-- 不在 Azure 实现认证或钱包功能；
+- 不在 R760 以外的运行环境实现认证或钱包功能；
 - 不保留旧 Gateway 域名兼容入口；
 - 不把旧周期 Token window 余额换算成永久余额。
 
@@ -69,7 +78,7 @@ Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，
 - 5 分钟、`aud=payment` 的支付专用 JWT；
 - 付费 Doctor Research 的整次任务预占与统一结算。
 
-## 2. 已冻结的产品规则
+## 2. 实现方案采用的产品假设（非规范性）
 
 ### 2.1 登录模式与阶段门禁
 
@@ -78,7 +87,7 @@ Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，
 - `sms` 对账户状态保持不可枚举的发送响应；真实验证码通过后，未知手机号允许自动创建免费账户；
 - T 阶段直接使用 R760 正式 Origin，不另建远程测试权威；本地和 CI 可使用 fake SMS provider；
 - fake SMS、固定验证码和万能验证码不得在 R760 公网运行；
-- T 阶段结束不设固定日期，以阿里云资源、真实短信、JWT/refresh/bootstrap 及 Windows/macOS 安装包 E2E 全部通过为准；
+- T 阶段结束不设固定日期，以 JWT/refresh/bootstrap、Windows x64 安装包和一次最终内部 E2E 通过为准；真实短信和支付不属于 T 门槛；
 - 支付系统不是从 `transition` 切换到 `sms` 的门禁；
 - 不增加通用 `service_availability` 合同；可选能力未就绪时按各自 capability/route 降级，核心聊天保持可用。
 
@@ -148,7 +157,7 @@ Azure Gateway 将按单独的退役门禁关闭。新功能只在 R760 实现，
 | Subject 与外部身份 | `subjects` 支持名称、手机号和 `(external_provider, external_user_id)` 唯一索引 | `phone_number` 不是权威身份，也没有规范化唯一约束 |
 | 自动开户注册 | Billing Admin `/subjects` 已能创建 Subject、Gateway credential、MedEvidence v2 binding 和 `cgu_live_*` | 只能由服务端 Billing Admin 调用；没有短信验证后的公开幂等编排 |
 | `cgu_live_*` | `/gateway/unified-keys/resolve` 能解密并返回底层 Gateway/MedEvidence 凭据 | 当前完整 `cgu_live_*` 只显示一次，数据库只存 hash/prefix，登录后无法重新取回完整 Key |
-| Key 生命周期 | 统一 Key 和 backing Gateway credential 均有强制过期时间 | 与“逻辑 Key 持续有效”冲突；需要 nullable expiry 或透明轮换 |
+| Key 生命周期 | 统一 Key 和 backing Gateway credential 均有强制过期时间，现有 resolver/Desktop 要求非空可解析到期时间 | T 保持现有非空到期语义；无期限 Key 或透明轮换留到后续 v2，不扩大本次 schema/parser 范围 |
 | Plan/Entitlement | 已支持 Plan、Entitlement、周期快照和 capability | 只有 `monthly/one_off/unlimited`；没有 baseline free profile、永久钱包策略和 `yearly` |
 | Token 限制 | 已支持 minute/day/month window、请求预占和实际结算 | Window 会重置，不能表示永久可累加余额和动态身份上限 |
 | 图片权限 | feature policy 已支持 `image_generation` 和 provider fallback | 没有用户级永久图片次数及预占/结算 |
@@ -275,6 +284,8 @@ Desktop 随后调用现有 `/gateway/unified-keys/resolve` 获取 Gateway/MedEvi
 - 数据库只保存 token hash、prefix、family/generation 和有效期；
 - 刷新在事务中撤销旧 Token、签发新 Token 并更新 Session；
 - 已使用 Refresh Token 再次出现时视为 replay，撤销该 Session family；
+- Desktop 在发送 refresh 前持久化 `refresh_pending` 标记；无法安全写入标记时不得发送；
+- 若请求发出后响应丢失、新 Token 原子落盘失败或进程在提交后崩溃，Desktop 删除本地 Session并要求重新登录，不再次发送旧 Refresh Token；v1 不提供 replay grace；
 - 退出当前设备撤销当前 Session；
 - 管理端“撤销全部会话”按 Subject 批量撤销；
 - 退出不撤销 `cgu_live_*`，客户端负责立即清空内存中的 Key 和 runtime credentials。
@@ -318,7 +329,7 @@ Desktop 随后调用现有 `/gateway/unified-keys/resolve` 获取 Gateway/MedEvi
 
 ## 6. v1 API 契约
 
-Desktop-facing 路径和字段按本文进入双方 contract fixture，并在 M0、任何代码 PR 合并前冻结为 `v1`。示例中的 Token 和 Key 全部是占位符，不得替换成真实值提交。
+Desktop-facing wire contract 以 [`medevidence-internal-phone-auth-v1` fixture](../contracts/medevidence-internal-phone-auth-v1/README.md) 为准。本节示例只帮助 Gateway 实现，不具独立规范效力；任何差异必须先修改 fixture 并由双方签收同一 commit。示例中的 Token 和 Key 全部是占位符，不得替换成真实值提交。
 
 ### 6.1 `POST /gateway/auth/v1/login/start`
 
@@ -430,7 +441,7 @@ X-MedEvidence-Client-Version: <semver>
   "unified_key": {
     "key": "<runtime-only-cgu-live-key>",
     "key_prefix": "cgu_live_example",
-    "expires_at": null
+    "expires_at": "2027-08-20T00:00:00.000Z"
   },
   "resolver_url": "https://goldencode.instmarket.com.au:1443/gateway/unified-keys/resolve",
   "account_url": "https://goldencode.instmarket.com.au:1443/gateway/account/v1/current"
@@ -553,7 +564,7 @@ Refresh Token 原文只在签发响应中出现一次。数据库、日志、审
 - `token_ciphertext`：完整 `cgu_live_*` 的 envelope encryption；
 - `encryption_key_id`：支持密钥轮换；
 - `is_current` 或等价状态字段；
-- `expires_at` 改为 nullable；
+- `expires_at` 保持非空；bootstrap 与 resolver 必须返回同一个 RFC 3339 到期时间；
 - Subject 当前 Key 的部分唯一索引。
 
 新增真实用户 Key 时必须同时保存 hash 和密文。完整 Key 仍不得通过管理列表、日志或审计返回。
@@ -696,11 +707,11 @@ Access JWT 固定 15 分钟，允许的时钟偏差不超过 60 秒。JWT 不包
 
 生产 secret 只通过 R760 root-owned `0600` secret file 或等价受控挂载提供。示例 env 只记录变量名，不放值。不得复用 JWT private key 进行 HMAC 或数据加密。
 
-### 9.3 返回长期 `cgu_live_*` 的已接受边界
+### 9.3 返回长期 `cgu_live_*` 的待签安全边界
 
-T/F 阶段为了复用现有客户端与 resolver，会把长期 `cgu_live_*` 返回给持有有效 Access JWT 的受信任 Desktop 进程。这意味着 Access JWT 在有效期内被窃取后，攻击者可能进一步取得长期 Key；15 分钟 Access TTL 不能消除这一风险。
+当前 T 为了复用现有客户端与 resolver，会把有明确到期时间的长期 `cgu_live_*` 返回给持有有效 Access JWT 的受信任 Desktop 进程。这意味着 Access JWT 在有效期内被窃取后，攻击者可能进一步取得长期 Key；15 分钟 Access TTL 不能消除这一风险。是否接受该边界只以共同协调文档中的业务风险负责人签收为准。
 
-T/F 阶段必须采用以下缓解：
+当前 T 必须采用以下缓解：
 
 - bootstrap 仅接受有效、未撤销 Session 的 Access JWT；
 - 响应禁止缓存；
@@ -710,13 +721,13 @@ T/F 阶段必须采用以下缓解：
 - 支持快速轮换当前 `cgu_live_*`；
 - 后续可用短期 session credential 替代直接返回长期 Key，但不纳入 T/F 阶段。
 
-`transition_phone_only` 不是强身份认证：知道已注册内部手机号的人可能取得该账户 Session 和长期 runtime bundle。产品明确接受该风险，原因是 T 阶段只有管理员维护的内部用户，并要求保持实现简单；本方案不增加结束过渡期时的强制 unified/backing credential 轮换。审计必须如实记录 `transition_phone_only`，不得写成 SMS 已验证。
+`transition_phone_only` 不是强身份认证：知道已注册内部手机号的人可能取得该账户 Session 和长期 runtime bundle。共同协调文档已列出该临时风险及缓解措施，但业务风险负责人签字前不能进入维护窗口 `ready`。审计必须如实记录 `transition_phone_only`，不得写成 SMS 已验证。
 
 ### 9.4 最低客户端版本
 
-新增可配置 `minimum_desktop_version` 和官方下载地址。Desktop 的 auth、bootstrap、account 及业务请求需要携带 `X-MedEvidence-Client-Version`。缺失、非法或低于最低版本时返回 HTTP 426 `client_upgrade_required`。
+新增可配置 `minimum_desktop_version` 和官方下载地址。Desktop 的 auth、refresh、logout、bootstrap、resolver、credentials/account current、`/v1/*`、Research、image generation 和四条 Vision Asset Gateway 请求需要携带 `X-MedEvidence-Client-Version`。缺失、非法或低于最低版本时返回 HTTP 426 `client_upgrade_required`，正文结构化包含 `minimum_version`、`download_url` 和 `request_id`；Desktop 不得解析 `message` 得到升级信息。签名 R2 PUT 不属于 Gateway 版本门禁。
 
-内部服务和明确标记的非 Desktop credential 通过显式 credential class 豁免，不能因缺少版本头被误伤；豁免列表不得靠 user-agent 猜测。
+Session、`cgu_live_*` 和 backing credential 必须显式标记 credential class。只有 `service` 或 `operator` 类可豁免，Desktop 流程统一为 `desktop`；class 缺失或未知时不豁免，豁免不得靠 User-Agent、源 IP 或缺少版本头猜测。
 
 ## 10. 代码组织建议
 
@@ -768,17 +779,18 @@ T/F 阶段必须采用以下缓解：
 - 历史手机号和 Key 迁移 dry-run/apply 工具；
 - R760 上线前预检；
 - 最新客户端版本和 auth/wallet smoke；
-- Azure 最终 usage merge 与退役门禁沿用现有受控脚本；
 - 示例配置、runbook 和错误合同文档。
 
 ## 11. 实施里程碑与 PR 拆分
 
 ### M0：契约与基线
 
-- 冻结 auth v1 路径、字段、错误码和 headers；
+- 冻结内部 T 所需 auth v1 路径、字段、错误码和 headers；
+- 冻结结构化 426 与 refresh 结果不确定时重新登录的语义；
 - 冻结 Plan ID、JWT issuer/audience、版本比较规则；
 - 固定现有测试、SQLite schema、R760 只读数据盘点；
 - 建立 secret/PII 日志扫描测试；
+- 正式最低版本和下载地址留到维护窗口前填写，不阻塞编码；
 - 不改生产。
 
 验收：接口 fixture 获 Desktop 团队确认；所有现有测试基线记录完整。
@@ -786,7 +798,7 @@ T/F 阶段必须采用以下缓解：
 ### M1：T 阶段最小 Schema 与 core domain
 
 - 新增 phone identity、session 和 registration schema；
-- 扩展 unified key recoverability 和 nullable expiry；
+- 扩展 unified key recoverability，同时保留非空 expiry 并确保 bootstrap/resolver 一致；
 - 实现 T 阶段身份、Session 和 Key 所需的 core/store 原子事务；
 - wallet 和 image schema 分别留到 M5、M6 的 additive migration，不作为 T 阶段前置；
 - 不开放公网 route，所有 feature flag 默认关闭。
@@ -853,7 +865,7 @@ T/F 阶段必须采用以下缓解：
 - 配置最低版本和下载地址；
 - 把登录模式从 `transition` 切换到 `sms`，支付仍可未就绪；
 - Desktop 安全存储 JWT、bootstrap 内存 Key、resolver、account UI 联调；
-- Windows/macOS 安装包重启、刷新、退出、切换账号和升级门禁测试；
+- F 正式支持平台的安装包重启、刷新、退出、切换账号和升级门禁测试；
 - 诊断包和日志 secret scan。
 
 验收：真实新手机号和既有手机号均能短信登录；只有最新客户端能完成真实 R760 对话和图片生成，旧版本稳定返回 426；免费钱包和图片次数正确。
@@ -867,17 +879,7 @@ T/F 阶段必须采用以下缓解：
 - 验证代表性内部、历史和新用户；
 - 归档 R760 release、数据库备份和校验凭据。
 
-验收：对应阶段的 R760 登录、账户、运行授权和业务闭环通过；不依赖旧域名或 Azure 回退。
-
-### M9：Azure 独立退役门禁
-
-- 冻结 Azure 写入；
-- 执行最终 Azure -> R760 usage merge；
-- 第二次 dry-run 必须零变更；
-- 归档 Azure/R760 最终数据库与校验凭据；
-- 再执行 Azure Gateway 关闭。
-
-验收：R760 是唯一入口和唯一可写权威；Azure 退役证据完整。该门禁独立于 T/F 功能完成状态，不得因开发手机号登录而省略数据合并与归档。
+验收：对应阶段的 R760 登录、账户、运行授权和业务闭环通过；不依赖旧域名或任何兼容回退入口。
 
 ## 12. 当前数据迁移基线
 
@@ -981,7 +983,7 @@ python -m unittest discover -s tests -p "test_*.py"
 6. 至少一个真实图片 Provider 成功并正确扣减次数；
 7. 免费 Research 在创建 run 前拒绝；
 8. `token_balance_insufficient` 与 `active_balance_cap_exceeded` 区分正确；
-9. Windows/macOS 安装包从登录到主界面完整通过。
+9. F 正式支持平台的安装包从登录到主界面完整通过。
 
 测试手机号、验证码、JWT、完整 Key 和 provider credential 不得写入 PR、文档或聊天。
 
@@ -1047,7 +1049,7 @@ GATEWAY_DESKTOP_DOWNLOAD_URL=
 - R760 写前 online backup；
 - 先执行 schema/secret/配置预检；
 - 启动后验证 commit marker、健康、数据库完整性和 feature flags；
-- T 发布顺序执行管理员开户注册、手机号直登、refresh、bootstrap、resolve、account、chat 和 image smoke；
+- T 在业务负责人协调的单次维护窗口发布：确认内部用户停止使用，部署 R760、写入最低版本/下载地址、启用内部登录与 426，再用一台实际 Windows x64 内部用户电脑完成一次登录、bootstrap/resolver、account current 和真实对话 E2E；
 - F 发布前再执行真实 SMS、消费钱包、免费图片次数和 Research 拒绝 smoke；
 - 从 `transition` 切换为 `sms` 是显式管理员配置变更，不依赖支付，也不得自动切换；
 - 临时 Subject、Session、Key 和 ledger 测试数据按审计方式清理或明确保留为测试账户。
@@ -1061,7 +1063,7 @@ GATEWAY_DESKTOP_DOWNLOAD_URL=
 - 钱包开始真实扣费后，不允许通过恢复旧数据库回滚代码，否则会丢失不可变消费事件；
 - 必须以前向修复或 ledger reconciliation 处理计费问题；
 - Key 迁移/轮换完成后，不能假设旧 Key 仍可恢复；
-- 产品已决定不保留 Azure 回退，回滚目标只能是 R760 上一个兼容 release。
+- 回滚目标只能是 R760 上一个兼容 release。
 
 ## 17. 外部依赖与当前阻塞项
 
@@ -1119,7 +1121,7 @@ P 阶段复用 F 阶段 Subject、钱包、Plan 和 JWT 基础，不另建账户
 - [ ] Access/Refresh、多设备、撤销、replay、bootstrap 和 resolver 测试通过；
 - [ ] 内部账户继续使用明确的内部 Plan，且没有消费钱包或免费赠送事件；
 - [ ] account current、credentials current、稳定错误码和最低客户端版本 426 门禁通过；
-- [ ] Windows/macOS 安装包在 R760 完成真实聊天、工具和至少一个图片 Provider E2E；
+- [ ] Windows x64 安装包在 R760 完成一次最终手机号登录、bootstrap/resolver、account current 和真实对话 E2E；当前内部用户使用 macOS 时再补该平台；
 - [ ] 日志、审计、诊断包无手机号、Token 或 Key 等敏感值；
 - [ ] R760 备份、部署、健康和真实 smoke 通过。
 
@@ -1135,16 +1137,16 @@ T 阶段不以阿里云短信、永久消费钱包、免费图片账本或支付
 - [ ] 图片独立次数通过，且至少一个受支持 Provider 完成真实 E2E；
 - [ ] 免费 Doctor Research fail-before-create；
 - [ ] provisioning 中断后可保留 Session 并通过 bootstrap 幂等恢复；
-- [ ] Windows/macOS 公开安装包联合 E2E 通过；
+- [ ] F 正式支持平台的公开安装包联合 E2E 通过；
 - [ ] 登录模式经显式发布操作从 `transition` 切换到 `sms`。
 
 F 阶段不以支付系统就绪为完成条件。
 
-### 19.3 Azure 退役独立门禁
+### 19.3 R760-only 发布边界
 
-- [ ] Azure 最终 usage merge 二次 dry-run 为零变更；
+- [ ] 实施、联调、发布和回滚均只面向 R760；
 - [ ] R760 已验证为唯一入口和唯一可写权威；
-- [ ] Azure 退役证据单独记录并完成。
+- [ ] 发布条件中不存在第二运行环境、双写或兼容回退依赖。
 
 ## 20. 参考资料
 
