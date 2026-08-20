@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档状态 | `draft`；双方确认并合入 Gateway `main` 后改为 `active` |
-| 实施状态 | `contract_pending`；fixture 已进入远端不可变 commit，尚未由 Gateway/Desktop 对同一 commit 签收为 frozen |
+| 实施状态 | `contract_pending`；Desktop 已签收 contract `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`，仍待 Desktop 签署身份及 Gateway 对同一 commit 签收 |
 | 协调版本 | `coordination-internal-v1-draft.3` |
 | 当前范围 | 少量、已知、可逐一协调的内部用户 |
 | 唯一运行环境 | R760 `https://goldencode.instmarket.com.au:1443` |
@@ -166,9 +166,11 @@ Gateway 实现 additive schema、逐用户管理员准备、手机号直登、Se
 | 记录 | Gateway | Desktop | 业务风险负责人 | 证据 |
 | --- | --- | --- | --- | --- |
 | 文档转为 `active` | 待签 | 待签 | — | 本文 merge commit |
-| Contract `frozen` | 待签 | 待签 | — | fixture commit permalink |
+| Contract `frozen` | 待签 | 已签收 `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`（签署身份待补） | — | Desktop 于 2026-08-20 回复；整体仍待 Gateway 对同一 commit 签收 |
 | 维护窗口 `ready` | 待签 | 待签 | 待签 | 两端 commit、版本、SHA-256、逐用户预检 |
 | 内部升级 `completed` | 待签 | 待签 | 待签 | 最终 E2E 时间与结果 |
+
+Desktop 同时确认：原样使用 426 的 `download_url`；Refresh 结果存在歧义时清除本地 Session、重新登录且不重发旧 Refresh Token；跨响应一致性失败时 fail closed。Capability 集合一致性校验作为 Desktop 实现收尾，不修改 frozen contract，也不阻塞双方继续实现。
 
 ## 8. 后续另立计划
 
