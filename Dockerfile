@@ -43,12 +43,14 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 999 codexgw \
   && useradd --system --uid 999 --gid 999 --create-home --home-dir /var/lib/codex-gateway --shell /usr/sbin/nologin codexgw \
-  && mkdir -p /var/lib/codex-gateway/codex-home /var/log/codex-gateway \
+  && mkdir -p /var/lib/codex-gateway/codex-home \
+     /var/lib/codex-gateway/phone-auth-secrets /var/log/codex-gateway \
      /var/lib/codex-gateway-research/artifacts \
      /var/lib/codex-gateway-research-backups \
   && chown -R codexgw:codexgw /var/lib/codex-gateway /var/log/codex-gateway \
      /var/lib/codex-gateway-research /var/lib/codex-gateway-research-backups \
   && chmod 0700 /var/lib/codex-gateway-research \
+     /var/lib/codex-gateway/phone-auth-secrets \
      /var/lib/codex-gateway-research/artifacts \
      /var/lib/codex-gateway-research-backups \
   && npm install -g @openai/codex@${CODEX_CLI_VERSION}

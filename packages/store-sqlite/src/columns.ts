@@ -2,10 +2,10 @@ export const subjectColumns =
   "id, label, name, phone_number, external_provider, external_user_id, display_name, state, created_at";
 
 export const accessCredentialColumns =
-  "id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at, rate_json, allowed_public_models_json, created_at, rotates_id";
+  "id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at, rate_json, allowed_public_models_json, credential_class, created_at, rotates_id";
 
 export const unifiedClientKeyColumns =
-  "id, prefix, hash, subject_id, label, expires_at, revoked_at, codex_credential_id, codex_credential_prefix, codex_key_ciphertext, medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json";
+  "id, prefix, hash, subject_id, label, expires_at, revoked_at, codex_credential_id, codex_credential_prefix, codex_key_ciphertext, medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json, token_ciphertext, credential_class, is_current";
 
 export const billingAdminTokenColumns =
   "id, prefix, hash, label, kind, state, expires_at, revoked_at, created_at, last_used_at, metadata_json";

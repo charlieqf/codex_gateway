@@ -6,17 +6,17 @@ For a real Desktop/MedEvidence user who should receive one opaque client
 credential, use the Gateway-owned billing/v2 path. This path creates the
 Gateway subject, automatically asks MedEvidence v2 to create the hidden v2 key,
 creates the backing Gateway key, wraps both runtime credentials as one
-`cgu_live_*` key on the authoritative R760 Gateway, mirrors the complete
-control-plane dependency set to the temporary Azure compatibility Gateway,
-validates the same key and backing credential on both public endpoints, and
-only then writes the full key to a local handoff JSON. The handoff points new clients to
-`https://goldencode.instmarket.com.au:1443`.
+`cgu_live_*` key on the authoritative R760 Gateway, validates the key and
+backing credential on R760, and only then writes the full key to a local
+handoff JSON. The handoff points clients to
+`https://goldencode.instmarket.com.au:1443`. No compatibility endpoint is
+written or validated.
 
 Do not hand-issue a MedEvidence v2 key first for this path. Do not send users
 the backing `cgw.*` key or the hidden `mev2_live_*` key.
 Use `scripts\issue-real-user-cgu-key.py` for real users. The older
 `issue-desktop-e2e-opaque-key.ps1` script name is historical and is retained
-below only as a lower-level fallback.
+below only as a lower-level diagnostic.
 
 Current real-user trial defaults as of 2026-07-01:
 
@@ -33,50 +33,36 @@ Current real-user trial defaults as of 2026-07-01:
 Recommended one-command path:
 
 ```powershell
-python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>"
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --client-version "<strict-semver>"
 ```
 
-If the owner explicitly says not to synchronize the new key to Azure, use:
-
-```powershell
-python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --r760-only
-```
-
-`--r760-only` performs no Azure access. It still requires R760 unified-key
-resolve, backing credential, active entitlement and capability validation
-before writing the handoff. The issued key is R760-only; the default command
-continues to mirror and validate Azure compatibility.
+The script is always R760-only. `--client-version` is required and is sent on
+the public resolver and credential-validation requests so the same command
+continues to work after the Desktop 426 gate is enabled. The retained
+`--r760-only` option is a deprecated no-op.
 
 Codex/operator shortcut for a typical request like
 "给新用户 张三 13800138000 发key":
 
 ```powershell
-python scripts\issue-real-user-cgu-key.py --name "张三" --phone 13800138000
+python scripts\issue-real-user-cgu-key.py --name "张三" --phone 13800138000 --client-version "<strict-semver>"
 ```
 
 Preflight without issuing a key:
 
 ```powershell
-python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --what-if
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --client-version "<strict-semver>" --what-if
 ```
 
 The Python script defaults `external_user_id` to `phone_<digits>`, grants
 `plan_internal_high_quota_image_v1`, sets the backing Gateway key to
 `10` rpm, `200` rpd, `4` concurrent requests, expires that backing key and
-the entitlement at least 90 days in the future, updates the stored name/phone
-metadata on R760, and then runs the mandatory R760-to-Azure compatibility
-mirror. The reconciler checks schema v24, SQLite integrity/FKs and matching
-non-plaintext encryption-secret digests; when rows differ, it creates and
-verifies an Azure SQLite backup before applying the source subset in one
-transaction. The issue
-script then validates resolve, identical runtime credentials, active
-entitlement and image capability on Azure and R760. It writes the full
+the entitlement at least 90 days in the future and updates the stored
+name/phone metadata on R760. The issue script then validates the fixed R760 resolver
+URLs, backing credential, active entitlement and image capability. It writes the full
 `cgu_live_*` key only to a pseudonymously named local handoff JSON under
 `C:\Users\rdpuser\medevidence_api_keys`. `--skip-credential-validation` is
 intentionally rejected for real-user issuance.
-
-The mirror is mandatory for the default mode. It is explicitly skipped only
-with the owner-authorized `--r760-only` flag described above.
 
 After a successful run, share only the safe summary in chat: `key_prefix`,
 `subject_id`, `capabilities`, and `handoff_path`. Deliver the full key only
@@ -89,37 +75,18 @@ the Billing Admin token, backing `cgw.*` key, hidden `mev2_live_*` key, or full
 identifiers, counts, validation status and backup/handoff paths.
 
 All user enable/disable, key revoke/update, plan and entitlement changes must
-start on R760. Use the guarded wrapper, which writes R760 and then mirrors Azure:
+target R760 only. `manage-r760-gateway-control.py` is not an approved current
+mutation path while it still performs a compatibility mirror; follow the
+reviewed R760-only procedure in `r760-control-plane-authority.md`.
+
+Query authoritative usage directly from R760:
 
 ```powershell
-python scripts\manage-r760-gateway-control.py --what-if -- disable-user <user>
-python scripts\manage-r760-gateway-control.py -- disable-user <user>
-```
-
-For an independently approved R760 write, review and apply the mirror:
-
-```powershell
-python scripts\sync-r760-azure-gateway-state.py
-python scripts\sync-r760-azure-gateway-state.py --apply
-```
-
-`--apply` preserves Azure-only rows and never copies request/session/usage data.
-If there are changes, it creates a restricted backup under
-`/home/qian/codex-gateway-backups/r760-authority-mirror` on Azure before the
-single transaction. Do not make direct Azure control changes during the
-compatibility window. `sync-azure-r760-gateway-state.py` is retained only for
-an explicitly approved rollback or recovery. No periodic schedule is planned;
-the formal issue and management scripts mirror immediately.
-
-Before authoritative usage queries, merge old-entry usage and then query R760:
-
-```powershell
-python scripts\sync-azure-r760-gateway-usage.py --apply
 python scripts\check-daily-usage-health.py --format json
 ```
 
-The merge is idempotent and updates token windows only by inserted/finalized
-deltas. Full operating and shutdown rules are in
+Do not run a compatibility usage merge as a reporting prerequisite. Full
+operating rules are in
 `docs/operations/r760-control-plane-authority.md`.
 
 For image generation, clients should call `/gateway/images/generations` with
@@ -129,7 +96,7 @@ clients to send `gpt-image-2` as the public model name.
 Legacy PowerShell path, retained only for diagnostics and E2E recovery. Its
 defaults now point to R760.
 It is not an approved real-user issue path because it does not itself enforce
-R760-to-Azure synchronization and dual-endpoint validation. Preflight with a
+the formal billing/v2 issuance and R760 validation flow. Preflight with a
 stable ASCII external user id:
 
 ```powershell
@@ -251,9 +218,9 @@ legacy script starts from an already-issued MedEvidence v2 JSON file and writes
 This section is historical recovery guidance only. Do not use
 `scripts/provision-medevidence-codex-key.ps1` for a new user: it defaults to the
 Azure compatibility stack, produces legacy `cmev1.*`, and does not enforce the
-R760-authoritative mirror/dual-validation workflow. Use it only after explicit
-approval for an existing MedEvidence v2 JSON recovery, then reconcile and
-validate the resulting control state separately.
+current R760-only billing/v2 validation workflow. Use it only after explicit
+approval for an existing MedEvidence v2 JSON recovery, then validate the
+resulting R760 control state separately.
 
 Default legacy cmev1 provisioning settings:
 

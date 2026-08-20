@@ -28,17 +28,18 @@ them part of normal operation.
 
 ## Real-user key issuance
 
-Use only the formal issue script with the explicit R760-only flag:
+Use only the formal R760 issue script and pass the Desktop version being
+validated:
 
 ```powershell
-python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --r760-only
+python scripts\issue-real-user-cgu-key.py --name "<real name>" --phone "<phone>" --client-version "<strict-semver>"
 ```
 
-This skips all non-R760 access, performs the R760 create, resolve, backing
+The script performs the R760 create, resolve, backing
 credential, entitlement and capability checks, and marks the local handoff as
-`authority_mode=r760_only`. The command without `--r760-only` still contains a
-legacy mirror path and is prohibited by the current policy until the script
-default is changed and reviewed.
+`authority_mode=r760_only`. It has no compatibility mirror or dual-endpoint
+path. The retained `--r760-only` option is a deprecated no-op for existing
+operator command compatibility.
 
 The historical `issue-desktop-e2e-opaque-key.ps1` now also defaults to R760,
 but remains a diagnostic/E2E helper and is not approved for real-user delivery.

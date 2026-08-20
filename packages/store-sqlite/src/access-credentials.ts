@@ -8,6 +8,7 @@ import {
 } from "@codex-gateway/core";
 import { accessCredentialColumns } from "./columns.js";
 import { rowToAccessCredential } from "./row-mappers.js";
+import { runInTransaction } from "./sql.js";
 
 export function insert(
   db: DatabaseSync,
@@ -18,8 +19,8 @@ export function insert(
   db.prepare(
     `INSERT INTO access_credentials (
       id, prefix, hash, token_ciphertext, subject_id, label, scope, expires_at, revoked_at,
-      rate_json, allowed_public_models_json, created_at, rotates_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      rate_json, allowed_public_models_json, credential_class, created_at, rotates_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     record.id,
     record.prefix,
@@ -32,6 +33,7 @@ export function insert(
     record.revokedAt?.toISOString() ?? null,
     JSON.stringify(normalizedRate),
     allowedPublicModels === null ? null : JSON.stringify(allowedPublicModels),
+    record.credentialClass ?? "unknown",
     record.createdAt.toISOString(),
     record.rotatesId
   );
@@ -91,28 +93,39 @@ export function updateByPrefix(
   const allowedPublicModels = updateAllowedPublicModels
     ? normalizeAllowedPublicModels(input.allowedPublicModels)
     : null;
-  db.prepare(
-    `UPDATE access_credentials
-     SET label = COALESCE(?, label),
-         scope = COALESCE(?, scope),
-         expires_at = COALESCE(?, expires_at),
-         rate_json = COALESCE(?, rate_json),
-         allowed_public_models_json = CASE
-           WHEN ? = 1 THEN ?
-           ELSE allowed_public_models_json
-         END
-     WHERE prefix = ?`
-  ).run(
-    input.label ?? null,
-    input.scope ?? null,
-    input.expiresAt?.toISOString() ?? null,
-    normalizedRate ? JSON.stringify(normalizedRate) : null,
-    updateAllowedPublicModels ? 1 : 0,
-    allowedPublicModels === null ? null : JSON.stringify(allowedPublicModels),
-    prefix
-  );
-
-  return getByPrefix(db, prefix);
+  return runInTransaction(db, "BEGIN IMMEDIATE", () => {
+    const result = db.prepare(
+      `UPDATE access_credentials
+       SET label = COALESCE(?, label),
+           scope = COALESCE(?, scope),
+           expires_at = COALESCE(?, expires_at),
+           rate_json = COALESCE(?, rate_json),
+           allowed_public_models_json = CASE
+             WHEN ? = 1 THEN ?
+             ELSE allowed_public_models_json
+           END,
+           credential_class = COALESCE(?, credential_class)
+       WHERE prefix = ?`
+    ).run(
+      input.label ?? null,
+      input.scope ?? null,
+      input.expiresAt?.toISOString() ?? null,
+      normalizedRate ? JSON.stringify(normalizedRate) : null,
+      updateAllowedPublicModels ? 1 : 0,
+      allowedPublicModels === null ? null : JSON.stringify(allowedPublicModels),
+      input.credentialClass ?? null,
+      prefix
+    );
+    if (result.changes === 0) {
+      return null;
+    }
+    if (input.credentialClass !== undefined) {
+      db.prepare(
+        "UPDATE unified_client_keys SET credential_class = ? WHERE codex_credential_prefix = ?"
+      ).run(input.credentialClass, prefix);
+    }
+    return getByPrefix(db, prefix);
+  });
 }
 
 export function revokeByPrefix(

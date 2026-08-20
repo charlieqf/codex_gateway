@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { GatewayError } from "./errors.js";
-import type { UnifiedClientKeyRecord } from "./types.js";
+import type { CredentialClass, UnifiedClientKeyRecord } from "./types.js";
 
 export const unifiedClientKeyTokenPrefix = "cgu_live_";
 
@@ -14,6 +14,9 @@ export interface IssueUnifiedClientKeyInput {
   medevidenceKeyCiphertext: string;
   medevidenceKeyPrefix?: string | null;
   metadata?: Record<string, unknown> | null;
+  tokenCiphertext?: string | null;
+  credentialClass?: CredentialClass;
+  isCurrent?: boolean;
   now?: Date;
 }
 
@@ -42,7 +45,10 @@ export function issueUnifiedClientKey(input: IssueUnifiedClientKeyInput): Issued
       medevidenceKeyCiphertext: input.medevidenceKeyCiphertext,
       medevidenceKeyPrefix: input.medevidenceKeyPrefix ?? null,
       createdAt: now,
-      metadata: input.metadata ?? null
+      metadata: input.metadata ?? null,
+      tokenCiphertext: input.tokenCiphertext ?? null,
+      credentialClass: input.credentialClass ?? "unknown",
+      isCurrent: input.isCurrent ?? false
     }
   };
 }

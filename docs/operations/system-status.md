@@ -47,7 +47,9 @@ Current operational state:
 - R760 is now the control and usage authority for real-user key issuance, user
   enable/disable, credential revoke/update, plan/entitlement management and
   usage reports. Real-user issuance must use
-  `scripts/issue-real-user-cgu-key.py --r760-only` and validate only R760.
+  `scripts/issue-real-user-cgu-key.py --client-version <strict-semver>` and
+  validate only R760. The script is inherently R760-only; the retained
+  `--r760-only` option is a deprecated no-op.
   `scripts/manage-r760-gateway-control.py` currently performs an automatic
   compatibility mirror and is therefore not an approved current mutation path
   until it gains and validates an R760-only mode; other control writes require

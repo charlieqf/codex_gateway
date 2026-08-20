@@ -22,6 +22,7 @@ Deployment and safety:
 12. [Domestic Gateway and Doctor Research Migration Plan](../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md)
 13. [GoldenCode Cutover Consumer and Tencent Capacity Audit](./goldencode-cutover-audit-2026-08-04.zh-CN.md)
 14. [R760 Gateway Control-Plane Authority](./r760-control-plane-authority.md)
+15. [R760 Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md)
 
 Operational workflows now covered:
 

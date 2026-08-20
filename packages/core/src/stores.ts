@@ -1,5 +1,6 @@
 import type {
   AccessCredentialRecord,
+  CredentialClass,
   AdminAuditAction,
   AdminAuditEventRecord,
   AdminAuditStatus,
@@ -64,6 +65,7 @@ export interface UpdateAccessCredentialInput {
   expiresAt?: Date;
   rate?: RateLimitPolicy;
   allowedPublicModels?: string[] | null;
+  credentialClass?: CredentialClass;
 }
 
 export interface AccessCredentialStore {

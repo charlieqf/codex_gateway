@@ -3,7 +3,12 @@ import { GatewayError } from "./errors.js";
 import { normalizeAllowedPublicModels } from "./public-model-access.js";
 import { normalizeRateLimitPolicy } from "./token-budget.js";
 import type { PublicModelAliasGroup } from "./public-model-usage.js";
-import type { AccessCredentialRecord, RateLimitPolicy, Scope } from "./types.js";
+import type {
+  AccessCredentialRecord,
+  CredentialClass,
+  RateLimitPolicy,
+  Scope
+} from "./types.js";
 
 export const accessCredentialTokenPrefix = "cgw";
 
@@ -16,6 +21,7 @@ export interface IssueAccessCredentialInput {
   allowedPublicModels?: readonly string[] | null;
   knownPublicModelIds?: readonly string[];
   publicModelAliases?: readonly PublicModelAliasGroup[];
+  credentialClass?: CredentialClass;
   now?: Date;
   rotatesId?: string | null;
 }
@@ -62,6 +68,7 @@ export function issueAccessCredential(input: IssueAccessCredentialInput): Issued
         input.knownPublicModelIds,
         input.publicModelAliases
       ),
+      credentialClass: input.credentialClass ?? "unknown",
       createdAt: now,
       rotatesId: input.rotatesId ?? null
     }

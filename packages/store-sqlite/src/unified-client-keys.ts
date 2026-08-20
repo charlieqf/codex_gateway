@@ -11,8 +11,9 @@ export function insert(db: DatabaseSync, record: UnifiedClientKeyRecord): Unifie
     `INSERT INTO unified_client_keys (
       id, prefix, hash, subject_id, label, expires_at, revoked_at,
       codex_credential_id, codex_credential_prefix, codex_key_ciphertext,
-      medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      medevidence_key_ciphertext, medevidence_key_prefix, created_at, metadata_json,
+      token_ciphertext, credential_class, is_current
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     record.id,
     record.prefix,
@@ -27,7 +28,10 @@ export function insert(db: DatabaseSync, record: UnifiedClientKeyRecord): Unifie
     record.medevidenceKeyCiphertext,
     record.medevidenceKeyPrefix,
     record.createdAt.toISOString(),
-    record.metadata ? JSON.stringify(record.metadata) : null
+    record.metadata ? JSON.stringify(record.metadata) : null,
+    record.tokenCiphertext ?? null,
+    record.credentialClass ?? "unknown",
+    record.isCurrent ? 1 : 0
   );
 
   return record;

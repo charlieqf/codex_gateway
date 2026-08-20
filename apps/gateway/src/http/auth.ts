@@ -163,11 +163,9 @@ function authenticateCredentialBearer(
       subjectId: credential.subjectId,
       scope: credential.scope
     };
-    return new GatewayError({
-      code: "invalid_credential",
-      message: "Invalid access credential.",
-      httpStatus: 401
-    });
+    return subject
+      ? inactiveSubjectError(request)
+      : invalidCredential();
   }
 
   return {
@@ -181,7 +179,8 @@ function authenticateCredentialBearer(
       label: credential.label,
       expiresAt: credential.expiresAt,
       rate: credential.rate,
-      allowedPublicModels: credential.allowedPublicModels
+      allowedPublicModels: credential.allowedPublicModels,
+      credentialClass: credential.credentialClass ?? "unknown"
     }
   };
 }
@@ -225,8 +224,11 @@ function authenticateUnifiedClientKey(
   }
 
   const subject = options.store.getSubject(record.subjectId);
-  if (!subject || subject.state !== "active") {
+  if (!subject) {
     return invalidCredential();
+  }
+  if (subject.state !== "active") {
+    return inactiveSubjectError(request);
   }
 
   const credential = options.store.getAccessCredentialByPrefix(record.codexCredentialPrefix);
@@ -259,7 +261,11 @@ function authenticateUnifiedClientKey(
       label: credential.label,
       expiresAt: credential.expiresAt,
       rate: credential.rate,
-      allowedPublicModels: credential.allowedPublicModels
+      allowedPublicModels: credential.allowedPublicModels,
+      credentialClass:
+        record.credentialClass === credential.credentialClass
+          ? record.credentialClass ?? "unknown"
+          : "unknown"
     }
   };
 }
@@ -272,12 +278,28 @@ function invalidCredential(): GatewayError {
   });
 }
 
+function inactiveSubjectError(request: FastifyRequest): GatewayError {
+  if (
+    request.url.split("?", 1)[0] === "/gateway/credentials/current"
+  ) {
+    return new GatewayError({
+      code: "account_disabled",
+      message: "This internal account is disabled.",
+      httpStatus: 403
+    });
+  }
+  return invalidCredential();
+}
+
 function sendGatewayError(
   request: FastifyRequest,
   reply: FastifyReply,
   error: GatewayError
 ): void {
   markGatewayError(request, error);
+  if (request.url.split("?", 1)[0] === "/gateway/credentials/current") {
+    reply.header("cache-control", "no-store").header("pragma", "no-cache");
+  }
   reply.code(error.httpStatus).send(errorPayload(request, error));
 }
 
@@ -306,6 +328,7 @@ function errorPayload(request: FastifyRequest, error: GatewayError) {
     error: {
       code: error.code,
       message: error.message,
+      request_id: request.id,
       retry_after_seconds: error.retryAfterSeconds
     }
   };

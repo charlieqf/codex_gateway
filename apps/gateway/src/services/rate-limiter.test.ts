@@ -158,6 +158,28 @@ describe("InMemoryCredentialRateLimiter", () => {
 
     expect(stateCount(limiter)).toBe(0);
   });
+
+  it("prunes idle per-minute keys when the minute changes", () => {
+    let now = new Date("2026-01-01T00:00:00Z");
+    const limiter = new InMemoryCredentialRateLimiter({ now: () => now });
+    const minuteOnlyPolicy = {
+      requestsPerMinute: 100,
+      requestsPerDay: null,
+      concurrentRequests: null
+    };
+
+    permit(
+      limiter.acquire({ credentialId: "phone-auth:phone:first", policy: minuteOnlyPolicy })
+    ).release();
+    expect(stateCount(limiter)).toBe(1);
+
+    now = new Date("2026-01-01T00:01:00Z");
+    permit(
+      limiter.acquire({ credentialId: "phone-auth:phone:second", policy: minuteOnlyPolicy })
+    ).release();
+
+    expect(stateCount(limiter)).toBe(1);
+  });
 });
 
 function permit(result: RateLimitPermit | LimitRejection): RateLimitPermit {

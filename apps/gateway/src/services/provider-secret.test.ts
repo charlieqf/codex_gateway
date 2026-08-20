@@ -8,7 +8,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveProviderApiKey } from "./provider-secret.js";
+import { resolvePemSecret, resolveProviderApiKey } from "./provider-secret.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -42,6 +42,17 @@ describe("provider secret resolution", () => {
       apiKey: "provider-file-test-key",
       sourceEnvName: "MEDCODE_QIANFAN_API_KEY_FILE"
     });
+  });
+
+  it("reads a multiline PEM secret file", () => {
+    const pem = "-----BEGIN PRIVATE KEY-----\nprivate-key-data\n-----END PRIVATE KEY-----";
+    const filename = createSecretFile(pem);
+    expect(
+      resolvePemSecret(
+        { GATEWAY_PHONE_AUTH_JWT_PRIVATE_KEY_FILE: filename },
+        "GATEWAY_PHONE_AUTH_JWT_PRIVATE_KEY"
+      ).apiKey
+    ).toBe(pem);
   });
 
   it("fails closed for ambiguous, broad or non-canonical secret files", () => {

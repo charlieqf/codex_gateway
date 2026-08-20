@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultImageGenerationFeaturePolicy,
   encryptSecret,
+  extractUnifiedClientKeyPrefix,
   GatewayError,
   issueAccessCredential,
   issueBillingAdminToken,
@@ -27,6 +28,7 @@ import {
 } from "@codex-gateway/store-sqlite";
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway, validateRuntimeEnvironment } from "./index.js";
+import { phoneAuthMedevidenceOrigin } from "./services/phone-auth-service.js";
 import { chatMessagesToPrompt, type ChatCompletionRequest } from "./openai-compat.js";
 import {
   InMemoryCredentialRateLimiter,
@@ -1217,7 +1219,7 @@ describe("gateway phase 1 routes", () => {
       expect(resolved.json()).toMatchObject({
         valid: true,
         unified_key: {
-          prefix: unified.record.prefix,
+          prefix: `cgu_live_${unified.record.prefix}`,
           label: "Desktop unified key",
           expires_at: "2030-02-01T00:00:00.000Z"
         },
@@ -2126,6 +2128,19 @@ describe("gateway phase 1 routes", () => {
         }
       });
       expect(created.json().credential.key).toMatch(/^cgu_live_[A-Za-z0-9]{64}$/);
+      const unifiedPrefix = extractUnifiedClientKeyPrefix(created.json().credential.key);
+      const unified = unifiedPrefix
+        ? store.getUnifiedClientKeyByPrefix(unifiedPrefix)
+        : null;
+      expect(unified?.metadata).toEqual({
+        medevidence_base_url: phoneAuthMedevidenceOrigin
+      });
+      expect(
+        unified
+          ? store.getAccessCredentialByPrefix(unified.codexCredentialPrefix)
+              ?.allowedPublicModels
+          : null
+      ).toEqual(["goldencode"]);
       expect(upstreamV2Client.calls).toHaveLength(1);
       expect(upstreamV2Client.calls[0]).toMatchObject({
         externalProvider: "medevidence_backend",

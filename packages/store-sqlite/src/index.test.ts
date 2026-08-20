@@ -18,6 +18,7 @@ import {
   createSqliteStore,
   type SqliteGatewayStore
 } from "./index.js";
+import { migrateGatewaySchema } from "./migrations.js";
 
 const cleanupDirs: string[] = [];
 
@@ -172,9 +173,48 @@ describe("SqliteGatewayStore", () => {
         "allowed_public_models_json"
       );
       expect(columnNames(db, "sessions")).toContain("public_model_id");
+      expect(columnNames(db, "access_credentials")).toContain("credential_class");
+      expect(columnNames(db, "unified_client_keys")).toEqual(
+        expect.arrayContaining(["token_ciphertext", "credential_class", "is_current"])
+      );
+      expect(tableExists(db, "phone_auth_identities")).toBe(true);
+      expect(tableExists(db, "phone_auth_sessions")).toBe(true);
+      expect(tableExists(db, "phone_auth_refresh_tokens")).toBe(true);
+      expect(tableExists(db, "phone_auth_audit_events")).toBe(true);
       expect(
-        db.prepare("SELECT version FROM schema_migrations WHERE version = 23").get()
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 25").get()
       ).toBeTruthy();
+    } finally {
+      db.close();
+    }
+  });
+
+  it("does not mark migration 25 on an event-only schema and rejects a half schema", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec(`
+        CREATE TABLE schema_migrations (
+          version INTEGER PRIMARY KEY,
+          applied_at TEXT NOT NULL
+        );
+        CREATE TABLE request_events (request_id TEXT PRIMARY KEY);
+      `);
+      const insertMigration = db.prepare(
+        "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)"
+      );
+      for (let version = 1; version <= 24; version += 1) {
+        insertMigration.run(version, "2026-01-01T00:00:00.000Z");
+      }
+
+      migrateGatewaySchema(db);
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 25").get()
+      ).toBeUndefined();
+
+      db.exec("CREATE TABLE access_credentials (id TEXT PRIMARY KEY)");
+      expect(() => migrateGatewaySchema(db)).toThrow(
+        "Migration 25 requires sessions, access_credentials and unified_client_keys."
+      );
     } finally {
       db.close();
     }
@@ -573,6 +613,17 @@ describe("SqliteGatewayStore", () => {
       ...issued.record,
       tokenCiphertext: "v1.encrypted"
     });
+    const unified = issueUnifiedClientKey({
+      subjectId: "subj_1",
+      label: "Unified token",
+      expiresAt: new Date("2026-02-01T00:00:00Z"),
+      codexCredentialId: issued.record.id,
+      codexCredentialPrefix: issued.record.prefix,
+      codexKeyCiphertext: "v1.codex",
+      medevidenceKeyCiphertext: "v1.medevidence",
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    store.insertUnifiedClientKey(unified.record);
     expect(store.getAccessCredentialByPrefix(issued.record.prefix)).toMatchObject({
       id: issued.record.id,
       prefix: issued.record.prefix,
@@ -591,7 +642,8 @@ describe("SqliteGatewayStore", () => {
         requestsPerMinute: 5,
         requestsPerDay: 20,
         concurrentRequests: 2
-      }
+      },
+      credentialClass: "service"
     });
     expect(updated).toMatchObject({
       id: issued.record.id,
@@ -601,9 +653,13 @@ describe("SqliteGatewayStore", () => {
         requestsPerMinute: 5,
         requestsPerDay: 20,
         concurrentRequests: 2
-      }
+      },
+      credentialClass: "service"
     });
     expect(updated?.expiresAt.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+    expect(
+      store.getUnifiedClientKeyByPrefix(unified.record.prefix)?.credentialClass
+    ).toBe("service");
     expect(store.updateAccessCredentialByPrefix("missing", { label: "Nope" })).toBeNull();
 
     const revoked = store.revokeAccessCredentialByPrefix(
@@ -2661,6 +2717,22 @@ function createLegacyUpstreamAccountDb(dbPath: string): void {
         created_at TEXT NOT NULL,
         name TEXT,
         phone_number TEXT
+      );
+      CREATE TABLE access_credentials (
+        id TEXT PRIMARY KEY,
+        prefix TEXT NOT NULL UNIQUE,
+        hash TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        rate_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        rotates_id TEXT,
+        token_ciphertext TEXT,
+        FOREIGN KEY(subject_id) REFERENCES subjects(id),
+        FOREIGN KEY(rotates_id) REFERENCES access_credentials(id)
       );
       CREATE TABLE subscriptions (
         id TEXT PRIMARY KEY,

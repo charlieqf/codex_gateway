@@ -48,6 +48,11 @@ import type {
 } from "./services/rate-limiter.js";
 import type { UpstreamV2Client } from "./upstream-v2-client.js";
 import {
+  phoneAuthMedevidenceOrigin,
+  type PhoneAuthService
+} from "./services/phone-auth-service.js";
+import { desktopVersionHeader } from "./desktop-version-gate.js";
+import {
   defaultExternalUserId,
   defaultRealUserIssueRate,
   defaultRealUserPlanId,
@@ -93,8 +98,11 @@ export interface BillingAdminRouteOptions {
   subjectMetadataStore?: BillingSubjectMetadataStore;
   /** Public origin used to validate an issued key end to end, e.g. https://host:1443. */
   publicBaseUrl?: string | null;
+  /** Version used by the Gateway's own Desktop-contract validation requests. */
+  desktopClientVersion?: string | null;
   realUserIssueJobStore?: RealUserIssueJobStore;
   publicModels?: BillingPublicModel[];
+  phoneAuthService?: PhoneAuthService | null;
   now?: () => Date;
 }
 
@@ -173,6 +181,79 @@ export function registerBillingAdminRoutes(
   app: FastifyInstance,
   options: BillingAdminRouteOptions
 ): void {
+  app.post<{ Body: unknown }>(
+    "/gateway/admin/billing/v1/phone-auth-identities",
+    billingRouteOptions(),
+    async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) {
+        return authError;
+      }
+      if (!options.phoneAuthService) {
+        return sendBillingError(
+          request,
+          reply,
+          serviceUnavailable("Phone auth service is not configured.")
+        );
+      }
+      const parsed = parsePreparePhoneAuthIdentity(request.body);
+      if (parsed instanceof GatewayError) {
+        return sendBillingError(request, reply, parsed);
+      }
+      try {
+        const identity = options.phoneAuthService.prepareIdentity({
+          ...parsed,
+          requestId: request.id
+        });
+        return billingSecurityHeaders(reply).send({
+          prepared: true,
+          subject_id: identity.subjectId,
+          state: identity.state
+        });
+      } catch (error) {
+        return sendBillingError(request, reply, toBillingGatewayError(error));
+      }
+    }
+  );
+
+  app.patch<{ Params: { subjectId: string }; Body: unknown }>(
+    "/gateway/admin/billing/v1/phone-auth-identities/:subjectId",
+    billingRouteOptions(),
+    async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) {
+        return authError;
+      }
+      if (!options.phoneAuthService) {
+        return sendBillingError(
+          request,
+          reply,
+          serviceUnavailable("Phone auth service is not configured.")
+        );
+      }
+      const state = parsePhoneAuthIdentityState(request.body);
+      if (state instanceof GatewayError) {
+        return sendBillingError(request, reply, state);
+      }
+      try {
+        const identity = options.phoneAuthService.setIdentityState(
+          request.params.subjectId,
+          state,
+          request.id
+        );
+        if (!identity) {
+          return sendBillingError(request, reply, subjectNotFound());
+        }
+        return billingSecurityHeaders(reply).send({
+          subject_id: identity.subjectId,
+          state: identity.state
+        });
+      } catch (error) {
+        return sendBillingError(request, reply, toBillingGatewayError(error));
+      }
+    }
+  );
+
   app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/subjects",
     billingRouteOptions(),
@@ -350,6 +431,8 @@ export function registerBillingAdminRoutes(
           label: `Billing ${subject.subject.externalProvider ?? "subject"} rotated`,
           scope: subject.scopeAllowlist[0] ?? "code",
           expiresAt,
+          credentialClass:
+            activeGatewayCredential.credentialClass ?? "unknown",
           now,
           rotatesId: activeUnifiedKey.codexCredentialId
         });
@@ -374,6 +457,7 @@ export function registerBillingAdminRoutes(
           medevidenceKeyCiphertext: activeUnifiedKey.medevidenceKeyCiphertext,
           medevidenceKeyPrefix: activeUnifiedKey.medevidenceKeyPrefix,
           metadata: activeUnifiedKey.metadata,
+          credentialClass: activeUnifiedKey.credentialClass ?? "unknown",
           now
         });
 
@@ -1053,6 +1137,59 @@ function parseBillingEntitlementEventRequest(
     metadata,
     payloadHash: billingPayloadHash(body)
   };
+}
+
+function parsePreparePhoneAuthIdentity(body: unknown):
+  | { phone: string; subjectId: string; unifiedKey: string }
+  | GatewayError {
+  if (!hasExactObjectKeys(body, ["phone", "subject_id", "unified_key"])) {
+    return invalidRequest(
+      "Body must contain exactly phone, subject_id and unified_key."
+    );
+  }
+  if (
+    typeof body.phone !== "string" ||
+    !/^1[3-9][0-9]{9}$/u.test(body.phone) ||
+    typeof body.subject_id !== "string" ||
+    body.subject_id.length === 0 ||
+    body.subject_id.length > 200 ||
+    typeof body.unified_key !== "string" ||
+    !/^cgu_live_[A-Za-z0-9]{64}$/u.test(body.unified_key)
+  ) {
+    return invalidRequest("Phone auth identity fields are invalid.");
+  }
+  return {
+    phone: body.phone,
+    subjectId: body.subject_id,
+    unifiedKey: body.unified_key
+  };
+}
+
+function parsePhoneAuthIdentityState(
+  body: unknown
+): "active" | "disabled" | GatewayError {
+  if (!hasExactObjectKeys(body, ["state"])) {
+    return invalidRequest("Body must contain exactly state.");
+  }
+  if (body.state !== "active" && body.state !== "disabled") {
+    return invalidRequest("state must be active or disabled.");
+  }
+  return body.state;
+}
+
+function hasExactObjectKeys(
+  value: unknown,
+  expected: readonly string[]
+): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const keys = Object.keys(value).sort();
+  const expectedKeys = [...expected].sort();
+  return (
+    keys.length === expectedKeys.length &&
+    keys.every((key, index) => key === expectedKeys[index])
+  );
 }
 
 function parseCreateSubjectRequest(
@@ -2294,6 +2431,7 @@ function isCredentialActive(credential: AccessCredentialRecord, now: Date): bool
 }
 
 const realUserIssueTimeoutMs = 45_000;
+const realUserDesktopPublicModelId = "goldencode";
 
 function billingActorTokenPrefix(request: FastifyRequest): string | null {
   const authorization = request.headers.authorization;
@@ -2534,7 +2672,10 @@ function buildRealUserIssueDeps(
         method: "POST",
         headers: {
           authorization: `Bearer ${opaqueKey}`,
-          "content-type": "application/json"
+          "content-type": "application/json",
+          ...(options.desktopClientVersion
+            ? { [desktopVersionHeader]: options.desktopClientVersion }
+            : {})
         },
         body: "{}"
       });
@@ -2584,7 +2725,12 @@ function buildRealUserIssueDeps(
     async currentCredential(codexApiKey): Promise<CurrentCredential> {
       const payload = await realUserIssueFetchJson(`${publicBaseUrl}/gateway/credentials/current`, {
         method: "GET",
-        headers: { authorization: `Bearer ${codexApiKey}` }
+        headers: {
+          authorization: `Bearer ${codexApiKey}`,
+          ...(options.desktopClientVersion
+            ? { [desktopVersionHeader]: options.desktopClientVersion }
+            : {})
+        }
       });
       const capabilities = nested(payload, "entitlement", "feature_policy", "capabilities");
       return {
@@ -2758,6 +2904,8 @@ async function provisionBillingSubject(
     label: `Billing ${parsed.provider}`,
     scope: parsed.scopeAllowlist[0] ?? "code",
     expiresAt,
+    allowedPublicModels: [realUserDesktopPublicModelId],
+    knownPublicModelIds: [realUserDesktopPublicModelId],
     now
   });
   const gatewayRecord = {
@@ -2773,7 +2921,8 @@ async function provisionBillingSubject(
     codexKeyCiphertext: encryptSecret(gatewayCredential.token, options.apiKeyEncryptionSecret),
     medevidenceKeyCiphertext: encryptSecret(upstream.key.key, options.apiKeyEncryptionSecret),
     medevidenceKeyPrefix: upstream.key.keyPrefix,
-    metadata: null,
+    metadata: { medevidence_base_url: phoneAuthMedevidenceOrigin },
+    credentialClass: gatewayRecord.credentialClass ?? "unknown",
     now
   });
   const result = options.billingStore.createBillingSubject({

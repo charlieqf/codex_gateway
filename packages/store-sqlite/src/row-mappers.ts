@@ -89,6 +89,7 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     revoked_at: string | null;
     rate_json: string;
     allowed_public_models_json: string | null;
+    credential_class: AccessCredentialRecord["credentialClass"];
     created_at: string;
     rotates_id: string | null;
   };
@@ -107,6 +108,7 @@ export function rowToAccessCredential(row: unknown): AccessCredentialRecord {
     allowedPublicModels: decodeStoredAllowedPublicModelsJson(
       value.allowed_public_models_json
     ),
+    credentialClass: value.credential_class ?? "unknown",
     createdAt: new Date(value.created_at),
     rotatesId: value.rotates_id
   };
@@ -128,6 +130,9 @@ export function rowToUnifiedClientKey(row: unknown): UnifiedClientKeyRecord {
     medevidence_key_prefix: string | null;
     created_at: string;
     metadata_json: string | null;
+    token_ciphertext: string | null;
+    credential_class: UnifiedClientKeyRecord["credentialClass"];
+    is_current: number;
   };
 
   return {
@@ -144,7 +149,10 @@ export function rowToUnifiedClientKey(row: unknown): UnifiedClientKeyRecord {
     medevidenceKeyCiphertext: value.medevidence_key_ciphertext,
     medevidenceKeyPrefix: value.medevidence_key_prefix,
     createdAt: new Date(value.created_at),
-    metadata: value.metadata_json ? (JSON.parse(value.metadata_json) as Record<string, unknown>) : null
+    metadata: value.metadata_json ? (JSON.parse(value.metadata_json) as Record<string, unknown>) : null,
+    tokenCiphertext: value.token_ciphertext,
+    credentialClass: value.credential_class ?? "unknown",
+    isCurrent: value.is_current === 1
   };
 }
 

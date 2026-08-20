@@ -525,6 +525,8 @@ describe("codex-gateway-admin user API key operations", () => {
       "Alice tablet",
       "--scope",
       "medical",
+      "--credential-class",
+      "service",
       "--expires-at",
       "2099-06-01T00:00:00Z",
       "--rpm",
@@ -540,6 +542,7 @@ describe("codex-gateway-admin user API key operations", () => {
         user_id: string;
         label: string;
         scope: string;
+        credential_class: string;
         expires_at: string;
         rate: {
           requestsPerMinute: number;
@@ -554,6 +557,7 @@ describe("codex-gateway-admin user API key operations", () => {
       user_id: "alice",
       label: "Alice tablet",
       scope: "medical",
+      credential_class: "service",
       expires_at: "2099-06-01T00:00:00.000Z",
       rate: {
         requestsPerMinute: 5,

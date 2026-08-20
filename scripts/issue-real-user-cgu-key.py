@@ -25,23 +25,21 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
-from gateway_state_sync import (
-    DEFAULT_AZURE_BACKUP_ROOT,
-    DEFAULT_AZURE_BASE_URL,
-    DEFAULT_R760_BASE_URL,
-    RemoteGateway,
-    SyncError,
-    sync_r760_to_azure,
-    validate_unified_key_pair,
-)
 
 
-DEFAULT_GATEWAY_BASE_URL = DEFAULT_R760_BASE_URL
+DEFAULT_GATEWAY_BASE_URL = "https://goldencode.instmarket.com.au:1443"
 DEFAULT_PROVIDER = "manual_trial"
 DEFAULT_PLAN_ID = "plan_internal_high_quota_image_v1"
 MIN_REAL_USER_VALIDITY_DAYS = 90
 DEFAULT_REAL_USER_VALIDITY_DAYS = 92
 DEFAULT_OUTPUT_DIR = r"C:\Users\rdpuser\medevidence_api_keys"
+DESKTOP_VERSION_HEADER = "X-MedEvidence-Client-Version"
+STRICT_SEMVER = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 
 DEFAULT_VM_HOST = "117.186.49.26"
 DEFAULT_VM_USER = "root"
@@ -52,13 +50,6 @@ DEFAULT_COMPOSE_FILE = "compose.azure.yml"
 DEFAULT_GATEWAY_SERVICE = "gateway"
 DEFAULT_GATEWAY_CONTAINER = "codex_gateway_r760-gateway-1"
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
-
-DEFAULT_COMPATIBILITY_BASE_URL = DEFAULT_AZURE_BASE_URL
-DEFAULT_COMPATIBILITY_VM_HOST = "4.242.58.89"
-DEFAULT_COMPATIBILITY_VM_USER = "qian"
-DEFAULT_COMPATIBILITY_VM_PORT = 22
-DEFAULT_COMPATIBILITY_SSH_KEY = r"~\.ssh\medevidence_azure_wus2_ed25519"
-DEFAULT_COMPATIBILITY_GATEWAY_CONTAINER = "codex_gateway_test-gateway-1"
 
 class IssueError(RuntimeError):
     pass
@@ -96,6 +87,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--provider", default=DEFAULT_PROVIDER)
     parser.add_argument("--gateway-base-url", default=DEFAULT_GATEWAY_BASE_URL)
     parser.add_argument(
+        "--client-version",
+        required=True,
+        help="Strict SemVer sent with Desktop-gated validation requests.",
+    )
+    parser.add_argument(
         "--plan-id",
         default=DEFAULT_PLAN_ID,
         help="Default includes image_generation: plan_internal_high_quota_image_v1.",
@@ -127,34 +123,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--compose-file", default=DEFAULT_COMPOSE_FILE)
     parser.add_argument("--gateway-service", default=DEFAULT_GATEWAY_SERVICE)
     parser.add_argument("--gateway-container", default=DEFAULT_GATEWAY_CONTAINER)
-    parser.add_argument("--compatibility-base-url", default=DEFAULT_COMPATIBILITY_BASE_URL)
-    parser.add_argument("--compatibility-vm-host", default=DEFAULT_COMPATIBILITY_VM_HOST)
-    parser.add_argument("--compatibility-vm-user", default=DEFAULT_COMPATIBILITY_VM_USER)
-    parser.add_argument(
-        "--compatibility-vm-port",
-        type=positive_int,
-        default=DEFAULT_COMPATIBILITY_VM_PORT,
-    )
-    parser.add_argument("--compatibility-ssh-key", default=DEFAULT_COMPATIBILITY_SSH_KEY)
-    parser.add_argument(
-        "--compatibility-gateway-container",
-        default=DEFAULT_COMPATIBILITY_GATEWAY_CONTAINER,
-    )
-    parser.add_argument("--compatibility-backup-root", default=DEFAULT_AZURE_BACKUP_ROOT)
-    parser.add_argument("--sync-max-passes", type=positive_int, default=3)
     parser.add_argument(
         "--r760-only",
         action="store_true",
-        help=(
-            "Explicitly skip the Azure compatibility mirror and validate only R760. "
-            "Use only after an operator-authorized end to Azure synchronization."
-        ),
+        help="Deprecated no-op retained for command compatibility; issuance is always R760-only.",
     )
     parser.add_argument("--timeout-seconds", type=positive_int, default=45)
     parser.add_argument(
         "--skip-credential-validation",
         action="store_true",
-        help="Deprecated and rejected for real-user issuance; dual validation is mandatory.",
+        help="Deprecated and rejected for real-user issuance; R760 validation is mandatory.",
     )
     parser.add_argument(
         "--no-require-image-capability",
@@ -180,9 +158,8 @@ def positive_int(value: str) -> int:
 
 def issue_key(args: argparse.Namespace) -> dict[str, Any]:
     base_url = normalize_base_url(args.gateway_base_url)
-    compatibility_base_url = (
-        None if args.r760_only else normalize_base_url(args.compatibility_base_url)
-    )
+    if not STRICT_SEMVER.fullmatch(args.client_version):
+        raise IssueError("--client-version must be a strict SemVer.")
     if args.skip_credential_validation:
         raise IssueError(
             "--skip-credential-validation is no longer permitted for real-user issuance; "
@@ -209,13 +186,9 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             "handoff_gateway_base_url": base_url,
             "plan_id": args.plan_id,
             "requires_image_generation": not args.no_require_image_capability,
-            "authority_mode": "r760_only" if args.r760_only else "r760_with_azure_compatibility",
-            "r760_to_azure_compatibility_mirror": (
-                "skipped_by_explicit_r760_only" if args.r760_only else "required"
-            ),
-            "dual_endpoint_validation": (
-                "r760_only" if args.r760_only else "required"
-            ),
+            "authority_mode": "r760_only",
+            "client_version": args.client_version,
+            "r760_validation": "required",
             "entitlement_end": iso_millis_z(parse_iso_utc(args.entitlement_end)),
             "key_expires_at": iso_millis_z(parse_iso_utc(args.key_expires_at)),
             "rate": {
@@ -276,36 +249,11 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
         if not args.no_require_image_capability and "image_generation" not in capabilities:
             raise IssueError("Issued credential does not include image_generation capability.")
 
-        if args.r760_only:
-            validate_r760_only_resolution(
-                resolved,
-                base_url=base_url,
-                expected_subject_id=subject_id,
-            )
-            sync_result = {
-                "skipped": True,
-                "reason": "explicit_r760_only",
-            }
-            endpoint_validation = {
-                "azure": "skipped",
-                "r760": "ok",
-                "runtime_credentials_match": None,
-            }
-        else:
-            sync_result = sync_issued_state(args)
-            if not sync_result.get("converged"):
-                raise IssueError("R760-to-Azure compatibility mirror did not converge.")
-            try:
-                endpoint_validation = validate_unified_key_pair(
-                    opaque_key,
-                    expected_subject_id=subject_id,
-                    azure_base_url=compatibility_base_url,
-                    r760_base_url=base_url,
-                    require_image_capability=not args.no_require_image_capability,
-                    timeout_seconds=args.timeout_seconds,
-                )
-            except SyncError as exc:
-                raise IssueError(str(exc)) from exc
+        validate_r760_resolution(
+            resolved,
+            base_url=base_url,
+            expected_subject_id=subject_id,
+        )
 
         write_handoff(
             args=args,
@@ -324,7 +272,8 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
         return {
             "issued": "ok",
             "key_type": "cgu_live",
-            "authority_mode": "r760_only" if args.r760_only else "r760_with_azure_compatibility",
+            "authority_mode": "r760_only",
+            "client_version": args.client_version,
             "subject_id": subject_id,
             "key_prefix": get_path(create, "credential", "key_prefix"),
             "codex_gateway_prefix": gateway_prefix,
@@ -339,10 +288,7 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
                 "concurrentRequests": args.concurrent,
             },
             "backing_key_expires_at": args.key_expires_at,
-            "azure_validation": endpoint_validation.get("azure"),
-            "r760_validation": endpoint_validation.get("r760"),
-            "runtime_credentials_match": endpoint_validation.get("runtime_credentials_match"),
-            "azure_compatibility_mirror": public_sync_subset(sync_result),
+            "r760_validation": "ok",
             "handoff_path": handoff_path,
         }
     finally:
@@ -352,12 +298,10 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             and subject_id
             and created_subject_this_run
         ):
-            disabled = disable_subject_best_effort(args, base_url, billing_token, subject_id)
-            if disabled and not args.r760_only:
-                reconcile_failed_issue_best_effort(args)
+            disable_subject_best_effort(args, base_url, billing_token, subject_id)
 
 
-def validate_r760_only_resolution(
+def validate_r760_resolution(
     resolved: dict[str, Any],
     *,
     base_url: str,
@@ -371,9 +315,9 @@ def validate_r760_only_resolution(
         raise IssueError("R760 unified key resolve did not return a MedEvidence runtime key.")
     endpoint = get_path(resolved, "codex_gateway", "endpoint_base_url")
     validation_url = get_path(resolved, "codex_gateway", "credential_validation_url")
-    if endpoint and endpoint != f"{base_url}/v1":
+    if endpoint != f"{base_url}/v1":
         raise IssueError("R760 unified key resolve returned an unexpected Gateway endpoint.")
-    if validation_url and validation_url != f"{base_url}/gateway/credentials/current":
+    if validation_url != f"{base_url}/gateway/credentials/current":
         raise IssueError("R760 unified key resolve returned an unexpected credential validation URL.")
 
 
@@ -444,7 +388,11 @@ def resolve_opaque_key(args: argparse.Namespace, base_url: str, opaque_key: str)
     return http_json(
         "POST",
         f"{base_url}/gateway/unified-keys/resolve",
-        {"Authorization": f"Bearer {opaque_key}", "Content-Type": "application/json"},
+        {
+            "Authorization": f"Bearer {opaque_key}",
+            "Content-Type": "application/json",
+            DESKTOP_VERSION_HEADER: args.client_version,
+        },
         {},
         args.timeout_seconds,
     )
@@ -454,7 +402,10 @@ def current_credential(args: argparse.Namespace, base_url: str, codex_api_key: s
     return http_json(
         "GET",
         f"{base_url}/gateway/credentials/current",
-        {"Authorization": f"Bearer {codex_api_key}"},
+        {
+            "Authorization": f"Bearer {codex_api_key}",
+            DESKTOP_VERSION_HEADER: args.client_version,
+        },
         None,
         args.timeout_seconds,
     )
@@ -496,69 +447,6 @@ def update_key(args: argparse.Namespace, gateway_prefix: str, label: str) -> dic
     )
 
 
-def sync_issued_state(args: argparse.Namespace) -> dict[str, Any]:
-    try:
-        return sync_r760_to_azure(
-            apply=True,
-            r760=RemoteGateway(
-                name="r760",
-                host=args.vm_host,
-                user=args.vm_user,
-                ssh_key=args.ssh_key,
-                container=args.gateway_container,
-                port=args.vm_port,
-            ),
-            azure=RemoteGateway(
-                name="azure",
-                host=args.compatibility_vm_host,
-                user=args.compatibility_vm_user,
-                ssh_key=args.compatibility_ssh_key,
-                container=args.compatibility_gateway_container,
-                port=args.compatibility_vm_port,
-                use_sudo=True,
-            ),
-            backup_root=args.compatibility_backup_root,
-            max_passes=args.sync_max_passes,
-        )
-    except SyncError as exc:
-        raise IssueError(f"R760-to-Azure compatibility mirror failed: {exc}") from exc
-
-
-def public_sync_subset(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("skipped") is True:
-        return {
-            "skipped": True,
-            "reason": value.get("reason"),
-        }
-    backup = value.get("backup") if isinstance(value.get("backup"), dict) else None
-    return {
-        "converged": value.get("converged") is True,
-        "passes": value.get("passes"),
-        "changed_rows": get_path(value, "initial_plan", "changed_rows"),
-        "backup_path": backup.get("backup_path") if backup else None,
-    }
-
-
-def reconcile_failed_issue_best_effort(args: argparse.Namespace) -> None:
-    try:
-        result = sync_issued_state(args)
-        if result.get("converged"):
-            print(
-                "warning: reconciled the disabled partial subject state to Azure compatibility",
-                file=sys.stderr,
-            )
-        else:
-            print(
-                "warning: disabled partial subject state did not converge on Azure compatibility",
-                file=sys.stderr,
-            )
-    except Exception as exc:
-        print(
-            redact_secrets(f"warning: cleanup reconciliation to Azure compatibility failed: {exc}"),
-            file=sys.stderr,
-        )
-
-
 def disable_subject_best_effort(
     args: argparse.Namespace,
     base_url: str,
@@ -597,7 +485,8 @@ def write_handoff(
     current_credential_record = current.get("credential") if current else None
     handoff = {
         "key_type": "opaque_unified_cgu_live",
-        "authority_mode": "r760_only" if args.r760_only else "r760_with_azure_compatibility",
+        "authority_mode": "r760_only",
+        "client_version": args.client_version,
         "key": opaque_key,
         "key_prefix": get_path(create, "credential", "key_prefix"),
         "subject_id": subject_id,

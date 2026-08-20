@@ -16,6 +16,7 @@ import {
   type AdminAuditEventRecord,
   type BillingAdminTokenKind,
   type BillingAdminTokenState,
+  type CredentialClass,
   type Entitlement,
   type EntitlementState,
   type PeriodKind,
@@ -64,6 +65,7 @@ import {
   parseBillingAdminTokenKind,
   parseBillingAdminTokenState,
   parseCommaList,
+  parseCredentialClass,
   parseDate,
   parseDurationMs,
   parseEntitlementState,
@@ -358,7 +360,8 @@ unifiedKeyCommand
             normalizeOptionalText(options.medevidenceKeyPrefix) ?? keyPrefix(medevidenceToken),
           metadata: normalizeOptionalText(options.medevidenceBaseUrl)
             ? { medevidence_base_url: normalizeOptionalText(options.medevidenceBaseUrl) }
-            : null
+            : null,
+          credentialClass: codexCredential.credentialClass ?? "unknown"
         });
         store.insertUnifiedClientKey(issued.record);
         return {
@@ -1003,6 +1006,11 @@ program
   .description("Update an API key's label, scope, expiration, or rate limits.")
   .option("--label <label>", "new API key label")
   .option("--scope <scope>", "new scope: code or medical", parseScope)
+  .option(
+    "--credential-class <class>",
+    "credential class: desktop, service, operator, or unknown",
+    parseCredentialClass
+  )
   .option("--expires-days <days>", "set expiration to this many days from now", parsePositiveInteger)
   .option("--expires-at <iso>", "set expiration to this ISO time", parseDate)
   .option("--rpm <n>", "requests per minute", parsePositiveInteger)
@@ -1056,6 +1064,7 @@ program
         const updated = store.updateAccessCredentialByPrefix(prefix, {
           label: options.label,
           scope: options.scope,
+          credentialClass: options.credentialClass,
           expiresAt,
           rate,
           allowedPublicModels: modelAllowlist?.models
@@ -1535,6 +1544,7 @@ program
             }),
             token: oldCredential.rate.token ?? undefined
           },
+          credentialClass: oldCredential.credentialClass ?? "unknown",
           rotatesId: oldCredential.id
         });
         const record = {
@@ -1610,6 +1620,7 @@ await program.parseAsync();
 interface UpdateKeyOptions {
   label?: string;
   scope?: Scope;
+  credentialClass?: CredentialClass;
   expiresDays?: number;
   expiresAt?: Date;
   rpm?: number;
@@ -2254,6 +2265,7 @@ function requestedUpdateKeyParams(options: UpdateKeyOptions): Record<string, unk
   return {
     label: options.label,
     scope: options.scope,
+    credential_class: options.credentialClass,
     expires_days: options.expiresDays,
     expires_at: options.expiresAt?.toISOString(),
     rpm: options.rpm,
@@ -2280,6 +2292,7 @@ function assertHasUpdateKeyChanges(options: UpdateKeyOptions): void {
   if (
     options.label === undefined &&
     options.scope === undefined &&
+    options.credentialClass === undefined &&
     options.expiresDays === undefined &&
     options.expiresAt === undefined &&
     options.rpm === undefined &&

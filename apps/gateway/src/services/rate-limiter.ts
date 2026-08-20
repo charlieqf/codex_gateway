@@ -47,12 +47,13 @@ interface CredentialRateState {
   dayWindow: string;
   dayCount: number;
   active: number;
-  lastSeenMs: number;
+  retainThroughDay: boolean;
 }
 
 export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
   private readonly states = new Map<string, CredentialRateState>();
   private readonly now: () => Date;
+  private lastPrunedMinuteWindow: number | null = null;
 
   constructor(options: RateLimiterOptions = {}) {
     this.now = options.now ?? (() => new Date());
@@ -60,8 +61,9 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
 
   acquire(input: RateLimitInput): RateLimitPermit | LimitRejection {
     const now = this.now();
+    this.pruneIdleStates(now);
     const state = this.state(input.credentialId, now);
-    state.lastSeenMs = now.getTime();
+    state.retainThroughDay ||= input.policy.requestsPerDay !== null;
     const concurrencyLimit = input.policy.concurrentRequests;
     if (concurrencyLimit !== null && state.active >= concurrencyLimit) {
       return rateLimited(
@@ -143,7 +145,6 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
         released = true;
         state.active = Math.max(0, state.active - 1);
         const releasedAt = this.now();
-        state.lastSeenMs = releasedAt.getTime();
         this.pruneIdleState(input.credentialId, state, releasedAt);
       }
     };
@@ -172,8 +173,6 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       state.dayWindow = utcDayWindow(now);
       state.dayCount = 0;
     }
-    state.lastSeenMs = now.getTime();
-
     return {
       credentialId: input.credentialId,
       windows,
@@ -195,23 +194,34 @@ export class InMemoryCredentialRateLimiter implements CredentialRateLimiter {
       dayWindow: utcDayWindow(now),
       dayCount: 0,
       active: 0,
-      lastSeenMs: now.getTime()
+      retainThroughDay: false
     };
     this.states.set(credentialId, state);
     return state;
   }
 
   private pruneIdleState(credentialId: string, state: CredentialRateState, now: Date): void {
-    if (state.active > 0) {
-      return;
-    }
-
-    const currentMinuteWindow = Math.floor(now.getTime() / 60_000);
-    const currentDayWindow = utcDayWindow(now);
-    if (state.minuteWindow !== currentMinuteWindow && state.dayWindow !== currentDayWindow) {
+    if (state.active === 0 && stateWindowExpired(state, now)) {
       this.states.delete(credentialId);
     }
   }
+
+  private pruneIdleStates(now: Date): void {
+    const minuteWindow = Math.floor(now.getTime() / 60_000);
+    if (this.lastPrunedMinuteWindow === minuteWindow) {
+      return;
+    }
+    this.lastPrunedMinuteWindow = minuteWindow;
+    for (const [credentialId, state] of this.states) {
+      this.pruneIdleState(credentialId, state, now);
+    }
+  }
+}
+
+function stateWindowExpired(state: CredentialRateState, now: Date): boolean {
+  return state.retainThroughDay
+    ? state.dayWindow !== utcDayWindow(now)
+    : state.minuteWindow !== Math.floor(now.getTime() / 60_000);
 }
 
 function normalizeResetWindows(windows: RateLimitResetWindow[]): RateLimitResetWindow[] {

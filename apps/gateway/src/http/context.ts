@@ -1,10 +1,11 @@
 import type { FastifyRequest } from "fastify";
 import type {
-  ProviderAdapter,
+  CredentialClass,
   GatewayErrorCode,
   LimitDetails,
   LimitKind,
   ProviderKind,
+  ProviderAdapter,
   RateLimitOrigin,
   RateLimitPolicy,
   RequestTokenUsageSource,
@@ -31,6 +32,7 @@ export interface GatewayRequestContext {
     expiresAt: Date | null;
     rate: RateLimitPolicy | null;
     allowedPublicModels: readonly string[] | null;
+    credentialClass: CredentialClass;
   };
 }
 

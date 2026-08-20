@@ -827,6 +827,121 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  const hasAccessCredentials = tableExists(db, "access_credentials");
+  const hasUnifiedClientKeys = tableExists(db, "unified_client_keys");
+  const eventOnlySchema =
+    tableExists(db, "request_events") &&
+    !tableExists(db, "sessions") &&
+    !hasAccessCredentials;
+  if (
+    !eventOnlySchema &&
+    (!hasAccessCredentials || !hasUnifiedClientKeys)
+  ) {
+    throw new Error(
+      "Migration 25 requires sessions, access_credentials and unified_client_keys."
+    );
+  }
+  if (!eventOnlySchema) {
+    applyMigration(
+      db,
+      25,
+      () => {
+        if (!columnExists(db, "access_credentials", "credential_class")) {
+          db.exec(
+            "ALTER TABLE access_credentials ADD COLUMN credential_class TEXT NOT NULL DEFAULT 'unknown' CHECK (credential_class IN ('desktop', 'service', 'operator', 'unknown'))"
+          );
+        }
+        if (!columnExists(db, "unified_client_keys", "token_ciphertext")) {
+          db.exec("ALTER TABLE unified_client_keys ADD COLUMN token_ciphertext TEXT");
+        }
+        if (!columnExists(db, "unified_client_keys", "credential_class")) {
+          db.exec(
+            "ALTER TABLE unified_client_keys ADD COLUMN credential_class TEXT NOT NULL DEFAULT 'unknown' CHECK (credential_class IN ('desktop', 'service', 'operator', 'unknown'))"
+          );
+        }
+        if (!columnExists(db, "unified_client_keys", "is_current")) {
+          db.exec(
+            "ALTER TABLE unified_client_keys ADD COLUMN is_current INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1))"
+          );
+        }
+
+        db.exec(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_unified_client_keys_current_subject
+            ON unified_client_keys(subject_id)
+            WHERE is_current = 1 AND revoked_at IS NULL;
+
+          CREATE TABLE IF NOT EXISTS phone_auth_identities (
+            phone_hash TEXT PRIMARY KEY,
+            phone_ciphertext TEXT NOT NULL,
+            subject_id TEXT NOT NULL UNIQUE,
+            unified_key_id TEXT NOT NULL UNIQUE,
+            state TEXT NOT NULL CHECK (state IN ('active', 'disabled')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(subject_id) REFERENCES subjects(id),
+            FOREIGN KEY(unified_key_id) REFERENCES unified_client_keys(id)
+          );
+
+          CREATE TABLE IF NOT EXISTS phone_auth_sessions (
+            id TEXT PRIMARY KEY,
+            subject_id TEXT NOT NULL,
+            phone_hash TEXT NOT NULL,
+            device_id TEXT NOT NULL,
+            client TEXT NOT NULL CHECK (client = 'medevidence-desktop'),
+            auth_method TEXT NOT NULL CHECK (auth_method = 'transition_phone_only'),
+            state TEXT NOT NULL CHECK (state IN ('active', 'revoked')),
+            absolute_expires_at TEXT NOT NULL,
+            revoked_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(subject_id) REFERENCES subjects(id),
+            FOREIGN KEY(phone_hash) REFERENCES phone_auth_identities(phone_hash)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_phone_auth_sessions_subject_updated
+            ON phone_auth_sessions(subject_id, updated_at DESC);
+
+          CREATE TABLE IF NOT EXISTS phone_auth_refresh_tokens (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            prefix TEXT NOT NULL,
+            hash TEXT NOT NULL UNIQUE,
+            generation INTEGER NOT NULL CHECK (generation >= 0),
+            state TEXT NOT NULL CHECK (state IN ('active', 'rotated', 'revoked')),
+            expires_at TEXT NOT NULL,
+            rotated_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES phone_auth_sessions(id)
+          );
+
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_auth_refresh_active_session
+            ON phone_auth_refresh_tokens(session_id)
+            WHERE state = 'active';
+
+          CREATE INDEX IF NOT EXISTS idx_phone_auth_refresh_session_generation
+            ON phone_auth_refresh_tokens(session_id, generation DESC);
+
+          CREATE TABLE IF NOT EXISTS phone_auth_audit_events (
+            id TEXT PRIMARY KEY,
+            request_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            phone_hash TEXT,
+            subject_id TEXT,
+            session_id TEXT,
+            auth_method TEXT,
+            outcome TEXT NOT NULL CHECK (outcome IN ('ok', 'error')),
+            reason_code TEXT,
+            created_at TEXT NOT NULL
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_phone_auth_audit_created
+            ON phone_auth_audit_events(created_at DESC);
+        `);
+      },
+      logger
+    );
+  }
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

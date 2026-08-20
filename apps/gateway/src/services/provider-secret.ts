@@ -17,6 +17,21 @@ export function resolveProviderApiKey(
   env: NodeJS.ProcessEnv,
   apiKeyEnvName: string
 ): ResolvedProviderSecret {
+  return resolveProviderSecret(env, apiKeyEnvName, false);
+}
+
+export function resolvePemSecret(
+  env: NodeJS.ProcessEnv,
+  secretEnvName: string
+): ResolvedProviderSecret {
+  return resolveProviderSecret(env, secretEnvName, true);
+}
+
+function resolveProviderSecret(
+  env: NodeJS.ProcessEnv,
+  apiKeyEnvName: string,
+  allowMultiline: boolean
+): ResolvedProviderSecret {
   const fileEnvName = `${apiKeyEnvName}_FILE`;
   const directValue = env[apiKeyEnvName]?.trim() || null;
   const filename = env[fileEnvName]?.trim() || null;
@@ -33,12 +48,16 @@ export function resolveProviderApiKey(
   }
 
   return {
-    apiKey: readProviderSecretFile(filename, fileEnvName),
+    apiKey: readProviderSecretFile(filename, fileEnvName, allowMultiline),
     sourceEnvName: fileEnvName
   };
 }
 
-function readProviderSecretFile(filename: string, sourceEnvName: string): string {
+function readProviderSecretFile(
+  filename: string,
+  sourceEnvName: string,
+  allowMultiline: boolean
+): string {
   const resolved = path.resolve(filename);
   const canonical = realpathSync(resolved);
   if (canonical !== resolved && process.platform !== "win32") {
@@ -66,7 +85,8 @@ function readProviderSecretFile(filename: string, sourceEnvName: string): string
     if (
       value.length < 8 ||
       value.length > 8_192 ||
-      /[\r\n\u0000]/u.test(value)
+      /\u0000/u.test(value) ||
+      (!allowMultiline && /[\r\n]/u.test(value))
     ) {
       throw new Error(`${sourceEnvName} secret file is empty or invalid.`);
     }

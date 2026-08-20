@@ -9,13 +9,11 @@
 
 ## 为什么是 R760-only
 
-页面跑在 R760 Gateway 容器内，容器没有、也不应该有 Azure VM 的 SSH 私钥，因此无法执行
-`scripts/issue-real-user-cgu-key.py` 默认的 R760 → Azure 兼容镜像。页面签发的 key 等价于该脚本的
-`--r760-only` 模式：R760 校验全部保留，Azure 侧不写、不校验。
+R760 是唯一 Gateway 权威。页面和 `scripts/issue-real-user-cgu-key.py` 都只写入并校验 R760；脚本的
+`--r760-only` 仅为旧命令兼容保留，是 no-op。
 
-含义：**页面发出的 key 只在 `https://goldencode.instmarket.com.au:1443` 可用**，在旧的
-`https://gw.instmarket.com.au` 上不可用。给仍在用旧端点的客户端发 key，必须继续用本机脚本的默认
-（带镜像）路径。Azure 退役后此区别消失。
+含义：**发出的 key 只支持 `https://goldencode.instmarket.com.au:1443`**。仍指向旧端点的客户端必须
+先协调升级，不提供兼容签发或回退路径。
 
 ## 前置条件
 
@@ -103,9 +101,8 @@ best-effort 调用 disable，避免留下"有主体、无可用权益"的半成�
 
 | 场景 | 用什么 |
 |---|---|
-| 新用户，已用 R760 端点 | 本页面 |
-| 新用户，仍需旧 `gw.instmarket.com.au` 兼容 | `python scripts\issue-real-user-cgu-key.py --name ... --phone ...`（默认带 Azure 镜像） |
-| 明确不同步 Azure | 页面，或脚本 `--r760-only` |
+| 新用户 | 本页面，或 `python scripts\issue-real-user-cgu-key.py --name ... --phone ... --client-version ...` |
+| 仍指向旧端点的客户端 | 先升级到 R760 端点；不签发兼容 key |
 | Desktop E2E 诊断 key | `scripts\issue-desktop-e2e-opaque-key.ps1` |
 
 两条路径共用同一段开通逻辑（`provisionBillingSubject`），不会因为走网页而产生不同形态的主体或 key。
@@ -113,4 +110,4 @@ best-effort 调用 disable，避免留下"有主体、无可用权益"的半成�
 ## 相关
 
 - `docs/operations/medevidence-codex-key-provisioning.md`：real-user cgu_live key 的权威流程
-- `docs/operations/r760-control-plane-authority.md`：权威写入、兼容镜像与用量归并规则
+- `docs/operations/r760-control-plane-authority.md`：R760 单一权威与运维边界

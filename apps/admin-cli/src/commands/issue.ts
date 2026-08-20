@@ -2,6 +2,7 @@ import type { Command } from "commander";
 
 import {
   issueAccessCredential,
+  type CredentialClass,
   type Scope,
   type Subject
 } from "@codex-gateway/core";
@@ -14,7 +15,8 @@ import {
   parseNullableNonNegativeInteger,
   parseNullablePositiveInteger,
   parsePositiveInteger,
-  parseScope
+  parseScope,
+  parseCredentialClass
 } from "../parsers.js";
 import { publicCredential } from "../serializers.js";
 import { resolvePublicModelAllowlistOption } from "../public-model-allowlist.js";
@@ -31,6 +33,7 @@ interface IssueOptions extends SubjectOptions, CommandRateOptions {
   expiresDays: number;
   entitlementCheck?: boolean;
   allowedPublicModels?: string;
+  credentialClass?: CredentialClass;
 }
 
 export function registerIssueCommand(program: Command, deps: CommandContext): void {
@@ -39,6 +42,11 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
     .description("Issue an API key.")
     .requiredOption("--label <label>", "credential label")
     .requiredOption("--scope <scope>", "credential scope: code or medical", parseScope)
+    .option(
+      "--credential-class <class>",
+      "credential class: desktop, service, operator, or unknown",
+      parseCredentialClass
+    )
     .option("--user <id>", "user id; preferred alias for --subject-id")
     .option("--user-label <label>", "user label; preferred alias for --subject-label")
     .option("--name <name>", "user real name")
@@ -78,6 +86,7 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
             user_phone: deps.normalizeOptionalText(options.phone),
             expires_days: options.expiresDays,
             allowed_public_models: modelAllowlist?.models,
+            credential_class: options.credentialClass ?? "unknown",
             no_entitlement_check: deps.entitlementCheckBypassed(options),
             rate: deps.rateFromOptions(options)
           }
@@ -98,6 +107,7 @@ export function registerIssueCommand(program: Command, deps: CommandContext): vo
             scope: options.scope,
             expiresAt: deps.addDays(new Date(), options.expiresDays),
             rate: deps.rateFromOptions(options),
+            credentialClass: options.credentialClass,
             ...(modelAllowlist
               ? {
                   allowedPublicModels: modelAllowlist.models,

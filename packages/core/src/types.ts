@@ -14,6 +14,8 @@ export type ProviderKind =
 
 export type Scope = "medical" | "code";
 
+export type CredentialClass = "desktop" | "service" | "operator" | "unknown";
+
 export type UpstreamAccountState =
   | "active"
   | "disabled"
@@ -46,6 +48,7 @@ export interface AccessCredentialRecord {
   revokedAt: Date | null;
   rate: RateLimitPolicy;
   allowedPublicModels: string[] | null;
+  credentialClass?: CredentialClass;
   createdAt: Date;
   rotatesId: string | null;
 }
@@ -65,6 +68,9 @@ export interface UnifiedClientKeyRecord {
   medevidenceKeyPrefix: string | null;
   createdAt: Date;
   metadata: Record<string, unknown> | null;
+  tokenCiphertext?: string | null;
+  credentialClass?: CredentialClass;
+  isCurrent?: boolean;
 }
 
 export type BillingAdminTokenKind = "test" | "live";

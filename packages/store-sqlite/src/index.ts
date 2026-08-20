@@ -8,6 +8,7 @@ import * as entitlementsStore from "./entitlements.js";
 import type { EntitlementStoreDependencies } from "./entitlements.js";
 import { migrateGatewaySchema } from "./migrations.js";
 import * as plansStore from "./plans.js";
+import * as phoneAuthStore from "./phone-auth.js";
 import * as requestEvents from "./request-events.js";
 import * as sessionsStore from "./sessions.js";
 import {
@@ -51,6 +52,14 @@ import {
   type ListRequestEventsInput,
   type ListSubjectsInput,
   type Plan,
+  type PhoneAuthAuditInput,
+  type PhoneAuthIdentity,
+  type PhoneAuthIdentityState,
+  type PhoneAuthSession,
+  type PreparePhoneAuthIdentityInput,
+  type CreatePhoneAuthSessionInput,
+  type RotatePhoneAuthRefreshTokenInput,
+  type RotatePhoneAuthRefreshTokenResult,
   type PruneRequestEventsInput,
   type PruneRequestEventsResult,
   type RenewEntitlementInput,
@@ -177,6 +186,55 @@ export class SqliteGatewayStore implements GatewayStore {
     now: Date = new Date()
   ): UnifiedClientKeyRecord | null {
     return unifiedClientKeys.revokeByPrefix(this.db, prefix, now);
+  }
+
+  preparePhoneAuthIdentity(input: PreparePhoneAuthIdentityInput): PhoneAuthIdentity {
+    return phoneAuthStore.prepareIdentity(this.db, input);
+  }
+
+  setPhoneAuthIdentityState(
+    phoneHash: string,
+    state: PhoneAuthIdentityState,
+    audit: PhoneAuthAuditInput
+  ): PhoneAuthIdentity | null {
+    return phoneAuthStore.setIdentityState(this.db, phoneHash, state, audit);
+  }
+
+  getPhoneAuthIdentityByPhoneHash(phoneHash: string): PhoneAuthIdentity | null {
+    return phoneAuthStore.getIdentityByPhoneHash(this.db, phoneHash);
+  }
+
+  getPhoneAuthIdentityBySubjectId(subjectId: string): PhoneAuthIdentity | null {
+    return phoneAuthStore.getIdentityBySubjectId(this.db, subjectId);
+  }
+
+  getPhoneAuthUnifiedKey(unifiedKeyId: string): UnifiedClientKeyRecord | null {
+    return phoneAuthStore.getUnifiedKey(this.db, unifiedKeyId);
+  }
+
+  createPhoneAuthSession(input: CreatePhoneAuthSessionInput): PhoneAuthSession {
+    return phoneAuthStore.createSession(this.db, input);
+  }
+
+  getPhoneAuthSession(id: string): PhoneAuthSession | null {
+    return phoneAuthStore.getSession(this.db, id);
+  }
+
+  rotatePhoneAuthRefreshToken(
+    input: RotatePhoneAuthRefreshTokenInput
+  ): RotatePhoneAuthRefreshTokenResult {
+    return phoneAuthStore.rotateRefreshToken(this.db, input);
+  }
+
+  revokePhoneAuthSession(
+    id: string,
+    audit: PhoneAuthAuditInput
+  ): PhoneAuthSession | null {
+    return phoneAuthStore.revokeSession(this.db, id, audit);
+  }
+
+  recordPhoneAuthAudit(input: PhoneAuthAuditInput): void {
+    phoneAuthStore.recordAudit(this.db, input);
   }
 
   insertBillingAdminToken(record: BillingAdminTokenRecord): BillingAdminTokenRecord {

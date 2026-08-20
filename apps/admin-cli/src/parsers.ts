@@ -4,6 +4,7 @@ import type {
   AdminAuditStatus,
   BillingAdminTokenKind,
   BillingAdminTokenState,
+  CredentialClass,
   EntitlementState,
   PeriodKind,
   PlanState,
@@ -47,6 +48,12 @@ const adminAuditActions = new Set<AdminAuditAction>([
 const adminAuditStatuses = new Set<AdminAuditStatus>(["ok", "error"]);
 const billingAdminTokenKinds = new Set<BillingAdminTokenKind>(["test", "live"]);
 const billingAdminTokenStates = new Set<BillingAdminTokenState>(["active", "revoked"]);
+const credentialClasses = new Set<CredentialClass>([
+  "desktop",
+  "service",
+  "operator",
+  "unknown"
+]);
 const entitlementStates = new Set<EntitlementState>([
   "scheduled",
   "active",
@@ -123,6 +130,14 @@ export function parseDurationMs(value: string): number {
 
 export function parseScope(value: string): Scope {
   return parseSetValue(value, scopes, "scope must be code or medical");
+}
+
+export function parseCredentialClass(value: string): CredentialClass {
+  return parseSetValue(
+    value,
+    credentialClasses,
+    "credential class must be desktop, service, operator, or unknown"
+  );
 }
 
 export function parseSubjectState(value: string): SubjectState {

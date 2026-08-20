@@ -27,7 +27,7 @@ def arguments(output_dir: str, **overrides):
         "external_user_id": "test-user-1",
         "provider": "manual_trial",
         "gateway_base_url": "https://goldencode.instmarket.com.au:1443",
-        "compatibility_base_url": "https://gw.instmarket.com.au",
+        "client_version": "1.2.3",
         "plan_id": "plan_internal_high_quota_image_v1",
         "scope": "code",
         "entitlement_end": "2027-01-15T00:00:00.000Z",
@@ -46,14 +46,6 @@ def arguments(output_dir: str, **overrides):
         "compose_file": "unused.yml",
         "gateway_service": "gateway",
         "gateway_container": "r760-gateway",
-        "compatibility_vm_host": "azure.test",
-        "compatibility_vm_user": "qian",
-        "compatibility_vm_port": 22,
-        "compatibility_ssh_key": "azure-key",
-        "compatibility_gateway_container": "azure-gateway",
-        "compatibility_backup_root": "/home/qian/backups",
-        "sync_max_passes": 3,
-        "r760_only": False,
         "timeout_seconds": 45,
         "skip_credential_validation": False,
         "no_require_image_capability": False,
@@ -95,7 +87,14 @@ def resolved_response():
     return {
         "valid": True,
         "subject": {"id": "subject-1"},
-        "codex_gateway": {"api_key": "cgw.test-only", "key_prefix": "safe-cgw-prefix"},
+        "codex_gateway": {
+            "api_key": "cgw.test-only",
+            "key_prefix": "safe-cgw-prefix",
+            "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
+            "credential_validation_url": (
+                "https://goldencode.instmarket.com.au:1443/gateway/credentials/current"
+            ),
+        },
         "medevidence": {"api_key": "mev2_test-only", "key_prefix": "safe-med-prefix"},
     }
 
@@ -120,29 +119,9 @@ def current_response():
 
 
 class IssueRealUserKeyTests(unittest.TestCase):
-    def test_success_mirrors_then_validates_and_handoff_points_to_r760(self):
+    def test_success_validates_r760_and_writes_r760_handoff(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
-            order = []
-
-            def sync(_args):
-                order.append("sync")
-                return {
-                    "converged": True,
-                    "passes": 1,
-                    "initial_plan": {"changed_rows": 8},
-                    "backup": {"backup_path": "/data/backups/test.db"},
-                }
-
-            def validate(*_args, **_kwargs):
-                order.append("validate")
-                return {
-                    "azure": "ok",
-                    "r760": "ok",
-                    "runtime_credentials_match": True,
-                    "image_generation": True,
-                }
-
             with (
                 mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
                 mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
@@ -151,18 +130,18 @@ class IssueRealUserKeyTests(unittest.TestCase):
                 mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
                 mock.patch.object(ISSUE, "update_user", return_value={}),
                 mock.patch.object(ISSUE, "update_key", return_value={}),
-                mock.patch.object(ISSUE, "sync_issued_state", side_effect=sync),
-                mock.patch.object(ISSUE, "validate_unified_key_pair", side_effect=validate),
                 mock.patch.object(ISSUE, "tighten_file_permissions"),
             ):
                 result = ISSUE.issue_key(args)
 
-            self.assertEqual(order, ["sync", "validate"])
             self.assertEqual(result["issued"], "ok")
-            self.assertEqual(result["azure_validation"], "ok")
+            self.assertEqual(result["authority_mode"], "r760_only")
             self.assertEqual(result["r760_validation"], "ok")
-            self.assertTrue(result["azure_compatibility_mirror"]["converged"])
+            self.assertEqual(result["client_version"], "1.2.3")
+            self.assertNotIn("azure", json.dumps(result).lower())
             handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(handoff["authority_mode"], "r760_only")
+            self.assertEqual(handoff["client_version"], "1.2.3")
             self.assertEqual(handoff["base_url"], "https://goldencode.instmarket.com.au:1443")
             self.assertEqual(
                 handoff["openai_compatible_base_url"],
@@ -170,49 +149,11 @@ class IssueRealUserKeyTests(unittest.TestCase):
             )
             self.assertNotIn("0400000000", Path(result["handoff_path"]).name)
 
-    def test_dual_validation_failure_disables_and_reconciles_without_handoff(self):
+    def test_r760_resolution_failure_disables_new_subject_without_handoff(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
-            with (
-                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
-                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
-                mock.patch.object(ISSUE, "grant_entitlement", return_value=entitlement_response()),
-                mock.patch.object(ISSUE, "resolve_opaque_key", return_value=resolved_response()),
-                mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
-                mock.patch.object(ISSUE, "update_user", return_value={}),
-                mock.patch.object(ISSUE, "update_key", return_value={}),
-                mock.patch.object(
-                    ISSUE,
-                    "sync_issued_state",
-                    return_value={"converged": True, "initial_plan": {"changed_rows": 8}},
-                ),
-                mock.patch.object(
-                    ISSUE,
-                    "validate_unified_key_pair",
-                    side_effect=ISSUE.SyncError("target validation failed"),
-                ),
-                mock.patch.object(ISSUE, "disable_subject_best_effort", return_value=True) as disable,
-                mock.patch.object(ISSUE, "reconcile_failed_issue_best_effort") as reconcile,
-            ):
-                with self.assertRaises(ISSUE.IssueError):
-                    ISSUE.issue_key(args)
-
-            disable.assert_called_once()
-            reconcile.assert_called_once_with(args)
-            self.assertEqual(list(Path(directory).glob("*.json")), [])
-
-    def test_r760_only_skips_azure_and_writes_handoff_after_r760_validation(self):
-        with tempfile.TemporaryDirectory() as directory:
-            args = arguments(directory, r760_only=True)
             resolved = resolved_response()
-            resolved["codex_gateway"].update(
-                {
-                    "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
-                    "credential_validation_url": (
-                        "https://goldencode.instmarket.com.au:1443/gateway/credentials/current"
-                    ),
-                }
-            )
+            resolved["codex_gateway"]["endpoint_base_url"] = "https://wrong.example/v1"
             with (
                 mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
                 mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
@@ -221,36 +162,13 @@ class IssueRealUserKeyTests(unittest.TestCase):
                 mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
                 mock.patch.object(ISSUE, "update_user", return_value={}),
                 mock.patch.object(ISSUE, "update_key", return_value={}),
-                mock.patch.object(ISSUE, "sync_issued_state") as sync,
-                mock.patch.object(ISSUE, "validate_unified_key_pair") as dual_validate,
-                mock.patch.object(ISSUE, "tighten_file_permissions"),
-            ):
-                result = ISSUE.issue_key(args)
-
-            sync.assert_not_called()
-            dual_validate.assert_not_called()
-            self.assertEqual(result["authority_mode"], "r760_only")
-            self.assertEqual(result["azure_validation"], "skipped")
-            self.assertEqual(result["r760_validation"], "ok")
-            self.assertTrue(result["azure_compatibility_mirror"]["skipped"])
-            handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
-            self.assertEqual(handoff["authority_mode"], "r760_only")
-
-    def test_r760_only_failure_does_not_reconcile_to_azure(self):
-        with tempfile.TemporaryDirectory() as directory:
-            args = arguments(directory, r760_only=True)
-            with (
-                mock.patch.object(ISSUE, "get_billing_admin_token", return_value="admin-token"),
-                mock.patch.object(ISSUE, "create_subject", return_value=create_response()),
-                mock.patch.object(ISSUE, "grant_entitlement", side_effect=ISSUE.IssueError("failed")),
                 mock.patch.object(ISSUE, "disable_subject_best_effort", return_value=True) as disable,
-                mock.patch.object(ISSUE, "reconcile_failed_issue_best_effort") as reconcile,
             ):
-                with self.assertRaises(ISSUE.IssueError):
+                with self.assertRaisesRegex(ISSUE.IssueError, "unexpected Gateway endpoint"):
                     ISSUE.issue_key(args)
 
             disable.assert_called_once()
-            reconcile.assert_not_called()
+            self.assertEqual(list(Path(directory).glob("*.json")), [])
 
     def test_skip_validation_is_rejected_before_issuance(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -267,18 +185,27 @@ class IssueRealUserKeyTests(unittest.TestCase):
             rendered = json.dumps(result, ensure_ascii=False)
             self.assertNotIn(args.name, rendered)
             self.assertNotIn(args.phone, rendered)
-            self.assertEqual(result["dual_endpoint_validation"], "required")
-
-    def test_r760_only_what_if_marks_azure_as_skipped(self):
-        with tempfile.TemporaryDirectory() as directory:
-            args = arguments(directory, what_if=True, r760_only=True)
-            result = ISSUE.issue_key(args)
             self.assertEqual(result["authority_mode"], "r760_only")
-            self.assertEqual(
-                result["r760_to_azure_compatibility_mirror"],
-                "skipped_by_explicit_r760_only",
-            )
-            self.assertEqual(result["dual_endpoint_validation"], "r760_only")
+            self.assertEqual(result["r760_validation"], "required")
+
+    def test_invalid_client_version_is_rejected_before_issuance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = arguments(directory, client_version="1.2")
+            with mock.patch.object(ISSUE, "get_billing_admin_token") as token:
+                with self.assertRaisesRegex(ISSUE.IssueError, "strict SemVer"):
+                    ISSUE.issue_key(args)
+            token.assert_not_called()
+
+    def test_desktop_validation_requests_send_the_client_version(self):
+        args = arguments("unused")
+        with mock.patch.object(ISSUE, "http_json", return_value={}) as http:
+            ISSUE.resolve_opaque_key(args, args.gateway_base_url, "cgu_live_test")
+            ISSUE.current_credential(args, args.gateway_base_url, "cgw.test")
+
+        resolve_headers = http.call_args_list[0].args[2]
+        current_headers = http.call_args_list[1].args[2]
+        self.assertEqual(resolve_headers[ISSUE.DESKTOP_VERSION_HEADER], "1.2.3")
+        self.assertEqual(current_headers[ISSUE.DESKTOP_VERSION_HEADER], "1.2.3")
 
 
 if __name__ == "__main__":

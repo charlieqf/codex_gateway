@@ -7,6 +7,7 @@ import {
   type AdminAuditStore,
   type BillingAdminStore,
   type BillingAdminTokenStore,
+  checkAccessCredentialState,
   type ClientDiagnosticEventRecord,
   type ClientMessageEventStore,
   credentialAllowsPublicModel,
@@ -22,6 +23,7 @@ import {
   type GatewayStore,
   type ObservationStore,
   mergeEntitlementTokenPolicy,
+  type PhoneAuthStore,
   type PlanEntitlementStore,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
@@ -36,6 +38,7 @@ import {
   type TokenBudgetLimiter,
   type UnifiedClientKeyRecord,
   type UnifiedClientKeyStore,
+  unifiedClientKeyTokenPrefix,
   type UpstreamAccount,
   verifyAccessCredentialToken,
   verifyUnifiedClientKeyToken
@@ -83,6 +86,26 @@ import {
   type BillingAdminTokenMode,
   type BillingSubjectMetadataStore
 } from "./billing-admin.js";
+import {
+  applyPrivateResponseHeaders,
+  desktopVersionGateError,
+  isDesktopVersionGatePath,
+  resolveDesktopVersionGate,
+  sendDesktopVersionGateError,
+  type DesktopVersionGate
+} from "./desktop-version-gate.js";
+import {
+  isPhoneAuthContractRoute,
+  phoneAuthContractErrorHandler,
+  registerPhoneAuthRoutes,
+  sendPhoneAuthError
+} from "./phone-auth-routes.js";
+import {
+  PhoneAuthService,
+  phoneAuthMedevidenceOrigin,
+  resolvePhoneAuthMode,
+  resolvePhoneAuthServiceOptions
+} from "./services/phone-auth-service.js";
 import {
   parseDoctorResearchRunRequest,
   registerResearchRoutes,
@@ -295,6 +318,12 @@ export interface GatewayOptions {
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
+  phoneAuthStore?: PhoneAuthStore;
+  phoneAuthService?: PhoneAuthService | null;
+  desktopVersionGate?: DesktopVersionGate;
+  phoneAuthLoginRateLimiter?: CredentialRateLimiter;
+  phoneAuthPhoneRequestsPerMinute?: number;
+  phoneAuthIpRequestsPerMinute?: number;
   researchStore?: ResearchStore | null;
   imageGenerationProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
@@ -378,6 +407,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
     genReqId: () => `req-${randomUUID()}`,
+    trustProxy: ["loopback", "linklocal", "uniquelocal"],
     routerOptions: {
       maxParamLength: visionAssetMaximumIdCharacters
     }
@@ -515,6 +545,78 @@ export function buildGateway(options: GatewayOptions = {}) {
   const planEntitlementStore =
     options.planEntitlementStore ??
     (isPlanEntitlementStore(sessions) ? sessions : undefined);
+  const desktopVersionGate =
+    options.desktopVersionGate ?? resolveDesktopVersionGate(process.env);
+  const configuredPhoneAuthMode = resolvePhoneAuthMode(
+    process.env.GATEWAY_PHONE_AUTH_MODE
+  );
+  const phoneAuthStore =
+    options.phoneAuthStore ?? (isPhoneAuthStore(sessions) ? sessions : undefined);
+  if (
+    configuredPhoneAuthMode === "transition" &&
+    (!phoneAuthStore ||
+      !credentialStore ||
+      !unifiedClientKeyStore ||
+      !planEntitlementStore)
+  ) {
+    throw new Error(
+      "Phone auth transition mode requires SQLite phone auth, credential, unified-key and entitlement stores."
+    );
+  }
+  const phoneAuthService =
+    options.phoneAuthService === undefined
+      ? phoneAuthStore &&
+        credentialStore &&
+        unifiedClientKeyStore &&
+        planEntitlementStore
+        ? new PhoneAuthService(
+            resolvePhoneAuthServiceOptions(process.env, {
+              store: phoneAuthStore,
+              credentialStore,
+              unifiedKeyStore: unifiedClientKeyStore,
+              entitlementStore: planEntitlementStore,
+              now: clock
+            })
+          )
+        : null
+      : options.phoneAuthService;
+  if (
+    configuredPhoneAuthMode === "transition" &&
+    phoneAuthService?.mode !== "transition"
+  ) {
+    throw new Error(
+      "Phone auth transition mode requires an enabled PhoneAuthService."
+    );
+  }
+  if (phoneAuthService?.mode === "transition") {
+    if (!desktopVersionGate.enabled) {
+      throw new Error(
+        "Phone auth transition mode requires the Desktop version gate to be enabled."
+      );
+    }
+    if (publicGatewayBaseUrl !== phoneAuthService.publicGatewayBaseUrl) {
+      throw new Error(
+        `Phone auth transition mode requires GATEWAY_PUBLIC_BASE_URL=${phoneAuthService.publicGatewayBaseUrl}.`
+      );
+    }
+  }
+  const phoneAuthLoginRateLimiter =
+    options.phoneAuthLoginRateLimiter ??
+    new InMemoryCredentialRateLimiter({ now: clock });
+  const phoneAuthPhoneRequestsPerMinute =
+    options.phoneAuthPhoneRequestsPerMinute ??
+    parsePositiveIntegerEnv(
+      process.env.GATEWAY_PHONE_AUTH_LOGIN_PHONE_RPM,
+      5,
+      "GATEWAY_PHONE_AUTH_LOGIN_PHONE_RPM"
+    );
+  const phoneAuthIpRequestsPerMinute =
+    options.phoneAuthIpRequestsPerMinute ??
+    parsePositiveIntegerEnv(
+      process.env.GATEWAY_PHONE_AUTH_LOGIN_IP_RPM,
+      20,
+      "GATEWAY_PHONE_AUTH_LOGIN_IP_RPM"
+    );
   const defaultResearchRuntime =
     options.researchStore === undefined
       ? createDefaultResearchRuntime(process.env, app.log)
@@ -644,7 +746,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       label: "Development token",
       expiresAt: null,
       rate: null,
-      allowedPublicModels: null
+      allowedPublicModels: null,
+      credentialClass: "operator" as const
     }
   };
 
@@ -696,6 +799,34 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
   }
 
+  app.addHook("onRequest", async (request, reply) => {
+    if (reply.sent || !isDesktopVersionGatePath(request.method, request.url)) {
+      return;
+    }
+    const alwaysDesktop = isPhoneAuthContractRoute(
+      request.method,
+      request.url
+    );
+    if (!alwaysDesktop && !request.gatewayContext) {
+      return;
+    }
+    const error = desktopVersionGateError(
+      request,
+      desktopVersionGate,
+      alwaysDesktop
+        ? undefined
+        : request.gatewayContext?.credential.credentialClass
+    );
+    if (error) {
+      return sendDesktopVersionGateError(
+        request,
+        reply,
+        desktopVersionGate,
+        error
+      );
+    }
+  });
+
   app.addHook("preHandler", async (request) => {
     if (!request.routeOptions.config?.public) {
       applyClientTurnHeaders(request);
@@ -717,6 +848,14 @@ export function buildGateway(options: GatewayOptions = {}) {
     releaseRateLimit(request);
     recordObservation(request, observationStore, reply.statusCode);
     request.gatewayClientDisconnect?.cleanup();
+  });
+
+  registerPhoneAuthRoutes(app, {
+    service: phoneAuthService,
+    versionGate: desktopVersionGate,
+    loginRateLimiter: phoneAuthLoginRateLimiter,
+    phoneRequestsPerMinute: phoneAuthPhoneRequestsPerMinute,
+    ipRequestsPerMinute: phoneAuthIpRequestsPerMinute
   });
 
   registerVisionAssetRoutes(app, {
@@ -971,6 +1110,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       state: "ready",
       service: publicMetadata.serviceName,
       auth_mode: authMode,
+      phone_auth: {
+        mode: phoneAuthService?.mode ?? configuredPhoneAuthMode,
+        version_gate_enabled: desktopVersionGate.enabled,
+        minimum_desktop_version: desktopVersionGate.minimumVersion
+      },
       provider: publicMetadata.providerName,
       store: {
         session: storeKind(sessions),
@@ -1021,7 +1165,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     {
       config: { skipRateLimit: true }
     },
-    async (request) => {
+    async (request, reply) => {
+      applyPrivateResponseHeaders(reply);
       const { subject, scope, credential } = getGatewayContext(request);
       const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
       const activeEntitlement = access?.status === "active" ? access.entitlement : null;
@@ -1216,11 +1361,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       config: {
         public: true,
         skipRateLimit: true
-      }
+      },
+      errorHandler: phoneAuthContractErrorHandler
     },
     async (request, reply) => {
+      applyPrivateResponseHeaders(reply);
       if (!unifiedClientKeyStore || !credentialStore) {
-        return sendGatewayErrorResponse(
+        return sendPhoneAuthError(
           request,
           reply,
           new GatewayError({
@@ -1237,12 +1384,87 @@ export function buildGateway(options: GatewayOptions = {}) {
         now: clock
       });
       if (result instanceof GatewayError) {
-        return sendGatewayErrorResponse(request, reply, result);
+        return sendPhoneAuthError(request, reply, result);
+      }
+
+      const backingCredential = credentialStore.getAccessCredentialByPrefix(
+        result.record.codexCredentialPrefix
+      );
+      if (
+        !backingCredential ||
+        backingCredential.id !== result.record.codexCredentialId ||
+        backingCredential.subjectId !== result.record.subjectId
+      ) {
+        return sendPhoneAuthError(request, reply, invalidUnifiedKeyError());
+      }
+      const now = clock();
+      const backingCredentialStateError = checkAccessCredentialState(
+        backingCredential,
+        now
+      );
+      if (backingCredentialStateError) {
+        return sendPhoneAuthError(
+          request,
+          reply,
+          backingCredentialStateError
+        );
+      }
+      const credentialClass =
+        backingCredential.credentialClass === result.record.credentialClass
+          ? result.record.credentialClass ?? "unknown"
+          : "unknown";
+      const gateError = desktopVersionGateError(
+        request,
+        desktopVersionGate,
+        credentialClass
+      );
+      if (gateError) {
+        return sendDesktopVersionGateError(
+          request,
+          reply,
+          desktopVersionGate,
+          gateError
+        );
+      }
+      if (
+        request.body !== undefined &&
+        (!request.body ||
+          typeof request.body !== "object" ||
+          Array.isArray(request.body) ||
+          Object.keys(request.body).length !== 0)
+      ) {
+        return sendPhoneAuthError(
+          request,
+          reply,
+          new GatewayError({
+            code: "invalid_request",
+            message: "Request does not match contract version 1.",
+            httpStatus: 400
+          })
+        );
+      }
+
+      const medevidenceBaseUrl = normalizeBaseUrl(
+        metadataString(result.record.metadata, "medevidence_base_url")
+      );
+      if (
+        credentialClass === "desktop" &&
+        medevidenceBaseUrl !== phoneAuthMedevidenceOrigin
+      ) {
+        return sendPhoneAuthError(
+          request,
+          reply,
+          new GatewayError({
+            code: "account_migration_required",
+            message: "The internal account runtime key is not recoverable.",
+            httpStatus: 409
+          })
+        );
       }
 
       const encryptionSecret = process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET;
       if (!encryptionSecret) {
-        return sendGatewayErrorResponse(
+        return sendPhoneAuthError(
           request,
           reply,
           new GatewayError({
@@ -1269,7 +1491,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           },
           "Failed to decrypt unified client key payload."
         );
-        return sendGatewayErrorResponse(
+        return sendPhoneAuthError(
           request,
           reply,
           new GatewayError({
@@ -1279,27 +1501,21 @@ export function buildGateway(options: GatewayOptions = {}) {
           })
         );
       }
-
-      const backingCredentialError = validateBackingGatewayCredential({
-        store: credentialStore,
-        record: result.record,
+      const backingCredentialError = verifyAccessCredentialToken(
         codexApiKey,
-        now: clock
-      });
+        backingCredential,
+        now
+      );
       if (backingCredentialError) {
-        return sendGatewayErrorResponse(request, reply, backingCredentialError);
+        return sendPhoneAuthError(request, reply, backingCredentialError);
       }
 
       recordUnifiedKeyResolveAudit(adminAuditStore, result.record, request.log);
 
-      const medevidenceBaseUrl = normalizeBaseUrl(
-        metadataString(result.record.metadata, "medevidence_base_url")
-      );
-
       return {
         valid: true,
         unified_key: {
-          prefix: result.record.prefix,
+          prefix: `${unifiedClientKeyTokenPrefix}${result.record.prefix}`,
           label: result.record.label,
           expires_at: result.record.expiresAt.toISOString()
         },
@@ -1503,6 +1719,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     apiKeyEncryptionSecret: process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET ?? null,
     subjectMetadataStore: isSubjectMetadataStore(sessions) ? sessions : undefined,
     publicBaseUrl: publicGatewayBaseUrl,
+    desktopClientVersion: desktopVersionGate.minimumVersion,
+    phoneAuthService,
     publicModels: publicModelRegistry.models.map((model) => ({
       id: model.id,
       aliases: model.aliases,
@@ -4694,7 +4912,8 @@ function authenticateClientSubscriptionPauseBearer(
       label: credential.label,
       expiresAt: credential.expiresAt,
       rate: credential.rate,
-      allowedPublicModels: credential.allowedPublicModels
+      allowedPublicModels: credential.allowedPublicModels,
+      credentialClass: credential.credentialClass ?? "unknown"
     }
   };
 }
@@ -4766,7 +4985,11 @@ function authenticateClientPauseUnifiedKey(
       label: credential.label,
       expiresAt: credential.expiresAt,
       rate: credential.rate,
-      allowedPublicModels: credential.allowedPublicModels
+      allowedPublicModels: credential.allowedPublicModels,
+      credentialClass:
+        record.credentialClass === credential.credentialClass
+          ? record.credentialClass ?? "unknown"
+          : "unknown"
     }
   };
 }
@@ -4800,28 +5023,14 @@ function authenticateUnifiedClientKeyBearer(
   }
 
   const subject = options.subjectStore.getSubject(record.subjectId);
-  if (!subject || subject.state !== "active") {
+  if (!subject) {
     return invalidUnifiedKeyError();
+  }
+  if (subject.state !== "active") {
+    return accountDisabledError();
   }
 
   return { record, subject };
-}
-
-function validateBackingGatewayCredential(input: {
-  store: CredentialAuthStore;
-  record: UnifiedClientKeyRecord;
-  codexApiKey: string;
-  now?: () => Date;
-}): GatewayError | null {
-  const credential = input.store.getAccessCredentialByPrefix(input.record.codexCredentialPrefix);
-  if (
-    !credential ||
-    credential.id !== input.record.codexCredentialId ||
-    credential.subjectId !== input.record.subjectId
-  ) {
-    return invalidUnifiedKeyError();
-  }
-  return verifyAccessCredentialToken(input.codexApiKey, credential, input.now?.() ?? new Date());
 }
 
 function recordUnifiedKeyResolveAudit(
@@ -4883,6 +5092,14 @@ function invalidUnifiedKeyError(): GatewayError {
     code: "invalid_credential",
     message: "Invalid unified key.",
     httpStatus: 401
+  });
+}
+
+function accountDisabledError(): GatewayError {
+  return new GatewayError({
+    code: "account_disabled",
+    message: "This internal account is disabled.",
+    httpStatus: 403
   });
 }
 
@@ -7423,6 +7640,24 @@ function isPlanEntitlementStore(store: GatewayStore): store is GatewayStore & Pl
     typeof candidate.cancelEntitlement === "function" &&
     typeof candidate.entitlementAccessForSubject === "function" &&
     typeof candidate.subjectHasEntitlementHistory === "function"
+  );
+}
+
+function isPhoneAuthStore(
+  store: GatewayStore
+): store is GatewayStore & PhoneAuthStore {
+  const candidate = store as Partial<PhoneAuthStore>;
+  return (
+    typeof candidate.preparePhoneAuthIdentity === "function" &&
+    typeof candidate.setPhoneAuthIdentityState === "function" &&
+    typeof candidate.getPhoneAuthIdentityByPhoneHash === "function" &&
+    typeof candidate.getPhoneAuthIdentityBySubjectId === "function" &&
+    typeof candidate.getPhoneAuthUnifiedKey === "function" &&
+    typeof candidate.createPhoneAuthSession === "function" &&
+    typeof candidate.getPhoneAuthSession === "function" &&
+    typeof candidate.rotatePhoneAuthRefreshToken === "function" &&
+    typeof candidate.revokePhoneAuthSession === "function" &&
+    typeof candidate.recordPhoneAuthAudit === "function"
   );
 }
 
