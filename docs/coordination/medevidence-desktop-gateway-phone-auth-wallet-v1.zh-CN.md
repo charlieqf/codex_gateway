@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档状态 | `draft`；双方确认并合入 Gateway `main` 后改为 `active` |
-| 实施状态 | `contract_pending`；Desktop 已签收 contract `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`，仍待 Desktop 签署身份及 Gateway 对同一 commit 签收 |
+| 实施状态 | `contract_frozen`；Gateway/Desktop 已签收同一 contract `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`，双方可继续实现和真实 adapter 联调 |
 | 协调版本 | `coordination-internal-v1-draft.3` |
 | 当前范围 | 少量、已知、可逐一协调的内部用户 |
 | 唯一运行环境 | R760 `https://goldencode.instmarket.com.au:1443` |
@@ -48,9 +48,9 @@ Gateway/Desktop 的详细设计只是不具规范效力的实现参考。发生�
 | 规范 | 活动链接 | 当前签收 commit permalink | 状态 |
 | --- | --- | --- | --- |
 | 本文 | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/coordination/medevidence-desktop-gateway-phone-auth-wallet-v1.zh-CN.md) | [`7d661a323bf96da81b297db50676841b2a38db3c`](https://github.com/charlieqf/codex_gateway/blob/7d661a323bf96da81b297db50676841b2a38db3c/docs/coordination/medevidence-desktop-gateway-phone-auth-wallet-v1.zh-CN.md) | `draft` |
-| Contract 说明 | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/README.md) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/README.md) | `unfrozen` |
-| Contract fixtures | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/fixtures.json) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/fixtures.json) | `unfrozen` |
-| Contract 完整性文件 | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/SHA256SUMS) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/SHA256SUMS) | `unfrozen` |
+| Contract 说明 | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/README.md) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/README.md) | `frozen` |
+| Contract fixtures | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/fixtures.json) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/fixtures.json) | `frozen` |
+| Contract 完整性文件 | [Gateway `main`](https://github.com/charlieqf/codex_gateway/blob/main/docs/contracts/medevidence-internal-phone-auth-v1/SHA256SUMS) | [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/blob/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1/SHA256SUMS) | `frozen` |
 
 活动链接在 PR 合入前可能返回 404。Contract 只有在 fixture 目录进入远端 commit、本文写入包含完整 40 位 commit SHA 的 permalink、Gateway 与 Desktop 对同一 commit 签字后才是 `frozen`。
 
@@ -68,7 +68,7 @@ Gateway/Desktop 的详细设计只是不具规范效力的实现参考。发生�
 | `GET` | `/gateway/credentials/current` | resolver 返回的 `cgw.*` |
 | `GET` | `/gateway/account/v1/current` | Access JWT |
 
-请求/响应必填字段、bodyless 规则、成功 fixture 和 HTTP 错误映射均在 [contract 说明](../contracts/medevidence-internal-phone-auth-v1/README.md) 与 [`fixtures.json`](../contracts/medevidence-internal-phone-auth-v1/fixtures.json) 中。Fixture 已进入远端 commit [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/tree/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1)，但尚未由 Gateway/Desktop 对同一 commit 签收为 frozen，实施状态因此保持 `contract_pending`。两端可以据此并行完成本地实现和单元测试；真实 adapter 联调仍等待双方签收。
+请求/响应必填字段、bodyless 规则、成功 fixture 和 HTTP 错误映射均在 [contract 说明](../contracts/medevidence-internal-phone-auth-v1/README.md) 与 [`fixtures.json`](../contracts/medevidence-internal-phone-auth-v1/fixtures.json) 中。Gateway/Desktop 已签收远端 commit [`47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`](https://github.com/charlieqf/codex_gateway/tree/47b0e9cafa5cf2525bc2d17d99f98c9364919a4a/docs/contracts/medevidence-internal-phone-auth-v1) 为 frozen；双方可以继续实现、单元测试和真实 adapter 联调。
 
 Desktop 只有在 bootstrap、resolver、`credentials/current` 和 `account/current` 全部成功，且 capability 包含 `chat` 后才能进入主界面。
 
@@ -123,7 +123,7 @@ Gateway 实现 additive schema、逐用户管理员准备、手机号直登、Se
 
 ### 窗口前
 
-- [ ] Contract fixture 已进入远端 commit，本文已记录 permalink，Gateway/Desktop 已签为 `frozen`；
+- [x] Contract fixture 已进入远端 commit，本文已记录 permalink，Gateway/Desktop 已签为 `frozen`；
 - [ ] 业务风险负责人已签收手机号直登风险；
 - [ ] Gateway candidate 已进入 `origin/main`，Desktop candidate 已进入 `origin/dev`；
 - [ ] 每个目标手机号均已规范化并验证为唯一 Subject、唯一可恢复 current `cgu_live_*`、显式 `desktop` credential class、有效内部 Plan 和 `chat` capability；实际客户端平台已确认；
@@ -160,13 +160,14 @@ Gateway 实现 additive schema、逐用户管理员准备、手机号直登、Se
 | 文档 | `draft` | 本文尚未获双方确认 |
 | 文档 | `active` | 本文已合入 Gateway `main`，Gateway/Desktop 已确认当前内容 |
 | 实施 | `contract_pending` | fixture 尚未由双方签为 frozen |
+| 实施 | `contract_frozen` | Gateway/Desktop 已签收同一 fixture commit，可以继续实现和真实 adapter 联调 |
 | 实施 | `ready` | contract frozen、风险已签、candidate/安装包/逐用户预检/窗口均就绪 |
 | 实施 | `completed` | 单次最终 E2E 通过，目标用户均已升级或明确保持离线 |
 
 | 记录 | Gateway | Desktop | 业务风险负责人 | 证据 |
 | --- | --- | --- | --- | --- |
 | 文档转为 `active` | 待签 | 待签 | — | 本文 merge commit |
-| Contract `frozen` | 待签 | 已签收 `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`（签署身份待补） | — | Desktop 于 2026-08-20 回复；整体仍待 Gateway 对同一 commit 签收 |
+| Contract `frozen` | 已签收 `47b0e9cafa5cf2525bc2d17d99f98c9364919a4a`（签署身份待补） | 已签收同一 commit（签署身份待补） | — | Gateway/Desktop 均于 2026-08-20 明确回复接受该 commit 为 frozen |
 | 维护窗口 `ready` | 待签 | 待签 | 待签 | 两端 commit、版本、SHA-256、逐用户预检 |
 | 内部升级 `completed` | 待签 | 待签 | 待签 | 最终 E2E 时间与结果 |
 
