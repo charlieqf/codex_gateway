@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assessProviderCompletion,
+  combineProviderStreamSummaries,
   collectProviderMessage,
   providerStreamSummaryFromError,
   streamErrorToGatewayError
@@ -386,6 +387,13 @@ describe("collectProviderMessage", () => {
           type: "error",
           code: "upstream_incomplete_stream",
           message: "The stream ended early.",
+          providerFailure: {
+            origin: "provider",
+            kind: "stream_incomplete",
+            stage: "streaming",
+            transportCode: null,
+            upstreamStatus: 200
+          },
           responseSummary: {
             finishReason: null,
             upstreamRequestId: "upstream_incomplete_1",
@@ -415,7 +423,18 @@ describe("collectProviderMessage", () => {
       contentChars: "partial".length,
       rawResponseHash: "hash_incomplete",
       rawResponseChars: 234,
-      terminationKind: "eof_before_terminal"
+      terminationKind: "eof_before_terminal",
+      failure: {
+        origin: "provider",
+        kind: "stream_incomplete",
+        stage: "streaming"
+      },
+      attempts: [
+        expect.objectContaining({
+          purpose: "primary",
+          failure: expect.objectContaining({ kind: "stream_incomplete" })
+        })
+      ]
     });
   });
 
@@ -540,6 +559,88 @@ describe("collectProviderMessage", () => {
         terminationKind: null
       }
     });
+  });
+
+  it.each([
+    ["native", "primary"],
+    ["native_initial", "primary"],
+    ["strict_initial", "primary"],
+    ["stateless_retry", "failure_retry"],
+    ["auto_ack_to_required", "contract_recovery"],
+    ["validation_failed_to_auto", "contract_recovery"],
+    ["strict_repair", "contract_recovery"],
+    ["future_kind", "unknown"]
+  ] as const)("maps attempt kind %s to stable purpose %s", async (attemptKind, purpose) => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        { type: "message_delta", text: "ok" },
+        { type: "completed", responseSummary: { finishReason: "stop" } }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      attemptKind
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) throw result;
+    expect(result.providerSummary.attempts[0]).toMatchObject({
+      kind: attemptKind,
+      purpose,
+      failure: null
+    });
+  });
+
+  it("preserves purpose and failure while combining and reindexing attempts", async () => {
+    const failure = {
+      origin: "network" as const,
+      kind: "connect" as const,
+      stage: "before_headers" as const,
+      transportCode: "ECONNREFUSED",
+      upstreamStatus: null
+    };
+    const first = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "error",
+          code: "upstream_unavailable",
+          message: "unavailable",
+          providerFailure: failure
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      attemptKind: "primary"
+    });
+    const second = await collectProviderMessage({
+      provider: fakeProvider([
+        { type: "message_delta", text: "ok" },
+        { type: "completed", responseSummary: { finishReason: "stop" } }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "hello",
+      attemptKind: "stateless_retry"
+    });
+    expect(first).toBeInstanceOf(GatewayError);
+    expect(second).not.toBeInstanceOf(GatewayError);
+    if (!(first instanceof GatewayError) || second instanceof GatewayError) return;
+
+    const combined = combineProviderStreamSummaries([
+      providerStreamSummaryFromError(first)!,
+      second.providerSummary
+    ]);
+    expect(combined?.attempts).toMatchObject([
+      { index: 1, purpose: "primary", failure },
+      { index: 2, purpose: "failure_retry", failure: null }
+    ]);
   });
 });
 

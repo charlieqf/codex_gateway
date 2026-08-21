@@ -5,8 +5,10 @@ import type {
   PruneRequestEventsResult,
   RequestEventRecord,
   RequestUsageReportInput,
-  RequestUsageReportRow
+  RequestUsageReportRow,
+  UpstreamAttemptSummary
 } from "@codex-gateway/core";
+import { summarizeUpstreamAttemptPurposes } from "@codex-gateway/core";
 import { requestEventColumns } from "./columns.js";
 import {
   compareRequestUsageRows,
@@ -35,6 +37,9 @@ export function insert(
       upstream_content_chars, upstream_tool_call_count, upstream_tool_names_json,
       upstream_raw_response_hash, upstream_raw_response_chars, upstream_empty_stop,
       upstream_attempt_count, upstream_attempts_json,
+      upstream_failure_origin, upstream_failure_kind, upstream_failure_stage,
+      upstream_transport_code, upstream_failure_retry_count,
+      upstream_recovery_attempt_count, upstream_unclassified_additional_attempt_count,
       started_at, duration_ms, first_byte_ms, status, error_code, rate_limited,
       prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens,
       estimated_tokens, gateway_estimated_prompt_tokens, gateway_prompt_estimate_method,
@@ -43,7 +48,7 @@ export function insert(
       cancel_requested, cancel_observed, active_tool_count, client_tool_mode,
       tool_loop_guard_json, usage_source, limit_kind, reservation_id, over_request_limit,
       identity_guard_hit
-    ) VALUES (${Array.from({ length: 60 }, () => "?").join(", ")})
+    ) VALUES (${Array.from({ length: 67 }, () => "?").join(", ")})
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -73,6 +78,13 @@ export function insert(
       upstream_empty_stop = excluded.upstream_empty_stop,
       upstream_attempt_count = excluded.upstream_attempt_count,
       upstream_attempts_json = excluded.upstream_attempts_json,
+      upstream_failure_origin = excluded.upstream_failure_origin,
+      upstream_failure_kind = excluded.upstream_failure_kind,
+      upstream_failure_stage = excluded.upstream_failure_stage,
+      upstream_transport_code = excluded.upstream_transport_code,
+      upstream_failure_retry_count = excluded.upstream_failure_retry_count,
+      upstream_recovery_attempt_count = excluded.upstream_recovery_attempt_count,
+      upstream_unclassified_additional_attempt_count = excluded.upstream_unclassified_additional_attempt_count,
       started_at = excluded.started_at,
       duration_ms = excluded.duration_ms,
       first_byte_ms = excluded.first_byte_ms,
@@ -138,6 +150,13 @@ export function insert(
         : 0,
     record.upstreamAttemptCount ?? record.upstreamAttempts?.length ?? null,
     record.upstreamAttempts ? JSON.stringify(record.upstreamAttempts) : null,
+    record.upstreamFailureOrigin ?? null,
+    record.upstreamFailureKind ?? null,
+    record.upstreamFailureStage ?? null,
+    record.upstreamTransportCode ?? null,
+    record.upstreamFailureRetryCount ?? null,
+    record.upstreamRecoveryAttemptCount ?? null,
+    record.upstreamUnclassifiedAdditionalAttemptCount ?? null,
     record.startedAt.toISOString(),
     record.durationMs,
     record.firstByteMs,
@@ -181,6 +200,10 @@ export function list(
   const limit = input.limit ?? 100;
   const clauses: string[] = [];
   const params: Array<string | number> = [];
+  if (input.requestId) {
+    clauses.push("request_id = ?");
+    params.push(input.requestId);
+  }
   if (input.credentialId) {
     clauses.push("credential_id = ?");
     params.push(input.credentialId);
@@ -188,6 +211,14 @@ export function list(
   if (input.subjectId) {
     clauses.push("subject_id = ?");
     params.push(input.subjectId);
+  }
+  if (input.clientMessageIds !== undefined) {
+    const messageIds = Array.from(new Set(input.clientMessageIds.filter(Boolean)));
+    if (messageIds.length === 0) {
+      return [];
+    }
+    clauses.push(`client_message_id IN (${messageIds.map(() => "?").join(", ")})`);
+    params.push(...messageIds);
   }
   if (input.clientTurnId) {
     clauses.push("client_turn_id = ?");
@@ -277,7 +308,50 @@ export function reportUsage(
          0 AS cached_prompt_tokens,
          0 AS estimated_tokens,
          0 AS reasoning_tokens,
-         0 AS usage_missing,
+         SUM(CASE
+           WHEN request_events.usage_source = 'none' THEN 0
+           WHEN request_events.total_tokens IS NOT NULL
+             OR request_events.prompt_tokens IS NOT NULL
+             OR request_events.completion_tokens IS NOT NULL THEN 0
+           WHEN COALESCE(request_events.estimated_tokens, 0) > 0 THEN 0
+           ELSE 1
+         END) AS usage_missing,
+         SUM(CASE WHEN COALESCE(
+           request_events.upstream_attempt_count,
+           CASE WHEN json_valid(request_events.upstream_attempts_json) = 1
+             AND json_type(request_events.upstream_attempts_json) = 'array'
+             THEN json_array_length(request_events.upstream_attempts_json) END,
+           0
+         ) > 0 THEN 1 ELSE 0 END) AS model_call_requests,
+         SUM(COALESCE(
+           request_events.upstream_attempt_count,
+           CASE WHEN json_valid(request_events.upstream_attempts_json) = 1
+             AND json_type(request_events.upstream_attempts_json) = 'array'
+             THEN json_array_length(request_events.upstream_attempts_json) END,
+           0
+         )) AS upstream_attempts,
+         SUM(COALESCE(request_events.upstream_failure_retry_count, 0)) AS failure_retries,
+         SUM(COALESCE(request_events.upstream_recovery_attempt_count, 0)) AS recovery_attempts,
+         SUM(COALESCE(request_events.upstream_unclassified_additional_attempt_count, 0))
+           AS unclassified_additional_attempts,
+         SUM(CASE WHEN request_events.upstream_attempt_count IS NULL
+           AND NOT (json_valid(request_events.upstream_attempts_json) = 1
+             AND json_type(request_events.upstream_attempts_json) = 'array')
+           THEN 1 ELSE 0 END) AS attempt_count_missing,
+         SUM(CASE
+           WHEN COALESCE(request_events.upstream_attempt_count, 0) > 0
+             THEN CASE
+               WHEN json_valid(request_events.upstream_attempts_json) = 1
+                 AND json_type(request_events.upstream_attempts_json) = 'array'
+                 THEN MAX(
+                   request_events.upstream_attempt_count -
+                     json_array_length(request_events.upstream_attempts_json),
+                   0
+                 )
+               ELSE request_events.upstream_attempt_count
+             END
+           ELSE 0
+         END) AS attempt_purpose_missing,
          SUM(CASE WHEN request_events.limit_kind = 'request_minute' THEN 1 ELSE 0 END) AS request_minute,
          SUM(CASE WHEN request_events.limit_kind = 'request_day' THEN 1 ELSE 0 END) AS request_day,
          SUM(CASE WHEN request_events.limit_kind = 'concurrency' THEN 1 ELSE 0 END) AS concurrency,
@@ -313,6 +387,8 @@ export function reportUsage(
     merged.set(requestUsageReportKey(report), report);
   }
 
+  applyLegacyAttemptPurposeFallbacks(db, input, merged);
+
   for (const row of tokenUsageRows(db, input)) {
     const report =
       merged.get(tokenUsageAggregateKey(row)) ??
@@ -343,6 +419,127 @@ export function reportUsage(
     Array.from(merged.values()).sort(compareRequestUsageRows),
     input
   );
+}
+
+function applyLegacyAttemptPurposeFallbacks(
+  db: DatabaseSync,
+  input: RequestUsageReportInput,
+  merged: Map<string, RequestUsageReportRow>
+): void {
+  const groupByEntitlement =
+    input.groupBy === "entitlement" || input.groupBy === "entitlement-model";
+  const clauses = [
+    "request_events.started_at >= ?",
+    "json_valid(request_events.upstream_attempts_json) = 1",
+    "json_type(request_events.upstream_attempts_json) = 'array'"
+  ];
+  const params: string[] = [input.since.toISOString()];
+  if (input.until) {
+    clauses.push("request_events.started_at < ?");
+    params.push(input.until.toISOString());
+  }
+  if (input.credentialId) {
+    clauses.push("request_events.credential_id = ?");
+    params.push(input.credentialId);
+  }
+  if (input.subjectId) {
+    clauses.push("request_events.subject_id = ?");
+    params.push(input.subjectId);
+  }
+
+  const rows = db
+    .prepare(
+      `SELECT
+         substr(request_events.started_at, 1, 10) AS date,
+         request_events.credential_id,
+         request_events.subject_id,
+         request_events.scope,
+         request_events.upstream_account_id,
+         request_events.provider,
+         request_events.public_model_id,
+         request_events.upstream_runtime,
+         request_events.upstream_model,
+         request_events.reasoning_effort,
+         ${groupByEntitlement ? "tr.entitlement_id" : "NULL"} AS entitlement_id,
+         request_events.upstream_attempt_count,
+         request_events.upstream_attempts_json,
+         request_events.upstream_failure_retry_count,
+         request_events.upstream_recovery_attempt_count,
+         request_events.upstream_unclassified_additional_attempt_count
+       FROM request_events
+       ${groupByEntitlement
+         ? "LEFT JOIN token_reservations tr ON tr.id = request_events.reservation_id"
+         : ""}
+       WHERE ${clauses.join(" AND ")}`
+    )
+    .all(...params) as Array<{
+      date: string;
+      credential_id: string | null;
+      subject_id: string | null;
+      scope: RequestUsageReportRow["scope"];
+      upstream_account_id: string | null;
+      provider: RequestUsageReportRow["provider"];
+      public_model_id: string | null;
+      upstream_runtime: string | null;
+      upstream_model: string | null;
+      reasoning_effort: string | null;
+      entitlement_id: string | null;
+      upstream_attempt_count: number | null;
+      upstream_attempts_json: string;
+      upstream_failure_retry_count: number | null;
+      upstream_recovery_attempt_count: number | null;
+      upstream_unclassified_additional_attempt_count: number | null;
+    }>;
+
+  for (const row of rows) {
+    const attempts = parseAttemptPurposeInputs(row.upstream_attempts_json);
+    const summary = summarizeUpstreamAttemptPurposes(attempts);
+    const keyRow = emptyRequestUsageReportRow({
+      date: row.date,
+      credentialId: row.credential_id,
+      subjectId: row.subject_id,
+      scope: row.scope,
+      upstreamAccountId: row.upstream_account_id,
+      provider: row.provider,
+      publicModelId: row.public_model_id,
+      upstreamRuntime: row.upstream_runtime,
+      upstreamModel: row.upstream_model,
+      reasoningEffort: row.reasoning_effort,
+      entitlementId: row.entitlement_id
+    });
+    const report = merged.get(requestUsageReportKey(keyRow));
+    if (!report) {
+      continue;
+    }
+    if (row.upstream_failure_retry_count === null) {
+      report.failureRetries += summary.failureRetryCount;
+    }
+    if (row.upstream_recovery_attempt_count === null) {
+      report.recoveryAttempts += summary.recoveryAttemptCount;
+    }
+    if (row.upstream_unclassified_additional_attempt_count === null) {
+      report.unclassifiedAdditionalAttempts +=
+        summary.unclassifiedAdditionalAttemptCount;
+    }
+    report.attemptPurposeMissing += summary.attemptPurposeMissing;
+  }
+}
+
+function parseAttemptPurposeInputs(value: string): UpstreamAttemptSummary[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter(
+      (attempt): attempt is UpstreamAttemptSummary =>
+        typeof attempt === "object" &&
+        attempt !== null &&
+        typeof (attempt as { index?: unknown }).index === "number"
+    );
+  } catch {
+    return [];
+  }
 }
 
 export function prune(
@@ -414,13 +611,19 @@ function tokenUsageRows(
            COALESCE(token_reservations.upstream_model, request_events.upstream_model) AS upstream_model,
            COALESCE(token_reservations.reasoning_effort, request_events.reasoning_effort) AS reasoning_effort,
            ${groupByEntitlement ? "entitlement_id" : "NULL"} AS entitlement_id,
-           COALESCE(SUM(final_prompt_tokens), 0) AS prompt_tokens,
-           COALESCE(SUM(final_completion_tokens), 0) AS completion_tokens,
-           COALESCE(SUM(final_total_tokens), 0) AS total_tokens,
-           COALESCE(SUM(final_cached_prompt_tokens), 0) AS cached_prompt_tokens,
-           COALESCE(SUM(final_estimated_tokens), 0) AS estimated_tokens,
-           COALESCE(SUM(final_reasoning_tokens), 0) AS reasoning_tokens,
-           SUM(CASE WHEN final_usage_source IS NOT NULL AND final_usage_source NOT IN ('provider', 'soft_write') THEN 1 ELSE 0 END) AS usage_missing
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('provider', 'soft_write')
+             THEN final_prompt_tokens ELSE 0 END), 0) AS prompt_tokens,
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('provider', 'soft_write')
+             THEN final_completion_tokens ELSE 0 END), 0) AS completion_tokens,
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('provider', 'soft_write')
+             THEN final_total_tokens ELSE 0 END), 0) AS total_tokens,
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('provider', 'soft_write')
+             THEN final_cached_prompt_tokens ELSE 0 END), 0) AS cached_prompt_tokens,
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('estimate', 'reserve')
+             THEN final_total_tokens ELSE 0 END), 0) AS estimated_tokens,
+           COALESCE(SUM(CASE WHEN final_usage_source IN ('provider', 'soft_write')
+             THEN final_reasoning_tokens ELSE 0 END), 0) AS reasoning_tokens,
+           0 AS usage_missing
          FROM token_reservations
          LEFT JOIN request_events ON request_events.request_id = token_reservations.request_id
          WHERE ${reservationClauses.join(" AND ")}
@@ -443,7 +646,7 @@ function tokenUsageRows(
   const legacyClauses = [
     "started_at >= ?",
     "reservation_id IS NULL",
-    "total_tokens IS NOT NULL"
+    "(total_tokens IS NOT NULL OR prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL OR estimated_tokens IS NOT NULL)"
   ];
   const legacyParams: string[] = [input.since.toISOString()];
   if (input.until) {
@@ -474,13 +677,13 @@ function tokenUsageRows(
            upstream_model,
            reasoning_effort,
            NULL AS entitlement_id,
-           COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
-           COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
-           COALESCE(SUM(total_tokens), 0) AS total_tokens,
+           COALESCE(SUM(CASE WHEN total_tokens IS NOT NULL OR prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL THEN COALESCE(prompt_tokens, 0) ELSE 0 END), 0) AS prompt_tokens,
+           COALESCE(SUM(CASE WHEN total_tokens IS NOT NULL OR prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL THEN COALESCE(completion_tokens, 0) ELSE 0 END), 0) AS completion_tokens,
+           COALESCE(SUM(CASE WHEN total_tokens IS NOT NULL OR prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL THEN COALESCE(total_tokens, COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)) ELSE 0 END), 0) AS total_tokens,
            COALESCE(SUM(cached_prompt_tokens), 0) AS cached_prompt_tokens,
-           COALESCE(SUM(estimated_tokens), 0) AS estimated_tokens,
+           COALESCE(SUM(CASE WHEN total_tokens IS NULL AND prompt_tokens IS NULL AND completion_tokens IS NULL THEN COALESCE(estimated_tokens, 0) ELSE 0 END), 0) AS estimated_tokens,
            COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
-           SUM(CASE WHEN usage_source IS NOT NULL AND usage_source != 'provider' THEN 1 ELSE 0 END) AS usage_missing
+           0 AS usage_missing
          FROM request_events
          WHERE ${legacyClauses.join(" AND ")}
          GROUP BY

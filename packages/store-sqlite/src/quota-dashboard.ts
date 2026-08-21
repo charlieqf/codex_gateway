@@ -380,7 +380,7 @@ function summarizeUsageRows(rows: RequestUsageReportRow[]): UsageSummary {
     summary.ok += row.ok;
     summary.errors += row.errors;
     summary.rate_limited += row.rateLimited;
-    summary.provider_total_tokens += Math.max(0, row.totalTokens - row.estimatedTokens);
+    summary.provider_total_tokens += row.totalTokens;
     summary.estimated_tokens += row.estimatedTokens;
     for (const [kind, rawCount] of Object.entries(row.rateLimitedBy)) {
       const count = Number(rawCount);

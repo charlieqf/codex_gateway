@@ -110,8 +110,10 @@ export interface BillingAdminTokenStore {
 }
 
 export interface ListRequestEventsInput {
+  requestId?: string;
   credentialId?: string;
   subjectId?: string;
+  clientMessageIds?: string[];
   clientTurnId?: string;
   turnCode?: string;
   clientSessionId?: string;
@@ -157,6 +159,13 @@ export interface RequestUsageReportRow {
   estimatedTokens: number;
   reasoningTokens: number;
   usageMissing: number;
+  modelCallRequests: number;
+  upstreamAttempts: number;
+  failureRetries: number;
+  recoveryAttempts: number;
+  unclassifiedAdditionalAttempts: number;
+  attemptCountMissing: number;
+  attemptPurposeMissing: number;
   rateLimitedBy: Partial<Record<LimitKind, number>>;
   overRequestLimit: number;
   identityGuardHit: number;
@@ -196,6 +205,7 @@ export interface ObservationStore {
 export interface ClientMessageEventStore {
   getClientMessageEvent(subjectId: string, eventId: string): ClientMessageEventRecord | null;
   listClientMessageEvents(input?: ListClientMessageEventsInput): ClientMessageEventRecord[];
+  countClientMessageEvents(input?: ListClientMessageEventsInput): number;
   findClientMessageEventByMessageId(
     subjectId: string,
     messageId: string
@@ -225,12 +235,15 @@ export interface ClientMessageEventStore {
 
 export interface ListClientMessageEventsInput {
   subjectId?: string;
+  subjectIds?: string[];
   credentialId?: string;
   sessionId?: string;
   messageId?: string;
+  search?: string;
   since?: Date;
   until?: Date;
   limit?: number;
+  offset?: number;
 }
 
 export type GatewayStore = GatewaySessionStore & BootstrapStore;

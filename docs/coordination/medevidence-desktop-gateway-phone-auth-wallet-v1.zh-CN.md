@@ -1,5 +1,10 @@
 # MedEvidence Desktop × Codex Gateway 内部用户手机号登录 v1 联合协调
 
+> **状态提示（2026-08-21）：** 本文记录的一次性切换、旧 Desktop
+> 不再兼容和全路径 426 方案，已由
+> [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)
+> 替代。本文及其旧 frozen fixture 作为历史基线保留，不得据此启用生产；未被新规范替代的 v1 wire shape 仍可复用。
+
 | 项目 | 内容 |
 | --- | --- |
 | 文档状态 | `draft`；双方确认并合入 Gateway `main` 后改为 `active` |

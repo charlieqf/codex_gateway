@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   GatewayError,
   type GatewaySession,
+  type MessageInput,
   type ProviderErrorDiagnostic,
   type Subject,
   type UpstreamAccount
@@ -862,7 +863,181 @@ describe("OpenAICompatibleProviderAdapter", () => {
       await server.close();
     }
   });
+
+  it.each([
+    ["ENOTFOUND", "network", "dns"],
+    ["ECONNREFUSED", "network", "connect"],
+    ["ECONNRESET", "network", "connection_reset"],
+    ["ERR_TLS_CERT_ALTNAME_INVALID", "network", "tls"],
+    ["ERR_HTTP_PROXY_CONNECT", "proxy", "proxy_connect"]
+  ] as const)(
+    "classifies nested fetch cause %s without changing the public error",
+    async (code, origin, kind) => {
+      const nested = Object.assign(new Error("transport detail must stay internal"), { code });
+      const fetchError = new TypeError("fetch failed", { cause: nested });
+      const events = await providerEvents(async () => Promise.reject(fetchError));
+
+      expect(events).toMatchObject([
+        {
+          type: "error",
+          code: "upstream_unavailable",
+          message: "MedCode service is temporarily unavailable.",
+          providerFailure: {
+            origin,
+            kind,
+            stage: "before_headers",
+            transportCode: code,
+            upstreamStatus: null
+          }
+        }
+      ]);
+      expect(JSON.stringify(events)).not.toContain("transport detail");
+    }
+  );
+
+  it.each([
+    [400, "http_request", "invalid_request"],
+    [401, "http_auth", "upstream_unavailable"],
+    [403, "http_auth", "upstream_unavailable"],
+    [408, "http_timeout", "upstream_timeout"],
+    [429, "http_rate_limit", "rate_limited"],
+    [500, "http_server", "upstream_unavailable"],
+    [503, "http_server", "upstream_unavailable"],
+    [504, "http_timeout", "upstream_timeout"]
+  ] as const)("classifies HTTP %i as %s", async (status, kind, publicCode) => {
+    const events = await providerEvents(async () =>
+      new Response('{"error":"sanitized by adapter"}', { status })
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "error",
+      code: publicCode,
+      providerFailure: {
+        origin: "provider",
+        kind,
+        stage: "after_headers",
+        upstreamStatus: status
+      }
+    });
+  });
+
+  it("distinguishes missing bodies, malformed SSE, and interrupted streams", async () => {
+    const missing = await providerEvents(async () => new Response(null, { status: 200 }));
+    expect(missing[0]).toMatchObject({
+      code: "upstream_unavailable",
+      providerFailure: {
+        origin: "provider",
+        kind: "response_body_missing",
+        stage: "after_headers"
+      }
+    });
+
+    const malformed = await providerEvents(async () =>
+      new Response("data: {not-json}\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" }
+      })
+    );
+    expect(malformed[0]).toMatchObject({
+      code: "upstream_unavailable",
+      providerFailure: {
+        origin: "provider",
+        kind: "stream_protocol",
+        stage: "streaming"
+      }
+    });
+
+    const reset = Object.assign(new Error("socket reset"), { code: "ECONNRESET" });
+    const interruptedBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n')
+        );
+        controller.error(reset);
+      }
+    });
+    const interrupted = await providerEvents(async () =>
+      new Response(interruptedBody, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" }
+      })
+    );
+    expect(interrupted.at(-1)).toMatchObject({
+      code: "upstream_unavailable",
+      providerFailure: {
+        origin: "network",
+        kind: "connection_reset",
+        stage: "streaming",
+        transportCode: "ECONNRESET"
+      }
+    });
+  });
+
+  it("distinguishes adapter deadline from client cancellation", async () => {
+    const waitForAbort = (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), {
+          once: true
+        });
+      });
+    const deadline = await providerEvents(waitForAbort, { timeoutMs: 1 });
+    expect(deadline[0]).toMatchObject({
+      code: "upstream_timeout",
+      providerFailure: {
+        origin: "gateway",
+        kind: "deadline_exceeded",
+        stage: "before_headers"
+      }
+    });
+
+    const controller = new AbortController();
+    const pending = providerEvents(waitForAbort, { signal: controller.signal });
+    controller.abort(
+      new GatewayError({
+        code: "client_aborted",
+        message: "Client disconnected.",
+        httpStatus: 499
+      })
+    );
+    const cancelled = await pending;
+    expect(cancelled[0]).toMatchObject({
+      code: "client_aborted",
+      providerFailure: {
+        origin: "client",
+        kind: "client_aborted",
+        stage: "before_headers"
+      }
+    });
+  });
 });
+
+async function providerEvents(
+  fetchImpl: typeof fetch,
+  options: { timeoutMs?: number; signal?: AbortSignal } = {}
+) {
+  const provider = new OpenAICompatibleProviderAdapter({
+    providerKind: "openrouter",
+    apiKey: "sk-test-redacted",
+    apiKeyEnv: "MEDCODE_OPENROUTER_API_KEY",
+    baseUrl: "https://provider.invalid/v1",
+    upstreamModel: "z-ai/glm-5.2",
+    timeoutMs: options.timeoutMs ?? 5_000,
+    fetchImpl
+  });
+  const input: MessageInput = {
+    upstreamAccount: openRouterAccount(),
+    subject: testSubject(),
+    scope: "code",
+    session: testSession(),
+    message: "diagnostic test",
+    signal: options.signal
+  };
+  const events = [];
+  for await (const event of provider.message(input)) {
+    events.push(event);
+  }
+  return events;
+}
 
 function openAICompatibleProvider(baseUrl: string): OpenAICompatibleProviderAdapter {
   return new OpenAICompatibleProviderAdapter({

@@ -6,6 +6,7 @@ import type {
   LimitKind,
   ProviderKind,
   ProviderAdapter,
+  ProviderFailureClassification,
   RateLimitOrigin,
   RateLimitPolicy,
   RequestTokenUsageSource,
@@ -115,6 +116,7 @@ declare module "fastify" {
     gatewayUpstreamEmptyStop?: boolean | null;
     gatewayUpstreamAttemptCount?: number | null;
     gatewayUpstreamAttempts?: UpstreamAttemptSummary[] | null;
+    gatewayProviderFailure?: ProviderFailureClassification | null;
   }
 }
 

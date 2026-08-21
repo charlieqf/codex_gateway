@@ -1,5 +1,10 @@
 # R760 内部手机号登录 v1 操作说明
 
+> **暂勿按本文启用生产。** 现有启用步骤仍基于旧的全路径版本门禁，不能满足
+> beta.38 旧 Key 长期兼容。新的权威实现目标见
+> [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)。
+> 在相应代码、fixtures 和本运维说明完成更新前，两个功能开关必须保持 `disabled`。
+
 本实现只用于 R760 权威 Gateway，wire contract 以
 [`medevidence-internal-phone-auth-v1`](../contracts/medevidence-internal-phone-auth-v1/README.md)
 为准。手机号直登不是强身份认证；没有业务风险签收时不得启用。

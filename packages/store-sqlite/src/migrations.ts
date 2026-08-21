@@ -942,6 +942,35 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
       logger
     );
   }
+
+  applyMigration(
+    db,
+    26,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["upstream_failure_origin", "TEXT"],
+        ["upstream_failure_kind", "TEXT"],
+        ["upstream_failure_stage", "TEXT"],
+        ["upstream_transport_code", "TEXT"],
+        ["upstream_failure_retry_count", "INTEGER"],
+        ["upstream_recovery_attempt_count", "INTEGER"],
+        ["upstream_unclassified_additional_attempt_count", "INTEGER"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "request_events", column)) {
+          db.exec(`ALTER TABLE request_events ADD COLUMN ${column} ${type}`);
+        }
+      }
+      if (columnExists(db, "request_events", "started_at")) {
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_request_events_failure_started
+            ON request_events(upstream_failure_origin, upstream_failure_kind, started_at DESC)
+            WHERE upstream_failure_origin IS NOT NULL;
+        `);
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

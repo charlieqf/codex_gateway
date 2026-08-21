@@ -42,35 +42,9 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
   listClientMessageEvents(
     input: ListClientMessageEventsInput = {}
   ): ClientMessageEventRecord[] {
-    const clauses: string[] = [];
-    const params: Array<string | number> = [];
-    if (input.subjectId) {
-      clauses.push("subject_id = ?");
-      params.push(input.subjectId);
-    }
-    if (input.credentialId) {
-      clauses.push("credential_id = ?");
-      params.push(input.credentialId);
-    }
-    if (input.sessionId) {
-      clauses.push("session_id = ?");
-      params.push(input.sessionId);
-    }
-    if (input.messageId) {
-      clauses.push("message_id = ?");
-      params.push(input.messageId);
-    }
-    if (input.since) {
-      clauses.push("received_at >= ?");
-      params.push(input.since.toISOString());
-    }
-    if (input.until) {
-      clauses.push("received_at <= ?");
-      params.push(input.until.toISOString());
-    }
-
+    const { where, params } = clientMessageWhere(input);
     const limit = clampListLimit(input.limit, 100, 1000);
-    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const offset = clampOffset(input.offset);
     const rows = this.db
       .prepare(
         `SELECT id, event_id, request_id, credential_id, subject_id, scope, session_id,
@@ -79,11 +53,23 @@ export class SqliteClientEventsStore implements ClientMessageEventStore {
          FROM client_message_events
          ${where}
          ORDER BY received_at DESC, created_at DESC
-         LIMIT ?`
+         LIMIT ? OFFSET ?`
       )
-      .all(...params, limit);
+      .all(...params, limit, offset);
 
     return rows.map(rowToClientMessageEvent);
+  }
+
+  countClientMessageEvents(input: ListClientMessageEventsInput = {}): number {
+    const { where, params } = clientMessageWhere(input);
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS count
+         FROM client_message_events
+         ${where}`
+      )
+      .get(...params) as { count: number };
+    return row.count;
   }
 
   findClientMessageEventByMessageId(
@@ -267,9 +253,79 @@ export function createSqliteClientEventsStore(
   return new SqliteClientEventsStore(options);
 }
 
+function clientMessageWhere(input: ListClientMessageEventsInput): {
+  where: string;
+  params: Array<string | number>;
+} {
+  const clauses: string[] = [];
+  const params: Array<string | number> = [];
+  if (input.subjectId) {
+    clauses.push("subject_id = ?");
+    params.push(input.subjectId);
+  } else if (input.subjectIds !== undefined) {
+    const subjectIds = Array.from(new Set(input.subjectIds.filter(Boolean)));
+    if (subjectIds.length === 0) {
+      clauses.push("1 = 0");
+    } else {
+      clauses.push(`subject_id IN (${subjectIds.map(() => "?").join(", ")})`);
+      params.push(...subjectIds);
+    }
+  }
+  if (input.credentialId) {
+    clauses.push("credential_id = ?");
+    params.push(input.credentialId);
+  }
+  if (input.sessionId) {
+    clauses.push("session_id = ?");
+    params.push(input.sessionId);
+  }
+  if (input.messageId) {
+    clauses.push("message_id = ?");
+    params.push(input.messageId);
+  }
+  const search = input.search?.trim();
+  if (search) {
+    const searchableColumns = [
+      "text",
+      "session_id",
+      "message_id",
+      "request_id",
+      "agent",
+      "provider_id",
+      "model_id",
+      "engine"
+    ];
+    clauses.push(
+      `(${searchableColumns
+        .map((column) => `instr(lower(COALESCE(${column}, '')), lower(?)) > 0`)
+        .join(" OR ")})`
+    );
+    params.push(...searchableColumns.map(() => search));
+  }
+  if (input.since) {
+    clauses.push("received_at >= ?");
+    params.push(input.since.toISOString());
+  }
+  if (input.until) {
+    clauses.push("received_at <= ?");
+    params.push(input.until.toISOString());
+  }
+  return {
+    where: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params
+  };
+}
+
 function clampListLimit(value: number | undefined, fallback: number, max: number): number {
   if (!Number.isInteger(value) || value === undefined || value <= 0) {
     return fallback;
   }
   return Math.min(value, max);
+}
+
+function clampOffset(value: number | undefined): number {
+  if (!Number.isInteger(value) || value === undefined || value < 0) {
+    return 0;
+  }
+  return value;
 }

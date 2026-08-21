@@ -19,7 +19,9 @@ import {
   type RateLimitPolicy,
   type StreamEvent,
   type TokenBudgetLimiter,
-  type UpstreamAccount
+  type UpstreamAccount,
+  type UpstreamAttemptSummary,
+  type UpstreamAttemptPurpose
 } from "@codex-gateway/core";
 import {
   createSqliteClientEventsStore,
@@ -35,6 +37,7 @@ import {
   type CredentialRateLimiter
 } from "./services/rate-limiter.js";
 import { ActiveRequestRegistry } from "./services/active-request-registry.js";
+import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
 import { estimatePromptTokens } from "./services/token-budget-hook.js";
 import type { VisionAssetService } from "./services/vision-asset-service.js";
 import {
@@ -76,6 +79,36 @@ class FakeProvider implements ProviderAdapter {
     yield { type: "message_delta", text: `echo:${input.message}` };
     yield { type: "completed", providerSessionRef: "provider_thread_1" };
   }
+}
+
+function testUpstreamAttempt(
+  index: number,
+  kind: string,
+  purpose: UpstreamAttemptPurpose,
+  overrides: Partial<UpstreamAttemptSummary> = {}
+): UpstreamAttemptSummary {
+  return {
+    index,
+    kind,
+    purpose,
+    failure: null,
+    toolChoice: null,
+    provider: "openai-codex",
+    upstreamRuntime: "codex",
+    upstreamModel: "gpt-5.5",
+    upstreamAccountId: "sub_openai_codex_dev",
+    finishReason: null,
+    upstreamRequestId: null,
+    upstreamHttpStatus: null,
+    errorCode: null,
+    contentChars: 0,
+    toolCallCount: 0,
+    toolNames: [],
+    rawResponseHash: null,
+    rawResponseChars: null,
+    emptyStop: null,
+    ...overrides
+  };
 }
 
 class SequencedFakeProvider implements ProviderAdapter {
@@ -350,6 +383,134 @@ describe("gateway phase 1 routes", () => {
     expect(sessions.statusCode).toBe(401);
     expectRequestIdHeader(sessions);
     expect(sessions.json().error.code).toBe("missing_credential");
+
+    await app.close();
+  });
+
+  it("records internal provider classification without leaking it to chat clients", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const providerFailure = {
+      origin: "network" as const,
+      kind: "connect" as const,
+      stage: "before_headers" as const,
+      transportCode: "UND_ERR_CONNECT_TIMEOUT",
+      upstreamStatus: null
+    };
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider([
+        {
+          type: "error",
+          code: "upstream_unavailable",
+          message: "MedCode service is temporarily unavailable.",
+          providerFailure
+        }
+      ]),
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "classification privacy" }]
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: { code: "upstream_unavailable" }
+    });
+    expect(response.body).not.toContain("providerFailure");
+    expect(response.body).not.toContain("UND_ERR_CONNECT_TIMEOUT");
+    expect(response.body).not.toContain('"origin":"network"');
+    const event = store.listRequestEvents({ limit: 1 })[0];
+    expect(event).toMatchObject({
+      status: "error",
+      upstreamFailureOrigin: "network",
+      upstreamFailureKind: "connect",
+      upstreamFailureStage: "before_headers",
+      upstreamTransportCode: "UND_ERR_CONNECT_TIMEOUT",
+      upstreamAttemptCount: 1,
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 0
+    });
+    expect(event.upstreamAttempts).toMatchObject([
+      { purpose: "primary", failure: providerFailure }
+    ]);
+
+    await app.close();
+  });
+
+  it("records one xAI fetch transport attempt without changing the public error contract", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const provider = new OpenAICompatibleProviderAdapter({
+      providerKind: "xai",
+      baseUrl: "https://api.x.ai/v1",
+      apiKey: "xai-test-redacted",
+      apiKeyEnv: "XAI_API_KEY",
+      upstreamModel: "grok-test",
+      timeoutMs: 1_000,
+      fetchImpl: async () => {
+        throw new TypeError("fetch failed", {
+          cause: Object.assign(new Error("lookup failed"), { code: "ENOTFOUND" })
+        });
+      }
+    });
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers,
+      payload: {
+        model: "medcode",
+        messages: [{ role: "user", content: "transport classification" }]
+      }
+    });
+    const requestId = expectRequestIdHeader(response);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: { code: "upstream_unavailable", request_id: requestId }
+    });
+    expect(response.body).not.toContain("ENOTFOUND");
+    expect(response.body).not.toContain("providerFailure");
+    expect(store.listRequestEvents({ requestId })).toEqual([
+      expect.objectContaining({
+        requestId,
+        status: "error",
+        upstreamAttemptCount: 1,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        upstreamFailureOrigin: "network",
+        upstreamFailureKind: "dns",
+        upstreamFailureStage: "before_headers",
+        upstreamTransportCode: "ENOTFOUND",
+        upstreamAttempts: [
+          expect.objectContaining({
+            index: 1,
+            purpose: "primary",
+            failure: expect.objectContaining({
+              origin: "network",
+              kind: "dns",
+              transportCode: "ENOTFOUND"
+            })
+          })
+        ]
+      })
+    ]);
 
     await app.close();
   });
@@ -2732,11 +2893,28 @@ describe("gateway phase 1 routes", () => {
 
     expect(page.statusCode).toBe(200);
     expect(page.headers["content-type"]).toContain("text/html");
+    expect(page.headers["cache-control"]).toBe("no-store");
+    expect(page.headers["content-security-policy"]).toContain("connect-src 'self'");
     expect(page.body).toContain("Gateway Client Messages");
     expect(page.body).toContain('id="userSearch"');
     expect(page.body).toContain('id="userList"');
+    expect(page.body).toContain('id="sortBy"');
+    expect(page.body).toContain("可归因 Token");
+    expect(page.body).toContain("端到端耗时");
+    expect(page.body).toContain('requestMetric("模型调用"');
+    expect(page.body).toContain("attempt.upstream_request_id");
+    expect(page.body).toContain("attempt.upstream_http_status");
+    expect(page.body).toContain("attempt.prompt_tokens");
+    expect(page.body).toContain("attempt.completion_tokens");
+    expect(page.body).toContain("attempt.total_tokens");
+    expect(page.body).toContain("attempt.upstream_runtime");
+    expect(page.body).toContain("attempt.upstream_model");
+    expect(page.body).toContain("failure.upstream_status");
     expect(page.body).not.toContain('list="subjects"');
     expect(page.body).toContain("Admin token required");
+    const pageScript = page.body.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    expect(pageScript).toBeTruthy();
+    expect(() => new Function(pageScript as string)).not.toThrow();
     expect(unauthenticated.statusCode).toBe(401);
     expect(userCredential.statusCode).toBe(401);
 
@@ -2773,20 +2951,221 @@ describe("gateway phase 1 routes", () => {
         text: "Smoke prompt should be hidden"
       })
     });
+    const eventNow = new Date(Date.now() - 1_000);
+    store.insertRequestEvent({
+      requestId: "req_admin_1",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_1",
+      clientMessageId: "msg_admin_1",
+      startedAt: eventNow,
+      durationMs: 80,
+      firstByteMs: 20,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 4,
+      completionTokens: 1,
+      totalTokens: 5,
+      cachedPromptTokens: 0,
+      estimatedTokens: null,
+      upstreamAttemptCount: 1,
+      upstreamAttempts: [testUpstreamAttempt(1, "primary", "primary")],
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
+      usageSource: "provider"
+    });
+    store.insertRequestEvent({
+      requestId: "req_admin_2_ok",
+      credentialId: second.record.id,
+      subjectId: "subj_zhang",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_2",
+      clientMessageId: "msg_admin_2",
+      startedAt: new Date(eventNow.getTime() + 10),
+      durationMs: 100,
+      firstByteMs: 25,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 20,
+      completionTokens: 10,
+      totalTokens: 30,
+      cachedPromptTokens: 2,
+      estimatedTokens: null,
+      upstreamAttemptCount: 2,
+      upstreamAttempts: [
+        testUpstreamAttempt(1, "native", "primary"),
+        testUpstreamAttempt(
+          2,
+          "validation_failed_to_auto",
+          "contract_recovery"
+        )
+      ],
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 1,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
+      usageSource: "provider"
+    });
+    store.insertRequestEvent({
+      requestId: "req_admin_2_limited",
+      credentialId: second.record.id,
+      subjectId: "subj_zhang",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_2",
+      clientMessageId: "msg_admin_2",
+      startedAt: new Date(eventNow.getTime() + 120),
+      durationMs: 50,
+      firstByteMs: null,
+      status: "error",
+      errorCode: "rate_limited",
+      rateLimited: true,
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null,
+      cachedPromptTokens: null,
+      estimatedTokens: 10,
+      upstreamAttemptCount: 2,
+      upstreamAttempts: [
+        testUpstreamAttempt(1, "primary", "primary", {
+          upstreamRequestId: "up_req_admin_limited",
+          upstreamHttpStatus: 429,
+          errorCode: "rate_limited",
+          durationMs: 40,
+          promptTokens: 8,
+          completionTokens: 2,
+          totalTokens: 10,
+          failure: {
+            origin: "provider",
+            kind: "http_rate_limit",
+            stage: "after_headers",
+            transportCode: null,
+            upstreamStatus: 429
+          }
+        }),
+        testUpstreamAttempt(2, "stateless_retry", "failure_retry", {
+          errorCode: "rate_limited",
+          failure: {
+            origin: "provider",
+            kind: "http_rate_limit",
+            stage: "after_headers",
+            transportCode: null,
+            upstreamStatus: 429
+          }
+        })
+      ],
+      upstreamFailureOrigin: "provider",
+      upstreamFailureKind: "http_rate_limit",
+      upstreamFailureStage: "after_headers",
+      upstreamTransportCode: null,
+      upstreamHttpStatus: 429,
+      upstreamFailureRetryCount: 1,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
+      usageSource: "estimate",
+      limitKind: "request_minute"
+    });
 
     const preview = await app.inject({
       method: "GET",
-      url: "/gateway/admin/client-messages.json?limit=10",
+      url: "/gateway/admin/client-messages.json?limit=10&sort_by=tokens&sort_order=desc",
       headers: { authorization: "Bearer admin-messages-token-1234567890" }
     });
     expect(preview.statusCode).toBe(200);
+    expect(preview.headers["cache-control"]).toBe("no-store");
     expect(preview.json().messages).toHaveLength(2);
+    expect(preview.json().pagination).toMatchObject({
+      offset: 0,
+      limit: 10,
+      returned: 2,
+      total: 2,
+      has_more: false
+    });
+    expect(preview.json().summary).toMatchObject({
+      request_count: 3,
+      gateway_request_count: 3,
+      model_call_request_count: 3,
+      upstream_attempt_count: 5,
+      failure_retry_count: 1,
+      recovery_attempt_count: 1,
+      provider_total_tokens: 35,
+      estimated_tokens: 10,
+      attributable_tokens: 45,
+      success_count: 2,
+      error_count: 1,
+      rate_limited_count: 1
+    });
+    expect(preview.json().users[0]).toMatchObject({
+      subject: { id: "subj_zhang", name: "张晟" },
+      request_count: 2,
+      gateway_request_count: 2,
+      model_call_request_count: 2,
+      upstream_attempt_count: 4,
+      failure_retry_count: 1,
+      recovery_attempt_count: 1,
+      success_count: 1,
+      error_count: 1,
+      rate_limited_count: 1
+    });
+    expect(preview.json().users[0].token_usage.effective_tokens).toBe(40);
     expect(preview.json().messages[0].text).toBeUndefined();
     expect(JSON.stringify(preview.json()).toLowerCase()).not.toContain("smoke");
     expect(JSON.stringify(preview.json())).not.toContain(issued.token);
     expect(JSON.stringify(preview.json())).not.toContain(second.token);
     expect(JSON.stringify(preview.json())).not.toContain(smoke.token);
     expect(JSON.stringify(preview.json())).not.toContain("admin-messages-token-1234567890");
+
+    for (const sortBy of [
+      "tokens",
+      "provider_tokens",
+      "estimated_tokens",
+      "upstream_attempts",
+      "retries",
+      "recoveries"
+    ]) {
+      const sorted = await app.inject({
+        method: "GET",
+        url: `/gateway/admin/client-messages.json?limit=10&sort_by=${sortBy}&sort_order=desc`,
+        headers: { authorization: "Bearer admin-messages-token-1234567890" }
+      });
+      expect(sorted.statusCode).toBe(200);
+      expect(sorted.json().query.sort_by).toBe(sortBy);
+      expect(sorted.json().users[0].subject.id).toBe("subj_zhang");
+    }
+
+    const secondPage = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?limit=1&offset=1",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(secondPage.statusCode).toBe(200);
+    expect(secondPage.json().pagination).toMatchObject({
+      offset: 1,
+      limit: 1,
+      returned: 1,
+      total: 2,
+      has_more: false
+    });
 
     const full = await app.inject({
       method: "GET",
@@ -2804,8 +3183,103 @@ describe("gateway phase 1 routes", () => {
       credential: {
         prefix: second.record.prefix
       },
-      text: "Second user detailed prompt"
+      text: "Second user detailed prompt",
+      request_summary: {
+        outcome: "partial",
+        success: false,
+        request_count: 2,
+        gateway_request_count: 2,
+        model_call_request_count: 2,
+        upstream_attempt_count: 4,
+        failure_retry_count: 1,
+        recovery_attempt_count: 1,
+        success_count: 1,
+        error_count: 1,
+        rate_limited_count: 1,
+        token_usage: {
+          total_tokens: 30,
+          estimated_tokens: 10,
+          effective_tokens: 40
+        }
+      },
+      gateway_requests: [
+        { request_id: "req_admin_2_ok", upstream_attempt_count: 2 },
+        {
+          request_id: "req_admin_2_limited",
+          terminal_failure: {
+            origin: "provider",
+            kind: "http_rate_limit",
+            stage: "after_headers"
+          }
+        }
+      ],
+      gateway_requests_truncated: false,
+      gateway_request_total: 2
     });
+    expect(full.json().messages[0].gateway_requests[1].upstream_attempts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: "openai-codex",
+          upstream_runtime: "codex",
+          upstream_model: "gpt-5.5",
+          upstream_request_id: "up_req_admin_limited",
+          upstream_http_status: 429,
+          duration_ms: 40,
+          prompt_tokens: 8,
+          completion_tokens: 2,
+          total_tokens: 10,
+          failure: expect.objectContaining({
+            origin: "provider",
+            kind: "http_rate_limit",
+            stage: "after_headers",
+            upstream_status: 429
+          })
+        })
+      ])
+    );
+
+    for (let index = 0; index < 101; index += 1) {
+      store.insertRequestEvent({
+        requestId: `req_admin_trunc_${index}`,
+        credentialId: second.record.id,
+        subjectId: "subj_zhang",
+        scope: "code",
+        sessionId: null,
+        upstreamAccountId: null,
+        provider: null,
+        clientSessionId: "ses_admin_2",
+        clientMessageId: "msg_admin_2",
+        startedAt: new Date(eventNow.getTime() + 1_000 + index),
+        durationMs: 1,
+        firstByteMs: 1,
+        status: "ok",
+        errorCode: null,
+        rateLimited: false,
+        upstreamAttemptCount: 0,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        usageSource: "none"
+      });
+    }
+    const truncated = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?user=%E5%BC%A0%E6%99%9F&limit=10",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(truncated.statusCode).toBe(200);
+    expect(truncated.json().messages[0]).toMatchObject({
+      gateway_requests_truncated: true,
+      gateway_request_total: 103,
+      request_summary: { gateway_request_count: 103 }
+    });
+    expect(truncated.json().messages[0].gateway_requests).toHaveLength(100);
+    expect(truncated.json().messages[0].gateway_requests[0].request_id).toBe(
+      "req_admin_trunc_1"
+    );
+    expect(truncated.json().messages[0].gateway_requests.at(-1).request_id).toBe(
+      "req_admin_trunc_100"
+    );
 
     const smokeQuery = await app.inject({
       method: "GET",
@@ -2971,10 +3445,10 @@ describe("gateway phase 1 routes", () => {
       status: "error",
       errorCode: "rate_limited",
       rateLimited: true,
-      promptTokens: 40,
-      completionTokens: 0,
-      totalTokens: 40,
-      cachedPromptTokens: 0,
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null,
+      cachedPromptTokens: null,
       estimatedTokens: 40,
       usageSource: "estimate",
       limitKind: "request_day"
@@ -7945,10 +8419,14 @@ describe("gateway phase 1 routes", () => {
               completionTokens: 14,
               totalTokens: 99,
               upstreamAttemptCount: 2,
+              upstreamFailureRetryCount: 0,
+              upstreamRecoveryAttemptCount: 1,
+              upstreamUnclassifiedAdditionalAttemptCount: 0,
               upstreamAttempts: [
                 expect.objectContaining({
                   index: 1,
                   kind: "native_initial",
+                  purpose: "primary",
                   errorCode: "tool_call_validation_failed",
                   toolValidationFailureKind: "schema_mismatch",
                   promptTokens: 40,
@@ -7959,6 +8437,7 @@ describe("gateway phase 1 routes", () => {
                 expect.objectContaining({
                   index: 2,
                   kind: "validation_failed_to_auto",
+                  purpose: "contract_recovery",
                   errorCode: null,
                   toolValidationFailureKind: null,
                   promptTokens: 45,
@@ -10574,6 +11053,7 @@ describe("gateway phase 1 routes", () => {
   });
 
   it("repairs a protocol-complete empty strict-tool response once", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
     const provider = new SequencedFakeProvider([
       [{ type: "completed", providerSessionRef: "provider_thread_1" }],
       [
@@ -10594,7 +11074,10 @@ describe("gateway phase 1 routes", () => {
     ]);
     const app = buildGateway({
       accessToken: "secret",
+      authMode: "dev",
       provider,
+      sessionStore: store,
+      observationStore: store,
       logger: false
     });
 
@@ -10630,6 +11113,21 @@ describe("gateway phase 1 routes", () => {
     );
     expect(provider.messages).toHaveLength(2);
     expect(provider.messages[1].message).toContain("previous output was invalid");
+    expect(store.listRequestEvents({ limit: 1 })).toEqual([
+      expect.objectContaining({
+        upstreamAttemptCount: 2,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 1,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        upstreamAttempts: [
+          expect.objectContaining({ kind: "strict_initial", purpose: "primary" }),
+          expect.objectContaining({
+            kind: "strict_repair",
+            purpose: "contract_recovery"
+          })
+        ]
+      })
+    ]);
 
     await app.close();
   });
@@ -11628,9 +12126,11 @@ describe("gateway phase 1 routes", () => {
   });
 
   it("creates a session, streams a message, and stores provider session ref", async () => {
+    const observationStore = createSqliteStore({ path: ":memory:" });
     const app = buildGateway({
       accessToken: "secret",
       provider: new FakeProvider(),
+      observationStore,
       logger: false
     });
     const headers = { authorization: "Bearer secret" };
@@ -11655,6 +12155,27 @@ describe("gateway phase 1 routes", () => {
     expect(streamed.payload).toContain("event: message_delta");
     expect(streamed.payload).toContain('data: {"type":"message_delta","text":"echo:hello"}');
     expect(streamed.payload).toContain("event: completed");
+    const messageRequestId = expectRequestIdHeader(streamed);
+    expect(observationStore.listRequestEvents({ requestId: messageRequestId })).toMatchObject([
+      {
+        requestId: messageRequestId,
+        status: "ok",
+        upstreamAttemptCount: 1,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        upstreamAttempts: [
+          expect.objectContaining({
+            index: 1,
+            kind: "primary",
+            purpose: "primary",
+            provider: "openai-codex",
+            upstreamRuntime: "codex",
+            upstreamModel: "gpt-5.6-sol"
+          })
+        ]
+      }
+    ]);
 
     const listed = await app.inject({
       method: "GET",
@@ -11665,6 +12186,72 @@ describe("gateway phase 1 routes", () => {
     expect(listed.json().sessions[0].provider_session_ref).toBe("provider_thread_1");
 
     await app.close();
+    observationStore.close();
+  });
+
+  it("keeps provider failure classification internal on legacy session streams", async () => {
+    const observationStore = createSqliteStore({ path: ":memory:" });
+    const provider = new FakeProvider([
+      {
+        type: "error",
+        code: "service_unavailable",
+        message: "MedCode service is temporarily unavailable.",
+        providerFailure: {
+          origin: "network",
+          kind: "connect",
+          stage: "before_headers",
+          transportCode: "UND_ERR_CONNECT_TIMEOUT",
+          upstreamStatus: null
+        }
+      }
+    ]);
+    const app = buildGateway({
+      accessToken: "secret",
+      provider,
+      observationStore,
+      logger: false
+    });
+    const headers = { authorization: "Bearer secret" };
+    const created = await app.inject({ method: "POST", url: "/sessions", headers });
+    const streamed = await app.inject({
+      method: "POST",
+      url: `/sessions/${created.json().session.id}/messages`,
+      headers,
+      payload: { message: "hello" }
+    });
+
+    expect(streamed.statusCode).toBe(200);
+    expect(streamed.payload).toContain("event: error");
+    expect(streamed.payload).toContain('"code":"service_unavailable"');
+    expect(streamed.payload).not.toContain("providerFailure");
+    expect(streamed.payload).not.toContain("UND_ERR_CONNECT_TIMEOUT");
+    const requestId = expectRequestIdHeader(streamed);
+    expect(observationStore.listRequestEvents({ requestId })).toMatchObject([
+      {
+        status: "error",
+        errorCode: "service_unavailable",
+        upstreamAttemptCount: 1,
+        upstreamFailureOrigin: "network",
+        upstreamFailureKind: "connect",
+        upstreamFailureStage: "before_headers",
+        upstreamTransportCode: "UND_ERR_CONNECT_TIMEOUT",
+        upstreamAttempts: [
+          expect.objectContaining({
+            purpose: "primary",
+            failure: {
+              origin: "network",
+              kind: "connect",
+              stage: "before_headers",
+              transportCode: "UND_ERR_CONNECT_TIMEOUT",
+              upstreamStatus: null
+            }
+          })
+        ]
+      }
+    ]);
+
+    await app.close();
+    observationStore.close();
   });
 
   it("sticks existing sessions to their selected upstream account", async () => {
@@ -12025,6 +12612,7 @@ describe("gateway phase 1 routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    const requestId = expectRequestIdHeader(response);
     expect(response.json().choices[0].message.content).toBe("retry-ok");
     expect(firstProvider.messages).toHaveLength(1);
     expect(secondProvider.messages).toHaveLength(1);
@@ -12035,9 +12623,26 @@ describe("gateway phase 1 routes", () => {
     });
     expect(store.listRequestEvents({ limit: 5 })).toEqual([
       expect.objectContaining({
+        requestId,
         upstreamAccountId: "codex-pro-2",
         status: "ok",
-        errorCode: null
+        errorCode: null,
+        upstreamAttemptCount: 2,
+        upstreamFailureRetryCount: 1,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        upstreamAttempts: [
+          expect.objectContaining({
+            index: 1,
+            kind: "primary",
+            purpose: "primary"
+          }),
+          expect.objectContaining({
+            index: 2,
+            kind: "stateless_retry",
+            purpose: "failure_retry"
+          })
+        ]
       })
     ]);
 
@@ -13169,7 +13774,11 @@ describe("gateway phase 1 routes", () => {
           scope: "code",
           status: "ok",
           errorCode: null,
-          rateLimited: false
+          rateLimited: false,
+          upstreamAttemptCount: 0,
+          upstreamFailureRetryCount: 0,
+          upstreamRecoveryAttemptCount: 0,
+          upstreamUnclassifiedAdditionalAttemptCount: 0
         }),
         expect.objectContaining({
           credentialId: issued.record.id,
@@ -13181,7 +13790,14 @@ describe("gateway phase 1 routes", () => {
           limitKind: "request_minute",
           clientSessionId: "ses_rate_limit_test",
           clientTurnId: "msg_rate_limit_test",
-          turnCode: "T:RATE1"
+          turnCode: "T:RATE1",
+          upstreamAttemptCount: 0,
+          upstreamFailureOrigin: null,
+          upstreamFailureKind: null,
+          upstreamFailureRetryCount: 0,
+          upstreamRecoveryAttemptCount: 0,
+          upstreamUnclassifiedAdditionalAttemptCount: 0,
+          usageSource: "none"
         })
       ])
     );
@@ -13262,9 +13878,111 @@ describe("gateway phase 1 routes", () => {
           assessmentReason: "client_turn_id_unavailable",
           decision: "not_assessed"
         }),
-        usageSource: "provider"
+        usageSource: "provider",
+        upstreamAttemptCount: 1,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
+        upstreamAttempts: [
+          expect.objectContaining({
+            index: 1,
+            purpose: "primary"
+          })
+        ]
       })
     ]);
+
+    await app.close();
+  });
+
+  it("counts three normal client tool-loop requests as three model calls, not retries", async () => {
+    const { store, headers } = createCredentialBackedStore();
+    const provider = new FakeProvider([
+      {
+        type: "message_delta",
+        text: JSON.stringify({
+          type: "tool_calls",
+          tool_calls: [{ name: "lookup", arguments: { query: "evidence" } }]
+        })
+      },
+      { type: "completed", providerSessionRef: "provider_tool_loop" }
+    ]);
+    const app = buildGateway({
+      authMode: "credential",
+      provider,
+      sessionStore: store,
+      observationStore: store,
+      logger: false
+    });
+    const turnHeaders = {
+      ...headers,
+      "x-medcode-client-turn-id": "msg_tool_loop_1",
+      "x-medcode-client-message-id": "msg_tool_loop_1",
+      "x-medcode-client-session-id": "ses_tool_loop_1"
+    };
+
+    for (let round = 1; round <= 3; round += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: turnHeaders,
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: `tool loop round ${round}` }],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "lookup",
+                parameters: {
+                  type: "object",
+                  properties: { query: { type: "string" } },
+                  required: ["query"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ]
+        }
+      });
+      expect(response.statusCode).toBe(200);
+    }
+
+    const events = store.listRequestEvents({
+      clientMessageIds: ["msg_tool_loop_1"],
+      limit: 10
+    });
+    expect(events).toHaveLength(3);
+    expect(new Set(events.map((event) => event.requestId)).size).toBe(3);
+    expect(provider.messages).toHaveLength(3);
+    expect(events.map((event) => event.upstreamAttemptCount)).toEqual([1, 1, 1]);
+    expect(events.reduce((sum, event) => sum + (event.upstreamAttemptCount ?? 0), 0)).toBe(3);
+    expect(events.reduce((sum, event) => sum + (event.upstreamFailureRetryCount ?? 0), 0)).toBe(0);
+    expect(events.reduce((sum, event) => sum + (event.upstreamRecoveryAttemptCount ?? 0), 0)).toBe(0);
+    expect(
+      events.map((event) => ({
+        kind: event.upstreamAttempts?.[0]?.kind,
+        purpose: event.upstreamAttempts?.[0]?.purpose
+      }))
+    ).toEqual([
+      { kind: "strict_initial", purpose: "primary" },
+      { kind: "strict_initial", purpose: "primary" },
+      { kind: "strict_initial", purpose: "primary" }
+    ]);
+
+    const usage = store.reportRequestUsage({
+      since: new Date("2020-01-01T00:00:00Z"),
+      until: new Date("2030-01-01T00:00:00Z")
+    });
+    expect(usage).toHaveLength(1);
+    expect(usage[0]).toMatchObject({
+      requests: 3,
+      modelCallRequests: 3,
+      upstreamAttempts: 3,
+      failureRetries: 0,
+      recoveryAttempts: 0,
+      unclassifiedAdditionalAttempts: 0
+    });
 
     await app.close();
   });

@@ -169,13 +169,72 @@ describe("CodexProviderAdapter", () => {
       )
     );
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       {
         type: "error",
         code: "client_aborted",
         message: "Client disconnected."
       }
     ]);
+    expect(events[0]).toMatchObject({
+      providerFailure: {
+        origin: "client",
+        kind: "client_aborted",
+        stage: "before_headers"
+      }
+    });
+  });
+
+  it("classifies Gateway deadline and nested SDK transport codes", async () => {
+    const deadlineController = new AbortController();
+    const deadline = new GatewayError({
+      code: "upstream_timeout",
+      message: "MedCode service timed out.",
+      httpStatus: 504
+    });
+    const deadlineThread: CodexThreadLike = {
+      id: null,
+      async runStreamed() {
+        deadlineController.abort(deadline);
+        throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      }
+    };
+    const deadlineEvents = await collect(
+      createAdapter(new FakeClient(deadlineThread)).message(
+        messageInput({ providerSessionRef: null, signal: deadlineController.signal })
+      )
+    );
+    expect(deadlineEvents[0]).toMatchObject({
+      code: "upstream_timeout",
+      providerFailure: {
+        origin: "gateway",
+        kind: "deadline_exceeded",
+        stage: "before_headers"
+      }
+    });
+
+    const transportThread: CodexThreadLike = {
+      id: null,
+      async runStreamed() {
+        throw new Error("SDK request failed", {
+          cause: Object.assign(new Error("socket detail"), { code: "ECONNRESET" })
+        });
+      }
+    };
+    const transportEvents = await collect(
+      createAdapter(new FakeClient(transportThread)).message(
+        messageInput({ providerSessionRef: null })
+      )
+    );
+    expect(transportEvents[0]).toMatchObject({
+      code: "service_unavailable",
+      providerFailure: {
+        origin: "network",
+        kind: "connection_reset",
+        stage: "before_headers",
+        transportCode: "ECONNRESET"
+      }
+    });
   });
 
   it("maps streamed agent message updates into gateway deltas", async () => {
@@ -558,14 +617,59 @@ describe("CodexProviderAdapter", () => {
     const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
 
     expect(events).toHaveLength(1);
-    expect(events[0]).toEqual({
+    expect(events[0]).toMatchObject({
       type: "error",
       code: "provider_reauth_required",
       message: "MedCode service requires administrator reauthorization."
     });
+    expect(events[0]).toMatchObject({
+      providerFailure: { origin: "provider", kind: "provider_reauth", stage: "streaming" }
+    });
     expect(JSON.stringify(events)).not.toContain("Codex");
     expect(JSON.stringify(events)).not.toContain("ChatGPT");
   });
+
+  it.each([401, 403])(
+    "keeps Codex login failures classified as provider reauth when HTTP status is %i",
+    async (status) => {
+      const failure = Object.assign(new Error("Codex is not logged in to ChatGPT"), {
+        status
+      });
+      const thread: CodexThreadLike = {
+        id: null,
+        async runStreamed() {
+          throw failure;
+        }
+      };
+      const diagnostics: ProviderErrorDiagnostic[] = [];
+      const adapter = createAdapter(new FakeClient(thread));
+
+      const events = await collect(
+        adapter.message(
+          messageInput({
+            providerSessionRef: null,
+            onProviderError: (diagnostic) => diagnostics.push(diagnostic)
+          })
+        )
+      );
+
+      expect(events[0]).toMatchObject({
+        type: "error",
+        code: "provider_reauth_required",
+        providerFailure: {
+          origin: "provider",
+          kind: "provider_reauth",
+          stage: "before_headers",
+          upstreamStatus: status
+        }
+      });
+      expect(diagnostics[0]?.failure).toMatchObject({
+        origin: "provider",
+        kind: "provider_reauth",
+        upstreamStatus: status
+      });
+    }
+  );
 
   it("stops provider streams after turn failures", async () => {
     const thread = new FakeThread(null, [
@@ -587,13 +691,16 @@ describe("CodexProviderAdapter", () => {
 
     const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       {
         type: "error",
         code: "rate_limited",
         message: "MedCode service rate limit reached."
       }
     ]);
+    expect(events[0]).toMatchObject({
+      providerFailure: { origin: "provider", kind: "http_rate_limit", stage: "streaming" }
+    });
   });
 
   it("reports sanitized raw provider errors through the diagnostics callback", async () => {
@@ -622,13 +729,16 @@ describe("CodexProviderAdapter", () => {
       )
     );
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       {
         type: "error",
         code: "service_unavailable",
         message: "MedCode service is temporarily unavailable."
       }
     ]);
+    expect(events[0]).toMatchObject({
+      providerFailure: { origin: "provider", kind: "unknown", stage: "streaming" }
+    });
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]).toMatchObject({
       source: "turn.failed",
@@ -671,7 +781,7 @@ describe("CodexProviderAdapter", () => {
       )
     );
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       {
         type: "error",
         code: "context_length_exceeded",
@@ -685,7 +795,8 @@ describe("CodexProviderAdapter", () => {
       publicMessage:
         "Current conversation or attached files are too large. Start a new conversation, split large PDFs/files, or clear earlier history before retrying.",
       rawMessage:
-        "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying."
+        "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
+      failure: { origin: "provider", kind: "http_request", stage: "streaming" }
     });
   });
 
@@ -714,7 +825,7 @@ describe("CodexProviderAdapter", () => {
 
     const events = await collect(adapter.message(messageInput({ providerSessionRef: null })));
 
-    expect(events).toEqual([
+    expect(events).toMatchObject([
       {
         type: "error",
         code: "provider_reauth_required",

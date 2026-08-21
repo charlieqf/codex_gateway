@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   billingPayloadHash,
@@ -13,6 +14,7 @@ import {
   type UpstreamAccount
 } from "@codex-gateway/core";
 import {
+  buildQuotaDashboardData,
   createSqliteClientEventsStore,
   createSqliteTokenBudgetLimiter,
   createSqliteStore,
@@ -167,6 +169,17 @@ describe("SqliteGatewayStore", () => {
       expect(columnNames(db, "request_events")).toContain("reasoning_tokens");
       expect(columnNames(db, "request_events")).toContain("gateway_estimated_prompt_tokens");
       expect(columnNames(db, "request_events")).toContain("tool_loop_guard_json");
+      expect(columnNames(db, "request_events")).toEqual(
+        expect.arrayContaining([
+          "upstream_failure_origin",
+          "upstream_failure_kind",
+          "upstream_failure_stage",
+          "upstream_transport_code",
+          "upstream_failure_retry_count",
+          "upstream_recovery_attempt_count",
+          "upstream_unclassified_additional_attempt_count"
+        ])
+      );
       expect(columnNames(db, "token_reservations")).toContain("public_model_id");
       expect(columnNames(db, "token_reservations")).toContain("final_reasoning_tokens");
       expect(columnNames(db, "access_credentials")).toContain(
@@ -184,6 +197,12 @@ describe("SqliteGatewayStore", () => {
       expect(
         db.prepare("SELECT version FROM schema_migrations WHERE version = 25").get()
       ).toBeTruthy();
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 26").get()
+      ).toBeTruthy();
+      expect(indexNames(db, "request_events")).toContain(
+        "idx_request_events_failure_started"
+      );
     } finally {
       db.close();
     }
@@ -210,6 +229,10 @@ describe("SqliteGatewayStore", () => {
       expect(
         db.prepare("SELECT version FROM schema_migrations WHERE version = 25").get()
       ).toBeUndefined();
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 26").get()
+      ).toBeTruthy();
+      expect(columnNames(db, "request_events")).toContain("upstream_failure_kind");
 
       db.exec("CREATE TABLE access_credentials (id TEXT PRIMARY KEY)");
       expect(() => migrateGatewaySchema(db)).toThrow(
@@ -807,6 +830,8 @@ describe("SqliteGatewayStore", () => {
         {
           index: 1,
           kind: "native_initial",
+          purpose: "primary",
+          failure: null,
           toolChoice: "required",
           provider: "openrouter",
           upstreamRuntime: "openrouter",
@@ -846,6 +871,14 @@ describe("SqliteGatewayStore", () => {
         {
           index: 2,
           kind: "validation_failed_to_auto",
+          purpose: "contract_recovery",
+          failure: {
+            origin: "provider",
+            kind: "stream_protocol",
+            stage: "streaming",
+            transportCode: null,
+            upstreamStatus: 200
+          },
           toolChoice: "auto",
           provider: "openrouter",
           upstreamRuntime: "openrouter",
@@ -863,6 +896,13 @@ describe("SqliteGatewayStore", () => {
           emptyStop: true
         }
       ],
+      upstreamFailureOrigin: "provider",
+      upstreamFailureKind: "stream_protocol",
+      upstreamFailureStage: "streaming",
+      upstreamTransportCode: null,
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 1,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
       startedAt: new Date("2026-01-01T00:00:00Z"),
       durationMs: 25,
       firstByteMs: 10,
@@ -945,6 +985,8 @@ describe("SqliteGatewayStore", () => {
           expect.objectContaining({
             index: 1,
             kind: "native_initial",
+            purpose: "primary",
+            failure: null,
             toolChoice: "required",
             toolCallCount: 1,
             toolNames: ["write_file"],
@@ -968,10 +1010,25 @@ describe("SqliteGatewayStore", () => {
           expect.objectContaining({
             index: 2,
             kind: "validation_failed_to_auto",
+            purpose: "contract_recovery",
+            failure: {
+              origin: "provider",
+              kind: "stream_protocol",
+              stage: "streaming",
+              transportCode: null,
+              upstreamStatus: 200
+            },
             toolChoice: "auto",
             emptyStop: true
           })
         ],
+        upstreamFailureOrigin: "provider",
+        upstreamFailureKind: "stream_protocol",
+        upstreamFailureStage: "streaming",
+        upstreamTransportCode: null,
+        upstreamFailureRetryCount: 0,
+        upstreamRecoveryAttemptCount: 1,
+        upstreamUnclassifiedAdditionalAttemptCount: 0,
         durationMs: 25,
         firstByteMs: 10,
         status: "error",
@@ -1006,9 +1063,13 @@ describe("SqliteGatewayStore", () => {
       }
     ]);
     expect(store.listRequestEvents({ turnCode: "T:7K3P2" })).toHaveLength(1);
+    expect(store.listRequestEvents({ requestId: "req_1" })).toHaveLength(1);
+    expect(store.listRequestEvents({ requestId: "req_missing" })).toEqual([]);
     expect(
       store.listRequestEvents({ clientSessionId: "ses_client_1" })
     ).toHaveLength(1);
+    expect(store.listRequestEvents({ clientMessageIds: ["msg_turn_1"] })).toHaveLength(1);
+    expect(store.listRequestEvents({ clientMessageIds: [] })).toEqual([]);
     store.close();
   });
 
@@ -1036,6 +1097,14 @@ describe("SqliteGatewayStore", () => {
       totalTokens: 12,
       cachedPromptTokens: 4,
       estimatedTokens: null,
+      upstreamAttemptCount: 1,
+      upstreamFailureOrigin: null,
+      upstreamFailureKind: null,
+      upstreamFailureStage: null,
+      upstreamTransportCode: null,
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
       usageSource: "provider" as const
     };
 
@@ -1045,7 +1114,13 @@ describe("SqliteGatewayStore", () => {
       startedAt: new Date("2026-01-02T00:00:00Z"),
       promptTokens: 20,
       completionTokens: 3,
-      totalTokens: 23
+      totalTokens: 23,
+      upstreamAttemptCount: 2,
+      upstreamFailureOrigin: "network" as const,
+      upstreamFailureKind: "connection_reset" as const,
+      upstreamFailureStage: "streaming" as const,
+      upstreamTransportCode: "ECONNRESET",
+      upstreamFailureRetryCount: 1
     });
 
     expect(store.listRequestEvents({ credentialId: "cred_1" })).toMatchObject([
@@ -1054,7 +1129,15 @@ describe("SqliteGatewayStore", () => {
         startedAt: new Date("2026-01-02T00:00:00Z"),
         promptTokens: 20,
         completionTokens: 3,
-        totalTokens: 23
+        totalTokens: 23,
+        upstreamAttemptCount: 2,
+        upstreamFailureOrigin: "network",
+        upstreamFailureKind: "connection_reset",
+        upstreamFailureStage: "streaming",
+        upstreamTransportCode: "ECONNRESET",
+        upstreamFailureRetryCount: 1,
+        upstreamRecoveryAttemptCount: 0,
+        upstreamUnclassifiedAdditionalAttemptCount: 0
       }
     ]);
     expect(
@@ -1104,7 +1187,11 @@ describe("SqliteGatewayStore", () => {
       startedAt: new Date("2026-01-01T00:00:00Z"),
       promptTokens: 10,
       completionTokens: 2,
-      totalTokens: 12
+      totalTokens: 12,
+      upstreamAttemptCount: 1,
+      upstreamFailureRetryCount: 0,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0
     });
     store.insertRequestEvent({
       ...base,
@@ -1115,7 +1202,11 @@ describe("SqliteGatewayStore", () => {
       startedAt: new Date("2026-01-01T00:01:00Z"),
       promptTokens: 7,
       completionTokens: 1,
-      totalTokens: 8
+      totalTokens: 8,
+      upstreamAttemptCount: 2,
+      upstreamFailureRetryCount: 1,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0
     });
 
     const input = {
@@ -1143,7 +1234,14 @@ describe("SqliteGatewayStore", () => {
       promptTokens: 17,
       completionTokens: 3,
       totalTokens: 20,
-      reasoningTokens: 3
+      reasoningTokens: 3,
+      modelCallRequests: 2,
+      upstreamAttempts: 3,
+      failureRetries: 1,
+      recoveryAttempts: 0,
+      unclassifiedAdditionalAttempts: 0,
+      attemptCountMissing: 0,
+      attemptPurposeMissing: 3
     });
     expect(aliasFilteredRows).toMatchObject(rows);
     store.close();
@@ -1305,7 +1403,14 @@ describe("SqliteGatewayStore", () => {
         cachedPromptTokens: 4,
         estimatedTokens: 0,
         reasoningTokens: 0,
-        usageMissing: 0,
+        usageMissing: 1,
+        modelCallRequests: 0,
+        upstreamAttempts: 0,
+        failureRetries: 0,
+        recoveryAttempts: 0,
+        unclassifiedAdditionalAttempts: 0,
+        attemptCountMissing: 0,
+        attemptPurposeMissing: 0,
         rateLimitedBy: {
           request_minute: 0,
           request_day: 0,
@@ -1347,6 +1452,272 @@ describe("SqliteGatewayStore", () => {
     expect(store.listRequestEvents({ limit: 10 }).map((event) => event.requestId)).not.toContain(
       "req_old"
     );
+    store.close();
+  });
+
+  it("keeps historical null classifications and deterministically aggregates legacy attempt JSON", () => {
+    const store = createSeededStore(":memory:");
+    store.database.prepare(
+      `INSERT INTO request_events (
+        request_id, credential_id, subject_id, scope, upstream_account_id, provider,
+        started_at, status, rate_limited, upstream_attempts_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      "req_legacy_attempts",
+      "cred_1",
+      "subj_1",
+      "code",
+      "sub_openai_codex",
+      "openai-codex",
+      "2026-01-01T01:00:00.000Z",
+      "error",
+      0,
+      JSON.stringify([
+        { index: 1, kind: "native" },
+        { index: 2, kind: "validation_failed_to_auto" },
+        { index: 3, kind: "future_extra" }
+      ])
+    );
+
+    expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+      requestId: "req_legacy_attempts",
+      upstreamAttemptCount: null,
+      upstreamFailureOrigin: null,
+      upstreamFailureKind: null,
+      upstreamFailureStage: null,
+      upstreamTransportCode: null,
+      upstreamFailureRetryCount: null,
+      upstreamRecoveryAttemptCount: null,
+      upstreamUnclassifiedAdditionalAttemptCount: null,
+      upstreamAttempts: [
+        { index: 1, kind: "native", purpose: null, failure: null },
+        { index: 2, kind: "validation_failed_to_auto", purpose: null, failure: null },
+        { index: 3, kind: "future_extra", purpose: null, failure: null }
+      ]
+    });
+
+    expect(
+      store.reportRequestUsage({
+        since: new Date("2026-01-01T00:00:00.000Z"),
+        until: new Date("2026-01-02T00:00:00.000Z")
+      })[0]
+    ).toMatchObject({
+      requests: 1,
+      modelCallRequests: 1,
+      upstreamAttempts: 3,
+      failureRetries: 0,
+      recoveryAttempts: 1,
+      unclassifiedAdditionalAttempts: 1,
+      attemptCountMissing: 0,
+      attemptPurposeMissing: 1
+    });
+
+    store.database.prepare(
+      `INSERT INTO request_events (
+        request_id, credential_id, subject_id, scope, upstream_account_id, provider,
+        started_at, status, rate_limited, upstream_attempt_count,
+        upstream_failure_retry_count, upstream_recovery_attempt_count,
+        upstream_unclassified_additional_attempt_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      "req_legacy_count_only",
+      "cred_1",
+      "subj_1",
+      "code",
+      "sub_openai_codex",
+      "openai-codex",
+      "2026-01-02T01:00:00.000Z",
+      "ok",
+      0,
+      2,
+      0,
+      0,
+      0
+    );
+    expect(
+      store.reportRequestUsage({
+        since: new Date("2026-01-02T00:00:00.000Z"),
+        until: new Date("2026-01-03T00:00:00.000Z")
+      })[0]
+    ).toMatchObject({
+      modelCallRequests: 1,
+      upstreamAttempts: 2,
+      attemptCountMissing: 0,
+      attemptPurposeMissing: 2
+    });
+
+    store.database.prepare(
+      `INSERT INTO request_events (
+        request_id, credential_id, subject_id, scope, upstream_account_id, provider,
+        started_at, status, rate_limited, upstream_attempt_count, upstream_attempts_json,
+        upstream_failure_retry_count, upstream_recovery_attempt_count,
+        upstream_unclassified_additional_attempt_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      "req_persisted_count_unknown_purpose",
+      "cred_1",
+      "subj_1",
+      "code",
+      "sub_openai_codex",
+      "openai-codex",
+      "2026-01-03T01:00:00.000Z",
+      "ok",
+      0,
+      1,
+      JSON.stringify([{ index: 1, kind: "future_kind", purpose: "unknown" }]),
+      0,
+      0,
+      0
+    );
+    expect(
+      store.reportRequestUsage({
+        since: new Date("2026-01-03T00:00:00.000Z"),
+        until: new Date("2026-01-04T00:00:00.000Z")
+      })[0]
+    ).toMatchObject({
+      upstreamAttempts: 1,
+      attemptPurposeMissing: 1
+    });
+    store.database
+      .prepare("UPDATE request_events SET upstream_attempts_json = ? WHERE request_id = ?")
+      .run("{malformed", "req_legacy_attempts");
+    expect(
+      store.listRequestEvents({ requestId: "req_legacy_attempts", limit: 1 })[0]
+        .upstreamAttempts
+    ).toBeNull();
+    store.close();
+  });
+
+  it("imports migration 24 usage history into migration 26 with additive fields left null", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-history-sync-"));
+    cleanupDirs.push(dir);
+    const sourcePath = path.join(dir, "source.db");
+    const targetPath = path.join(dir, "target.db");
+    const source = createSeededStore(sourcePath);
+    source.insertRequestEvent({
+      requestId: "req_sync_legacy",
+      credentialId: "cred_1",
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T12:00:00.000Z"),
+      durationMs: 20,
+      firstByteMs: 10,
+      status: "error",
+      errorCode: "upstream_unavailable",
+      rateLimited: false
+    });
+    source.close();
+    createSeededStore(targetPath).close();
+
+    const legacy = new DatabaseSync(sourcePath);
+    try {
+      legacy.exec("DROP INDEX IF EXISTS idx_request_events_failure_started");
+      for (const column of [
+        "upstream_failure_origin",
+        "upstream_failure_kind",
+        "upstream_failure_stage",
+        "upstream_transport_code",
+        "upstream_failure_retry_count",
+        "upstream_recovery_attempt_count",
+        "upstream_unclassified_additional_attempt_count"
+      ]) {
+        legacy.exec(`ALTER TABLE request_events DROP COLUMN ${column}`);
+      }
+      legacy.prepare("DELETE FROM schema_migrations WHERE version IN (25, 26)").run();
+    } finally {
+      legacy.close();
+    }
+
+    const script = path.resolve("scripts/gateway-usage-history-transfer.cjs");
+    const exported = spawnSync(
+      process.execPath,
+      [
+        script,
+        "export",
+        "--db",
+        sourcePath,
+        "--since",
+        "2026-01-01T00:00:00.000Z",
+        "--until",
+        "2026-01-02T00:00:00.000Z"
+      ],
+      { encoding: "utf8" }
+    );
+    expect(exported.status, exported.stderr).toBe(0);
+    const applied = spawnSync(
+      process.execPath,
+      [script, "apply", "--db", targetPath],
+      { encoding: "utf8", input: exported.stdout }
+    );
+    expect(applied.status, applied.stderr).toBe(0);
+
+    const target = createSeededStore(targetPath);
+    expect(target.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+      requestId: "req_sync_legacy",
+      upstreamFailureOrigin: null,
+      upstreamFailureKind: null,
+      upstreamFailureStage: null,
+      upstreamTransportCode: null,
+      upstreamFailureRetryCount: null,
+      upstreamRecoveryAttemptCount: null,
+      upstreamUnclassifiedAdditionalAttemptCount: null
+    });
+    target.close();
+  });
+
+  it("reports 50,000 recent request events within the Phase 0 local target", () => {
+    const store = createSeededStore(":memory:");
+    const insert = store.database.prepare(
+      `INSERT INTO request_events (
+        request_id, credential_id, subject_id, scope, upstream_account_id, provider,
+        started_at, duration_ms, status, rate_limited, usage_source,
+        upstream_attempt_count, upstream_failure_retry_count,
+        upstream_recovery_attempt_count, upstream_unclassified_additional_attempt_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    store.database.exec("BEGIN");
+    try {
+      for (let index = 0; index < 50_000; index += 1) {
+        insert.run(
+          `req_perf_${index}`,
+          "cred_perf",
+          "subj_perf",
+          "code",
+          "sub_openai_codex",
+          "openai-codex",
+          `2026-01-01T${String(Math.floor(index / 3600) % 24).padStart(2, "0")}:${String(Math.floor(index / 60) % 60).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}.000Z`,
+          10,
+          "ok",
+          0,
+          "none",
+          1,
+          0,
+          0,
+          0
+        );
+      }
+      store.database.exec("COMMIT");
+    } catch (error) {
+      store.database.exec("ROLLBACK");
+      throw error;
+    }
+
+    const startedAt = performance.now();
+    const report = store.reportRequestUsage({
+      since: new Date("2025-12-31T00:00:00.000Z"),
+      until: new Date("2026-01-02T00:00:00.000Z")
+    });
+    const durationMs = performance.now() - startedAt;
+    expect(report[0]).toMatchObject({
+      requests: 50_000,
+      modelCallRequests: 50_000,
+      upstreamAttempts: 50_000,
+      usageMissing: 0
+    });
+    expect(durationMs).toBeLessThan(500);
     store.close();
   });
 
@@ -1429,6 +1800,97 @@ describe("SqliteGatewayStore", () => {
       completionTokens: 2,
       totalTokens: 12,
       cachedPromptTokens: 4
+    });
+
+    store.close();
+  });
+
+  it("reports missing-provider-usage charges only as final Gateway estimates", async () => {
+    const store = createSeededStore(":memory:");
+    const issued = issueAccessCredential({
+      subjectId: "subj_1",
+      label: "Fallback token credential",
+      scope: "code",
+      expiresAt: new Date("2030-01-01T00:00:00Z"),
+      rate: {
+        requestsPerMinute: 30,
+        requestsPerDay: null,
+        concurrentRequests: 1,
+        token: {
+          tokensPerMinute: 1_000,
+          tokensPerDay: 10_000,
+          tokensPerMonth: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: null,
+          reserveTokensPerRequest: 25,
+          missingUsageCharge: "estimate"
+        }
+      }
+    });
+    store.insertAccessCredential(issued.record);
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const acquired = await limiter.acquire({
+      requestId: "req_missing_provider_usage",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      policy: issued.record.rate.token!,
+      estimatedPromptTokens: 100,
+      now: new Date("2026-01-01T00:00:00Z")
+    });
+    expect(acquired.ok).toBe(true);
+    if (!acquired.ok) {
+      throw new Error("token acquire unexpectedly failed");
+    }
+    const finalized = await limiter.finalize({
+      reservationId: acquired.reservationId,
+      now: new Date("2026-01-01T00:00:01Z")
+    });
+    expect(finalized).toMatchObject({
+      finalTotalTokens: 125,
+      finalUsageSource: "estimate"
+    });
+    store.insertRequestEvent({
+      requestId: "req_missing_provider_usage",
+      credentialId: issued.record.id,
+      subjectId: "subj_1",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex",
+      provider: "openai-codex",
+      startedAt: new Date("2026-01-01T00:00:00Z"),
+      durationMs: 10,
+      firstByteMs: null,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      reservationId: acquired.reservationId
+    });
+
+    const report = store.reportRequestUsage({
+      since: new Date("2026-01-01T00:00:00Z"),
+      until: new Date("2026-01-02T00:00:00Z"),
+      credentialId: issued.record.id
+    })[0];
+    expect(report).toMatchObject({
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      estimatedTokens: 125
+    });
+
+    const dashboard = await buildQuotaDashboardData(store, {
+      now: new Date("2026-01-01T02:00:00Z")
+    });
+    expect(dashboard.summary.today).toMatchObject({
+      provider_total_tokens: 0,
+      estimated_tokens: 125
+    });
+    expect(dashboard.users.find((user) => user.user.id === "subj_1")?.usage_today).toMatchObject({
+      provider_total_tokens: 0,
+      estimated_tokens: 125
     });
 
     store.close();
@@ -2321,6 +2783,49 @@ describe("SqliteGatewayStore", () => {
 });
 
 describe("SqliteClientEventsStore", () => {
+  it("supports exact counts, subject sets, search, and offset pagination", () => {
+    const store = createSqliteClientEventsStore({ path: ":memory:" });
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_1",
+        eventId: "evt_page_1",
+        messageId: "msg_page_1",
+        text: "First vessel schedule",
+        receivedAt: new Date("2026-04-29T10:00:00.000Z")
+      })
+    );
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_2",
+        eventId: "evt_page_2",
+        messageId: "msg_page_2",
+        text: "Second vessel schedule",
+        receivedAt: new Date("2026-04-29T10:01:00.000Z")
+      })
+    );
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_other",
+        eventId: "evt_page_other",
+        subjectId: "subj_2",
+        messageId: "msg_page_other",
+        text: "Other industry prompt",
+        receivedAt: new Date("2026-04-29T10:02:00.000Z")
+      })
+    );
+
+    const query = { subjectIds: ["subj_1"], search: "vessel" };
+    expect(store.countClientMessageEvents(query)).toBe(2);
+    expect(store.listClientMessageEvents({ ...query, limit: 1, offset: 0 })[0]?.messageId).toBe(
+      "msg_page_2"
+    );
+    expect(store.listClientMessageEvents({ ...query, limit: 1, offset: 1 })[0]?.messageId).toBe(
+      "msg_page_1"
+    );
+    expect(store.countClientMessageEvents({ subjectIds: [] })).toBe(0);
+    store.close();
+  });
+
   it("migrates idempotently and persists client message events", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-client-events-"));
     cleanupDirs.push(dir);

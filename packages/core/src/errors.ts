@@ -1,3 +1,5 @@
+import type { ProviderFailureClassification } from "./provider-failure.js";
+
 export const gatewayErrorCodes = [
   "missing_credential",
   "invalid_credential",
@@ -102,6 +104,7 @@ export class GatewayError extends Error {
   readonly transformedRetryAllowed?: boolean;
   readonly recommendedAction?: string;
   readonly recoveryOwner?: GatewayRecoveryOwner;
+  readonly providerFailure?: ProviderFailureClassification;
 
   constructor(input: {
     code: GatewayErrorCode;
@@ -114,6 +117,7 @@ export class GatewayError extends Error {
     transformedRetryAllowed?: boolean;
     recommendedAction?: string;
     recoveryOwner?: GatewayRecoveryOwner;
+    providerFailure?: ProviderFailureClassification;
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -126,6 +130,7 @@ export class GatewayError extends Error {
     this.transformedRetryAllowed = input.transformedRetryAllowed;
     this.recommendedAction = input.recommendedAction;
     this.recoveryOwner = input.recoveryOwner;
+    this.providerFailure = input.providerFailure;
   }
 }
 

@@ -219,6 +219,13 @@ export interface RequestEventRecord {
   upstreamEmptyStop?: boolean | null;
   upstreamAttemptCount?: number | null;
   upstreamAttempts?: UpstreamAttemptSummary[] | null;
+  upstreamFailureOrigin?: import("./provider-failure.js").ProviderFailureOrigin | null;
+  upstreamFailureKind?: import("./provider-failure.js").ProviderFailureKind | null;
+  upstreamFailureStage?: import("./provider-failure.js").ProviderFailureStage | null;
+  upstreamTransportCode?: string | null;
+  upstreamFailureRetryCount?: number | null;
+  upstreamRecoveryAttemptCount?: number | null;
+  upstreamUnclassifiedAdditionalAttemptCount?: number | null;
   startedAt: Date;
   durationMs: number | null;
   firstByteMs: number | null;
@@ -257,6 +264,8 @@ export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "non
 export interface UpstreamAttemptSummary {
   index: number;
   kind: string | null;
+  purpose?: import("./provider-failure.js").UpstreamAttemptPurpose | null;
+  failure?: import("./provider-failure.js").ProviderFailureClassification | null;
   toolChoice: string | null;
   provider: ProviderKind | null;
   upstreamRuntime: string | null;
@@ -430,6 +439,7 @@ export type StreamEvent =
       code: string;
       message: string;
       responseSummary?: ProviderResponseSummary;
+      providerFailure?: import("./provider-failure.js").ProviderFailureClassification;
     };
 
 export interface ClientToolDefinition {
@@ -460,6 +470,7 @@ export interface ProviderErrorDiagnostic {
   rawName?: string;
   rawCode?: string;
   rawStatus?: number;
+  failure: import("./provider-failure.js").ProviderFailureClassification;
 }
 
 export interface ProviderHealth {

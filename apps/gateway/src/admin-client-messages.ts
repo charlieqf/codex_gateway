@@ -1,10 +1,17 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type {
+import {
+  resolveUpstreamAttemptPurpose,
+  summarizeUpstreamAttemptPurposes,
+  type ProviderFailureClassification,
   AccessCredentialRecord,
   ClientMessageEventRecord,
   ClientMessageEventStore,
   CredentialAuthStore,
+  ListClientMessageEventsInput,
+  ObservationStore,
+  RequestEventRecord,
+  RequestUsageReportRow,
   Subject
 } from "@codex-gateway/core";
 
@@ -28,8 +35,69 @@ export interface AdminClientMessagesQuery {
   until?: string;
   hours?: string;
   limit?: string;
+  offset?: string;
   include_text?: string;
   preview_chars?: string;
+  sort_by?: string;
+  sort_order?: string;
+}
+
+type AdminUserSortBy =
+  | "requests"
+  | "tokens"
+  | "upstream_attempts"
+  | "retries"
+  | "recoveries"
+  | "provider_tokens"
+  | "estimated_tokens"
+  | "errors"
+  | "rate_limited"
+  | "avg_duration"
+  | "name";
+type AdminSortOrder = "asc" | "desc";
+type MessageRequestOutcome = "success" | "partial" | "failed" | "no_request";
+
+interface MessageRequestSummary {
+  outcome: MessageRequestOutcome;
+  success: boolean | null;
+  request_count: number;
+  gateway_request_count: number;
+  model_call_request_count: number;
+  upstream_attempt_count: number;
+  failure_retry_count: number;
+  recovery_attempt_count: number;
+  unclassified_additional_attempt_count: number;
+  attempt_count_missing: number;
+  attempt_purpose_missing: number;
+  success_count: number;
+  error_count: number;
+  rate_limited_count: number;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  summed_request_duration_ms: number;
+  error_codes: string[];
+  token_usage: {
+    provider_usage_present: boolean;
+    provider_prompt_tokens: number;
+    provider_completion_tokens: number;
+    provider_total_tokens: number;
+    attributable_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    estimated_tokens: number;
+    effective_tokens: number;
+    cached_prompt_tokens: number;
+    usage_missing_count: number;
+  };
+}
+
+interface MessageRequestCorrelation {
+  summary: MessageRequestSummary;
+  gatewayRequests: ReturnType<typeof publicGatewayRequest>[];
+  gatewayRequestsTruncated: boolean;
+  gatewayRequestTotal: number;
 }
 
 export function resolveAdminMessagesAccess(input: {
@@ -107,18 +175,27 @@ export function adminMessagesSecurityHeaders(reply: FastifyReply): FastifyReply 
 export function buildAdminClientMessagesPayload(input: {
   clientEventsStore: ClientMessageEventStore;
   credentialStore: CredentialAuthStore;
+  observationStore?: ObservationStore;
   query: AdminClientMessagesQuery;
 }) {
-  const limit = parseInteger(input.query.limit, 100, 1, 1000);
+  const limit = parseInteger(input.query.limit, 100, 1, 500);
+  const offset = parseInteger(input.query.offset, 0, 0, 10_000_000);
   const previewChars = parseInteger(input.query.preview_chars, 240, 40, 2000);
   const includeText = parseBoolean(input.query.include_text);
-  const allSubjects = input.credentialStore.listSubjects({ includeArchived: false });
+  const until = parseDate(input.query.until) ?? new Date();
+  let since = parseSince(input.query, until);
+  if (since.getTime() >= until.getTime()) {
+    since = new Date(until.getTime() - 48 * 60 * 60 * 1000);
+  }
+  const sortBy = parseUserSortBy(input.query.sort_by);
+  const sortOrder = parseSortOrder(input.query.sort_order, sortBy);
+  const allSubjects = input.credentialStore.listSubjects({ includeArchived: true });
   const hiddenSubjectIds = new Set(
     allSubjects.filter((subject) => isSmokeTestSubject(subject)).map((subject) => subject.id)
   );
   const subjects = allSubjects.filter((subject) => !hiddenSubjectIds.has(subject.id));
   const credentials = input.credentialStore
-    .listAccessCredentials({ includeRevoked: false })
+    .listAccessCredentials({ includeRevoked: true })
     .filter((credential) => !hiddenSubjectIds.has(credential.subjectId));
   const subjectById = new Map(subjects.map((subject) => [subject.id, subject]));
   const credentialById = new Map(credentials.map((credential) => [credential.id, credential]));
@@ -128,57 +205,79 @@ export function buildAdminClientMessagesPayload(input: {
     subjects,
     credentialByPrefix
   });
-  const since = parseSince(input.query);
-  const until = parseDate(input.query.until);
-  const rawMessages = input.clientEventsStore.listClientMessageEvents({
-    ...(subjectFilter.kind === "single" ? { subjectId: subjectFilter.subjectId } : {}),
-    ...(input.query.credential_prefix && credentialByPrefix.get(input.query.credential_prefix)
-      ? { credentialId: credentialByPrefix.get(input.query.credential_prefix)?.id }
-      : {}),
+  const visibleSubjectIds =
+    subjectFilter.kind === "single"
+      ? [subjectFilter.subjectId]
+      : subjectFilter.kind === "multi"
+        ? subjectFilter.subjectIds
+        : subjects.map((subject) => subject.id);
+  const selectedCredential = input.query.credential_prefix
+    ? credentialByPrefix.get(input.query.credential_prefix)
+    : undefined;
+  const messageQuery: ListClientMessageEventsInput = {
+    subjectIds: visibleSubjectIds,
+    ...(selectedCredential ? { credentialId: selectedCredential.id } : {}),
     ...(input.query.session_id ? { sessionId: input.query.session_id } : {}),
     ...(input.query.message_id ? { messageId: input.query.message_id } : {}),
-    ...(since ? { since } : {}),
-    ...(until ? { until } : {}),
-    limit:
-      subjectFilter.kind === "multi" || input.query.q || hiddenSubjectIds.size > 0
-        ? Math.max(limit, 1000)
-        : limit
-  });
-  const search = normalizeSearch(input.query.q);
-  const allowedSubjectIds =
-    subjectFilter.kind === "multi" ? new Set(subjectFilter.subjectIds) : null;
+    ...(normalizeSearch(input.query.q) ? { search: input.query.q?.trim() } : {}),
+    since,
+    until,
+    limit,
+    offset
+  };
+  const totalMessages = input.clientEventsStore.countClientMessageEvents(messageQuery);
+  const rawMessages = input.clientEventsStore.listClientMessageEvents(messageQuery);
+  const requestSummaries = buildMessageRequestSummaries(input.observationStore, rawMessages);
   const messages = rawMessages
-    .filter((message) => !hiddenSubjectIds.has(message.subjectId))
-    .filter((message) => !allowedSubjectIds || allowedSubjectIds.has(message.subjectId))
-    .filter((message) =>
-      search ? messageMatchesSearch(message, subjectById.get(message.subjectId), search) : true
-    )
-    .slice(0, limit)
-    .map((message) =>
-      publicClientMessage(message, {
+    .map((message) => {
+      const requestCorrelation =
+        requestSummaries.summaries.get(messageRequestKey(message.subjectId, message.messageId)) ??
+        emptyMessageRequestCorrelation();
+      return publicClientMessage(message, {
         subject: subjectById.get(message.subjectId),
         credential: credentialById.get(message.credentialId),
         includeText,
-        previewChars
-      })
-    );
+        previewChars,
+        requestCorrelation
+      });
+    });
+
+  const usageRows = input.observationStore
+    ? input.observationStore.reportRequestUsage({ since, until, groupBy: "default" })
+    : [];
+  const users = buildAdminUserRows(subjects, usageRows, sortBy, sortOrder);
+  const summary = summarizeAdminUsers(users, totalMessages);
 
   return {
     generated_at: new Date().toISOString(),
+    summary,
     query: {
       limit,
+      offset,
       preview_chars: previewChars,
       include_text: includeText,
-      since: since?.toISOString() ?? null,
-      until: until?.toISOString() ?? null,
+      since: since.toISOString(),
+      until: until.toISOString(),
       user: input.query.user ?? null,
       q: input.query.q ?? null,
       subject_id: input.query.subject_id ?? null,
       credential_prefix: input.query.credential_prefix ?? null,
       session_id: input.query.session_id ?? null,
-      message_id: input.query.message_id ?? null
+      message_id: input.query.message_id ?? null,
+      sort_by: sortBy,
+      sort_order: sortOrder
     },
+    pagination: {
+      offset,
+      limit,
+      returned: messages.length,
+      total: totalMessages,
+      has_more: offset + messages.length < totalMessages
+    },
+    request_usage_available: Boolean(input.observationStore),
+    request_correlation_truncated: requestSummaries.truncated,
     subjects: subjects.map(publicSubject),
+    users,
     messages
   };
 }
@@ -186,7 +285,7 @@ export function buildAdminClientMessagesPayload(input: {
 export function renderAdminClientMessagesPage(input: { authRequired?: boolean } = {}): string {
   const authRequired = input.authRequired ?? true;
   return `<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -194,599 +293,1092 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
   <style>
     :root {
       color-scheme: light;
-      --bg: #f7f8fa;
+      --bg: #f4f6f8;
       --panel: #ffffff;
-      --line: #d8dde6;
-      --line-strong: #b9c2d0;
-      --text: #121722;
-      --muted: #5d6675;
-      --accent: #1464d2;
-      --accent-dark: #0e4ea8;
+      --line: #d7dde5;
+      --line-strong: #b7c0cd;
+      --text: #17202d;
+      --muted: #687386;
+      --accent: #1b64c8;
+      --accent-soft: #eaf2ff;
+      --ok: #087a4b;
+      --ok-soft: #e7f7ef;
+      --warn: #a15c00;
+      --warn-soft: #fff4dc;
       --bad: #b42318;
-      --ok: #027a48;
+      --bad-soft: #ffebe9;
+      --quiet: #667085;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-    }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
     header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 24px;
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-      position: sticky;
-      top: 0;
-      z-index: 5;
+      position: sticky; top: 0; z-index: 10; display: flex; align-items: center;
+      justify-content: space-between; gap: 18px; padding: 16px 22px;
+      border-bottom: 1px solid var(--line); background: rgba(255,255,255,.97);
     }
-    h1 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 650;
-      letter-spacing: 0;
-    }
-    main {
-      width: min(1600px, 100%);
-      margin: 0 auto;
-      padding: 18px 24px 28px;
-    }
+    h1 { margin: 0; font-size: 20px; font-weight: 720; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .auth { display: flex; align-items: center; gap: 9px; }
+    .auth input { width: min(360px, 38vw); }
+    .pill { border-radius: 999px; padding: 5px 9px; background: #eef1f5; color: var(--muted); font-size: 12px; }
+    .pill.ok { background: var(--ok-soft); color: var(--ok); }
+    .pill.bad { background: var(--bad-soft); color: var(--bad); }
+    main { width: min(1800px, 100%); margin: 0 auto; padding: 16px 20px 28px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
     .toolbar {
-      display: grid;
-      grid-template-columns: 220px minmax(180px, 1fr) 120px 110px 130px auto auto;
-      gap: 10px;
-      align-items: end;
-      padding: 14px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      display: grid; grid-template-columns: 140px minmax(190px, 1fr) minmax(190px, 1fr) minmax(220px, 1.4fr) 110px auto auto;
+      gap: 10px; align-items: end; padding: 13px;
     }
-    label {
-      display: grid;
-      gap: 5px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
+    label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    input, select, .btn {
+      height: 36px; min-width: 0; border: 1px solid var(--line-strong); border-radius: 7px;
+      background: #fff; color: var(--text); padding: 0 10px;
     }
-    input, select, button {
-      height: 36px;
-      border: 1px solid var(--line-strong);
-      border-radius: 6px;
-      background: #fff;
-      color: var(--text);
-      font: inherit;
-      font-size: 14px;
-      letter-spacing: 0;
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 680; }
+    .btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .btn.ghost { background: #fff; color: var(--text); }
+    .btn:disabled { opacity: .55; cursor: default; }
+    .check { display: flex; align-items: center; gap: 7px; height: 36px; white-space: nowrap; color: var(--text); }
+    .check input { width: 16px; height: 16px; }
+    .notice { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--bad-soft); color: var(--bad); }
+    .summary { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin: 12px 0; }
+    .metric { padding: 12px 13px; }
+    .metric .label { color: var(--muted); font-size: 12px; }
+    .metric .value { margin-top: 5px; font-size: 22px; font-variant-numeric: tabular-nums; font-weight: 730; }
+    .metric .detail { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .workspace { display: grid; grid-template-columns: minmax(330px, 410px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .users { position: sticky; top: 86px; max-height: calc(100vh - 104px); display: flex; flex-direction: column; overflow: hidden; }
+    .panel-head { padding: 12px; border-bottom: 1px solid var(--line); }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; }
+    .user-controls { display: grid; grid-template-columns: minmax(0,1fr) 112px 78px; gap: 7px; margin-top: 9px; }
+    #userList { overflow: auto; padding: 6px; }
+    .user-row {
+      display: grid; width: 100%; gap: 7px; margin: 0 0 5px; padding: 10px;
+      border: 1px solid transparent; border-radius: 8px; background: transparent; color: inherit; text-align: left;
     }
-    input, select { padding: 0 10px; min-width: 0; }
-    button {
-      padding: 0 14px;
-      border-color: var(--accent);
-      background: var(--accent);
-      color: #fff;
-      font-weight: 650;
-      cursor: pointer;
+    .user-row:hover { background: #f7f9fc; border-color: var(--line); }
+    .user-row.selected { background: var(--accent-soft); border-color: #93b9ef; }
+    .user-name { font-weight: 710; overflow-wrap: anywhere; }
+    .user-meta { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+    .user-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .user-stat { padding: 5px 6px; border-radius: 5px; background: #f0f3f7; }
+    .user-stat span { display: block; color: var(--muted); font-size: 10px; }
+    .user-stat strong { font-size: 12px; font-variant-numeric: tabular-nums; }
+    .messages { min-width: 0; }
+    .messages-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-bottom: 1px solid var(--line); }
+    .pager { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+    .pager .btn { height: 30px; padding: 0 10px; }
+    #rows { padding: 8px; }
+    .message-card { border: 1px solid var(--line); border-radius: 9px; margin-bottom: 8px; overflow: hidden; }
+    .message-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 11px; background: #fafbfc; border-bottom: 1px solid #e7eaf0; }
+    .message-owner { font-weight: 700; }
+    .message-time, .mono { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 730; white-space: nowrap; }
+    .badge.success { background: var(--ok-soft); color: var(--ok); }
+    .badge.partial { background: var(--warn-soft); color: var(--warn); }
+    .badge.failed { background: var(--bad-soft); color: var(--bad); }
+    .badge.no_request { background: #edf0f4; color: var(--quiet); }
+    .request-grid { display: grid; grid-template-columns: repeat(4, minmax(105px, 1fr)); gap: 8px; padding: 9px 11px; border-bottom: 1px solid #edf0f3; }
+    .request-metric { min-width: 0; }
+    .request-metric span { display: block; color: var(--muted); font-size: 10px; }
+    .request-metric strong { display: block; margin-top: 2px; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .message-text { margin: 0; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; max-height: 420px; overflow: auto; }
+    details { padding: 0 11px 10px; color: var(--muted); font-size: 11px; }
+    details summary { cursor: pointer; }
+    .empty { padding: 52px 18px; text-align: center; color: var(--muted); }
+    @media (max-width: 1150px) {
+      .toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .summary { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+      .workspace { grid-template-columns: 340px minmax(0, 1fr); }
+      .request-grid { grid-template-columns: repeat(2, minmax(105px, 1fr)); }
     }
-    button:hover { background: var(--accent-dark); }
-    button:disabled {
-      cursor: progress;
-      opacity: 0.72;
-    }
-    .token {
-      width: 280px;
-    }
-    .open-access {
-      align-self: end;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--muted);
-      font-size: 13px;
-      background: #f7f8fa;
-    }
-    .check {
-      display: flex;
-      align-items: center;
-      height: 36px;
-      gap: 7px;
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 500;
-    }
-    .check input {
-      width: 16px;
-      height: 16px;
-      padding: 0;
-    }
-    .combo {
-      position: relative;
-      min-width: 0;
-    }
-    .combo input {
-      width: 100%;
-      padding-right: 66px;
-    }
-    .combo-clear {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      height: 28px;
-      min-width: 54px;
-      padding: 0 8px;
-      border-color: var(--line-strong);
-      background: #f7f8fa;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 650;
-    }
-    .combo-clear:hover {
-      background: #edf1f6;
-      color: var(--text);
-    }
-    .combo-list {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      z-index: 20;
-      max-height: 280px;
-      overflow: auto;
-      border: 1px solid var(--line-strong);
-      border-radius: 6px;
-      background: #fff;
-      box-shadow: 0 8px 24px rgb(18 23 34 / 16%);
-    }
-    .combo-option {
-      width: 100%;
-      height: auto;
-      min-height: 44px;
-      padding: 8px 10px;
-      border: 0;
-      border-radius: 0;
-      background: #fff;
-      color: var(--text);
-      text-align: left;
-      cursor: pointer;
-    }
-    .combo-option:hover,
-    .combo-option.active {
-      background: #eaf2ff;
-    }
-    .combo-name {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 13px;
-      font-weight: 650;
-    }
-    .combo-meta {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--muted);
-      font-size: 11px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    }
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 12px 2px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .meta strong { color: var(--text); }
-    .status-ok { color: var(--ok); }
-    .status-bad { color: var(--bad); }
-    .notice {
-      margin: 0 0 12px;
-      padding: 10px 12px;
-      border: 1px solid #f0c36d;
-      border-radius: 6px;
-      background: #fff8e6;
-      color: #6f4e00;
-      font-size: 14px;
-    }
-    .notice.bad {
-      border-color: #f3b5af;
-      background: #fff2f0;
-      color: var(--bad);
-    }
-    .table-wrap {
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-    }
-    table {
-      width: 100%;
-      min-width: 1180px;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-    th, td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
-      text-align: left;
-      font-size: 13px;
-    }
-    th {
-      position: sticky;
-      top: 0;
-      background: #f1f4f8;
-      color: #384253;
-      z-index: 1;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    tbody tr:hover { background: #f7fbff; }
-    .time { width: 150px; }
-    .user { width: 160px; }
-    .agent { width: 140px; }
-    .ids { width: 250px; }
-    .text { width: auto; }
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      word-break: break-all;
-    }
-    .prompt {
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.4;
-      max-height: 220px;
-      overflow: auto;
-    }
-    .muted { color: var(--muted); }
-    @media (max-width: 980px) {
-      header { align-items: stretch; flex-direction: column; }
-      .token { width: 100%; }
-      .toolbar { grid-template-columns: 1fr 1fr; }
-      main { padding: 12px; }
+    @media (max-width: 820px) {
+      header { position: static; align-items: flex-start; flex-direction: column; }
+      .auth, .auth input { width: 100%; }
+      .toolbar { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .workspace { grid-template-columns: 1fr; }
+      .users { position: static; max-height: 520px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Gateway Client Messages</h1>
-    ${authRequired ? `<label>Admin token
-      <input class="token" id="token" type="password" autocomplete="off" placeholder="Paste admin token">
-    </label>` : `<div class="open-access">Open access</div>`}
+    <div>
+      <h1>客户端消息与用量</h1>
+      <div class="subtitle">逐条消息状态、耗时、token，以及指定时段的用户请求统计 · Gateway Client Messages</div>
+    </div>
+    <div class="auth">
+      ${authRequired
+        ? '<input id="token" type="password" autocomplete="off" placeholder="Admin token"><span class="pill">Admin token required</span>'
+        : '<span class="pill ok">Open access</span>'}
+      <span id="status" class="pill">ready</span>
+    </div>
   </header>
   <main>
-    <section class="toolbar">
-      <label>User
-        <div class="combo" id="userCombo">
-          <input id="userSearch" type="search" autocomplete="off" placeholder="All users">
-          <button id="userClear" class="combo-clear" type="button">Clear</button>
-          <div id="userList" class="combo-list" role="listbox" hidden></div>
+    <section class="panel toolbar">
+      <label>时间范围
+        <select id="rangePreset">
+          <option value="1">最近 1 小时</option>
+          <option value="24">最近 24 小时</option>
+          <option value="48" selected>最近 48 小时</option>
+          <option value="168">最近 7 天</option>
+          <option value="720">最近 30 天</option>
+          <option value="custom">自定义</option>
+        </select>
+      </label>
+      <label>开始时间<input id="since" type="datetime-local" step="1"></label>
+      <label>结束时间<input id="until" type="datetime-local" step="1"></label>
+      <label>消息正文 / 会话 / ID<input id="q" type="search" placeholder="例如：客户消息.txt"></label>
+      <label>每页消息
+        <select id="limit"><option>50</option><option selected>100</option><option>200</option><option>500</option></select>
+      </label>
+      <label class="check"><input id="includeText" type="checkbox" checked>完整正文</label>
+      <div style="display:flex; gap:7px">
+        <button id="refresh" class="btn primary" type="button">查询</button>
+        <label class="check"><input id="auto" type="checkbox">自动</label>
+      </div>
+    </section>
+    <div id="notice" class="notice" hidden></div>
+    <section class="summary">
+      <div class="panel metric"><div class="label">时段内活跃用户</div><div id="sumUsers" class="value">-</div><div id="sumUsersDetail" class="detail">-</div></div>
+      <div class="panel metric"><div class="label">请求次数</div><div id="sumRequests" class="value">-</div><div id="sumSuccess" class="detail">-</div></div>
+      <div class="panel metric"><div class="label">可归因 Token</div><div id="sumTokens" class="value">-</div><div id="sumTokenDetail" class="detail">Provider 与最终估算分列；预检估算不计入</div></div>
+      <div class="panel metric"><div class="label">失败请求</div><div id="sumErrors" class="value">-</div><div class="detail">包含部分失败消息中的调用</div></div>
+      <div class="panel metric"><div class="label">限流请求</div><div id="sumLimited" class="value">-</div><div class="detail">按 Gateway 请求事件统计</div></div>
+      <div class="panel metric"><div class="label">匹配消息</div><div id="sumMessages" class="value">-</div><div id="generated" class="detail">-</div></div>
+    </section>
+    <div class="workspace">
+      <aside class="panel users">
+        <div class="panel-head">
+          <div class="panel-title"><span>用户列表</span><button id="allUsers" class="btn ghost" type="button" style="height:30px">所有用户</button></div>
+          <div class="user-controls">
+            <input id="userSearch" type="search" placeholder="搜索姓名/手机号/subject">
+            <select id="sortBy" aria-label="排序字段">
+              <option value="requests">按请求次数</option>
+              <option value="tokens">按 Token</option>
+              <option value="provider_tokens">按 Provider Token</option>
+              <option value="estimated_tokens">按估算 Token</option>
+              <option value="upstream_attempts">按上游尝试</option>
+              <option value="retries">按故障重试</option>
+              <option value="recoveries">按合同恢复</option>
+              <option value="errors">按失败数</option>
+              <option value="rate_limited">按限流数</option>
+              <option value="avg_duration">按平均耗时</option>
+              <option value="name">按姓名</option>
+            </select>
+            <select id="sortOrder" aria-label="排序方向"><option value="desc">降序</option><option value="asc">升序</option></select>
+          </div>
         </div>
-      </label>
-      <label>Search
-        <input id="q" placeholder="message / session / request">
-      </label>
-      <label>Hours
-        <input id="hours" type="number" min="1" max="720" value="48">
-      </label>
-      <label>Limit
-        <input id="limit" type="number" min="1" max="1000" value="100">
-      </label>
-      <label>Preview
-        <input id="preview" type="number" min="40" max="2000" value="240">
-      </label>
-      <label class="check"><input id="includeText" type="checkbox">Full text</label>
-      <label class="check"><input id="auto" type="checkbox" checked>Auto</label>
-      <button id="refresh" type="button">Refresh</button>
-    </section>
-    <div class="meta">
-      <span>Status: <strong id="status">idle</strong></span>
-      <span>Messages: <strong id="count">0</strong></span>
-      <span>Generated: <strong id="generated">-</strong></span>
+        <div id="userList" role="listbox"></div>
+      </aside>
+      <section class="panel messages">
+        <div class="messages-head">
+          <div><strong id="messageTitle">所有用户的消息</strong><div id="messageCount" class="subtitle">-</div></div>
+          <div class="pager"><button id="prev" class="btn ghost" type="button">上一页</button><span id="pageLabel">-</span><button id="next" class="btn ghost" type="button">下一页</button></div>
+        </div>
+        <div id="rows"><div class="empty">等待查询</div></div>
+      </section>
     </div>
-    <div class="notice" id="notice" hidden></div>
-    <section class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th class="time">Received</th>
-            <th class="user">User</th>
-            <th class="agent">Agent</th>
-            <th class="ids">Session / message</th>
-            <th class="text">Message</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </section>
   </main>
   <script>
     const authRequired = ${JSON.stringify(authRequired)};
-    const els = {
-      token: document.getElementById("token"),
-      userCombo: document.getElementById("userCombo"),
-      userSearch: document.getElementById("userSearch"),
-      userClear: document.getElementById("userClear"),
-      userList: document.getElementById("userList"),
-      q: document.getElementById("q"),
-      hours: document.getElementById("hours"),
-      limit: document.getElementById("limit"),
-      preview: document.getElementById("preview"),
-      includeText: document.getElementById("includeText"),
-      auto: document.getElementById("auto"),
-      refresh: document.getElementById("refresh"),
-      status: document.getElementById("status"),
-      count: document.getElementById("count"),
-      generated: document.getElementById("generated"),
-      notice: document.getElementById("notice"),
-      rows: document.getElementById("rows")
-    };
-    const state = {
-      subjects: [],
-      selectedSubjectId: "",
-      activeUserIndex: -1
-    };
+    const els = Object.fromEntries([
+      "token", "status", "rangePreset", "since", "until", "q", "limit", "includeText", "auto", "refresh",
+      "notice", "sumUsers", "sumUsersDetail", "sumRequests", "sumSuccess", "sumTokens", "sumTokenDetail",
+      "sumErrors", "sumLimited", "sumMessages", "generated", "allUsers", "userSearch", "sortBy", "sortOrder",
+      "userList", "messageTitle", "messageCount", "prev", "pageLabel", "next", "rows"
+    ].map((id) => [id, document.getElementById(id)]));
+    const state = { selectedSubjectId: "", offset: 0, users: [], payload: null, loading: false };
     if (els.token) {
       els.token.value = sessionStorage.getItem("gatewayAdminMessagesToken") || "";
-      els.token.addEventListener("input", () => sessionStorage.setItem("gatewayAdminMessagesToken", els.token.value));
+      els.token.addEventListener("change", () => sessionStorage.setItem("gatewayAdminMessagesToken", els.token.value.trim()));
+      els.token.addEventListener("keydown", (event) => { if (event.key === "Enter") load(true); });
     }
-    els.refresh.addEventListener("click", () => load());
-    for (const id of ["q", "hours", "limit", "preview", "includeText"]) {
-      els[id].addEventListener("change", () => load());
-    }
-    els.userSearch.addEventListener("focus", () => openUserList());
-    els.userSearch.addEventListener("input", () => {
-      state.selectedSubjectId = "";
-      state.activeUserIndex = -1;
-      renderUserOptions();
-      openUserList();
+    applyPreset();
+    els.refresh.addEventListener("click", () => load(true));
+    els.rangePreset.addEventListener("change", () => { applyPreset(); load(true); });
+    els.since.addEventListener("change", () => { els.rangePreset.value = "custom"; });
+    els.until.addEventListener("change", () => { els.rangePreset.value = "custom"; });
+    els.q.addEventListener("keydown", (event) => { if (event.key === "Enter") load(true); });
+    els.limit.addEventListener("change", () => load(true));
+    els.includeText.addEventListener("change", () => load(true));
+    els.sortBy.addEventListener("change", () => {
+      els.sortOrder.value = els.sortBy.value === "name" ? "asc" : "desc";
+      load(false);
     });
-    els.userSearch.addEventListener("keydown", (event) => {
-      const options = currentUserOptions();
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        state.activeUserIndex = Math.min(options.length - 1, state.activeUserIndex + 1);
-        renderUserOptions();
-      } else if (event.key === "ArrowUp") {
-        event.preventDefault();
-        state.activeUserIndex = Math.max(0, state.activeUserIndex - 1);
-        renderUserOptions();
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        if (state.activeUserIndex >= 0 && options[state.activeUserIndex]) {
-          selectUser(options[state.activeUserIndex]);
-        } else {
-          closeUserList();
-          load();
-        }
-      } else if (event.key === "Escape") {
-        closeUserList();
-      }
-    });
-    els.userClear.addEventListener("click", () => {
+    els.sortOrder.addEventListener("change", () => load(false));
+    els.userSearch.addEventListener("input", renderUsers);
+    els.allUsers.addEventListener("click", () => {
       state.selectedSubjectId = "";
-      state.activeUserIndex = -1;
+      state.offset = 0;
       els.userSearch.value = "";
-      closeUserList();
-      load();
+      load(true);
     });
-    document.addEventListener("click", (event) => {
-      if (!els.userCombo.contains(event.target)) closeUserList();
+    els.prev.addEventListener("click", () => {
+      state.offset = Math.max(0, state.offset - Number(els.limit.value));
+      load(false);
     });
-    els.q.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") load();
+    els.next.addEventListener("click", () => {
+      state.offset += Number(els.limit.value);
+      load(false);
     });
     setInterval(() => {
-      if (els.auto.checked) load();
+      if (!els.auto.checked || state.loading) return;
+      if (els.rangePreset.value !== "custom") applyPreset();
+      load(false);
     }, 10000);
-    if (!authRequired || els.token?.value) load();
+    if (!authRequired || (els.token && els.token.value)) load(true);
 
-    async function load() {
+    async function load(resetOffset) {
+      if (state.loading) return;
       const token = els.token ? els.token.value.trim() : "";
       if (authRequired && !token) {
         setStatus("missing token", false);
-        showNotice("Admin token required. Paste the token, then click Refresh.", false);
-        els.token?.focus();
+        showNotice("Admin token required. Paste the token, then click 查询.");
+        els.token.focus();
         return;
       }
+      if (resetOffset) state.offset = 0;
+      if (els.rangePreset.value !== "custom") applyPreset();
       const params = new URLSearchParams();
-      if (state.selectedSubjectId) {
-        params.set("subject_id", state.selectedSubjectId);
-      } else {
-        setParam(params, "user", els.userSearch.value);
-      }
+      if (state.selectedSubjectId) params.set("subject_id", state.selectedSubjectId);
       setParam(params, "q", els.q.value);
-      setParam(params, "hours", els.hours.value);
-      setParam(params, "limit", els.limit.value);
-      setParam(params, "preview_chars", els.preview.value);
+      const since = dateTimeToIso(els.since.value);
+      const until = dateTimeToIso(els.until.value);
+      if (since) params.set("since", since);
+      if (until) params.set("until", until);
+      params.set("limit", els.limit.value);
+      params.set("offset", String(state.offset));
+      params.set("preview_chars", "1000");
+      params.set("sort_by", els.sortBy.value);
+      params.set("sort_order", els.sortOrder.value);
       if (els.includeText.checked) params.set("include_text", "1");
-      setStatus("loading", true);
-      showNotice("", true);
+      state.loading = true;
       els.refresh.disabled = true;
-      els.refresh.textContent = "Loading";
+      els.refresh.textContent = "查询中";
+      setStatus("loading", true);
+      showNotice("");
       try {
         const headers = token ? { authorization: "Bearer " + token } : {};
-        const response = await fetch("/gateway/admin/client-messages.json?" + params.toString(), {
-          headers,
-          cache: "no-store"
-        });
+        const response = await fetch("/gateway/admin/client-messages.json?" + params.toString(), { headers, cache: "no-store" });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error?.message || "request failed");
+        if (!response.ok) throw new Error(payload.error && payload.error.message ? payload.error.message : "request failed");
+        state.payload = payload;
+        state.users = Array.isArray(payload.users) ? payload.users : [];
         render(payload);
         setStatus("ok", true);
-        showNotice("", true);
       } catch (error) {
-        setStatus(error.message || String(error), false);
-        showNotice(error.message || String(error), false);
+        setStatus("error", false);
+        showNotice(error && error.message ? error.message : String(error));
       } finally {
+        state.loading = false;
         els.refresh.disabled = false;
-        els.refresh.textContent = "Refresh";
+        els.refresh.textContent = "查询";
       }
     }
 
     function render(payload) {
-      els.count.textContent = String(payload.messages.length);
-      els.generated.textContent = formatTime(payload.generated_at);
-      state.subjects = Array.isArray(payload.subjects) ? payload.subjects : [];
-      if (state.selectedSubjectId && !state.subjects.some((subject) => subject.id === state.selectedSubjectId)) {
-        state.selectedSubjectId = "";
-      }
-      renderUserOptions();
-      els.rows.innerHTML = payload.messages.length > 0
-        ? payload.messages.map(renderRow).join("")
-        : "<tr><td colspan=\\"5\\" class=\\"muted\\">No messages match the current filters.</td></tr>";
+      const summary = payload.summary || {};
+      const tokenUsage = summary.token_usage || {};
+      els.sumUsers.textContent = formatNumber(summary.active_user_count || 0);
+      els.sumUsersDetail.textContent = "共 " + formatNumber(summary.user_count || 0) + " 个主体";
+      els.sumRequests.textContent = formatNumber(summary.request_count || 0);
+      els.sumSuccess.textContent = "成功 " + formatNumber(summary.success_count || 0) + " · 平均 " + formatDuration(summary.avg_duration_ms);
+      els.sumTokens.textContent = formatCompact(tokenUsage.effective_tokens || 0);
+      els.sumTokenDetail.textContent = "Provider " + formatNumber(summary.provider_total_tokens || tokenUsage.total_tokens || 0) + " · 估算 " + formatNumber(summary.estimated_tokens || tokenUsage.estimated_tokens || 0);
+      els.sumErrors.textContent = formatNumber(summary.error_count || 0);
+      els.sumLimited.textContent = formatNumber(summary.rate_limited_count || 0);
+      els.sumMessages.textContent = formatNumber(summary.message_count || 0);
+      els.generated.textContent = "更新于 " + formatTime(payload.generated_at);
+      renderUsers();
+      renderMessages(payload);
+      if (payload.request_correlation_truncated) showNotice("请求事件过多，当前页的消息关联结果已截断。请缩短查询时段。");
     }
 
-    function renderRow(message) {
-      const subject = message.subject || {};
-      const user = subject.name || subject.label || subject.id || "-";
-      const phone = subject.phone_number ? "<div class=\\"muted\\">" + escapeHtml(subject.phone_number) + "</div>" : "";
-      const agent = [message.agent, message.provider_id, message.model_id, message.engine].filter(Boolean).map(escapeHtml).join("<br>");
-      const ids = [
-        ["s", message.session_id],
-        ["m", message.message_id],
-        ["r", message.request_id]
-      ].map(([label, value]) => "<div><span class=\\"muted\\">" + label + "</span> <span class=\\"mono\\">" + escapeHtml(value || "-") + "</span></div>").join("");
-      return "<tr>" +
-        "<td class=\\"time\\">" + escapeHtml(formatTime(message.received_at)) + "<div class=\\"muted\\">" + escapeHtml(formatTime(message.created_at)) + "</div></td>" +
-        "<td class=\\"user\\">" + escapeHtml(user) + phone + "<div class=\\"mono muted\\">" + escapeHtml(message.credential?.prefix || "") + "</div></td>" +
-        "<td class=\\"agent\\">" + agent + "</td>" +
-        "<td class=\\"ids\\">" + ids + "</td>" +
-        "<td class=\\"text\\"><div class=\\"prompt\\">" + escapeHtml(message.text || message.text_preview || "") + "</div></td>" +
-      "</tr>";
-    }
-
-    function openUserList() {
-      renderUserOptions();
-      els.userList.hidden = false;
-    }
-
-    function closeUserList() {
-      els.userList.hidden = true;
-    }
-
-    function currentUserOptions() {
-      const search = normalizeText(els.userSearch.value);
-      const subjects = state.subjects.slice().sort((left, right) =>
-        subjectDisplay(left).localeCompare(subjectDisplay(right))
-      );
-      if (!search) return subjects.slice(0, 80);
-      return subjects.filter((subject) =>
-        [
-          subjectDisplay(subject),
-          subject.label,
-          subject.phone_number,
-          subject.id,
-          subject.state
-        ].filter(Boolean).some((value) => normalizeText(value).includes(search))
-      ).slice(0, 80);
-    }
-
-    function renderUserOptions() {
-      const options = currentUserOptions();
-      if (state.activeUserIndex >= options.length) {
-        state.activeUserIndex = options.length - 1;
-      }
-      els.userList.innerHTML = options.length > 0
-        ? options.map((subject, index) => renderUserOption(subject, index)).join("")
-        : "<div class=\\"combo-option muted\\">No matching users</div>";
-      for (const option of els.userList.querySelectorAll("[data-subject-id]")) {
-        option.addEventListener("mousedown", (event) => {
-          event.preventDefault();
-          const subject = state.subjects.find((item) => item.id === option.getAttribute("data-subject-id"));
-          if (subject) selectUser(subject);
+    function renderUsers() {
+      const search = normalize(els.userSearch.value);
+      const users = state.users.filter((user) => {
+        if (!search) return true;
+        const subject = user.subject || {};
+        return [subject.name, subject.label, subject.phone_number, subject.id]
+          .filter(Boolean).some((value) => normalize(value).includes(search));
+      });
+      els.userList.innerHTML = users.length ? users.map(renderUserRow).join("") : '<div class="empty">没有匹配用户</div>';
+      for (const row of els.userList.querySelectorAll("[data-subject-id]")) {
+        row.addEventListener("click", () => {
+          state.selectedSubjectId = row.getAttribute("data-subject-id") || "";
+          state.offset = 0;
+          const selected = state.users.find((user) => user.subject && user.subject.id === state.selectedSubjectId);
+          els.userSearch.value = selected ? subjectName(selected.subject) : "";
+          load(true);
         });
       }
     }
 
-    function renderUserOption(subject, index) {
-      const active = index === state.activeUserIndex ? " active" : "";
-      const meta = [
-        subject.phone_number,
-        subject.label && subject.label !== subjectDisplay(subject) ? subject.label : "",
-        subject.id
-      ].filter(Boolean).join(" / ");
-      return "<button class=\\"combo-option" + active + "\\" type=\\"button\\" role=\\"option\\" data-subject-id=\\"" + escapeAttr(subject.id) + "\\">" +
-        "<span class=\\"combo-name\\">" + escapeHtml(subjectDisplay(subject)) + "</span>" +
-        "<span class=\\"combo-meta\\">" + escapeHtml(meta) + "</span>" +
-      "</button>";
+    function renderUserRow(user) {
+      const subject = user.subject || {};
+      const selected = subject.id === state.selectedSubjectId ? " selected" : "";
+      const tokenUsage = user.token_usage || {};
+      const meta = [subject.phone_number, subject.label !== subjectName(subject) ? subject.label : "", subject.id].filter(Boolean).join(" · ");
+      return '<button type="button" class="user-row' + selected + '" role="option" data-subject-id="' + escapeAttr(subject.id || "") + '">' +
+        '<span class="user-name">' + escapeHtml(subjectName(subject)) + '</span>' +
+        '<span class="user-meta">' + escapeHtml(meta) + '</span>' +
+        '<span class="user-stats">' +
+          userStat("Gateway 请求", user.gateway_request_count || user.request_count || 0) +
+          userStat("上游尝试", user.upstream_attempt_count || 0) +
+          userStat("Provider Token", formatCompact(user.provider_total_tokens || tokenUsage.total_tokens || 0)) +
+          userStat("估算 Token", formatCompact(user.estimated_tokens || tokenUsage.estimated_tokens || 0)) +
+        '</span>' +
+      '</button>';
     }
 
-    function selectUser(subject) {
-      state.selectedSubjectId = subject.id;
-      state.activeUserIndex = -1;
-      els.userSearch.value = subjectDisplay(subject);
-      closeUserList();
-      load();
+    function userStat(label, value) {
+      const display = typeof value === "number" ? formatNumber(value) : String(value);
+      return '<span class="user-stat"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(display) + '</strong></span>';
     }
 
-    function subjectDisplay(subject) {
-      return subject.name || subject.label || subject.id || "-";
+    function renderMessages(payload) {
+      const pagination = payload.pagination || { offset: 0, limit: Number(els.limit.value), returned: 0, total: 0, has_more: false };
+      state.offset = pagination.offset || 0;
+      const selected = state.users.find((user) => user.subject && user.subject.id === state.selectedSubjectId);
+      els.messageTitle.textContent = selected ? subjectName(selected.subject) + " 的所有消息" : "所有用户的消息";
+      els.messageCount.textContent = "指定时段内共 " + formatNumber(pagination.total || 0) + " 条；本页 " + formatNumber(pagination.returned || 0) + " 条";
+      const first = pagination.total ? pagination.offset + 1 : 0;
+      const last = pagination.offset + pagination.returned;
+      els.pageLabel.textContent = formatNumber(first) + "–" + formatNumber(last) + " / " + formatNumber(pagination.total || 0);
+      els.prev.disabled = pagination.offset <= 0;
+      els.next.disabled = !pagination.has_more;
+      const messages = Array.isArray(payload.messages) ? payload.messages : [];
+      els.rows.innerHTML = messages.length ? messages.map(renderMessage).join("") : '<div class="empty">当前条件下没有消息</div>';
     }
 
-    function normalizeText(value) {
-      return String(value || "").trim().toLowerCase();
+    function renderMessage(message) {
+      const subject = message.subject || {};
+      const request = message.request_summary || {};
+      const tokens = request.token_usage || {};
+      const outcome = request.outcome || "no_request";
+      const errors = Array.isArray(request.error_codes) && request.error_codes.length ? '<div class="user-meta">错误：' + escapeHtml(request.error_codes.join(", ")) + '</div>' : "";
+      const missing = Number(tokens.usage_missing_count || 0) > 0 ? '<div class="user-meta">有 ' + formatNumber(tokens.usage_missing_count) + ' 个请求缺少 Token usage</div>' : "";
+      const app = [message.app_name, message.app_version].filter(Boolean).join(" ");
+      const text = message.text || message.text_preview || "";
+      return '<article class="message-card">' +
+        '<div class="message-top"><div><div class="message-owner">' + escapeHtml(subjectName(subject)) + '</div>' +
+          '<div class="message-time">接收 ' + escapeHtml(formatTime(message.received_at)) + ' · 客户端 ' + escapeHtml(formatTime(message.created_at)) + (app ? ' · ' + escapeHtml(app) : '') + '</div></div>' +
+          '<span class="badge ' + escapeAttr(outcome) + '">' + escapeHtml(outcomeLabel(outcome)) + '</span></div>' +
+        '<div class="request-grid">' +
+          requestMetric("模型调用", formatNumber(request.model_call_request_count || 0) + " 次", "Gateway 请求 " + formatNumber(request.gateway_request_count || request.request_count || 0) + "，成功 " + formatNumber(request.success_count || 0) + " / 失败 " + formatNumber(request.error_count || 0)) +
+          requestMetric("上游尝试", request.attempt_count_missing ? formatNumber(request.upstream_attempt_count || 0) + "+（部分未知）" : formatNumber(request.upstream_attempt_count || 0), "故障重试 " + formatNumber(request.failure_retry_count || 0) + " / 合同恢复 " + formatNumber(request.recovery_attempt_count || 0) + (request.unclassified_additional_attempt_count ? " / 未分类附加 " + formatNumber(request.unclassified_additional_attempt_count) : "")) +
+          requestMetric("端到端耗时", formatDuration(request.duration_ms), request.request_count > 1 ? "调用耗时合计 " + formatDuration(request.summed_request_duration_ms) : "") +
+          requestMetric("Provider Token", formatNumber(tokens.provider_total_tokens || 0), "输入 " + formatNumber(tokens.provider_prompt_tokens || 0) + " / 输出 " + formatNumber(tokens.provider_completion_tokens || 0)) +
+          requestMetric("估算 Token", formatNumber(tokens.estimated_tokens || 0), tokens.estimated_tokens ? "最终 fallback 估算" : "未使用估算") +
+          requestMetric("限流", formatNumber(request.rate_limited_count || 0) + " 次", "客户端自动重试：无法确认") +
+        '</div>' + errors + missing +
+        '<pre class="message-text">' + escapeHtml(text) + '</pre>' +
+        '<details><summary>Gateway request ID 与 upstream attempts' + (message.gateway_requests_truncated ? '（仅最新 100 / 共 ' + formatNumber(message.gateway_request_total || 0) + '）' : '') + '</summary><div class="mono">subject ' + escapeHtml(subject.id || "-") + '<br>credential ' + escapeHtml(message.credential && message.credential.prefix ? message.credential.prefix : "-") + '<br>session ' + escapeHtml(message.session_id || "-") + '<br>message ' + escapeHtml(message.message_id || "-") + '<br>upload request ' + escapeHtml(message.request_id || "-") + renderGatewayRequests(message.gateway_requests) + '</div></details>' +
+      '</article>';
     }
 
-    function setParam(params, name, value) {
-      const trimmed = String(value || "").trim();
-      if (trimmed) params.set(name, trimmed);
+    function renderGatewayRequests(requests) {
+      if (!Array.isArray(requests) || !requests.length) return '<br>Gateway requests: none';
+      return requests.map((request) => {
+        const failure = request.terminal_failure;
+        const failureText = failure ? failure.origin + '/' + failure.kind + '/' + failure.stage + (failure.transport_code ? ' [' + failure.transport_code + ']' : '') + (failure.upstream_status !== null && failure.upstream_status !== undefined ? ' upstream HTTP ' + failure.upstream_status : '') : (request.status === 'error' ? '旧记录未分类' : '-');
+        const attempts = Array.isArray(request.upstream_attempts) ? request.upstream_attempts.map((attempt) => {
+          const route = [attempt.provider, attempt.upstream_runtime, attempt.upstream_model].filter(Boolean).join(' / ') || '-';
+          const upstream = 'upstream request ' + (attempt.upstream_request_id || '-') + ' · HTTP ' + (attempt.upstream_http_status === null || attempt.upstream_http_status === undefined ? '-' : attempt.upstream_http_status);
+          const tokens = 'tokens prompt ' + (attempt.prompt_tokens === null || attempt.prompt_tokens === undefined ? '-' : formatNumber(attempt.prompt_tokens)) + ' / completion ' + (attempt.completion_tokens === null || attempt.completion_tokens === undefined ? '-' : formatNumber(attempt.completion_tokens)) + ' / total ' + (attempt.total_tokens === null || attempt.total_tokens === undefined ? '-' : formatNumber(attempt.total_tokens));
+          const attemptFailure = attempt.failure ? attempt.failure.origin + '/' + attempt.failure.kind + '/' + attempt.failure.stage + (attempt.failure.transport_code ? ' [' + attempt.failure.transport_code + ']' : '') + (attempt.failure.upstream_status !== null && attempt.failure.upstream_status !== undefined ? ' upstream HTTP ' + attempt.failure.upstream_status : '') : '-';
+          return '<br>&nbsp;&nbsp;attempt ' + escapeHtml(attempt.index) + ' ' + escapeHtml(attempt.purpose || 'unknown') + ' / ' + escapeHtml(attempt.kind || '-') + ' · ' + escapeHtml(formatDuration(attempt.duration_ms)) + ' · ' + escapeHtml(attempt.error_code || 'ok') + '<br>&nbsp;&nbsp;&nbsp;&nbsp;provider ' + escapeHtml(route) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(upstream) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(tokens) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;failure ' + escapeHtml(attemptFailure);
+        }).join('') : '';
+        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + attempts;
+      }).join('');
     }
 
-    function setStatus(text, ok) {
-      els.status.textContent = text;
-      els.status.className = ok ? "status-ok" : "status-bad";
+    function requestMetric(label, value, detail) {
+      return '<div class="request-metric"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong>' + (detail ? '<span>' + escapeHtml(detail) + '</span>' : '') + '</div>';
     }
 
-    function showNotice(text, ok) {
-      if (!text) {
-        els.notice.hidden = true;
-        els.notice.textContent = "";
-        return;
-      }
-      els.notice.hidden = false;
-      els.notice.className = ok ? "notice" : "notice bad";
-      els.notice.textContent = text;
+    function applyPreset() {
+      const hours = Number(els.rangePreset.value);
+      if (!Number.isFinite(hours)) return;
+      const end = new Date();
+      const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+      els.since.value = toLocalDateTime(start);
+      els.until.value = toLocalDateTime(end);
     }
 
+    function toLocalDateTime(date) {
+      const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return shifted.toISOString().slice(0, 19);
+    }
+
+    function dateTimeToIso(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+
+    function subjectName(subject) { return subject.name || subject.label || subject.id || "-"; }
+    function outcomeLabel(value) { return ({ success: "成功", partial: "部分失败", failed: "失败", no_request: "无请求记录" })[value] || value; }
+    function normalize(value) { return String(value || "").trim().toLowerCase(); }
+    function setParam(params, name, value) { const text = String(value || "").trim(); if (text) params.set(name, text); }
+    function setStatus(text, ok) { els.status.textContent = text; els.status.className = "pill " + (ok ? "ok" : "bad"); }
+    function showNotice(text) { els.notice.hidden = !text; els.notice.textContent = text || ""; }
+    function formatNumber(value) { return Number(value || 0).toLocaleString("zh-CN"); }
+    function formatCompact(value) { return new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0)); }
+    function formatDuration(value) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return "-";
+      const ms = Number(value);
+      if (ms < 1000) return Math.round(ms) + " ms";
+      if (ms < 60000) return (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + " s";
+      return (ms / 60000).toFixed(1) + " min";
+    }
     function formatTime(value) {
       if (!value) return "-";
-      return new Intl.DateTimeFormat(undefined, {
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false
-      }).format(new Date(value));
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(date);
     }
-
     function escapeHtml(value) {
-      return String(value).replace(/[&<>"']/g, (char) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "\\"": "&quot;",
-        "'": "&#39;"
-      }[char]));
+      return String(value === null || value === undefined ? "" : value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
     }
-
-    function escapeAttr(value) {
-      return escapeHtml(value).replace(/\\n/g, " ");
-    }
+    function escapeAttr(value) { return escapeHtml(value).replace(/\\n/g, " "); }
   </script>
 </body>
 </html>`;
+}
+
+interface AdminUserUsageRow {
+  subject: ReturnType<typeof publicSubject>;
+  request_count: number;
+  gateway_request_count: number;
+  model_call_request_count: number;
+  upstream_attempt_count: number;
+  failure_retry_count: number;
+  recovery_attempt_count: number;
+  unclassified_additional_attempt_count: number;
+  attempt_count_missing: number;
+  attempt_purpose_missing: number;
+  provider_total_tokens: number;
+  estimated_tokens: number;
+  attributable_tokens: number;
+  success_count: number;
+  error_count: number;
+  rate_limited_count: number;
+  avg_duration_ms: number | null;
+  token_usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    estimated_tokens: number;
+    effective_tokens: number;
+    cached_prompt_tokens: number;
+    reasoning_tokens: number;
+    usage_missing_count: number;
+  };
+}
+
+function buildMessageRequestSummaries(
+  store: ObservationStore | undefined,
+  messages: ClientMessageEventRecord[]
+): { summaries: Map<string, MessageRequestCorrelation>; truncated: boolean } {
+  const summaries = new Map<string, MessageRequestCorrelation>();
+  if (!store || messages.length === 0) {
+    return { summaries, truncated: false };
+  }
+
+  const messageIdsBySubject = new Map<string, Set<string>>();
+  for (const message of messages) {
+    const ids = messageIdsBySubject.get(message.subjectId) ?? new Set<string>();
+    ids.add(message.messageId);
+    messageIdsBySubject.set(message.subjectId, ids);
+  }
+
+  const eventsByMessage = new Map<string, RequestEventRecord[]>();
+  let truncated = false;
+  const batchSize = 400;
+  const maxEventsPerBatch = 50_000;
+  for (const [subjectId, messageIds] of messageIdsBySubject) {
+    const ids = Array.from(messageIds);
+    for (let start = 0; start < ids.length; start += batchSize) {
+      const batch = ids.slice(start, start + batchSize);
+      const events = store.listRequestEvents({
+        subjectId,
+        clientMessageIds: batch,
+        limit: maxEventsPerBatch + 1
+      });
+      if (events.length > maxEventsPerBatch) {
+        truncated = true;
+        events.length = maxEventsPerBatch;
+      }
+      for (const event of events) {
+        if (!event.clientMessageId) {
+          continue;
+        }
+        const key = messageRequestKey(subjectId, event.clientMessageId);
+        const grouped = eventsByMessage.get(key) ?? [];
+        grouped.push(event);
+        eventsByMessage.set(key, grouped);
+      }
+    }
+  }
+
+  for (const message of messages) {
+    const key = messageRequestKey(message.subjectId, message.messageId);
+    summaries.set(key, correlateMessageRequests(eventsByMessage.get(key) ?? []));
+  }
+  return { summaries, truncated };
+}
+
+function correlateMessageRequests(events: RequestEventRecord[]): MessageRequestCorrelation {
+  const ordered = [...events].sort(
+    (left, right) => left.startedAt.getTime() - right.startedAt.getTime()
+  );
+  const selected = ordered.slice(-100);
+  return {
+    summary: summarizeMessageRequests(ordered),
+    gatewayRequests: selected.map(publicGatewayRequest),
+    gatewayRequestsTruncated: ordered.length > selected.length,
+    gatewayRequestTotal: ordered.length
+  };
+}
+
+function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestSummary {
+  if (events.length === 0) {
+    return emptyMessageRequestSummary();
+  }
+
+  let successCount = 0;
+  let errorCount = 0;
+  let rateLimitedCount = 0;
+  let earliestStartedAt = Number.POSITIVE_INFINITY;
+  let latestFinishedAt = Number.NEGATIVE_INFINITY;
+  let summedRequestDurationMs = 0;
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let totalTokens = 0;
+  let estimatedTokens = 0;
+  let cachedPromptTokens = 0;
+  let usageMissingCount = 0;
+  let modelCallRequestCount = 0;
+  let upstreamAttemptCount = 0;
+  let failureRetryCount = 0;
+  let recoveryAttemptCount = 0;
+  let unclassifiedAdditionalAttemptCount = 0;
+  let attemptCountMissing = 0;
+  let attemptPurposeMissing = 0;
+  const errorCodes = new Set<string>();
+
+  for (const event of events) {
+    if (event.status === "ok") {
+      successCount += 1;
+    } else {
+      errorCount += 1;
+    }
+    if (event.rateLimited) {
+      rateLimitedCount += 1;
+    }
+    if (event.errorCode) {
+      errorCodes.add(event.errorCode);
+    }
+
+    const startedAt = event.startedAt.getTime();
+    const requestDurationMs = nonNegativeNumber(event.durationMs);
+    earliestStartedAt = Math.min(earliestStartedAt, startedAt);
+    latestFinishedAt = Math.max(latestFinishedAt, startedAt + requestDurationMs);
+    summedRequestDurationMs += requestDurationMs;
+
+    const tokens = adminTokenBreakdown(event);
+    promptTokens += tokens.provider_prompt_tokens;
+    completionTokens += tokens.provider_completion_tokens;
+    cachedPromptTokens += nonNegativeNumber(event.cachedPromptTokens);
+    totalTokens += tokens.provider_total_tokens;
+    estimatedTokens += tokens.estimated_tokens;
+    usageMissingCount += tokens.usage_missing ? 1 : 0;
+
+    const attempts = requestAttemptMetrics(event);
+    if (attempts.attemptCount === null) {
+      attemptCountMissing += 1;
+    } else {
+      upstreamAttemptCount += attempts.attemptCount;
+      modelCallRequestCount += attempts.attemptCount > 0 ? 1 : 0;
+    }
+    failureRetryCount += attempts.failureRetryCount;
+    recoveryAttemptCount += attempts.recoveryAttemptCount;
+    unclassifiedAdditionalAttemptCount += attempts.unclassifiedAdditionalAttemptCount;
+    attemptPurposeMissing += attempts.attemptPurposeMissing;
+  }
+
+  const outcome: MessageRequestOutcome =
+    errorCount === 0 ? "success" : successCount === 0 ? "failed" : "partial";
+  return {
+    outcome,
+    success: outcome === "success",
+    request_count: events.length,
+    gateway_request_count: events.length,
+    model_call_request_count: modelCallRequestCount,
+    upstream_attempt_count: upstreamAttemptCount,
+    failure_retry_count: failureRetryCount,
+    recovery_attempt_count: recoveryAttemptCount,
+    unclassified_additional_attempt_count: unclassifiedAdditionalAttemptCount,
+    attempt_count_missing: attemptCountMissing,
+    attempt_purpose_missing: attemptPurposeMissing,
+    success_count: successCount,
+    error_count: errorCount,
+    rate_limited_count: rateLimitedCount,
+    started_at: new Date(earliestStartedAt).toISOString(),
+    finished_at: new Date(latestFinishedAt).toISOString(),
+    duration_ms: Math.max(0, latestFinishedAt - earliestStartedAt),
+    summed_request_duration_ms: summedRequestDurationMs,
+    error_codes: Array.from(errorCodes).sort(),
+    token_usage: {
+      provider_usage_present: events.some((event) => adminTokenBreakdown(event).provider_usage_present),
+      provider_prompt_tokens: promptTokens,
+      provider_completion_tokens: completionTokens,
+      provider_total_tokens: totalTokens,
+      attributable_tokens: totalTokens + estimatedTokens,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      estimated_tokens: estimatedTokens,
+      effective_tokens: totalTokens + estimatedTokens,
+      cached_prompt_tokens: cachedPromptTokens,
+      usage_missing_count: usageMissingCount
+    }
+  };
+}
+
+function adminTokenBreakdown(event: RequestEventRecord) {
+  const providerUsagePresent =
+    event.totalTokens !== null && event.totalTokens !== undefined ||
+    event.promptTokens !== null && event.promptTokens !== undefined ||
+    event.completionTokens !== null && event.completionTokens !== undefined;
+  const providerPromptTokens = providerUsagePresent
+    ? nonNegativeNumber(event.promptTokens)
+    : 0;
+  const providerCompletionTokens = providerUsagePresent
+    ? nonNegativeNumber(event.completionTokens)
+    : 0;
+  const explicitTotal = providerUsagePresent
+    ? nonNegativeNumberOrNull(event.totalTokens)
+    : null;
+  const providerTotalTokens = providerUsagePresent
+    ? explicitTotal ?? providerPromptTokens + providerCompletionTokens
+    : 0;
+  const estimatedTokens = providerUsagePresent
+    ? 0
+    : nonNegativeNumber(event.estimatedTokens);
+  const usageMissing =
+    !providerUsagePresent && estimatedTokens === 0 && event.usageSource !== "none";
+  return {
+    provider_usage_present: providerUsagePresent,
+    provider_prompt_tokens: providerPromptTokens,
+    provider_completion_tokens: providerCompletionTokens,
+    provider_total_tokens: providerTotalTokens,
+    estimated_tokens: estimatedTokens,
+    attributable_tokens: providerTotalTokens + estimatedTokens,
+    cached_prompt_tokens: providerUsagePresent
+      ? nonNegativeNumber(event.cachedPromptTokens)
+      : 0,
+    reasoning_tokens: providerUsagePresent
+      ? nonNegativeNumber(event.reasoningTokens)
+      : 0,
+    gateway_estimated_prompt_tokens:
+      nonNegativeNumberOrNull(event.gatewayEstimatedPromptTokens),
+    usage_source: event.usageSource ?? null,
+    usage_missing: usageMissing
+  };
+}
+
+function requestAttemptMetrics(event: RequestEventRecord) {
+  const attempts = event.upstreamAttempts;
+  const purposeSummary = summarizeUpstreamAttemptPurposes(attempts ?? []);
+  const attemptCount = event.upstreamAttemptCount ?? (attempts ? attempts.length : null);
+  return {
+    attemptCount,
+    failureRetryCount:
+      event.upstreamFailureRetryCount ?? purposeSummary.failureRetryCount,
+    recoveryAttemptCount:
+      event.upstreamRecoveryAttemptCount ?? purposeSummary.recoveryAttemptCount,
+    unclassifiedAdditionalAttemptCount:
+      event.upstreamUnclassifiedAdditionalAttemptCount ??
+      purposeSummary.unclassifiedAdditionalAttemptCount,
+    attemptPurposeMissing:
+      attempts !== null && attempts !== undefined
+        ? purposeSummary.attemptPurposeMissing
+        : attemptCount ?? 0
+  };
+}
+
+function publicGatewayRequest(event: RequestEventRecord) {
+  const metrics = requestAttemptMetrics(event);
+  const terminalFailure = requestTerminalFailure(event);
+  return {
+    request_id: event.requestId,
+    started_at: event.startedAt.toISOString(),
+    status: event.status,
+    error_code: event.errorCode,
+    duration_ms: event.durationMs,
+    first_byte_ms: event.firstByteMs,
+    provider: event.provider,
+    upstream_runtime: event.upstreamRuntime ?? null,
+    upstream_model: event.upstreamModel ?? null,
+    upstream_attempt_count: metrics.attemptCount,
+    failure_retry_count: metrics.failureRetryCount,
+    recovery_attempt_count: metrics.recoveryAttemptCount,
+    unclassified_additional_attempt_count:
+      metrics.unclassifiedAdditionalAttemptCount,
+    attempt_purpose_missing: metrics.attemptPurposeMissing,
+    terminal_failure: terminalFailure ? publicProviderFailure(terminalFailure) : null,
+    token_usage: adminTokenBreakdown(event),
+    upstream_attempts: (event.upstreamAttempts ?? []).map((attempt, position) => ({
+      index: attempt.index,
+      purpose: resolveUpstreamAttemptPurpose(attempt, position + 1),
+      kind: attempt.kind ?? null,
+      provider: attempt.provider ?? null,
+      upstream_runtime: attempt.upstreamRuntime ?? null,
+      upstream_model: attempt.upstreamModel ?? null,
+      duration_ms: attempt.durationMs ?? null,
+      upstream_http_status: attempt.upstreamHttpStatus ?? null,
+      upstream_request_id: attempt.upstreamRequestId ?? null,
+      error_code: attempt.errorCode ?? null,
+      failure: attempt.failure ? publicProviderFailure(attempt.failure) : null,
+      prompt_tokens: attempt.promptTokens ?? null,
+      completion_tokens: attempt.completionTokens ?? null,
+      total_tokens: attempt.totalTokens ?? null
+    }))
+  };
+}
+
+function requestTerminalFailure(
+  event: RequestEventRecord
+): ProviderFailureClassification | null {
+  if (
+    !event.upstreamFailureOrigin ||
+    !event.upstreamFailureKind ||
+    !event.upstreamFailureStage
+  ) {
+    return null;
+  }
+  return {
+    origin: event.upstreamFailureOrigin,
+    kind: event.upstreamFailureKind,
+    stage: event.upstreamFailureStage,
+    transportCode: event.upstreamTransportCode ?? null,
+    upstreamStatus: event.upstreamHttpStatus ?? null
+  };
+}
+
+function publicProviderFailure(failure: ProviderFailureClassification) {
+  return {
+    origin: failure.origin,
+    kind: failure.kind,
+    stage: failure.stage,
+    transport_code: failure.transportCode,
+    upstream_status: failure.upstreamStatus
+  };
+}
+
+function emptyMessageRequestSummary(): MessageRequestSummary {
+  return {
+    outcome: "no_request",
+    success: null,
+    request_count: 0,
+    gateway_request_count: 0,
+    model_call_request_count: 0,
+    upstream_attempt_count: 0,
+    failure_retry_count: 0,
+    recovery_attempt_count: 0,
+    unclassified_additional_attempt_count: 0,
+    attempt_count_missing: 0,
+    attempt_purpose_missing: 0,
+    success_count: 0,
+    error_count: 0,
+    rate_limited_count: 0,
+    started_at: null,
+    finished_at: null,
+    duration_ms: null,
+    summed_request_duration_ms: 0,
+    error_codes: [],
+    token_usage: {
+      provider_usage_present: false,
+      provider_prompt_tokens: 0,
+      provider_completion_tokens: 0,
+      provider_total_tokens: 0,
+      attributable_tokens: 0,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      estimated_tokens: 0,
+      effective_tokens: 0,
+      cached_prompt_tokens: 0,
+      usage_missing_count: 0
+    }
+  };
+}
+
+function emptyMessageRequestCorrelation(): MessageRequestCorrelation {
+  return {
+    summary: emptyMessageRequestSummary(),
+    gatewayRequests: [],
+    gatewayRequestsTruncated: false,
+    gatewayRequestTotal: 0
+  };
+}
+
+function messageRequestKey(subjectId: string, messageId: string): string {
+  return `${subjectId}\u0000${messageId}`;
+}
+
+function buildAdminUserRows(
+  subjects: Subject[],
+  usageRows: RequestUsageReportRow[],
+  sortBy: AdminUserSortBy,
+  sortOrder: AdminSortOrder
+): AdminUserUsageRow[] {
+  const rowsBySubject = new Map<string, AdminUserUsageRow>();
+  const durationWeights = new Map<string, { total: number; requests: number }>();
+  for (const subject of subjects) {
+    rowsBySubject.set(subject.id, {
+      subject: publicSubject(subject),
+      request_count: 0,
+      gateway_request_count: 0,
+      model_call_request_count: 0,
+      upstream_attempt_count: 0,
+      failure_retry_count: 0,
+      recovery_attempt_count: 0,
+      unclassified_additional_attempt_count: 0,
+      attempt_count_missing: 0,
+      attempt_purpose_missing: 0,
+      provider_total_tokens: 0,
+      estimated_tokens: 0,
+      attributable_tokens: 0,
+      success_count: 0,
+      error_count: 0,
+      rate_limited_count: 0,
+      avg_duration_ms: null,
+      token_usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        estimated_tokens: 0,
+        effective_tokens: 0,
+        cached_prompt_tokens: 0,
+        reasoning_tokens: 0,
+        usage_missing_count: 0
+      }
+    });
+  }
+
+  for (const usage of usageRows) {
+    if (!usage.subjectId) {
+      continue;
+    }
+    const row = rowsBySubject.get(usage.subjectId);
+    if (!row) {
+      continue;
+    }
+    row.request_count += usage.requests;
+    row.gateway_request_count += usage.requests;
+    row.model_call_request_count += usage.modelCallRequests;
+    row.upstream_attempt_count += usage.upstreamAttempts;
+    row.failure_retry_count += usage.failureRetries;
+    row.recovery_attempt_count += usage.recoveryAttempts;
+    row.unclassified_additional_attempt_count += usage.unclassifiedAdditionalAttempts;
+    row.attempt_count_missing += usage.attemptCountMissing;
+    row.attempt_purpose_missing += usage.attemptPurposeMissing;
+    row.success_count += usage.ok;
+    row.error_count += usage.errors;
+    row.rate_limited_count += usage.rateLimited;
+    row.token_usage.prompt_tokens += usage.promptTokens;
+    row.token_usage.completion_tokens += usage.completionTokens;
+    row.token_usage.total_tokens += usage.totalTokens;
+    row.token_usage.estimated_tokens += usage.estimatedTokens;
+    row.token_usage.cached_prompt_tokens += usage.cachedPromptTokens;
+    row.token_usage.reasoning_tokens += usage.reasoningTokens;
+    row.token_usage.usage_missing_count += usage.usageMissing;
+    if (usage.avgDurationMs !== null) {
+      const weight = durationWeights.get(usage.subjectId) ?? { total: 0, requests: 0 };
+      weight.total += usage.avgDurationMs * usage.requests;
+      weight.requests += usage.requests;
+      durationWeights.set(usage.subjectId, weight);
+    }
+  }
+
+  for (const [subjectId, row] of rowsBySubject) {
+    row.token_usage.effective_tokens =
+      row.token_usage.total_tokens + row.token_usage.estimated_tokens;
+    row.provider_total_tokens = row.token_usage.total_tokens;
+    row.estimated_tokens = row.token_usage.estimated_tokens;
+    row.attributable_tokens = row.token_usage.effective_tokens;
+    const duration = durationWeights.get(subjectId);
+    row.avg_duration_ms = duration?.requests
+      ? Math.round(duration.total / duration.requests)
+      : null;
+  }
+
+  const rows = Array.from(rowsBySubject.values());
+  rows.sort((left, right) => compareAdminUsers(left, right, sortBy, sortOrder));
+  return rows;
+}
+
+function summarizeAdminUsers(users: AdminUserUsageRow[], messageCount: number) {
+  const summary = {
+    user_count: users.length,
+    active_user_count: 0,
+    message_count: messageCount,
+    request_count: 0,
+    gateway_request_count: 0,
+    model_call_request_count: 0,
+    upstream_attempt_count: 0,
+    failure_retry_count: 0,
+    recovery_attempt_count: 0,
+    unclassified_additional_attempt_count: 0,
+    attempt_count_missing: 0,
+    attempt_purpose_missing: 0,
+    provider_total_tokens: 0,
+    estimated_tokens: 0,
+    attributable_tokens: 0,
+    success_count: 0,
+    error_count: 0,
+    rate_limited_count: 0,
+    avg_duration_ms: null as number | null,
+    token_usage: {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      estimated_tokens: 0,
+      effective_tokens: 0,
+      cached_prompt_tokens: 0,
+      reasoning_tokens: 0,
+      usage_missing_count: 0
+    }
+  };
+  let weightedDuration = 0;
+  let durationRequests = 0;
+  for (const user of users) {
+    if (user.request_count > 0) {
+      summary.active_user_count += 1;
+    }
+    summary.request_count += user.request_count;
+    summary.gateway_request_count += user.gateway_request_count;
+    summary.model_call_request_count += user.model_call_request_count;
+    summary.upstream_attempt_count += user.upstream_attempt_count;
+    summary.failure_retry_count += user.failure_retry_count;
+    summary.recovery_attempt_count += user.recovery_attempt_count;
+    summary.unclassified_additional_attempt_count +=
+      user.unclassified_additional_attempt_count;
+    summary.attempt_count_missing += user.attempt_count_missing;
+    summary.attempt_purpose_missing += user.attempt_purpose_missing;
+    summary.provider_total_tokens += user.provider_total_tokens;
+    summary.estimated_tokens += user.estimated_tokens;
+    summary.attributable_tokens += user.attributable_tokens;
+    summary.success_count += user.success_count;
+    summary.error_count += user.error_count;
+    summary.rate_limited_count += user.rate_limited_count;
+    summary.token_usage.prompt_tokens += user.token_usage.prompt_tokens;
+    summary.token_usage.completion_tokens += user.token_usage.completion_tokens;
+    summary.token_usage.total_tokens += user.token_usage.total_tokens;
+    summary.token_usage.estimated_tokens += user.token_usage.estimated_tokens;
+    summary.token_usage.effective_tokens += user.token_usage.effective_tokens;
+    summary.token_usage.cached_prompt_tokens += user.token_usage.cached_prompt_tokens;
+    summary.token_usage.reasoning_tokens += user.token_usage.reasoning_tokens;
+    summary.token_usage.usage_missing_count += user.token_usage.usage_missing_count;
+    if (user.avg_duration_ms !== null) {
+      weightedDuration += user.avg_duration_ms * user.request_count;
+      durationRequests += user.request_count;
+    }
+  }
+  summary.avg_duration_ms = durationRequests
+    ? Math.round(weightedDuration / durationRequests)
+    : null;
+  return summary;
+}
+
+function compareAdminUsers(
+  left: AdminUserUsageRow,
+  right: AdminUserUsageRow,
+  sortBy: AdminUserSortBy,
+  sortOrder: AdminSortOrder
+): number {
+  const direction = sortOrder === "asc" ? 1 : -1;
+  const numeric = (row: AdminUserUsageRow): number => {
+    switch (sortBy) {
+      case "tokens":
+        return row.token_usage.effective_tokens;
+      case "upstream_attempts":
+        return row.upstream_attempt_count;
+      case "retries":
+        return row.failure_retry_count;
+      case "recoveries":
+        return row.recovery_attempt_count;
+      case "provider_tokens":
+        return row.provider_total_tokens;
+      case "estimated_tokens":
+        return row.estimated_tokens;
+      case "errors":
+        return row.error_count;
+      case "rate_limited":
+        return row.rate_limited_count;
+      case "avg_duration":
+        return row.avg_duration_ms ?? -1;
+      case "requests":
+        return row.request_count;
+      default:
+        return 0;
+    }
+  };
+  if (sortBy !== "name") {
+    const difference = numeric(left) - numeric(right);
+    if (difference !== 0) {
+      return difference * direction;
+    }
+  }
+  return adminUserName(left).localeCompare(adminUserName(right), "zh-CN") *
+    (sortBy === "name" ? direction : 1);
+}
+
+function adminUserName(row: AdminUserUsageRow): string {
+  return row.subject.name || row.subject.label || row.subject.id;
+}
+
+function parseUserSortBy(value: string | undefined): AdminUserSortBy {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "tokens" ||
+    normalized === "upstream_attempts" ||
+    normalized === "retries" ||
+    normalized === "recoveries" ||
+    normalized === "provider_tokens" ||
+    normalized === "estimated_tokens" ||
+    normalized === "errors" ||
+    normalized === "rate_limited" ||
+    normalized === "avg_duration" ||
+    normalized === "name"
+    ? normalized
+    : "requests";
+}
+
+function parseSortOrder(
+  value: string | undefined,
+  sortBy: AdminUserSortBy
+): AdminSortOrder {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "asc" || normalized === "desc") {
+    return normalized;
+  }
+  return sortBy === "name" ? "asc" : "desc";
+}
+
+function nonNegativeNumber(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function nonNegativeNumberOrNull(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function publicClientMessage(
@@ -796,6 +1388,7 @@ function publicClientMessage(
     credential?: AccessCredentialRecord;
     includeText: boolean;
     previewChars: number;
+    requestCorrelation: MessageRequestCorrelation;
   }
 ) {
   return {
@@ -826,7 +1419,11 @@ function publicClientMessage(
     app_name: message.appName,
     app_version: message.appVersion,
     created_at: message.createdAt.toISOString(),
-    received_at: message.receivedAt.toISOString()
+    received_at: message.receivedAt.toISOString(),
+    request_summary: input.requestCorrelation.summary,
+    gateway_requests: input.requestCorrelation.gatewayRequests,
+    gateway_requests_truncated: input.requestCorrelation.gatewayRequestsTruncated,
+    gateway_request_total: input.requestCorrelation.gatewayRequestTotal
   };
 }
 
@@ -852,7 +1449,9 @@ function resolveSubjectFilter(input: {
   credentialByPrefix: Map<string, AccessCredentialRecord>;
 }): { kind: "all" } | { kind: "single"; subjectId: string } | { kind: "multi"; subjectIds: string[] } {
   if (input.query.subject_id) {
-    return { kind: "single", subjectId: input.query.subject_id };
+    return input.subjects.some((subject) => subject.id === input.query.subject_id)
+      ? { kind: "single", subjectId: input.query.subject_id }
+      : { kind: "multi", subjectIds: [] };
   }
 
   if (input.query.credential_prefix) {
@@ -879,37 +1478,14 @@ function resolveSubjectFilter(input: {
   return { kind: "multi", subjectIds: matches };
 }
 
-function messageMatchesSearch(
-  message: ClientMessageEventRecord,
-  subject: Subject | undefined,
-  search: string
-): boolean {
-  return [
-    message.text,
-    message.sessionId,
-    message.messageId,
-    message.requestId,
-    message.agent,
-    message.providerId,
-    message.modelId,
-    message.engine,
-    subject?.id,
-    subject?.label,
-    subject?.name,
-    subject?.phoneNumber
-  ]
-    .filter(Boolean)
-    .some((value) => normalizeSearch(value)?.includes(search));
-}
-
-function parseSince(query: AdminClientMessagesQuery): Date | undefined {
+function parseSince(query: AdminClientMessagesQuery, until: Date): Date {
   const explicit = parseDate(query.since);
   if (explicit) {
     return explicit;
   }
 
   const hours = parseInteger(query.hours, 48, 1, 24 * 90);
-  return new Date(Date.now() - hours * 60 * 60 * 1000);
+  return new Date(until.getTime() - hours * 60 * 60 * 1000);
 }
 
 function parseDate(value: string | undefined): Date | undefined {

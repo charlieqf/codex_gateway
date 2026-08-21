@@ -681,6 +681,65 @@ describe("codex-gateway-admin user API key operations", () => {
       providerFirstEventMs: 100,
       providerDurationMs: 5_000,
       terminalSource: "provider_response",
+      upstreamAttemptCount: 2,
+      upstreamAttempts: [
+        {
+          index: 1,
+          kind: "primary",
+          purpose: "primary",
+          failure: {
+            origin: "network",
+            kind: "dns",
+            stage: "before_headers",
+            transportCode: "ENOTFOUND",
+            upstreamStatus: null
+          },
+          toolChoice: "auto",
+          provider: "openai-codex",
+          upstreamRuntime: "codex",
+          upstreamModel: "gpt-5.5",
+          upstreamAccountId: "sub_openai_codex",
+          finishReason: null,
+          upstreamRequestId: null,
+          upstreamHttpStatus: null,
+          errorCode: "upstream_network_error",
+          contentChars: 0,
+          toolCallCount: 0,
+          toolNames: [],
+          rawResponseHash: null,
+          rawResponseChars: 0,
+          emptyStop: false,
+          durationMs: 8
+        },
+        {
+          index: 2,
+          kind: "stateless_retry",
+          purpose: "failure_retry",
+          failure: null,
+          toolChoice: "auto",
+          provider: "openai-codex",
+          upstreamRuntime: "codex",
+          upstreamModel: "gpt-5.5",
+          upstreamAccountId: "sub_openai_codex",
+          finishReason: "stop",
+          upstreamRequestId: "up_req_1",
+          upstreamHttpStatus: 200,
+          errorCode: null,
+          contentChars: 2,
+          toolCallCount: 0,
+          toolNames: [],
+          rawResponseHash: "a".repeat(64),
+          rawResponseChars: 2,
+          emptyStop: false,
+          durationMs: 12,
+          promptTokens: 100,
+          completionTokens: 20,
+          totalTokens: 120
+        }
+      ],
+      upstreamFailureRetryCount: 1,
+      upstreamRecoveryAttemptCount: 0,
+      upstreamUnclassifiedAdditionalAttemptCount: 0,
       cancelRequested: false,
       cancelObserved: false,
       activeToolCount: 0,
@@ -717,6 +776,8 @@ describe("codex-gateway-admin user API key operations", () => {
 
     const events = runCli(dbPath, [
       "events",
+      "--request-id",
+      "req_1",
       "--user",
       "alice",
       "--client-session-id",
@@ -729,6 +790,12 @@ describe("codex-gateway-admin user API key operations", () => {
         public_model_id: string;
         upstream_runtime: string;
         upstream_model: string;
+        upstream_attempt_count: number;
+        upstream_failure_retry_count: number;
+        upstream_recovery_attempt_count: number;
+        upstream_unclassified_additional_attempt_count: number;
+        upstream_attempts: Array<{ purpose: string; failure: { kind: string } | null }>;
+        provider_usage_present: boolean;
       }>;
     };
     expect(events.events).toEqual([
@@ -759,6 +826,15 @@ describe("codex-gateway-admin user API key operations", () => {
       client_tool_mode: "none",
       gateway_context_utilization: 0.00055,
       gateway_estimate_to_provider_prompt_ratio: 1.1,
+      upstream_attempt_count: 2,
+      upstream_failure_retry_count: 1,
+      upstream_recovery_attempt_count: 0,
+      upstream_unclassified_additional_attempt_count: 0,
+      upstream_attempts: [
+        expect.objectContaining({ purpose: "primary", failure: expect.objectContaining({ kind: "dns" }) }),
+        expect.objectContaining({ purpose: "failure_retry", failure: null })
+      ],
+      provider_usage_present: true,
       tool_loop_guard: expect.objectContaining({
         policyVersion: "tool_loop_shadow_v1",
         assessmentReason: "client_turn_id_unavailable"
@@ -786,6 +862,11 @@ describe("codex-gateway-admin user API key operations", () => {
         ok: number;
         reasoning_tokens: number;
         usage_missing: number;
+        model_call_requests: number;
+        upstream_attempts: number;
+        failure_retries: number;
+        recovery_attempts: number;
+        unclassified_additional_attempts: number;
       }>;
     };
     expect(usage.rows).toEqual([
@@ -801,7 +882,12 @@ describe("codex-gateway-admin user API key operations", () => {
         requests: 1,
         ok: 1,
         reasoning_tokens: 0,
-        usage_missing: 0
+        usage_missing: 0,
+        model_call_requests: 1,
+        upstream_attempts: 2,
+        failure_retries: 1,
+        recovery_attempts: 0,
+        unclassified_additional_attempts: 0
       }
     ]);
 
