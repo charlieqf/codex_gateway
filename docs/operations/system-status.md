@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-21
+Last updated: 2026-08-22
 
 ## Current Phase
 
@@ -65,6 +65,22 @@ Current operational state:
   existing migration 25 SQL was not changed. The four persistent Phone Auth
   secret files are in the existing `gateway_state` volume with mode `0600` and
   are not exposed by health, configuration output or logs.
+- A controlled Desktop integration window was activated at
+  `2026-08-21T22:19:18Z` (`2026-08-22 08:19:18 AEST`) with
+  `GATEWAY_PHONE_AUTH_MODE=transition`,
+  `GATEWAY_DESKTOP_VERSION_GATE=auth_only` and minimum Desktop
+  `2.0.0-beta.40`. It is limited to two synthetic A/B identities plus one
+  unregistered negative fixture. The transient systemd timer
+  `codex-gateway-phone-auth-window-20260821T220809Z.timer` is scheduled for
+  `2026-08-22T00:19:18Z` (`10:19:18 AEST`) and invokes the protected rollback
+  script to disable both Phone identities, revoke their Phone Sessions, restore
+  `disabled / disabled` and recreate only Gateway. The verified pre-window
+  backup is
+  `/data/codex-gateway-r760/backups/phone-auth-ab-window-20260821T220809Z`.
+  After the deadline, verify live health and the timer service result rather
+  than assuming either state from this historical record. No real-user phone
+  identity, Nginx, DNS, Research or provider configuration is part of this
+  window.
 - A final live audit at `2026-08-21T06:29:01Z` found public and loopback
   `/gateway/health` returning Phone Auth `disabled / disabled / null`. Gateway,
   Research Worker, Research maintenance and the isolated Research LLM Gateway
