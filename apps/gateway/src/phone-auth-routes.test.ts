@@ -1,6 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  defaultImageGenerationFeaturePolicy,
   encryptSecret,
   issueAccessCredential,
   issueUnifiedClientKey,
@@ -10,7 +11,11 @@ import {
   type StreamEvent,
   type UpstreamAccount
 } from "@codex-gateway/core";
-import { createSqliteStore } from "@codex-gateway/store-sqlite";
+import {
+  createResearchSqliteStore,
+  createSqliteStore
+} from "@codex-gateway/store-sqlite";
+import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway } from "./index.js";
 import {
   PhoneAuthService,
@@ -18,6 +23,11 @@ import {
   phoneAuthMedevidenceOrigin
 } from "./services/phone-auth-service.js";
 import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
+import type {
+  VisionAssetReadGrant,
+  VisionAssetService,
+  VisionAssetUploadGrant
+} from "./services/vision-asset-service.js";
 
 const start = new Date("2026-08-20T00:00:00.000Z");
 const clientVersion = "1.2.3";
@@ -30,7 +40,10 @@ const savedEnvironment = new Map<string, string | undefined>();
 for (const name of [
   "GATEWAY_PUBLIC_BASE_URL",
   "GATEWAY_API_KEY_ENCRYPTION_SECRET",
-  "GATEWAY_PHONE_AUTH_MODE"
+  "GATEWAY_PHONE_AUTH_MODE",
+  "GATEWAY_DESKTOP_VERSION_GATE",
+  "GATEWAY_MINIMUM_DESKTOP_VERSION",
+  "GATEWAY_DESKTOP_DOWNLOAD_URL"
 ]) {
   savedEnvironment.set(name, process.env[name]);
 }
@@ -100,6 +113,15 @@ describe("internal phone auth v1 routes", () => {
       });
       expect(upgradeRequired.headers["cache-control"]).toBe("no-store");
 
+      const lowVersion = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/auth/v1/login/start",
+        headers: { "x-medevidence-client-version": "1.2.2" },
+        payload: { unexpected: true }
+      });
+      expect(lowVersion.statusCode).toBe(426);
+      expect(lowVersion.json().error.code).toBe("client_upgrade_required");
+
       const malformedOldClient = await fixture.app.inject({
         method: "POST",
         url: "/gateway/auth/v1/login/start",
@@ -130,9 +152,61 @@ describe("internal phone auth v1 routes", () => {
         subject: { id: fixture.subjectId, state: "active" }
       });
 
+      const refresh = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/auth/v1/token/refresh",
+        headers: versionHeader,
+        payload: {
+          refresh_token: loginBody.refresh_token,
+          client: "medevidence-desktop",
+          device_id: "desktop-device-example-01",
+          contract_version: 1
+        }
+      });
+      expect(refresh.statusCode).toBe(200);
+      expect(refresh.json().refresh_token).not.toBe(loginBody.refresh_token);
+      const replay = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/auth/v1/token/refresh",
+        headers: versionHeader,
+        payload: {
+          refresh_token: loginBody.refresh_token,
+          client: "medevidence-desktop",
+          device_id: "desktop-device-example-01",
+          contract_version: 1
+        }
+      });
+      expect(replay.statusCode).toBe(401);
+      expect(replay.json().error.code).toBe("refresh_token_invalid");
+      const replayedSession = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/auth/v1/session/bootstrap",
+        headers: {
+          ...versionHeader,
+          authorization: `Bearer ${refresh.json().access_token}`
+        },
+        payload: {}
+      });
+      expect(replayedSession.statusCode).toBe(401);
+      expect(replayedSession.json().error.code).toBe("access_token_invalid");
+
+      const replacementLogin = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/auth/v1/login/start",
+        headers: versionHeader,
+        payload: {
+          phone: "13800138000",
+          client: "medevidence-desktop",
+          device_id: "desktop-device-example-02",
+          contract_version: 1
+        }
+      });
+      expect(replacementLogin.statusCode).toBe(200);
+      const replacementLoginBody = replacementLogin.json();
+
       const authHeaders = {
         ...versionHeader,
-        authorization: `Bearer ${loginBody.access_token}`
+        authorization: `Bearer ${replacementLoginBody.access_token}`
       };
       const bootstrap = await fixture.app.inject({
         method: "POST",
@@ -398,6 +472,171 @@ describe("internal phone auth v1 routes", () => {
     }
   });
 
+  it("keeps beta.38 no-version-header resolver, chat/tools, Research, image, and Vision outside the version gate", async () => {
+    const fixture = createFixture();
+    try {
+      await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/phone-auth-identities",
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: {
+          phone: "13800138000",
+          subject_id: fixture.subjectId,
+          unified_key: fixture.unified.token
+        }
+      });
+      fixture.store.database
+        .prepare(
+          "UPDATE access_credentials SET allowed_public_models_json = NULL WHERE id = ?"
+        )
+        .run(fixture.backing.record.id);
+
+      const resolver = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}` },
+        payload: {}
+      });
+      const current = await fixture.app.inject({
+        method: "GET",
+        url: "/gateway/credentials/current",
+        headers: { authorization: `Bearer ${fixture.backing.token}` }
+      });
+      const chat = await fixture.app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: `Bearer ${fixture.backing.token}` },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "compatibility check" }]
+        }
+      });
+      const tools = await fixture.app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { authorization: `Bearer ${fixture.backing.token}` },
+        payload: {
+          model: "medcode",
+          messages: [{ role: "user", content: "tool compatibility check" }],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "compatibility_probe",
+                description: "Return compatibility status.",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  additionalProperties: false
+                }
+              }
+            }
+          ]
+        }
+      });
+      const research = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/research/v1/doctor-runs",
+        headers: {
+          authorization: `Bearer ${fixture.backing.token}`,
+          "idempotency-key": "research:beta38-no-header"
+        },
+        payload: {
+          doctor: {
+            name: "Compatibility Doctor",
+            hospital: "Example Hospital",
+            department: "Cardiology",
+            title: null,
+            city: "Sydney",
+            orcid: null
+          },
+          mode: "brief",
+          language: "en",
+          options: {
+            publication_years: 5,
+            citation_style: "vancouver"
+          },
+          client_reference: "beta38-compatibility"
+        }
+      });
+      const image = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/images/generations",
+        headers: { authorization: `Bearer ${fixture.backing.token}` },
+        payload: {
+          model: "medcode-image-default",
+          prompt: "Create a compatibility diagram.",
+          size: "1024x1024"
+        }
+      });
+      const createVision = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/vision/assets",
+        headers: { authorization: `Bearer ${fixture.backing.token}` },
+        payload: {
+          content_type: "image/png",
+          size_bytes: 68,
+          sha256: "a".repeat(64)
+        }
+      });
+      const assetId = "va1.compatibility.signature";
+      const completeVision = await fixture.app.inject({
+        method: "POST",
+        url: `/gateway/vision/assets/${assetId}/complete`,
+        headers: { authorization: `Bearer ${fixture.backing.token}` }
+      });
+      const readVision = await fixture.app.inject({
+        method: "POST",
+        url: `/gateway/vision/assets/${assetId}/read-url`,
+        headers: { authorization: `Bearer ${fixture.backing.token}` },
+        payload: {}
+      });
+      const deleteVision = await fixture.app.inject({
+        method: "DELETE",
+        url: `/gateway/vision/assets/${assetId}`,
+        headers: { authorization: `Bearer ${fixture.backing.token}` }
+      });
+
+      expect(research.statusCode, research.body).toBe(202);
+
+      expect({
+        resolver: resolver.statusCode,
+        current: current.statusCode,
+        chat: chat.statusCode,
+        tools: tools.statusCode,
+        research: research.statusCode,
+        image: image.statusCode,
+        visionCreate: createVision.statusCode,
+        visionComplete: completeVision.statusCode,
+        visionRead: readVision.statusCode,
+        visionDelete: deleteVision.statusCode
+      }).toEqual({
+        resolver: 200,
+        current: 200,
+        chat: 200,
+        tools: 200,
+        research: 202,
+        image: 200,
+        visionCreate: 403,
+        visionComplete: 403,
+        visionRead: 403,
+        visionDelete: 403
+      });
+      for (const response of [
+        createVision,
+        completeVision,
+        readVision,
+        deleteVision
+      ]) {
+        expect(response.json().error.code).toBe(
+          "model_not_allowed_for_credential"
+        );
+      }
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
   it("rate limits login by phone hash without auditing the raw phone", async () => {
     const fixture = createFixture({ phoneRequestsPerMinute: 1 });
     try {
@@ -620,6 +859,65 @@ describe("internal phone auth v1 routes", () => {
       store.close();
     }
   });
+
+  it("enforces the disabled/auth_only/all and transition startup matrices before listen", async () => {
+    const fixture = createFixture();
+    const createdApps: ReturnType<typeof buildGateway>[] = [];
+    const gateFor = (mode: "disabled" | "auth_only" | "all") => ({
+      mode,
+      minimumVersion: mode === "disabled" ? null : clientVersion,
+      downloadUrl:
+        mode === "disabled" ? null : "https://updates.example/medevidence.exe"
+    });
+    try {
+      process.env.GATEWAY_PHONE_AUTH_MODE = "disabled";
+      for (const mode of ["disabled", "auth_only", "all"] as const) {
+        const matrixStore = createSqliteStore({ path: ":memory:" });
+        createdApps.push(
+          buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: matrixStore,
+            phoneAuthService: null,
+            desktopVersionGate: gateFor(mode),
+            logger: false
+          })
+        );
+      }
+
+      process.env.GATEWAY_PHONE_AUTH_MODE = "transition";
+      for (const mode of ["disabled", "all"] as const) {
+        expect(() =>
+          buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: fixture.store,
+            phoneAuthService: fixture.service,
+            desktopVersionGate: gateFor(mode),
+            logger: false
+          })
+        ).toThrow("GATEWAY_DESKTOP_VERSION_GATE=auth_only");
+      }
+      expect(fixture.app.server.listening).toBe(false);
+
+      process.env.GATEWAY_DESKTOP_VERSION_GATE = "enabled";
+      expect(() =>
+        buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: fixture.store,
+          phoneAuthService: fixture.service,
+          logger: false
+        })
+      ).toThrow("legacy enabled value is invalid");
+      for (const app of createdApps) {
+        expect(app.server.listening).toBe(false);
+      }
+    } finally {
+      await Promise.all(createdApps.map((app) => app.close()));
+      await fixture.app.close();
+    }
+  });
 });
 
 class FakeProvider implements ProviderAdapter {
@@ -667,8 +965,13 @@ function createFixture(
       missingUsageCharge: "none"
     },
     featurePolicy: {
-      capabilities: ["chat", "tools"],
-      imageGeneration: null,
+      capabilities: [
+        "chat",
+        "tools",
+        "doctor_research",
+        "image_generation"
+      ],
+      imageGeneration: defaultImageGenerationFeaturePolicy(),
       medcodeModels: null
     },
     scopeAllowlist: ["code"],
@@ -725,6 +1028,15 @@ function createFixture(
     now: () => start
   });
   const loginRateLimiter = new InMemoryCredentialRateLimiter({ now: () => start });
+  const researchStore = createResearchSqliteStore({
+    path: ":memory:",
+    limits: {
+      dailyRunsPerSubject: 10,
+      uniqueDoctors30dPerSubject: 10,
+      globalActiveRuns: 100,
+      needsInputPerSubject: 10
+    }
+  });
   const app = buildGateway({
     authMode: "credential",
     provider: new FakeProvider(),
@@ -741,10 +1053,23 @@ function createFixture(
     phoneAuthPhoneRequestsPerMinute: options.phoneRequestsPerMinute,
     phoneAuthIpRequestsPerMinute: options.ipRequestsPerMinute,
     phoneAuthDeviceRequestsPerMinute: options.deviceRequestsPerMinute,
+    researchStore,
+    researchAcceptWhenWorkerUnavailable: true,
+    imageGenerationProvider: new CompatibilityImageProvider(),
+    visionAssetService: new CompatibilityVisionAssetService(),
     now: () => start,
     logger: false
   });
-  return { app, store, subjectId, backing, unified, loginRateLimiter };
+  return {
+    app,
+    store,
+    researchStore,
+    subjectId,
+    backing,
+    unified,
+    service,
+    loginRateLimiter
+  };
 }
 
 function legacyKeySnapshot(fixture: ReturnType<typeof createFixture>) {
@@ -771,4 +1096,55 @@ function legacyKeySnapshot(fixture: ReturnType<typeof createFixture>) {
       isCurrent: unified.isCurrent
     }
   };
+}
+
+class CompatibilityImageProvider implements ImageGenerationProvider {
+  readonly providerKind = "openai-api" as const;
+
+  async generate() {
+    return {
+      created: 1_776_123_456,
+      data: [{ b64_json: "ZmFrZS1pbWFnZQ==" }]
+    };
+  }
+}
+
+class CompatibilityVisionAssetService implements VisionAssetService {
+  createAsset(): VisionAssetUploadGrant {
+    return {
+      assetId: "va1.compatibility.signature",
+      contentType: "image/png",
+      sizeBytes: 68,
+      sha256: "a".repeat(64),
+      uploadUrl: "https://assets.example/upload",
+      uploadHeaders: {
+        "Content-Type": "image/png",
+        "If-None-Match": "*"
+      },
+      uploadExpiresAt: new Date("2026-08-20T00:10:00.000Z"),
+      assetExpiresAt: new Date("2026-08-21T00:00:00.000Z")
+    };
+  }
+
+  async completeAsset(): Promise<VisionAssetReadGrant> {
+    return this.readGrant();
+  }
+
+  async createReadUrl(): Promise<VisionAssetReadGrant> {
+    return this.readGrant();
+  }
+
+  async deleteAsset(): Promise<void> {}
+
+  private readGrant(): VisionAssetReadGrant {
+    return {
+      assetId: "va1.compatibility.signature",
+      contentType: "image/png",
+      sizeBytes: 68,
+      sha256: "a".repeat(64),
+      imageUrl: "https://assets.example/read",
+      readUrlExpiresAt: new Date("2026-08-20T00:30:00.000Z"),
+      assetExpiresAt: new Date("2026-08-21T00:00:00.000Z")
+    };
+  }
 }

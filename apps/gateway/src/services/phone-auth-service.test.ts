@@ -64,20 +64,20 @@ describe("PhoneAuthService", () => {
       image_credits: null
     });
     expect(account.capabilities).toContain("chat");
+    const auditText = JSON.stringify(
+      fixture.store.database
+        .prepare("SELECT * FROM phone_auth_audit_events ORDER BY created_at")
+        .all()
+    );
     expect(
-      JSON.stringify(
-        fixture.store.database
-          .prepare("SELECT * FROM phone_auth_audit_events ORDER BY created_at")
-          .all()
-      )
-    ).not.toContain("13800138000");
-    expect(
-      JSON.stringify(
-        fixture.store.database
-          .prepare("SELECT * FROM phone_auth_audit_events ORDER BY created_at")
-          .all()
-      )
-    ).not.toContain(fixture.unified.token);
+      [
+        "13800138000",
+        "desktop-device-example-01",
+        fixture.unified.token,
+        login.access_token,
+        login.refresh_token
+      ].some((sensitiveValue) => auditText.includes(sensitiveValue))
+    ).toBe(false);
     fixture.store.close();
   });
 

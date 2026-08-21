@@ -78,6 +78,9 @@ describe("SqliteGatewayStore", () => {
       stdoutWrite.mockRestore();
     }
 
+    const reopened = createSqliteStore({ path: dbPath });
+    reopened.close();
+
     const db = new DatabaseSync(dbPath);
     try {
       expect(tableExists(db, "upstream_accounts")).toBe(true);
@@ -87,6 +90,15 @@ describe("SqliteGatewayStore", () => {
       expect(columnNames(db, "request_events")).toContain("upstream_account_id");
       expect(columnNames(db, "request_events")).not.toContain("subscription_id");
       expect(columnNames(db, "upstream_accounts")).toContain("image_api_key_env");
+      expect(tableExists(db, "phone_auth_identities")).toBe(true);
+      expect(tableExists(db, "phone_auth_sessions")).toBe(true);
+      expect(tableExists(db, "phone_auth_refresh_tokens")).toBe(true);
+      expect(tableExists(db, "phone_auth_audit_events")).toBe(true);
+      expect(
+        db.prepare(
+          "SELECT COUNT(*) AS count FROM schema_migrations WHERE version = 25"
+        ).get()
+      ).toMatchObject({ count: 1 });
     } finally {
       db.close();
     }
