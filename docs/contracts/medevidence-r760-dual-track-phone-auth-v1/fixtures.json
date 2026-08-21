@@ -1,0 +1,342 @@
+{
+  "contract_id": "medevidence-r760-dual-track-phone-auth-v1",
+  "contract_version": 1,
+  "artifact_state": "contract_candidate",
+  "inherits": "medevidence-internal-phone-auth-v1",
+  "origin": "https://goldencode.instmarket.com.au:1443",
+  "minimum_desktop_version": "2.0.0-beta.40",
+  "requests": {
+    "login_start": {
+      "phone": "13800138000",
+      "client": "medevidence-desktop",
+      "device_id": "desktop-device-example-01",
+      "contract_version": 1
+    },
+    "token_refresh": {
+      "refresh_token": "<opaque-refresh-token>",
+      "client": "medevidence-desktop",
+      "device_id": "desktop-device-example-01",
+      "contract_version": 1
+    },
+    "bodyless_post": {}
+  },
+  "responses": {
+    "login_start_authenticated": {
+      "status": "authenticated",
+      "auth_method": "transition_phone_only",
+      "token_type": "Bearer",
+      "access_token": "<access-jwt>",
+      "expires_in_seconds": 900,
+      "refresh_token": "<opaque-refresh-token>",
+      "refresh_idle_expires_in_seconds": 2592000,
+      "session_absolute_expires_at": "2027-02-11T00:00:00.000Z",
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      }
+    },
+    "refresh_authenticated": {
+      "status": "authenticated",
+      "auth_method": "transition_phone_only",
+      "token_type": "Bearer",
+      "access_token": "<new-access-jwt>",
+      "expires_in_seconds": 900,
+      "refresh_token": "<new-opaque-refresh-token>",
+      "refresh_idle_expires_in_seconds": 2592000,
+      "session_absolute_expires_at": "2027-02-11T00:00:00.000Z",
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      }
+    },
+    "bootstrap": {
+      "contract_version": 1,
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      },
+      "unified_key": {
+        "key": "<runtime-only-cgu-live-key>",
+        "key_prefix": "cgu_live_example",
+        "expires_at": "2027-08-20T00:00:00.000Z"
+      },
+      "resolver_url": "https://goldencode.instmarket.com.au:1443/gateway/unified-keys/resolve",
+      "account_url": "https://goldencode.instmarket.com.au:1443/gateway/account/v1/current"
+    },
+    "resolve": {
+      "valid": true,
+      "unified_key": {
+        "prefix": "cgu_live_example",
+        "label": "medevidence-internal",
+        "expires_at": "2027-08-20T00:00:00.000Z"
+      },
+      "subject": {
+        "id": "subj_example",
+        "label": "Internal user"
+      },
+      "codex_gateway": {
+        "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
+        "credential_validation_url": "https://goldencode.instmarket.com.au:1443/gateway/credentials/current",
+        "key_prefix": "cgw.example",
+        "api_key": "<runtime-only-cgw-key>"
+      },
+      "medevidence": {
+        "base_url": "<approved-medevidence-base-url>",
+        "key_prefix": "<medevidence-key-prefix>",
+        "api_key": "<runtime-only-medevidence-key>"
+      }
+    },
+    "credentials_current": {
+      "valid": true,
+      "subject": {
+        "id": "subj_example",
+        "label": "Internal user"
+      },
+      "credential": {
+        "prefix": "cgw.example",
+        "scope": "code",
+        "expires_at": null,
+        "allowed_public_models": [
+          "goldencode"
+        ]
+      },
+      "plan": {
+        "id": "plan_internal_example",
+        "display_name": "Internal",
+        "scope_allowlist": [
+          "code"
+        ]
+      },
+      "entitlement": {
+        "id": "ent_example",
+        "period_kind": "unlimited",
+        "period_start": "2026-08-20T00:00:00.000Z",
+        "period_end": null,
+        "state": "active",
+        "feature_policy": {
+          "capabilities": [
+            "chat",
+            "tools",
+            "image_generation"
+          ]
+        }
+      }
+    },
+    "account_current_internal": {
+      "subject": {
+        "id": "subj_example",
+        "state": "active"
+      },
+      "identity": {
+        "kind": "internal",
+        "plan_id": "plan_internal_example",
+        "period_end": null
+      },
+      "token_wallet": null,
+      "image_credits": null,
+      "capabilities": [
+        "chat",
+        "tools",
+        "image_generation"
+      ]
+    }
+  },
+  "errors": {
+    "phone_not_registered": {
+      "http_status": 403,
+      "body": {
+        "error": {
+          "code": "phone_not_registered",
+          "message": "This phone is not enabled for internal access.",
+          "request_id": "req_example"
+        }
+      }
+    },
+    "phone_login_disabled": {
+      "http_status": 403,
+      "body": {
+        "error": {
+          "code": "phone_login_disabled",
+          "message": "Phone login is disabled for this account.",
+          "request_id": "req_example"
+        }
+      }
+    },
+    "account_disabled": {
+      "http_status": 403,
+      "body": {
+        "error": {
+          "code": "account_disabled",
+          "message": "This account is disabled.",
+          "request_id": "req_example"
+        }
+      }
+    },
+    "refresh_token_invalid": {
+      "http_status": 401,
+      "body": {
+        "error": {
+          "code": "refresh_token_invalid",
+          "message": "The refresh session is invalid.",
+          "request_id": "req_example"
+        }
+      }
+    },
+    "auth_rate_limited": {
+      "http_status": 429,
+      "headers": {
+        "Retry-After": "60"
+      },
+      "body": {
+        "error": {
+          "code": "auth_rate_limited",
+          "message": "Too many login attempts.",
+          "request_id": "req_example",
+          "retry_after_seconds": 60
+        }
+      }
+    },
+    "client_upgrade_required_missing": {
+      "http_status": 426,
+      "request_version": null,
+      "body": {
+        "error": {
+          "code": "client_upgrade_required",
+          "message": "A newer MedEvidence Desktop version is required.",
+          "request_id": "req_example",
+          "minimum_version": "2.0.0-beta.40",
+          "download_url": "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+        }
+      }
+    },
+    "client_upgrade_required_low": {
+      "http_status": 426,
+      "request_version": "2.0.0-beta.39",
+      "body": {
+        "error": {
+          "code": "client_upgrade_required",
+          "message": "A newer MedEvidence Desktop version is required.",
+          "request_id": "req_example",
+          "minimum_version": "2.0.0-beta.40",
+          "download_url": "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+        }
+      }
+    }
+  },
+  "route_policy": {
+    "phone_session_routes": [
+      "POST /gateway/auth/v1/login/start",
+      "POST /gateway/auth/v1/token/refresh",
+      "POST /gateway/auth/v1/logout",
+      "POST /gateway/auth/v1/session/bootstrap",
+      "GET /gateway/account/v1/current"
+    ],
+    "auth_only_legacy_allow_matrix": [
+      "POST /gateway/unified-keys/resolve",
+      "GET /gateway/credentials/current",
+      "GET /v1/models",
+      "POST /v1/chat/completions",
+      "POST /v1/responses",
+      "GET /gateway/research/v1/runs",
+      "POST /gateway/research/v1/runs",
+      "POST /gateway/images/generations",
+      "POST /gateway/vision/assets",
+      "POST /gateway/vision/assets/asset_example/complete",
+      "POST /gateway/vision/assets/asset_example/read-url",
+      "DELETE /gateway/vision/assets/asset_example"
+    ],
+    "cases": [
+      {
+        "mode": "disabled",
+        "route_class": "phone_session",
+        "should_gate": false
+      },
+      {
+        "mode": "disabled",
+        "route_class": "legacy_or_business",
+        "should_gate": false
+      },
+      {
+        "mode": "auth_only",
+        "route_class": "phone_session",
+        "should_gate": true
+      },
+      {
+        "mode": "auth_only",
+        "route_class": "legacy_or_business",
+        "should_gate": false
+      },
+      {
+        "mode": "all",
+        "route_class": "phone_session",
+        "should_gate": true
+      },
+      {
+        "mode": "all",
+        "route_class": "legacy_or_business",
+        "should_gate": true
+      }
+    ]
+  },
+  "desktop_local_classifications": {
+    "phone_subject_mismatch": {
+      "gateway_http_error": false,
+      "legacy_subject_id": "subj_example",
+      "phone_session_subject_id": "subj_different_example",
+      "required_action": "logout_new_session_and_keep_independently_valid_legacy_runtime"
+    }
+  },
+  "state_snapshots": {
+    "before_phone_login": {
+      "subject_id": "subj_example",
+      "subject_state": "active",
+      "current_unified_key_prefix": "cgu_live_example",
+      "unified_key_revoked_at": null,
+      "unified_key_expires_at": "2027-08-20T00:00:00.000Z",
+      "backing_credential_prefix": "cgw.example",
+      "backing_credential_revoked_at": null,
+      "backing_credential_expires_at": null,
+      "plan_id": "plan_internal_example",
+      "entitlement_id": "ent_example",
+      "entitlement_state": "active",
+      "capabilities": [
+        "chat",
+        "tools",
+        "image_generation"
+      ],
+      "quota_window_id": "quota_window_example",
+      "existing_request_count": 17,
+      "existing_total_tokens": 12345
+    },
+    "after_login_refresh_logout_replay_and_identity_disable": {
+      "subject_id": "subj_example",
+      "subject_state": "active",
+      "current_unified_key_prefix": "cgu_live_example",
+      "unified_key_revoked_at": null,
+      "unified_key_expires_at": "2027-08-20T00:00:00.000Z",
+      "backing_credential_prefix": "cgw.example",
+      "backing_credential_revoked_at": null,
+      "backing_credential_expires_at": null,
+      "plan_id": "plan_internal_example",
+      "entitlement_id": "ent_example",
+      "entitlement_state": "active",
+      "capabilities": [
+        "chat",
+        "tools",
+        "image_generation"
+      ],
+      "quota_window_id": "quota_window_example",
+      "existing_request_count": 17,
+      "existing_total_tokens": 12345,
+      "phone_identity_state": "disabled",
+      "phone_session_state": "revoked"
+    }
+  },
+  "health": {
+    "phone_auth": {
+      "mode": "transition",
+      "version_gate_mode": "auth_only",
+      "minimum_desktop_version": "2.0.0-beta.40"
+    }
+  }
+}
