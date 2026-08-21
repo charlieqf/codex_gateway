@@ -1605,6 +1605,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         buildAdminClientMessagesPayload({
           clientEventsStore,
           credentialStore,
+          observationStore,
           query: request.query
         })
       );

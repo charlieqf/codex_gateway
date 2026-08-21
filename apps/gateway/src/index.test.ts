@@ -2735,8 +2735,14 @@ describe("gateway phase 1 routes", () => {
     expect(page.body).toContain("Gateway Client Messages");
     expect(page.body).toContain('id="userSearch"');
     expect(page.body).toContain('id="userList"');
+    expect(page.body).toContain('id="sortBy"');
+    expect(page.body).toContain("Token 用量");
+    expect(page.body).toContain("端到端耗时");
     expect(page.body).not.toContain('list="subjects"');
     expect(page.body).toContain("Admin token required");
+    const pageScript = page.body.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    expect(pageScript).toBeTruthy();
+    expect(() => new Function(pageScript as string)).not.toThrow();
     expect(unauthenticated.statusCode).toBe(401);
     expect(userCredential.statusCode).toBe(401);
 
@@ -2773,20 +2779,135 @@ describe("gateway phase 1 routes", () => {
         text: "Smoke prompt should be hidden"
       })
     });
+    const eventNow = new Date(Date.now() - 1_000);
+    store.insertRequestEvent({
+      requestId: "req_admin_1",
+      credentialId: issued.record.id,
+      subjectId: "subj_dev",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_1",
+      clientMessageId: "msg_admin_1",
+      startedAt: eventNow,
+      durationMs: 80,
+      firstByteMs: 20,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 4,
+      completionTokens: 1,
+      totalTokens: 5,
+      cachedPromptTokens: 0,
+      estimatedTokens: null,
+      usageSource: "provider"
+    });
+    store.insertRequestEvent({
+      requestId: "req_admin_2_ok",
+      credentialId: second.record.id,
+      subjectId: "subj_zhang",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_2",
+      clientMessageId: "msg_admin_2",
+      startedAt: new Date(eventNow.getTime() + 10),
+      durationMs: 100,
+      firstByteMs: 25,
+      status: "ok",
+      errorCode: null,
+      rateLimited: false,
+      promptTokens: 20,
+      completionTokens: 10,
+      totalTokens: 30,
+      cachedPromptTokens: 2,
+      estimatedTokens: null,
+      usageSource: "provider"
+    });
+    store.insertRequestEvent({
+      requestId: "req_admin_2_limited",
+      credentialId: second.record.id,
+      subjectId: "subj_zhang",
+      scope: "code",
+      sessionId: null,
+      upstreamAccountId: "sub_openai_codex_dev",
+      provider: "openai-codex",
+      publicModelId: "max",
+      upstreamRuntime: "codex",
+      upstreamModel: "gpt-5.5",
+      clientSessionId: "ses_admin_2",
+      clientMessageId: "msg_admin_2",
+      startedAt: new Date(eventNow.getTime() + 120),
+      durationMs: 50,
+      firstByteMs: null,
+      status: "error",
+      errorCode: "rate_limited",
+      rateLimited: true,
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: 0,
+      cachedPromptTokens: null,
+      estimatedTokens: 10,
+      usageSource: "estimate",
+      limitKind: "request_minute"
+    });
 
     const preview = await app.inject({
       method: "GET",
-      url: "/gateway/admin/client-messages.json?limit=10",
+      url: "/gateway/admin/client-messages.json?limit=10&sort_by=tokens&sort_order=desc",
       headers: { authorization: "Bearer admin-messages-token-1234567890" }
     });
     expect(preview.statusCode).toBe(200);
     expect(preview.json().messages).toHaveLength(2);
+    expect(preview.json().pagination).toMatchObject({
+      offset: 0,
+      limit: 10,
+      returned: 2,
+      total: 2,
+      has_more: false
+    });
+    expect(preview.json().summary).toMatchObject({
+      request_count: 3,
+      success_count: 2,
+      error_count: 1,
+      rate_limited_count: 1
+    });
+    expect(preview.json().users[0]).toMatchObject({
+      subject: { id: "subj_zhang", name: "张晟" },
+      request_count: 2,
+      success_count: 1,
+      error_count: 1,
+      rate_limited_count: 1
+    });
+    expect(preview.json().users[0].token_usage.effective_tokens).toBe(40);
     expect(preview.json().messages[0].text).toBeUndefined();
     expect(JSON.stringify(preview.json()).toLowerCase()).not.toContain("smoke");
     expect(JSON.stringify(preview.json())).not.toContain(issued.token);
     expect(JSON.stringify(preview.json())).not.toContain(second.token);
     expect(JSON.stringify(preview.json())).not.toContain(smoke.token);
     expect(JSON.stringify(preview.json())).not.toContain("admin-messages-token-1234567890");
+
+    const secondPage = await app.inject({
+      method: "GET",
+      url: "/gateway/admin/client-messages.json?limit=1&offset=1",
+      headers: { authorization: "Bearer admin-messages-token-1234567890" }
+    });
+    expect(secondPage.statusCode).toBe(200);
+    expect(secondPage.json().pagination).toMatchObject({
+      offset: 1,
+      limit: 1,
+      returned: 1,
+      total: 2,
+      has_more: false
+    });
 
     const full = await app.inject({
       method: "GET",
@@ -2804,7 +2925,20 @@ describe("gateway phase 1 routes", () => {
       credential: {
         prefix: second.record.prefix
       },
-      text: "Second user detailed prompt"
+      text: "Second user detailed prompt",
+      request_summary: {
+        outcome: "partial",
+        success: false,
+        request_count: 2,
+        success_count: 1,
+        error_count: 1,
+        rate_limited_count: 1,
+        token_usage: {
+          total_tokens: 30,
+          estimated_tokens: 10,
+          effective_tokens: 40
+        }
+      }
     });
 
     const smokeQuery = await app.inject({

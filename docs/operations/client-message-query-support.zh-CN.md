@@ -17,19 +17,14 @@ Desktop 会把用户本轮原始问题上传到 Codex/MedCode Gateway：
 
 因此，类似“查用户杜衡在 Desktop app 里最近一个问题”这类支持请求，事实数据源在 Gateway，而不是 MedEvidence v2 的 `requests` 表。MedEvidence v2 只能回答 evidence service 请求本身，例如 `/ask/async` 的 request/job 状态；无法可靠还原 Desktop 用户发给 MedCode agent 的原始消息。
 
-自 2026-08-06 起，R760 是 Gateway 控制和用量权威端，新客户端使用
-`https://goldencode.instmarket.com.au:1443`。Azure `https://gw.instmarket.com.au`
-仍接收尚未改址的旧客户端，因此 Desktop 消息/诊断事件可能只存在于实际接收该次
-上传的节点，不能假设用量归并也会迁移 `client-events.db`。
+自 2026-08-06 起，R760 是唯一 Gateway 控制、请求事件、用量和客户端消息权威端，
+客户端使用 `https://goldencode.instmarket.com.au:1443`。Azure 已逻辑下线，不再作为
+兼容、镜像或报表来源；不得为了消息查询运行 Azure 同步或归并流程。
 
-当前两套容器边界：
-
-- R760：Compose project `codex_gateway_r760`，container
-  `codex_gateway_r760-gateway-1`，权威 Gateway DB 和新客户端事件；
-- Azure 兼容端：Compose project `codex_gateway_test`，container
-  `codex_gateway_test-gateway-1`，保留旧客户端事件；
-- 两端容器内数据目录均为 `/var/lib/codex-gateway`，但属于不同 Docker volume，
-  不得整库覆盖或直接相加。
+R760 边界：Compose project `codex_gateway_r760`，container
+`codex_gateway_r760-gateway-1`；容器内主库为 `/var/lib/codex-gateway/gateway.db`，
+客户端事件库为 `/var/lib/codex-gateway/client-events.db`。两个库用途不同，查询时通过
+`subject_id + client_message_id` 关联，不得互相覆盖。
 
 Azure 兼容容器的历史部署形态为：
 
@@ -42,14 +37,37 @@ Azure 兼容容器的历史部署形态为：
 
 不要把 VM 主机上的 `/var/lib/codex-gateway` 当成生产路径；当前主机上没有这个目录是正常的。也不要把 `~/codex-gateway-state/gateway.db` 当成当前生产库；这是早期 native/smoke 验证留下的用户目录状态，不承载当前 `gw.instmarket.com.au` 生产流量。
 
-两端 admin CLI 均具备 `--client-events-db`、`client-messages` 和
-`client-diagnostics`。标准消息查询 wrapper 默认查 R760；只有确认用户仍走旧入口时
-才显式选择 Azure：
+标准消息查询 wrapper 默认且应只查询 R760：
 
 ```powershell
 python scripts\query-client-messages.py --user "<用户>" --limit 20
-python scripts\query-client-messages.py --azure-compatibility --user "<用户>" --limit 20
 ```
+
+## 客户端消息管理网页
+
+统一入口：
+
+`https://goldencode.instmarket.com.au:1443/gateway/admin/client-messages`
+
+页面使用 Gateway admin messages token 调用只读 JSON 接口，提供：
+
+1. 最近 1/24/48 小时、7/30 天预设，或自定义开始/结束时间；
+2. 按用户查看指定时段内全部消息，消息使用分页加载，不再受单次 1000 条硬截断影响；
+3. 每条消息的整体结果：成功、部分失败、失败或无请求记录；
+4. 每条消息关联的模型请求次数、成功/失败/限流次数、端到端耗时、输入/输出/总 token；
+5. 指定时段内每个用户的请求次数、成功数、失败数、限流数、平均耗时和 token 用量；
+6. 用户列表按请求次数、token、失败数、限流数、平均耗时或姓名升降序排列；
+7. 按消息正文、session id、message id 或 upload request id 搜索，并可显示完整正文。
+
+消息与模型请求采用 `request_events.subject_id + request_events.client_message_id` 精确关联。
+同一条客户端消息可能因 agent/tool loop 触发多次模型请求，因此页面按整条消息聚合：
+
+- 全部请求成功：`成功`；
+- 同时有成功与失败：`部分失败`；
+- 只有失败请求：`失败`；
+- 没有精确关联请求：`无请求记录`，不做基于时间的猜测关联；
+- 端到端耗时取最早请求开始到最晚请求结束；同时显示各次调用耗时合计；
+- token 先使用 provider 实际 usage，缺失时单独显示估算量，避免把估算伪装为实测。
 
 ## Gateway 团队应承接的查询
 

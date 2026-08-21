@@ -1021,6 +1021,8 @@ describe("SqliteGatewayStore", () => {
     expect(
       store.listRequestEvents({ clientSessionId: "ses_client_1" })
     ).toHaveLength(1);
+    expect(store.listRequestEvents({ clientMessageIds: ["msg_turn_1"] })).toHaveLength(1);
+    expect(store.listRequestEvents({ clientMessageIds: [] })).toEqual([]);
     store.close();
   });
 
@@ -2333,6 +2335,49 @@ describe("SqliteGatewayStore", () => {
 });
 
 describe("SqliteClientEventsStore", () => {
+  it("supports exact counts, subject sets, search, and offset pagination", () => {
+    const store = createSqliteClientEventsStore({ path: ":memory:" });
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_1",
+        eventId: "evt_page_1",
+        messageId: "msg_page_1",
+        text: "First vessel schedule",
+        receivedAt: new Date("2026-04-29T10:00:00.000Z")
+      })
+    );
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_2",
+        eventId: "evt_page_2",
+        messageId: "msg_page_2",
+        text: "Second vessel schedule",
+        receivedAt: new Date("2026-04-29T10:01:00.000Z")
+      })
+    );
+    store.insertClientMessageEvent(
+      clientMessageEventRecord({
+        id: "cme_page_other",
+        eventId: "evt_page_other",
+        subjectId: "subj_2",
+        messageId: "msg_page_other",
+        text: "Other industry prompt",
+        receivedAt: new Date("2026-04-29T10:02:00.000Z")
+      })
+    );
+
+    const query = { subjectIds: ["subj_1"], search: "vessel" };
+    expect(store.countClientMessageEvents(query)).toBe(2);
+    expect(store.listClientMessageEvents({ ...query, limit: 1, offset: 0 })[0]?.messageId).toBe(
+      "msg_page_2"
+    );
+    expect(store.listClientMessageEvents({ ...query, limit: 1, offset: 1 })[0]?.messageId).toBe(
+      "msg_page_1"
+    );
+    expect(store.countClientMessageEvents({ subjectIds: [] })).toBe(0);
+    store.close();
+  });
+
   it("migrates idempotently and persists client message events", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-client-events-"));
     cleanupDirs.push(dir);

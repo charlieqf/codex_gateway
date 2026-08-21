@@ -189,6 +189,14 @@ export function list(
     clauses.push("subject_id = ?");
     params.push(input.subjectId);
   }
+  if (input.clientMessageIds !== undefined) {
+    const messageIds = Array.from(new Set(input.clientMessageIds.filter(Boolean)));
+    if (messageIds.length === 0) {
+      return [];
+    }
+    clauses.push(`client_message_id IN (${messageIds.map(() => "?").join(", ")})`);
+    params.push(...messageIds);
+  }
   if (input.clientTurnId) {
     clauses.push("client_turn_id = ?");
     params.push(input.clientTurnId);
