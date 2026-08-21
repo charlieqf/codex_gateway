@@ -1,15 +1,17 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
 import {
+  assertPhoneAuthVersionGateCompatibility,
   compareStrictSemVer,
   desktopVersionGateError,
-  isDesktopVersionGatePath,
+  isPhoneSessionRoute,
   resolveDesktopVersionGate,
+  shouldGateDesktopRoute,
   type DesktopVersionGate
 } from "./desktop-version-gate.js";
 
 const gate: DesktopVersionGate = {
-  enabled: true,
+  mode: "all",
   minimumVersion: "9.9.9-fixture.1",
   downloadUrl: "https://updates.example/medevidence.exe"
 };
@@ -52,17 +54,27 @@ describe("Desktop version gate", () => {
     expect(
       desktopVersionGateError(requestWithVersion(), gate, "desktop")?.code
     ).toBe("client_upgrade_required");
+    expect(
+      desktopVersionGateError(
+        requestWithVersion(),
+        { ...gate, mode: "auth_only" },
+        "service"
+      )?.code
+    ).toBe("client_upgrade_required");
   });
 
-  it("covers every contracted Desktop route including Vision Assets", () => {
-    const covered: Array<[string, string]> = [
+  it("uses one route policy source for disabled, auth_only and all", () => {
+    const phoneRoutes: Array<[string, string]> = [
       ["POST", "/gateway/auth/v1/login/start"],
       ["POST", "/gateway/auth/v1/token/refresh"],
       ["POST", "/gateway/auth/v1/logout"],
       ["POST", "/gateway/auth/v1/session/bootstrap"],
+      ["GET", "/gateway/account/v1/current"]
+    ];
+    const covered: Array<[string, string]> = [
+      ...phoneRoutes,
       ["POST", "/gateway/unified-keys/resolve"],
       ["GET", "/gateway/credentials/current"],
-      ["GET", "/gateway/account/v1/current"],
       ["POST", "/v1/chat/completions"],
       ["POST", "/gateway/research/v1/doctor-runs"],
       ["POST", "/gateway/images/generations"],
@@ -72,41 +84,109 @@ describe("Desktop version gate", () => {
       ["DELETE", "/gateway/vision/assets/asset-1"]
     ];
     for (const [method, path] of covered) {
-      expect(isDesktopVersionGatePath(method, path), `${method} ${path}`).toBe(
-        true
-      );
+      expect(
+        shouldGateDesktopRoute("disabled", method, path),
+        `disabled ${method} ${path}`
+      ).toBe(false);
+      expect(
+        shouldGateDesktopRoute("all", method, path),
+        `all ${method} ${path}`
+      ).toBe(true);
+    }
+    for (const [method, path] of phoneRoutes) {
+      expect(isPhoneSessionRoute(method, path), `${method} ${path}`).toBe(true);
+      expect(
+        shouldGateDesktopRoute("auth_only", method, path),
+        `auth_only ${method} ${path}`
+      ).toBe(true);
+    }
+    for (const [method, path] of covered.slice(phoneRoutes.length)) {
+      expect(
+        shouldGateDesktopRoute("auth_only", method, path),
+        `auth_only ${method} ${path}`
+      ).toBe(false);
     }
     expect(
-      isDesktopVersionGatePath("PUT", "https://r2.example/private-upload")
+      shouldGateDesktopRoute(
+        "all",
+        "PUT",
+        "https://r2.example/private-upload"
+      )
     ).toBe(false);
     expect(
-      isDesktopVersionGatePath("GET", "/gateway/auth/v1/login/start")
+      shouldGateDesktopRoute("all", "GET", "/gateway/auth/v1/login/start")
     ).toBe(false);
     expect(
-      isDesktopVersionGatePath("POST", "/gateway/credentials/current")
+      shouldGateDesktopRoute("all", "POST", "/gateway/credentials/current")
     ).toBe(false);
   });
 
-  it("rejects invalid enable configuration", () => {
+  it("accepts only disabled, auth_only and all configuration", () => {
+    expect(resolveDesktopVersionGate({})).toEqual({
+      mode: "disabled",
+      minimumVersion: null,
+      downloadUrl: null
+    });
+    for (const mode of ["auth_only", "all"]) {
+      expect(
+        resolveDesktopVersionGate({
+          GATEWAY_DESKTOP_VERSION_GATE: mode,
+          GATEWAY_MINIMUM_DESKTOP_VERSION: "2.0.0-beta.40",
+          GATEWAY_DESKTOP_DOWNLOAD_URL: "https://updates.example/app.exe"
+        }).mode
+      ).toBe(mode);
+    }
     expect(() =>
       resolveDesktopVersionGate({
         GATEWAY_DESKTOP_VERSION_GATE: "enabled",
+        GATEWAY_MINIMUM_DESKTOP_VERSION: "2.0.0-beta.40",
+        GATEWAY_DESKTOP_DOWNLOAD_URL: "https://updates.example/app.exe"
+      })
+    ).toThrow("legacy enabled value is invalid");
+    expect(() =>
+      resolveDesktopVersionGate({ GATEWAY_DESKTOP_VERSION_GATE: "unknown" })
+    ).toThrow("disabled, auth_only or all");
+    expect(() =>
+      resolveDesktopVersionGate({
+        GATEWAY_DESKTOP_VERSION_GATE: "auth_only",
         GATEWAY_MINIMUM_DESKTOP_VERSION: "1.0",
         GATEWAY_DESKTOP_DOWNLOAD_URL: "https://updates.example/app.exe"
       })
     ).toThrow("strict SemVer");
     expect(() =>
       resolveDesktopVersionGate({
-        GATEWAY_DESKTOP_VERSION_GATE: "enabled",
+        GATEWAY_DESKTOP_VERSION_GATE: "all",
         GATEWAY_MINIMUM_DESKTOP_VERSION: "1.0.0",
         GATEWAY_DESKTOP_DOWNLOAD_URL: "http://updates.example/app.exe"
       })
     ).toThrow("absolute HTTPS URL");
   });
+
+  it("accepts transition only with auth_only before startup", () => {
+    expect(() =>
+      assertPhoneAuthVersionGateCompatibility("transition", "auth_only")
+    ).not.toThrow();
+    for (const mode of ["disabled", "all"] as const) {
+      expect(() =>
+        assertPhoneAuthVersionGateCompatibility("transition", mode)
+      ).toThrow("GATEWAY_DESKTOP_VERSION_GATE=auth_only");
+    }
+    for (const mode of ["disabled", "auth_only", "all"] as const) {
+      expect(() =>
+        assertPhoneAuthVersionGateCompatibility("disabled", mode)
+      ).not.toThrow();
+    }
+  });
 });
 
-function requestWithVersion(version?: string): FastifyRequest {
+function requestWithVersion(
+  version?: string,
+  method = "POST",
+  url = "/gateway/auth/v1/login/start"
+): FastifyRequest {
   return {
+    method,
+    url,
     headers: version
       ? { "x-medevidence-client-version": version }
       : {}

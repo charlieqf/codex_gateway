@@ -39,14 +39,6 @@ const routeConfig = {
   skipRateLimit: true
 } as const;
 
-const phoneAuthContractPaths = new Set([
-  "/gateway/auth/v1/login/start",
-  "/gateway/auth/v1/token/refresh",
-  "/gateway/auth/v1/logout",
-  "/gateway/auth/v1/session/bootstrap",
-  "/gateway/account/v1/current"
-]);
-
 export function registerPhoneAuthRoutes(
   app: FastifyInstance,
   options: PhoneAuthRouteOptions
@@ -259,17 +251,6 @@ export function sendPhoneAuthError(
         : {})
     }
   });
-}
-
-export function isPhoneAuthContractRoute(method: string, url: string): boolean {
-  const normalizedMethod = method.toUpperCase();
-  const path = url.split("?", 1)[0] ?? url;
-  return (
-    (normalizedMethod === "POST" &&
-      phoneAuthContractPaths.has(path) &&
-      path !== "/gateway/account/v1/current") ||
-    (normalizedMethod === "GET" && path === "/gateway/account/v1/current")
-  );
 }
 
 function phoneAuthPreflight(

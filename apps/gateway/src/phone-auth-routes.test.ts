@@ -48,6 +48,20 @@ describe("internal phone auth v1 routes", () => {
   it("implements the frozen login, bootstrap, resolve and current contract", async () => {
     const fixture = createFixture();
     try {
+      const health = await fixture.app.inject({
+        method: "GET",
+        url: "/gateway/health"
+      });
+      expect(health.statusCode).toBe(200);
+      expect(health.json().phone_auth).toEqual({
+        mode: "transition",
+        version_gate_mode: "auth_only",
+        minimum_desktop_version: clientVersion
+      });
+      expect(JSON.stringify(health.json().phone_auth)).not.toMatch(
+        /phone|allowlist|session|secret|key_prefix/iu
+      );
+
       const prepared = await fixture.app.inject({
         method: "POST",
         url: "/gateway/admin/billing/v1/phone-auth-identities",
@@ -158,7 +172,8 @@ describe("internal phone auth v1 routes", () => {
       });
       process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET =
         configuredEncryptionSecret;
-      expect(resolverUpgrade.statusCode).toBe(426);
+      expect(resolverUpgrade.statusCode).toBe(503);
+      expect(resolverUpgrade.json().error.code).toBe("service_unavailable");
 
       const malformedResolver = await fixture.app.inject({
         method: "POST",
@@ -334,7 +349,7 @@ describe("internal phone auth v1 routes", () => {
     }
   });
 
-  it("gates Desktop business routes but exempts an explicit service credential", async () => {
+  it("leaves legacy and business routes outside the auth_only gate", async () => {
     const fixture = createFixture();
     try {
       await fixture.app.inject({
@@ -352,8 +367,7 @@ describe("internal phone auth v1 routes", () => {
         url: "/gateway/credentials/current",
         headers: { authorization: `Bearer ${fixture.backing.token}` }
       });
-      expect(current.statusCode).toBe(426);
-      expect(current.headers["cache-control"]).toBe("no-store");
+      expect(current.statusCode).toBe(200);
 
       const vision = await fixture.app.inject({
         method: "POST",
@@ -361,7 +375,7 @@ describe("internal phone auth v1 routes", () => {
         headers: { authorization: `Bearer ${fixture.backing.token}` },
         payload: {}
       });
-      expect(vision.statusCode).toBe(426);
+      expect(vision.statusCode).not.toBe(426);
 
       const serviceCredential = issueAccessCredential({
         subjectId: fixture.subjectId,
@@ -475,7 +489,7 @@ describe("internal phone auth v1 routes", () => {
           sessionStore: store,
           phoneAuthService: null,
           desktopVersionGate: {
-            enabled: true,
+            mode: "auth_only",
             minimumVersion: clientVersion,
             downloadUrl: "https://updates.example/medevidence.exe"
           },
@@ -595,7 +609,7 @@ function createFixture(
     sessionStore: store,
     phoneAuthService: service,
     desktopVersionGate: {
-      enabled: true,
+      mode: "auth_only",
       minimumVersion: clientVersion,
       downloadUrl: "https://updates.example/medevidence.exe"
     },

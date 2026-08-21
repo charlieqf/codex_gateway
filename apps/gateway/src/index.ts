@@ -88,14 +88,15 @@ import {
 } from "./billing-admin.js";
 import {
   applyPrivateResponseHeaders,
+  assertPhoneAuthVersionGateCompatibility,
   desktopVersionGateError,
-  isDesktopVersionGatePath,
+  isPhoneSessionRoute,
   resolveDesktopVersionGate,
   sendDesktopVersionGateError,
+  shouldGateDesktopRoute,
   type DesktopVersionGate
 } from "./desktop-version-gate.js";
 import {
-  isPhoneAuthContractRoute,
   phoneAuthContractErrorHandler,
   registerPhoneAuthRoutes,
   sendPhoneAuthError
@@ -550,6 +551,10 @@ export function buildGateway(options: GatewayOptions = {}) {
   const configuredPhoneAuthMode = resolvePhoneAuthMode(
     process.env.GATEWAY_PHONE_AUTH_MODE
   );
+  assertPhoneAuthVersionGateCompatibility(
+    configuredPhoneAuthMode,
+    desktopVersionGate.mode
+  );
   const phoneAuthStore =
     options.phoneAuthStore ?? (isPhoneAuthStore(sessions) ? sessions : undefined);
   if (
@@ -589,11 +594,10 @@ export function buildGateway(options: GatewayOptions = {}) {
     );
   }
   if (phoneAuthService?.mode === "transition") {
-    if (!desktopVersionGate.enabled) {
-      throw new Error(
-        "Phone auth transition mode requires the Desktop version gate to be enabled."
-      );
-    }
+    assertPhoneAuthVersionGateCompatibility(
+      phoneAuthService.mode,
+      desktopVersionGate.mode
+    );
     if (publicGatewayBaseUrl !== phoneAuthService.publicGatewayBaseUrl) {
       throw new Error(
         `Phone auth transition mode requires GATEWAY_PUBLIC_BASE_URL=${phoneAuthService.publicGatewayBaseUrl}.`
@@ -800,10 +804,17 @@ export function buildGateway(options: GatewayOptions = {}) {
   }
 
   app.addHook("onRequest", async (request, reply) => {
-    if (reply.sent || !isDesktopVersionGatePath(request.method, request.url)) {
+    if (
+      reply.sent ||
+      !shouldGateDesktopRoute(
+        desktopVersionGate.mode,
+        request.method,
+        request.url
+      )
+    ) {
       return;
     }
-    const alwaysDesktop = isPhoneAuthContractRoute(
+    const alwaysDesktop = isPhoneSessionRoute(
       request.method,
       request.url
     );
@@ -1112,7 +1123,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       auth_mode: authMode,
       phone_auth: {
         mode: phoneAuthService?.mode ?? configuredPhoneAuthMode,
-        version_gate_enabled: desktopVersionGate.enabled,
+        version_gate_mode: desktopVersionGate.mode,
         minimum_desktop_version: desktopVersionGate.minimumVersion
       },
       provider: publicMetadata.providerName,

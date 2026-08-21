@@ -1,12 +1,14 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { CredentialClass } from "@codex-gateway/core";
+import type { CredentialClass, PhoneAuthMode } from "@codex-gateway/core";
 import { markGatewayError } from "./http/observation.js";
 import { GatewayError } from "@codex-gateway/core";
 
 export const desktopVersionHeader = "x-medevidence-client-version";
 
+export type DesktopVersionGateMode = "disabled" | "auth_only" | "all";
+
 export interface DesktopVersionGate {
-  enabled: boolean;
+  mode: DesktopVersionGateMode;
   minimumVersion: string | null;
   downloadUrl: string | null;
 }
@@ -21,39 +23,51 @@ interface ParsedSemVer {
 const semVerPattern =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
-const desktopAuthPaths = new Set([
-  "/gateway/auth/v1/login/start",
-  "/gateway/auth/v1/token/refresh",
-  "/gateway/auth/v1/logout",
-  "/gateway/auth/v1/session/bootstrap"
+const phoneSessionRouteKeys = new Set([
+  "POST /gateway/auth/v1/login/start",
+  "POST /gateway/auth/v1/token/refresh",
+  "POST /gateway/auth/v1/logout",
+  "POST /gateway/auth/v1/session/bootstrap",
+  "GET /gateway/account/v1/current"
 ]);
 
 export function resolveDesktopVersionGate(
   env: NodeJS.ProcessEnv
 ): DesktopVersionGate {
   const mode = env.GATEWAY_DESKTOP_VERSION_GATE?.trim() || "disabled";
-  if (mode !== "disabled" && mode !== "enabled") {
+  if (mode !== "disabled" && mode !== "auth_only" && mode !== "all") {
     throw new Error(
-      "GATEWAY_DESKTOP_VERSION_GATE must be disabled or enabled."
+      "GATEWAY_DESKTOP_VERSION_GATE must be disabled, auth_only or all; the legacy enabled value is invalid."
     );
   }
   if (mode === "disabled") {
-    return { enabled: false, minimumVersion: null, downloadUrl: null };
+    return { mode, minimumVersion: null, downloadUrl: null };
   }
 
   const minimumVersion = env.GATEWAY_MINIMUM_DESKTOP_VERSION?.trim() ?? "";
   if (!parseStrictSemVer(minimumVersion)) {
     throw new Error(
-      "GATEWAY_MINIMUM_DESKTOP_VERSION must be a strict SemVer when the Desktop version gate is enabled."
+      "GATEWAY_MINIMUM_DESKTOP_VERSION must be a strict SemVer when the Desktop version gate is auth_only or all."
     );
   }
   const downloadUrl = env.GATEWAY_DESKTOP_DOWNLOAD_URL?.trim() ?? "";
   if (!isAbsoluteHttpsUrl(downloadUrl)) {
     throw new Error(
-      "GATEWAY_DESKTOP_DOWNLOAD_URL must be an absolute HTTPS URL when the Desktop version gate is enabled."
+      "GATEWAY_DESKTOP_DOWNLOAD_URL must be an absolute HTTPS URL when the Desktop version gate is auth_only or all."
     );
   }
-  return { enabled: true, minimumVersion, downloadUrl };
+  return { mode, minimumVersion, downloadUrl };
+}
+
+export function assertPhoneAuthVersionGateCompatibility(
+  phoneAuthMode: PhoneAuthMode,
+  versionGateMode: DesktopVersionGateMode
+): void {
+  if (phoneAuthMode === "transition" && versionGateMode !== "auth_only") {
+    throw new Error(
+      "Phone auth transition mode requires GATEWAY_DESKTOP_VERSION_GATE=auth_only."
+    );
+  }
 }
 
 export function desktopVersionGateError(
@@ -61,7 +75,10 @@ export function desktopVersionGateError(
   gate: DesktopVersionGate,
   credentialClass?: CredentialClass
 ): GatewayError | null {
-  if (!gate.enabled || isVersionGateExempt(credentialClass)) {
+  if (
+    !shouldGateDesktopRoute(gate.mode, request.method, request.url) ||
+    (gate.mode === "all" && isVersionGateExempt(credentialClass))
+  ) {
     return null;
   }
   const received = request.headers[desktopVersionHeader];
@@ -99,19 +116,37 @@ export function sendDesktopVersionGateError(
   });
 }
 
-export function isDesktopVersionGatePath(
+export function shouldGateDesktopRoute(
+  mode: DesktopVersionGateMode,
   method: string,
   url: string
 ): boolean {
+  if (mode === "disabled") {
+    return false;
+  }
+  if (isPhoneSessionRoute(method, url)) {
+    return true;
+  }
+  if (mode === "auth_only") {
+    return false;
+  }
+  return isAllDesktopVersionGateRoute(method, url);
+}
+
+export function isPhoneSessionRoute(method: string, url: string): boolean {
+  const normalizedMethod = method.toUpperCase();
+  const path = url.split("?", 1)[0] ?? url;
+  return phoneSessionRouteKeys.has(`${normalizedMethod} ${path}`);
+}
+
+function isAllDesktopVersionGateRoute(method: string, url: string): boolean {
   const normalizedMethod = method.toUpperCase();
   const path = url.split("?", 1)[0] ?? url;
   if (
     (normalizedMethod === "POST" &&
-      (desktopAuthPaths.has(path) ||
-        path === "/gateway/unified-keys/resolve")) ||
+      path === "/gateway/unified-keys/resolve") ||
     (normalizedMethod === "GET" &&
-      (path === "/gateway/credentials/current" ||
-        path === "/gateway/account/v1/current")) ||
+      path === "/gateway/credentials/current") ||
     path.startsWith("/v1/") ||
     path.startsWith("/gateway/research/v1/")
   ) {
