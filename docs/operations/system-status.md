@@ -45,6 +45,18 @@ Current operational state:
   canary/snapshot evidence scripts are committed at `3aa506b`. This live
   release boundary supersedes older release/image paragraphs retained below
   as historical evidence.
+- The authenticated client-message dashboard remains available at
+  `/gateway/admin/client-messages`. Its `c0d26ec` deployment added custom time
+  windows, complete message text, exact `subject_id + client_message_id`
+  correlation, per-message outcomes and duration, provider/estimated Token
+  usage, per-user aggregates, filtering, pagination and sorting. The original
+  48-hour production verification returned all 63 selected-user messages and
+  326 correlated request events without recording message bodies or complete
+  credentials in this document. Its pre-switch backup
+  `/data/codex-gateway-r760/backups/pre-c0d26ec-20260821T004616Z` and rollback
+  image `codex_gateway_r760-gateway:rollback-1a49682-20260821T004616Z` remain
+  historical recovery evidence; the newer `f7e69ea` rollback boundary below
+  is authoritative for the currently deployed Gateway.
 - The verified rollback boundary is
   `/data/codex-gateway-r760/backups/pre-f7e69ea-20260821T052003Z`. Its original
   `gateway.db`, `client-events.db` and retained post-canary `gateway.db` all
@@ -65,6 +77,19 @@ Current operational state:
   `GATEWAY_DESKTOP_VERSION_GATE=disabled`, with login RPM defaults `5/20/10`
   for phone/IP/device. No Azure, CN1, Nginx, DNS, provider-pool, Research or
   vessel configuration changed.
+- Later on 2026-08-21, the public `goldencode` pool was changed independently
+  of the Phone Auth rollout to one enabled member,
+  `goldencode-tencent / tencent / glm-5.3`, with default
+  `reasoning_effort=high`. The live Tencent credential advertised both
+  `glm-5.2` and `glm-5.3` as online; direct provider probes and public Gateway
+  non-stream, SSE, required/named/none/follow-up tool-call, usage and request-
+  event attribution checks passed after activation. The protected config
+  rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-glm-5.3-20260821T114108Z`.
+  TokenSwitch remains removed after its enterprise balance was exhausted.
+  Research remains on its independent Tencent-only `glm-5.2` Gateway and did
+  not inherit this change. Older public GLM-5.2/TokenSwitch pool statements
+  retained below are historical evidence.
 - The disabled baseline and the later `transition + auth_only` canary both
   proved beta.38 compatibility without a Desktop version header: resolver,
   credentials current, models, chat, strict tools, public Responses tool
