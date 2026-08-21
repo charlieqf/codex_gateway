@@ -1,40 +1,35 @@
-# R760 内部手机号登录 v1 操作说明
+# R760 双轨兼容手机号登录 v1 操作说明
 
-> **暂勿按本文启用生产。** 现有启用步骤仍基于旧的全路径版本门禁，不能满足
-> beta.38 旧 Key 长期兼容。新的权威实现目标见
-> [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)。
-> 在相应代码、fixtures 和本运维说明完成更新前，两个功能开关必须保持 `disabled`。
+> 状态（2026-08-21）：独立候选分支已完成 contract、代码和本地自动化门禁，尚未执行
+> R760 additive 部署/canary。完成实时部署验证前，生产
+> `GATEWAY_PHONE_AUTH_MODE` 与 `GATEWAY_DESKTOP_VERSION_GATE` 必须保持
+> `disabled`，不得据本文预登记真实用户。
 
-本实现只用于 R760 权威 Gateway，wire contract 以
-[`medevidence-internal-phone-auth-v1`](../contracts/medevidence-internal-phone-auth-v1/README.md)
-为准。手机号直登不是强身份认证；没有业务风险签收时不得启用。
+本实现只用于 R760 权威 Gateway。权威实施规格为
+[`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
+Desktop/Gateway 联调使用新的
+[`medevidence-r760-dual-track-phone-auth-v1`](../contracts/medevidence-r760-dual-track-phone-auth-v1/README.md)
+contract；旧 frozen contract 只提供未变化的 wire shape。
 
-## 默认状态
+## 不变量与默认状态
 
 - `GATEWAY_PHONE_AUTH_MODE=disabled`；
 - `GATEWAY_DESKTOP_VERSION_GATE=disabled`；
-- migration 25 只增加列和表，关闭功能时不改变现有请求路径；
-- 不会根据手机号自动创建 Subject、Key、Plan 或 entitlement。
+- migration 25 保持原 SQL，additive schema 在开关关闭时不改变旧请求路径；
+- 未登记手机号返回 `phone_not_registered`，不得自动创建 Subject、Key、Plan 或 entitlement；
+- Phone identity/Session、旧 `cgu_live_*`、backing credential、Plan、entitlement、capability、额度窗口和既有用量锚定同一 `subject_id`；
+- login、refresh、logout、replay、Session 过期、identity disable 和 Desktop 升级均不得撤销旧 Key 或改变 Plan/用量；
+- R760 是唯一运行、控制和用量权威，不使用 Azure、CN1 或第二 Gateway 兼容、重试或回滚。
+
+手机号免验证码登录不是强身份认证。没有业务风险签收和明确名单批准时，不得为真实用户启用。
 
 ## 启用前准备
 
-1. 为每个目标 Subject 填写唯一的中国大陆手机号。
-2. 确认其现有 backing credential 为 `code` scope，且完整 key 可由 `GATEWAY_API_KEY_ENCRYPTION_SECRET` 解密并通过 hash 校验。显式 model allowlist 必须包含 `goldencode`；历史 unrestricted (`null`) 会在绑定时收窄为 `goldencode`。
-3. 确认现有 `cgu_live_*` 未撤销、未过期且 MedEvidence key 可解密。显式 `medevidence_base_url` 必须是唯一批准的 Origin `https://gw-47-116-7-37.nip.io`（允许末尾 `/`）；历史缺失值会在绑定时补齐。
-4. 确认 Subject 有活动 Plan、`code` scope 和 `chat` capability。
-5. 将不应受 Desktop 426 影响的凭据显式分类；不得依赖 User-Agent：
-
-   ```text
-   npm run dev:admin -- --db <gateway.db> update-key <prefix> --credential-class service
-   npm run dev:admin -- --db <gateway.db> update-key <prefix> --credential-class operator
-   ```
-
-   `update-key` 会在同一事务中同步所有由该 `cgw.*` 支撑的 unified key class，避免 class 不一致时被按 `unknown` 执行 426。
-
-6. 配置稳定的 secret 文件和 Ed25519 JWT 私钥；Linux 上文件权限必须为 `0600`。变量清单见
-   [`config/gateway.container.example.env`](../../config/gateway.container.example.env)。
-
-   R760 使用现有 `gateway_state` 持久卷中的固定容器路径，不增加新的挂载或 secret fallback：
+1. 先重读实时 `docs/operations/system-status.md` 并对 R760 做只读核验；文档内的历史 release SHA 不能替代实时事实。
+2. 建立并验证 current/previous release、Gateway image、完整 Compose overlay、正式配置、SQLite 备份与六个命名卷的回滚边界；不得打印 env、rendered Compose 或 secret 内容。
+3. 为受控目标 Subject 核对唯一中国大陆手机号、活动 Subject、活动 Plan、`code` scope、`chat` capability 和原有用量快照。
+4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；唯一 MedEvidence Origin 为 `https://gw-47-116-7-37.nip.io`（允许末尾 `/`）。
+5. 配置稳定的 Ed25519 和加密 secret 文件。R760 继续使用现有 `gateway_state` 卷内固定目录，不增加第二 secret fallback：
 
    ```text
    目录（codexgw:codexgw / 0700）：
@@ -47,9 +42,59 @@
    GATEWAY_UNIFIED_KEY_RECOVERY_KEY_FILE=/var/lib/codex-gateway/phone-auth-secrets/unified-key-recovery
    ```
 
-   先在维护窗口内把文件写入该持久卷并核对 owner、mode 和容器内可读性，再填写上述 `_FILE` 变量。不得把 secret 值写入 env、Git、日志或命令输出；路径尚未就绪时保持变量为空并保持功能关闭。
+   secret 值不得进入 env、Git、日志、测试输出或 shell history。
 
-手机号绑定使用现有 Billing Admin 认证：
+## 严格配置合同
+
+`GATEWAY_DESKTOP_VERSION_GATE` 只接受 `disabled`、`auth_only`、`all`；旧值
+`enabled` 和其他值必须在监听端口前启动失败。`transition` 只允许与
+`auth_only` 组合：
+
+```text
+GATEWAY_PUBLIC_BASE_URL=https://goldencode.instmarket.com.au:1443
+GATEWAY_DESKTOP_VERSION_GATE=auth_only
+GATEWAY_MINIMUM_DESKTOP_VERSION=2.0.0-beta.40
+GATEWAY_DESKTOP_DOWNLOAD_URL=<absolute-https-url>
+GATEWAY_PHONE_AUTH_MODE=transition
+GATEWAY_PHONE_AUTH_LOGIN_PHONE_RPM=5
+GATEWAY_PHONE_AUTH_LOGIN_IP_RPM=20
+GATEWAY_PHONE_AUTH_LOGIN_DEVICE_RPM=10
+```
+
+`auth_only` 只对 login、refresh、logout、bootstrap 和
+`GET /gateway/account/v1/current` 五条 Phone Session 路由执行版本门禁。resolver、
+`credentials/current`、`/v1/*`、Research、image generation 和四条 Vision Asset
+Gateway 路由不得因版本 Header 缺失、非法或过旧返回 426。
+
+`GET /gateway/health` 只公开：
+
+```json
+{
+  "phone_auth": {
+    "mode": "disabled",
+    "version_gate_mode": "disabled",
+    "minimum_desktop_version": null
+  }
+}
+```
+
+health 不得包含手机号、allowlist、Session、Key prefix、secret 路径或 secret 状态。
+
+## Additive 部署与 canary 顺序
+
+1. 从通过全部本地门禁的 clean commit 建立不可变 release/image，保留完整 Compose base、Research overlay、private env 和 R760 override。
+2. 首次 recreate 只针对 Gateway，并保持两个开关均为 `disabled`。
+3. 验证 public/internal health、唯一 `127.0.0.1:18787` listener、Gateway/Research/Mihomo 健康、restart=0、SQLite integrity/FK 和 beta.38 无 Header 的 resolver/chat/tools/Research/image/Vision 路径。
+4. 只创建一个受控临时 Subject/Key/entitlement/phone identity；先记录 Subject、Key、Plan、entitlement、capability、quota/usage 快照。
+5. 短暂切到 `transition + auth_only`，验证 beta.40 login/bootstrap/account、低版本 426、refresh rotation/replay、logout、identity disable、三维 429 和旧 Key 路径。
+6. 将两个开关恢复为 `disabled` 并 recreate Gateway；再次验证 beta.38 全路径、健康、listener 和不变量。
+7. 撤销并删除所有临时 Session、Key、entitlement、Subject 和临时文件；确认无活动临时资源、无额外 listener、无非终态 Research run/unfinished reservation。
+
+任何一步失败都应先恢复配置开关和 previous image/config 边界；保留 additive schema，不恢复旧数据库，不切换到 Azure/CN1。
+
+## 预登记与停用
+
+真实用户预登记必须先取得明确批准名单。批准前只能生成脱敏只读 readiness 报告，不得批量写入。单个批准 Subject 使用现有 Billing Admin 认证：
 
 ```http
 POST /gateway/admin/billing/v1/phone-auth-identities
@@ -57,35 +102,15 @@ Authorization: Bearer <billing-admin-token>
 Content-Type: application/json
 
 {
-  "phone": "13800138000",
-  "subject_id": "subj_example",
-  "unified_key": "<complete-cgu_live_key>"
+  "phone": "<approved-phone>",
+  "subject_id": "<approved-subject-id>",
+  "unified_key": "<complete-approved-cgu-key>"
 }
 ```
 
-成功只返回 Subject 和状态，不回显手机号或 key。Gateway 会重新验证上述全部账户条件，将手机号和完整 unified key 分别加密保存，补齐缺失的固定 Origin 和 `goldencode` allowlist，并把 unified/backing credential class 设为 `desktop`。显式冲突不会被覆盖。不要把完整 key 放入 URL、日志或 shell 命令历史。
+成功响应不回显手机号或 Key。完整 Key 不得放入 URL、日志或命令行参数。
 
-## 维护窗口启用
-
-同时满足以下配置后才允许启动 `transition`：
-
-```text
-GATEWAY_PUBLIC_BASE_URL=https://goldencode.instmarket.com.au:1443
-GATEWAY_DESKTOP_VERSION_GATE=enabled
-GATEWAY_MINIMUM_DESKTOP_VERSION=<strict-semver>
-GATEWAY_DESKTOP_DOWNLOAD_URL=<absolute-https-url>
-GATEWAY_PHONE_AUTH_MODE=transition
-```
-
-缺少有效版本门禁、R760 origin、JWT、加密 secret 或必要 store 时，Gateway 会拒绝启动，不会自动降级。`GET /gateway/health` 公开显示 phone auth mode、426 开关和最低版本，供部署核对。
-
-只执行一次最终客户端 E2E：登录、bootstrap、resolver、`credentials/current`、`account/current`、客户端重启后的 Session 恢复和真实对话。
-
-Refresh Token 每次成功使用后立即轮换。若响应丢失、safeStorage 写入失败或客户端无法证明新 token pair 已持久化，客户端必须删除本地 Session 并重新登录；不得重发旧 Refresh Token。旧 token replay 会撤销整个 Session。
-
-## 停用与回滚
-
-身份停用接口会在同一事务中撤销该手机号的所有活动 Session：
+Phone identity 单独停用：
 
 ```http
 PATCH /gateway/admin/billing/v1/phone-auth-identities/<subject-id>
@@ -95,4 +120,21 @@ Content-Type: application/json
 {"state":"disabled"}
 ```
 
-整体回滚时将 `GATEWAY_PHONE_AUTH_MODE` 和 `GATEWAY_DESKTOP_VERSION_GATE` 都改为 `disabled` 并重启，按需停用身份或撤销 key。保留 additive schema，不恢复旧数据库。
+该操作只撤销 Phone Session/Refresh；后续登录返回
+`403 phone_login_disabled`。它不停用 Subject、不撤销旧 Key、不改变 Plan。
+只有 Subject 本身停用时才返回 `403 account_disabled`。
+
+## Session 与回滚语义
+
+Refresh Token 每次成功使用后原子轮换。响应丢失、safeStorage 写入失败或持久化结果不确定时，Desktop 必须清除本地 Session 并重新登录，不得重发旧 Refresh Token；replay 会撤销该 Session family。
+
+Gateway logout 只撤销当前 Phone Session family，不撤销旧 Key。Desktop 的“退出此设备”还必须写入本地 legacy logout suppression，避免旧 Key 在同一设备上自动回填登录；这是 Desktop 集成责任，不是 Gateway Key 撤销。
+
+配置回滚只需恢复：
+
+```text
+GATEWAY_PHONE_AUTH_MODE=disabled
+GATEWAY_DESKTOP_VERSION_GATE=disabled
+```
+
+然后以完整正式 Compose overlay recreate Gateway 并复验旧路径。不得为配置回滚停用真实 Subject、撤销真实 Key、改变 Plan/entitlement 或删除 migration 25 schema。

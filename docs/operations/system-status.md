@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Current Phase
 
@@ -33,6 +33,19 @@ gate statement retained later in this file. Those statements are historical
 evidence only and must not be used as current operating instructions.
 
 Current operational state:
+
+- The MedEvidence R760 dual-track Phone Auth Gateway candidate is implemented
+  on branch `feature/r760-dual-track-phone-auth-v1` from baseline
+  `c528f4a8609dc88c56fc883426e54dd91ba73308`. Contract, scoped version policy,
+  Phone identity disable semantics, three-dimensional login rate limiting and
+  compatibility automation are present through commit `3c077fc`. Local build,
+  the full 726-pass/2-skip Vitest suite, fresh/legacy migration idempotency,
+  diff check and the sensitive-artifact scan passed. This is repository state,
+  not a production claim: no R760 additive deployment or auth-only canary from
+  this candidate had been performed when this entry was written. Both feature
+  switches must remain `disabled` until the live rollback boundary, disabled
+  beta.38 baseline, controlled canary, rollback and cleanup are recorded here.
+  No real-user Phone identity has been authorized or prepared by this work.
 
 - Desktop update distribution is authoritative in Cloudflare R2 bucket
   `goldencode-updates` through `https://updates.instmarket.com.au`; the public

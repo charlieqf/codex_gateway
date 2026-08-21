@@ -3,7 +3,11 @@
 > **状态提示（2026-08-21）：** 本文记录的一次性切换、旧 Desktop
 > 不再兼容和全路径 426 方案，已由
 > [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)
-> 替代。本文及其旧 frozen fixture 作为历史基线保留，不得据此启用生产；未被新规范替代的 v1 wire shape 仍可复用。
+> 替代。新的 additive contract 为
+> [`medevidence-r760-dual-track-phone-auth-v1`](../contracts/medevidence-r760-dual-track-phone-auth-v1/README.md)。
+> 本文及其旧 frozen fixture 作为历史基线保留，不得据此启用生产；未被新规范替代的 v1 wire shape 仍可复用。
+> 截至 2026-08-21，新方案仅完成本地候选和自动化门禁，尚未完成 R760
+> additive/canary，不能把本历史稿的 `active`、全路径 426 或一次性切换文字视为当前状态。
 
 | 项目 | 内容 |
 | --- | --- |
