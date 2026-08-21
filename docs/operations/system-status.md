@@ -34,32 +34,66 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
-- A live R760 pre-deployment check at `2026-08-21T05:09Z` found `current`
-  at `c0d26ec28eb4794cea14750bd0a68e5a7b57b981`, with Gateway image
-  `sha256:e062028205e54add28b36e7bdc76c671ef4df99b3f5e2062d9586ff53464d2ae`.
-  Public and loopback health were 200/ready; Gateway, Research Worker,
-  Research maintenance and the isolated Research LLM Gateway were healthy
-  with restart count zero, and only Gateway published `127.0.0.1:18787` from
-  the Compose project. The `previous` symlink contained a one-character target
-  typo. It was atomically corrected to the existing direct-parent release
-  `1a49682a2b62b05eadd3f6ace5ab7a3e0841e467` and its `.release-commit`
-  marker was verified. No container, config, database or volume changed during
-  that repair. This live fact supersedes the older release SHA paragraph below.
-- The MedEvidence R760 dual-track Phone Auth Gateway candidate is implemented
-  on branch `feature/r760-dual-track-phone-auth-v1` from baseline
-  `c528f4a8609dc88c56fc883426e54dd91ba73308`. Contract, scoped version policy,
-  Phone identity disable semantics, three-dimensional login rate limiting and
-  compatibility automation are present through commit `3c077fc`. Production
-  release `c0d26ec` was then merged without conflicts at `ff08599` so the
-  deployed client-message dashboard is not regressed. After that merge, local
-  build, the full 727-pass/2-skip Vitest suite, fresh/legacy migration
-  idempotency, diff check and the sensitive-artifact scan passed. This is
-  repository state, not a production claim: no R760 additive deployment or
-  auth-only canary from this candidate had been performed when this entry was
-  written. Both feature switches must remain `disabled` until the live rollback
-  boundary, disabled beta.38 baseline, controlled canary, rollback and cleanup
-  are recorded here. No real-user Phone identity has been authorized or
-  prepared by this work.
+- The MedEvidence R760 dual-track Phone Auth Gateway is ready for Desktop
+  integration on branch `feature/r760-dual-track-phone-auth-v1`. The deployed
+  additive code commit is
+  `f7e69eabbc5c1fed484d63f2547af158fc70238e`; R760 `current` points to that
+  immutable release, `previous` points to
+  `c0d26ec28eb4794cea14750bd0a68e5a7b57b981`, and the Gateway image is
+  `sha256:2c7b587c1005ea77e5f89647c793b3e5617d49564681f10f371d4f463cfb8891`.
+  The release retains the production `c0d26ec` client-message dashboard. The
+  canary/snapshot evidence scripts are committed at `3aa506b`. This live
+  release boundary supersedes older release/image paragraphs retained below
+  as historical evidence.
+- The verified rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-f7e69ea-20260821T052003Z`. Its original
+  `gateway.db`, `client-events.db` and retained post-canary `gateway.db` all
+  pass their recorded SHA-256 checks. The live Gateway database reports
+  `quick_check=ok`, zero foreign-key errors and schema version/count `25/25`;
+  existing migration 25 SQL was not changed. The four persistent Phone Auth
+  secret files are in the existing `gateway_state` volume with mode `0600` and
+  are not exposed by health, configuration output or logs.
+- A final live audit at `2026-08-21T06:29:01Z` found public and loopback
+  `/gateway/health` returning Phone Auth `disabled / disabled / null`. Gateway,
+  Research Worker, Research maintenance and the isolated Research LLM Gateway
+  were healthy with restart count zero; their three Research container IDs
+  were unchanged by the rollout. The six production project volumes are
+  unchanged. Only Gateway publishes `127.0.0.1:18787`; the host's pre-existing
+  `127.0.0.1:8081` and PostgreSQL `127.0.0.1:5432` listeners are unrelated and
+  no additional listener was created. Final configuration is
+  `GATEWAY_PHONE_AUTH_MODE=disabled`,
+  `GATEWAY_DESKTOP_VERSION_GATE=disabled`, with login RPM defaults `5/20/10`
+  for phone/IP/device. No Azure, CN1, Nginx, DNS, provider-pool, Research or
+  vessel configuration changed.
+- The disabled baseline and the later `transition + auth_only` canary both
+  proved beta.38 compatibility without a Desktop version header: resolver,
+  credentials current, models, chat, strict tools, public Responses tool
+  follow-up, Research create/status/cancel and the complete Vision Asset
+  create/upload/complete/read/delete lifecycle passed. Image generation reached
+  its existing upstream provider and returned an upstream-origin 429 because
+  the provider credits were exhausted; it did not return 426 and did not enter
+  a Gateway version gate. Changing the provider pool was outside this rollout.
+- The beta.40 canary proved missing, invalid and beta.39 headers return the
+  exact 426 contract on only the five Phone Session routes. Registered-phone
+  login, bootstrap, account current, Refresh rotation, replay rejection,
+  logout and identity disable passed. `phone_login_disabled` and
+  `account_disabled` were observed as distinct 403 errors. Logout, replay,
+  Phone identity disable and temporary Subject disable did not revoke or
+  change the existing legacy key. Isolated live probes also returned 429 from
+  each SHA-256 phone, IP and device risk bucket at the configured threshold.
+- Pre/post snapshots prove every pre-existing row in `subjects` (758),
+  `access_credentials` (766), `unified_client_keys` (196), `plans` (11),
+  `entitlements` (443) and `request_events` (139953) remained present and byte
+  equivalent. Pre-existing token windows, entitlement token windows and token
+  reservations had no missing row or numeric regression. A strict Phone
+  lifecycle additionally preserved the canary Subject, Plan, entitlement,
+  capabilities and its exact pre-existing usage totals. All four controlled
+  temporary Subjects now have no phone, active credential, unified key,
+  entitlement, Phone identity or Phone Session; transient files were removed
+  and only required audit tombstones remain. No real-user preregistration or
+  mutation was performed. Gateway logs from the rollout contain no JWT,
+  Refresh Token, complete key or phone number; two broad 11-digit matches were
+  verified as `responseTime` values.
 
 - Desktop update distribution is authoritative in Cloudflare R2 bucket
   `goldencode-updates` through `https://updates.instmarket.com.au`; the public

@@ -1,9 +1,10 @@
 # R760 双轨兼容手机号登录 v1 操作说明
 
-> 状态（2026-08-21）：独立候选分支已完成 contract、代码和本地自动化门禁，尚未执行
-> R760 additive 部署/canary。完成实时部署验证前，生产
-> `GATEWAY_PHONE_AUTH_MODE` 与 `GATEWAY_DESKTOP_VERSION_GATE` 必须保持
-> `disabled`，不得据本文预登记真实用户。
+> 状态（2026-08-21）：R760 additive 部署、disabled 基线、受控
+> `transition + auth_only` canary、配置回滚和临时资源清理已完成；Gateway
+> 已达到 `ready_for_desktop_integration`。生产
+> `GATEWAY_PHONE_AUTH_MODE` 与 `GATEWAY_DESKTOP_VERSION_GATE` 当前均为
+> `disabled`。这不是 Desktop 发布批准，也不得据本文预登记真实用户。
 
 本实现只用于 R760 权威 Gateway。权威实施规格为
 [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
@@ -28,7 +29,7 @@ contract；旧 frozen contract 只提供未变化的 wire shape。
 1. 先重读实时 `docs/operations/system-status.md` 并对 R760 做只读核验；文档内的历史 release SHA 不能替代实时事实。
 2. 建立并验证 current/previous release、Gateway image、完整 Compose overlay、正式配置、SQLite 备份与六个命名卷的回滚边界；不得打印 env、rendered Compose 或 secret 内容。
 3. 为受控目标 Subject 核对唯一中国大陆手机号、活动 Subject、活动 Plan、`code` scope、`chat` capability 和原有用量快照。
-4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；唯一 MedEvidence Origin 为 `https://gw-47-116-7-37.nip.io`（允许末尾 `/`）。
+4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；唯一 MedEvidence Origin 为 `https://goldencode.instmarket.com.au:1443`（允许末尾 `/`）。
 5. 配置稳定的 Ed25519 和加密 secret 文件。R760 继续使用现有 `gateway_state` 卷内固定目录，不增加第二 secret fallback：
 
    ```text
