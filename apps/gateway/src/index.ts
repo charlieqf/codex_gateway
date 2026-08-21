@@ -3158,10 +3158,15 @@ export function buildGateway(options: GatewayOptions = {}) {
       }
 
       const sse = setupSseResponse(reply);
+      const providerSummary = new ProviderStreamSummaryCollector({
+        now: () => clock().getTime()
+      });
+      const sessionPublicModel = publicModelRegistry.get(sessionPublicModelId);
       let providerFailed = false;
       let outcomeRecorded = false;
 
       try {
+        markProviderCallStarted(request, clock());
         for await (const event of provider.message({
           upstreamAccount,
           subject,
@@ -3171,6 +3176,8 @@ export function buildGateway(options: GatewayOptions = {}) {
           signal: sse.signal,
           onProviderError: createProviderErrorLogger(request)
         })) {
+          markProviderEvent(request, event, clock());
+          providerSummary.record(event);
           if (sse.isClosed()) {
             break;
           }
@@ -3188,7 +3195,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             request.gatewayErrorCode = error.code;
           }
           markFirstByte(request);
-          if (!sse.writeEvent(event.type, event)) {
+          if (!sse.writeEvent(event.type, publicSessionStreamEvent(event))) {
             break;
           }
         }
@@ -3196,6 +3203,19 @@ export function buildGateway(options: GatewayOptions = {}) {
           upstreamRouter.recordOutcome(lease.upstreamAccount.id, "success");
         }
       } finally {
+        markProviderStreamSummary(
+          request,
+          providerSummary.snapshot({
+            kind: "primary",
+            purpose: "primary",
+            toolChoice: null,
+            provider: upstreamAccount.provider,
+            upstreamRuntime: sessionPublicModel?.runtime ?? "codex",
+            upstreamModel: sessionPublicModel?.upstreamModel ?? null,
+            upstreamAccountId: upstreamAccount.id
+          })
+        );
+        markProviderCallFinished(request, sse.signal, clock());
         await finalizeTokenBudget(request, tokenBudgetLimiter, { now: clock });
         lease.release();
         releaseRateLimit(request);
@@ -3206,6 +3226,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   );
 
   return app;
+}
+
+function publicSessionStreamEvent(event: StreamEvent): StreamEvent {
+  if (event.type !== "error") {
+    return event;
+  }
+  const { providerFailure: _providerFailure, ...publicEvent } = event;
+  return publicEvent;
 }
 
 interface StrictClientToolsInput {
@@ -6326,10 +6354,15 @@ function createProviderErrorLogger(
     if (diagnostic.code === "rate_limited" || diagnostic.rawStatus === 429) {
       markRateLimitOrigin(request, "upstream");
     }
+    request.gatewayProviderFailure = diagnostic.failure;
     request.log.warn(
       {
         request_id: request.id,
         session_id: request.gatewaySessionId ?? null,
+        provider:
+          request.gatewayObservedUpstreamAccount?.provider ??
+          request.gatewayContext?.upstreamAccount.provider ??
+          null,
         provider_error: {
           source: diagnostic.source,
           code: diagnostic.code,
@@ -6337,7 +6370,12 @@ function createProviderErrorLogger(
           raw_message: diagnostic.rawMessage,
           ...(diagnostic.rawName ? { raw_name: diagnostic.rawName } : {}),
           ...(diagnostic.rawCode ? { raw_code: diagnostic.rawCode } : {}),
-          ...(diagnostic.rawStatus !== undefined ? { raw_status: diagnostic.rawStatus } : {})
+          ...(diagnostic.rawStatus !== undefined ? { raw_status: diagnostic.rawStatus } : {}),
+          failure_origin: diagnostic.failure.origin,
+          failure_kind: diagnostic.failure.kind,
+          failure_stage: diagnostic.failure.stage,
+          transport_code: diagnostic.failure.transportCode,
+          upstream_status: diagnostic.failure.upstreamStatus
         }
       },
       "Provider returned sanitized error."
@@ -6426,6 +6464,7 @@ function markProviderStreamSummary(
   request.gatewayUpstreamEmptyStop = summary.emptyStop;
   request.gatewayUpstreamAttemptCount = summary.attempts.length;
   request.gatewayUpstreamAttempts = summary.attempts;
+  request.gatewayProviderFailure = summary.failure;
 }
 
 function clientDiagnosticEventsMatch(

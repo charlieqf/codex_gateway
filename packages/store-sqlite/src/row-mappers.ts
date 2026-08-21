@@ -1,6 +1,7 @@
 import {
   decodeStoredAllowedPublicModelsJson,
   decodePlanFeaturePolicy,
+  isProviderFailureClassification,
   normalizeRateLimitPolicy,
   validatePlanPolicy,
   type AccessCredentialRecord,
@@ -285,6 +286,13 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     upstream_empty_stop: number | null;
     upstream_attempt_count: number | null;
     upstream_attempts_json: string | null;
+    upstream_failure_origin: RequestEventRecord["upstreamFailureOrigin"];
+    upstream_failure_kind: RequestEventRecord["upstreamFailureKind"];
+    upstream_failure_stage: RequestEventRecord["upstreamFailureStage"];
+    upstream_transport_code: string | null;
+    upstream_failure_retry_count: number | null;
+    upstream_recovery_attempt_count: number | null;
+    upstream_unclassified_additional_attempt_count: number | null;
     started_at: string;
     duration_ms: number | null;
     first_byte_ms: number | null;
@@ -349,6 +357,14 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
       value.upstream_empty_stop === null ? null : value.upstream_empty_stop === 1,
     upstreamAttemptCount: value.upstream_attempt_count,
     upstreamAttempts: parseUpstreamAttempts(value.upstream_attempts_json),
+    upstreamFailureOrigin: value.upstream_failure_origin,
+    upstreamFailureKind: value.upstream_failure_kind,
+    upstreamFailureStage: value.upstream_failure_stage,
+    upstreamTransportCode: value.upstream_transport_code,
+    upstreamFailureRetryCount: value.upstream_failure_retry_count,
+    upstreamRecoveryAttemptCount: value.upstream_recovery_attempt_count,
+    upstreamUnclassifiedAdditionalAttemptCount:
+      value.upstream_unclassified_additional_attempt_count,
     startedAt: new Date(value.started_at),
     durationMs: value.duration_ms,
     firstByteMs: value.first_byte_ms,
@@ -556,6 +572,13 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     estimated_tokens: number;
     reasoning_tokens: number;
     usage_missing: number;
+    model_call_requests?: number;
+    upstream_attempts?: number;
+    failure_retries?: number;
+    recovery_attempts?: number;
+    unclassified_additional_attempts?: number;
+    attempt_count_missing?: number;
+    attempt_purpose_missing?: number;
     request_minute: number;
     request_day: number;
     concurrency: number;
@@ -593,6 +616,13 @@ export function rowToRequestUsageReport(row: unknown): RequestUsageReportRow {
     estimatedTokens: value.estimated_tokens,
     reasoningTokens: value.reasoning_tokens,
     usageMissing: value.usage_missing,
+    modelCallRequests: value.model_call_requests ?? 0,
+    upstreamAttempts: value.upstream_attempts ?? 0,
+    failureRetries: value.failure_retries ?? 0,
+    recoveryAttempts: value.recovery_attempts ?? 0,
+    unclassifiedAdditionalAttempts: value.unclassified_additional_attempts ?? 0,
+    attemptCountMissing: value.attempt_count_missing ?? 0,
+    attemptPurposeMissing: value.attempt_purpose_missing ?? 0,
     rateLimitedBy: {
       request_minute: value.request_minute,
       request_day: value.request_day,
@@ -632,7 +662,11 @@ function parseUpstreamAttempts(value: string | null): UpstreamAttemptSummary[] |
     if (!Array.isArray(parsed)) {
       return null;
     }
-    const attempts = parsed.filter(isUpstreamAttemptSummary);
+    const attempts = parsed.filter(isUpstreamAttemptSummary).map((attempt) => ({
+      ...attempt,
+      purpose: attempt.purpose ?? null,
+      failure: isProviderFailureClassification(attempt.failure) ? attempt.failure : null
+    }));
     return attempts.length > 0 ? attempts : null;
   } catch {
     return null;
@@ -649,6 +683,12 @@ function isUpstreamAttemptSummary(value: unknown): value is UpstreamAttemptSumma
     Number.isInteger(attempt.index) &&
     attempt.index > 0 &&
     (attempt.kind === null || typeof attempt.kind === "string" || attempt.kind === undefined) &&
+    (attempt.purpose === null ||
+      attempt.purpose === "primary" ||
+      attempt.purpose === "failure_retry" ||
+      attempt.purpose === "contract_recovery" ||
+      attempt.purpose === "unknown" ||
+      attempt.purpose === undefined) &&
     (attempt.toolChoice === null ||
       typeof attempt.toolChoice === "string" ||
       attempt.toolChoice === undefined) &&

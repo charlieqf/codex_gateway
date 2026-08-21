@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
 import {
+  classifyProviderFailure,
   GatewayError,
+  resolveUpstreamAttemptPurpose,
   type GatewaySession,
   type MessageImageInput,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderFailureClassification,
   type ProviderResponseSummary,
   type ProviderStreamTermination,
   type Scope,
@@ -42,6 +45,7 @@ export interface ProviderStreamSummary {
   upstreamRequestId: string | null;
   upstreamHttpStatus: number | null;
   errorCode: string | null;
+  failure: ProviderFailureClassification | null;
   contentChars: number;
   semanticOutputChars: number;
   /** Output the caller can observe; excludes reasoning. */
@@ -98,6 +102,7 @@ export interface ProviderCompletionAssessment {
 
 export interface ProviderStreamAttemptContext {
   kind?: string | null;
+  purpose?: UpstreamAttemptSummary["purpose"];
   toolChoice?: string | null;
   provider?: UpstreamAttemptSummary["provider"];
   upstreamRuntime?: string | null;
@@ -126,6 +131,7 @@ export class ProviderStreamSummaryCollector {
   private upstreamRawChars: number | null = null;
   private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
+  private failure: ProviderFailureClassification | null = null;
   private normalizedDigest: string | null = null;
   private usage: TokenUsage | null = null;
   private maxToolArgumentBytes: number | null = null;
@@ -183,6 +189,7 @@ export class ProviderStreamSummaryCollector {
     if (event.type === "error") {
       this.applyProviderSummary(event.responseSummary);
       this.errorCode = event.code;
+      this.failure = event.providerFailure ?? null;
       this.recordNormalized({
         type: event.type,
         code: event.code,
@@ -218,6 +225,7 @@ export class ProviderStreamSummaryCollector {
       upstreamRequestId: this.upstreamRequestId,
       upstreamHttpStatus: this.upstreamHttpStatus,
       errorCode: this.errorCode,
+      failure: this.failure ? { ...this.failure } : null,
       contentChars: this.contentChars,
       semanticOutputChars: this.semanticOutputChars,
       visibleOutputChars: this.visibleOutputChars,
@@ -412,12 +420,18 @@ export async function collectProviderMessage(
   return result;
 }
 
-export function streamErrorToGatewayError(event: { code: string; message: string }): GatewayError {
+export function streamErrorToGatewayError(event: {
+  code: string;
+  message: string;
+  providerFailure?: ProviderFailureClassification;
+}): GatewayError {
+  const failure = event.providerFailure;
   if (event.code === "client_aborted") {
     return new GatewayError({
       code: "client_aborted",
       message: event.message,
-      httpStatus: 499
+      httpStatus: 499,
+      providerFailure: failure
     });
   }
   if (event.code === "rate_limited") {
@@ -425,76 +439,87 @@ export function streamErrorToGatewayError(event: { code: string; message: string
       code: "rate_limited",
       message: event.message,
       httpStatus: 429,
-      retryAfterSeconds: 60
+      retryAfterSeconds: 60,
+      providerFailure: failure
     });
   }
   if (event.code === "provider_reauth_required") {
     return new GatewayError({
       code: "provider_reauth_required",
       message: event.message,
-      httpStatus: 503
+      httpStatus: 503,
+      providerFailure: failure
     });
   }
   if (event.code === "subscription_unavailable") {
     return new GatewayError({
       code: "subscription_unavailable",
       message: event.message,
-      httpStatus: 503
+      httpStatus: 503,
+      providerFailure: failure
     });
   }
   if (event.code === "context_length_exceeded" || event.code === "context_too_large") {
     return new GatewayError({
       code: "context_length_exceeded",
       message: CONTEXT_LENGTH_EXCEEDED_MESSAGE,
-      httpStatus: 413
+      httpStatus: 413,
+      providerFailure: failure
     });
   }
   if (event.code === "invalid_request") {
     return new GatewayError({
       code: "invalid_request",
       message: event.message,
-      httpStatus: 400
+      httpStatus: 400,
+      providerFailure: failure
     });
   }
   if (event.code === "upstream_timeout") {
     return new GatewayError({
       code: "upstream_timeout",
       message: event.message,
-      httpStatus: 504
+      httpStatus: 504,
+      providerFailure: failure
     });
   }
   if (event.code === "upstream_unavailable") {
     return new GatewayError({
       code: "upstream_unavailable",
       message: event.message,
-      httpStatus: 503
+      httpStatus: 503,
+      providerFailure: failure
     });
   }
   if (event.code === "upstream_incomplete_stream") {
     return new GatewayError({
       code: "upstream_incomplete_stream",
       message: event.message,
-      httpStatus: 502
+      httpStatus: 502,
+      providerFailure: failure
     });
   }
   if (event.code === "upstream_empty_response") {
     return new GatewayError({
       code: "upstream_empty_response",
       message: event.message,
-      httpStatus: 502
+      httpStatus: 502,
+      providerFailure: failure
     });
   }
   if (event.code === "content_policy_violation") {
     return new GatewayError({
       code: "content_policy_violation",
       message: event.message,
-      httpStatus: 400
+      httpStatus: 400,
+      providerFailure: failure
     });
   }
   return new GatewayError({
     code: "service_unavailable",
     message: event.message,
-    httpStatus: 503
+    httpStatus: 503,
+    providerFailure: failure
   });
 }
 
@@ -548,6 +573,7 @@ export function combineProviderStreamSummaries(
     upstreamHttpStatus:
       present.findLast((summary) => summary.upstreamHttpStatus !== null)?.upstreamHttpStatus ?? null,
     errorCode: present.findLast((summary) => summary.errorCode !== null)?.errorCode ?? null,
+    failure: present.findLast((summary) => summary.failure !== null)?.failure ?? null,
     contentChars,
     semanticOutputChars,
     visibleOutputChars,
@@ -590,11 +616,19 @@ export function attachProviderStreamSummary(
   error: GatewayError,
   summary: ProviderStreamSummary
 ): GatewayError {
+  const failure = error.providerFailure ?? summary.failure;
+  if (failure && !error.providerFailure) {
+    Object.defineProperty(error, "providerFailure", {
+      value: failure,
+      configurable: true
+    });
+  }
   const attempts = summary.attempts.map((attempt, index) =>
     index === summary.attempts.length - 1
       ? {
           ...attempt,
           errorCode: error.code,
+          failure: failure ?? attempt.failure ?? null,
           ...(isToolCallValidationFailureKind(error.failureKind)
             ? { toolValidationFailureKind: error.failureKind }
             : {}),
@@ -609,6 +643,7 @@ export function attachProviderStreamSummary(
     value: {
       ...summary,
       errorCode: error.code,
+      failure: failure ?? null,
       attempts
     } satisfies ProviderStreamSummary,
     configurable: true
@@ -769,8 +804,10 @@ function resolveCollectedOutputKind(
 }
 
 function providerAttemptContext(input: CollectProviderMessageInput): ProviderStreamAttemptContext {
+  const kind = input.attemptKind ?? "primary";
   return {
-    kind: input.attemptKind ?? "primary",
+    kind,
+    purpose: resolveUpstreamAttemptPurpose({ kind }, 1),
     toolChoice: input.attemptToolChoice ?? serializeClientToolChoice(input.clientToolChoice),
     provider: input.upstreamAccount.provider,
     upstreamRuntime: input.upstreamRuntime ?? null,
@@ -786,6 +823,11 @@ function providerSummaryToAttempt(
   return {
     index: 1,
     kind: attempt?.kind ?? null,
+    purpose: resolveUpstreamAttemptPurpose(
+      { index: 1, kind: attempt?.kind, purpose: attempt?.purpose },
+      1
+    ),
+    failure: summary.failure ? { ...summary.failure } : null,
     toolChoice: attempt?.toolChoice ?? null,
     provider: attempt?.provider ?? null,
     upstreamRuntime: attempt?.upstreamRuntime ?? null,
@@ -928,6 +970,7 @@ function emptyProviderStreamSummary(): ProviderStreamSummary {
     upstreamRequestId: null,
     upstreamHttpStatus: null,
     errorCode: null,
+    failure: null,
     contentChars: 0,
     semanticOutputChars: 0,
     visibleOutputChars: 0,
@@ -956,6 +999,17 @@ function providerProtocolError(
   summary: ProviderStreamSummary,
   error: GatewayError
 ): GatewayError {
+  if (!error.providerFailure && !summary.failure) {
+    Object.defineProperty(error, "providerFailure", {
+      value: classifyProviderFailure({
+        stage: "streaming",
+        upstreamStatus: summary.upstreamHttpStatus,
+        originHint: "provider",
+        kindHint: providerProtocolFailureKind(error.code)
+      }),
+      configurable: true
+    });
+  }
   return attachProviderStreamSummary(error, {
     ...summary,
     errorCode: error.code,
@@ -968,4 +1022,19 @@ function providerProtocolError(
         : {})
     }))
   });
+}
+
+function providerProtocolFailureKind(
+  code: GatewayError["code"]
+): ProviderFailureClassification["kind"] {
+  if (code === "upstream_incomplete_stream") {
+    return "stream_incomplete";
+  }
+  if (code === "upstream_empty_response") {
+    return "response_body_missing";
+  }
+  if (code === "content_policy_violation" || code === "context_length_exceeded") {
+    return "http_request";
+  }
+  return "stream_protocol";
 }

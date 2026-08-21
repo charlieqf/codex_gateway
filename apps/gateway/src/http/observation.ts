@@ -10,6 +10,7 @@ import type {
   StreamEvent,
   TokenUsage
 } from "@codex-gateway/core";
+import { summarizeUpstreamAttemptPurposes } from "@codex-gateway/core";
 
 export function startObservation(request: FastifyRequest): void {
   request.gatewayObservationStartedAt = new Date();
@@ -17,6 +18,9 @@ export function startObservation(request: FastifyRequest): void {
 
 export function markGatewayError(request: FastifyRequest, error: GatewayError): void {
   request.gatewayErrorCode = error.code;
+  if (error.providerFailure) {
+    request.gatewayProviderFailure = error.providerFailure;
+  }
   if (error.code === "rate_limited") {
     request.gatewayRateLimited = true;
     request.gatewayRateLimitOrigin ??= "unknown";
@@ -56,6 +60,9 @@ export function markRateLimitRejection(
   markRateLimited(request);
   markLimitKind(request, rejection.limitKind, rejection.details);
   markRateLimitOrigin(request, "gateway");
+  // The provider was never called, so this is an explicit zero-usage event rather
+  // than an event with missing provider metering.
+  request.gatewayTokenUsageSource = "none";
 }
 
 export function markSession(request: FastifyRequest, sessionId: string | null): void {
@@ -99,6 +106,9 @@ export function markProviderEvent(
     (event.code === "client_aborted" || event.code === "upstream_timeout")
   ) {
     request.gatewayCancelObserved = true;
+  }
+  if (event.type === "error" && event.providerFailure) {
+    request.gatewayProviderFailure = event.providerFailure;
   }
 }
 
@@ -212,6 +222,22 @@ export function recordObservation(
   const upstreamAccount = context?.upstreamAccount ?? null;
   const observedUpstreamAccount = request.gatewayObservedUpstreamAccount;
   const tokenUsage = request.gatewayTokenUsage;
+  const attempts = request.gatewayUpstreamAttempts ?? [];
+  const attemptCount = request.gatewayUpstreamAttemptCount ?? attempts.length;
+  const attemptPurposeSummary = summarizeUpstreamAttemptPurposes(attempts);
+  if (attemptPurposeSummary.primaryOverflowCount > 0) {
+    request.log.warn(
+      {
+        request_id: request.id,
+        primary_attempt_overflow_count: attemptPurposeSummary.primaryOverflowCount
+      },
+      "Provider attempt purpose invariant was violated."
+    );
+  }
+  const requestFailed = isErrorResponse(request, statusCode);
+  const terminalFailure = requestFailed && attemptCount > 0
+    ? request.gatewayProviderFailure ?? attempts.findLast((attempt) => attempt.failure)?.failure ?? null
+    : null;
 
   store.insertRequestEvent({
     requestId: request.id,
@@ -247,12 +273,20 @@ export function recordObservation(
     upstreamRawResponseHash: request.gatewayUpstreamRawResponseHash ?? null,
     upstreamRawResponseChars: request.gatewayUpstreamRawResponseChars ?? null,
     upstreamEmptyStop: request.gatewayUpstreamEmptyStop ?? null,
-    upstreamAttemptCount: request.gatewayUpstreamAttemptCount ?? null,
-    upstreamAttempts: request.gatewayUpstreamAttempts ?? null,
+    upstreamAttemptCount: attemptCount,
+    upstreamAttempts: attempts.length > 0 ? attempts : null,
+    upstreamFailureOrigin: terminalFailure?.origin ?? null,
+    upstreamFailureKind: terminalFailure?.kind ?? null,
+    upstreamFailureStage: terminalFailure?.stage ?? null,
+    upstreamTransportCode: terminalFailure?.transportCode ?? null,
+    upstreamFailureRetryCount: attemptPurposeSummary.failureRetryCount,
+    upstreamRecoveryAttemptCount: attemptPurposeSummary.recoveryAttemptCount,
+    upstreamUnclassifiedAdditionalAttemptCount:
+      attemptPurposeSummary.unclassifiedAdditionalAttemptCount,
     startedAt,
     durationMs: completedAt.getTime() - startedAt.getTime(),
     firstByteMs: firstByteMs(request, completedAt),
-    status: isErrorResponse(request, statusCode) ? "error" : "ok",
+    status: requestFailed ? "error" : "ok",
     errorCode: request.gatewayErrorCode ?? null,
     rateLimited: request.gatewayRateLimited === true,
     promptTokens: tokenUsage?.promptTokens ?? null,

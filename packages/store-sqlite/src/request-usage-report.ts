@@ -84,6 +84,13 @@ export function emptyRequestUsageReportRow(input: {
     estimatedTokens: 0,
     reasoningTokens: 0,
     usageMissing: 0,
+    modelCallRequests: 0,
+    upstreamAttempts: 0,
+    failureRetries: 0,
+    recoveryAttempts: 0,
+    unclassifiedAdditionalAttempts: 0,
+    attemptCountMissing: 0,
+    attemptPurposeMissing: 0,
     rateLimitedBy: {},
     overRequestLimit: 0,
     identityGuardHit: 0
@@ -220,6 +227,13 @@ function mergeRequestUsageRow(
   target.estimatedTokens += source.estimatedTokens;
   target.reasoningTokens += source.reasoningTokens;
   target.usageMissing += source.usageMissing;
+  target.modelCallRequests += source.modelCallRequests;
+  target.upstreamAttempts += source.upstreamAttempts;
+  target.failureRetries += source.failureRetries;
+  target.recoveryAttempts += source.recoveryAttempts;
+  target.unclassifiedAdditionalAttempts += source.unclassifiedAdditionalAttempts;
+  target.attemptCountMissing += source.attemptCountMissing;
+  target.attemptPurposeMissing += source.attemptPurposeMissing;
   target.overRequestLimit += source.overRequestLimit;
   target.identityGuardHit += source.identityGuardHit;
   target.upstreamRuntime = mergeNullableDimension(target.upstreamRuntime, source.upstreamRuntime);

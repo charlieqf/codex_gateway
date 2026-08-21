@@ -1,6 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type {
+import {
+  resolveUpstreamAttemptPurpose,
+  summarizeUpstreamAttemptPurposes,
+  type ProviderFailureClassification,
   AccessCredentialRecord,
   ClientMessageEventRecord,
   ClientMessageEventStore,
@@ -42,6 +45,11 @@ export interface AdminClientMessagesQuery {
 type AdminUserSortBy =
   | "requests"
   | "tokens"
+  | "upstream_attempts"
+  | "retries"
+  | "recoveries"
+  | "provider_tokens"
+  | "estimated_tokens"
   | "errors"
   | "rate_limited"
   | "avg_duration"
@@ -53,6 +61,14 @@ interface MessageRequestSummary {
   outcome: MessageRequestOutcome;
   success: boolean | null;
   request_count: number;
+  gateway_request_count: number;
+  model_call_request_count: number;
+  upstream_attempt_count: number;
+  failure_retry_count: number;
+  recovery_attempt_count: number;
+  unclassified_additional_attempt_count: number;
+  attempt_count_missing: number;
+  attempt_purpose_missing: number;
   success_count: number;
   error_count: number;
   rate_limited_count: number;
@@ -62,6 +78,11 @@ interface MessageRequestSummary {
   summed_request_duration_ms: number;
   error_codes: string[];
   token_usage: {
+    provider_usage_present: boolean;
+    provider_prompt_tokens: number;
+    provider_completion_tokens: number;
+    provider_total_tokens: number;
+    attributable_tokens: number;
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
@@ -70,6 +91,13 @@ interface MessageRequestSummary {
     cached_prompt_tokens: number;
     usage_missing_count: number;
   };
+}
+
+interface MessageRequestCorrelation {
+  summary: MessageRequestSummary;
+  gatewayRequests: ReturnType<typeof publicGatewayRequest>[];
+  gatewayRequestsTruncated: boolean;
+  gatewayRequestTotal: number;
 }
 
 export function resolveAdminMessagesAccess(input: {
@@ -201,17 +229,18 @@ export function buildAdminClientMessagesPayload(input: {
   const rawMessages = input.clientEventsStore.listClientMessageEvents(messageQuery);
   const requestSummaries = buildMessageRequestSummaries(input.observationStore, rawMessages);
   const messages = rawMessages
-    .map((message) =>
-      publicClientMessage(message, {
+    .map((message) => {
+      const requestCorrelation =
+        requestSummaries.summaries.get(messageRequestKey(message.subjectId, message.messageId)) ??
+        emptyMessageRequestCorrelation();
+      return publicClientMessage(message, {
         subject: subjectById.get(message.subjectId),
         credential: credentialById.get(message.credentialId),
         includeText,
         previewChars,
-        requestSummary:
-          requestSummaries.summaries.get(messageRequestKey(message.subjectId, message.messageId)) ??
-          emptyMessageRequestSummary()
-      })
-    );
+        requestCorrelation
+      });
+    });
 
   const usageRows = input.observationStore
     ? input.observationStore.reportRequestUsage({ since, until, groupBy: "default" })
@@ -417,7 +446,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
     <section class="summary">
       <div class="panel metric"><div class="label">时段内活跃用户</div><div id="sumUsers" class="value">-</div><div id="sumUsersDetail" class="detail">-</div></div>
       <div class="panel metric"><div class="label">请求次数</div><div id="sumRequests" class="value">-</div><div id="sumSuccess" class="detail">-</div></div>
-      <div class="panel metric"><div class="label">Token 用量</div><div id="sumTokens" class="value">-</div><div id="sumTokenDetail" class="detail">-</div></div>
+      <div class="panel metric"><div class="label">可归因 Token</div><div id="sumTokens" class="value">-</div><div id="sumTokenDetail" class="detail">Provider 与最终估算分列；预检估算不计入</div></div>
       <div class="panel metric"><div class="label">失败请求</div><div id="sumErrors" class="value">-</div><div class="detail">包含部分失败消息中的调用</div></div>
       <div class="panel metric"><div class="label">限流请求</div><div id="sumLimited" class="value">-</div><div class="detail">按 Gateway 请求事件统计</div></div>
       <div class="panel metric"><div class="label">匹配消息</div><div id="sumMessages" class="value">-</div><div id="generated" class="detail">-</div></div>
@@ -431,6 +460,11 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
             <select id="sortBy" aria-label="排序字段">
               <option value="requests">按请求次数</option>
               <option value="tokens">按 Token</option>
+              <option value="provider_tokens">按 Provider Token</option>
+              <option value="estimated_tokens">按估算 Token</option>
+              <option value="upstream_attempts">按上游尝试</option>
+              <option value="retries">按故障重试</option>
+              <option value="recoveries">按合同恢复</option>
               <option value="errors">按失败数</option>
               <option value="rate_limited">按限流数</option>
               <option value="avg_duration">按平均耗时</option>
@@ -555,7 +589,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       els.sumRequests.textContent = formatNumber(summary.request_count || 0);
       els.sumSuccess.textContent = "成功 " + formatNumber(summary.success_count || 0) + " · 平均 " + formatDuration(summary.avg_duration_ms);
       els.sumTokens.textContent = formatCompact(tokenUsage.effective_tokens || 0);
-      els.sumTokenDetail.textContent = "实际 " + formatNumber(tokenUsage.total_tokens || 0) + (tokenUsage.estimated_tokens ? " · 估算 " + formatNumber(tokenUsage.estimated_tokens) : "");
+      els.sumTokenDetail.textContent = "Provider " + formatNumber(summary.provider_total_tokens || tokenUsage.total_tokens || 0) + " · 估算 " + formatNumber(summary.estimated_tokens || tokenUsage.estimated_tokens || 0);
       els.sumErrors.textContent = formatNumber(summary.error_count || 0);
       els.sumLimited.textContent = formatNumber(summary.rate_limited_count || 0);
       els.sumMessages.textContent = formatNumber(summary.message_count || 0);
@@ -594,8 +628,10 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
         '<span class="user-name">' + escapeHtml(subjectName(subject)) + '</span>' +
         '<span class="user-meta">' + escapeHtml(meta) + '</span>' +
         '<span class="user-stats">' +
-          userStat("请求", user.request_count || 0) +
-          userStat("Token", formatCompact(tokenUsage.effective_tokens || 0)) +
+          userStat("Gateway 请求", user.gateway_request_count || user.request_count || 0) +
+          userStat("上游尝试", user.upstream_attempt_count || 0) +
+          userStat("Provider Token", formatCompact(user.provider_total_tokens || tokenUsage.total_tokens || 0)) +
+          userStat("估算 Token", formatCompact(user.estimated_tokens || tokenUsage.estimated_tokens || 0)) +
           userStat("失败", user.error_count || 0) +
           userStat("限流", user.rate_limited_count || 0) +
         '</span>' +
@@ -628,6 +664,7 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
       const tokens = request.token_usage || {};
       const outcome = request.outcome || "no_request";
       const errors = Array.isArray(request.error_codes) && request.error_codes.length ? '<div class="user-meta">错误：' + escapeHtml(request.error_codes.join(", ")) + '</div>' : "";
+      const missing = Number(tokens.usage_missing_count || 0) > 0 ? '<div class="user-meta">有 ' + formatNumber(tokens.usage_missing_count) + ' 个请求缺少 Token usage</div>' : "";
       const app = [message.app_name, message.app_version].filter(Boolean).join(" ");
       const text = message.text || message.text_preview || "";
       return '<article class="message-card">' +
@@ -635,14 +672,32 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
           '<div class="message-time">接收 ' + escapeHtml(formatTime(message.received_at)) + ' · 客户端 ' + escapeHtml(formatTime(message.created_at)) + (app ? ' · ' + escapeHtml(app) : '') + '</div></div>' +
           '<span class="badge ' + escapeAttr(outcome) + '">' + escapeHtml(outcomeLabel(outcome)) + '</span></div>' +
         '<div class="request-grid">' +
-          requestMetric("请求", formatNumber(request.request_count || 0) + " 次", "成功 " + formatNumber(request.success_count || 0) + " / 失败 " + formatNumber(request.error_count || 0)) +
+          requestMetric("模型调用", formatNumber(request.model_call_request_count || 0) + " 次", "Gateway 请求 " + formatNumber(request.gateway_request_count || request.request_count || 0) + "，成功 " + formatNumber(request.success_count || 0) + " / 失败 " + formatNumber(request.error_count || 0)) +
+          requestMetric("上游尝试", request.attempt_count_missing ? formatNumber(request.upstream_attempt_count || 0) + "+（部分未知）" : formatNumber(request.upstream_attempt_count || 0), "故障重试 " + formatNumber(request.failure_retry_count || 0) + " / 合同恢复 " + formatNumber(request.recovery_attempt_count || 0) + (request.unclassified_additional_attempt_count ? " / 未分类附加 " + formatNumber(request.unclassified_additional_attempt_count) : "")) +
           requestMetric("端到端耗时", formatDuration(request.duration_ms), request.request_count > 1 ? "调用耗时合计 " + formatDuration(request.summed_request_duration_ms) : "") +
-          requestMetric("Token", formatNumber(tokens.effective_tokens || 0), "输入 " + formatNumber(tokens.prompt_tokens || 0) + " / 输出 " + formatNumber(tokens.completion_tokens || 0)) +
-          requestMetric("限流", formatNumber(request.rate_limited_count || 0) + " 次", tokens.estimated_tokens ? "含估算 token " + formatNumber(tokens.estimated_tokens) : "") +
-        '</div>' + errors +
+          requestMetric("Provider Token", formatNumber(tokens.provider_total_tokens || 0), "输入 " + formatNumber(tokens.provider_prompt_tokens || 0) + " / 输出 " + formatNumber(tokens.provider_completion_tokens || 0)) +
+          requestMetric("估算 Token", formatNumber(tokens.estimated_tokens || 0), tokens.estimated_tokens ? "最终 fallback 估算" : "未使用估算") +
+          requestMetric("限流", formatNumber(request.rate_limited_count || 0) + " 次", "客户端自动重试：无法确认") +
+        '</div>' + errors + missing +
         '<pre class="message-text">' + escapeHtml(text) + '</pre>' +
-        '<details><summary>消息与请求标识</summary><div class="mono">subject ' + escapeHtml(subject.id || "-") + '<br>credential ' + escapeHtml(message.credential && message.credential.prefix ? message.credential.prefix : "-") + '<br>session ' + escapeHtml(message.session_id || "-") + '<br>message ' + escapeHtml(message.message_id || "-") + '<br>upload request ' + escapeHtml(message.request_id || "-") + '</div></details>' +
+        '<details><summary>Gateway request ID 与 upstream attempts' + (message.gateway_requests_truncated ? '（仅最新 100 / 共 ' + formatNumber(message.gateway_request_total || 0) + '）' : '') + '</summary><div class="mono">subject ' + escapeHtml(subject.id || "-") + '<br>credential ' + escapeHtml(message.credential && message.credential.prefix ? message.credential.prefix : "-") + '<br>session ' + escapeHtml(message.session_id || "-") + '<br>message ' + escapeHtml(message.message_id || "-") + '<br>upload request ' + escapeHtml(message.request_id || "-") + renderGatewayRequests(message.gateway_requests) + '</div></details>' +
       '</article>';
+    }
+
+    function renderGatewayRequests(requests) {
+      if (!Array.isArray(requests) || !requests.length) return '<br>Gateway requests: none';
+      return requests.map((request) => {
+        const failure = request.terminal_failure;
+        const failureText = failure ? failure.origin + '/' + failure.kind + '/' + failure.stage + (failure.transport_code ? ' [' + failure.transport_code + ']' : '') + (failure.upstream_status !== null && failure.upstream_status !== undefined ? ' upstream HTTP ' + failure.upstream_status : '') : (request.status === 'error' ? '旧记录未分类' : '-');
+        const attempts = Array.isArray(request.upstream_attempts) ? request.upstream_attempts.map((attempt) => {
+          const route = [attempt.provider, attempt.upstream_runtime, attempt.upstream_model].filter(Boolean).join(' / ') || '-';
+          const upstream = 'upstream request ' + (attempt.upstream_request_id || '-') + ' · HTTP ' + (attempt.upstream_http_status === null || attempt.upstream_http_status === undefined ? '-' : attempt.upstream_http_status);
+          const tokens = 'tokens prompt ' + (attempt.prompt_tokens === null || attempt.prompt_tokens === undefined ? '-' : formatNumber(attempt.prompt_tokens)) + ' / completion ' + (attempt.completion_tokens === null || attempt.completion_tokens === undefined ? '-' : formatNumber(attempt.completion_tokens)) + ' / total ' + (attempt.total_tokens === null || attempt.total_tokens === undefined ? '-' : formatNumber(attempt.total_tokens));
+          const attemptFailure = attempt.failure ? attempt.failure.origin + '/' + attempt.failure.kind + '/' + attempt.failure.stage + (attempt.failure.transport_code ? ' [' + attempt.failure.transport_code + ']' : '') + (attempt.failure.upstream_status !== null && attempt.failure.upstream_status !== undefined ? ' upstream HTTP ' + attempt.failure.upstream_status : '') : '-';
+          return '<br>&nbsp;&nbsp;attempt ' + escapeHtml(attempt.index) + ' ' + escapeHtml(attempt.purpose || 'unknown') + ' / ' + escapeHtml(attempt.kind || '-') + ' · ' + escapeHtml(formatDuration(attempt.duration_ms)) + ' · ' + escapeHtml(attempt.error_code || 'ok') + '<br>&nbsp;&nbsp;&nbsp;&nbsp;provider ' + escapeHtml(route) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(upstream) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;' + escapeHtml(tokens) + '<br>&nbsp;&nbsp;&nbsp;&nbsp;failure ' + escapeHtml(attemptFailure);
+        }).join('') : '';
+        return '<br><br>request ' + escapeHtml(request.request_id || '-') + ' · ' + escapeHtml(request.status || '-') + ' · ' + escapeHtml(formatDuration(request.duration_ms)) + '<br>&nbsp;&nbsp;provider ' + escapeHtml([request.provider, request.upstream_runtime, request.upstream_model].filter(Boolean).join(' / ') || '-') + '<br>&nbsp;&nbsp;failure ' + escapeHtml(failureText) + attempts;
+      }).join('');
     }
 
     function requestMetric(label, value, detail) {
@@ -702,6 +757,17 @@ export function renderAdminClientMessagesPage(input: { authRequired?: boolean } 
 interface AdminUserUsageRow {
   subject: ReturnType<typeof publicSubject>;
   request_count: number;
+  gateway_request_count: number;
+  model_call_request_count: number;
+  upstream_attempt_count: number;
+  failure_retry_count: number;
+  recovery_attempt_count: number;
+  unclassified_additional_attempt_count: number;
+  attempt_count_missing: number;
+  attempt_purpose_missing: number;
+  provider_total_tokens: number;
+  estimated_tokens: number;
+  attributable_tokens: number;
   success_count: number;
   error_count: number;
   rate_limited_count: number;
@@ -721,8 +787,8 @@ interface AdminUserUsageRow {
 function buildMessageRequestSummaries(
   store: ObservationStore | undefined,
   messages: ClientMessageEventRecord[]
-): { summaries: Map<string, MessageRequestSummary>; truncated: boolean } {
-  const summaries = new Map<string, MessageRequestSummary>();
+): { summaries: Map<string, MessageRequestCorrelation>; truncated: boolean } {
+  const summaries = new Map<string, MessageRequestCorrelation>();
   if (!store || messages.length === 0) {
     return { summaries, truncated: false };
   }
@@ -765,9 +831,22 @@ function buildMessageRequestSummaries(
 
   for (const message of messages) {
     const key = messageRequestKey(message.subjectId, message.messageId);
-    summaries.set(key, summarizeMessageRequests(eventsByMessage.get(key) ?? []));
+    summaries.set(key, correlateMessageRequests(eventsByMessage.get(key) ?? []));
   }
   return { summaries, truncated };
+}
+
+function correlateMessageRequests(events: RequestEventRecord[]): MessageRequestCorrelation {
+  const ordered = [...events].sort(
+    (left, right) => left.startedAt.getTime() - right.startedAt.getTime()
+  );
+  const selected = ordered.slice(-100);
+  return {
+    summary: summarizeMessageRequests(ordered),
+    gatewayRequests: selected.map(publicGatewayRequest),
+    gatewayRequestsTruncated: ordered.length > selected.length,
+    gatewayRequestTotal: ordered.length
+  };
 }
 
 function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestSummary {
@@ -787,6 +866,13 @@ function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestS
   let estimatedTokens = 0;
   let cachedPromptTokens = 0;
   let usageMissingCount = 0;
+  let modelCallRequestCount = 0;
+  let upstreamAttemptCount = 0;
+  let failureRetryCount = 0;
+  let recoveryAttemptCount = 0;
+  let unclassifiedAdditionalAttemptCount = 0;
+  let attemptCountMissing = 0;
+  let attemptPurposeMissing = 0;
   const errorCodes = new Set<string>();
 
   for (const event of events) {
@@ -808,26 +894,25 @@ function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestS
     latestFinishedAt = Math.max(latestFinishedAt, startedAt + requestDurationMs);
     summedRequestDurationMs += requestDurationMs;
 
-    const eventPromptTokens = nonNegativeNumber(event.promptTokens);
-    const eventCompletionTokens = nonNegativeNumber(event.completionTokens);
-    const explicitTotalTokens = nonNegativeNumberOrNull(event.totalTokens);
-    const fallbackTotalTokens = eventPromptTokens + eventCompletionTokens;
-    const eventEstimatedTokens = nonNegativeNumber(event.estimatedTokens);
-    promptTokens += eventPromptTokens;
-    completionTokens += eventCompletionTokens;
+    const tokens = adminTokenBreakdown(event);
+    promptTokens += tokens.provider_prompt_tokens;
+    completionTokens += tokens.provider_completion_tokens;
     cachedPromptTokens += nonNegativeNumber(event.cachedPromptTokens);
-    if (explicitTotalTokens !== null) {
-      totalTokens += explicitTotalTokens;
-      if (explicitTotalTokens === 0 && eventEstimatedTokens > 0 && event.usageSource !== "provider") {
-        estimatedTokens += eventEstimatedTokens;
-      }
-    } else if (fallbackTotalTokens > 0) {
-      totalTokens += fallbackTotalTokens;
-    } else if (eventEstimatedTokens > 0) {
-      estimatedTokens += eventEstimatedTokens;
+    totalTokens += tokens.provider_total_tokens;
+    estimatedTokens += tokens.estimated_tokens;
+    usageMissingCount += tokens.usage_missing ? 1 : 0;
+
+    const attempts = requestAttemptMetrics(event);
+    if (attempts.attemptCount === null) {
+      attemptCountMissing += 1;
     } else {
-      usageMissingCount += 1;
+      upstreamAttemptCount += attempts.attemptCount;
+      modelCallRequestCount += attempts.attemptCount > 0 ? 1 : 0;
     }
+    failureRetryCount += attempts.failureRetryCount;
+    recoveryAttemptCount += attempts.recoveryAttemptCount;
+    unclassifiedAdditionalAttemptCount += attempts.unclassifiedAdditionalAttemptCount;
+    attemptPurposeMissing += attempts.attemptPurposeMissing;
   }
 
   const outcome: MessageRequestOutcome =
@@ -836,6 +921,14 @@ function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestS
     outcome,
     success: outcome === "success",
     request_count: events.length,
+    gateway_request_count: events.length,
+    model_call_request_count: modelCallRequestCount,
+    upstream_attempt_count: upstreamAttemptCount,
+    failure_retry_count: failureRetryCount,
+    recovery_attempt_count: recoveryAttemptCount,
+    unclassified_additional_attempt_count: unclassifiedAdditionalAttemptCount,
+    attempt_count_missing: attemptCountMissing,
+    attempt_purpose_missing: attemptPurposeMissing,
     success_count: successCount,
     error_count: errorCount,
     rate_limited_count: rateLimitedCount,
@@ -845,6 +938,11 @@ function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestS
     summed_request_duration_ms: summedRequestDurationMs,
     error_codes: Array.from(errorCodes).sort(),
     token_usage: {
+      provider_usage_present: events.some((event) => adminTokenBreakdown(event).provider_usage_present),
+      provider_prompt_tokens: promptTokens,
+      provider_completion_tokens: completionTokens,
+      provider_total_tokens: totalTokens,
+      attributable_tokens: totalTokens + estimatedTokens,
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: totalTokens,
@@ -856,11 +954,150 @@ function summarizeMessageRequests(events: RequestEventRecord[]): MessageRequestS
   };
 }
 
+function adminTokenBreakdown(event: RequestEventRecord) {
+  const providerUsagePresent =
+    event.totalTokens !== null && event.totalTokens !== undefined ||
+    event.promptTokens !== null && event.promptTokens !== undefined ||
+    event.completionTokens !== null && event.completionTokens !== undefined;
+  const providerPromptTokens = providerUsagePresent
+    ? nonNegativeNumber(event.promptTokens)
+    : 0;
+  const providerCompletionTokens = providerUsagePresent
+    ? nonNegativeNumber(event.completionTokens)
+    : 0;
+  const explicitTotal = providerUsagePresent
+    ? nonNegativeNumberOrNull(event.totalTokens)
+    : null;
+  const providerTotalTokens = providerUsagePresent
+    ? explicitTotal ?? providerPromptTokens + providerCompletionTokens
+    : 0;
+  const estimatedTokens = providerUsagePresent
+    ? 0
+    : nonNegativeNumber(event.estimatedTokens);
+  const usageMissing =
+    !providerUsagePresent && estimatedTokens === 0 && event.usageSource !== "none";
+  return {
+    provider_usage_present: providerUsagePresent,
+    provider_prompt_tokens: providerPromptTokens,
+    provider_completion_tokens: providerCompletionTokens,
+    provider_total_tokens: providerTotalTokens,
+    estimated_tokens: estimatedTokens,
+    attributable_tokens: providerTotalTokens + estimatedTokens,
+    cached_prompt_tokens: providerUsagePresent
+      ? nonNegativeNumber(event.cachedPromptTokens)
+      : 0,
+    reasoning_tokens: providerUsagePresent
+      ? nonNegativeNumber(event.reasoningTokens)
+      : 0,
+    gateway_estimated_prompt_tokens:
+      nonNegativeNumberOrNull(event.gatewayEstimatedPromptTokens),
+    usage_source: event.usageSource ?? null,
+    usage_missing: usageMissing
+  };
+}
+
+function requestAttemptMetrics(event: RequestEventRecord) {
+  const attempts = event.upstreamAttempts;
+  const purposeSummary = summarizeUpstreamAttemptPurposes(attempts ?? []);
+  const attemptCount = event.upstreamAttemptCount ?? (attempts ? attempts.length : null);
+  return {
+    attemptCount,
+    failureRetryCount:
+      event.upstreamFailureRetryCount ?? purposeSummary.failureRetryCount,
+    recoveryAttemptCount:
+      event.upstreamRecoveryAttemptCount ?? purposeSummary.recoveryAttemptCount,
+    unclassifiedAdditionalAttemptCount:
+      event.upstreamUnclassifiedAdditionalAttemptCount ??
+      purposeSummary.unclassifiedAdditionalAttemptCount,
+    attemptPurposeMissing:
+      attempts !== null && attempts !== undefined
+        ? purposeSummary.attemptPurposeMissing
+        : attemptCount ?? 0
+  };
+}
+
+function publicGatewayRequest(event: RequestEventRecord) {
+  const metrics = requestAttemptMetrics(event);
+  const terminalFailure = requestTerminalFailure(event);
+  return {
+    request_id: event.requestId,
+    started_at: event.startedAt.toISOString(),
+    status: event.status,
+    error_code: event.errorCode,
+    duration_ms: event.durationMs,
+    first_byte_ms: event.firstByteMs,
+    provider: event.provider,
+    upstream_runtime: event.upstreamRuntime ?? null,
+    upstream_model: event.upstreamModel ?? null,
+    upstream_attempt_count: metrics.attemptCount,
+    failure_retry_count: metrics.failureRetryCount,
+    recovery_attempt_count: metrics.recoveryAttemptCount,
+    unclassified_additional_attempt_count:
+      metrics.unclassifiedAdditionalAttemptCount,
+    attempt_purpose_missing: metrics.attemptPurposeMissing,
+    terminal_failure: terminalFailure ? publicProviderFailure(terminalFailure) : null,
+    token_usage: adminTokenBreakdown(event),
+    upstream_attempts: (event.upstreamAttempts ?? []).map((attempt, position) => ({
+      index: attempt.index,
+      purpose: resolveUpstreamAttemptPurpose(attempt, position + 1),
+      kind: attempt.kind ?? null,
+      provider: attempt.provider ?? null,
+      upstream_runtime: attempt.upstreamRuntime ?? null,
+      upstream_model: attempt.upstreamModel ?? null,
+      duration_ms: attempt.durationMs ?? null,
+      upstream_http_status: attempt.upstreamHttpStatus ?? null,
+      upstream_request_id: attempt.upstreamRequestId ?? null,
+      error_code: attempt.errorCode ?? null,
+      failure: attempt.failure ? publicProviderFailure(attempt.failure) : null,
+      prompt_tokens: attempt.promptTokens ?? null,
+      completion_tokens: attempt.completionTokens ?? null,
+      total_tokens: attempt.totalTokens ?? null
+    }))
+  };
+}
+
+function requestTerminalFailure(
+  event: RequestEventRecord
+): ProviderFailureClassification | null {
+  if (
+    !event.upstreamFailureOrigin ||
+    !event.upstreamFailureKind ||
+    !event.upstreamFailureStage
+  ) {
+    return null;
+  }
+  return {
+    origin: event.upstreamFailureOrigin,
+    kind: event.upstreamFailureKind,
+    stage: event.upstreamFailureStage,
+    transportCode: event.upstreamTransportCode ?? null,
+    upstreamStatus: event.upstreamHttpStatus ?? null
+  };
+}
+
+function publicProviderFailure(failure: ProviderFailureClassification) {
+  return {
+    origin: failure.origin,
+    kind: failure.kind,
+    stage: failure.stage,
+    transport_code: failure.transportCode,
+    upstream_status: failure.upstreamStatus
+  };
+}
+
 function emptyMessageRequestSummary(): MessageRequestSummary {
   return {
     outcome: "no_request",
     success: null,
     request_count: 0,
+    gateway_request_count: 0,
+    model_call_request_count: 0,
+    upstream_attempt_count: 0,
+    failure_retry_count: 0,
+    recovery_attempt_count: 0,
+    unclassified_additional_attempt_count: 0,
+    attempt_count_missing: 0,
+    attempt_purpose_missing: 0,
     success_count: 0,
     error_count: 0,
     rate_limited_count: 0,
@@ -870,6 +1107,11 @@ function emptyMessageRequestSummary(): MessageRequestSummary {
     summed_request_duration_ms: 0,
     error_codes: [],
     token_usage: {
+      provider_usage_present: false,
+      provider_prompt_tokens: 0,
+      provider_completion_tokens: 0,
+      provider_total_tokens: 0,
+      attributable_tokens: 0,
       prompt_tokens: 0,
       completion_tokens: 0,
       total_tokens: 0,
@@ -878,6 +1120,15 @@ function emptyMessageRequestSummary(): MessageRequestSummary {
       cached_prompt_tokens: 0,
       usage_missing_count: 0
     }
+  };
+}
+
+function emptyMessageRequestCorrelation(): MessageRequestCorrelation {
+  return {
+    summary: emptyMessageRequestSummary(),
+    gatewayRequests: [],
+    gatewayRequestsTruncated: false,
+    gatewayRequestTotal: 0
   };
 }
 
@@ -897,6 +1148,17 @@ function buildAdminUserRows(
     rowsBySubject.set(subject.id, {
       subject: publicSubject(subject),
       request_count: 0,
+      gateway_request_count: 0,
+      model_call_request_count: 0,
+      upstream_attempt_count: 0,
+      failure_retry_count: 0,
+      recovery_attempt_count: 0,
+      unclassified_additional_attempt_count: 0,
+      attempt_count_missing: 0,
+      attempt_purpose_missing: 0,
+      provider_total_tokens: 0,
+      estimated_tokens: 0,
+      attributable_tokens: 0,
       success_count: 0,
       error_count: 0,
       rate_limited_count: 0,
@@ -923,6 +1185,14 @@ function buildAdminUserRows(
       continue;
     }
     row.request_count += usage.requests;
+    row.gateway_request_count += usage.requests;
+    row.model_call_request_count += usage.modelCallRequests;
+    row.upstream_attempt_count += usage.upstreamAttempts;
+    row.failure_retry_count += usage.failureRetries;
+    row.recovery_attempt_count += usage.recoveryAttempts;
+    row.unclassified_additional_attempt_count += usage.unclassifiedAdditionalAttempts;
+    row.attempt_count_missing += usage.attemptCountMissing;
+    row.attempt_purpose_missing += usage.attemptPurposeMissing;
     row.success_count += usage.ok;
     row.error_count += usage.errors;
     row.rate_limited_count += usage.rateLimited;
@@ -944,6 +1214,9 @@ function buildAdminUserRows(
   for (const [subjectId, row] of rowsBySubject) {
     row.token_usage.effective_tokens =
       row.token_usage.total_tokens + row.token_usage.estimated_tokens;
+    row.provider_total_tokens = row.token_usage.total_tokens;
+    row.estimated_tokens = row.token_usage.estimated_tokens;
+    row.attributable_tokens = row.token_usage.effective_tokens;
     const duration = durationWeights.get(subjectId);
     row.avg_duration_ms = duration?.requests
       ? Math.round(duration.total / duration.requests)
@@ -961,6 +1234,17 @@ function summarizeAdminUsers(users: AdminUserUsageRow[], messageCount: number) {
     active_user_count: 0,
     message_count: messageCount,
     request_count: 0,
+    gateway_request_count: 0,
+    model_call_request_count: 0,
+    upstream_attempt_count: 0,
+    failure_retry_count: 0,
+    recovery_attempt_count: 0,
+    unclassified_additional_attempt_count: 0,
+    attempt_count_missing: 0,
+    attempt_purpose_missing: 0,
+    provider_total_tokens: 0,
+    estimated_tokens: 0,
+    attributable_tokens: 0,
     success_count: 0,
     error_count: 0,
     rate_limited_count: 0,
@@ -983,6 +1267,18 @@ function summarizeAdminUsers(users: AdminUserUsageRow[], messageCount: number) {
       summary.active_user_count += 1;
     }
     summary.request_count += user.request_count;
+    summary.gateway_request_count += user.gateway_request_count;
+    summary.model_call_request_count += user.model_call_request_count;
+    summary.upstream_attempt_count += user.upstream_attempt_count;
+    summary.failure_retry_count += user.failure_retry_count;
+    summary.recovery_attempt_count += user.recovery_attempt_count;
+    summary.unclassified_additional_attempt_count +=
+      user.unclassified_additional_attempt_count;
+    summary.attempt_count_missing += user.attempt_count_missing;
+    summary.attempt_purpose_missing += user.attempt_purpose_missing;
+    summary.provider_total_tokens += user.provider_total_tokens;
+    summary.estimated_tokens += user.estimated_tokens;
+    summary.attributable_tokens += user.attributable_tokens;
     summary.success_count += user.success_count;
     summary.error_count += user.error_count;
     summary.rate_limited_count += user.rate_limited_count;
@@ -1016,6 +1312,16 @@ function compareAdminUsers(
     switch (sortBy) {
       case "tokens":
         return row.token_usage.effective_tokens;
+      case "upstream_attempts":
+        return row.upstream_attempt_count;
+      case "retries":
+        return row.failure_retry_count;
+      case "recoveries":
+        return row.recovery_attempt_count;
+      case "provider_tokens":
+        return row.provider_total_tokens;
+      case "estimated_tokens":
+        return row.estimated_tokens;
       case "errors":
         return row.error_count;
       case "rate_limited":
@@ -1045,6 +1351,11 @@ function adminUserName(row: AdminUserUsageRow): string {
 function parseUserSortBy(value: string | undefined): AdminUserSortBy {
   const normalized = value?.trim().toLowerCase();
   return normalized === "tokens" ||
+    normalized === "upstream_attempts" ||
+    normalized === "retries" ||
+    normalized === "recoveries" ||
+    normalized === "provider_tokens" ||
+    normalized === "estimated_tokens" ||
     normalized === "errors" ||
     normalized === "rate_limited" ||
     normalized === "avg_duration" ||
@@ -1079,7 +1390,7 @@ function publicClientMessage(
     credential?: AccessCredentialRecord;
     includeText: boolean;
     previewChars: number;
-    requestSummary: MessageRequestSummary;
+    requestCorrelation: MessageRequestCorrelation;
   }
 ) {
   return {
@@ -1111,7 +1422,10 @@ function publicClientMessage(
     app_version: message.appVersion,
     created_at: message.createdAt.toISOString(),
     received_at: message.receivedAt.toISOString(),
-    request_summary: input.requestSummary
+    request_summary: input.requestCorrelation.summary,
+    gateway_requests: input.requestCorrelation.gatewayRequests,
+    gateway_requests_truncated: input.requestCorrelation.gatewayRequestsTruncated,
+    gateway_request_total: input.requestCorrelation.gatewayRequestTotal
   };
 }
 

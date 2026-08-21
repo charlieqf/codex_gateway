@@ -1132,6 +1132,7 @@ program
 program
   .command("events")
   .description("List recorded request events.")
+  .option("--request-id <id>", "filter by Gateway request id")
   .option("--user <id>", "filter by user id; preferred alias for --subject-id")
   .option("--credential-id <id>", "filter by credential id")
   .option("--subject-id <id>", "filter by subject id")
@@ -1144,6 +1145,7 @@ program
     withStore((store) => {
       const subjectId = resolveUserId(options);
       const events = store.listRequestEvents({
+        requestId: options.requestId,
         credentialId: options.credentialId,
         subjectId,
         clientSessionId: options.clientSessionId,
@@ -1179,6 +1181,14 @@ program
           upstream_empty_stop: event.upstreamEmptyStop ?? null,
           upstream_attempt_count: event.upstreamAttemptCount ?? null,
           upstream_attempts: event.upstreamAttempts ?? null,
+          upstream_failure_origin: event.upstreamFailureOrigin ?? null,
+          upstream_failure_kind: event.upstreamFailureKind ?? null,
+          upstream_failure_stage: event.upstreamFailureStage ?? null,
+          upstream_transport_code: event.upstreamTransportCode ?? null,
+          upstream_failure_retry_count: event.upstreamFailureRetryCount ?? null,
+          upstream_recovery_attempt_count: event.upstreamRecoveryAttemptCount ?? null,
+          upstream_unclassified_additional_attempt_count:
+            event.upstreamUnclassifiedAdditionalAttemptCount ?? null,
           started_at: event.startedAt.toISOString(),
           duration_ms: event.durationMs,
           first_byte_ms: event.firstByteMs,
@@ -1190,6 +1200,10 @@ program
           total_tokens: event.totalTokens ?? null,
           cached_prompt_tokens: event.cachedPromptTokens ?? null,
           estimated_tokens: event.estimatedTokens ?? null,
+          provider_usage_present:
+            event.totalTokens !== null && event.totalTokens !== undefined ||
+            event.promptTokens !== null && event.promptTokens !== undefined ||
+            event.completionTokens !== null && event.completionTokens !== undefined,
           gateway_estimated_prompt_tokens: event.gatewayEstimatedPromptTokens ?? null,
           gateway_prompt_estimate_method: event.gatewayPromptEstimateMethod ?? null,
           model_context_tokens: event.modelContextTokens ?? null,
@@ -1288,6 +1302,13 @@ program
           estimated_tokens: row.estimatedTokens,
           reasoning_tokens: row.reasoningTokens,
           usage_missing: row.usageMissing,
+          model_call_requests: row.modelCallRequests,
+          upstream_attempts: row.upstreamAttempts,
+          failure_retries: row.failureRetries,
+          recovery_attempts: row.recoveryAttempts,
+          unclassified_additional_attempts: row.unclassifiedAdditionalAttempts,
+          attempt_count_missing: row.attemptCountMissing,
+          attempt_purpose_missing: row.attemptPurposeMissing,
           rate_limited_by: row.rateLimitedBy,
           over_request_limit: row.overRequestLimit,
           identity_guard_hit: row.identityGuardHit

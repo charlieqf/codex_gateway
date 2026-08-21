@@ -110,6 +110,7 @@ export interface BillingAdminTokenStore {
 }
 
 export interface ListRequestEventsInput {
+  requestId?: string;
   credentialId?: string;
   subjectId?: string;
   clientMessageIds?: string[];
@@ -158,6 +159,13 @@ export interface RequestUsageReportRow {
   estimatedTokens: number;
   reasoningTokens: number;
   usageMissing: number;
+  modelCallRequests: number;
+  upstreamAttempts: number;
+  failureRetries: number;
+  recoveryAttempts: number;
+  unclassifiedAdditionalAttempts: number;
+  attemptCountMissing: number;
+  attemptPurposeMissing: number;
   rateLimitedBy: Partial<Record<LimitKind, number>>;
   overRequestLimit: number;
   identityGuardHit: number;

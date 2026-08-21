@@ -7,6 +7,11 @@ const { DatabaseSync, backup } = require("node:sqlite");
 
 const FORMAT = "codex_gateway_usage_history.v1";
 const MIN_SCHEMA_VERSION = 24;
+const PHASE0_REQUEST_EVENT_COLUMNS = [
+  "upstream_failure_origin", "upstream_failure_kind", "upstream_failure_stage",
+  "upstream_transport_code", "upstream_failure_retry_count",
+  "upstream_recovery_attempt_count", "upstream_unclassified_additional_attempt_count"
+];
 
 const COLUMNS = {
   request_events: [
@@ -24,7 +29,8 @@ const COLUMNS = {
     "gateway_estimated_prompt_tokens", "gateway_prompt_estimate_method", "model_context_tokens",
     "model_max_output_tokens", "active_tool_count", "client_tool_mode", "tool_loop_guard_json",
     "prompt_chars", "maximum_output_tokens", "gateway_admitted_ms", "provider_first_event_ms",
-    "provider_duration_ms", "terminal_source", "cancel_requested", "cancel_observed"
+    "provider_duration_ms", "terminal_source", "cancel_requested", "cancel_observed",
+    ...PHASE0_REQUEST_EVENT_COLUMNS
   ],
   token_reservations: [
     "id", "request_id", "kind", "credential_id", "subject_id", "scope",
@@ -128,7 +134,10 @@ function validateSchema(db) {
   const columns = {};
   for (const [table, expected] of Object.entries(COLUMNS)) {
     columns[table] = tableColumns(db, table);
-    if (!arraysEqual(columns[table], expected)) {
+    const legacyExpected = table === "request_events"
+      ? expected.filter((column) => !PHASE0_REQUEST_EVENT_COLUMNS.includes(column))
+      : expected;
+    if (!arraysEqual(columns[table], expected) && !arraysEqual(columns[table], legacyExpected)) {
       fail(`Unsupported schema columns for ${table}; update the usage helper first.`);
     }
   }
@@ -139,8 +148,8 @@ function assertIso(value, label) {
   if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) fail(`${label} must be an ISO timestamp.`);
 }
 
-function readRows(db, table, since, until, finalizedOnly = true) {
-  const columns = COLUMNS[table].map(quoteIdentifier).join(", ");
+function readRows(db, table, since, until, finalizedOnly = true, selectedColumns = COLUMNS[table]) {
+  const columns = selectedColumns.map(quoteIdentifier).join(", ");
   const time = quoteIdentifier(TIMESTAMP_COLUMN[table]);
   const finalized = table === "token_reservations" && finalizedOnly ? " AND finalized_at IS NOT NULL" : "";
   return db.prepare(
@@ -149,9 +158,12 @@ function readRows(db, table, since, until, finalizedOnly = true) {
   ).all(since, until);
 }
 
-function readTables(db, since, until, finalizedOnly = true) {
+function readTables(db, since, until, finalizedOnly = true, columns = COLUMNS) {
   return Object.fromEntries(
-    Object.keys(COLUMNS).map((table) => [table, readRows(db, table, since, until, finalizedOnly)])
+    Object.keys(COLUMNS).map((table) => [
+      table,
+      readRows(db, table, since, until, finalizedOnly, columns[table])
+    ])
   );
 }
 
@@ -162,27 +174,44 @@ function rowExact(table, left, right) {
 function validatePayload(payload, targetSchema) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) fail("Usage payload must be an object.");
   if (payload.format !== FORMAT) fail("Unsupported usage payload format.");
-  if (payload.migration !== targetSchema.migration) fail("Source and target Gateway schema versions differ.");
+  if (!Number.isInteger(payload.migration) || payload.migration < MIN_SCHEMA_VERSION) {
+    fail(`Source Gateway schema v${MIN_SCHEMA_VERSION} or newer is required.`);
+  }
+  if (payload.migration > targetSchema.migration) fail("Source Gateway schema is newer than target.");
   assertIso(payload.since, "since");
   assertIso(payload.until, "until");
   if (Date.parse(payload.until) <= Date.parse(payload.since)) fail("Usage payload window is empty.");
   if (typeof payload.digest !== "string" || !/^[a-f0-9]{64}$/.test(payload.digest)) fail("Usage payload digest is invalid.");
   if (payloadDigest(payload) !== payload.digest) fail("Usage payload digest verification failed.");
   for (const table of Object.keys(COLUMNS)) {
-    if (!arraysEqual(payload.columns?.[table] || [], COLUMNS[table]) ||
-        !arraysEqual(payload.columns[table], targetSchema.columns[table])) {
+    const sourceColumns = payload.columns?.[table] || [];
+    const legacyColumns = table === "request_events"
+      ? COLUMNS[table].filter((column) => !PHASE0_REQUEST_EVENT_COLUMNS.includes(column))
+      : COLUMNS[table];
+    if ((!arraysEqual(sourceColumns, COLUMNS[table]) && !arraysEqual(sourceColumns, legacyColumns)) ||
+        !arraysEqual(targetSchema.columns[table], COLUMNS[table])) {
       fail(`Source and target columns differ for ${table}.`);
     }
     if (!Array.isArray(payload.tables?.[table])) fail(`Usage payload is missing ${table}.`);
     const seen = new Set();
     for (const row of payload.tables[table]) {
       if (!row || typeof row !== "object" || Array.isArray(row) ||
-          !arraysEqual(Object.keys(row), COLUMNS[table])) fail(`Invalid row shape for ${table}.`);
+          !arraysEqual(Object.keys(row), sourceColumns)) fail(`Invalid row shape for ${table}.`);
       const key = String(row[PRIMARY_KEY[table]]);
       if (seen.has(key)) fail(`Duplicate primary key in ${table}.`);
       seen.add(key);
     }
   }
+  return {
+    ...payload,
+    columns: COLUMNS,
+    tables: Object.fromEntries(Object.keys(COLUMNS).map((table) => [
+      table,
+      payload.tables[table].map((row) => Object.fromEntries(
+        COLUMNS[table].map((column) => [column, row[column] ?? null])
+      ))
+    ]))
+  };
 }
 
 function assertDependencies(db, reservations) {
@@ -199,9 +228,15 @@ function assertDependencies(db, reservations) {
 
 function analyze(db, payload) {
   const schema = validateSchema(db);
-  validatePayload(payload, schema);
-  assertDependencies(db, payload.tables.token_reservations);
-  const targetTables = readTables(db, payload.since, payload.until, false);
+  const normalizedPayload = validatePayload(payload, schema);
+  assertDependencies(db, normalizedPayload.tables.token_reservations);
+  const targetTables = readTables(
+    db,
+    normalizedPayload.since,
+    normalizedPayload.until,
+    false,
+    schema.columns
+  );
   const targetMaps = {};
   const summary = {};
 
@@ -211,7 +246,7 @@ function analyze(db, payload) {
     let inserted = 0;
     let updated = 0;
     let unchanged = 0;
-    for (const row of payload.tables[table]) {
+    for (const row of normalizedPayload.tables[table]) {
       const existing = target.get(String(row[PRIMARY_KEY[table]]));
       if (!existing) {
         if (table === "token_reservations") {
@@ -229,7 +264,7 @@ function analyze(db, payload) {
       else updated += 1;
     }
     summary[table] = {
-      source: payload.tables[table].length,
+      source: normalizedPayload.tables[table].length,
       target_in_window: targetTables[table].length,
       insert: inserted,
       update: updated,
@@ -237,7 +272,7 @@ function analyze(db, payload) {
     };
   }
   const changedRows = Object.values(summary).reduce((sum, row) => sum + row.insert + row.update, 0);
-  return { summary, changedRows, targetMaps };
+  return { summary, changedRows, targetMaps, payload: normalizedPayload };
 }
 
 function insertOrUpdate(db, table, row) {
@@ -345,7 +380,7 @@ function writeAudit(db, payload, analysis, backupId, sourceName, targetName) {
 
 function exportPayload(db, since, until) {
   const schema = validateSchema(db);
-  const payload = { format: FORMAT, migration: schema.migration, since, until, columns: schema.columns, tables: readTables(db, since, until) };
+  const payload = { format: FORMAT, migration: schema.migration, since, until, columns: schema.columns, tables: readTables(db, since, until, true, schema.columns) };
   payload.digest = payloadDigest(payload);
   return payload;
 }
@@ -356,18 +391,19 @@ function applyPayload(db, payload, backupId, sourceName, targetName) {
   db.exec("BEGIN IMMEDIATE");
   try {
     const analysis = analyze(db, payload);
+    const normalizedPayload = analysis.payload;
     if (analysis.changedRows === 0) {
       db.exec("COMMIT");
       return { applied: false, changed_rows: 0, source_digest: payload.digest, tables: analysis.summary, integrity: assertHealthy(db) };
     }
-    for (const row of payload.tables.request_events) insertOrUpdate(db, "request_events", row);
-    for (const row of payload.tables.token_reservations) {
+    for (const row of normalizedPayload.tables.request_events) insertOrUpdate(db, "request_events", row);
+    for (const row of normalizedPayload.tables.token_reservations) {
       applyReservation(db, row, analysis.targetMaps.token_reservations.get(String(row.id)));
     }
-    for (const row of payload.tables.admin_audit_events) {
+    for (const row of normalizedPayload.tables.admin_audit_events) {
       if (!analysis.targetMaps.admin_audit_events.has(String(row.id))) insertOnly(db, "admin_audit_events", row);
     }
-    assertSourceSubset(db, payload);
+    assertSourceSubset(db, normalizedPayload);
     const integrity = assertHealthy(db);
     writeAudit(db, payload, analysis, backupId, sourceName, targetName);
     db.exec("COMMIT");

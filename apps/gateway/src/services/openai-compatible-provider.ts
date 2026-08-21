@@ -1,11 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  classifyProviderFailure,
   GatewayError,
   type MessageInput,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderFailureClassification,
   type ProviderHealth,
   type ProviderKind,
+  type ProviderFailureKind,
+  type ProviderFailureStage,
   type ProviderResponseSummary,
   type ProviderStreamTermination,
   type StreamEvent,
@@ -52,6 +56,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const abort = createAbortSignal(input.signal, this.options.timeoutMs);
+    let failureStage: ProviderFailureStage = "before_headers";
     try {
       const response = await this.fetchImpl(chatCompletionsUrl(this.options.baseUrl), {
         method: "POST",
@@ -59,26 +64,46 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         body: JSON.stringify(this.requestBody(input)),
         signal: abort.signal
       });
+      failureStage = "after_headers";
 
       if (!response.ok) {
-        const normalized = await this.errorFromResponse(response, input);
+        const normalized = await this.errorFromResponse(response, input, failureStage);
         yield {
           type: "error",
           code: normalized.code,
-          message: normalized.message
+          message: normalized.message,
+          providerFailure: normalized.providerFailure
         };
         return;
       }
 
       if (!response.body) {
+        const normalized = this.normalizeAndReport(
+          new GatewayError({
+            code: "upstream_unavailable",
+            message: "MedCode service is temporarily unavailable.",
+            httpStatus: 503,
+            upstreamStatus: response.status
+          }),
+          "missing_response_body",
+          input,
+          {
+            stage: failureStage,
+            upstreamStatus: response.status,
+            originHint: "provider",
+            kindHint: "response_body_missing"
+          }
+        );
         yield {
           type: "error",
-          code: "upstream_unavailable",
-          message: "MedCode service is temporarily unavailable."
+          code: normalized.code,
+          message: normalized.message,
+          providerFailure: normalized.providerFailure
         };
         return;
       }
 
+      failureStage = "streaming";
       let usage: TokenUsage | undefined;
       let finishReason: string | null = null;
       let semanticOutputChars = 0;
@@ -102,12 +127,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           const normalized = this.normalizeAndReport(
             upstreamStreamError,
             "stream_error_frame",
-            input
+            input,
+            { stage: failureStage }
           );
           yield {
             type: "error",
             code: normalized.code,
             message: normalized.message,
+            providerFailure: normalized.providerFailure,
             responseSummary: {
               finishReason,
               upstreamRequestId: upstreamRequestId(response.headers),
@@ -156,12 +183,19 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
             upstreamStatus: response.status
           }),
           "incomplete_sse_eof",
-          input
+          input,
+          {
+            stage: failureStage,
+            upstreamStatus: response.status,
+            originHint: "provider",
+            kindHint: "stream_incomplete"
+          }
         );
         yield {
           type: "error",
           code: normalized.code,
           message: normalized.message,
+          providerFailure: normalized.providerFailure,
           responseSummary
         };
         return;
@@ -179,11 +213,17 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         responseSummary
       };
     } catch (err) {
-      const normalized = this.normalizeAndReport(err, "exception", input);
+      const normalized = this.normalizeAndReport(err, "exception", input, {
+        stage: failureStage,
+        ...(failureStage === "streaming" && err instanceof SyntaxError
+          ? { originHint: "provider" as const, kindHint: "stream_protocol" as const }
+          : {})
+      });
       yield {
         type: "error",
         code: normalized.code,
-        message: normalized.message
+        message: normalized.message,
+        providerFailure: normalized.providerFailure
       };
     } finally {
       abort.cleanup();
@@ -279,21 +319,38 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
   private async errorFromResponse(
     response: Response,
-    input: MessageInput
+    input: MessageInput,
+    stage: ProviderFailureStage
   ): Promise<GatewayError> {
     const body = await response.text().catch(() => "");
     return this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
-      input
+      input,
+      { stage, upstreamStatus: response.status }
     );
   }
 
-  private normalizeAndReport(err: unknown, source: string, input: MessageInput): GatewayError {
-    const normalized =
+  private normalizeAndReport(
+    err: unknown,
+    source: string,
+    input: MessageInput,
+    context: ProviderFailureContext
+  ): GatewayError {
+    const abortSource = providerAbortSource(input.signal, err);
+    const failure = classifyProviderFailure({
+      error: err,
+      stage: context.stage,
+      upstreamStatus: context.upstreamStatus,
+      abortSource,
+      originHint: context.originHint,
+      kindHint: context.kindHint
+    });
+    const normalizedBase =
       input.signal?.aborted && input.signal.reason instanceof GatewayError
         ? input.signal.reason
         : this.normalize(err);
+    const normalized = withProviderFailure(normalizedBase, failure);
     if (input.onProviderError) {
       try {
         input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
@@ -364,6 +421,13 @@ interface ParsedOpenAIChunk {
   finishReason: string | null;
   semanticOutputChars: number;
   visibleOutputChars: number;
+}
+
+interface ProviderFailureContext {
+  stage: ProviderFailureStage;
+  upstreamStatus?: number | null;
+  originHint?: ProviderFailureClassification["origin"];
+  kindHint?: ProviderFailureKind;
 }
 
 interface ParsedOpenAISseData {
@@ -773,6 +837,9 @@ function createProviderErrorDiagnostic(
     code: normalized.code,
     publicMessage: normalized.message,
     rawMessage: sanitizeProviderErrorText(errorMessage(err)),
+    failure:
+      normalized.providerFailure ??
+      classifyProviderFailure({ error: err, stage: "unknown" }),
     ...(err instanceof UpstreamHttpError ? { rawStatus: err.status } : {})
   };
 }
@@ -789,6 +856,53 @@ function isAbortError(err: unknown): boolean {
     return true;
   }
   return err instanceof DOMException && err.name === "AbortError";
+}
+
+function providerAbortSource(
+  inputSignal: AbortSignal | undefined,
+  err: unknown
+): "client" | "gateway" | null {
+  if (inputSignal?.aborted) {
+    return gatewayErrorCode(inputSignal.reason) === "upstream_timeout"
+      ? "gateway"
+      : "client";
+  }
+  if (
+    gatewayErrorCode(err) === "upstream_timeout" ||
+    (err instanceof Error && err.message === "upstream_timeout") ||
+    (err instanceof DOMException && err.name === "TimeoutError")
+  ) {
+    return "gateway";
+  }
+  return null;
+}
+
+function gatewayErrorCode(value: unknown): string | null {
+  return value instanceof GatewayError ? value.code : null;
+}
+
+function withProviderFailure(
+  error: GatewayError,
+  providerFailure: ProviderFailureClassification
+): GatewayError & { readonly providerFailure: ProviderFailureClassification } {
+  if (error.providerFailure === providerFailure) {
+    return error as GatewayError & {
+      readonly providerFailure: ProviderFailureClassification;
+    };
+  }
+  return new GatewayError({
+    code: error.code,
+    message: error.message,
+    httpStatus: error.httpStatus,
+    retryAfterSeconds: error.retryAfterSeconds,
+    upstreamStatus: error.upstreamStatus,
+    contractVersion: error.contractVersion,
+    failureKind: error.failureKind,
+    transformedRetryAllowed: error.transformedRetryAllowed,
+    recommendedAction: error.recommendedAction,
+    recoveryOwner: error.recoveryOwner,
+    providerFailure
+  }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
 }
 
 function errorMessage(err: unknown): string {

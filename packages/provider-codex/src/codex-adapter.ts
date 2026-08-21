@@ -18,10 +18,13 @@ import {
   type TurnOptions
 } from "@openai/codex-sdk";
 import {
+  classifyProviderFailure,
   GatewayError,
   type MessageInput,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderFailureClassification,
+  type ProviderFailureStage,
   type ProviderHealth,
   type StreamEvent,
   type UpstreamAccount,
@@ -205,11 +208,13 @@ export class CodexProviderAdapter implements ProviderAdapter {
     const emittedToolCalls = new Set<string>();
     let providerSessionRef = input.session.providerSessionRef ?? thread.id;
     let usage: TokenUsage | undefined;
+    let failureStage: ProviderFailureStage = "before_headers";
 
     try {
       const { events } = await thread.runStreamed(input.message, {
         signal: input.signal
       });
+      failureStage = "streaming";
 
       for await (const event of events) {
         if (event.type === "thread.started") {
@@ -221,12 +226,14 @@ export class CodexProviderAdapter implements ProviderAdapter {
           const normalized = this.normalizeAndReport(
             new Error(event.error.message),
             "turn.failed",
-            input
+            input,
+            failureStage
           );
           yield {
             type: "error",
             code: normalized.code,
-            message: normalized.message
+            message: normalized.message,
+            providerFailure: normalized.providerFailure
           };
           return;
         }
@@ -235,12 +242,14 @@ export class CodexProviderAdapter implements ProviderAdapter {
           const normalized = this.normalizeAndReport(
             new Error(event.message),
             "stream.error",
-            input
+            input,
+            failureStage
           );
           yield {
             type: "error",
             code: normalized.code,
-            message: normalized.message
+            message: normalized.message,
+            providerFailure: normalized.providerFailure
           };
           return;
         }
@@ -276,11 +285,12 @@ export class CodexProviderAdapter implements ProviderAdapter {
         ...(usage ? { usage } : {})
       };
     } catch (err) {
-      const normalized = this.normalizeAndReport(err, "exception", input);
+      const normalized = this.normalizeAndReport(err, "exception", input, failureStage);
       yield {
         type: "error",
         code: normalized.code,
-        message: normalized.message
+        message: normalized.message,
+        providerFailure: normalized.providerFailure
       };
     } finally {
       if (runtimeStateDir) {
@@ -292,12 +302,24 @@ export class CodexProviderAdapter implements ProviderAdapter {
   private normalizeAndReport(
     err: unknown,
     source: string,
-    input: MessageInput
+    input: MessageInput,
+    stage: ProviderFailureStage
   ): GatewayError {
-    const normalized =
+    const normalizedBase =
       input.signal?.aborted && input.signal.reason instanceof GatewayError
         ? input.signal.reason
         : this.normalize(err);
+    const hints = codexFailureHints(normalizedBase);
+    const providerFailure =
+      normalizedBase.providerFailure ??
+      classifyProviderFailure({
+        error: err,
+        stage,
+        abortSource: providerAbortSource(input.signal, err),
+        originHint: hints.originHint,
+        kindHint: hints.kindHint
+      });
+    const normalized = withProviderFailure(normalizedBase, providerFailure);
     if (input.onProviderError) {
       try {
         input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
@@ -456,11 +478,17 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     if (item.type === "error") {
-      const normalized = this.normalizeAndReport(new Error(item.message), "item.error", input);
+      const normalized = this.normalizeAndReport(
+        new Error(item.message),
+        "item.error",
+        input,
+        "streaming"
+      );
       return {
         type: "error",
         code: normalized.code,
-        message: normalized.message
+        message: normalized.message,
+        providerFailure: normalized.providerFailure
       };
     }
 
@@ -515,6 +543,75 @@ function isContextWindowOverflow(lowercaseMessage: string): boolean {
   );
 }
 
+function codexFailureHints(error: GatewayError): {
+  originHint: ProviderFailureClassification["origin"];
+  kindHint: ProviderFailureClassification["kind"];
+} {
+  if (error.code === "provider_reauth_required") {
+    return { originHint: "provider", kindHint: "provider_reauth" };
+  }
+  if (error.code === "rate_limited") {
+    return { originHint: "provider", kindHint: "http_rate_limit" };
+  }
+  if (error.code === "context_length_exceeded") {
+    return { originHint: "provider", kindHint: "http_request" };
+  }
+  if (error.code === "client_aborted") {
+    return { originHint: "client", kindHint: "client_aborted" };
+  }
+  if (error.code === "upstream_timeout") {
+    return { originHint: "gateway", kindHint: "deadline_exceeded" };
+  }
+  return { originHint: "provider", kindHint: "unknown" };
+}
+
+function providerAbortSource(
+  inputSignal: AbortSignal | undefined,
+  err: unknown
+): "client" | "gateway" | null {
+  if (inputSignal?.aborted) {
+    return gatewayErrorCode(inputSignal.reason) === "upstream_timeout"
+      ? "gateway"
+      : "client";
+  }
+  if (
+    gatewayErrorCode(err) === "upstream_timeout" ||
+    (err instanceof Error && err.message === "upstream_timeout") ||
+    (err instanceof DOMException && err.name === "TimeoutError")
+  ) {
+    return "gateway";
+  }
+  return null;
+}
+
+function gatewayErrorCode(value: unknown): string | null {
+  return value instanceof GatewayError ? value.code : null;
+}
+
+function withProviderFailure(
+  error: GatewayError,
+  providerFailure: ProviderFailureClassification
+): GatewayError & { readonly providerFailure: ProviderFailureClassification } {
+  if (error.providerFailure === providerFailure) {
+    return error as GatewayError & {
+      readonly providerFailure: ProviderFailureClassification;
+    };
+  }
+  return new GatewayError({
+    code: error.code,
+    message: error.message,
+    httpStatus: error.httpStatus,
+    retryAfterSeconds: error.retryAfterSeconds,
+    upstreamStatus: error.upstreamStatus,
+    contractVersion: error.contractVersion,
+    failureKind: error.failureKind,
+    transformedRetryAllowed: error.transformedRetryAllowed,
+    recommendedAction: error.recommendedAction,
+    recoveryOwner: error.recoveryOwner,
+    providerFailure
+  }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
+}
+
 function createProviderErrorDiagnostic(
   err: unknown,
   source: string,
@@ -525,7 +622,10 @@ function createProviderErrorDiagnostic(
     source,
     code: normalized.code,
     publicMessage: normalized.message,
-    rawMessage: rawMessage.length > 0 ? rawMessage : "(empty provider error)"
+    rawMessage: rawMessage.length > 0 ? rawMessage : "(empty provider error)",
+    failure:
+      normalized.providerFailure ??
+      classifyProviderFailure({ error: err, stage: "unknown" })
   };
   const rawName = sanitizeProviderErrorText(errorStringProperty(err, "name"));
   if (rawName) {
