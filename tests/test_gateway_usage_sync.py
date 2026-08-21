@@ -31,6 +31,12 @@ REQUEST_COLUMNS = [
     "cancel_observed",
 ]
 
+PHASE0_REQUEST_COLUMNS = [
+    "upstream_failure_origin", "upstream_failure_kind", "upstream_failure_stage",
+    "upstream_transport_code", "upstream_failure_retry_count",
+    "upstream_recovery_attempt_count", "upstream_unclassified_additional_attempt_count",
+]
+
 RESERVATION_COLUMNS = [
     "id", "request_id", "kind", "credential_id", "subject_id", "scope", "upstream_account_id",
     "provider", "created_at", "expires_at", "finalized_at", "estimated_prompt_tokens",
@@ -58,14 +64,15 @@ def create_table_sql(name: str, columns: list[str], primary: str, unique: str | 
     return f'CREATE TABLE "{name}" ({", ".join(definitions)});'
 
 
-def create_database(path: Path) -> None:
+def create_database(path: Path, *, phase0: bool = False) -> None:
     db = sqlite3.connect(path)
     try:
+        migration = 26 if phase0 else 24
         db.executescript(
-            """
+            f"""
             PRAGMA foreign_keys = ON;
             CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-            INSERT INTO schema_migrations VALUES (24, '2026-01-01T00:00:00.000Z');
+            INSERT INTO schema_migrations VALUES ({migration}, '2026-01-01T00:00:00.000Z');
             CREATE TABLE subjects (id TEXT PRIMARY KEY);
             CREATE TABLE access_credentials (id TEXT PRIMARY KEY);
             CREATE TABLE entitlements (id TEXT PRIMARY KEY);
@@ -85,7 +92,8 @@ def create_database(path: Path) -> None:
             );
             """
         )
-        db.execute(create_table_sql("request_events", REQUEST_COLUMNS, "request_id"))
+        request_columns = REQUEST_COLUMNS + (PHASE0_REQUEST_COLUMNS if phase0 else [])
+        db.execute(create_table_sql("request_events", request_columns, "request_id"))
         db.execute(create_table_sql("token_reservations", RESERVATION_COLUMNS, "id", "request_id"))
         db.execute(create_table_sql("admin_audit_events", AUDIT_COLUMNS, "id"))
         db.executemany("INSERT INTO subjects VALUES (?)", [("subject-1",)])
@@ -175,7 +183,7 @@ class GatewayUsageSyncTests(unittest.TestCase):
             source = Path(directory) / "source.db"
             target = Path(directory) / "target.db"
             create_database(source)
-            create_database(target)
+            create_database(target, phase0=True)
             seed_baseline(source)
             seed_baseline(target)
             db = sqlite3.connect(source)
@@ -201,6 +209,15 @@ class GatewayUsageSyncTests(unittest.TestCase):
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM request_events").fetchone()[0], 2)
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM token_reservations").fetchone()[0], 2)
                 self.assertEqual(
+                    db.execute(
+                        "SELECT upstream_failure_origin, upstream_failure_kind, upstream_failure_stage, "
+                        "upstream_transport_code, upstream_failure_retry_count, "
+                        "upstream_recovery_attempt_count, upstream_unclassified_additional_attempt_count "
+                        "FROM request_events WHERE request_id='request-2'"
+                    ).fetchone(),
+                    (None, None, None, None, None, None, None),
+                )
+                self.assertEqual(
                     db.execute("SELECT total_tokens, requests FROM token_windows WHERE window_kind='day'").fetchone(),
                     (150, 2),
                 )
@@ -223,7 +240,7 @@ class GatewayUsageSyncTests(unittest.TestCase):
             source = Path(directory) / "source.db"
             target = Path(directory) / "target.db"
             create_database(source)
-            create_database(target)
+            create_database(target, phase0=True)
             seed_baseline(source)
             seed_baseline(target, open_reservation=True)
             payload = json.loads(run_helper("export", source, extra=["--since", SINCE, "--until", UNTIL]).stdout)
@@ -241,7 +258,7 @@ class GatewayUsageSyncTests(unittest.TestCase):
             source = Path(directory) / "source.db"
             target = Path(directory) / "target.db"
             create_database(source)
-            create_database(target)
+            create_database(target, phase0=True)
             seed_baseline(source)
             db = sqlite3.connect(target)
             try:

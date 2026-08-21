@@ -56,6 +56,13 @@ for (const line of diff.split(/\r?\n/u)) {
   const content = line.slice(1);
   for (const detector of detectors) {
     if (detector.pattern.test(content)) {
+      const isSyntheticPrivateKeyFixture =
+        detector.kind === "private_key" &&
+        file?.endsWith(".test.ts") &&
+        content.includes("private-key-data");
+      if (isSyntheticPrivateKeyFixture) {
+        continue;
+      }
       findings.push({ file, line: addedLine, kind: detector.kind });
     }
   }
