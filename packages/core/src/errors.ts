@@ -7,6 +7,7 @@ export const gatewayErrorCodes = [
   "access_token_expired",
   "refresh_token_invalid",
   "phone_not_registered",
+  "phone_login_disabled",
   "account_disabled",
   "capability_not_allowed",
   "phone_identity_conflict",

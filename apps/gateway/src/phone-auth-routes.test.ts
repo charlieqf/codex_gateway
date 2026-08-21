@@ -17,6 +17,7 @@ import {
   phoneAuthGatewayOrigin,
   phoneAuthMedevidenceOrigin
 } from "./services/phone-auth-service.js";
+import { InMemoryCredentialRateLimiter } from "./services/rate-limiter.js";
 
 const start = new Date("2026-08-20T00:00:00.000Z");
 const clientVersion = "1.2.3";
@@ -477,6 +478,125 @@ describe("internal phone auth v1 routes", () => {
     }
   });
 
+  it("rate limits by a SHA-256 device bucket without retaining raw risk identifiers", async () => {
+    const fixture = createFixture({ deviceRequestsPerMinute: 1 });
+    const rawDeviceId = "desktop-device-sensitive-01";
+    const rawIp = "203.0.113.25";
+    try {
+      await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/phone-auth-identities",
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: {
+          phone: "13800138000",
+          subject_id: fixture.subjectId,
+          unified_key: fixture.unified.token
+        }
+      });
+      const request = () =>
+        fixture.app.inject({
+          method: "POST",
+          url: "/gateway/auth/v1/login/start",
+          headers: { ...versionHeader, "x-forwarded-for": rawIp },
+          payload: {
+            phone: "13800138000",
+            client: "medevidence-desktop",
+            device_id: rawDeviceId,
+            contract_version: 1
+          }
+        });
+
+      expect((await request()).statusCode).toBe(200);
+      const limited = await request();
+      expect(limited.statusCode).toBe(429);
+      expect(limited.json().error.code).toBe("auth_rate_limited");
+
+      const limiterKeys = Array.from(
+        (
+          fixture.loginRateLimiter as unknown as {
+            states: Map<string, unknown>;
+          }
+        ).states.keys()
+      );
+      expect(limiterKeys).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^phone-auth:phone:hmac-sha256:/u),
+          expect.stringMatching(/^phone-auth:ip:[A-Za-z0-9_-]{43}$/u),
+          expect.stringMatching(/^phone-auth:device:[A-Za-z0-9_-]{43}$/u)
+        ])
+      );
+      const serializedKeys = JSON.stringify(limiterKeys);
+      expect(serializedKeys).not.toContain("13800138000");
+      expect(serializedKeys).not.toContain(rawIp);
+      expect(serializedKeys).not.toContain(rawDeviceId);
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
+  it("returns phone_login_disabled only for identity disable and preserves the legacy Key path", async () => {
+    const fixture = createFixture();
+    try {
+      await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/phone-auth-identities",
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: {
+          phone: "13800138000",
+          subject_id: fixture.subjectId,
+          unified_key: fixture.unified.token
+        }
+      });
+      const before = legacyKeySnapshot(fixture);
+      const disable = await fixture.app.inject({
+        method: "PATCH",
+        url: `/gateway/admin/billing/v1/phone-auth-identities/${fixture.subjectId}`,
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: { state: "disabled" }
+      });
+      expect(disable.statusCode).toBe(200);
+
+      const login = () =>
+        fixture.app.inject({
+          method: "POST",
+          url: "/gateway/auth/v1/login/start",
+          headers: versionHeader,
+          payload: {
+            phone: "13800138000",
+            client: "medevidence-desktop",
+            device_id: "desktop-device-example-01",
+            contract_version: 1
+          }
+        });
+      const phoneDisabled = await login();
+      expect(phoneDisabled.statusCode).toBe(403);
+      expect(phoneDisabled.json().error.code).toBe("phone_login_disabled");
+      expect(legacyKeySnapshot(fixture)).toEqual(before);
+
+      const resolver = await fixture.app.inject({
+        method: "POST",
+        url: "/gateway/unified-keys/resolve",
+        headers: { authorization: `Bearer ${fixture.unified.token}` },
+        payload: {}
+      });
+      expect(resolver.statusCode).toBe(200);
+      expect(legacyKeySnapshot(fixture)).toEqual(before);
+
+      await fixture.app.inject({
+        method: "PATCH",
+        url: `/gateway/admin/billing/v1/phone-auth-identities/${fixture.subjectId}`,
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: { state: "active" }
+      });
+      fixture.store.setSubjectState(fixture.subjectId, "disabled");
+      const accountDisabled = await login();
+      expect(accountDisabled.statusCode).toBe(403);
+      expect(accountDisabled.json().error.code).toBe("account_disabled");
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
   it("refuses transition mode when the injected service is absent", () => {
     process.env.GATEWAY_PHONE_AUTH_MODE = "transition";
     process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
@@ -519,6 +639,7 @@ function createFixture(
   options: {
     phoneRequestsPerMinute?: number;
     ipRequestsPerMinute?: number;
+    deviceRequestsPerMinute?: number;
   } = {}
 ) {
   process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
@@ -603,6 +724,7 @@ function createFixture(
     apiKeyEncryptionSecret: encryptionSecret,
     now: () => start
   });
+  const loginRateLimiter = new InMemoryCredentialRateLimiter({ now: () => start });
   const app = buildGateway({
     authMode: "credential",
     provider: new FakeProvider(),
@@ -615,10 +737,38 @@ function createFixture(
     },
     billingAdminToken,
     billingAdminTokenMode: "env",
+    phoneAuthLoginRateLimiter: loginRateLimiter,
     phoneAuthPhoneRequestsPerMinute: options.phoneRequestsPerMinute,
     phoneAuthIpRequestsPerMinute: options.ipRequestsPerMinute,
+    phoneAuthDeviceRequestsPerMinute: options.deviceRequestsPerMinute,
     now: () => start,
     logger: false
   });
-  return { app, store, subjectId, backing, unified };
+  return { app, store, subjectId, backing, unified, loginRateLimiter };
+}
+
+function legacyKeySnapshot(fixture: ReturnType<typeof createFixture>) {
+  const backing = fixture.store.getAccessCredentialByPrefix(
+    fixture.backing.record.prefix
+  );
+  const unified = fixture.store.getUnifiedClientKeyByPrefix(
+    fixture.unified.record.prefix
+  );
+  return {
+    subjectState: fixture.store.getSubject(fixture.subjectId)?.state,
+    backing: backing && {
+      id: backing.id,
+      expiresAt: backing.expiresAt.toISOString(),
+      revokedAt: backing.revokedAt?.toISOString() ?? null,
+      credentialClass: backing.credentialClass,
+      allowedPublicModels: backing.allowedPublicModels
+    },
+    unified: unified && {
+      id: unified.id,
+      expiresAt: unified.expiresAt.toISOString(),
+      revokedAt: unified.revokedAt?.toISOString() ?? null,
+      credentialClass: unified.credentialClass,
+      isCurrent: unified.isCurrent
+    }
+  };
 }

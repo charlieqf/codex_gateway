@@ -325,6 +325,7 @@ export interface GatewayOptions {
   phoneAuthLoginRateLimiter?: CredentialRateLimiter;
   phoneAuthPhoneRequestsPerMinute?: number;
   phoneAuthIpRequestsPerMinute?: number;
+  phoneAuthDeviceRequestsPerMinute?: number;
   researchStore?: ResearchStore | null;
   imageGenerationProvider?: ImageGenerationProvider | null;
   imageGenerationBillingFallbackProvider?: ImageGenerationProvider | null;
@@ -621,6 +622,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       20,
       "GATEWAY_PHONE_AUTH_LOGIN_IP_RPM"
     );
+  const phoneAuthDeviceRequestsPerMinute =
+    options.phoneAuthDeviceRequestsPerMinute ??
+    parsePositiveIntegerEnv(
+      process.env.GATEWAY_PHONE_AUTH_LOGIN_DEVICE_RPM,
+      10,
+      "GATEWAY_PHONE_AUTH_LOGIN_DEVICE_RPM"
+    );
   const defaultResearchRuntime =
     options.researchStore === undefined
       ? createDefaultResearchRuntime(process.env, app.log)
@@ -866,7 +874,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     versionGate: desktopVersionGate,
     loginRateLimiter: phoneAuthLoginRateLimiter,
     phoneRequestsPerMinute: phoneAuthPhoneRequestsPerMinute,
-    ipRequestsPerMinute: phoneAuthIpRequestsPerMinute
+    ipRequestsPerMinute: phoneAuthIpRequestsPerMinute,
+    deviceRequestsPerMinute: phoneAuthDeviceRequestsPerMinute
   });
 
   registerVisionAssetRoutes(app, {

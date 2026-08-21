@@ -22,6 +22,7 @@ export interface PhoneAuthRouteOptions {
   loginRateLimiter: CredentialRateLimiter;
   phoneRequestsPerMinute: number;
   ipRequestsPerMinute: number;
+  deviceRequestsPerMinute: number;
 }
 
 interface LoginBody {
@@ -70,7 +71,12 @@ export function registerPhoneAuthRoutes(
       } catch (error) {
         return sendPhoneAuthFailure(request, reply, error);
       }
-      const permits = acquireLoginPermits(request, phoneHash, options);
+      const permits = acquireLoginPermits(
+        request,
+        phoneHash,
+        body.deviceId,
+        options
+      );
       if (permits instanceof GatewayError) {
         try {
           service.recordLoginRateLimit(phoneHash, request.id);
@@ -340,28 +346,40 @@ function accessBearer(request: FastifyRequest): string | GatewayError {
 function acquireLoginPermits(
   request: FastifyRequest,
   phoneHash: string,
+  deviceId: string,
   options: PhoneAuthRouteOptions
 ): { release(): void } | GatewayError {
+  const phonePermit = options.loginRateLimiter.acquire({
+    credentialId: `phone-auth:phone:${phoneHash}`,
+    policy: loginPolicy(options.phoneRequestsPerMinute)
+  });
+  if (!("release" in phonePermit)) {
+    return authRateLimited(phonePermit.error.retryAfterSeconds ?? 60);
+  }
   const ipHash = createHash("sha256").update(request.ip).digest("base64url");
   const ipPermit = options.loginRateLimiter.acquire({
     credentialId: `phone-auth:ip:${ipHash}`,
     policy: loginPolicy(options.ipRequestsPerMinute)
   });
   if (!("release" in ipPermit)) {
+    phonePermit.release();
     return authRateLimited(ipPermit.error.retryAfterSeconds ?? 60);
   }
-  const phonePermit = options.loginRateLimiter.acquire({
-    credentialId: `phone-auth:phone:${phoneHash}`,
-    policy: loginPolicy(options.phoneRequestsPerMinute)
+  const deviceHash = createHash("sha256").update(deviceId).digest("base64url");
+  const devicePermit = options.loginRateLimiter.acquire({
+    credentialId: `phone-auth:device:${deviceHash}`,
+    policy: loginPolicy(options.deviceRequestsPerMinute)
   });
-  if (!("release" in phonePermit)) {
+  if (!("release" in devicePermit)) {
+    phonePermit.release();
     ipPermit.release();
-    return authRateLimited(phonePermit.error.retryAfterSeconds ?? 60);
+    return authRateLimited(devicePermit.error.retryAfterSeconds ?? 60);
   }
   return {
     release: () => {
-      ipPermit.release();
       phonePermit.release();
+      ipPermit.release();
+      devicePermit.release();
     }
   };
 }

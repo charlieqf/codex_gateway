@@ -102,6 +102,7 @@ interface AccessTokenPayload {
   sid: string;
   auth_method: PhoneAuthMethod;
   credential_class: "desktop";
+  nbf: number;
   iat: number;
   exp: number;
   jti: string;
@@ -358,8 +359,16 @@ export class PhoneAuthService {
       throw phoneNotRegistered();
     }
     if (identity.state !== "active") {
-      this.auditFailure("login", input.requestId, phoneHash, identity.subjectId, null, "account_disabled", now);
-      throw accountDisabled();
+      this.auditFailure(
+        "login",
+        input.requestId,
+        phoneHash,
+        identity.subjectId,
+        null,
+        "phone_login_disabled",
+        now
+      );
+      throw phoneLoginDisabled();
     }
     try {
       this.requireReadyAccountForIdentity(identity, now);
@@ -580,6 +589,7 @@ export class PhoneAuthService {
       sid: session.id,
       auth_method: session.authMethod,
       credential_class: "desktop",
+      nbf: issuedAt,
       iat: issuedAt,
       exp: issuedAt + this.accessTtlSeconds,
       jti: `phat_${randomUUID().replaceAll("-", "")}`
@@ -631,6 +641,8 @@ export class PhoneAuthService {
       });
     }
     if (
+      payload.nbf > nowSeconds + 60 ||
+      payload.nbf !== payload.iat ||
       payload.iat > nowSeconds + 60 ||
       payload.exp <= payload.iat ||
       payload.exp - payload.iat !== this.accessTtlSeconds
@@ -645,12 +657,11 @@ export class PhoneAuthService {
     now: Date
   ): ReadyAccount {
     const identity = this.store.getPhoneAuthIdentityByPhoneHash(session.phoneHash);
-    if (
-      !identity ||
-      identity.subjectId !== session.subjectId ||
-      identity.state !== "active"
-    ) {
+    if (!identity || identity.subjectId !== session.subjectId) {
       throw accountDisabled();
+    }
+    if (identity.state !== "active") {
+      throw phoneLoginDisabled();
     }
     return this.requireReadyAccountForIdentity(identity, now);
   }
@@ -910,6 +921,7 @@ function isAccessTokenPayload(
     value.sid.length > 0 &&
     value.auth_method === "transition_phone_only" &&
     value.credential_class === "desktop" &&
+    Number.isInteger(value.nbf) &&
     Number.isInteger(value.iat) &&
     Number.isInteger(value.exp) &&
     typeof value.jti === "string" &&
@@ -1031,6 +1043,14 @@ function phoneNotRegistered(): GatewayError {
   return new GatewayError({
     code: "phone_not_registered",
     message: "This phone is not enabled for internal access.",
+    httpStatus: 403
+  });
+}
+
+function phoneLoginDisabled(): GatewayError {
+  return new GatewayError({
+    code: "phone_login_disabled",
+    message: "Phone login is disabled for this identity.",
     httpStatus: 403
   });
 }

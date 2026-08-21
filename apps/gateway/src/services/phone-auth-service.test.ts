@@ -40,6 +40,10 @@ describe("PhoneAuthService", () => {
       refresh_idle_expires_in_seconds: 2_592_000,
       subject: { id: fixture.subjectId, state: "active" }
     });
+    const accessPayload = JSON.parse(
+      Buffer.from(login.access_token.split(".")[1]!, "base64url").toString("utf8")
+    ) as Record<string, unknown>;
+    expect(accessPayload.nbf).toBe(accessPayload.iat);
 
     const bootstrap = fixture.service.bootstrap(login.access_token, "req_bootstrap");
     const account = fixture.service.accountCurrent(login.access_token, "req_account");
@@ -136,6 +140,113 @@ describe("PhoneAuthService", () => {
       fixture.service.bootstrap(login.access_token, "req_bootstrap")
     ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
     fixture.store.close();
+  });
+
+  it("keeps the legacy Key, Plan, entitlement, capabilities, and usage invariant across Phone Session lifecycle actions", () => {
+    const fixture = createFixture();
+    fixture.service.prepareIdentity({
+      phone: "13800138000",
+      subjectId: fixture.subjectId,
+      unifiedKey: fixture.unified.token,
+      requestId: "req_prepare"
+    });
+    const before = accountInvariantSnapshot(fixture.store.database);
+
+    const replayLogin = fixture.service.login({
+      phone: "13800138000",
+      deviceId: "desktop-device-example-01",
+      requestId: "req_replay_login"
+    });
+    const refreshed = fixture.service.refresh({
+      refreshToken: replayLogin.refresh_token,
+      deviceId: "desktop-device-example-01",
+      requestId: "req_refresh"
+    });
+    expect(() =>
+      fixture.service.refresh({
+        refreshToken: replayLogin.refresh_token,
+        deviceId: "desktop-device-example-01",
+        requestId: "req_replay"
+      })
+    ).toThrowError(expect.objectContaining({ code: "refresh_token_invalid" }));
+    expect(() =>
+      fixture.service.bootstrap(refreshed.access_token, "req_replayed_session")
+    ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
+    expect(accountInvariantSnapshot(fixture.store.database)).toEqual(before);
+
+    const logoutLogin = fixture.service.login({
+      phone: "13800138000",
+      deviceId: "desktop-device-example-02",
+      requestId: "req_logout_login"
+    });
+    fixture.service.logout(logoutLogin.access_token, "req_logout");
+    expect(accountInvariantSnapshot(fixture.store.database)).toEqual(before);
+
+    const disabledLogin = fixture.service.login({
+      phone: "13800138000",
+      deviceId: "desktop-device-example-03",
+      requestId: "req_disable_login"
+    });
+    fixture.service.setIdentityState(fixture.subjectId, "disabled", "req_disable");
+    expect(() =>
+      fixture.service.bootstrap(disabledLogin.access_token, "req_disabled_session")
+    ).toThrowError(expect.objectContaining({ code: "access_token_invalid" }));
+    expect(() =>
+      fixture.service.login({
+        phone: "13800138000",
+        deviceId: "desktop-device-example-04",
+        requestId: "req_disabled_login"
+      })
+    ).toThrowError(expect.objectContaining({ code: "phone_login_disabled" }));
+    expect(accountInvariantSnapshot(fixture.store.database)).toEqual(before);
+    fixture.store.close();
+  });
+
+  it("distinguishes a disabled Phone identity from a disabled Subject", () => {
+    const phoneDisabled = createFixture();
+    phoneDisabled.service.prepareIdentity({
+      phone: "13800138000",
+      subjectId: phoneDisabled.subjectId,
+      unifiedKey: phoneDisabled.unified.token,
+      requestId: "req_prepare"
+    });
+    phoneDisabled.service.setIdentityState(
+      phoneDisabled.subjectId,
+      "disabled",
+      "req_disable_phone"
+    );
+    expect(() =>
+      phoneDisabled.service.login({
+        phone: "13800138000",
+        deviceId: "desktop-device-example-01",
+        requestId: "req_phone_disabled"
+      })
+    ).toThrowError(
+      expect.objectContaining({ code: "phone_login_disabled", httpStatus: 403 })
+    );
+    phoneDisabled.store.close();
+
+    const accountDisabled = createFixture();
+    accountDisabled.service.prepareIdentity({
+      phone: "13800138000",
+      subjectId: accountDisabled.subjectId,
+      unifiedKey: accountDisabled.unified.token,
+      requestId: "req_prepare"
+    });
+    accountDisabled.store.setSubjectState(
+      accountDisabled.subjectId,
+      "disabled"
+    );
+    expect(() =>
+      accountDisabled.service.login({
+        phone: "13800138000",
+        deviceId: "desktop-device-example-01",
+        requestId: "req_account_disabled"
+      })
+    ).toThrowError(
+      expect.objectContaining({ code: "account_disabled", httpStatus: 403 })
+    );
+    accountDisabled.store.close();
   });
 
   it("does not create data for an unknown phone", () => {
@@ -373,5 +484,40 @@ function createFixture() {
     setNow: (value: Date) => {
       current = value;
     }
+  };
+}
+
+function accountInvariantSnapshot(database: {
+  prepare(sql: string): { all(): unknown[] };
+}) {
+  const rows = (sql: string) => database.prepare(sql).all();
+  return {
+    subjects: rows(
+      "SELECT id, label, phone_number, state, created_at FROM subjects ORDER BY id"
+    ),
+    credentials: rows(
+      "SELECT id, subject_id, scope, expires_at, revoked_at, rate_json, allowed_public_models_json, credential_class FROM access_credentials ORDER BY id"
+    ),
+    unifiedKeys: rows(
+      "SELECT id, subject_id, expires_at, revoked_at, codex_credential_id, metadata_json, credential_class, is_current FROM unified_client_keys ORDER BY id"
+    ),
+    plans: rows(
+      "SELECT id, policy_json, feature_policy_json, scope_allowlist_json, priority_class, team_pool_id, state FROM plans ORDER BY id"
+    ),
+    entitlements: rows(
+      "SELECT id, subject_id, plan_id, policy_snapshot_json, scope_allowlist_json, period_kind, period_start, period_end, state FROM entitlements ORDER BY id"
+    ),
+    tokenWindows: rows(
+      "SELECT subject_id, window_kind, window_start, prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens, estimated_tokens, requests FROM token_windows ORDER BY subject_id, window_kind, window_start"
+    ),
+    entitlementTokenWindows: rows(
+      "SELECT entitlement_id, window_kind, window_start, prompt_tokens, completion_tokens, total_tokens, cached_prompt_tokens, estimated_tokens, requests FROM entitlement_token_windows ORDER BY entitlement_id, window_kind, window_start"
+    ),
+    tokenReservations: rows(
+      "SELECT id, request_id, credential_id, subject_id, entitlement_id, finalized_at, final_total_tokens FROM token_reservations ORDER BY id"
+    ),
+    requestEvents: rows(
+      "SELECT request_id, credential_id, subject_id, status, error_code FROM request_events ORDER BY request_id"
+    )
   };
 }
