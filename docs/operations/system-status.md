@@ -34,18 +34,32 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- A live R760 pre-deployment check at `2026-08-21T05:09Z` found `current`
+  at `c0d26ec28eb4794cea14750bd0a68e5a7b57b981`, with Gateway image
+  `sha256:e062028205e54add28b36e7bdc76c671ef4df99b3f5e2062d9586ff53464d2ae`.
+  Public and loopback health were 200/ready; Gateway, Research Worker,
+  Research maintenance and the isolated Research LLM Gateway were healthy
+  with restart count zero, and only Gateway published `127.0.0.1:18787` from
+  the Compose project. The `previous` symlink contained a one-character target
+  typo. It was atomically corrected to the existing direct-parent release
+  `1a49682a2b62b05eadd3f6ace5ab7a3e0841e467` and its `.release-commit`
+  marker was verified. No container, config, database or volume changed during
+  that repair. This live fact supersedes the older release SHA paragraph below.
 - The MedEvidence R760 dual-track Phone Auth Gateway candidate is implemented
   on branch `feature/r760-dual-track-phone-auth-v1` from baseline
   `c528f4a8609dc88c56fc883426e54dd91ba73308`. Contract, scoped version policy,
   Phone identity disable semantics, three-dimensional login rate limiting and
-  compatibility automation are present through commit `3c077fc`. Local build,
-  the full 726-pass/2-skip Vitest suite, fresh/legacy migration idempotency,
-  diff check and the sensitive-artifact scan passed. This is repository state,
-  not a production claim: no R760 additive deployment or auth-only canary from
-  this candidate had been performed when this entry was written. Both feature
-  switches must remain `disabled` until the live rollback boundary, disabled
-  beta.38 baseline, controlled canary, rollback and cleanup are recorded here.
-  No real-user Phone identity has been authorized or prepared by this work.
+  compatibility automation are present through commit `3c077fc`. Production
+  release `c0d26ec` was then merged without conflicts at `ff08599` so the
+  deployed client-message dashboard is not regressed. After that merge, local
+  build, the full 727-pass/2-skip Vitest suite, fresh/legacy migration
+  idempotency, diff check and the sensitive-artifact scan passed. This is
+  repository state, not a production claim: no R760 additive deployment or
+  auth-only canary from this candidate had been performed when this entry was
+  written. Both feature switches must remain `disabled` until the live rollback
+  boundary, disabled beta.38 baseline, controlled canary, rollback and cleanup
+  are recorded here. No real-user Phone identity has been authorized or
+  prepared by this work.
 
 - Desktop update distribution is authoritative in Cloudflare R2 bucket
   `goldencode-updates` through `https://updates.instmarket.com.au`; the public

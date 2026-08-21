@@ -8,7 +8,7 @@
 | --- | --- |
 | Gateway 分支 | `feature/r760-dual-track-phone-auth-v1` |
 | 实现基线 | `c528f4a8609dc88c56fc883426e54dd91ba73308` |
-| 已验证代码提交 | `3c077fc` |
+| 已验证代码提交 | `ff08599`（包含 production `c0d26ec` dashboard） |
 | Contract | `medevidence-r760-dual-track-phone-auth-v1` |
 | README SHA-256 | `8cc44f4cd2f0e81e2747aa720df75a9fb0096c558cd06396e2456ccc7da9f2e2` |
 | fixtures SHA-256 | `44ee80ce8eab7d1dbd22dede4cc9320a9cc9e97a11aea2ac3e1b8a0ea17cbb02` |
