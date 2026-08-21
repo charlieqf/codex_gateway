@@ -1,25 +1,57 @@
 # System Status
 
-Last updated: 2026-08-06
+Last updated: 2026-08-21
 
 ## Current Phase
 
-The Azure gateway remains the live default HTTPS Gateway for clients that have
-not yet migrated. It originated as a
-controlled trial for up to 10 trusted users, but the 2026-07-15 production
-`trial-check` found 77 active users and 73 active API keys, so it no longer
-fits that original 10-user boundary. A separate CN1 loopback-only GoldenCode
-gateway is also running for domestic-only GLM-5.2 validation.
+R760 is the sole live Gateway authority for user/key issuance, plans,
+entitlements, credential state, request usage and client-message audit data.
+The Azure compatibility stack is logically offline and must not receive
+mirrors, reconciliations or management writes. The public R760 endpoint is
+`https://goldencode.instmarket.com.au:1443`; its only advertised text model is
+`goldencode`. CN1 remains a separate dark/loopback role and is not an authority
+or deployment target for this service.
 
-`gw.instmarket.com.au` still resolves to Azure, so it remains the rollback and
-compatibility endpoint during phased client migration. R760 is now also
-publicly reachable through the ordinary DNS-only endpoint
-`https://goldencode.instmarket.com.au:1443`; its formal four-container project
-has passed real Doctor Research E2E, public resolver/chat and low-cost image
-smokes. Clients must explicitly change their base URL to use R760. The installed
-CN1 `gw` vhost remains dark and is no longer the selected cutover path because
-independent public traffic is intercepted before Nginx by Aliyun's
-`Non-compliance ICP Filing`/TLS-reset boundary.
+The R760 Gateway currently runs release
+`c0d26ec28eb4794cea14750bd0a68e5a7b57b981`; `previous` points to
+`1a49682a2b62b05eadd3f6ace5ab7a3e0841e4667`. The active Gateway image is
+`sha256:e062028205e54add28b36e7bdc76c671ef4df99b3f5e2062d9586ff53464d2ae`.
+The 2026-08-21 release recreated only the Gateway container. It is healthy with
+zero restarts and still publishes only `127.0.0.1:18787->8787`; the Research
+LLM Gateway, maintenance and worker container IDs were unchanged.
+
+This release adds the authenticated client-message usage dashboard at
+`/gateway/admin/client-messages`. It supports custom time windows, complete
+message text, exact `subject_id + client_message_id` request correlation,
+per-message success/partial/failure/no-request outcome, end-to-end and summed
+request duration, provider/estimated token usage, per-user request/token/error/
+rate-limit totals, pagination, filtering and sortable user aggregates. Public
+health/page/unauthenticated-401/authenticated-data/model smokes passed. The
+rolling 48-hour production validation returned all 63 selected-user messages,
+their full-text and request-summary fields, plus 326 user request events; user
+token sorting was verified. No message bodies or credentials are recorded in
+this document.
+
+The pre-switch online SQLite backup is
+`/data/codex-gateway-r760/backups/pre-c0d26ec-20260821T004616Z`. Its
+`gateway.db`, `client-events.db` and `research.db` copies passed `quick_check`,
+foreign-key and SHA-256 copy verification. The old image is retained as
+`codex_gateway_r760-gateway:rollback-1a49682-20260821T004616Z`. Post-switch
+checks again passed Compose rendering, all three live SQLite integrity/foreign-
+key checks, public TLS routes and the fatal/unhandled log-pattern audit.
+
+Local release validation passed typecheck, build and the three directly
+affected test files (219 tests). The broader Vitest run passed 689 tests with
+two skips and had six unrelated Research Worker storage-admission/time-budget
+failures on a workstation with about 2.77 GB free; the affected Gateway/SQLite
+suites passed in full.
+
+## Historical Status Log
+
+The material below is retained as a chronological operations record. Statements
+that describe Azure as live, mirrored or authoritative are superseded by the
+R760-only current phase above and must not be used as present-tense runbook
+instructions.
 
 Azure VM retirement is broader than the Gateway cutover and is not a near-term
 delete operation. A 2026-08-05 read-only inventory confirmed that the same VM
