@@ -41,16 +41,27 @@ Current operational state:
   keeps the database and existing credentials unchanged, exposes the public
   prefix as `cgw.<stored-prefix>` from client-facing status/current/resolve
   responses, and normalizes that representation before internal credential
-  updates. The first controlled window's rollback timer completed successfully
-  at `2026-08-22T00:19:18Z`; a replacement deployment/window must be recorded
-  below only after live verification.
+  updates. Main commit `5f01efe` passed 801 tests (plus two configured skips),
+  typecheck and build. A minimal networkless overlay rebuilt from the deployed
+  `f7e69ea` base passed 206 focused tests and is live as Gateway image
+  `sha256:60f3e70aa12ae1c648a6cfbb73f262234bc44dde60d2e61e28f31d99a2173baf`.
+  The pre-change backup is
+  `/data/codex-gateway-r760/backups/phone-auth-ab-window-20260822T004050Z`;
+  rollback image tag
+  `codex_gateway_r760-gateway:rollback-prefix-contract-20260822T004000Z`
+  resolves to the preceding image. A first overlay build was rejected by the
+  post-deploy semantic smoke because its filtered source patch had applied no
+  files; it never opened Phone Auth and was replaced by artifact v2. The live
+  resolver and `credentials/current` now both return the same public prefix,
+  and the runtime key begins with that prefix.
 - The MedEvidence R760 dual-track Phone Auth Gateway is ready for Desktop
   integration on branch `feature/r760-dual-track-phone-auth-v1`. The deployed
   additive code commit is
   `f7e69eabbc5c1fed484d63f2547af158fc70238e`; R760 `current` points to that
   immutable release, `previous` points to
-  `c0d26ec28eb4794cea14750bd0a68e5a7b57b981`, and the Gateway image is
-  `sha256:2c7b587c1005ea77e5f89647c793b3e5617d49564681f10f371d4f463cfb8891`.
+  `c0d26ec28eb4794cea14750bd0a68e5a7b57b981`. The base image was
+  `sha256:2c7b587c1005ea77e5f89647c793b3e5617d49564681f10f371d4f463cfb8891`;
+  the active Gateway image is the prefix-contract overlay recorded above.
   The release retains the production `c0d26ec` client-message dashboard. The
   canary/snapshot evidence scripts are committed at `3aa506b`. This live
   release boundary supersedes older release/image paragraphs retained below
@@ -75,7 +86,7 @@ Current operational state:
   existing migration 25 SQL was not changed. The four persistent Phone Auth
   secret files are in the existing `gateway_state` volume with mode `0600` and
   are not exposed by health, configuration output or logs.
-- A controlled Desktop integration window was activated at
+- The first controlled Desktop integration window was activated at
   `2026-08-21T22:19:18Z` (`2026-08-22 08:19:18 AEST`) with
   `GATEWAY_PHONE_AUTH_MODE=transition`,
   `GATEWAY_DESKTOP_VERSION_GATE=auth_only` and minimum Desktop
@@ -91,6 +102,23 @@ Current operational state:
   than assuming either state from this historical record. No real-user phone
   identity, Nginx, DNS, Research or provider configuration is part of this
   window.
+- After the first timer completed successfully, a replacement controlled
+  window was activated at `2026-08-22T00:49:54Z`
+  (`2026-08-22 10:49:54 AEST`) on the verified prefix hotfix. It uses the same
+  two synthetic A/B identities and unregistered U fixture, with
+  `transition / auth_only / 2.0.0-beta.40`. Timer
+  `codex-gateway-phone-auth-window-20260822T004716Z.timer` is active and
+  scheduled for `2026-08-22T02:49:54Z` (`12:49:54 AEST`). Its verified
+  post-hotfix pre-window backup is
+  `/data/codex-gateway-r760/backups/phone-auth-ab-window-20260822T004716Z`.
+  A/B login, bootstrap, resolve, `credentials/current`, `account/current`,
+  legacy no-version-header resolve and logout all passed; both public prefix
+  consistency checks passed. U returned strict `403 phone_not_registered`.
+  After logout there were zero active Phone Sessions and refresh tokens; both
+  controlled identities remain active only for Desktop continuation. Gateway
+  and all three Research containers are healthy with zero restarts. The timer
+  disables both identities and restores `disabled / disabled`; it intentionally
+  keeps the prefix hotfix image deployed.
 - A final live audit at `2026-08-21T06:29:01Z` found public and loopback
   `/gateway/health` returning Phone Auth `disabled / disabled / null`. Gateway,
   Research Worker, Research maintenance and the isolated Research LLM Gateway
