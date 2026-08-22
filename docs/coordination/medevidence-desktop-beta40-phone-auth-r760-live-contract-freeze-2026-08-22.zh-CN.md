@@ -10,8 +10,10 @@
 | Gateway contract commit | `dc4e86828da32ae0ce8119302b04a68f5bde5569` |
 | Desktop acceptance commit | `65eadd000a310e64897e9700def9b8f4e0941be9` |
 | Gateway prefix hotfix commit | `5f01efeec34baad26eb5e3e54693bf72c0dd97f9` |
-| R760 基础 release | `f7e69eabbc5c1fed484d63f2547af158fc70238e` |
-| R760 active Gateway image | `sha256:60f3e70aa12ae1c648a6cfbb73f262234bc44dde60d2e61e28f31d99a2173baf` |
+| R760 验收时基础 release | `f7e69eabbc5c1fed484d63f2547af158fc70238e` |
+| R760 验收时 Gateway image | `sha256:60f3e70aa12ae1c648a6cfbb73f262234bc44dde60d2e61e28f31d99a2173baf` |
+| 当前生产 release | `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe` |
+| 当前生产 Gateway image | `sha256:3d5cb8b8062dea4d3960012150a9d3d9d7cfe2301be6c9f340bd533e3d50f162` |
 
 ## 1. 冻结对象
 
@@ -132,13 +134,30 @@ Desktop 主机策略未允许物理删除六个隔离测试 profile，因此没�
 因此，Subject、Plan、entitlement、Key、capability 和既有用量均保持不变；
 唯一允许的权威状态变化是四次真实、成功、可计费聊天所产生的额度消耗。
 
-## 6. 签收结论与仍保留的业务闸门
+## 6. 签收结论与后续业务授权
 
 Gateway 与 Desktop 已签收同一份 live contract。beta.40 Phone Auth 技术合同可
 进入正式客户端发布流程；beta.38 及其他旧客户端继续使用原有
 `cgu_live_*`，不受 Phone Auth 开关影响。
 
-当前生产默认状态仍为 `disabled / disabled`。本次技术签收不等于授权批量启用
-Phone Auth，也不授权预登记真实用户。任何真实用户预登记都必须由业务 owner
-明确批准手机号与既有 Subject 的映射，并继续满足“未知手机号不自动创建账户、
-Key、Plan 或 entitlement”的冻结合同。
+本节签收时的生产默认状态为 `disabled / disabled`，当时的技术签收本身不授权批量启用。
+业务 owner 随后在 2026-08-22 明确批准为所有符合条件的现有 MedEvidence 用户启用，并明确排除
+2 名不再纳入上线的用户。该后续业务授权与生产实施结果记录在第 7 节；“未知手机号不自动创建
+账户、Key、Plan 或 entitlement”的冻结合同没有变化。
+
+## 7. 后续生产全量启用
+
+R760 已在 release `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe` 上完成全量双轨启用：
+
+- 161 个现有有效目标中排除 8 个，153 个 Phone identity 为 active；
+- 生产为 `transition / auth_only / 2.0.0-beta.40`；
+- 旧客户端无版本 Header 的原 `cgu_live_*` resolve/model/chat 继续通过；
+- beta.40 login/bootstrap/account/resolve/refresh/logout 和真实聊天通过；
+- 未登记手机号严格返回 `403 phone_not_registered`，beta.39 严格返回
+  `426 client_upgrade_required`；
+- Plan、entitlement 和 200 条既有统一 Key 均保留，身份准备没有产生请求或 Token 计量；
+- 合成验证身份已重新 disabled，活动 Session/Refresh 为 0；
+- Gateway 与三个 Research 容器 healthy、restart count 0。
+
+本次生产启用不改写第 1 节冻结的 contract 文件或 SHA-256。详细备份、不变量和 Request ID 见
+[`MedEvidence R760 全量双轨 Phone Auth 上线结果`](../implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md)。

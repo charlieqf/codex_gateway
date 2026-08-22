@@ -2,10 +2,10 @@
 
 > 状态（2026-08-22）：R760 additive 部署、prefix contract hotfix、Desktop
 > beta.40 A/B/U live acceptance、自动关窗和权威数据不变量审计均已完成；双方
-> 已签收 `contract_frozen`。生产
-> `GATEWAY_PHONE_AUTH_MODE` 与 `GATEWAY_DESKTOP_VERSION_GATE` 当前均为
-> `disabled`。技术合同已允许 Desktop 进入正式发布流程，但不得据本文预登记
-> 真实用户；真实用户名单仍需业务 owner 明确批准。
+> 已签收 `contract_frozen`。业务 owner 随后批准为所有符合条件的现有
+> MedEvidence 用户启用手机号免验证码登录，并明确排除 2 名不再纳入本次上线的
+> 用户。生产当前为 `transition / auth_only / 2.0.0-beta.40`；153 个现有用户的
+> Phone identity 已启用，旧 `cgu_live_*` 路径保持可用。
 
 本实现只用于 R760 权威 Gateway。权威实施规格为
 [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
@@ -13,24 +13,27 @@ Desktop/Gateway 联调使用新的
 [`medevidence-r760-dual-track-phone-auth-v1`](../contracts/medevidence-r760-dual-track-phone-auth-v1/README.md)
 contract；旧 frozen contract 只提供未变化的 wire shape。
 
-## 不变量与默认状态
+## 不变量与生产状态
 
-- `GATEWAY_PHONE_AUTH_MODE=disabled`；
-- `GATEWAY_DESKTOP_VERSION_GATE=disabled`；
+- `GATEWAY_PHONE_AUTH_MODE=transition`；
+- `GATEWAY_DESKTOP_VERSION_GATE=auth_only`；
+- `GATEWAY_MINIMUM_DESKTOP_VERSION=2.0.0-beta.40`；
 - migration 25 保持原 SQL，additive schema 在开关关闭时不改变旧请求路径；
 - 未登记手机号返回 `phone_not_registered`，不得自动创建 Subject、Key、Plan 或 entitlement；
 - Phone identity/Session、旧 `cgu_live_*`、backing credential、Plan、entitlement、capability、额度窗口和既有用量锚定同一 `subject_id`；
 - login、refresh、logout、replay、Session 过期、identity disable 和 Desktop 升级均不得撤销旧 Key 或改变 Plan/用量；
 - R760 是唯一运行、控制和用量权威，不使用 Azure、CN1 或第二 Gateway 兼容、重试或回滚。
 
-手机号免验证码登录不是强身份认证。没有业务风险签收和明确名单批准时，不得为真实用户启用。
+手机号免验证码登录不是强身份认证。2026-08-22 的业务决定已经接受该过渡风险，并把批准范围
+定义为符合本文条件的全部现有 MedEvidence 用户；不属于 MedEvidence、合成测试、重复/非权威记录
+以及 owner 明确排除的用户不在范围内。未知手机号仍不得自动建号。
 
 ## 启用前准备
 
 1. 先重读实时 `docs/operations/system-status.md` 并对 R760 做只读核验；文档内的历史 release SHA 不能替代实时事实。
 2. 建立并验证 current/previous release、Gateway image、完整 Compose overlay、正式配置、SQLite 备份与六个命名卷的回滚边界；不得打印 env、rendered Compose 或 secret 内容。
 3. 为受控目标 Subject 核对唯一中国大陆手机号、活动 Subject、活动 Plan、`code` scope、`chat` capability 和原有用量快照。
-4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；唯一 MedEvidence Origin 为 `https://goldencode.instmarket.com.au:1443`（允许末尾 `/`）。
+4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；Gateway 公网 Origin 为 `https://goldencode.instmarket.com.au:1443`，统一 Key 元数据中的 MedEvidence Origin 为 `https://gw-47-116-7-37.nip.io`（均按规范化 Origin 比较）。
 5. 配置稳定的 Ed25519 和加密 secret 文件。R760 继续使用现有 `gateway_state` 卷内固定目录，不增加第二 secret fallback：
 
    ```text
@@ -73,16 +76,16 @@ Gateway 路由不得因版本 Header 缺失、非法或过旧返回 426。
 ```json
 {
   "phone_auth": {
-    "mode": "disabled",
-    "version_gate_mode": "disabled",
-    "minimum_desktop_version": null
+    "mode": "transition",
+    "version_gate_mode": "auth_only",
+    "minimum_desktop_version": "2.0.0-beta.40"
   }
 }
 ```
 
 health 不得包含手机号、allowlist、Session、Key prefix、secret 路径或 secret 状态。
 
-## Additive 部署与 canary 顺序
+## 首次 Additive 部署与 canary 顺序（历史验收流程）
 
 1. 从通过全部本地门禁的 clean commit 建立不可变 release/image，保留完整 Compose base、Research overlay、private env 和 R760 override。
 2. 首次 recreate 只针对 Gateway，并保持两个开关均为 `disabled`。
@@ -94,9 +97,20 @@ health 不得包含手机号、allowlist、Session、Key prefix、secret 路径�
 
 任何一步失败都应先恢复配置开关和 previous image/config 边界；保留 additive schema，不恢复旧数据库，不切换到 Azure/CN1。
 
-## 预登记与停用
+## 批量启用、后续发放与停用
 
-真实用户预登记必须先取得明确批准名单。批准前只能生成脱敏只读 readiness 报告，不得批量写入。单个批准 Subject 使用现有 Billing Admin 认证：
+2026-08-22 的生产批次以现有有效 `manual_trial` MedEvidence 用户为权威范围：161 个目标中排除
+8 个诊断、船期、合成测试、重复/非权威或 owner 明确排除的 Subject，最终启用 153 个 Phone
+identity。批量准备为每个目标复用同一 Subject、Plan、entitlement 和 backing credential；无法恢复
+旧明文统一 Key 时增发一个可恢复的兼容 current Key，但不撤销或缩短任何旧 Key。迁移结果、备份和
+不变量见
+[`生产双轨 Phone Auth 上线结果`](../implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md)。
+
+以后通过正式 real-user issuance 流程发放、且提供有效唯一手机号的新用户，会在同一事务流程后自动
+准备 Phone identity。未知手机号仍返回 `403 phone_not_registered`，不得在登录请求中自动创建
+Subject、Key、Plan 或 entitlement。
+
+需要对单个既有 Subject 补登记时，使用现有 Billing Admin 认证：
 
 ```http
 POST /gateway/admin/billing/v1/phone-auth-identities

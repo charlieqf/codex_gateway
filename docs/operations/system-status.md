@@ -34,6 +34,39 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **Current Phone Auth production state (supersedes the older disabled/canary
+  paragraphs below):** R760 `current` is release
+  `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe`, `previous` is
+  `f7e69eabbc5c1fed484d63f2547af158fc70238e`, and the active Gateway image is
+  `sha256:3d5cb8b8062dea4d3960012150a9d3d9d7cfe2301be6c9f340bd533e3d50f162`.
+  Production is permanently enabled as `transition / auth_only /
+  2.0.0-beta.40`: old clients remain outside the version gate and continue
+  using their existing `cgu_live_*` keys, while beta.40 and newer may use the
+  registered-phone/no-OTP flow. The approved existing-user scope contained
+  161 active `manual_trial` Subjects with a live unified key; 8 were excluded
+  by product/category or the owner's explicit decision, and 153 now have an
+  active Phone Auth identity. The rollout minted 153 recoverable compatible
+  current keys against the same Subjects and backing accounts without revoking
+  any of the 200 pre-existing unified keys or changing Plan/entitlement rows.
+  Identity preparation produced zero request-metering events. Schema is
+  `26/26`, `quick_check=ok`, with zero foreign-key errors. The authoritative
+  pre-identity backup is
+  `/data/codex-gateway-r760/backups/pre-global-phone-auth-identities-20260822T050748Z`;
+  the disabled configuration rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-phone-auth-enable-20260822T052411Z`.
+  Public health confirms the enabled state. A no-version-header legacy
+  resolve/model/chat smoke passed with request
+  `req-549d8862-46c1-42ff-b828-47d4bb2d8e15`; beta.40
+  login/bootstrap/account/resolve/refresh/logout and a real chat passed, with
+  chat request `req-1f48f108-25ca-442e-aa78-95474eca9176`; an unregistered
+  number returned strict `403 phone_not_registered` in request
+  `req-67ed4fa0-0ad6-438d-b80c-1a645161f8b1`, and beta.39 returned strict
+  `426 client_upgrade_required` in request
+  `req-b0e6c07a-55b6-469a-a53b-ca1ed1cfb0c6`. The controlled smoke identity
+  is disabled again with zero active Session or Refresh Token. Gateway and all
+  three Research containers are healthy with restart count zero; Research
+  container IDs and configuration did not change. Full evidence is in
+  `docs/implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md`.
 - The 2026-08-22 Desktop beta.40 live integration found that unified Phone
   Auth resolve returned the database-stored Gateway credential prefix while
   returning an API key whose public form begins with `cgw.`. Desktop correctly
