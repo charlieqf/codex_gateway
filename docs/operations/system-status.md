@@ -41,7 +41,8 @@ Current operational state:
   keeps the database and existing credentials unchanged, exposes the public
   prefix as `cgw.<stored-prefix>` from client-facing status/current/resolve
   responses, and normalizes that representation before internal credential
-  updates. Main commit `5f01efe` passed 801 tests (plus two configured skips),
+  updates. Main commit `5f01efeec34baad26eb5e3e54693bf72c0dd97f9`
+  passed 801 tests (plus two configured skips),
   typecheck and build. A minimal networkless overlay rebuilt from the deployed
   `f7e69ea` base passed 206 focused tests and is live as Gateway image
   `sha256:60f3e70aa12ae1c648a6cfbb73f262234bc44dde60d2e61e28f31d99a2173baf`.
@@ -54,8 +55,13 @@ Current operational state:
   files; it never opened Phone Auth and was replaced by artifact v2. The live
   resolver and `credentials/current` now both return the same public prefix,
   and the runtime key begins with that prefix.
-- The MedEvidence R760 dual-track Phone Auth Gateway is ready for Desktop
-  integration on branch `feature/r760-dual-track-phone-auth-v1`. The deployed
+- The MedEvidence R760 dual-track Phone Auth Gateway and Desktop beta.40 live
+  contract are frozen and accepted. The immutable contract is the complete
+  `docs/contracts/medevidence-r760-dual-track-phone-auth-v1` tree at
+  `dc4e86828da32ae0ce8119302b04a68f5bde5569`; Desktop acceptance commit is
+  `65eadd000a310e64897e9700def9b8f4e0941be9`. The separate freeze attestation is
+  `docs/coordination/medevidence-desktop-beta40-phone-auth-r760-live-contract-freeze-2026-08-22.zh-CN.md`.
+  The deployed
   additive code commit is
   `f7e69eabbc5c1fed484d63f2547af158fc70238e`; R760 `current` points to that
   immutable release, `previous` points to
@@ -107,18 +113,24 @@ Current operational state:
   (`2026-08-22 10:49:54 AEST`) on the verified prefix hotfix. It uses the same
   two synthetic A/B identities and unregistered U fixture, with
   `transition / auth_only / 2.0.0-beta.40`. Timer
-  `codex-gateway-phone-auth-window-20260822T004716Z.timer` is active and
-  scheduled for `2026-08-22T02:49:54Z` (`12:49:54 AEST`). Its verified
+  `codex-gateway-phone-auth-window-20260822T004716Z.timer` completed at
+  `2026-08-22T02:49:54Z` (`12:49:54 AEST`) with `Result=success` and
+  `ExecMainStatus=0`; the timer is inactive. Its verified
   post-hotfix pre-window backup is
   `/data/codex-gateway-r760/backups/phone-auth-ab-window-20260822T004716Z`.
   A/B login, bootstrap, resolve, `credentials/current`, `account/current`,
   legacy no-version-header resolve and logout all passed; both public prefix
   consistency checks passed. U returned strict `403 phone_not_registered`.
-  After logout there were zero active Phone Sessions and refresh tokens; both
-  controlled identities remain active only for Desktop continuation. Gateway
-  and all three Research containers are healthy with zero restarts. The timer
-  disables both identities and restores `disabled / disabled`; it intentionally
-  keeps the prefix hotfix image deployed.
+  The final Desktop A/B/U matrix passed, including four real chats with one
+  transport attempt and one Gateway request ID each. The post-deadline audit
+  found `disabled / disabled / null`, both controlled identities disabled,
+  all eight related Phone Sessions revoked and zero active Refresh Tokens.
+  Gateway and all three Research containers are healthy with zero restarts;
+  the prefix hotfix image remains deployed. A read-only comparison with the
+  pre-window backup proved exact Subject, credential, unified-key, entitlement
+  and Plan equality. Four finalized reservations and no open reservation
+  account exactly for prompt 141,772, completion 48, total 141,820, cached
+  88,384 and estimated 0 Tokens. No auth/resolve/retry call was charged.
 - A final live audit at `2026-08-21T06:29:01Z` found public and loopback
   `/gateway/health` returning Phone Auth `disabled / disabled / null`. Gateway,
   Research Worker, Research maintenance and the isolated Research LLM Gateway

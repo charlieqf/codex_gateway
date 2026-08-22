@@ -1,10 +1,11 @@
 # R760 双轨兼容手机号登录 v1 操作说明
 
-> 状态（2026-08-21）：R760 additive 部署、disabled 基线、受控
-> `transition + auth_only` canary、配置回滚和临时资源清理已完成；Gateway
-> 已达到 `ready_for_desktop_integration`。生产
+> 状态（2026-08-22）：R760 additive 部署、prefix contract hotfix、Desktop
+> beta.40 A/B/U live acceptance、自动关窗和权威数据不变量审计均已完成；双方
+> 已签收 `contract_frozen`。生产
 > `GATEWAY_PHONE_AUTH_MODE` 与 `GATEWAY_DESKTOP_VERSION_GATE` 当前均为
-> `disabled`。这不是 Desktop 发布批准，也不得据本文预登记真实用户。
+> `disabled`。技术合同已允许 Desktop 进入正式发布流程，但不得据本文预登记
+> 真实用户；真实用户名单仍需业务 owner 明确批准。
 
 本实现只用于 R760 权威 Gateway。权威实施规格为
 [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
