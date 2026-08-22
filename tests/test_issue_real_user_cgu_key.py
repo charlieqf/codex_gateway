@@ -88,8 +88,8 @@ def resolved_response():
         "valid": True,
         "subject": {"id": "subject-1"},
         "codex_gateway": {
-            "api_key": "cgw.test-only",
-            "key_prefix": "safe-cgw-prefix",
+            "api_key": "cgw.safe-cgw-prefix.test-only",
+            "key_prefix": "cgw.safe-cgw-prefix",
             "endpoint_base_url": "https://goldencode.instmarket.com.au:1443/v1",
             "credential_validation_url": (
                 "https://goldencode.instmarket.com.au:1443/gateway/credentials/current"
@@ -105,7 +105,7 @@ def current_response():
         "subject": {"id": "subject-1"},
         "credential": {
             "id": "credential-1",
-            "prefix": "safe-cgw-prefix",
+            "prefix": "cgw.safe-cgw-prefix",
             "scope": "code",
             "expires_at": "2027-01-15T00:00:00.000Z",
             "status": "active",
@@ -129,7 +129,7 @@ class IssueRealUserKeyTests(unittest.TestCase):
                 mock.patch.object(ISSUE, "resolve_opaque_key", return_value=resolved_response()),
                 mock.patch.object(ISSUE, "current_credential", return_value=current_response()),
                 mock.patch.object(ISSUE, "update_user", return_value={}),
-                mock.patch.object(ISSUE, "update_key", return_value={}),
+                mock.patch.object(ISSUE, "update_key", return_value={}) as update_key,
                 mock.patch.object(ISSUE, "tighten_file_permissions"),
             ):
                 result = ISSUE.issue_key(args)
@@ -138,6 +138,9 @@ class IssueRealUserKeyTests(unittest.TestCase):
             self.assertEqual(result["authority_mode"], "r760_only")
             self.assertEqual(result["r760_validation"], "ok")
             self.assertEqual(result["client_version"], "1.2.3")
+            self.assertEqual(result["codex_gateway_prefix"], "cgw.safe-cgw-prefix")
+            update_key.assert_called_once()
+            self.assertEqual(update_key.call_args.args[1], "safe-cgw-prefix")
             self.assertNotIn("azure", json.dumps(result).lower())
             handoff = json.loads(Path(result["handoff_path"]).read_text(encoding="utf-8"))
             self.assertEqual(handoff["authority_mode"], "r760_only")

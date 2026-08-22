@@ -34,6 +34,16 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- The 2026-08-22 Desktop beta.40 live integration found that unified Phone
+  Auth resolve returned the database-stored Gateway credential prefix while
+  returning an API key whose public form begins with `cgw.`. Desktop correctly
+  rejected that inconsistent pair as `invalid_gateway_response`. The code fix
+  keeps the database and existing credentials unchanged, exposes the public
+  prefix as `cgw.<stored-prefix>` from client-facing status/current/resolve
+  responses, and normalizes that representation before internal credential
+  updates. The first controlled window's rollback timer completed successfully
+  at `2026-08-22T00:19:18Z`; a replacement deployment/window must be recorded
+  below only after live verification.
 - The MedEvidence R760 dual-track Phone Auth Gateway is ready for Desktop
   integration on branch `feature/r760-dual-track-phone-auth-v1`. The deployed
   additive code commit is

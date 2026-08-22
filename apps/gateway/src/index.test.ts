@@ -699,7 +699,7 @@ describe("gateway phase 1 routes", () => {
         label: "Credential Subject"
       },
       credential: {
-        prefix: issued.record.prefix,
+        prefix: `cgw.${issued.record.prefix}`,
         scope: "code",
         expires_at: "2030-02-01T00:00:00.000Z",
         rate: {
@@ -1391,7 +1391,7 @@ describe("gateway phase 1 routes", () => {
         codex_gateway: {
           endpoint_base_url: "https://gateway.example/v1",
           credential_validation_url: "https://gateway.example/gateway/credentials/current",
-          key_prefix: issued.record.prefix,
+          key_prefix: `cgw.${issued.record.prefix}`,
           api_key: issued.token
         },
         medevidence: {
@@ -13569,7 +13569,7 @@ describe("gateway phase 1 routes", () => {
     expect(accepted.statusCode).toBe(200);
     expect(accepted.json()).toMatchObject({
       credential: {
-        prefix: issued.record.prefix,
+        prefix: `cgw.${issued.record.prefix}`,
         scope: "code",
         expires_at: "2030-02-01T00:00:00.000Z"
       },
@@ -14581,7 +14581,7 @@ describe("gateway phase 1 routes", () => {
     expect(current.json()).toMatchObject({
       valid: true,
       subject: { id: "subj_dev" },
-      credential: { prefix: issued.record.prefix }
+      credential: { prefix: `cgw.${issued.record.prefix}` }
     });
 
     await app.close();

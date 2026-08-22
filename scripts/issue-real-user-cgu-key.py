@@ -231,9 +231,10 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             raise IssueError("Opaque key resolve validation failed.")
 
         codex_api_key = str(get_path(resolved, "codex_gateway", "api_key") or "")
-        gateway_prefix = str(get_path(resolved, "codex_gateway", "key_prefix") or "")
+        public_gateway_prefix = str(get_path(resolved, "codex_gateway", "key_prefix") or "")
+        gateway_prefix = normalize_gateway_stored_prefix(public_gateway_prefix)
         medevidence_prefix = get_path(resolved, "medevidence", "key_prefix")
-        if not codex_api_key or not gateway_prefix:
+        if not codex_api_key or not public_gateway_prefix or not gateway_prefix:
             raise IssueError("Opaque key resolve response did not include the backing Gateway key.")
 
         label = f"medevidence-unified-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{safe_user_slug[:32]}"
@@ -276,7 +277,7 @@ def issue_key(args: argparse.Namespace) -> dict[str, Any]:
             "client_version": args.client_version,
             "subject_id": subject_id,
             "key_prefix": get_path(create, "credential", "key_prefix"),
-            "codex_gateway_prefix": gateway_prefix,
+            "codex_gateway_prefix": public_gateway_prefix,
             "medevidence_prefix": medevidence_prefix,
             "plan_id": entitlement_record.get("plan_id"),
             "entitlement_state": entitlement_record.get("state"),
@@ -311,6 +312,10 @@ def validate_r760_resolution(
         raise IssueError("R760 unified key resolve validation failed.")
     if not str(get_path(resolved, "codex_gateway", "api_key") or "").startswith("cgw."):
         raise IssueError("R760 unified key resolve did not return a Gateway runtime key.")
+    public_prefix = str(get_path(resolved, "codex_gateway", "key_prefix") or "")
+    api_key = str(get_path(resolved, "codex_gateway", "api_key") or "")
+    if not public_prefix.startswith("cgw.") or not api_key.startswith(f"{public_prefix}."):
+        raise IssueError("R760 unified key resolve returned an inconsistent Gateway key prefix.")
     if not str(get_path(resolved, "medevidence", "api_key") or ""):
         raise IssueError("R760 unified key resolve did not return a MedEvidence runtime key.")
     endpoint = get_path(resolved, "codex_gateway", "endpoint_base_url")
@@ -676,6 +681,13 @@ def normalize_base_url(value: str) -> str:
     if not re.match(r"^https?://", normalized):
         raise IssueError("gateway-base-url must start with http:// or https://.")
     return normalized
+
+
+def normalize_gateway_stored_prefix(value: str) -> str:
+    parts = value.split(".")
+    if len(parts) == 2 and parts[0] == "cgw" and parts[1]:
+        return parts[1]
+    return value
 
 
 def default_external_user_id(phone: str) -> str:

@@ -16,7 +16,9 @@ import {
 const publicBaseUrl = "https://goldencode.example.com:1443";
 const subjectId = "subj_test_0001";
 const opaqueKey = "cgu_live_abcdefghijklmnopqrstuvwxyz";
-const codexApiKey = "cgw.runtime-key-value";
+const codexStoredPrefix = "p-abcdef123456";
+const codexPublicPrefix = `cgw.${codexStoredPrefix}`;
+const codexApiKey = `${codexPublicPrefix}.runtime-key-value`;
 
 function issueInput(overrides: Partial<RealUserIssueInput> = {}): RealUserIssueInput {
   const expiry = new Date("2026-11-20T00:00:00Z");
@@ -59,7 +61,7 @@ function buildDeps(
         valid: true,
         subjectId,
         codexApiKey,
-        codexKeyPrefix: "p-abcdef123456",
+        codexKeyPrefix: codexPublicPrefix,
         medevidenceApiKey: "mev2_live_runtime",
         medevidencePrefix: "mev2_live_pre",
         endpointBaseUrl: `${publicBaseUrl}/v1`,
@@ -124,7 +126,8 @@ describe("real user issuance job", () => {
       { subjectId, label: "张三", name: "张三", phoneNumber: "13800138000" }
     ]);
     expect(calls.credentials[0]?.rpm).toBe(10);
-    expect(calls.credentials[0]?.prefix).toBe("p-abcdef123456");
+    expect(calls.credentials[0]?.prefix).toBe(codexStoredPrefix);
+    expect(job?.result?.codexGatewayPrefix).toBe(codexPublicPrefix);
   });
 
   it("hides the full key from other admin tokens", async () => {
@@ -192,7 +195,7 @@ describe("real user issuance job", () => {
           valid: true,
           subjectId: "subj_other",
           codexApiKey,
-          codexKeyPrefix: "p-abcdef123456",
+          codexKeyPrefix: codexPublicPrefix,
           medevidenceApiKey: "mev2_live_runtime",
           medevidencePrefix: "mev2_live_pre",
           endpointBaseUrl: `${publicBaseUrl}/v1`,
@@ -254,7 +257,7 @@ describe("real user issuance job", () => {
           valid: true,
           subjectId,
           codexApiKey,
-          codexKeyPrefix: "p-abcdef123456",
+          codexKeyPrefix: codexPublicPrefix,
           medevidenceApiKey: "mev2_live_runtime",
           medevidencePrefix: "mev2_live_pre",
           endpointBaseUrl: "https://gw.instmarket.com.au/v1",

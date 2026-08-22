@@ -16,6 +16,7 @@ import {
   type Entitlement,
   extractAccessCredentialPrefix,
   extractUnifiedClientKeyPrefix,
+  formatAccessCredentialPublicPrefix,
   GatewayError,
   type LimitRejection,
   publicFeaturePolicy,
@@ -1160,7 +1161,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         label: subject.label
       },
       credential: {
-        prefix: credential.prefix,
+        prefix: formatAccessCredentialPublicPrefix(credential.prefix),
         scope,
         expires_at: credential.expiresAt?.toISOString() ?? null,
         rate: publicRatePolicy(credential.rate)
@@ -1228,7 +1229,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           label: subject.label
         },
         credential: {
-          prefix: credential.prefix,
+          prefix: formatAccessCredentialPublicPrefix(credential.prefix),
           scope,
           expires_at: credential.expiresAt?.toISOString() ?? null,
           rate: publicRatePolicy(credential.rate),
@@ -1548,7 +1549,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           credential_validation_url: publicGatewayBaseUrl
             ? `${publicGatewayBaseUrl}/gateway/credentials/current`
             : null,
-          key_prefix: result.record.codexCredentialPrefix,
+          key_prefix: formatAccessCredentialPublicPrefix(result.record.codexCredentialPrefix),
           api_key: codexApiKey
         },
         medevidence: {

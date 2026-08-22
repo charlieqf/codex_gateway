@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { GatewayError } from "@codex-gateway/core";
+import { GatewayError, normalizeAccessCredentialStoredPrefix } from "@codex-gateway/core";
 import type { RateLimitPolicy } from "@codex-gateway/core";
 
 /**
@@ -427,6 +427,13 @@ export async function runRealUserIssueJob(
         "解析结果返回的 Gateway 运行态 key 格式不正确。"
       );
     }
+    if (!resolved.codexApiKey.startsWith(`${resolved.codexKeyPrefix}.`)) {
+      throw new IssueStepError(
+        "resolve_key",
+        "unexpected_backing_key",
+        "解析结果返回的 Gateway 运行态 key 与公开前缀不一致。"
+      );
+    }
     if (!resolved.medevidenceApiKey) {
       throw new IssueStepError(
         "resolve_key",
@@ -462,7 +469,7 @@ export async function runRealUserIssueJob(
       name: input.name,
       phoneNumber: input.phone
     });
-    deps.updateCredential(resolved.codexKeyPrefix, {
+    deps.updateCredential(normalizeAccessCredentialStoredPrefix(resolved.codexKeyPrefix), {
       label,
       expiresAt: input.keyExpiresAt,
       rate: input.rate

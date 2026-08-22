@@ -3,10 +3,12 @@ import {
   credentialAllowsPublicModel,
   decodeStoredAllowedPublicModelsJson,
   extractAccessCredentialPrefix,
+  formatAccessCredentialPublicPrefix,
   hashAccessCredential,
   issueAccessCredential,
   issueUnifiedClientKey,
   extractUnifiedClientKeyPrefix,
+  normalizeAccessCredentialStoredPrefix,
   verifyUnifiedClientKeyToken,
   verifyAccessCredentialToken,
   type AccessCredentialRecord
@@ -28,6 +30,12 @@ describe("access credentials", () => {
     expect(issued.record.hash).not.toContain(issued.token);
     expect(issued.record.allowedPublicModels).toBeNull();
     expect(extractAccessCredentialPrefix(issued.token)).toBe(issued.record.prefix);
+    const publicPrefix = formatAccessCredentialPublicPrefix(issued.record.prefix);
+    expect(publicPrefix).toBe(`cgw.${issued.record.prefix}`);
+    expect(issued.token.startsWith(`${publicPrefix}.`)).toBe(true);
+    expect(normalizeAccessCredentialStoredPrefix(publicPrefix)).toBe(issued.record.prefix);
+    expect(normalizeAccessCredentialStoredPrefix(issued.record.prefix)).toBe(issued.record.prefix);
+    expect(normalizeAccessCredentialStoredPrefix(issued.token)).toBe(issued.token);
     expect(
       verifyAccessCredentialToken(issued.token, issued.record, new Date("2026-01-01T00:00:00Z"))
     ).toBeNull();

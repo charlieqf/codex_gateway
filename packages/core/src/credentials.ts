@@ -12,6 +12,17 @@ import type {
 
 export const accessCredentialTokenPrefix = "cgw";
 
+export function formatAccessCredentialPublicPrefix(storedPrefix: string): string {
+  return `${accessCredentialTokenPrefix}.${storedPrefix}`;
+}
+
+export function normalizeAccessCredentialStoredPrefix(prefix: string): string {
+  const parts = prefix.split(".");
+  return parts.length === 2 && parts[0] === accessCredentialTokenPrefix && parts[1]
+    ? parts[1]
+    : prefix;
+}
+
 export interface IssueAccessCredentialInput {
   subjectId: string;
   label: string;

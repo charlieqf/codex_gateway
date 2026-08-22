@@ -295,6 +295,11 @@ describe("internal phone auth v1 routes", () => {
           key_prefix: credentials.json().credential.prefix
         }
       });
+      expect(
+        resolved.json().codex_gateway.api_key.startsWith(
+          `${resolved.json().codex_gateway.key_prefix}.`
+        )
+      ).toBe(true);
       expect(credentials.json().entitlement.feature_policy.capabilities).toContain(
         "chat"
       );
