@@ -21,7 +21,8 @@ export const realUserIssueStepKeys = [
   "grant_entitlement",
   "resolve_key",
   "normalize_metadata",
-  "validate_credential"
+  "validate_credential",
+  "prepare_phone_login"
 ] as const;
 
 export type RealUserIssueStepKey = (typeof realUserIssueStepKeys)[number];
@@ -33,7 +34,8 @@ const stepLabels: Record<RealUserIssueStepKey, string> = {
   grant_entitlement: "授予 Plan 权益",
   resolve_key: "解析 key 并校验运行态凭据",
   normalize_metadata: "写入姓名/手机并规范限额",
-  validate_credential: "校验凭据与能力"
+  validate_credential: "校验凭据与能力",
+  prepare_phone_login: "准备手机号免验证码登录"
 };
 
 export const defaultRealUserIssueRate: RateLimitPolicy = {
@@ -327,6 +329,12 @@ export interface RealUserIssueRunnerDeps {
     input: { label: string; expiresAt: Date; rate: RateLimitPolicy }
   ): void;
   currentCredential(codexApiKey: string): Promise<CurrentCredential>;
+  preparePhoneIdentity(input: {
+    phone: string;
+    subjectId: string;
+    unifiedKey: string;
+    requestId: string;
+  }): void;
   disableSubject(subjectId: string, reason: string): Promise<void>;
   publicBaseUrl: string | null;
   now(): Date;
@@ -502,6 +510,23 @@ export async function runRealUserIssueJob(
       );
     }
     store.finishStep(jobId, "validate_credential", current.capabilities.join(", "));
+
+    store.startStep(jobId, "prepare_phone_login");
+    try {
+      deps.preparePhoneIdentity({
+        phone: input.phone,
+        subjectId,
+        unifiedKey: opaqueKey,
+        requestId: `real-user-issue:${jobId}`
+      });
+    } catch {
+      throw new IssueStepError(
+        "prepare_phone_login",
+        "phone_identity_prepare_failed",
+        "手机号登录身份准备失败。"
+      );
+    }
+    store.finishStep(jobId, "prepare_phone_login", "active");
 
     store.succeedJob(
       jobId,

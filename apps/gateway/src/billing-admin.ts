@@ -2741,6 +2741,13 @@ function buildRealUserIssueDeps(
       };
     },
 
+    preparePhoneIdentity(input) {
+      if (!options.phoneAuthService) {
+        throw serviceUnavailable("Phone auth service is not configured.");
+      }
+      options.phoneAuthService.prepareIdentity(input);
+    },
+
     async disableSubject(subjectId, reason) {
       const billingStore = options.billingStore;
       if (!billingStore) {

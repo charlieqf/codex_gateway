@@ -41,12 +41,18 @@ interface DepCalls {
   disabled: { subjectId: string; reason: string }[];
   subjectMetadata: { subjectId: string; label: string; name: string; phoneNumber: string }[];
   credentials: { prefix: string; label: string; rpm: number }[];
+  phoneIdentities: { phone: string; subjectId: string; unifiedKey: string; requestId: string }[];
 }
 
 function buildDeps(
   overrides: Partial<RealUserIssueRunnerDeps> = {}
 ): { deps: RealUserIssueRunnerDeps; calls: DepCalls } {
-  const calls: DepCalls = { disabled: [], subjectMetadata: [], credentials: [] };
+  const calls: DepCalls = {
+    disabled: [],
+    subjectMetadata: [],
+    credentials: [],
+    phoneIdentities: []
+  };
   const deps: RealUserIssueRunnerDeps = {
     publicBaseUrl,
     now: () => new Date("2026-08-20T00:00:00Z"),
@@ -82,6 +88,9 @@ function buildDeps(
         capabilities: ["chat", "tools", "image_generation"]
       };
     },
+    preparePhoneIdentity(input) {
+      calls.phoneIdentities.push(input);
+    },
     async disableSubject(id, reason) {
       calls.disabled.push({ subjectId: id, reason });
     },
@@ -114,7 +123,14 @@ describe("real user issuance job", () => {
     const job = store.get(jobId);
 
     expect(job?.state).toBe("succeeded");
-    expect(job?.steps.map((step) => step.state)).toEqual(["ok", "ok", "ok", "ok", "ok"]);
+    expect(job?.steps.map((step) => step.state)).toEqual([
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+      "ok"
+    ]);
     expect(job?.result?.subjectId).toBe(subjectId);
     expect(job?.result?.capabilities).toContain("image_generation");
     expect(job?.result?.keyPrefix).toBe(publicKeyPrefix(opaqueKey));
@@ -128,6 +144,34 @@ describe("real user issuance job", () => {
     expect(calls.credentials[0]?.rpm).toBe(10);
     expect(calls.credentials[0]?.prefix).toBe(codexStoredPrefix);
     expect(job?.result?.codexGatewayPrefix).toBe(codexPublicPrefix);
+    expect(calls.phoneIdentities).toEqual([
+      {
+        phone: "13800138000",
+        subjectId,
+        unifiedKey: opaqueKey,
+        requestId: expect.stringMatching(/^real-user-issue:rui_/u)
+      }
+    ]);
+  });
+
+  it("fails closed when phone identity preparation fails", async () => {
+    const store = new RealUserIssueJobStore();
+    const { deps, calls } = buildDeps({
+      preparePhoneIdentity() {
+        throw new Error("phone preparation failed");
+      }
+    });
+
+    const jobId = await runJob(store, deps);
+    const job = store.get(jobId);
+
+    expect(job?.state).toBe("failed");
+    expect(job?.error?.code).toBe("phone_identity_prepare_failed");
+    expect(job?.steps[5]?.state).toBe("failed");
+    expect(job?.unifiedKey).toBeNull();
+    expect(calls.disabled).toEqual([
+      { subjectId, reason: "real_user_issue_failed:phone_identity_prepare_failed" }
+    ]);
   });
 
   it("hides the full key from other admin tokens", async () => {

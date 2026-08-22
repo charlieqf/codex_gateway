@@ -1868,7 +1868,7 @@ describe("gateway phase 1 routes", () => {
       expect(acceptedBody.authority_mode).toBe("r760_only");
       expect(acceptedBody.phone_tail).toBe("8000");
       expect(acceptedBody.unified_key).toBeUndefined();
-      expect(acceptedBody.steps).toHaveLength(5);
+      expect(acceptedBody.steps).toHaveLength(6);
 
       const duplicate = await app.inject({
         method: "POST",
