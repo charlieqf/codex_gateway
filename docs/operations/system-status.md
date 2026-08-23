@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-22
+Last updated: 2026-08-24
 
 ## Current Phase
 
@@ -34,6 +34,23 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **Isolated Qwen3.8-27B-FP8 local inference:** the official
+  `Qwen/Qwen3.8-27B-FP8` weights are validated under
+  `/data/models/Qwen3.8-27B-FP8`, and isolated Compose project
+  `qwen38_fp8_local` runs `qwen38-fp8-local` from locked image
+  `vllm/vllm-openai:v0.27.1-r760-c2f3b1b9`. It uses FP8 weights, BF16 KV
+  cache, 32K context and `max-num-seqs=2`, and publishes only
+  `127.0.0.1:18000->8000`. The 2026-08-23T21:57:16Z read-only check found it
+  healthy with zero restarts and no OOM; all five pre-existing R760
+  Gateway/Research/Mihomo container IDs remained unchanged and healthy, and
+  the existing Gateway health still returned 200. Thirteen local API
+  scenarios passed. Named tool choice returns the correct `tool_calls` but
+  vLLM 0.27.1 reports `finish_reason=stop`, so a future public Gateway must
+  normalize this or use a proven fixed vLLM release. No Qwen public endpoint
+  or per-user API key exists yet: public access requires a separately approved
+  Gateway/SQLite key store, domain, TLS/Nginx route and pilot. Full evidence,
+  hashes, implementation steps and rollback boundaries are in
+  `docs/implementation/r760-qwen3.8-27b-fp8-local-deployment-plan-2026-08-23.zh-CN.md`.
 - **Current Phone Auth production state (supersedes the older disabled/canary
   paragraphs below):** R760 `current` is release
   `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe`, `previous` is
