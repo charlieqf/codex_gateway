@@ -1,0 +1,16 @@
+services:
+  gateway:
+    volumes:
+      - /opt/codex-gateway-r760/shared/secrets/medevidence_r2_vision_credentials:/run/secrets/medevidence_r2_vision_credentials:ro
+    networks:
+      - default
+      - qwen_runtime
+
+  research-llm-gateway:
+    volumes:
+      - /opt/codex-gateway-r760/shared/config/research.production.goldencode.r760.json:/etc/codex-gateway/research-production-goldencode.json:ro
+
+networks:
+  qwen_runtime:
+    external: true
+    name: qwen_api_gateway_r760_qwen_private
