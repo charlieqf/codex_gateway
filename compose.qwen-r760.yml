@@ -70,67 +70,7 @@ services:
     networks:
       - qwen_private
 
-  qwen-gateway:
-    image: ${QWEN_GATEWAY_IMAGE:?QWEN_GATEWAY_IMAGE must be set to an immutable image tag}
-    pull_policy: never
-    restart: unless-stopped
-    depends_on:
-      qwen38-fp8:
-        condition: service_healthy
-    env_file:
-      - ${QWEN_GATEWAY_ENV_FILE:-./qwen-gateway.env}
-    environment:
-      GATEWAY_HOST: 0.0.0.0
-      GATEWAY_PORT: 8787
-    volumes:
-      - ./state:/var/lib/codex-gateway
-      - ./logs:/var/log/codex-gateway
-      - ./public-models.json:/run/qwen/public-models.json:ro
-    ports:
-      - "127.0.0.1:18788:8787"
-    cpus: "2.0"
-    mem_limit: 4g
-    pids_limit: 256
-    init: true
-    read_only: true
-    tmpfs:
-      - /tmp:size=512m,mode=1777
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: 50m
-        max-file: "5"
-    networks:
-      - qwen_private
-
-  qwen-admin:
-    image: ${QWEN_GATEWAY_IMAGE:?QWEN_GATEWAY_IMAGE must be set to an immutable image tag}
-    pull_policy: never
-    profiles:
-      - tools
-    env_file:
-      - ${QWEN_GATEWAY_ENV_FILE:-./qwen-gateway.env}
-    entrypoint:
-      - node
-      - /app/apps/admin-cli/dist/index.js
-      - --db
-      - /var/lib/codex-gateway/gateway.db
-    volumes:
-      - ./state:/var/lib/codex-gateway
-    read_only: true
-    tmpfs:
-      - /tmp:size=128m,mode=1777
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - qwen_private
-
 networks:
   qwen_private:
     internal: true
+    name: qwen_api_gateway_r760_qwen_private

@@ -2431,7 +2431,7 @@ function isCredentialActive(credential: AccessCredentialRecord, now: Date): bool
 }
 
 const realUserIssueTimeoutMs = 45_000;
-const realUserDesktopPublicModelId = "goldencode";
+const realUserDesktopPublicModelIds = ["goldencode", "goldencode-local"];
 
 function billingActorTokenPrefix(request: FastifyRequest): string | null {
   const authorization = request.headers.authorization;
@@ -2911,8 +2911,8 @@ async function provisionBillingSubject(
     label: `Billing ${parsed.provider}`,
     scope: parsed.scopeAllowlist[0] ?? "code",
     expiresAt,
-    allowedPublicModels: [realUserDesktopPublicModelId],
-    knownPublicModelIds: [realUserDesktopPublicModelId],
+    allowedPublicModels: realUserDesktopPublicModelIds,
+    knownPublicModelIds: realUserDesktopPublicModelIds,
     now
   });
   const gatewayRecord = {

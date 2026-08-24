@@ -1,6 +1,39 @@
 {
-  "qwen3.8-27b-fp8": {
-    "displayName": "Qwen3.8 27B FP8 (R760)",
+  "goldencode": {
+    "displayName": "GoldenCode",
+    "runtime": "pool",
+    "contextWindow": 200000,
+    "maxContextWindow": 200000,
+    "upstreamContextWindow": 1048576,
+    "maxOutputTokens": 128000,
+    "enabled": true,
+    "reasoning": { "effort": "high" },
+    "vision": {
+      "runtime": "xai",
+      "upstreamModel": "grok-4.5",
+      "contextWindow": 200000,
+      "maxOutputTokens": 128000,
+      "enabled": true,
+      "reasoning": { "effort": "medium" }
+    },
+    "pool": {
+      "selection": {
+        "strategy": "hrw_sticky",
+        "stickyKeyOrder": ["client_session", "credential", "subject"]
+      },
+      "requireAllMembers": false,
+      "members": [
+        {
+          "id": "goldencode-tencent",
+          "runtime": "tencent",
+          "upstreamModel": "glm-5.3",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "goldencode-local": {
+    "displayName": "GoldenCode Local",
     "runtime": "local_openai",
     "upstreamModel": "qwen3.8-27b-fp8",
     "contextWindow": 32768,

@@ -1143,11 +1143,23 @@ export function buildGateway(options: GatewayOptions = {}) {
         localOpenAIAdapters,
         upstreamAccount
       );
-      if (localHealth && localHealth.state !== "healthy") {
+      const localInferenceRequired = localOpenAIInferenceRequiredForReadiness(
+        publicModelRegistry.models
+      );
+      if (
+        localInferenceRequired &&
+        localHealth &&
+        localHealth.state !== "healthy"
+      ) {
         reply.code(503);
       }
       return {
-        state: localHealth && localHealth.state !== "healthy" ? "not_ready" : "ready",
+        state:
+          localInferenceRequired &&
+          localHealth &&
+          localHealth.state !== "healthy"
+            ? "not_ready"
+            : "ready",
         service: publicMetadata.serviceName,
         auth_mode: authMode,
         phone_auth: {
@@ -7529,6 +7541,14 @@ async function localOpenAIInferenceHealth(
     checkedAt: new Date(),
     detail: "Local OpenAI-compatible inference is not ready."
   };
+}
+
+function localOpenAIInferenceRequiredForReadiness(models: PublicModelConfig[]): boolean {
+  const enabledModels = models.filter((model) => model.enabled);
+  return (
+    enabledModels.length > 0 &&
+    enabledModels.every((model) => model.runtime === "local_openai")
+  );
 }
 
 function uniqueValues(values: string[]): string[] {

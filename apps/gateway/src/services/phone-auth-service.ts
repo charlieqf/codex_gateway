@@ -321,7 +321,7 @@ export class PhoneAuthService {
         ...(key.metadata ?? {}),
         medevidence_base_url: phoneAuthMedevidenceOrigin
       },
-      backingAllowedPublicModels: ["goldencode"],
+      backingAllowedPublicModels: ["goldencode", "goldencode-local"],
       requestId: input.requestId,
       now
     });

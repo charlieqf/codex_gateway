@@ -721,6 +721,43 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("keeps a mixed Gateway ready when only local inference is unavailable", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODEL_ID: "max",
+        MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          max: {
+            runtime: "codex",
+            upstreamModel: "gpt-5.4",
+            enabled: true
+          },
+          "goldencode-local": {
+            runtime: "local_openai",
+            upstreamModel: "qwen3.8-27b-fp8",
+            enabled: true
+          }
+        }),
+        MEDCODE_LOCAL_OPENAI_BASE_URL: "http://127.0.0.1:9/v1",
+        MEDCODE_LOCAL_OPENAI_TIMEOUT_MS: "1000"
+      },
+      async () => {
+        const app = buildGateway({
+          accessToken: "mixed-health-secret",
+          provider: new FakeProvider(),
+          logger: false
+        });
+        const health = await app.inject({ method: "GET", url: "/gateway/health" });
+        expect(health.statusCode).toBe(200);
+        expect(health.json()).toMatchObject({
+          state: "ready",
+          inference: { runtime: "local_openai", state: "unhealthy" }
+        });
+        await app.close();
+      }
+    );
+  });
+
   it("rejects a public URL for the local OpenAI runtime", async () => {
     await withTemporaryEnv(
       {
@@ -2478,7 +2515,7 @@ describe("gateway phase 1 routes", () => {
           ? store.getAccessCredentialByPrefix(unified.codexCredentialPrefix)
               ?.allowedPublicModels
           : null
-      ).toEqual(["goldencode"]);
+      ).toEqual(["goldencode", "goldencode-local"]);
       expect(upstreamV2Client.calls).toHaveLength(1);
       expect(upstreamV2Client.calls[0]).toMatchObject({
         externalProvider: "medevidence_backend",
