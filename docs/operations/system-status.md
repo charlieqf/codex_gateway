@@ -99,6 +99,23 @@ Current operational state:
   three Research containers are healthy with restart count zero; Research
   container IDs and configuration did not change. Full evidence is in
   `docs/implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md`.
+- **2026-08-24 Phone Auth systemic recovery:** the authority audit was widened
+  from the original `manual_trial` rollout filter to every active,
+  code-capable valid runtime bundle. Nine legacy direct accounts were wrapped
+  into recoverable current unified keys without changing their Subjects,
+  backing credentials, Plans, entitlements or usage; three existing-cgu
+  accounts recovered unique phones from issuance metadata. Active Phone Auth
+  identities increased from 154 to 166. Across 185 active code-capable valid
+  bundle Subjects, 166 identities are active, two are intentionally disabled
+  E2E identities, ten lack an eligible current entitlement and seven lack a
+  unique supported Mainland phone; zero eligible Subject with a unique
+  supported phone remains unbound. The pre-write Gateway/PostgreSQL backup is
+  `/data/codex-gateway-r760/backups/phone-auth-systemic-recovery-20260824T044351Z`.
+  Two requested real-user login/bootstrap/account/resolve/MedEvidence-health/
+  logout E2Es passed, and both validation devices ended with zero active
+  Sessions and Refresh Tokens. No service was restarted and Gateway restart
+  count remains zero. Full evidence is in
+  `docs/implementation/medevidence-r760-phone-auth-systemic-recovery-result-2026-08-24.zh-CN.md`.
 - The 2026-08-22 Desktop beta.40 live integration found that unified Phone
   Auth resolve returned the database-stored Gateway credential prefix while
   returning an API key whose public form begins with `cgw.`. Desktop correctly
