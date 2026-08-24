@@ -12,6 +12,11 @@ const PHASE0_REQUEST_EVENT_COLUMNS = [
   "upstream_transport_code", "upstream_failure_retry_count",
   "upstream_recovery_attempt_count", "upstream_unclassified_additional_attempt_count"
 ];
+const REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS = [
+  "requested_reasoning_effort", "effective_reasoning_effort",
+  "reasoning_effort_source", "reasoning_effort_normalized",
+  "reasoning_effort_normalization_reason"
+];
 
 const COLUMNS = {
   request_events: [
@@ -30,7 +35,8 @@ const COLUMNS = {
     "model_max_output_tokens", "active_tool_count", "client_tool_mode", "tool_loop_guard_json",
     "prompt_chars", "maximum_output_tokens", "gateway_admitted_ms", "provider_first_event_ms",
     "provider_duration_ms", "terminal_source", "cancel_requested", "cancel_observed",
-    ...PHASE0_REQUEST_EVENT_COLUMNS
+    ...PHASE0_REQUEST_EVENT_COLUMNS,
+    ...REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS
   ],
   token_reservations: [
     "id", "request_id", "kind", "credential_id", "subject_id", "scope",
@@ -128,16 +134,42 @@ function arraysEqual(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
+function requestEventColumnVariants() {
+  const groups = [
+    PHASE0_REQUEST_EVENT_COLUMNS,
+    REASONING_OBSERVABILITY_REQUEST_EVENT_COLUMNS
+  ];
+  let variants = [COLUMNS.request_events];
+  for (const group of groups) {
+    variants = [
+      ...variants,
+      ...variants.map((columns) => columns.filter((column) => !group.includes(column)))
+    ];
+  }
+  return variants;
+}
+
+function supportedColumns(table, columns) {
+  const variants = table === "request_events"
+    ? requestEventColumnVariants()
+    : [COLUMNS[table]];
+  return variants.some((expected) => arraysEqual(columns, expected));
+}
+
+function missingColumnValue(table, column) {
+  if (table === "request_events" && column === "reasoning_effort_normalized") {
+    return 0;
+  }
+  return null;
+}
+
 function validateSchema(db) {
   const migration = schemaVersion(db);
   if (migration < MIN_SCHEMA_VERSION) fail(`Gateway schema v${MIN_SCHEMA_VERSION} or newer is required.`);
   const columns = {};
   for (const [table, expected] of Object.entries(COLUMNS)) {
     columns[table] = tableColumns(db, table);
-    const legacyExpected = table === "request_events"
-      ? expected.filter((column) => !PHASE0_REQUEST_EVENT_COLUMNS.includes(column))
-      : expected;
-    if (!arraysEqual(columns[table], expected) && !arraysEqual(columns[table], legacyExpected)) {
+    if (!supportedColumns(table, columns[table])) {
       fail(`Unsupported schema columns for ${table}; update the usage helper first.`);
     }
   }
@@ -185,10 +217,7 @@ function validatePayload(payload, targetSchema) {
   if (payloadDigest(payload) !== payload.digest) fail("Usage payload digest verification failed.");
   for (const table of Object.keys(COLUMNS)) {
     const sourceColumns = payload.columns?.[table] || [];
-    const legacyColumns = table === "request_events"
-      ? COLUMNS[table].filter((column) => !PHASE0_REQUEST_EVENT_COLUMNS.includes(column))
-      : COLUMNS[table];
-    if ((!arraysEqual(sourceColumns, COLUMNS[table]) && !arraysEqual(sourceColumns, legacyColumns)) ||
+    if (!supportedColumns(table, sourceColumns) ||
         !arraysEqual(targetSchema.columns[table], COLUMNS[table])) {
       fail(`Source and target columns differ for ${table}.`);
     }
@@ -208,7 +237,10 @@ function validatePayload(payload, targetSchema) {
     tables: Object.fromEntries(Object.keys(COLUMNS).map((table) => [
       table,
       payload.tables[table].map((row) => Object.fromEntries(
-        COLUMNS[table].map((column) => [column, row[column] ?? null])
+        COLUMNS[table].map((column) => [
+          column,
+          row[column] ?? missingColumnValue(table, column)
+        ])
       ))
     ]))
   };

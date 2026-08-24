@@ -99,6 +99,11 @@ declare module "fastify" {
     gatewayUpstreamRuntime?: string | null;
     gatewayUpstreamModel?: string | null;
     gatewayReasoningEffort?: string | null;
+    gatewayRequestedReasoningEffort?: string | null;
+    gatewayEffectiveReasoningEffort?: string | null;
+    gatewayReasoningEffortSource?: string | null;
+    gatewayReasoningEffortNormalized?: boolean;
+    gatewayReasoningEffortNormalizationReason?: string | null;
     gatewayClientTurnId?: string | null;
     gatewayTurnCode?: string | null;
     gatewayClientSessionId?: string | null;

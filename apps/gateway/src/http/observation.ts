@@ -257,6 +257,13 @@ export function recordObservation(
     upstreamRuntime: request.gatewayUpstreamRuntime ?? null,
     upstreamModel: request.gatewayUpstreamModel ?? null,
     reasoningEffort: request.gatewayReasoningEffort ?? null,
+    requestedReasoningEffort: request.gatewayRequestedReasoningEffort ?? null,
+    effectiveReasoningEffort:
+      request.gatewayEffectiveReasoningEffort ?? request.gatewayReasoningEffort ?? null,
+    reasoningEffortSource: request.gatewayReasoningEffortSource ?? null,
+    reasoningEffortNormalized: request.gatewayReasoningEffortNormalized === true,
+    reasoningEffortNormalizationReason:
+      request.gatewayReasoningEffortNormalizationReason ?? null,
     reasoningTokens: tokenUsage?.reasoningTokens ?? null,
     clientTurnId: request.gatewayClientTurnId ?? null,
     turnCode: request.gatewayTurnCode ?? null,

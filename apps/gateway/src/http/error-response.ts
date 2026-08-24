@@ -59,6 +59,15 @@ export function gatewayErrorMetadata(
     ...(error.recoveryOwner !== undefined
       ? { recovery_owner: error.recoveryOwner }
       : {}),
+    ...(error.parameter !== undefined
+      ? { param: error.parameter }
+      : {}),
+    ...(error.requestedValue !== undefined
+      ? { requested_value: error.requestedValue }
+      : {}),
+    ...(error.supportedValues !== undefined
+      ? { supported_values: [...error.supportedValues] }
+      : {}),
     ...(context.requestId && isRateLimited ? { request_id: context.requestId } : {}),
     ...(retryAfterSeconds !== undefined
       ? { retry_after_seconds: retryAfterSeconds }

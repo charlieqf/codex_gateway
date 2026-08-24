@@ -1164,6 +1164,12 @@ program
           upstream_runtime: event.upstreamRuntime ?? null,
           upstream_model: event.upstreamModel ?? null,
           reasoning_effort: event.reasoningEffort ?? null,
+          requested_reasoning_effort: event.requestedReasoningEffort ?? null,
+          effective_reasoning_effort: event.effectiveReasoningEffort ?? null,
+          reasoning_effort_source: event.reasoningEffortSource ?? null,
+          reasoning_effort_normalized: event.reasoningEffortNormalized === true,
+          reasoning_effort_normalization_reason:
+            event.reasoningEffortNormalizationReason ?? null,
           client_turn_id: event.clientTurnId ?? null,
           turn_code: event.turnCode ?? null,
           client_session_id: event.clientSessionId ?? null,

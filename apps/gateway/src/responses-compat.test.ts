@@ -384,7 +384,8 @@ describe("Responses compatibility", () => {
         message: "timed out",
         httpStatus: 504
       }),
-      new Date("2026-07-13T00:00:03Z")
+      new Date("2026-07-13T00:00:03Z"),
+      { requestId: "req_responses_timeout" }
     );
     expect(failed).toMatchObject({
       event: "response.failed",
@@ -392,7 +393,11 @@ describe("Responses compatibility", () => {
         response: {
           id: start.state.responseId,
           status: "failed",
-          error: { code: "upstream_timeout" }
+          error: {
+            code: "upstream_timeout",
+            request_id: "req_responses_timeout",
+            retryable: true
+          }
         }
       }
     });

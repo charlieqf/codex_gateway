@@ -33,6 +33,7 @@ describe("gatewayErrorMetadata", () => {
     expect(gatewayErrorCodes).toEqual(
       expect.arrayContaining([
         "model_not_allowed_for_credential",
+        "unsupported_reasoning_effort",
         "context_compaction_required",
         "output_length_exceeded",
         "tool_call_output_truncated",
@@ -115,6 +116,29 @@ describe("gatewayErrorMetadata", () => {
       transformed_retry_allowed: true,
       recommended_action: "compact_and_generate_in_chunks",
       recovery_owner: "client"
+    });
+  });
+
+  it("publishes actionable unsupported reasoning metadata", () => {
+    const error = new GatewayError({
+      code: "unsupported_reasoning_effort",
+      message: "Unsupported reasoning effort.",
+      httpStatus: 400,
+      contractVersion: 1,
+      recommendedAction: "use_supported_reasoning_effort",
+      recoveryOwner: "client",
+      parameter: "reasoning_effort",
+      requestedValue: "xhigh",
+      supportedValues: ["low", "high", "max"]
+    });
+
+    expect(gatewayErrorMetadata(error)).toEqual({
+      contract_version: 1,
+      recommended_action: "use_supported_reasoning_effort",
+      recovery_owner: "client",
+      param: "reasoning_effort",
+      requested_value: "xhigh",
+      supported_values: ["low", "high", "max"]
     });
   });
 

@@ -267,6 +267,7 @@ import { registerVisionAssetRoutes } from "./vision-asset-routes.js";
 import {
   modelNotFoundError,
   openAIModelObject,
+  providerReasoningSettings,
   publicModelPoolMemberAdapterKey,
   resolvePublicModelRegistry,
   type OpenAICompatibleRuntimeKind,
@@ -2207,14 +2208,40 @@ export function buildGateway(options: GatewayOptions = {}) {
         })
       );
     }
+    request.gatewayPublicModelId = publicModel.id;
+    const modality = parsed.images?.length ? "vision" : "text";
+    request.gatewayRequestedReasoningEffort = parsed.reasoningEffort ?? null;
+    request.gatewayEffectiveReasoningEffort = null;
+    request.gatewayReasoningEffortSource =
+      parsed.reasoningEffort === undefined ? "default" : "request";
+    request.gatewayReasoningEffortNormalized = false;
+    request.gatewayReasoningEffortNormalizationReason = null;
     const reasoningEffort = resolveChatCompletionReasoningEffort(
       publicModel,
       parsed.reasoningEffort,
-      parsed.model
+      parsed.model,
+      modality
     );
     if (reasoningEffort instanceof GatewayError) {
       request.gatewayObservedUpstreamAccount = { id: null, provider: null };
       return fail(reasoningEffort);
+    }
+    request.gatewayEffectiveReasoningEffort = reasoningEffort.effective;
+    request.gatewayReasoningEffortSource = reasoningEffort.source;
+    request.gatewayReasoningEffortNormalized = reasoningEffort.normalized;
+    request.gatewayReasoningEffortNormalizationReason =
+      reasoningEffort.normalizationReason;
+    if (reasoningEffort.normalized) {
+      request.log.warn(
+        {
+          request_id: request.id,
+          public_model_id: publicModel.id,
+          requested_reasoning_effort: reasoningEffort.requested,
+          effective_reasoning_effort: reasoningEffort.effective,
+          normalization_reason: reasoningEffort.normalizationReason
+        },
+        "Legacy reasoning effort normalized before provider dispatch."
+      );
     }
 
     let entitlementAccess;
@@ -2261,9 +2288,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     const { subject, scope } = gatewayContext;
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
-      modality: parsed.images?.length ? "vision" : "text",
-      reasoningEffort,
-      reasoningEffortSource: parsed.reasoningEffort === undefined ? "default" : "request",
+      modality,
+      reasoningEffort: reasoningEffort.effective,
+      reasoningEffortSource: reasoningEffort.source,
       subject,
       scope,
       affinityKey,
@@ -3048,7 +3075,13 @@ export function buildGateway(options: GatewayOptions = {}) {
         writeResponsesFailure(
           request,
           sse,
-          createResponsesFailedEvent(parsed, streamStart.state, chatCompletion.error, clock()),
+          createResponsesFailedEvent(
+            parsed,
+            streamStart.state,
+            chatCompletion.error,
+            clock(),
+            { requestId: request.id }
+          ),
           chatCompletion.error
         );
         return;
@@ -3058,7 +3091,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         writeResponsesFailure(
           request,
           sse,
-          createResponsesFailedEvent(parsed, streamStart.state, result, clock()),
+          createResponsesFailedEvent(parsed, streamStart.state, result, clock(), {
+            requestId: request.id
+          }),
           result
         );
         return;
@@ -3073,7 +3108,9 @@ export function buildGateway(options: GatewayOptions = {}) {
       writeResponsesFailure(
         request,
         sse,
-        createResponsesFailedEvent(parsed, streamStart.state, error, clock()),
+        createResponsesFailedEvent(parsed, streamStart.state, error, clock(), {
+          requestId: request.id
+        }),
         error
       );
     } finally {
@@ -7319,7 +7356,7 @@ function createXaiVisionAdapters(
         apiKey,
         apiKeyEnv: sourceEnvName,
         upstreamModel: vision.upstreamModel,
-        reasoning: vision.reasoning,
+        reasoning: providerReasoningSettings(vision.reasoning),
         reasoningParameterStyle: "effort_field",
         timeoutMs
       })
@@ -7393,12 +7430,13 @@ function openAICompatibleAdapterTargets(
       continue;
     }
     if (model.runtime === runtime) {
+      const reasoning = providerReasoningSettings(model.reasoning);
       targets.push({
         id: model.id,
         publicModelId: model.id,
         runtime,
         upstreamModel: model.upstreamModel,
-        ...(model.reasoning ? { reasoning: model.reasoning } : {})
+        ...(reasoning ? { reasoning } : {})
       });
       continue;
     }
@@ -7409,7 +7447,7 @@ function openAICompatibleAdapterTargets(
       if (!member.enabled || member.runtime !== runtime) {
         continue;
       }
-      const reasoning = member.reasoning ?? model.reasoning;
+      const reasoning = providerReasoningSettings(member.reasoning ?? model.reasoning);
       targets.push({
         id: member.id,
         publicModelId: model.id,
@@ -7594,6 +7632,7 @@ function applyChatRuntimeContext(
   request.gatewayUpstreamRuntime = runtime.runtime;
   request.gatewayUpstreamModel = runtime.upstreamModel;
   request.gatewayReasoningEffort = runtime.reasoningEffort;
+  request.gatewayEffectiveReasoningEffort = runtime.reasoningEffort;
   markSession(request, runtime.session.id);
 }
 
@@ -7714,43 +7753,104 @@ const legacyStandardReasoningModelIds = new Set([
   "standard"
 ]);
 
+type ReasoningEffortSource = "default" | "request" | "legacy_normalization";
+
+interface ResolvedReasoningEffort {
+  requested: string | null;
+  effective: string | null;
+  source: ReasoningEffortSource;
+  normalized: boolean;
+  normalizationReason: string | null;
+}
+
 function resolveChatCompletionReasoningEffort(
   model: PublicModelConfig,
   requested: string | undefined,
-  requestModelId: string
-): string | null | GatewayError {
+  requestModelId: string,
+  modality: "text" | "vision"
+): ResolvedReasoningEffort | GatewayError {
+  const reasoning = reasoningConfigForModel(model, modality);
   if (requested === undefined) {
-    return configuredReasoningEffortForModel(model);
+    return {
+      requested: null,
+      effective: configuredReasoningEffort(reasoning),
+      source: "default",
+      normalized: false,
+      normalizationReason: null
+    };
   }
 
-  const supported = supportedReasoningEffortsForModel(model);
+  const supported = supportedReasoningEffortsForModel(model, modality);
   if (!supported) {
     return new GatewayError({
-      code: "invalid_request",
+      code: "unsupported_reasoning_effort",
       message: `reasoning_effort is not supported for model '${requestModelId}'.`,
-      httpStatus: 400
+      httpStatus: 400,
+      contractVersion: 1,
+      recommendedAction: "remove_reasoning_effort",
+      recoveryOwner: "client",
+      parameter: "reasoning_effort",
+      requestedValue: requested,
+      supportedValues: []
     });
   }
 
-  if (!supported.values.includes(requested)) {
-    return new GatewayError({
-      code: "invalid_request",
-      message: `reasoning_effort '${requested}' is not supported for model '${requestModelId}'. Supported values: ${supported.values.join(", ")}.`,
-      httpStatus: 400
-    });
+  if (supported.values.includes(requested)) {
+    return {
+      requested,
+      effective: requested,
+      source: "request",
+      normalized: false,
+      normalizationReason: null
+    };
   }
 
-  return requested;
+  const normalized = reasoning?.legacyAliases?.[requested];
+  if (normalized && supported.values.includes(normalized)) {
+    return {
+      requested,
+      effective: normalized,
+      source: "legacy_normalization",
+      normalized: true,
+      normalizationReason: "legacy_alias"
+    };
+  }
+
+  return new GatewayError({
+    code: "unsupported_reasoning_effort",
+    message: `reasoning_effort '${requested}' is not supported for model '${requestModelId}'. Supported values: ${supported.values.join(", ")}.`,
+    httpStatus: 400,
+    contractVersion: 1,
+    recommendedAction: "use_supported_reasoning_effort",
+    recoveryOwner: "client",
+    parameter: "reasoning_effort",
+    requestedValue: requested,
+    supportedValues: supported.values
+  });
 }
 
-function configuredReasoningEffortForModel(model: PublicModelConfig): string | null {
-  const effort = model.reasoning?.effort;
+function reasoningConfigForModel(
+  model: PublicModelConfig,
+  modality: "text" | "vision"
+): PublicModelConfig["reasoning"] {
+  return modality === "vision" ? model.vision?.reasoning : model.reasoning;
+}
+
+function configuredReasoningEffort(
+  reasoning: PublicModelConfig["reasoning"]
+): string | null {
+  const effort = reasoning?.effort;
   return typeof effort === "string" && effort.length > 0 ? effort : null;
 }
 
 function supportedReasoningEffortsForModel(
-  model: PublicModelConfig
+  model: PublicModelConfig,
+  modality: "text" | "vision"
 ): { values: readonly string[] } | null {
+  const configured = reasoningConfigForModel(model, modality)?.supportedEfforts;
+  if (configured) {
+    return { values: configured };
+  }
   if (isMaxReasoningModel(model)) {
     return { values: maxRequestReasoningEfforts };
   }

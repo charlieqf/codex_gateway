@@ -202,6 +202,11 @@ export interface RequestEventRecord {
   upstreamRuntime?: string | null;
   upstreamModel?: string | null;
   reasoningEffort?: string | null;
+  requestedReasoningEffort?: string | null;
+  effectiveReasoningEffort?: string | null;
+  reasoningEffortSource?: string | null;
+  reasoningEffortNormalized?: boolean;
+  reasoningEffortNormalizationReason?: string | null;
   reasoningTokens?: number | null;
   clientTurnId?: string | null;
   turnCode?: string | null;

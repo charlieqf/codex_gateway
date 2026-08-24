@@ -15,12 +15,19 @@ export type PublicModelPoolRuntimeKind = Exclude<
 export type ChatRuntimeKind = "codex" | OpenAICompatibleRuntimeKind | "pool";
 export type PublicModelPoolStickyKey = "client_session" | "credential" | "subject";
 
+export interface PublicModelReasoningConfig {
+  [key: string]: unknown;
+  effort?: string;
+  supportedEfforts?: string[];
+  legacyAliases?: Record<string, string>;
+}
+
 export interface PublicModelPoolMemberConfig {
   id: string;
   runtime: PublicModelPoolRuntimeKind;
   upstreamModel: string;
   maxConcurrent?: number;
-  reasoning?: Record<string, unknown>;
+  reasoning?: PublicModelReasoningConfig;
   enabled: boolean;
 }
 
@@ -38,7 +45,7 @@ export interface PublicModelVisionConfig {
   upstreamModel: string;
   contextWindow: number;
   maxOutputTokens: number;
-  reasoning?: Record<string, unknown>;
+  reasoning?: PublicModelReasoningConfig;
   enabled: boolean;
 }
 
@@ -55,7 +62,7 @@ export interface PublicModelConfig {
   upstreamContextWindow: number;
   maxOutputTokens: number;
   enabled: boolean;
-  reasoning?: Record<string, unknown>;
+  reasoning?: PublicModelReasoningConfig;
 }
 
 export interface PublicModelRegistry {
@@ -119,6 +126,22 @@ export function openAIModelObject(model: PublicModelConfig, id?: string | number
     max_context_window: model.maxContextWindow,
     max_output_tokens: model.maxOutputTokens
   };
+}
+
+export function providerReasoningSettings(
+  reasoning: PublicModelReasoningConfig | undefined
+): Record<string, unknown> | undefined {
+  if (!reasoning) {
+    return undefined;
+  }
+  const providerEntries = Object.entries(reasoning).filter(
+    ([key]) =>
+      key !== "supportedEfforts" &&
+      key !== "supported_efforts" &&
+      key !== "legacyAliases" &&
+      key !== "legacy_aliases"
+  );
+  return providerEntries.length > 0 ? Object.fromEntries(providerEntries) : undefined;
 }
 
 export function modelNotFoundError(model: string): GatewayError {
@@ -300,9 +323,11 @@ function parsePublicModelConfig(
   const fallbackOutput = isDefault
     ? defaultModel.maxOutputTokens
     : Math.min(defaultModel.maxOutputTokens, contextWindow);
-  const reasoning = isRecord(value.reasoning)
-    ? value.reasoning
-    : defaultReasoningForRuntime(runtime);
+  const reasoning = parseReasoningConfig(
+    value.reasoning,
+    defaultReasoningForRuntime(runtime),
+    `public model '${id}' reasoning`
+  );
   const maxOutputTokens = parsePositiveInteger(
     value.maxOutputTokens ?? value.max_output_tokens,
     fallbackOutput,
@@ -376,7 +401,9 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
   );
 }
 
-function defaultReasoningForRuntime(runtime: ChatRuntimeKind): Record<string, unknown> | undefined {
+function defaultReasoningForRuntime(
+  runtime: ChatRuntimeKind
+): PublicModelReasoningConfig | undefined {
   return runtime === "pool" ? { effort: "medium" } : undefined;
 }
 
@@ -385,7 +412,7 @@ function parseVisionConfig(
   id: string,
   fallbackContextWindow: number,
   fallbackMaxOutputTokens: number,
-  fallbackReasoning: Record<string, unknown> | undefined
+  fallbackReasoning: PublicModelReasoningConfig | undefined
 ): PublicModelVisionConfig | undefined {
   if (value === undefined) {
     return undefined;
@@ -400,7 +427,11 @@ function parseVisionConfig(
   if (!upstreamModel) {
     throw new Error(`Public model '${id}' vision.upstreamModel must be a non-empty string.`);
   }
-  const reasoning = isRecord(value.reasoning) ? value.reasoning : fallbackReasoning;
+  const reasoning = parseReasoningConfig(
+    value.reasoning,
+    fallbackReasoning,
+    `public model '${id}' vision.reasoning`
+  );
   return {
     runtime: "xai",
     upstreamModel,
@@ -518,7 +549,10 @@ function parsePoolMember(
             `public model '${modelId}' pool.members[${index}].maxConcurrent`
           )
         }),
-    ...(isRecord(value.reasoning) ? { reasoning: value.reasoning } : {}),
+    ...reasoningProperty(
+      value.reasoning,
+      `public model '${modelId}' pool.members[${index}].reasoning`
+    ),
     enabled:
       value.enabled === undefined
         ? true
@@ -553,6 +587,121 @@ function parsePoolMemberRuntime(
   throw new Error(
     `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch.`
   );
+}
+
+function reasoningProperty(
+  value: unknown,
+  name: string
+): { reasoning?: PublicModelReasoningConfig } {
+  const reasoning = parseReasoningConfig(value, undefined, name);
+  return reasoning ? { reasoning } : {};
+}
+
+function parseReasoningConfig(
+  value: unknown,
+  fallback: PublicModelReasoningConfig | undefined,
+  name: string
+): PublicModelReasoningConfig | undefined {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`${name} must be a JSON object.`);
+  }
+
+  const reasoning: PublicModelReasoningConfig = { ...value };
+  const effort = parseReasoningEffort(value.effort, `${name}.effort`);
+  const supportedEfforts = parseReasoningEfforts(
+    value.supportedEfforts ?? value.supported_efforts,
+    `${name}.supportedEfforts`
+  );
+  const legacyAliases = parseReasoningAliases(
+    value.legacyAliases ?? value.legacy_aliases,
+    `${name}.legacyAliases`
+  );
+
+  delete reasoning.supported_efforts;
+  delete reasoning.legacy_aliases;
+  if (effort === undefined) {
+    delete reasoning.effort;
+  } else {
+    reasoning.effort = effort;
+  }
+  if (supportedEfforts === undefined) {
+    delete reasoning.supportedEfforts;
+  } else {
+    reasoning.supportedEfforts = supportedEfforts;
+  }
+  if (legacyAliases === undefined) {
+    delete reasoning.legacyAliases;
+  } else {
+    reasoning.legacyAliases = legacyAliases;
+  }
+
+  if (effort && supportedEfforts && !supportedEfforts.includes(effort)) {
+    throw new Error(`${name}.effort must be included in supportedEfforts.`);
+  }
+  if (legacyAliases && !supportedEfforts) {
+    throw new Error(`${name}.legacyAliases requires supportedEfforts.`);
+  }
+  for (const [requested, effective] of Object.entries(legacyAliases ?? {})) {
+    if (supportedEfforts?.includes(requested)) {
+      throw new Error(`${name}.legacyAliases must not replace a supported effort '${requested}'.`);
+    }
+    if (!supportedEfforts?.includes(effective)) {
+      throw new Error(
+        `${name}.legacyAliases target '${effective}' must be included in supportedEfforts.`
+      );
+    }
+  }
+  return reasoning;
+}
+
+function parseReasoningEffort(value: unknown, name: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${name} must be a non-empty string.`);
+  }
+  return value.trim();
+}
+
+function parseReasoningEfforts(value: unknown, name: string): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${name} must be a non-empty array.`);
+  }
+  const efforts: string[] = [];
+  for (const item of value) {
+    const effort = parseReasoningEffort(item, `${name} entry`);
+    if (effort && !efforts.includes(effort)) {
+      efforts.push(effort);
+    }
+  }
+  return efforts;
+}
+
+function parseReasoningAliases(
+  value: unknown,
+  name: string
+): Record<string, string> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`${name} must be a JSON object.`);
+  }
+  const aliases: Record<string, string> = {};
+  for (const [requested, target] of Object.entries(value)) {
+    if (!requested || requested.trim() !== requested) {
+      throw new Error(`${name} keys must be non-empty trimmed strings.`);
+    }
+    aliases[requested] = parseReasoningEffort(target, `${name}.${requested}`)!;
+  }
+  return aliases;
 }
 
 function parseBoolean(value: unknown, name: string): boolean {

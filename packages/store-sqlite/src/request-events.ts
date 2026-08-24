@@ -31,7 +31,9 @@ export function insert(
   db.prepare(
     `INSERT INTO request_events (
       request_id, credential_id, subject_id, scope, session_id, upstream_account_id, provider,
-      public_model_id, upstream_runtime, upstream_model, reasoning_effort, reasoning_tokens,
+      public_model_id, upstream_runtime, upstream_model, reasoning_effort,
+      requested_reasoning_effort, effective_reasoning_effort, reasoning_effort_source,
+      reasoning_effort_normalized, reasoning_effort_normalization_reason, reasoning_tokens,
       client_turn_id, turn_code, client_session_id, client_message_id, client_app_version,
       tool_choice, upstream_finish_reason, upstream_request_id, upstream_http_status,
       upstream_content_chars, upstream_tool_call_count, upstream_tool_names_json,
@@ -48,7 +50,7 @@ export function insert(
       cancel_requested, cancel_observed, active_tool_count, client_tool_mode,
       tool_loop_guard_json, usage_source, limit_kind, reservation_id, over_request_limit,
       identity_guard_hit
-    ) VALUES (${Array.from({ length: 67 }, () => "?").join(", ")})
+    ) VALUES (${Array.from({ length: 72 }, () => "?").join(", ")})
     ON CONFLICT(request_id) DO UPDATE SET
       credential_id = excluded.credential_id,
       subject_id = excluded.subject_id,
@@ -60,6 +62,11 @@ export function insert(
       upstream_runtime = excluded.upstream_runtime,
       upstream_model = excluded.upstream_model,
       reasoning_effort = excluded.reasoning_effort,
+      requested_reasoning_effort = excluded.requested_reasoning_effort,
+      effective_reasoning_effort = excluded.effective_reasoning_effort,
+      reasoning_effort_source = excluded.reasoning_effort_source,
+      reasoning_effort_normalized = excluded.reasoning_effort_normalized,
+      reasoning_effort_normalization_reason = excluded.reasoning_effort_normalization_reason,
       reasoning_tokens = excluded.reasoning_tokens,
       client_turn_id = excluded.client_turn_id,
       turn_code = excluded.turn_code,
@@ -128,6 +135,11 @@ export function insert(
     record.upstreamRuntime ?? null,
     record.upstreamModel ?? null,
     record.reasoningEffort ?? null,
+    record.requestedReasoningEffort ?? null,
+    record.effectiveReasoningEffort ?? record.reasoningEffort ?? null,
+    record.reasoningEffortSource ?? null,
+    record.reasoningEffortNormalized === true ? 1 : 0,
+    record.reasoningEffortNormalizationReason ?? null,
     record.reasoningTokens ?? null,
     record.clientTurnId ?? null,
     record.turnCode ?? null,

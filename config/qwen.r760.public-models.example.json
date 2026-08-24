@@ -7,7 +7,14 @@
     "upstreamContextWindow": 1048576,
     "maxOutputTokens": 128000,
     "enabled": true,
-    "reasoning": { "effort": "high" },
+    "reasoning": {
+      "effort": "high",
+      "supportedEfforts": ["low", "high", "max"],
+      "legacyAliases": {
+        "none": "low",
+        "medium": "high"
+      }
+    },
     "vision": {
       "runtime": "xai",
       "upstreamModel": "grok-4.5",

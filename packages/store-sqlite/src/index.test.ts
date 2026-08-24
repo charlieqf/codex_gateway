@@ -178,6 +178,15 @@ describe("SqliteGatewayStore", () => {
       expect(tableExists(db, "billing_events")).toBe(true);
       expect(columnNames(db, "token_reservations")).toContain("entitlement_id");
       expect(columnNames(db, "request_events")).toContain("reasoning_effort");
+      expect(columnNames(db, "request_events")).toEqual(
+        expect.arrayContaining([
+          "requested_reasoning_effort",
+          "effective_reasoning_effort",
+          "reasoning_effort_source",
+          "reasoning_effort_normalized",
+          "reasoning_effort_normalization_reason"
+        ])
+      );
       expect(columnNames(db, "request_events")).toContain("reasoning_tokens");
       expect(columnNames(db, "request_events")).toContain("gateway_estimated_prompt_tokens");
       expect(columnNames(db, "request_events")).toContain("tool_loop_guard_json");
@@ -212,6 +221,9 @@ describe("SqliteGatewayStore", () => {
       expect(
         db.prepare("SELECT version FROM schema_migrations WHERE version = 26").get()
       ).toBeTruthy();
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 27").get()
+      ).toBeTruthy();
       expect(indexNames(db, "request_events")).toContain(
         "idx_request_events_failure_started"
       );
@@ -243,6 +255,9 @@ describe("SqliteGatewayStore", () => {
       ).toBeUndefined();
       expect(
         db.prepare("SELECT version FROM schema_migrations WHERE version = 26").get()
+      ).toBeTruthy();
+      expect(
+        db.prepare("SELECT version FROM schema_migrations WHERE version = 27").get()
       ).toBeTruthy();
       expect(columnNames(db, "request_events")).toContain("upstream_failure_kind");
 
@@ -821,6 +836,11 @@ describe("SqliteGatewayStore", () => {
       upstreamRuntime: "codex",
       upstreamModel: "gpt-5.5",
       reasoningEffort: "high",
+      requestedReasoningEffort: "medium",
+      effectiveReasoningEffort: "high",
+      reasoningEffortSource: "legacy_normalization",
+      reasoningEffortNormalized: true,
+      reasoningEffortNormalizationReason: "legacy_alias",
       reasoningTokens: 3,
       clientTurnId: "msg_turn_1",
       turnCode: "T:7K3P2",
@@ -976,6 +996,11 @@ describe("SqliteGatewayStore", () => {
         upstreamRuntime: "codex",
         upstreamModel: "gpt-5.5",
         reasoningEffort: "high",
+        requestedReasoningEffort: "medium",
+        effectiveReasoningEffort: "high",
+        reasoningEffortSource: "legacy_normalization",
+        reasoningEffortNormalized: true,
+        reasoningEffortNormalizationReason: "legacy_alias",
         reasoningTokens: 3,
         clientTurnId: "msg_turn_1",
         turnCode: "T:7K3P2",
@@ -1600,7 +1625,7 @@ describe("SqliteGatewayStore", () => {
     store.close();
   });
 
-  it("imports migration 24 usage history into migration 26 with additive fields left null", () => {
+  it("imports migration 24 usage history into migration 27 with additive fields defaulted", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-history-sync-"));
     cleanupDirs.push(dir);
     const sourcePath = path.join(dir, "source.db");
@@ -1634,11 +1659,16 @@ describe("SqliteGatewayStore", () => {
         "upstream_transport_code",
         "upstream_failure_retry_count",
         "upstream_recovery_attempt_count",
-        "upstream_unclassified_additional_attempt_count"
+        "upstream_unclassified_additional_attempt_count",
+        "requested_reasoning_effort",
+        "effective_reasoning_effort",
+        "reasoning_effort_source",
+        "reasoning_effort_normalized",
+        "reasoning_effort_normalization_reason"
       ]) {
         legacy.exec(`ALTER TABLE request_events DROP COLUMN ${column}`);
       }
-      legacy.prepare("DELETE FROM schema_migrations WHERE version IN (25, 26)").run();
+      legacy.prepare("DELETE FROM schema_migrations WHERE version IN (25, 26, 27)").run();
     } finally {
       legacy.close();
     }
@@ -1675,7 +1705,12 @@ describe("SqliteGatewayStore", () => {
       upstreamTransportCode: null,
       upstreamFailureRetryCount: null,
       upstreamRecoveryAttemptCount: null,
-      upstreamUnclassifiedAdditionalAttemptCount: null
+      upstreamUnclassifiedAdditionalAttemptCount: null,
+      requestedReasoningEffort: null,
+      effectiveReasoningEffort: null,
+      reasoningEffortSource: null,
+      reasoningEffortNormalized: false,
+      reasoningEffortNormalizationReason: null
     });
     target.close();
   });

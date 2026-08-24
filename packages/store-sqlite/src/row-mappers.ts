@@ -268,6 +268,11 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     upstream_runtime: string | null;
     upstream_model: string | null;
     reasoning_effort: string | null;
+    requested_reasoning_effort: string | null;
+    effective_reasoning_effort: string | null;
+    reasoning_effort_source: string | null;
+    reasoning_effort_normalized: number;
+    reasoning_effort_normalization_reason: string | null;
     reasoning_tokens: number | null;
     client_turn_id: string | null;
     turn_code: string | null;
@@ -338,6 +343,11 @@ export function rowToRequestEvent(row: unknown): RequestEventRecord {
     upstreamRuntime: value.upstream_runtime,
     upstreamModel: value.upstream_model,
     reasoningEffort: value.reasoning_effort,
+    requestedReasoningEffort: value.requested_reasoning_effort,
+    effectiveReasoningEffort: value.effective_reasoning_effort,
+    reasoningEffortSource: value.reasoning_effort_source,
+    reasoningEffortNormalized: value.reasoning_effort_normalized === 1,
+    reasoningEffortNormalizationReason: value.reasoning_effort_normalization_reason,
     reasoningTokens: value.reasoning_tokens,
     clientTurnId: value.client_turn_id,
     turnCode: value.turn_code,

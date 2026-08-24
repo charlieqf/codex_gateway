@@ -114,6 +114,11 @@ interface GatewayRequestEventRow {
   upstreamRuntime: string | null;
   upstreamModel: string | null;
   reasoningEffort: string | null;
+  requestedReasoningEffort: string | null;
+  effectiveReasoningEffort: string | null;
+  reasoningEffortSource: string | null;
+  reasoningEffortNormalized: boolean;
+  reasoningEffortNormalizationReason: string | null;
   clientTurnId: string | null;
   turnCode: string | null;
   clientSessionId: string | null;
@@ -644,6 +649,9 @@ function queryClientTurnGatewayRequests(
     .prepare(
       `SELECT request_id, credential_id, subject_id, scope, session_id, upstream_account_id,
               provider, public_model_id, upstream_runtime, upstream_model, reasoning_effort,
+              requested_reasoning_effort, effective_reasoning_effort,
+              reasoning_effort_source, reasoning_effort_normalized,
+              reasoning_effort_normalization_reason,
               client_turn_id, turn_code, client_session_id, client_message_id,
               client_app_version, tool_choice, upstream_finish_reason, upstream_request_id,
               upstream_http_status, upstream_content_chars, upstream_tool_call_count,
@@ -890,6 +898,11 @@ function publicGatewayRequestEvent(
     upstream_account_id: row.upstreamAccountId,
     provider: row.provider,
     reasoning_effort: row.reasoningEffort,
+    requested_reasoning_effort: row.requestedReasoningEffort,
+    effective_reasoning_effort: row.effectiveReasoningEffort,
+    reasoning_effort_source: row.reasoningEffortSource,
+    reasoning_effort_normalized: row.reasoningEffortNormalized,
+    reasoning_effort_normalization_reason: row.reasoningEffortNormalizationReason,
     tool_choice: row.toolChoice,
     upstream_finish_reason: row.upstreamFinishReason,
     upstream_request_id: row.upstreamRequestId,
@@ -957,6 +970,11 @@ function clientTurnTimeline(
       public_model_id: row.publicModelId,
       resolved_upstream_model: row.upstreamModel,
       reasoning_effort: row.reasoningEffort,
+      requested_reasoning_effort: row.requestedReasoningEffort,
+      effective_reasoning_effort: row.effectiveReasoningEffort,
+      reasoning_effort_source: row.reasoningEffortSource,
+      reasoning_effort_normalized: row.reasoningEffortNormalized,
+      reasoning_effort_normalization_reason: row.reasoningEffortNormalizationReason,
       finish_reason: row.upstreamFinishReason,
       tool_call_count: row.upstreamToolCallCount,
       error_code: row.errorCode
@@ -1325,6 +1343,11 @@ function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
     upstream_runtime: string | null;
     upstream_model: string | null;
     reasoning_effort: string | null;
+    requested_reasoning_effort: string | null;
+    effective_reasoning_effort: string | null;
+    reasoning_effort_source: string | null;
+    reasoning_effort_normalized: number;
+    reasoning_effort_normalization_reason: string | null;
     client_turn_id: string | null;
     turn_code: string | null;
     client_session_id: string | null;
@@ -1369,6 +1392,11 @@ function rowToGatewayRequestEvent(row: unknown): GatewayRequestEventRow {
     upstreamRuntime: value.upstream_runtime,
     upstreamModel: value.upstream_model,
     reasoningEffort: value.reasoning_effort,
+    requestedReasoningEffort: value.requested_reasoning_effort,
+    effectiveReasoningEffort: value.effective_reasoning_effort,
+    reasoningEffortSource: value.reasoning_effort_source,
+    reasoningEffortNormalized: value.reasoning_effort_normalized === 1,
+    reasoningEffortNormalizationReason: value.reasoning_effort_normalization_reason,
     clientTurnId: value.client_turn_id,
     turnCode: value.turn_code,
     clientSessionId: value.client_session_id,

@@ -6,7 +6,8 @@ import {
 } from "@codex-gateway/core";
 import {
   gatewayErrorMetadata,
-  gatewayErrorRetryable
+  gatewayErrorRetryable,
+  type GatewayErrorResponseContext
 } from "./http/error-response.js";
 import {
   appendMessageImageInput,
@@ -267,7 +268,8 @@ export function createResponsesFailedEvent(
   request: ParsedResponsesRequest,
   state: ResponsesStreamState,
   error: GatewayError,
-  now = new Date()
+  now = new Date(),
+  context: GatewayErrorResponseContext = {}
 ): ResponsesSseEvent {
   const response = {
     ...baseResponse({
@@ -286,12 +288,9 @@ export function createResponsesFailedEvent(
     error: {
       code: error.code,
       message: error.message,
-      ...(error.contractVersion !== undefined
-        ? {
-            retryable: gatewayErrorRetryable(error),
-            ...gatewayErrorMetadata(error)
-          }
-        : {})
+      retryable: gatewayErrorRetryable(error),
+      ...(context.requestId ? { request_id: context.requestId } : {}),
+      ...gatewayErrorMetadata(error, context)
     }
   };
   return event("response.failed", { response });

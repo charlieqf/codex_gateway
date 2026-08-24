@@ -60,7 +60,7 @@ interface RuntimeBeginInput {
   model: PublicModelConfig;
   modality?: "text" | "vision";
   reasoningEffort: string | null;
-  reasoningEffortSource: "default" | "request";
+  reasoningEffortSource: "default" | "request" | "legacy_normalization";
   subject: Subject;
   scope: Scope;
   affinityKey: string | null;
@@ -200,7 +200,7 @@ function beginVisionRuntime(
     providerKind: virtualAccount.provider,
     upstreamModel: vision.upstreamModel,
     reasoningEffort:
-      input.reasoningEffortSource === "request"
+      input.reasoningEffortSource !== "default"
         ? input.reasoningEffort
         : reasoningEffortFromConfig(vision.reasoning) ?? input.reasoningEffort,
     limits: {
@@ -359,7 +359,7 @@ function poolMemberReasoningEffort(
   input: RuntimeBeginInput,
   member: PublicModelPoolMemberConfig
 ): string | null {
-  if (input.reasoningEffortSource === "request") {
+  if (input.reasoningEffortSource !== "default") {
     return input.reasoningEffort;
   }
   return reasoningEffortFromConfig(member.reasoning) ?? input.reasoningEffort;

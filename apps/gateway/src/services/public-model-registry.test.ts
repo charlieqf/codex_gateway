@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   openAIModelObject,
+  providerReasoningSettings,
   resolvePublicModelRegistry
 } from "./public-model-registry.js";
 import { goldencodePoolConfig } from "../test-support.js";
@@ -96,6 +97,64 @@ describe("public model registry", () => {
       max_context_window: 200000,
       max_output_tokens: 128000
     });
+  });
+
+  it("parses model-level reasoning capabilities and strips them from provider settings", () => {
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        goldencode: {
+          displayName: "GoldenCode",
+          runtime: "tencent",
+          upstreamModel: "glm-5.3",
+          reasoning: {
+            effort: "high",
+            supportedEfforts: ["low", "high", "max"],
+            legacyAliases: { none: "low", medium: "high" }
+          }
+        }
+      })
+    });
+
+    const reasoning = registry.get("goldencode")?.reasoning;
+    expect(reasoning).toEqual({
+      effort: "high",
+      supportedEfforts: ["low", "high", "max"],
+      legacyAliases: { none: "low", medium: "high" }
+    });
+    expect(providerReasoningSettings(reasoning)).toEqual({ effort: "high" });
+  });
+
+  it("rejects inconsistent reasoning capability declarations at startup", () => {
+    expect(() =>
+      resolvePublicModelRegistry({
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          goldencode: {
+            runtime: "tencent",
+            upstreamModel: "glm-5.3",
+            reasoning: {
+              effort: "medium",
+              supportedEfforts: ["low", "high", "max"]
+            }
+          }
+        })
+      })
+    ).toThrow("reasoning.effort must be included in supportedEfforts");
+
+    expect(() =>
+      resolvePublicModelRegistry({
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          goldencode: {
+            runtime: "tencent",
+            upstreamModel: "glm-5.3",
+            reasoning: {
+              effort: "high",
+              supportedEfforts: ["low", "high", "max"],
+              legacyAliases: { medium: "xhigh" }
+            }
+          }
+        })
+      })
+    ).toThrow("legacyAliases target 'xhigh' must be included in supportedEfforts");
   });
 
   it("rejects aliases that collide with public model ids", () => {

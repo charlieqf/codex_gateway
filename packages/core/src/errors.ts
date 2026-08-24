@@ -18,6 +18,7 @@ export const gatewayErrorCodes = [
   "auth_rate_limited",
   "invalid_request",
   "unsupported_parameter",
+  "unsupported_reasoning_effort",
   "invalid_event_type",
   "invalid_period",
   "invalid_external_user_id",
@@ -106,6 +107,9 @@ export class GatewayError extends Error {
   readonly recommendedAction?: string;
   readonly recoveryOwner?: GatewayRecoveryOwner;
   readonly providerFailure?: ProviderFailureClassification;
+  readonly parameter?: string;
+  readonly requestedValue?: string;
+  readonly supportedValues?: readonly string[];
 
   constructor(input: {
     code: GatewayErrorCode;
@@ -119,6 +123,9 @@ export class GatewayError extends Error {
     recommendedAction?: string;
     recoveryOwner?: GatewayRecoveryOwner;
     providerFailure?: ProviderFailureClassification;
+    parameter?: string;
+    requestedValue?: string;
+    supportedValues?: readonly string[];
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -132,6 +139,9 @@ export class GatewayError extends Error {
     this.recommendedAction = input.recommendedAction;
     this.recoveryOwner = input.recoveryOwner;
     this.providerFailure = input.providerFailure;
+    this.parameter = input.parameter;
+    this.requestedValue = input.requestedValue;
+    this.supportedValues = input.supportedValues;
   }
 }
 

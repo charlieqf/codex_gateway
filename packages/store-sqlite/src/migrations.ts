@@ -971,6 +971,26 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(
+    db,
+    27,
+    () => {
+      const columns: Array<[string, string]> = [
+        ["requested_reasoning_effort", "TEXT"],
+        ["effective_reasoning_effort", "TEXT"],
+        ["reasoning_effort_source", "TEXT"],
+        ["reasoning_effort_normalized", "INTEGER NOT NULL DEFAULT 0"],
+        ["reasoning_effort_normalization_reason", "TEXT"]
+      ];
+      for (const [column, type] of columns) {
+        if (!columnExists(db, "request_events", column)) {
+          db.exec(`ALTER TABLE request_events ADD COLUMN ${column} ${type}`);
+        }
+      }
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

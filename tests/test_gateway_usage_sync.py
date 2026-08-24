@@ -37,6 +37,12 @@ PHASE0_REQUEST_COLUMNS = [
     "upstream_recovery_attempt_count", "upstream_unclassified_additional_attempt_count",
 ]
 
+REASONING_OBSERVABILITY_REQUEST_COLUMNS = [
+    "requested_reasoning_effort", "effective_reasoning_effort",
+    "reasoning_effort_source", "reasoning_effort_normalized",
+    "reasoning_effort_normalization_reason",
+]
+
 RESERVATION_COLUMNS = [
     "id", "request_id", "kind", "credential_id", "subject_id", "scope", "upstream_account_id",
     "provider", "created_at", "expires_at", "finalized_at", "estimated_prompt_tokens",
@@ -60,14 +66,15 @@ def create_table_sql(name: str, columns: list[str], primary: str, unique: str | 
         suffix = " PRIMARY KEY" if column == primary else ""
         if unique and column == unique:
             suffix += " UNIQUE"
-        definitions.append(f'"{column}" TEXT{suffix}')
+        column_type = "INTEGER" if column == "reasoning_effort_normalized" else "TEXT"
+        definitions.append(f'"{column}" {column_type}{suffix}')
     return f'CREATE TABLE "{name}" ({", ".join(definitions)});'
 
 
 def create_database(path: Path, *, phase0: bool = False) -> None:
     db = sqlite3.connect(path)
     try:
-        migration = 26 if phase0 else 24
+        migration = 27 if phase0 else 24
         db.executescript(
             f"""
             PRAGMA foreign_keys = ON;
@@ -92,7 +99,10 @@ def create_database(path: Path, *, phase0: bool = False) -> None:
             );
             """
         )
-        request_columns = REQUEST_COLUMNS + (PHASE0_REQUEST_COLUMNS if phase0 else [])
+        request_columns = REQUEST_COLUMNS + (
+            PHASE0_REQUEST_COLUMNS + REASONING_OBSERVABILITY_REQUEST_COLUMNS
+            if phase0 else []
+        )
         db.execute(create_table_sql("request_events", request_columns, "request_id"))
         db.execute(create_table_sql("token_reservations", RESERVATION_COLUMNS, "id", "request_id"))
         db.execute(create_table_sql("admin_audit_events", AUDIT_COLUMNS, "id"))
@@ -216,6 +226,15 @@ class GatewayUsageSyncTests(unittest.TestCase):
                         "FROM request_events WHERE request_id='request-2'"
                     ).fetchone(),
                     (None, None, None, None, None, None, None),
+                )
+                self.assertEqual(
+                    db.execute(
+                        "SELECT requested_reasoning_effort, effective_reasoning_effort, "
+                        "reasoning_effort_source, reasoning_effort_normalized, "
+                        "reasoning_effort_normalization_reason "
+                        "FROM request_events WHERE request_id='request-2'"
+                    ).fetchone(),
+                    (None, None, None, 0, None),
                 )
                 self.assertEqual(
                     db.execute("SELECT total_tokens, requests FROM token_windows WHERE window_kind='day'").fetchone(),

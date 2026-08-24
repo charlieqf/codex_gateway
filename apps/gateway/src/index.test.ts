@@ -5643,8 +5643,13 @@ describe("gateway phase 1 routes", () => {
           expect(provider.messages[0].reasoningEffort).toBe("xhigh");
           expect(unsupported.statusCode).toBe(400);
           expect(unsupported.json().error).toMatchObject({
-            code: "invalid_request",
-            type: "invalid_request_error"
+            code: "unsupported_reasoning_effort",
+            type: "invalid_request_error",
+            param: "reasoning_effort",
+            requested_value: "none",
+            supported_values: ["minimal", "low", "medium", "high", "xhigh"],
+            retryable: false,
+            recovery_owner: "client"
           });
           expect(unsupported.json().error.message).toContain(
             "Supported values: minimal, low, medium, high, xhigh"
@@ -5661,6 +5666,10 @@ describe("gateway phase 1 routes", () => {
                 upstreamRuntime: "codex",
                 upstreamModel: "gpt-5.5",
                 reasoningEffort: "xhigh",
+                requestedReasoningEffort: "xhigh",
+                effectiveReasoningEffort: "xhigh",
+                reasoningEffortSource: "request",
+                reasoningEffortNormalized: false,
                 status: "ok"
               })
             ])
@@ -6409,7 +6418,7 @@ describe("gateway phase 1 routes", () => {
             expect(expert.statusCode).toBe(200);
             expect(unsupported.statusCode).toBe(400);
             expect(unsupported.json().error).toMatchObject({
-              code: "invalid_request",
+              code: "unsupported_reasoning_effort",
               type: "invalid_request_error"
             });
             expect(unsupported.json().error.message).toContain(
@@ -6621,6 +6630,149 @@ describe("gateway phase 1 routes", () => {
     } finally {
       await aliyunServer.close();
       await tencentServer.close();
+    }
+  });
+
+  it("normalizes legacy GLM-5.3 reasoning values and rejects unknown values before dispatch", async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const server = await startOpenAICompatibleSseServer(async (_request, body, response) => {
+      captured.push(JSON.parse(body) as Record<string, unknown>);
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "x-request-id": `glm_req_${captured.length}`
+      });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "goldencode-ok" } }],
+          usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+            goldencode: {
+              displayName: "GoldenCode",
+              runtime: "pool",
+              contextWindow: 200000,
+              upstreamContextWindow: 1048576,
+              maxOutputTokens: 128000,
+              enabled: true,
+              reasoning: {
+                effort: "high",
+                supportedEfforts: ["low", "high", "max"],
+                legacyAliases: { none: "low", medium: "high" }
+              },
+              pool: {
+                selection: {
+                  strategy: "hrw_sticky",
+                  stickyKeyOrder: ["client_session", "credential", "subject"]
+                },
+                requireAllMembers: false,
+                members: [
+                  {
+                    id: "goldencode-tencent",
+                    runtime: "tencent",
+                    upstreamModel: "glm-5.3",
+                    enabled: true
+                  }
+                ]
+              }
+            }
+          })
+        },
+        async () => {
+          const { store, headers } = createModelEntitledStore(["goldencode"]);
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const request = (effort: string) =>
+              app.inject({
+                method: "POST",
+                url: "/v1/chat/completions",
+                headers,
+                payload: {
+                  model: "goldencode",
+                  reasoning_effort: effort,
+                  messages: [{ role: "user", content: "Say ok." }]
+                }
+              });
+            const none = await request("none");
+            const medium = await request("medium");
+            const max = await request("max");
+            const unsupported = await request("xhigh");
+
+            expect([none.statusCode, medium.statusCode, max.statusCode]).toEqual([200, 200, 200]);
+            expect(captured.map((body) => body.reasoning_effort)).toEqual([
+              "low",
+              "high",
+              "max"
+            ]);
+            expect(captured.every((body) => !Object.hasOwn(body, "supportedEfforts"))).toBe(true);
+            expect(captured.every((body) => !Object.hasOwn(body, "legacyAliases"))).toBe(true);
+            expect(unsupported.statusCode).toBe(400);
+            expect(unsupported.json().error).toMatchObject({
+              code: "unsupported_reasoning_effort",
+              type: "invalid_request_error",
+              param: "reasoning_effort",
+              requested_value: "xhigh",
+              supported_values: ["low", "high", "max"],
+              retryable: false,
+              recommended_action: "use_supported_reasoning_effort",
+              recovery_owner: "client",
+              request_id: unsupported.headers["x-request-id"]
+            });
+            expect(captured).toHaveLength(3);
+
+            expect(store.listRequestEvents({ limit: 10 })).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  requestedReasoningEffort: "none",
+                  effectiveReasoningEffort: "low",
+                  reasoningEffort: "low",
+                  reasoningEffortSource: "legacy_normalization",
+                  reasoningEffortNormalized: true,
+                  reasoningEffortNormalizationReason: "legacy_alias",
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  requestedReasoningEffort: "max",
+                  effectiveReasoningEffort: "max",
+                  reasoningEffortSource: "request",
+                  reasoningEffortNormalized: false,
+                  status: "ok"
+                }),
+                expect.objectContaining({
+                  publicModelId: "goldencode",
+                  requestedReasoningEffort: "xhigh",
+                  effectiveReasoningEffort: null,
+                  reasoningEffortSource: "request",
+                  reasoningEffortNormalized: false,
+                  errorCode: "unsupported_reasoning_effort",
+                  status: "error"
+                })
+              ])
+            );
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
     }
   });
 
