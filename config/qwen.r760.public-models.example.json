@@ -1,0 +1,12 @@
+{
+  "qwen3.8-27b-fp8": {
+    "displayName": "Qwen3.8 27B FP8 (R760)",
+    "runtime": "local_openai",
+    "upstreamModel": "qwen3.8-27b-fp8",
+    "contextWindow": 32768,
+    "maxContextWindow": 32768,
+    "upstreamContextWindow": 65536,
+    "maxOutputTokens": 8192,
+    "enabled": true
+  }
+}

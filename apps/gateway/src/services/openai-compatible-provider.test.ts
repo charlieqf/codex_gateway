@@ -108,6 +108,150 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
+  it("preserves local OpenAI messages without identity injection or mandatory auth", async () => {
+    const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
+    const server = await startSseServer(async (request, body, response) => {
+      if (request.method === "GET" && request.url === "/models") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: [{ id: "qwen3.8-27b-fp8" }] }));
+        return;
+      }
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_weather",
+                    type: "function",
+                    function: { name: "get_weather", arguments: '{"city":"Sydney"}' }
+                  }
+                ]
+              },
+              finish_reason: "stop"
+            }
+          ],
+          usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "local-openai",
+        apiKey: "",
+        apiKeyEnv: "MEDCODE_LOCAL_OPENAI_API_KEY",
+        apiKeyRequired: false,
+        includeIdentityGuard: false,
+        preserveChatMessages: true,
+        healthCheck: "models",
+        baseUrl: server.baseUrl,
+        upstreamModel: "qwen3.8-27b-fp8",
+        reasoningParameterStyle: "effort_field",
+        timeoutMs: 5_000
+      });
+      const health = await provider.health({
+        ...openRouterAccount(),
+        id: "local-openai-main",
+        provider: "local-openai"
+      });
+      expect(health.state).toBe("healthy");
+
+      const result = await collectProviderMessage({
+        provider,
+        upstreamAccount: {
+          ...openRouterAccount(),
+          id: "local-openai-main",
+          provider: "local-openai"
+        },
+        subject: testSubject(),
+        scope: "code",
+        session: testSession(),
+        message: "serialized fallback must not be sent",
+        chatMessages: [
+          { role: "system", content: "You are the local coding model." },
+          { role: "user", content: "Check Sydney weather." },
+          {
+            role: "assistant",
+            tool_calls: [
+              {
+                id: "call_previous",
+                type: "function",
+                function: { name: "get_weather", arguments: '{"city":"Melbourne"}' }
+              }
+            ]
+          },
+          { role: "tool", tool_call_id: "call_previous", content: "18 C" },
+          { role: "user", content: "Now use Sydney." }
+        ],
+        reasoningEffort: "medium",
+        clientTools: [
+          {
+            type: "function",
+            function: {
+              name: "get_weather",
+              parameters: { type: "object" }
+            }
+          }
+        ],
+        clientToolChoice: {
+          type: "function",
+          function: { name: "get_weather" }
+        }
+      });
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({
+        toolCalls: [
+          {
+            id: "call_weather",
+            name: "get_weather",
+            arguments: { city: "Sydney" }
+          }
+        ],
+        providerSummary: { finishReason: "stop" }
+      });
+      expect(captured).toHaveLength(1);
+      expect(captured[0].headers.authorization).toBeUndefined();
+      expect(captured[0].body).toMatchObject({
+        model: "qwen3.8-27b-fp8",
+        reasoning_effort: "medium",
+        tool_choice: {
+          type: "function",
+          function: { name: "get_weather" }
+        }
+      });
+      expect(captured[0].body.messages).toEqual([
+        { role: "system", content: "You are the local coding model." },
+        { role: "user", content: "Check Sydney weather." },
+        {
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call_previous",
+              type: "function",
+              function: { name: "get_weather", arguments: '{"city":"Melbourne"}' }
+            }
+          ]
+        },
+        { role: "tool", tool_call_id: "call_previous", content: "18 C" },
+        { role: "user", content: "Now use Sydney." }
+      ]);
+      expect(JSON.stringify(captured[0].body.messages)).not.toContain("You are MedCode");
+      expect(JSON.stringify(captured[0].body.messages)).not.toContain("serialized fallback");
+    } finally {
+      await server.close();
+    }
+  });
+
   it("sends image inputs to xAI as multimodal content with server storage disabled", async () => {
     const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
     const server = await startSseServer(async (request, body, response) => {

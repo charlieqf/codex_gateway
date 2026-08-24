@@ -5,6 +5,7 @@ import {
   resolveUpstreamAttemptPurpose,
   type GatewaySession,
   type MessageImageInput,
+  type ProviderChatMessage,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type ProviderFailureClassification,
@@ -318,6 +319,7 @@ export interface CollectProviderMessageInput {
   scope: Scope;
   session: GatewaySession;
   message: string;
+  chatMessages?: ProviderChatMessage[];
   images?: MessageImageInput[];
   reasoningEffort?: string | null;
   maximumOutputTokens?: number;
@@ -360,6 +362,7 @@ export async function collectProviderMessage(
     scope: input.scope,
     session: input.session,
     message: input.message,
+    chatMessages: input.chatMessages,
     images: input.images,
     reasoningEffort: input.reasoningEffort,
     maximumOutputTokens: input.maximumOutputTokens,

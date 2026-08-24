@@ -5,6 +5,7 @@ export type ProviderKind =
   | "aliyun"
   | "tencent"
   | "tokenswitch"
+  | "local-openai"
   | "openai-api"
   | "xai"
   | "gemini"
@@ -484,12 +485,30 @@ export interface MessageImageInput {
   detail?: "auto" | "low" | "high";
 }
 
+export interface ProviderChatToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface ProviderChatMessage {
+  role: string;
+  content?: unknown;
+  name?: unknown;
+  tool_call_id?: unknown;
+  tool_calls?: ProviderChatToolCall[];
+}
+
 export interface MessageInput {
   upstreamAccount: UpstreamAccount;
   session: GatewaySession;
   subject: Subject;
   scope: Scope;
   message: string;
+  chatMessages?: ProviderChatMessage[];
   images?: MessageImageInput[];
   reasoningEffort?: string | null;
   maximumOutputTokens?: number;

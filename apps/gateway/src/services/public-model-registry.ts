@@ -6,13 +6,18 @@ export type OpenAICompatibleRuntimeKind =
   | "qianfan"
   | "aliyun"
   | "tencent"
-  | "tokenswitch";
+  | "tokenswitch"
+  | "local_openai";
+export type PublicModelPoolRuntimeKind = Exclude<
+  OpenAICompatibleRuntimeKind,
+  "local_openai"
+>;
 export type ChatRuntimeKind = "codex" | OpenAICompatibleRuntimeKind | "pool";
 export type PublicModelPoolStickyKey = "client_session" | "credential" | "subject";
 
 export interface PublicModelPoolMemberConfig {
   id: string;
-  runtime: OpenAICompatibleRuntimeKind;
+  runtime: PublicModelPoolRuntimeKind;
   upstreamModel: string;
   maxConcurrent?: number;
   reasoning?: Record<string, unknown>;
@@ -67,6 +72,7 @@ export interface PublicModelAvailability {
   aliyunAvailable?: boolean;
   tencentAvailable?: boolean;
   tokenSwitchAvailable?: boolean;
+  localOpenAIAvailable?: boolean;
   poolMemberAdapterKeys?: ReadonlySet<string>;
 }
 
@@ -124,7 +130,7 @@ export function modelNotFoundError(model: string): GatewayError {
 }
 
 export function publicModelPoolMemberAdapterKey(
-  runtime: OpenAICompatibleRuntimeKind,
+  runtime: PublicModelPoolRuntimeKind,
   id: string
 ): string {
   return `${runtime}:${id}`;
@@ -188,6 +194,9 @@ function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailabili
   }
   if (model.runtime === "tokenswitch") {
     return input.tokenSwitchAvailable === true;
+  }
+  if (model.runtime === "local_openai") {
+    return input.localOpenAIAvailable === true;
   }
   return true;
 }
@@ -357,12 +366,13 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
     value === "aliyun" ||
     value === "tencent" ||
     value === "tokenswitch" ||
+    value === "local_openai" ||
     value === "pool"
   ) {
     return value;
   }
   throw new Error(
-    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, tokenswitch, or pool.`
+    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, tokenswitch, local_openai, or pool.`
   );
 }
 
@@ -530,7 +540,7 @@ function parsePoolMemberRuntime(
   value: unknown,
   modelId: string,
   index: number
-): OpenAICompatibleRuntimeKind {
+): PublicModelPoolRuntimeKind {
   if (
     value === "openrouter" ||
     value === "qianfan" ||

@@ -1,0 +1,13 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+USER root
+
+# E-stage release image: retain the reviewed production runtime and dependencies,
+# replacing only the compiled gateway code that implements local_openai.
+COPY apps/gateway/dist /app/apps/gateway/dist
+
+RUN chmod -R a=rX /app/apps/gateway/dist \
+  && test -r /app/apps/gateway/dist/index.js
+
+USER codexgw

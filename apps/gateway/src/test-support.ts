@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import type { OpenAICompatibleRuntimeKind } from "./services/public-model-registry.js";
+import type { PublicModelPoolRuntimeKind } from "./services/public-model-registry.js";
 
-export type GoldencodeRuntime = OpenAICompatibleRuntimeKind;
+export type GoldencodeRuntime = PublicModelPoolRuntimeKind;
 
 export interface GoldencodePoolMemberFixture {
   id: string;

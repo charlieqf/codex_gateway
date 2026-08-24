@@ -195,6 +195,40 @@ describe("public model registry", () => {
     expect(registry.get("consultant")?.runtime).toBe("tencent");
   });
 
+  it("parses an isolated local OpenAI-compatible model and gates availability", () => {
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODEL_ID: "qwen3.8-27b-fp8",
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        "qwen3.8-27b-fp8": {
+          displayName: "Qwen3.8 27B FP8 (R760)",
+          runtime: "local_openai",
+          upstreamModel: "qwen3.8-27b-fp8",
+          contextWindow: 32768,
+          maxContextWindow: 32768,
+          upstreamContextWindow: 65536,
+          maxOutputTokens: 8192,
+          enabled: true
+        }
+      })
+    });
+
+    expect(registry.get("qwen3.8-27b-fp8")).toMatchObject({
+      runtime: "local_openai",
+      contextWindow: 32768,
+      maxOutputTokens: 8192
+    });
+    expect(
+      registry
+        .listAvailable({ openRouterAvailable: false, localOpenAIAvailable: false })
+        .map((model) => model.id)
+    ).toEqual([]);
+    expect(
+      registry
+        .listAvailable({ openRouterAvailable: false, localOpenAIAvailable: true })
+        .map((model) => model.id)
+    ).toEqual(["qwen3.8-27b-fp8"]);
+  });
+
   it("parses pool models and checks availability by member adapters", () => {
     const registry = resolvePublicModelRegistry({
       MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
@@ -423,6 +457,26 @@ describe("public model registry", () => {
                   id: "goldencode-codex",
                   runtime: "codex",
                   upstreamModel: "gpt-5.5"
+                }
+              ]
+            }
+          }
+        })
+      })
+    ).toThrow("runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch");
+
+    expect(() =>
+      resolvePublicModelRegistry({
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          goldencode: {
+            ...goldencodePoolConfig(),
+            pool: {
+              ...goldencodePoolConfig().pool,
+              members: [
+                {
+                  id: "goldencode-local",
+                  runtime: "local_openai",
+                  upstreamModel: "qwen3.8-27b-fp8"
                 }
               ]
             }

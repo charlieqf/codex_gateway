@@ -26,6 +26,7 @@ export type UpstreamRuntimeKind =
   | "aliyun"
   | "tencent"
   | "tokenswitch"
+  | "local_openai"
   | "xai";
 type ExternalRuntimeKind = OpenAICompatibleRuntimeKind;
 
@@ -75,6 +76,7 @@ export interface ChatRuntimeDispatcherInput {
   aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  localOpenAIAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   xaiVisionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   poolRouterForModel?: (model: PublicModelConfig) => UpstreamAccountRouter | null;
   openRouterAccount?: UpstreamAccount;
@@ -82,6 +84,7 @@ export interface ChatRuntimeDispatcherInput {
   aliyunAccount?: UpstreamAccount;
   tencentAccount?: UpstreamAccount;
   tokenSwitchAccount?: UpstreamAccount;
+  localOpenAIAccount?: UpstreamAccount;
   xaiVisionAccount?: UpstreamAccount;
 }
 
@@ -114,6 +117,10 @@ export function createChatRuntimeDispatcher(
     tokenswitch: {
       account: input.tokenSwitchAccount ?? defaultTokenSwitchVirtualAccount(),
       adapterForModel: input.tokenSwitchAdapterForModel ?? (() => null)
+    },
+    local_openai: {
+      account: input.localOpenAIAccount ?? defaultLocalOpenAIVirtualAccount(),
+      adapterForModel: input.localOpenAIAdapterForModel ?? (() => null)
     }
   };
   return {
@@ -436,6 +443,18 @@ function defaultTokenSwitchVirtualAccount(): UpstreamAccount {
     provider: "tokenswitch",
     label: "TokenSwitch Main",
     credentialRef: "ENV:MEDCODE_TOKENSWITCH_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultLocalOpenAIVirtualAccount(): UpstreamAccount {
+  return {
+    id: "local-openai-main",
+    provider: "local-openai",
+    label: "Local OpenAI-compatible Inference",
+    credentialRef: "LOCAL_OPENAI:INTERNAL",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null

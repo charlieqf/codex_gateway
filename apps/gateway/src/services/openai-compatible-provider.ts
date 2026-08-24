@@ -3,6 +3,7 @@ import {
   classifyProviderFailure,
   GatewayError,
   type MessageInput,
+  type ProviderChatMessage,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
   type ProviderFailureClassification,
@@ -21,7 +22,13 @@ import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.
 export interface OpenAICompatibleProviderOptions {
   providerKind: Extract<
     ProviderKind,
-    "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch" | "xai"
+    | "openrouter"
+    | "qianfan"
+    | "aliyun"
+    | "tencent"
+    | "tokenswitch"
+    | "local-openai"
+    | "xai"
   >;
   baseUrl: string;
   apiKey: string;
@@ -32,6 +39,10 @@ export interface OpenAICompatibleProviderOptions {
   timeoutMs: number;
   siteUrl?: string;
   appTitle?: string;
+  apiKeyRequired?: boolean;
+  includeIdentityGuard?: boolean;
+  preserveChatMessages?: boolean;
+  healthCheck?: "configured" | "models";
   fetchImpl?: typeof fetch;
 }
 
@@ -45,13 +56,54 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
   }
 
   async health(_upstreamAccount: UpstreamAccount): Promise<ProviderHealth> {
-    return {
-      state: this.options.apiKey ? "healthy" : "unhealthy",
-      checkedAt: new Date(),
-      detail: this.options.apiKey
-        ? `${this.options.providerKind} API key is configured.`
-        : `${this.options.apiKeyEnv} is missing.`
-    };
+    const apiKeyRequired = this.options.apiKeyRequired ?? true;
+    if (apiKeyRequired && !this.options.apiKey) {
+      return {
+        state: "unhealthy",
+        checkedAt: new Date(),
+        detail: `${this.options.apiKeyEnv} is missing.`
+      };
+    }
+    if (this.options.healthCheck !== "models") {
+      return {
+        state: "healthy",
+        checkedAt: new Date(),
+        detail: `${this.options.providerKind} provider is configured.`
+      };
+    }
+
+    const abort = createAbortSignal(undefined, Math.min(this.options.timeoutMs, 10_000));
+    try {
+      const response = await this.fetchImpl(modelsUrl(this.options.baseUrl), {
+        method: "GET",
+        headers: this.headers(),
+        signal: abort.signal
+      });
+      if (!response.ok) {
+        return {
+          state: "unhealthy",
+          checkedAt: new Date(),
+          detail: `${this.options.providerKind} model discovery failed.`
+        };
+      }
+      const payload = (await response.json().catch(() => null)) as unknown;
+      const modelAvailable = openAIModelsContain(payload, this.options.upstreamModel);
+      return {
+        state: modelAvailable ? "healthy" : "degraded",
+        checkedAt: new Date(),
+        detail: modelAvailable
+          ? `${this.options.providerKind} model is ready.`
+          : `${this.options.providerKind} model is not listed.`
+      };
+    } catch {
+      return {
+        state: "unhealthy",
+        checkedAt: new Date(),
+        detail: `${this.options.providerKind} model discovery failed.`
+      };
+    } finally {
+      abort.cleanup();
+    }
   }
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
@@ -233,16 +285,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
   private requestBody(input: MessageInput): Record<string, unknown> {
     return {
       model: this.options.upstreamModel,
-      messages: [
-        {
-          role: "system",
-          content: buildOpenRouterIdentityGuardPrompt()
-        },
-        {
-          role: "user",
-          content: this.userContent(input)
-        }
-      ],
+      messages: this.requestMessages(input),
       stream: true,
       stream_options: {
         include_usage: true
@@ -259,6 +302,31 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         : {}),
       ...(this.options.providerKind === "xai" ? { store: false } : {})
     };
+  }
+
+  private requestMessages(input: MessageInput): Array<Record<string, unknown>> {
+    if (
+      this.options.preserveChatMessages === true &&
+      input.chatMessages &&
+      input.chatMessages.length > 0
+    ) {
+      return input.chatMessages.map(providerChatMessage);
+    }
+
+    return [
+      ...(this.options.includeIdentityGuard === false
+        ? []
+        : [
+            {
+              role: "system",
+              content: buildOpenRouterIdentityGuardPrompt()
+            }
+          ]),
+      {
+        role: "user",
+        content: this.userContent(input)
+      }
+    ];
   }
 
   private userContent(input: MessageInput): string | Array<Record<string, unknown>> {
@@ -306,7 +374,9 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
   private headers(): HeadersInit {
     return {
-      authorization: `Bearer ${this.options.apiKey}`,
+      ...(this.options.apiKey
+        ? { authorization: `Bearer ${this.options.apiKey}` }
+        : {}),
       "content-type": "application/json",
       ...(this.options.providerKind === "openrouter" && this.options.siteUrl
         ? { "HTTP-Referer": this.options.siteUrl }
@@ -804,6 +874,29 @@ function createAbortSignal(
 
 function chatCompletionsUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
+}
+
+function modelsUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/models`;
+}
+
+function openAIModelsContain(value: unknown, model: string): boolean {
+  if (!isRecord(value) || !Array.isArray(value.data)) {
+    return false;
+  }
+  return value.data.some((entry) => isRecord(entry) && entry.id === model);
+}
+
+function providerChatMessage(message: ProviderChatMessage): Record<string, unknown> {
+  return {
+    role: message.role,
+    ...(message.content === undefined ? {} : { content: message.content }),
+    ...(typeof message.name === "string" ? { name: message.name } : {}),
+    ...(typeof message.tool_call_id === "string"
+      ? { tool_call_id: message.tool_call_id }
+      : {}),
+    ...(message.tool_calls === undefined ? {} : { tool_calls: message.tool_calls })
+  };
 }
 
 function upstreamRequestId(headers: Headers): string | null {

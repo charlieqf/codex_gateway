@@ -28,6 +28,7 @@ import {
   type PlanEntitlementStore,
   type ProviderAdapter,
   type ProviderErrorDiagnostic,
+  type ProviderHealth,
   type PublicModelAliasGroup,
   type RateLimitPolicy,
   type ResearchStore,
@@ -271,6 +272,7 @@ import {
   type OpenAICompatibleRuntimeKind,
   type PublicModelConfig,
   type PublicModelPoolMemberConfig,
+  type PublicModelPoolRuntimeKind,
   type PublicModelRegistry
 } from "./services/public-model-registry.js";
 
@@ -485,6 +487,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     process.env,
     app.log
   );
+  const localOpenAIAdapters = createLocalOpenAIAdapters(
+    publicModelRegistry.models,
+    process.env,
+    app.log
+  );
   const xaiVisionAdapters = createXaiVisionAdapters(
     publicModelRegistry.models,
     process.env,
@@ -508,6 +515,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
     tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null,
     tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
+    localOpenAIAdapterForModel: (model) => localOpenAIAdapters.get(model.id) ?? null,
     xaiVisionAdapterForModel: (model) => xaiVisionAdapters.get(model.id) ?? null,
     poolRouterForModel: (model) => publicModelPoolRouters.get(model.id) ?? null
   });
@@ -516,12 +524,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   const aliyunAvailable = aliyunAdapters.size > 0;
   const tencentAvailable = tencentAdapters.size > 0;
   const tokenSwitchAvailable = tokenSwitchAdapters.size > 0;
+  const localOpenAIAvailable = localOpenAIAdapters.size > 0;
   const publicModelAvailability = {
     openRouterAvailable,
     qianfanAvailable,
     aliyunAvailable,
     tencentAvailable,
     tokenSwitchAvailable,
+    localOpenAIAvailable,
     poolMemberAdapterKeys: poolMemberAdapterKeys({
       openrouter: openRouterAdapters,
       qianfan: qianfanAdapters,
@@ -1127,22 +1137,40 @@ export function buildGateway(options: GatewayOptions = {}) {
     {
       config: { public: true }
     },
-    async () => ({
-      state: "ready",
-      service: publicMetadata.serviceName,
-      auth_mode: authMode,
-      phone_auth: {
-        mode: phoneAuthService?.mode ?? configuredPhoneAuthMode,
-        version_gate_mode: desktopVersionGate.mode,
-        minimum_desktop_version: desktopVersionGate.minimumVersion
-      },
-      provider: publicMetadata.providerName,
-      store: {
-        session: storeKind(sessions),
-        observation: observationStore ? "enabled" : "disabled"
-      },
-      phase: publicMetadata.phase
-    })
+    async (_request, reply) => {
+      const localHealth = await localOpenAIInferenceHealth(
+        publicModelRegistry.models,
+        localOpenAIAdapters,
+        upstreamAccount
+      );
+      if (localHealth && localHealth.state !== "healthy") {
+        reply.code(503);
+      }
+      return {
+        state: localHealth && localHealth.state !== "healthy" ? "not_ready" : "ready",
+        service: publicMetadata.serviceName,
+        auth_mode: authMode,
+        phone_auth: {
+          mode: phoneAuthService?.mode ?? configuredPhoneAuthMode,
+          version_gate_mode: desktopVersionGate.mode,
+          minimum_desktop_version: desktopVersionGate.minimumVersion
+        },
+        provider: publicMetadata.providerName,
+        store: {
+          session: storeKind(sessions),
+          observation: observationStore ? "enabled" : "disabled"
+        },
+        ...(localHealth
+          ? {
+              inference: {
+                runtime: "local_openai",
+                state: localHealth.state
+              }
+            }
+          : {}),
+        phase: publicMetadata.phase
+      };
+    }
   );
 
   app.get("/gateway/status", async (request, reply) => {
@@ -2560,6 +2588,9 @@ export function buildGateway(options: GatewayOptions = {}) {
               scope: attempt.scope,
               session: attempt.session,
               message: prompt,
+              ...(attempt.runtime === "local_openai"
+                ? { chatMessages: parsed.messages }
+                : {}),
               images: parsed.images,
               reasoningEffort: attempt.reasoningEffort,
               maximumOutputTokens,
@@ -2833,6 +2864,9 @@ export function buildGateway(options: GatewayOptions = {}) {
             scope: attempt.scope,
             session: attempt.session,
             message: prompt,
+            ...(attempt.runtime === "local_openai"
+              ? { chatMessages: parsed.messages }
+              : {}),
             images: parsed.images,
             reasoningEffort: attempt.reasoningEffort,
             maximumOutputTokens,
@@ -3428,6 +3462,7 @@ async function collectNativeClientTools(
   prompt = input.prompt,
   attemptKind = "native"
 ): Promise<CollectedProviderMessage | GatewayError> {
+  const chatMessages = localOpenAIChatMessagesForAttempt(input, prompt);
   return collectProviderMessage({
     provider: input.provider,
     upstreamAccount: input.upstreamAccount,
@@ -3435,6 +3470,7 @@ async function collectNativeClientTools(
     scope: input.scope,
     session: input.session,
     message: prompt,
+    ...(chatMessages ? { chatMessages } : {}),
     images: input.request.images,
     reasoningEffort: input.reasoningEffort,
     maximumOutputTokens: input.request.maximumOutputTokens,
@@ -3454,6 +3490,24 @@ async function collectNativeClientTools(
     softToolArgumentBytes: input.nativeFileToolRecoveryPolicy.softArgumentBytes,
     hardToolArgumentBytes: input.nativeFileToolRecoveryPolicy.hardArgumentBytes
   });
+}
+
+function localOpenAIChatMessagesForAttempt(
+  input: StrictClientToolsInput,
+  prompt: string
+): ChatCompletionRequest["messages"] | undefined {
+  if (input.provider.kind !== "local-openai") {
+    return undefined;
+  }
+  if (prompt === input.prompt) {
+    return input.request.messages;
+  }
+  const retryInstruction = prompt.startsWith(input.prompt)
+    ? prompt.slice(input.prompt.length).trim()
+    : prompt;
+  return retryInstruction
+    ? [...input.request.messages, { role: "user", content: retryInstruction }]
+    : input.request.messages;
 }
 
 function validateNativeCompletion(
@@ -5220,7 +5274,8 @@ function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boole
     runtime === "qianfan" ||
     runtime === "aliyun" ||
     runtime === "tencent" ||
-    runtime === "tokenswitch"
+    runtime === "tokenswitch" ||
+    runtime === "local_openai"
   );
 }
 
@@ -7110,6 +7165,89 @@ function createTokenSwitchAdapters(
   });
 }
 
+function createLocalOpenAIAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): OpenAICompatibleAdapterMap {
+  const adapters: OpenAICompatibleAdapterMap = new Map();
+  const targets = openAICompatibleAdapterTargets(models, "local_openai");
+  if (targets.length === 0) {
+    return adapters;
+  }
+
+  const configuredBaseUrl = env.MEDCODE_LOCAL_OPENAI_BASE_URL?.trim();
+  if (!configuredBaseUrl) {
+    logger?.warn(
+      {
+        base_url_env: "MEDCODE_LOCAL_OPENAI_BASE_URL",
+        public_model_ids: uniqueValues(targets.map((target) => target.publicModelId))
+      },
+      "Local OpenAI-compatible models are configured but the private Base URL env is missing; those models will not be exposed."
+    );
+    return adapters;
+  }
+  const baseUrl = validateLocalOpenAIBaseUrl(configuredBaseUrl);
+  const apiKeyEnvName =
+    env.MEDCODE_LOCAL_OPENAI_API_KEY_ENV?.trim() || "MEDCODE_LOCAL_OPENAI_API_KEY";
+  const resolvedSecret = resolveProviderApiKey(env, apiKeyEnvName);
+  const timeoutMs = parsePositiveIntegerEnv(
+    env.MEDCODE_LOCAL_OPENAI_TIMEOUT_MS,
+    900_000,
+    "MEDCODE_LOCAL_OPENAI_TIMEOUT_MS"
+  );
+
+  assertUniqueOpenAICompatibleAdapterTargetIds(targets);
+  for (const target of targets) {
+    adapters.set(
+      target.id,
+      new OpenAICompatibleProviderAdapter({
+        providerKind: "local-openai",
+        baseUrl,
+        apiKey: resolvedSecret.apiKey ?? "",
+        apiKeyEnv: resolvedSecret.sourceEnvName,
+        apiKeyRequired: false,
+        includeIdentityGuard: false,
+        preserveChatMessages: true,
+        healthCheck: "models",
+        upstreamModel: target.upstreamModel,
+        reasoning: target.reasoning,
+        reasoningParameterStyle: "effort_field",
+        timeoutMs
+      })
+    );
+  }
+  return adapters;
+}
+
+function validateLocalOpenAIBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("MEDCODE_LOCAL_OPENAI_BASE_URL must be a valid private HTTP URL.");
+  }
+  const hostname = url.hostname.toLowerCase();
+  const privateDockerHostname = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(
+    hostname
+  );
+  const loopback = hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
+  if (
+    url.protocol !== "http:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    (!privateDockerHostname && !loopback) ||
+    url.pathname.replace(/\/+$/u, "") !== "/v1"
+  ) {
+    throw new Error(
+      "MEDCODE_LOCAL_OPENAI_BASE_URL must target a loopback or single-label private Docker hostname with the /v1 path."
+    );
+  }
+  return url.toString().replace(/\/+$/u, "");
+}
+
 function createXaiVisionAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
@@ -7286,7 +7424,7 @@ function assertUniqueOpenAICompatibleAdapterTargetIds(
 
 function createPublicModelPoolRouters(
   models: PublicModelConfig[],
-  adaptersByRuntime: Record<OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap>,
+  adaptersByRuntime: Record<PublicModelPoolRuntimeKind, OpenAICompatibleAdapterMap>,
   now: () => Date
 ): PublicModelPoolRouters {
   const routers: PublicModelPoolRouters = new Map();
@@ -7340,17 +7478,57 @@ function poolMemberUpstreamAccount(
 }
 
 function poolMemberAdapterKeys(
-  adaptersByRuntime: Record<OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap>
+  adaptersByRuntime: Record<PublicModelPoolRuntimeKind, OpenAICompatibleAdapterMap>
 ): ReadonlySet<string> {
   const ids = new Set<string>();
   for (const [runtime, adapterMap] of Object.entries(adaptersByRuntime) as Array<
-    [OpenAICompatibleRuntimeKind, OpenAICompatibleAdapterMap]
+    [PublicModelPoolRuntimeKind, OpenAICompatibleAdapterMap]
   >) {
     for (const id of adapterMap.keys()) {
       ids.add(publicModelPoolMemberAdapterKey(runtime, id));
     }
   }
   return ids;
+}
+
+async function localOpenAIInferenceHealth(
+  models: PublicModelConfig[],
+  adapters: OpenAICompatibleAdapterMap,
+  account: UpstreamAccount
+): Promise<ProviderHealth | null> {
+  const localModels = models.filter(
+    (model) => model.enabled && model.runtime === "local_openai"
+  );
+  if (localModels.length === 0) {
+    return null;
+  }
+  const configuredAdapters = localModels
+    .map((model) => adapters.get(model.id) ?? null)
+    .filter((adapter): adapter is ProviderAdapter => adapter !== null);
+  if (configuredAdapters.length !== localModels.length) {
+    return {
+      state: "unhealthy",
+      checkedAt: new Date(),
+      detail: "Local OpenAI-compatible inference is not configured."
+    };
+  }
+  const health = await Promise.all(
+    configuredAdapters.map((adapter) => adapter.health(account))
+  );
+  if (health.every((result) => result.state === "healthy")) {
+    return {
+      state: "healthy",
+      checkedAt: new Date(),
+      detail: "Local OpenAI-compatible inference is ready."
+    };
+  }
+  return {
+    state: health.some((result) => result.state === "unhealthy")
+      ? "unhealthy"
+      : "degraded",
+    checkedAt: new Date(),
+    detail: "Local OpenAI-compatible inference is not ready."
+  };
 }
 
 function uniqueValues(values: string[]): string[] {
@@ -7506,6 +7684,7 @@ function parseModelReasoningEffort(
 
 const maxRequestReasoningEfforts = ["minimal", "low", "medium", "high", "xhigh"] as const;
 const standardRequestReasoningEfforts = ["none", "low", "medium", "high"] as const;
+const localOpenAIReasoningEfforts = ["none", "low", "medium", "high", "xhigh"] as const;
 const legacyStandardReasoningModelIds = new Set([
   "specialist",
   "expert",
@@ -7554,6 +7733,9 @@ function supportedReasoningEffortsForModel(
 ): { values: readonly string[] } | null {
   if (isMaxReasoningModel(model)) {
     return { values: maxRequestReasoningEfforts };
+  }
+  if (model.runtime === "local_openai") {
+    return { values: localOpenAIReasoningEfforts };
   }
   if (
     legacyStandardReasoningModelIds.has(model.id) ||

@@ -569,6 +569,183 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("serves an isolated local OpenAI runtime and normalizes named tool finish reason", async () => {
+    const captured: CapturedOpenAICompatibleRequest[] = [];
+    const server = await startOpenAICompatibleSseServer(async (request, body, response) => {
+      if (request.method === "GET" && request.url === "/v1/models") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: [{ id: "qwen3.8-27b-fp8" }] }));
+        return;
+      }
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_local_named",
+                    type: "function",
+                    function: { name: "get_weather", arguments: '{"city":"Sydney"}' }
+                  }
+                ]
+              },
+              finish_reason: "stop"
+            }
+          ],
+          usage: { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_PUBLIC_MODEL_ID: "qwen3.8-27b-fp8",
+          MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+            "qwen3.8-27b-fp8": {
+              displayName: "Qwen3.8 27B FP8 (R760)",
+              runtime: "local_openai",
+              upstreamModel: "qwen3.8-27b-fp8",
+              contextWindow: 32768,
+              maxContextWindow: 32768,
+              upstreamContextWindow: 65536,
+              maxOutputTokens: 8192,
+              enabled: true
+            }
+          }),
+          MEDCODE_LOCAL_OPENAI_BASE_URL: `${server.baseUrl}/v1`,
+          MEDCODE_LOCAL_OPENAI_TIMEOUT_MS: "5000",
+          MEDCODE_LOCAL_OPENAI_API_KEY: undefined,
+          MEDCODE_LOCAL_OPENAI_API_KEY_FILE: undefined,
+          GATEWAY_REQUIRE_ENTITLEMENT: "0"
+        },
+        async () => {
+          const { store, headers } = createCredentialBackedStore();
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          const health = await app.inject({ method: "GET", url: "/gateway/health" });
+          expect(health.statusCode).toBe(200);
+          expect(health.json()).toMatchObject({
+            state: "ready",
+            inference: { runtime: "local_openai", state: "healthy" }
+          });
+
+          const models = await app.inject({ method: "GET", url: "/v1/models", headers });
+          expect(models.statusCode).toBe(200);
+          expect(models.json().data).toMatchObject([{ id: "qwen3.8-27b-fp8" }]);
+
+          const response = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "qwen3.8-27b-fp8",
+              reasoning_effort: "xhigh",
+              messages: [
+                { role: "system", content: "Use only the declared tool." },
+                { role: "user", content: "Get Sydney weather." }
+              ],
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    parameters: {
+                      type: "object",
+                      properties: { city: { type: "string" } },
+                      required: ["city"]
+                    }
+                  }
+                }
+              ],
+              tool_choice: {
+                type: "function",
+                function: { name: "get_weather" }
+              }
+            }
+          });
+
+          expect(response.statusCode).toBe(200);
+          expect(response.json()).toMatchObject({
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  tool_calls: [
+                    {
+                      id: "call_local_named",
+                      function: { name: "get_weather", arguments: '{"city":"Sydney"}' }
+                    }
+                  ]
+                }
+              }
+            ]
+          });
+          expect(captured).toHaveLength(1);
+          expect(captured[0].headers.authorization).toBeUndefined();
+          expect(captured[0].body.reasoning_effort).toBe("xhigh");
+          expect(captured[0].body.messages).toEqual([
+            { role: "system", content: "Use only the declared tool." },
+            { role: "user", content: "Get Sydney weather." }
+          ]);
+          const event = store.listRequestEvents({ limit: 1 })[0];
+          expect(event).toMatchObject({
+            provider: "local-openai",
+            upstreamRuntime: "local_openai",
+            upstreamModel: "qwen3.8-27b-fp8",
+            upstreamFinishReason: "stop",
+            upstreamToolCallCount: 1,
+            status: "ok"
+          });
+
+          await app.close();
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects a public URL for the local OpenAI runtime", async () => {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODEL_ID: "qwen3.8-27b-fp8",
+        MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          "qwen3.8-27b-fp8": {
+            runtime: "local_openai",
+            upstreamModel: "qwen3.8-27b-fp8"
+          }
+        }),
+        MEDCODE_LOCAL_OPENAI_BASE_URL: "https://public.example.com/v1"
+      },
+      async () => {
+        expect(() =>
+          buildGateway({
+            accessToken: "secret",
+            provider: new FakeProvider(),
+            logger: false
+          })
+        ).toThrow("must target a loopback or single-label private Docker hostname");
+      }
+    );
+  });
+
   it("prefers credential auth when a credential store and dev token are both present", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

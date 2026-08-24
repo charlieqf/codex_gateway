@@ -43,6 +43,51 @@ const subject: Subject = {
 };
 
 describe("chat runtime dispatcher pool runtime", () => {
+  it("dispatches an isolated local OpenAI-compatible model through its virtual account", () => {
+    const localProvider = new FakeProvider();
+    const registry = resolvePublicModelRegistry({
+      MEDCODE_PUBLIC_MODEL_ID: "qwen3.8-27b-fp8",
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+        "qwen3.8-27b-fp8": {
+          runtime: "local_openai",
+          upstreamModel: "qwen3.8-27b-fp8",
+          contextWindow: 32768,
+          maxContextWindow: 32768,
+          upstreamContextWindow: 65536,
+          maxOutputTokens: 8192
+        }
+      })
+    });
+    const model = registry.get("qwen3.8-27b-fp8");
+    if (!model) throw new Error("expected local model");
+    const dispatcher = createChatRuntimeDispatcher({
+      codexRouter: poolRouter(goldencodeModel()),
+      openRouterAdapterForModel: () => null,
+      localOpenAIAdapterForModel: () => localProvider
+    });
+
+    const result = dispatcher.begin({
+      model,
+      reasoningEffort: "medium",
+      reasoningEffortSource: "request",
+      subject,
+      scope: "code",
+      affinityKey: null,
+      createSession
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) throw result;
+    expect(result).toMatchObject({
+      runtime: "local_openai",
+      runtimeInstanceId: "local-openai-main",
+      providerKind: "local-openai",
+      upstreamModel: "qwen3.8-27b-fp8",
+      adapter: localProvider,
+      limits: { contextWindow: 32768, maxOutputTokens: 8192 }
+    });
+  });
+
   it("routes image input only to the configured xAI vision runtime", () => {
     const model = goldencodeModel();
     model.vision = {

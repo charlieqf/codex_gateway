@@ -1,0 +1,136 @@
+services:
+  qwen38-fp8:
+    image: ${QWEN_VLLM_IMAGE:-vllm/vllm-openai:v0.27.1-r760-c2f3b1b9}
+    pull_policy: never
+    container_name: qwen38-fp8-local
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      - /data/models/Qwen3.8-27B-FP8:/model:ro
+      - /data/llm-runtime/qwen38-fp8/cache:/cache
+    environment:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      VLLM_NO_USAGE_STATS: "1"
+      HF_HOME: /cache/huggingface
+      XDG_CACHE_HOME: /cache/xdg
+      TORCHINDUCTOR_CACHE_DIR: /cache/torchinductor
+    shm_size: 16gb
+    mem_limit: 80g
+    cpus: "16.0"
+    pids_limit: 4096
+    gpus: all
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=8g,mode=1777
+    stop_grace_period: 2m
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20m
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "5"
+    command:
+      - /model
+      - --served-model-name
+      - qwen3.8-27b-fp8
+      - --tensor-parallel-size
+      - "1"
+      - --dtype
+      - auto
+      - --quantization
+      - fp8
+      - --max-model-len
+      - "32768"
+      - --kv-cache-dtype
+      - bfloat16
+      - --gpu-memory-utilization
+      - "0.86"
+      - --max-num-seqs
+      - "2"
+      - --language-model-only
+      - --reasoning-parser
+      - qwen3
+      - --enable-auto-tool-choice
+      - --tool-call-parser
+      - qwen3_coder
+    networks:
+      - qwen_private
+
+  qwen-gateway:
+    image: ${QWEN_GATEWAY_IMAGE:?QWEN_GATEWAY_IMAGE must be set to an immutable image tag}
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      qwen38-fp8:
+        condition: service_healthy
+    env_file:
+      - ${QWEN_GATEWAY_ENV_FILE:-./qwen-gateway.env}
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8787
+    volumes:
+      - ./state:/var/lib/codex-gateway
+      - ./logs:/var/log/codex-gateway
+      - ./public-models.json:/run/qwen/public-models.json:ro
+    ports:
+      - "127.0.0.1:18788:8787"
+    cpus: "2.0"
+    mem_limit: 4g
+    pids_limit: 256
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "5"
+    networks:
+      - qwen_private
+
+  qwen-admin:
+    image: ${QWEN_GATEWAY_IMAGE:?QWEN_GATEWAY_IMAGE must be set to an immutable image tag}
+    pull_policy: never
+    profiles:
+      - tools
+    env_file:
+      - ${QWEN_GATEWAY_ENV_FILE:-./qwen-gateway.env}
+    entrypoint:
+      - node
+      - /app/apps/admin-cli/dist/index.js
+      - --db
+      - /var/lib/codex-gateway/gateway.db
+    volumes:
+      - ./state:/var/lib/codex-gateway
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - qwen_private
+
+networks:
+  qwen_private:
+    internal: true
