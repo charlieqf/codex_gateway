@@ -1,17 +1,27 @@
 # R760 Qwen3.8-27B-FP8 本地部署实施方案
 
+> **2026-08-24 最终实施决策（现行权威）**
+>
+> 阶段 E–G 已按后续客户端产品要求完成，但最终架构不再采用本文早期设计的独立
+> `qwen-api` 域名、独立 Gateway、独立 SQLite 或第二套用户 Key。现行契约是在既有权威
+> `https://goldencode.instmarket.com.au:1443/v1` 和既有 `medcode` Provider 下并列发布
+> `goldencode` 与 `goldencode-local`；同一枚有效 `cgu_live_*`，包括手机号登录取得的统一
+> Key，可以明确切换两个模型。raw vLLM 仍保持私有，仅权威 R760 Gateway 经专用 Docker
+> 网络访问。本文中与这一决策冲突的“独立域名/独立 Gateway/独立 Key”段落只保留为最初方案
+> 与历史风险分析，不再是操作指令。本节、1.2 节和当前 System Status 优先。
+
 | 项目 | 内容 |
 | --- | --- |
-| 文档状态 | 本地 FP8 推理部署、模型自测和生产共存验收已完成；公网 Gateway、DNS、TLS 和用户 API key 尚未实施 |
+| 文档状态 | 阶段 A–G 已完成；`goldencode-local` 已通过既有公网 Origin 和既有统一 Key 上线 |
 | 编制/更新日期 | 2026-08-23 / 2026-08-24（Sydney） |
 | 目标主机 | Dell PowerEdge R760，Ubuntu 22.04 |
 | 目标模型 | `Qwen/Qwen3.8-27B-FP8` |
 | 推理框架 | 首选 vLLM；SGLang 作为后续对照方案 |
-| 验收阶段入口 | 仅 `127.0.0.1:18000`，不得直接公开 |
+| 生产入口 | `https://goldencode.instmarket.com.au:1443/v1`；raw vLLM 无宿主端口 |
 | 目标用户 | 公司内部少量用户；每人独立 API key，经公网 HTTPS 调用 |
 | 目标协议 | OpenAI-compatible `GET /v1/models`、`POST /v1/chat/completions`，支持 SSE |
-| 建议公网入口 | `https://qwen-api.instmarket.com.au:1443/v1`；域名、证书和变更窗口待批准 |
-| 隔离原则 | 独立目录、独立 Compose project、独立 Gateway/SQLite/密钥库；不改现有 `goldencode` 模型面 |
+| 公网模型 ID | 既有 `goldencode` 与新增 `goldencode-local` 并列 |
+| 隔离原则 | Qwen runtime 独立目录/Compose/私网；复用权威 Gateway/SQLite/手机号登录和统一 Key |
 
 ## 1. 结论与实施边界
 
@@ -38,7 +48,7 @@ OpenAI-compatible 接口。它不替换现有公网 `goldencode`，也不加入�
 
 下载权重不等于部署上线。下载阶段不得创建监听端口、占用 GPU 或重建任何现有生产容器。
 
-### 1.1 当前实施结果
+### 1.1 2026-08-23 阶段 A–D 历史结果
 
 截至 2026-08-23 16:40 UTC，阶段 A 至 D 已完成，阶段 E 至 G 因缺少已批准的公网域名、证书和
 Gateway 变更窗口而未执行：
@@ -59,6 +69,52 @@ Gateway 变更窗口而未执行：
 
 当前 raw vLLM 没有用户级 API key 管理，且仅能从 R760 本机回环访问。不得把 `18000` 直接映射到
 公网。公网服务仍须完成阶段 E 至 G 的独立 Gateway、逐人 key、配额、审计、TLS 和灰度流程。
+
+### 1.2 2026-08-24 阶段 E–G 实施结果（现行）
+
+后续产品契约要求 MedEvidence 与 GoldenCode Desktop 在同一 `medcode` Provider 下显示
+`goldencode`、`goldencode-local`，并让用户继续使用现有 `cgu_live_*` 或手机号登录。该要求
+构成对 1.1 及后文独立公网方案的明确重新评审和授权，最终按以下方式实施：
+
+1. **阶段 E：Gateway 与鉴权。** Gateway 新增受限 `local_openai` runtime，私有上游固定为
+   `http://qwen38-fp8:8000/v1`。Qwen adapter 保留 OpenAI tool 历史，不注入云端身份提示，
+   支持 SSE、usage、reasoning effort 和工具调用，并把非空工具调用的公开 finish reason
+   归一为 `tool_calls`。未来新发 Desktop/Phone Auth 底层凭据默认同时允许两个模型；现有 155
+   个 `goldencode`-only 活跃 Desktop 凭据已经逐条通过 Admin CLI 追加本地模型并留下审计记录，
+   31 个 unrestricted 活跃凭据无需修改。
+2. **阶段 F：公网接入。** 没有新增 DNS、TLS 证书、Nginx vhost、宿主监听或第二 Gateway。
+   既有 `goldencode.instmarket.com.au:1443` 已是权威 Origin，Gateway 在其 `/v1/models` 和
+   `/v1/chat/completions` 发布两个模型。raw vLLM 已取消 `127.0.0.1:18000` 映射，只在
+   `qwen_api_gateway_r760_qwen_private` 网络暴露容器端口 8000；权威 Gateway 同时连接原生产
+   网络和该私网。生产代理环境的 `NO_PROXY`/`no_proxy` 已保留原列表并加入两个 Qwen DNS
+   别名，避免私网请求误送到 HTTP proxy。
+3. **阶段 G：灰度和验收。** R760 loopback 与同一公网 Origin 均通过无 Key/错 Key 401、
+   精确双模型 discovery、无效模型 404、两个模型非流式对话、Qwen SSE/usage、required/
+   named/none/工具结果回填、事件归属、RPM 429、撤销后 401 和日志 secret/prompt 扫描。
+   随后从独立 Windows 工作机使用同一枚临时 `cgu_live_*` 发现两个模型并分别完成公网调用；
+   测试统一 Key、底层 Key 和用户均已撤销/禁用和清理。公网完整烟测的本地模型请求 ID 为
+   `req-d925ad1a-da5e-4158-b9c8-a879cb497adf`。
+
+当前运行边界：
+
+- Qwen Compose project：`qwen_api_gateway_r760`；容器：`qwen38-fp8-local`；
+- vLLM image：`vllm/vllm-openai:v0.27.1-r760-c2f3b1b9`；
+- Gateway image：`codex_gateway_r760-gateway:release-531f8d1-local`，image ID
+  `sha256:0845a340fd76d289d3c4818936220bfe2921476690a96338e338668d4f20387e`；
+- 部署备份：
+  `/data/llm-runtime/qwen-api/backups/goldencode-local-20260824T012936Z`；
+- 混合健康策略：Qwen 不健康时 Gateway 仍可为 `goldencode` 保持 ready，并在 health 的
+  `inference` 字段单独报告 `local_openai` 状态；
+- 332 个未过期统一 Key 记录中，有 2 个关联的是实施前已经失效的底层凭据，未擅自恢复；
+  其余所有具备有效底层凭据的统一 Key 均可调用两个模型。
+
+回滚本地模型时，不改 DNS/Nginx，也不操作 Doctor Research：使用上述备份恢复权威 Gateway
+env、Compose override、SQLite 一致性备份和上一 Gateway image，重建 Gateway 后验证
+`goldencode`；随后按需停止 Qwen runtime。已写入用户凭据的额外 allowlist 项本身不路由流量，
+可以保留以便前向恢复；若必须回退授权，应通过 Admin CLI 逐条审计修改，禁止无审计批量 SQL。
+
+客户端对接和安装包验收契约见
+`docs/goldencode-local-desktop-joint-test-handoff-2026-08-24.zh-CN.md`。
 
 ## 2. 官方依据与版本选择
 
@@ -817,6 +873,7 @@ docker ps --format '{{.Names}}|{{.Status}}'
 5. 是否扩大内部用户数或提高全局并发；
 6. 是否增加 `/v1/responses` 等额外兼容接口。
 
-以上每一项都属于后续变更。Doctor Research 和现有 `goldencode` 模型面始终保持独立；任何
-把 Qwen 并入现有 Gateway/SQLite、开放 raw vLLM 端口或共享用户 key 的方案都需要重新评审，
-不能作为临时捷径。
+以上扩容项仍属于后续变更。2026-08-24 已单独完成并批准“权威 Gateway/SQLite/统一 Key
+复用、Qwen runtime 私网隔离”的重新评审，结果以文首和 1.2 节为准。Doctor Research 未接入
+Qwen；raw vLLM 端口仍不得公开。任何进一步扩大上下文、并发、模态或公网接口的方案仍需
+重新评审，不能从本次双模型上线自动推导授权。

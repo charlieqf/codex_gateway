@@ -1,6 +1,40 @@
 # Operational Experience
 
-Last updated: 2026-08-04
+Last updated: 2026-08-24
+
+## R760 Private Local-Model Integration Lessons
+
+- A container can resolve and reach a private upstream while Node `fetch`
+  still fails with `UND_ERR_SOCKET`: inspect the error's actual remote address.
+  In this rollout it was the configured outbound proxy, not Qwen; the proxy
+  returned an empty 502 after vLLM had already appeared healthy in separate
+  checks.
+- When both `NO_PROXY` and `no_proxy` exist, Node may prefer the lower-case
+  value. Do not add only the new private hostname to `no_proxy`, because doing
+  so can accidentally remove `127.0.0.1` from the effective bypass list and
+  break the container's own health check. Preserve the existing upper-case
+  list, append private service aliases, and mirror the complete result into
+  lower case before recreating the service.
+- Keep raw vLLM private and attach the existing authoritative Gateway to a
+  dedicated external Docker network. This allows one public Origin, one
+  SQLite/key authority and one phone-login flow without publishing the GPU
+  runtime or creating a second control plane.
+- In a mixed cloud/local registry, local inference health must be reported
+  independently. A local GPU outage must not mark the whole Gateway unready or
+  remove the existing cloud model from service.
+- vLLM may return a named tool call with `finish_reason=stop`. Normalize a
+  non-empty tool-call response to the public OpenAI-compatible
+  `finish_reason=tool_calls`, and test required, named, none and tool-result
+  follow-up before exposing the model to Desktop.
+- Existing `cgu_live_*` and phone-login flows resolve to backing access
+  credentials. Expand the backing allowlist instead of issuing a second user
+  key. Audit first by credential class, mutate each eligible credential through
+  the admin CLI so every change is recorded, and re-audit both direct keys and
+  active unified-key links afterward.
+- Public validation should include a client-side test outside R760 using one
+  temporary unified key for both public model IDs. Revoke the unified key and
+  backing credential, disable the fixture user, delete temporary plaintext and
+  scan logs before declaring the test complete.
 
 ## Safety Rules That Worked
 

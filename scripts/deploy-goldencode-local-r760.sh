@@ -44,7 +44,7 @@ cp -a "$qwen_root/compose.yml" "$backup/qwen-compose.yml"
 registry=$(jq -c . "$models_file")
 env_candidate=$backup/gateway.container.env.candidate
 awk -v registry="$registry" '
-  BEGIN { models = 0; base = 0; timeout = 0 }
+  BEGIN { models = 0; base = 0; timeout = 0; no_proxy_upper = 0; no_proxy_lower = 0 }
   /^MEDCODE_PUBLIC_MODELS_JSON=/ {
     print "MEDCODE_PUBLIC_MODELS_JSON=" registry
     models = 1
@@ -60,17 +60,38 @@ awk -v registry="$registry" '
     timeout = 1
     next
   }
+  /^NO_PROXY=/ {
+    value = substr($0, length("NO_PROXY=") + 1)
+    if (("," value ",") !~ /,qwen38-fp8,/) value = value (value ? "," : "") "qwen38-fp8"
+    if (("," value ",") !~ /,qwen38-fp8-local,/) value = value (value ? "," : "") "qwen38-fp8-local"
+    print "NO_PROXY=" value
+    no_proxy_upper_value = value
+    no_proxy_upper = 1
+    next
+  }
+  /^no_proxy=/ {
+    value = substr($0, length("no_proxy=") + 1)
+    if (("," value ",") !~ /,qwen38-fp8,/) value = value (value ? "," : "") "qwen38-fp8"
+    if (("," value ",") !~ /,qwen38-fp8-local,/) value = value (value ? "," : "") "qwen38-fp8-local"
+    print "no_proxy=" value
+    no_proxy_lower = 1
+    next
+  }
   { print }
   END {
     if (!models) print "MEDCODE_PUBLIC_MODELS_JSON=" registry
     if (!base) print "MEDCODE_LOCAL_OPENAI_BASE_URL=http://qwen38-fp8:8000/v1"
     if (!timeout) print "MEDCODE_LOCAL_OPENAI_TIMEOUT_MS=900000"
+    if (!no_proxy_upper) print "NO_PROXY=qwen38-fp8,qwen38-fp8-local"
+    if (!no_proxy_lower) print "no_proxy=" (no_proxy_upper_value ? no_proxy_upper_value : "localhost,127.0.0.1,::1,qwen38-fp8,qwen38-fp8-local")
   }
 ' "$gateway_env" > "$env_candidate"
 chmod 0600 "$env_candidate"
 grep -q '^MEDCODE_PUBLIC_MODELS_JSON=' "$env_candidate"
 grep -q '^MEDCODE_LOCAL_OPENAI_BASE_URL=http://qwen38-fp8:8000/v1$' "$env_candidate"
 grep -q '^MEDCODE_LOCAL_OPENAI_TIMEOUT_MS=900000$' "$env_candidate"
+grep -Eq '^NO_PROXY=.*qwen38-fp8(,|$)' "$env_candidate"
+grep -Eq '^no_proxy=.*qwen38-fp8(,|$)' "$env_candidate"
 
 override_candidate=$backup/compose.r760.override.yml.candidate
 install -m 0644 "$override_file" "$override_candidate"
