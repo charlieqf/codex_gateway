@@ -11,8 +11,8 @@ if (!prePath || !postPath) {
   process.exit(2);
 }
 
-const pre = new DatabaseSync(prePath, { readonly: true });
-const post = new DatabaseSync(postPath, { readonly: true });
+const pre = new DatabaseSync(prePath, { readOnly: true });
+const post = new DatabaseSync(postPath, { readOnly: true });
 
 try {
   const exact = Object.fromEntries(

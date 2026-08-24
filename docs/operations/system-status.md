@@ -34,6 +34,36 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-24 GLM-5.3 reasoning-effort P0:** R760 `current` is release
+  `c896178f58294ec2fa4fd7c59efe261687780a99`, `previous` is
+  `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe`, and the active Gateway image is
+  `sha256:0ae81f556aeb172ff64b047b14d855d201990dd9832f7e5bc976977c0110bfb6`.
+  Only the public Gateway was recreated. Research LLM Gateway, Worker,
+  maintenance, Mihomo and `qwen38-fp8-local` kept their container IDs; all six
+  containers are healthy with restart count zero. Public `goldencode` remains
+  the single Tencent `glm-5.3` pool member and now declares the exact supported
+  efforts `low/high/max`; legacy Desktop/Codex values are normalized as
+  `none -> low` and `medium -> high` before provider dispatch. Unsupported
+  values return HTTP 400 `unsupported_reasoning_effort`, an exact supported
+  value list, `retryable=false` and no provider attempt. Schema 27 adds the
+  requested/effective/source/normalization audit fields. Production smoke on
+  the supported origin passed chat `none/medium/max`, rejected `xhigh`, passed
+  a Codex-shaped Responses SSE `medium` request and regressed
+  `goldencode-local`; the temporary credential was revoked and its Subject
+  disabled. Representative request IDs are
+  `req-0997251a-ee0e-42f4-bfdc-6a7a8b564dbb` (`none -> low`),
+  `req-1f0469c9-e69a-415b-9db7-33d2d1696e10` (`medium -> high`),
+  `req-297db431-76f9-4689-ad93-02b03ba07b2a` (`max`),
+  `req-fa10d923-35cd-42b3-a77d-79781ccb515d` (unsupported `xhigh`) and
+  `req-9a7d4693-52e2-449b-9cbe-4a3b25e0fac8` (Responses SSE). The protected
+  rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-reasoning-effort-p0-20260824T131157Z`.
+  SQLite integrity and foreign keys pass, no unfinished reservation or active
+  Research run remains, and the 26-to-27 pre/post comparison proves all
+  existing production rows were preserved. A same-time external probe confirms
+  that `gw.instmarket.com.au` still resolves to the unsupported former Azure
+  address `4.242.58.89` and reports `phase=controlled-trial`; it was not changed
+  or patched. Clients must use the supported R760 origin stated above.
 - **Production `goldencode-local` on R760 (supersedes the 2026-08-23
   loopback-only state):** the official `Qwen/Qwen3.8-27B-FP8` weights remain
   under `/data/models/Qwen3.8-27B-FP8`. Compose project
