@@ -4367,6 +4367,7 @@ async function generateAndValidateShardedModelOutput(
     ? parsePeerReviewDecision(peerReviewResponse.text)
     : null;
   let peerReviewContractRetryCompleted = false;
+  let peerReviewContractSecondRetryCompleted = false;
   let peerReviewContractRetryUnavailable = false;
   let peerReviewContractRetryAttempt: 5 | 6 | 7 | null = null;
   if (
@@ -4378,17 +4379,27 @@ async function generateAndValidateShardedModelOutput(
       peerReviewAttempt,
       ["peer_review_contract_error"]
     );
-    const nextPeerReviewAttempt = peerReviewAttempt + 1;
-    if (
-      nextPeerReviewAttempt <= 7 &&
-      context.modelCallsStarted < context.input.policy.budgets.llmCalls
-    ) {
-      peerReviewContractRetryAttempt = nextPeerReviewAttempt as 5 | 6 | 7;
+    // One malformed decision plus one output-exhausted repair must not strand
+    // the seventh per-run call that production reserves for convergence.
+    for (let retryOrdinal = 1; retryOrdinal <= 2; retryOrdinal += 1) {
+      const nextPeerReviewAttempt = peerReviewAttempt + retryOrdinal;
+      if (
+        peerReview !== null ||
+        nextPeerReviewAttempt > 7 ||
+        context.modelCallsStarted >= context.input.policy.budgets.llmCalls
+      ) {
+        break;
+      }
+      peerReviewContractRetryAttempt =
+        nextPeerReviewAttempt as 5 | 6 | 7;
       const [contractRetryResult] = await Promise.allSettled([
         context.generateModel({
           stage: "validate_outputs",
           attempt: peerReviewContractRetryAttempt,
-          ...boundedCorrectionOptions(8_000, 180_000),
+          ...boundedCorrectionOptions(
+            retryOrdinal === 1 ? 8_000 : 10_000,
+            retryOrdinal === 1 ? 180_000 : 170_000
+          ),
           prompt: [
             buildPeerReviewPatchPrompt({
               run: context.run,
@@ -4399,14 +4410,19 @@ async function generateAndValidateShardedModelOutput(
                 : validation.errors,
               medicalSkillBundle
             }),
-            "BOUNDED PEER-REVIEW CONTRACT RETRY",
-            "The prior response could not be parsed as doctor_research_peer_review.v1. Retry this same bounded peer review once. Return exactly one JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed.",
+            retryOrdinal === 1
+              ? "BOUNDED PEER-REVIEW CONTRACT RETRY"
+              : "BOUNDED FINAL PEER-REVIEW CONTRACT RETRY",
+            retryOrdinal === 1
+              ? "The prior response could not be parsed as doctor_research_peer_review.v1. Retry this same bounded peer review once. Return exactly one JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed."
+              : "The prior bounded retry returned no usable doctor_research_peer_review.v1 decision. Use this final reserved call to return exactly one compact JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed.",
             "Resolve every structured mandatory diagnostic in one decision. Keep at most 12 exact-substring replacements and do not return the complete draft."
           ].join("\n\n"),
           system: doctorResearchPeerReviewSystemPolicy
         })
       ]);
       if (contractRetryResult?.status === "fulfilled") {
+        peerReviewContractRetryUnavailable = false;
         peerReviewResponse = contractRetryResult.value;
         peerReview = parsePeerReviewDecision(
           contractRetryResult.value.text
@@ -4415,10 +4431,16 @@ async function generateAndValidateShardedModelOutput(
           context.reportValidationFailure(
             "validate_outputs",
             peerReviewContractRetryAttempt,
-            ["peer_review_contract_retry_error"]
+            [
+              retryOrdinal === 1
+                ? "peer_review_contract_retry_error"
+                : "peer_review_contract_second_retry_error"
+            ]
           );
         } else {
           peerReviewContractRetryCompleted = true;
+          peerReviewContractSecondRetryCompleted =
+            retryOrdinal === 2;
         }
       } else if (
         contractRetryResult?.status === "rejected" &&
@@ -4888,6 +4910,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(peerReviewContractRetryCompleted
         ? ["bounded_peer_review_contract_retry_completed"]
+        : []),
+      ...(peerReviewContractSecondRetryCompleted
+        ? ["bounded_peer_review_contract_second_retry_completed"]
         : []),
       ...peerReview.warnings.map(
         (warning) => `peer_review_${warning}`
@@ -7072,6 +7097,7 @@ function isRetryableShardEnvelopeError(error: unknown): boolean {
 
 function isRecoverablePeerReviewError(error: unknown): boolean {
   return (
+    isOutputExhaustedShardError(error) ||
     (error instanceof DOMException && error.name === "TimeoutError") ||
     isRetryableLateModelError(error)
   );

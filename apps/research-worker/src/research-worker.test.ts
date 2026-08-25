@@ -816,12 +816,14 @@ describe("Research Worker controlled-beta workflow", () => {
                   }
                 }
                 : retryKind === "skill-contract-repeat" ||
-                    retryKind === "skill-contract-multi"
+                    retryKind === "skill-contract-multi" ||
+                    retryKind === "peer-contract"
                   ? {
                       review: {
                         ...foundationFragment.review,
                         abstract: "证".repeat(
-                          retryKind === "skill-contract-multi"
+                          retryKind === "skill-contract-multi" ||
+                            retryKind === "peer-contract"
                             ? 299
                             : 279
                         )
@@ -1805,7 +1807,7 @@ describe("Research Worker controlled-beta workflow", () => {
           if (
             retryKind === "peer-contract" &&
             modelInput.stage === "validate_outputs" &&
-            modelInput.attempt === 4
+            modelInput.attempt === 5
           ) {
             retryPrompt = modelInput.prompt;
             return {
@@ -1822,11 +1824,28 @@ describe("Research Worker controlled-beta workflow", () => {
           if (
             retryKind === "peer-contract" &&
             modelInput.stage === "validate_outputs" &&
-            modelInput.attempt === 5
+            modelInput.attempt === 6
           ) {
             expect(modelInput.prompt).toContain(
               "BOUNDED PEER-REVIEW CONTRACT RETRY"
             );
+            throw new ResearchModelClientError(
+              "output_exhausted",
+              413,
+              "req_sharded_peer_contract_output_exhausted"
+            );
+          }
+          if (
+            retryKind === "peer-contract" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 7
+          ) {
+            expect(modelInput.prompt).toContain(
+              "BOUNDED FINAL PEER-REVIEW CONTRACT RETRY"
+            );
+            expect(modelInput.maximumOutputTokens).toBe(10_000);
+            expect(modelInput.providerTimeoutMs).toBe(160_000);
+            retryPrompt = modelInput.prompt;
             return {
               text: JSON.stringify({
                 schema_version:
@@ -1836,7 +1855,7 @@ describe("Research Worker controlled-beta workflow", () => {
                 warnings: []
               }),
               gatewayRequestId:
-                "req_sharded_peer_contract_retry",
+                "req_sharded_peer_contract_final_retry",
               usage: {
                 promptTokens: 100,
                 completionTokens: 100,
@@ -2030,7 +2049,8 @@ describe("Research Worker controlled-beta workflow", () => {
                             closedIntroductionSupplementFoundationFragment()
                         }
                       })
-                  : retryKind === "skill-contract"
+                  : retryKind === "skill-contract" ||
+                      retryKind === "peer-contract"
                     ? JSON.stringify(foundationFragment)
                   : retryKind === "skill-contract-multi"
                     ? JSON.stringify(foundationFragment)
@@ -2347,7 +2367,7 @@ describe("Research Worker controlled-beta workflow", () => {
             ? [1, 2, 3, 4, 5, 6, 7]
             : [1, 2, 3, 4, 5, 6]
         : retryKind === "peer-contract"
-          ? [1, 2, 3, 4, 5]
+          ? [1, 2, 3, 4, 5, 6, 7]
         : retryKind === "citation-closure" ||
       retryKind === "peer-timeout" ||
       retryKind === "peer-convergence" ||
@@ -3124,6 +3144,9 @@ describe("Research Worker controlled-beta workflow", () => {
     if (retryKind === "peer-contract") {
       expect(new Set(result.quality.warnings).size).toBe(
         result.quality.warnings.length
+      );
+      expect(result.quality.warnings).toContain(
+        "bounded_peer_review_contract_second_retry_completed"
       );
     }
     if (retryKind === "skill-contract-multi") {

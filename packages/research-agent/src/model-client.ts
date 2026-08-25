@@ -403,6 +403,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
             response.status === 429
               ? modelRetryAfterSeconds(response.headers, payload)
               : null;
+          const gatewayErrorCode = modelGatewayErrorCode(payload);
           if (
             response.status === 429 &&
             admissionRetry < 6 &&
@@ -425,7 +426,18 @@ export class GatewayResearchModelClient implements ResearchModelClient {
             continue;
           }
           throw new ResearchModelClientError(
-            response.status === 429 ? "rate_limited" : "upstream_error",
+            response.status === 429
+              ? "rate_limited"
+              // The private Gateway uses 413/context_length_exceeded for a
+              // reasoning-only finish_reason=length response. Research has
+              // already preflighted its prompt and output maxima against the
+              // advertised context window, so preserve this as bounded output
+              // exhaustion and let the workflow spend a reserved retry slot.
+              : response.status === 413 &&
+                  (gatewayErrorCode === "context_length_exceeded" ||
+                    gatewayErrorCode === "output_length_exceeded")
+                ? "output_exhausted"
+                : "upstream_error",
             response.status,
             requestId,
             retryAfterSeconds
@@ -707,6 +719,15 @@ function modelRetryAfterSeconds(
     return seconds <= 3_600 ? seconds : null;
   }
   return null;
+}
+
+function modelGatewayErrorCode(payload: unknown): string | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+  const nestedError = isRecord(payload.error) ? payload.error : null;
+  const code = nestedError?.code ?? payload.code;
+  return typeof code === "string" && code.length <= 128 ? code : null;
 }
 
 async function waitForModelAdmission(input: {

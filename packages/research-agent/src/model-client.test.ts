@@ -256,6 +256,52 @@ describe("Doctor Research structured Gateway model client", () => {
     });
   });
 
+  it("preserves Gateway reasoning-only length failures as output exhaustion", async () => {
+    const client = new GatewayResearchModelClient({
+      baseUrl: "http://gateway:8787",
+      allowedHosts: ["gateway"],
+      model: "medcode",
+      reasoningEffort: "low",
+      bearerToken: "secret-staging-token",
+      timeoutMs: 5_000,
+      maximumResponseBytes: 100_000,
+      readinessRequirements: readinessRequirements(),
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "context_length_exceeded",
+              message: "The model reached its output limit."
+            }
+          }),
+          {
+            status: 413,
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": "req_gateway_reasoning_only_length"
+            }
+          }
+        )
+    });
+
+    await expect(
+      client.generate({
+        runId: `drr_${"7".repeat(32)}`,
+        stage: "validate_outputs",
+        attempt: 6,
+        system: "Return the peer-review contract.",
+        prompt: "Use the closed evidence set.",
+        signal: new AbortController().signal,
+        maximumOutputTokens: 8_000
+      })
+    ).rejects.toMatchObject({
+      name: "ResearchModelClientError",
+      code: "output_exhausted",
+      statusCode: 413,
+      gatewayRequestId: "req_gateway_reasoning_only_length"
+    });
+  });
+
   it("fails closed when the service credential does not expose the exact model", async () => {
     const client = new GatewayResearchModelClient({
       baseUrl: "http://gateway:8787",
