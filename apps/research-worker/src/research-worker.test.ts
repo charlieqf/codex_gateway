@@ -463,6 +463,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_shard_skill_contract_second_retry_completed"
     ],
     [
+      "skill-contract-multi",
+      "bounded_shard_skill_contract_retry_completed"
+    ],
+    [
       "skill-prose",
       "bounded_shard_skill_contract_retry_completed"
     ],
@@ -811,11 +815,16 @@ describe("Research Worker controlled-beta workflow", () => {
                       "## Introduction\n\nShort English introduction."
                   }
                 }
-                : retryKind === "skill-contract-repeat"
+                : retryKind === "skill-contract-repeat" ||
+                    retryKind === "skill-contract-multi"
                   ? {
                       review: {
                         ...foundationFragment.review,
-                        abstract: "证".repeat(279)
+                        abstract: "证".repeat(
+                          retryKind === "skill-contract-multi"
+                            ? 299
+                            : 279
+                        )
                       }
                     }
                 : retryKind === "introduction-safety"
@@ -864,7 +873,13 @@ describe("Research Worker controlled-beta workflow", () => {
             : JSON.stringify({
                 schema_version: "doctor_research_body_fragment.v1",
               markdown: [
-                retryKind === "peer-convergence"
+                retryKind === "skill-contract-multi"
+                  ? skillBodyFragment(20)
+                      .split(/^##\s+/gmu)
+                      .slice(1, 4)
+                      .map((section) => `## ${section}`)
+                      .join("\n\n")
+                : retryKind === "peer-convergence"
                   ? peerConvergenceBody
                   : retryKind === "body-section-repair"
                     ? underfilledBody
@@ -1849,6 +1864,32 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "skill-contract-multi" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 5
+          ) {
+            expect(modelInput.prompt).toContain(
+              "BOUNDED MEDICAL-SKILL CONTRACT RETRY"
+            );
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_body_fragment.v1",
+                markdown: skillBodyFragment(20),
+                predicted_questions: initialBodyQuestions,
+                answers: initialBodyAnswers
+              }),
+              gatewayRequestId:
+                "req_sharded_multi_skill_body_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -1948,6 +1989,8 @@ describe("Research Worker controlled-beta workflow", () => {
                         }
                       })
                   : retryKind === "skill-contract"
+                    ? JSON.stringify(foundationFragment)
+                  : retryKind === "skill-contract-multi"
                     ? JSON.stringify(foundationFragment)
                   : retryKind === "skill-contract-repeat"
                     ? JSON.stringify({
@@ -2083,27 +2126,33 @@ describe("Research Worker controlled-beta workflow", () => {
           llmCalls:
             retryKind === "transport-middle-and-closing-skill" ||
             retryKind === "peer-contract" ||
-            retryKind === "skill-contract-repeat"
+            retryKind === "skill-contract-repeat" ||
+            retryKind === "skill-contract-multi"
               ? retryKind === "peer-contract" ||
-                retryKind === "skill-contract-repeat"
+                retryKind === "skill-contract-repeat" ||
+                retryKind === "skill-contract-multi"
                 ? 7
                 : 6
               : 5,
           inputTokens:
             retryKind === "transport-middle-and-closing-skill" ||
             retryKind === "peer-contract" ||
-            retryKind === "skill-contract-repeat"
+            retryKind === "skill-contract-repeat" ||
+            retryKind === "skill-contract-multi"
               ? retryKind === "peer-contract" ||
-                retryKind === "skill-contract-repeat"
+                retryKind === "skill-contract-repeat" ||
+                retryKind === "skill-contract-multi"
                 ? 700_000
                 : 600_000
               : 500_000,
           outputTokens:
             retryKind === "transport-middle-and-closing-skill" ||
             retryKind === "peer-contract" ||
-            retryKind === "skill-contract-repeat"
+            retryKind === "skill-contract-repeat" ||
+            retryKind === "skill-contract-multi"
               ? retryKind === "peer-contract" ||
-                retryKind === "skill-contract-repeat"
+                retryKind === "skill-contract-repeat" ||
+                retryKind === "skill-contract-multi"
                 ? 126_000
                 : 108_000
               : 90_000
@@ -2250,7 +2299,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(attempts).toEqual(
       retryKind === "transport-middle-and-closing-skill"
         ? [1, 2, 3, 4, 5, 6]
-        : retryKind === "skill-contract-repeat"
+        : retryKind === "skill-contract-repeat" ||
+            retryKind === "skill-contract-multi"
           ? [1, 2, 3, 4, 5, 6]
         : retryKind === "peer-contract"
           ? [1, 2, 3, 4, 5]

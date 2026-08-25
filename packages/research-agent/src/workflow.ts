@@ -3215,28 +3215,37 @@ async function generateAndValidateShardedModelOutput(
       }
     ].filter((entry) => entry.errors.length > 0);
   let remainingFragmentSkillErrors = fragmentSkillErrors();
-  if (remainingFragmentSkillErrors.length === 1) {
-    const failure = remainingFragmentSkillErrors[0]!;
-    const retryInput = shardInputs[failure.index]!;
-    // Allocate the next unused synthesis attempt. Two transport retries may
-    // already have committed attempts 4 and 5; reusing attempt 5 with a new
-    // correction prompt violates the stage-run replay hash invariant.
-    shardSkillContractRetryAttempt = nextAttempt as 4 | 5 | 6;
-    if (shardSkillContractRetryAttempt > 6) {
-      throw new WorkflowBudgetError("llmCalls");
-    }
-    nextAttempt += 1;
-    responses[failure.index] = await context.generateModel({
-      ...retryInput,
-      attempt: shardSkillContractRetryAttempt,
-      prompt: [
-        retryInput.prompt,
-        "BOUNDED MEDICAL-SKILL CONTRACT RETRY",
-        `The prior fragment was parseable but failed these deterministic medical-team Skill diagnostics: ${JSON.stringify(
-          failure.errors
-        )}.`,
-        "Rewrite the same bounded assignment in full. Correct every diagnostic, preserve the exact requested fragment schema, and do not add commentary or fields."
-      ].join("\n\n")
+  if (
+    remainingFragmentSkillErrors.length >= 1 &&
+    remainingFragmentSkillErrors.length <= 3 &&
+    nextAttempt + remainingFragmentSkillErrors.length - 1 <= 6
+  ) {
+    const failures = [...remainingFragmentSkillErrors];
+    const retryAttempts = failures.map(() => {
+      const attempt = nextAttempt as 4 | 5 | 6;
+      nextAttempt += 1;
+      return attempt;
+    });
+    shardSkillContractRetryAttempt = retryAttempts.at(-1)!;
+    const correctedResponses = await Promise.all(
+      failures.map((failure, index) => {
+        const retryInput = shardInputs[failure.index]!;
+        return context.generateModel({
+          ...retryInput,
+          attempt: retryAttempts[index]!,
+          prompt: [
+            retryInput.prompt,
+            "BOUNDED MEDICAL-SKILL CONTRACT RETRY",
+            `The prior fragment was parseable but failed these deterministic medical-team Skill diagnostics: ${JSON.stringify(
+              failure.errors
+            )}.`,
+            "Rewrite the same bounded assignment in full. Correct every diagnostic, preserve the exact requested fragment schema, and do not add commentary or fields."
+          ].join("\n\n")
+        });
+      })
+    );
+    failures.forEach((failure, index) => {
+      responses[failure.index] = correctedResponses[index]!;
     });
     shardSkillContractRetryCompleted = true;
     [foundationResponse, middleResponse, closingResponse] = responses;
@@ -3255,7 +3264,7 @@ async function generateAndValidateShardedModelOutput(
     if (!foundationFragment || !middleFragment || !closingFragment) {
       context.reportValidationFailure(
         "synthesize_review",
-        shardSkillContractRetryAttempt ?? 4,
+        shardSkillContractRetryAttempt,
         ["fragment_contract_error"],
         responses.flatMap((response, index) =>
           response &&
