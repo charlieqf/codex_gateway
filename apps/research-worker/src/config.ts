@@ -154,7 +154,7 @@ export function loadResearchWorkerConfig(
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
       "RESEARCH_MAX_LLM_CALLS_PER_RUN",
-      6
+      7
     ),
     inputTokens: boundedInteger(
       env.RESEARCH_MAX_INPUT_TOKENS_PER_RUN,
@@ -493,7 +493,7 @@ export function loadResearchWorkerConfig(
       "RESEARCH_SYNTHESIS_SHARD_COUNT must be 1 or 3."
     );
   }
-  const fullSynthesisCallCount = 5;
+  const fullSynthesisCallCount = 6;
   const requiredOutputTokenBudget =
     maximumOutputTokensPerCall * fullSynthesisCallCount +
     researchTopicInferenceModelBudget.maximumOutputTokens;
@@ -512,7 +512,7 @@ export function loadResearchWorkerConfig(
     requiredInputTokenBudget > budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover one bounded topic-inference call, three bounded synthesis shards, one bounded transport retry, and one concise peer-review call."
+      "Research LLM budgets must cover one bounded topic-inference call and six bounded synthesis or review calls, including the reserved retry/correction slot."
     );
   }
   const llmTimeoutMs = requiredTimerMilliseconds(

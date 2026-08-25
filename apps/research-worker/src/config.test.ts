@@ -32,11 +32,11 @@ describe("Research Worker fail-closed configuration", () => {
         maximumArtifactBytes: 1_000_000,
         maximumRunArtifactBytes: 4_000_000,
         minimumReferences: 3,
-        maximumInputTokensPerCall: 190_000,
+        maximumInputTokensPerCall: 150_000,
         synthesisShardCount: 3,
         budgets: {
           externalRequests: 514,
-          llmCalls: 6
+          llmCalls: 7
         }
       }
     });
@@ -344,11 +344,11 @@ function validEnvironment(): NodeJS.ProcessEnv {
     RESEARCH_MAX_NEEDS_INPUT_PER_SUBJECT: "2",
     RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "514",
     RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "1028000000",
-    RESEARCH_MAX_LLM_CALLS_PER_RUN: "6",
+    RESEARCH_MAX_LLM_CALLS_PER_RUN: "7",
     RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
-    RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "190000",
-    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "954000",
-    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "61000",
+    RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "150000",
+    RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "904000",
+    RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "73000",
     RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "12000",
     RESEARCH_MAX_EXTERNAL_RESPONSE_BYTES_PER_CALL: "2000000",
     RESEARCH_MAX_SOURCE_TEXT_CHARACTERS: "100000",

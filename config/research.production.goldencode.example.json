@@ -8,7 +8,12 @@
     "maxOutputTokens": 128000,
     "enabled": true,
     "reasoning": {
-      "effort": "medium"
+      "effort": "low",
+      "supportedEfforts": ["low", "high", "max"],
+      "legacyAliases": {
+        "none": "low",
+        "medium": "high"
+      }
     },
     "pool": {
       "selection": {
@@ -22,25 +27,11 @@
       "requireAllMembers": true,
       "members": [
         {
-          "id": "goldencode-qianfan",
-          "runtime": "qianfan",
-          "upstreamModel": "glm-5.2",
-          "maxConcurrent": 1,
-          "enabled": false
-        },
-        {
           "id": "goldencode-tencent",
           "runtime": "tencent",
-          "upstreamModel": "glm-5.2",
+          "upstreamModel": "glm-5.3",
           "maxConcurrent": 3,
           "enabled": true
-        },
-        {
-          "id": "goldencode-aliyun",
-          "runtime": "aliyun",
-          "upstreamModel": "glm-5.2",
-          "maxConcurrent": 3,
-          "enabled": false
         }
       ]
     }

@@ -135,7 +135,7 @@ export async function executeDoctorResearchWorkflow(input: {
   onValidationFailure?: (input: {
     runId: string;
     stage: "synthesize_review" | "validate_outputs";
-    attempt: 1 | 2 | 3 | 4 | 5;
+    attempt: 1 | 2 | 3 | 4 | 5 | 6;
     errorCodes: readonly string[];
     errorDetails?: readonly string[];
   }) => void;
@@ -493,7 +493,8 @@ export async function executeDoctorResearchWorkflow(input: {
       return {
         outcome: "failed",
         reason: "upstream_unavailable",
-        retryable: context.modelCallsStarted === 1
+        retryable: context.modelCallsStarted === 1,
+        dependencyScope: "request"
       };
     }
     if (error instanceof ResearchModelClientError) {
@@ -504,7 +505,11 @@ export async function executeDoctorResearchWorkflow(input: {
           context.modelCallsStarted === 1 &&
           (error.code === "rate_limited" ||
             (error.code === "upstream_error" &&
-              (error.statusCode === 0 || error.statusCode >= 500)))
+              (error.statusCode === 0 || error.statusCode >= 500))),
+        dependencyScope:
+          error.statusCode === 401 || error.statusCode === 403
+            ? "service"
+            : "request"
       };
     }
     if (error instanceof ResearchHttpError) {
@@ -626,11 +631,10 @@ class WorkflowContext {
     // Preflight wall-clock capacity before charging tokens or writing a stage
     // run. The retained tail is for structured failure persistence, lease
     // cleanup, and provider cancellation observation.
-    const modelCallDeadline = this.callDeadline(
-      input.maximumDurationMs,
-      true
+    const modelCallDeadline = this.modelCallDeadline(
+      input.maximumDurationMs
     );
-    if (modelCallDeadline.timeoutMs <= 1) {
+    if (modelCallDeadline.operationTimeoutMs <= 1) {
       throw new WorkflowBudgetError("active_deadline");
     }
     const modelSignal = modelCallDeadline.signal;
@@ -678,10 +682,7 @@ class WorkflowContext {
         ...(input.reasoningEffort === undefined
           ? {}
           : { reasoningEffort: input.reasoningEffort }),
-        providerTimeoutMs: Math.max(
-          1,
-          modelCallDeadline.timeoutMs - 10_000
-        )
+        providerTimeoutMs: modelCallDeadline.providerTimeoutMs
       });
       const durationMs = elapsedMilliseconds(startedMonotonic);
       const telemetry = response.telemetry ?? {
@@ -782,7 +783,7 @@ class WorkflowContext {
 
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
-    attempt: 1 | 2 | 3 | 4 | 5,
+    attempt: 1 | 2 | 3 | 4 | 5 | 6,
     errorCodes: readonly string[],
     errorDetails: readonly string[] = []
   ): void {
@@ -938,6 +939,55 @@ class WorkflowContext {
         AbortSignal.timeout(timeoutMs)
       ]),
       timeoutMs
+    };
+  }
+
+  private modelCallDeadline(
+    maximumDurationMs?: number
+  ): {
+    signal: AbortSignal;
+    operationTimeoutMs: number;
+    providerTimeoutMs: number;
+  } {
+    this.checkActiveDeadline();
+    const remaining = this.remainingActiveMs();
+    const cleanupReserveMs = Math.min(
+      10_000,
+      Math.max(
+        250,
+        Math.floor(this.input.policy.hardDeadlineMs * 0.02)
+      )
+    );
+    if (
+      maximumDurationMs !== undefined &&
+      (!Number.isSafeInteger(maximumDurationMs) ||
+        maximumDurationMs <= 0)
+    ) {
+      throw new Error(
+        "Research model call maximum duration must be a positive integer."
+      );
+    }
+    const availableForCall = remaining - cleanupReserveMs;
+    if (availableForCall <= 0) {
+      throw new WorkflowBudgetError("active_deadline");
+    }
+    const providerExecutionBudgetMs =
+      maximumDurationMs === undefined
+        ? availableForCall
+        : Math.min(availableForCall, maximumDurationMs);
+    return {
+      // Keep the Worker-side signal tied to the full remaining run budget.
+      // The model client applies a fresh request-local timeout after each
+      // admission retry, while the Gateway header bounds provider execution.
+      signal: AbortSignal.any([
+        this.input.signal,
+        AbortSignal.timeout(availableForCall)
+      ]),
+      operationTimeoutMs: availableForCall,
+      providerTimeoutMs: Math.max(
+        1,
+        providerExecutionBudgetMs - 10_000
+      )
     };
   }
 
@@ -2901,7 +2951,7 @@ async function generateAndValidateShardedModelOutput(
             ...input,
             attempt,
             maximumDurationMs:
-              index === 1 ? 170_000 : index === 2 ? 90_000 : 120_000,
+              index === 0 ? 200_000 : 180_000,
             ...(shardReasoningEffortOverrides.has(index)
               ? {
                   reasoningEffort:
@@ -3037,7 +3087,7 @@ async function generateAndValidateShardedModelOutput(
   ];
   let shardContractRetryCompleted = false;
   let shardSkillContractRetryCompleted = false;
-  let shardSkillContractRetryAttempt: 4 | 5 | null = null;
+  let shardSkillContractRetryAttempt: 4 | 5 | 6 | null = null;
   if (
     contractFailureIndexes.length === 1 &&
     !shardTransportRetryCompleted
@@ -3054,6 +3104,7 @@ async function generateAndValidateShardedModelOutput(
       ].join("\n\n")
     });
     shardContractRetryCompleted = true;
+    nextAttempt = Math.max(nextAttempt, 5);
     [foundationResponse, middleResponse, closingResponse] = responses;
     foundationFragment = foundationResponse
       ? parseFoundationFragment(foundationResponse.text)
@@ -3166,10 +3217,14 @@ async function generateAndValidateShardedModelOutput(
   if (remainingFragmentSkillErrors.length === 1) {
     const failure = remainingFragmentSkillErrors[0]!;
     const retryInput = shardInputs[failure.index]!;
-    shardSkillContractRetryAttempt =
-      shardTransportRetryCompleted || shardContractRetryCompleted
-        ? 5
-        : 4;
+    // Allocate the next unused synthesis attempt. Two transport retries may
+    // already have committed attempts 4 and 5; reusing attempt 5 with a new
+    // correction prompt violates the stage-run replay hash invariant.
+    shardSkillContractRetryAttempt = nextAttempt as 4 | 5 | 6;
+    if (shardSkillContractRetryAttempt > 6) {
+      throw new WorkflowBudgetError("llmCalls");
+    }
+    nextAttempt += 1;
     responses[failure.index] = await context.generateModel({
       ...retryInput,
       attempt: shardSkillContractRetryAttempt,
@@ -3477,6 +3532,7 @@ async function generateAndValidateShardedModelOutput(
     shardSkillContractRetryCompleted;
   const conclusionCorrectionRequiredAfterPriorRepair =
     priorRepairConsumedFourthCall &&
+    shardTransportRetryCount < 2 &&
     shardSkillContractRetryAttempt !== 5 &&
     !bodySectionRepairCompleted &&
     !qaContractRetryRequired &&

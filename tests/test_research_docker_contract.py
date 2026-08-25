@@ -95,7 +95,12 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertTrue(model["pool"]["requireAllMembers"])
         self.assertEqual(
             [(member["runtime"], member["upstreamModel"]) for member in members],
-            [("tencent", "glm-5.2")],
+            [("tencent", "glm-5.3")],
+        )
+        self.assertEqual(model["reasoning"]["effort"], "low")
+        self.assertEqual(
+            model["reasoning"]["legacyAliases"],
+            {"none": "low", "medium": "high"},
         )
         self.assertNotIn("research_web_search_api_key", compose)
         self.assertNotIn("research_orcid_client_secret", compose)
@@ -151,11 +156,16 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertTrue(model["pool"]["requireAllMembers"])
         self.assertEqual(
             [(member["runtime"], member["upstreamModel"]) for member in members],
-            [
-                ("qianfan", "glm-5.2"),
-                ("tencent", "glm-5.2"),
-                ("aliyun", "glm-5.2"),
-            ],
+            [("tencent", "glm-5.3")],
+        )
+        self.assertEqual(model["reasoning"]["effort"], "low")
+        self.assertEqual(
+            model["reasoning"]["supportedEfforts"],
+            ["low", "high", "max"],
+        )
+        self.assertEqual(
+            model["reasoning"]["legacyAliases"],
+            {"none": "low", "medium": "high"},
         )
         self.assertEqual(
             {
@@ -166,12 +176,12 @@ class ResearchDockerContractTests(unittest.TestCase):
                 for member in members
             },
             {
-                "qianfan": (False, 1),
                 "tencent": (True, 3),
-                "aliyun": (False, 3),
             },
         )
         serialized = json.dumps(registry).lower()
+        self.assertNotIn("qianfan", serialized)
+        self.assertNotIn("aliyun", serialized)
         self.assertNotIn("openrouter", serialized)
         self.assertNotIn('"runtime": "codex"', serialized)
 
@@ -214,9 +224,12 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", worker)
         self.assertIn("RESEARCH_SERPAPI_ENGINE=google", worker)
         self.assertIn(
-            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.106",
+            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.107",
             worker,
         )
+        self.assertIn("RESEARCH_MAX_LLM_CALLS_PER_RUN=7", worker)
+        self.assertIn("RESEARCH_MAX_INPUT_TOKENS_PER_RUN=244000", worker)
+        self.assertIn("RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN=109000", worker)
         self.assertIn(
             "RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN=964",
             worker,

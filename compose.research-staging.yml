@@ -21,18 +21,8 @@ services:
       - research_staging_state:/var/lib/codex-gateway-research
       - ./config/research.staging.goldencode.example.json:/etc/codex-gateway/research-staging-goldencode.json:ro
     secrets:
-      - source: goldencode_qianfan_api_key
-        target: goldencode_qianfan_api_key
-        uid: "999"
-        gid: "999"
-        mode: 0400
       - source: goldencode_tencent_api_key
         target: goldencode_tencent_api_key
-        uid: "999"
-        gid: "999"
-        mode: 0400
-      - source: goldencode_aliyun_api_key
-        target: goldencode_aliyun_api_key
         uid: "999"
         gid: "999"
         mode: 0400
@@ -161,11 +151,7 @@ volumes:
   research_staging_backups:
 
 secrets:
-  goldencode_qianfan_api_key:
-    file: ${RESEARCH_STAGING_QIANFAN_KEY_FILE:-./secrets/research-staging-qianfan-key}
   goldencode_tencent_api_key:
     file: ${RESEARCH_STAGING_TENCENT_KEY_FILE:-./secrets/research-staging-tencent-key}
-  goldencode_aliyun_api_key:
-    file: ${RESEARCH_STAGING_ALIYUN_KEY_FILE:-./secrets/research-staging-aliyun-key}
   research_llm_bearer:
     file: ${RESEARCH_STAGING_LLM_TOKEN_FILE:-./secrets/research-staging-llm-token}

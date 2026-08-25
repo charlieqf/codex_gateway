@@ -397,6 +397,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_shard_transport_retry_completed"
     ],
     [
+      "transport-middle-and-closing-skill",
+      "bounded_shard_skill_contract_retry_completed"
+    ],
+    [
       "transport-body-near-minimum",
       "bounded_shard_transport_retry_completed"
     ],
@@ -1147,7 +1151,8 @@ describe("Research Worker controlled-beta workflow", () => {
           }
           const finishOutputExhaustedShardCall = (): void => {
             if (
-              retryKind === "transport-middle-and-closing" &&
+              (retryKind === "transport-middle-and-closing" ||
+                retryKind === "transport-middle-and-closing-skill") &&
               shardRole !== null
             ) {
               activeOutputExhaustedShardRoles.delete(shardRole);
@@ -1180,7 +1185,10 @@ describe("Research Worker controlled-beta workflow", () => {
               maximumActiveSynthesisCalls,
               activeSynthesisCalls
             );
-            if (retryKind === "transport-middle-and-closing") {
+            if (
+              retryKind === "transport-middle-and-closing" ||
+              retryKind === "transport-middle-and-closing-skill"
+            ) {
               if (modelInput.attempt === 1) {
                 activeSynthesisCalls -= 1;
                 finishOutputExhaustedShardCall();
@@ -1641,12 +1649,32 @@ describe("Research Worker controlled-beta workflow", () => {
             );
           }
           if (
-            retryKind === "transport-middle-and-closing" &&
+            (retryKind === "transport-middle-and-closing" ||
+              retryKind === "transport-middle-and-closing-skill") &&
             modelInput.attempt === 4
           ) {
             finishOutputExhaustedShardCall();
             return {
-              text: fragments.get(2)!,
+              text:
+                retryKind === "transport-middle-and-closing-skill"
+                  ? JSON.stringify({
+                      schema_version:
+                        "doctor_research_body_fragment.v1",
+                      markdown: [
+                        longChineseReviewFragment(
+                          "ç ”ç©¶è®¾è®¡ä¸Žäººç¾¤å·®å¼‚",
+                          20
+                        ),
+                        longChineseReviewFragment(
+                          "æ–¹æ³•è·¯å¾„ä¸Žè¯„ä»·ç»ˆç‚¹",
+                          20
+                        ),
+                        "## ç»“æžœä¸€è‡´æ€§ä¸Žè¯æ®å¼ºåº¦\n\nçŸ­æ®µè½ã€‚[1]"
+                      ].join("\n\n"),
+                      predicted_questions: initialBodyQuestions,
+                      answers: initialBodyAnswers
+                    })
+                  : fragments.get(2)!,
               gatewayRequestId:
                 "req_sharded_middle_closing_body_retry",
               usage: {
@@ -1657,7 +1685,8 @@ describe("Research Worker controlled-beta workflow", () => {
             };
           }
           if (
-            retryKind === "transport-middle-and-closing" &&
+            (retryKind === "transport-middle-and-closing" ||
+              retryKind === "transport-middle-and-closing-skill") &&
             modelInput.attempt === 5
           ) {
             finishOutputExhaustedShardCall();
@@ -1665,6 +1694,29 @@ describe("Research Worker controlled-beta workflow", () => {
               text: fragments.get(3)!,
               gatewayRequestId:
                 "req_sharded_middle_closing_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
+          if (
+            retryKind === "transport-middle-and-closing-skill" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 6
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_body_fragment.v1",
+                markdown: skillBodyFragment(20),
+                predicted_questions: initialBodyQuestions,
+                answers: initialBodyAnswers
+              }),
+              gatewayRequestId:
+                "req_sharded_double_transport_skill_repair",
               usage: {
                 promptTokens: 100,
                 completionTokens: 1_000,
@@ -1951,9 +2003,18 @@ describe("Research Worker controlled-beta workflow", () => {
         maximumOutputTokensPerCall: 18_000,
         budgets: {
           ...workflowPolicy().budgets,
-          llmCalls: 5,
-          inputTokens: 500_000,
-          outputTokens: 90_000
+          llmCalls:
+            retryKind === "transport-middle-and-closing-skill"
+              ? 6
+              : 5,
+          inputTokens:
+            retryKind === "transport-middle-and-closing-skill"
+              ? 600_000
+              : 500_000,
+          outputTokens:
+            retryKind === "transport-middle-and-closing-skill"
+              ? 108_000
+              : 90_000
         }
       },
       signal: new AbortController().signal,
@@ -2013,7 +2074,8 @@ describe("Research Worker controlled-beta workflow", () => {
       ).toEqual({
         outcome: "failed",
         reason: "upstream_unavailable",
-        retryable: false
+        retryable: false,
+        dependencyScope: "request"
       });
       expect(
         fixture.store.database
@@ -2094,7 +2156,9 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
     expect(attempts).toEqual(
-      retryKind === "citation-closure" ||
+      retryKind === "transport-middle-and-closing-skill"
+        ? [1, 2, 3, 4, 5, 6]
+        : retryKind === "citation-closure" ||
       retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
       retryKind === "peer-convergence" ||
@@ -2107,7 +2171,10 @@ describe("Research Worker controlled-beta workflow", () => {
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
     );
-    if (retryKind === "transport-middle-and-closing") {
+    if (
+      retryKind === "transport-middle-and-closing" ||
+      retryKind === "transport-middle-and-closing-skill"
+    ) {
       expect(modelCalls.slice(0, 5)).toEqual([
         "synthesize_review:1:foundation",
         "synthesize_review:2:body",
@@ -2120,14 +2187,20 @@ describe("Research Worker controlled-beta workflow", () => {
         [2, "none"],
         [3, "none"],
         [4, "none"],
-        [5, "none"]
+        [5, "none"],
+        ...(retryKind === "transport-middle-and-closing-skill"
+          ? [[6, "none"] as [number, string]]
+          : [])
       ]);
       expect([...synthesisProviderTimeouts.entries()]).toEqual([
         [1, 190_000],
         [2, 170_000],
         [3, 170_000],
-        [4, 160_000],
-        [5, 80_000]
+        [4, 170_000],
+        [5, 170_000],
+        ...(retryKind === "transport-middle-and-closing-skill"
+          ? [[6, 170_000] as [number, number]]
+          : [])
       ]);
       expect(sameShardProviderOverlapObserved).toBe(false);
       expect(activeOutputExhaustedShardRoles.size).toBe(0);
@@ -2873,6 +2946,7 @@ describe("Research Worker controlled-beta workflow", () => {
         retryKind === "transport-skill" ||
         retryKind === "contract-skill-prose" ||
         retryKind === "transport-middle-and-closing" ||
+        retryKind === "transport-middle-and-closing-skill" ||
         retryKind === "transport-conclusion-safety" ||
         retryKind === "skill-conclusion-safety" ||
         retryKind === "body-section-repair" ||
@@ -4207,7 +4281,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({
       outcome: "failed",
       reason: "upstream_unavailable",
-      retryable: true
+      retryable: true,
+      dependencyScope: "request"
     });
     fixture.store.close();
   });
@@ -4246,7 +4321,9 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(outcome).toEqual({
         outcome: "failed",
         reason: "upstream_unavailable",
-        retryable: false
+        retryable: false,
+        dependencyScope:
+          statusCode === 401 ? "service" : "request"
       });
       fixture.store.close();
     }
@@ -4291,7 +4368,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome).toEqual({
       outcome: "failed",
       reason: "upstream_unavailable",
-      retryable: false
+      retryable: false,
+      dependencyScope: "request"
     });
     fixture.store.close();
   });
@@ -5937,7 +6015,7 @@ describe("Research Worker controlled-beta workflow", () => {
     observer.close();
   });
 
-  it("withdraws its ready heartbeat and exits after a dependency fails both run attempts", async () => {
+  it("keeps its ready heartbeat after a request-scoped provider failure exhausts both run attempts", async () => {
     const root = temporaryDirectory();
     const config = workerConfig(root);
     const observer = createResearchSqliteStore({
@@ -5976,9 +6054,10 @@ describe("Research Worker controlled-beta workflow", () => {
         : null;
     };
     let modelCalls = 0;
+    const controller = new AbortController();
     const runtime = runResearchWorker({
       config,
-      signal: new AbortController().signal,
+      signal: controller.signal,
       logger: {
         info() {},
         error() {}
@@ -6003,8 +6082,13 @@ describe("Research Worker controlled-beta workflow", () => {
       }
     });
 
-    await expect(runtime).rejects.toThrow(
-      "dependencies remained unavailable"
+    await waitFor(
+      () =>
+        observer.getRunForSubject(
+          created.run.runId,
+          "subj_worker_dependency_failure"
+        )?.status === "failed",
+      5_000
     );
     expect(modelCalls).toBe(2);
     expect(
@@ -6021,7 +6105,9 @@ describe("Research Worker controlled-beta workflow", () => {
       observer
         .listWorkerHeartbeats({ staleAfterSeconds: 45 })
         .find((heartbeat) => heartbeat.workerId === config.workerId)?.state
-    ).toBe("draining");
+    ).toBe("ready");
+    controller.abort(new Error("Provider-failure test drain."));
+    await runtime;
     observer.close();
   });
 
@@ -6728,7 +6814,9 @@ function workerConfig(root: string): ResearchWorkerConfig {
     storagePolicy: {
       maximumResearchBytes: 1_000_000_000,
       minimumFreeBytes: 1,
-      minimumFreePercent: 1
+      // Runtime lifecycle tests should not depend on the host test volume's
+      // current fill percentage; dedicated storage-policy tests cover it.
+      minimumFreePercent: 0
     },
     ncbiApiKeyFile: null,
     webSearchApiKeyFile: path.join(root, "unused-web-secret"),

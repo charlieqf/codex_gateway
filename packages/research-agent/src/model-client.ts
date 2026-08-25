@@ -123,7 +123,7 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       "readinessRequirements.maximumTokensPerRun"
     );
     if (
-      readiness.callsPerRun > 6 ||
+      readiness.callsPerRun > 7 ||
       concurrentCalls > readiness.callsPerRun ||
       !Number.isSafeInteger(
         readiness.maximumPromptTokensPerCall +
@@ -306,9 +306,20 @@ export class GatewayResearchModelClient implements ResearchModelClient {
     });
     try {
       for (let admissionRetry = 0; ; admissionRetry += 1) {
+        // Admission retries receive a fresh provider-execution deadline. A
+        // fast 429 and its bounded backoff must not consume the accepted
+        // generation's provider budget; the caller signal still caps the
+        // complete operation at the Research run deadline.
+        const providerRequestTimeoutMs =
+          input.providerTimeoutMs === undefined
+            ? this.timeoutMs
+            : Math.min(
+                this.timeoutMs,
+                input.providerTimeoutMs + 10_000
+              );
         const signal = AbortSignal.any([
           input.signal,
-          AbortSignal.timeout(this.timeoutMs)
+          AbortSignal.timeout(providerRequestTimeoutMs)
         ]);
         activeSignal = signal;
         requestSentAt ??= this.now();

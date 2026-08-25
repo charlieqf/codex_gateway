@@ -40,7 +40,7 @@ const cleanupDirectories: string[] = [];
 const researchLlmReadinessQuery =
   "?maximum_prompt_tokens_per_call=180000" +
   "&maximum_output_tokens_per_call=12000" +
-  "&calls_per_run=6" +
+  "&calls_per_run=7" +
   "&concurrent_calls=3" +
   "&maximum_tokens_per_run=576000";
 
@@ -450,7 +450,7 @@ describe("Doctor Research control-plane routes", () => {
         "/gateway/research/v1/worker/llm-readiness/medcode" +
         "?maximum_prompt_tokens_per_call=180000" +
         "&maximum_output_tokens_per_call=12000" +
-        "&calls_per_run=7" +
+        "&calls_per_run=8" +
         "&maximum_tokens_per_run=576000",
       headers: { authorization: `Bearer ${fixture.token}` }
     });
@@ -844,7 +844,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.6.106"
+        version: "1.6.107"
       }
     });
     expect(replayed.statusCode).toBe(202);
@@ -2376,7 +2376,7 @@ function addSubject(
     ...(boundedServicePolicy
       ? {
           rate: {
-            requestsPerMinute: 6,
+            requestsPerMinute: 7,
             requestsPerDay: 100,
             concurrentRequests: 3
           }

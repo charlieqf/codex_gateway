@@ -33,11 +33,12 @@ with zero restarts. Only the public Gateway publishes
 `127.0.0.1:18787->8787`; the isolated Research LLM Gateway, Worker and
 maintenance services publish no host port.
 
-The current Research LLM registry keeps Qianfan and Aliyun disabled and enables
-only `goldencode-tencent / tencent / glm-5.2` with `maxConcurrent=3`. Since the
-current Research LLM container started, every real GLM-5.2 event has used
-Tencent. This is the required temporary policy while the Aliyun and Qianfan
-subscriptions are cancelled; do not restore the old Aliyun-only policy.
+The Research LLM registry is a single-member pool: only
+`goldencode-tencent / tencent / glm-5.3` is configured, with
+`maxConcurrent=3`. Qianfan and Aliyun are not pool members, adapters, secret
+mounts or fallback routes. GLM-5.3 accepts only `low/high/max`; the isolated
+Gateway defaults to `low` and normalizes legacy Worker values `none -> low`
+and `medium -> high` with request-event audit fields.
 
 The same 2026-08-04 routing decision was applied to the Azure public
 `goldencode` pool, Azure Research staging and the CN1 loopback Gateway. The
@@ -515,9 +516,8 @@ The overlay adds:
 
 - the Research API configuration and Research state volume to the existing
   public Gateway;
-- an internal, non-published LLM Gateway whose production GoldenCode pool
-  currently enables only direct Tencent GLM-5.2 with three-call concurrency;
-  Qianfan and Aliyun remain disabled entries;
+- an internal, non-published LLM Gateway whose production GoldenCode pool has
+  exactly one member: direct Tencent GLM-5.3 with three-call concurrency;
 - one Worker and one independent maintenance process;
 - one Worker-only SerpAPI credential for bounded general doctor identity
   discovery through the explicitly selected Google engine; the token is never
@@ -530,10 +530,14 @@ execution are not part of the Research generation path.
 
 The production SLA is a hard ten-minute wall-clock ceiling from API run
 creation, not merely Worker active time. The protected Worker environment must
-keep `RESEARCH_HARD_DEADLINE_SECONDS` at `570` or lower, the internal Gateway
-provider deadline below the Worker call deadline (currently `175000` ms), and
-`RESEARCH_SYNTHESIS_SHARD_COUNT=3`. Configuration loading fails closed if the
-deadline exceeds 600 seconds.
+keep `RESEARCH_HARD_DEADLINE_SECONDS` at `570` or lower and
+`RESEARCH_SYNTHESIS_SHARD_COUNT=3`. Admission backoff and accepted provider
+execution have separate bounds: a fast `429` plus bounded backoff does not
+consume the accepted call's 90-200 second provider budget, while the full
+operation remains capped by the run deadline and cleanup reserve. The internal
+Gateway `175000` ms timeout is only a fail-safe for callers that omit the
+per-call timeout header. Configuration loading fails closed if the run deadline
+exceeds 600 seconds.
 
 ## Default-closed switches
 
@@ -561,9 +565,7 @@ config/research.production.api.env
 config/research.production.compose.env
 config/research.production.worker.env
 config/research.production.llm-gateway.env
-secrets/research-production-qianfan-key
 secrets/research-production-tencent-key
-secrets/research-production-aliyun-key
 secrets/research-production-llm-token
 secrets/research-production-web-search-key
 ```
@@ -653,16 +655,16 @@ Worker disabled. In its isolated Gateway database:
    `research.production.service-feature-policy.example.json`.
 2. Issue a service credential with exactly the `goldencode` public-model
    allowlist and no `doctor_research`, image or admin capability. Its bounded
-   rate must cover six calls per run and three concurrent synthesis calls
-   (`rpm >= 6`, `rpd >= 6`, `concurrent >= 3`). One 30-second,
+   rate must cover seven calls per run and three concurrent synthesis calls
+   (`rpm >= 7`, `rpd >= 7`, `concurrent >= 3`). One 30-second,
    1,000-output-token call is reserved for deriving safe English PubMed terms
    only when verified publications, the official profile and the supplied
-   department provide no deterministic English term. The other five slots
-   retain the existing three synthesis shards, bounded transport/contract
-   retry and concise peer-review/targeted-repair capacity. Common harmless
-   envelope differences are normalized deterministically and do not consume
-   that retry. Per-run token capacity must cover at least 204,000 input and
-   91,000 output tokens with the production per-call ceilings.
+   department provide no deterministic English term. The other six slots cover
+   three synthesis shards plus bounded transport, contract/Skill correction,
+   targeted repair or concise peer-review capacity. Common harmless envelope
+   differences are normalized deterministically and do not consume a retry.
+   Per-run token capacity must cover at least 244,000 input and 109,000 output
+   tokens with the production per-call ceilings.
 3. Grant the service entitlement.
 4. Capture the full token only in a mode-`0600` temporary file, atomically
    install the token secret as `999:999`/`0400`, and remove the temporary file.
@@ -708,14 +710,14 @@ token file. Remove both temporary inputs after cleanup.
 
 Success requires:
 
-- `POST -> heartbeat/lease -> live sources -> GoldenCode/GLM-5.2 ->
+- `POST -> heartbeat/lease -> live sources -> GoldenCode/GLM-5.3 ->
   validation -> succeeded`;
 - `GET result`;
 - exactly four manifest entries and downloads;
 - exactly three Markdown files and one five-line text file;
 - downloaded sizes and SHA-256 values equal the manifest;
 - measured create-to-terminal wall time below 600 seconds;
-- one bounded three-call synthesis fan-out and at most six total model calls;
+- one bounded three-call synthesis fan-out and at most seven total model calls;
   the optional first call may only derive bounded English search terms;
   the last calls may be a targeted correction, hash-bound section repair or
   compact peer review according to deterministic diagnostics;
