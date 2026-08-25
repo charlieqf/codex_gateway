@@ -34,6 +34,37 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-25 Doctor lookup brief production release (supersedes older
+  Doctor Research release statements below):** R760 `current` is
+  `2816d68801acd8403c80f3962051fbcde7e96e49`, `previous` is
+  `0e53b8343d3100232af43de845383bc55ed50fe2`, and the paired Gateway/Research
+  Worker image is
+  `sha256:72daf28ea388a5d1971ed47333e7e51ff0ef0be73f83cd668133535c96ad14d1`.
+  Both containers are healthy with zero restarts; the independent Research LLM
+  Gateway and maintenance image/start times were unchanged. Worker
+  `doctor-research-skill.1.6.115` uses workflow `v85`, prompt `v32`, validation
+  `v46`, one synthesis shard and the doctor-lookup brief flag. Its model pool
+  has exactly one enabled member, `goldencode-tencent / tencent / glm-5.3`,
+  with `reasoning_effort=low`; Qianfan and Aliyun are not pool members or secret
+  mounts. Brief mode now answers the practical doctor identity/public-profile
+  question rather than grading the doctor's research: identity, official-source
+  closure, publication attribution, schema, unsafe output and prompt-injection
+  checks remain fail-closed, while scientific-review length, citation coverage,
+  evidence-grade, numeric/causal and review-table diagnostics are warnings.
+  The original failing user request succeeded as run
+  `drr_a4e4f55e7e384f91979a75fb3bdac229` in 42.082 seconds with one model call
+  (29.585 seconds, 14,858 prompt and 2,568 completion tokens), five questions,
+  five answers and four hash-verified artifacts. The immediately preceding
+  `1.6.114` replay failed in 84.480 seconds because two legal compact model
+  outputs were still rejected by inherited review/citation/answer-length
+  gates; `1.6.115` makes those diagnostics explicit warnings without relaxing
+  unknown source/reference IDs. R760 validation passed 819 Node tests plus two
+  configured skips, 56 Python tests and a zero-vulnerability audit. The final
+  online rollback backup is
+  `/data/codex-gateway-r760/backups/pre-doctor-lookup-115-20260825T101225Z`;
+  all four SQLite copies passed integrity, foreign-key and SHA-256 checks. The
+  disposable E2E key is revoked, its entitlement cancelled, its user disabled,
+  and its request/artifact fixture removed.
 - **2026-08-25 real-user RPM floor:** a reported long-task 429 was traced to
   the credential's fixed-minute request counter: chat continuation and Vision
   Asset control/upload requests shared the same 10 RPM budget. All 186

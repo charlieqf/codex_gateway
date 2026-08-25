@@ -1,6 +1,47 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-08-06
+更新时间：2026-08-25
+
+## 当前生产结论（2026-08-25，覆盖下文历史约束）
+
+用户要的是在几分钟内查清一位医生的具体公开情况，不是评审其科研成果。
+因此 R760 `brief` 模式现定义为“医生身份与公开资料速查”：查身份、医院/科室、
+公开职位与专长、可核验的代表性发表和来源边界；不要求生成长篇医学综述，
+也不评价论文质量、证据等级或科研水平。
+
+生产版本为 `doctor-research-skill.1.6.115`，workflow `v85`、Prompt `v32`、
+validation `v46`。Worker 只使用内部 Tencent `glm-5.3`，reasoning level 为
+`low`；Qianfan 和 Aliyun 不在有效池或 secret mount 中。`brief` 正常路径仅调用
+模型一次，输出上限 8k、单次时限 120 秒；仅传输故障或真正的硬契约故障允许
+一次有界重试。
+
+仍然 fail-closed 的硬门槛包括：医生身份解析、官网来源闭环、发表归属、未知
+source/reference ID、schema、危险标记/禁止输出、prompt injection 隔离。以下旧科研
+评审门槛在 `brief` 中只作为 warning：5000 字综述、逐段数字引文、每篇参考文献都
+必须被引用、核心证据表完整度、问答长度、数值闭环、因果等级和体外/病例证据范围。
+下文关于长篇综述和医学证据校验的要求是历史记录或完整研究模式要求，不再是医生
+速查的发布条件。
+
+原用户报错请求的最终生产回归 run
+`drr_a4e4f55e7e384f91979a75fb3bdac229` 在 42.082 秒内成功：1 次模型调用，
+模型阶段 29.585 秒，14,858 prompt tokens、2,568 completion tokens，产出 5 个
+问题、5 个答案和 4 个经大小/SHA-256 验证的产物。此前 `1.6.113` 回归约 8 分钟
+后因严格医学评审契约失败；`1.6.114` 已降到约 84 秒，但仍把短简介、引文覆盖和
+问答长度当成硬失败；`1.6.115` 修正了最后这层产品契约错配。
+
+R760 当前 release 为 `2816d68801acd8403c80f3962051fbcde7e96e49`，previous
+为 `0e53b8343d3100232af43de845383bc55ed50fe2`，Gateway/Worker 镜像为
+`sha256:72daf28ea388a5d1971ed47333e7e51ff0ef0be73f83cd668133535c96ad14d1`；
+两者健康、restart 0，内部 LLM Gateway/Maintenance 未重建。发布前在线备份
+`/data/codex-gateway-r760/backups/pre-doctor-lookup-115-20260825T101225Z`
+的四个 SQLite 副本均通过 integrity、外键和 SHA-256 校验。测试账号的 key 已撤销、
+entitlement 已取消、用户已禁用，临时请求和产物目录已删除。
+
+运维教训：一次较早的发布脚本没有用 shell errexit 执行，导致 `[1,0,0]` 预检
+没有阻止后续步骤，可能中断过一个公网请求；现行脚本必须使用 `bash -euo pipefail`
+并精确断言 `[0,0,0]`。首次准备 `1.6.114` release 时还遗漏了 3 个共享 secret
+软链接，Compose 在任何容器重建前安全失败；后续 release 必须同时校验 5 个 config
+和 3 个 secret 链接，并成对重建 Gateway 与 Worker。
 
 本文是 Doctor Research API 当前发布状态、已知问题和后续治理方案的
 统一说明。它面向医学团队、产品负责人、研发和运维人员，不替代具体的
@@ -11,7 +52,7 @@ API 使用说明或生产操作手册。
 `https://goldencode.instmarket.com.au:1443` 直接承接迁移后的客户端；CN1 边缘保持
 暗路由，不在正式请求链。自 2026-08-06 起，发钥、用户/key 状态、Plan/entitlement
 和用量查询以 R760 为权威，Azure `gw` 仅兼容旧客户端和保留 Research 回滚边界。
-R760 正式部署、Research 内部 Tencent-only 边界、公共双平台池和后续退役门槛见
+R760 正式部署、Research 内部 Tencent-only 边界、公共 Tencent-only 池和后续退役门槛见
 `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 
 相关文档：
