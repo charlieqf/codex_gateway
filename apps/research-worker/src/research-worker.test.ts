@@ -219,6 +219,12 @@ describe("Research Worker controlled-beta workflow", () => {
       modelValidation.ok ? "" : JSON.stringify(modelValidation.errors)
     ).toBe(true);
     const closableOutput = modelOutput();
+    closableOutput.review.markdown =
+      "这是面向患者的简短医生公开资料汇总，具体出诊与执业信息仍应通过医院官方渠道核对。";
+    closableOutput.predicted_questions[0] =
+      "这位医生目前公开可核验的具体执业情况和就诊渠道分别是什么？";
+    closableOutput.answers[0]!.answer =
+      "请以医院官方公开信息和实际预约渠道为准。";
     closableOutput.profile.expertise = ["Invented unsupported specialty"];
     closableOutput.profile.claims = [{
       claim_id: "clm_unsupported_extra",
@@ -277,6 +283,14 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "succeeded"
     });
     expect(modelCalls).toBe(1);
+    expect(validationErrors).toContainEqual(
+      expect.arrayContaining([
+        "review_content_minimum",
+        "citation_reference_closure",
+        "paragraph_citation_coverage",
+        "answer_length_contract"
+      ])
+    );
     expect(observedPrompt).toContain("verified_doctor_publications");
     expect(observedPrompt).toContain("not a scientific literature review");
     expect(observedPrompt).not.toContain("allowed_numeric_contexts");

@@ -2447,10 +2447,13 @@ async function generateAndValidateModelOutput(
     const parsedBriefDraft = parseAndValidateDoctorResearchModelDraft(
       first.text
     );
-    const acceptedBriefValidation = parsedBriefDraft.ok
+    const promotableBriefDraft = parsedBriefDraft.ok
+      ? parsedBriefDraft.value
+      : deterministicBriefValidation.draft;
+    const acceptedBriefValidation = promotableBriefDraft
       ? promoteBriefValidationWarnings(
           deterministicBriefValidation,
-          parsedBriefDraft.value,
+          promotableBriefDraft,
           context.run.mode,
           true
         )
@@ -2503,10 +2506,13 @@ async function generateAndValidateModelOutput(
     const parsedCorrectedDraft = parseAndValidateDoctorResearchModelDraft(
       corrected.text
     );
-    if (parsedCorrectedDraft.ok) {
+    const promotableCorrectedDraft = parsedCorrectedDraft.ok
+      ? parsedCorrectedDraft.value
+      : correctedValidation.draft;
+    if (promotableCorrectedDraft) {
       correctedValidation = promoteBriefValidationWarnings(
         correctedValidation,
-        parsedCorrectedDraft.value,
+        promotableCorrectedDraft,
         context.run.mode,
         true
       );
@@ -7423,6 +7429,11 @@ const briefWarningOnlyValidationCodes = new Set([
 
 const doctorLookupWarningOnlyValidationCodes = new Set([
   ...briefWarningOnlyValidationCodes,
+  "reference_count_minimum",
+  "citation_reference_closure",
+  "paragraph_citation_coverage",
+  "core_evidence_reference_coverage",
+  "core_evidence_field_contract",
   "review_embedded_auxiliary_output",
   "unverified_placeholder",
   "numeric_evidence_closure",
@@ -7511,6 +7522,7 @@ function validateGeneratedOutput(
       errors: string[];
       errorCodes: string[];
       candidate?: DoctorResearchModelOutput;
+      draft?: DoctorResearchModelDraft;
     } {
   const parsedDraft = parseAndValidateDoctorResearchModelDraft(text);
   const legacyOutput = parsedDraft.ok
@@ -7749,7 +7761,8 @@ function validateGeneratedOutput(
         ok: false,
         errors: qualityErrors,
         errorCodes: stableValidationCodes(qualityErrors),
-        candidate: finalizedValue
+        candidate: finalizedValue,
+        draft
       };
 }
 
