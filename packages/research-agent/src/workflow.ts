@@ -3087,6 +3087,7 @@ async function generateAndValidateShardedModelOutput(
   ];
   let shardContractRetryCompleted = false;
   let shardSkillContractRetryCompleted = false;
+  let shardSkillContractSecondRetryCompleted = false;
   let shardSkillContractRetryAttempt: 4 | 5 | 6 | null = null;
   if (
     contractFailureIndexes.length === 1 &&
@@ -3366,6 +3367,88 @@ async function generateAndValidateShardedModelOutput(
       );
     }
   }
+  if (
+    remainingFragmentSkillErrors.length === 1 &&
+    shardSkillContractRetryAttempt !== null &&
+    !bodySectionRepairCandidate &&
+    nextAttempt <= 6
+  ) {
+    const failure = remainingFragmentSkillErrors[0]!;
+    const retryInput = shardInputs[failure.index]!;
+    shardSkillContractRetryAttempt = nextAttempt as 5 | 6;
+    nextAttempt += 1;
+    responses[failure.index] = await context.generateModel({
+      ...retryInput,
+      attempt: shardSkillContractRetryAttempt,
+      prompt: [
+        retryInput.prompt,
+        "BOUNDED FINAL MEDICAL-SKILL CONTRACT RETRY",
+        `The prior bounded correction remained parseable but still failed these exact deterministic medical-team Skill diagnostics: ${JSON.stringify(
+          failure.errors
+        )}.`,
+        "Rewrite only the same bounded fragment in full. Satisfy every numeric range and structural diagnostic with a safe margin, verify the exact requested schema before returning, and emit no commentary or extra fields."
+      ].join("\n\n")
+    });
+    shardSkillContractSecondRetryCompleted = true;
+    [foundationResponse, middleResponse, closingResponse] = responses;
+    foundationFragment = foundationResponse
+      ? parseFoundationFragment(foundationResponse.text)
+      : null;
+    middleFragment = middleResponse
+      ? parseEvidenceClosedBodyFragment(
+          middleResponse.text,
+          evidence
+        )
+      : null;
+    closingFragment = closingResponse
+      ? parseReviewFragment(closingResponse.text)
+      : null;
+    if (!foundationFragment || !middleFragment || !closingFragment) {
+      context.reportValidationFailure(
+        "synthesize_review",
+        shardSkillContractRetryAttempt,
+        ["fragment_contract_error"],
+        responses.flatMap((response, index) =>
+          response &&
+          [foundationFragment, middleFragment, closingFragment][index] ===
+            null
+            ? [
+                `role=${["foundation", "body", "closing"][index]}|${describeFragmentTransportShape(response.text)}`
+              ]
+            : []
+        )
+      );
+      return null;
+    }
+    for (const warning of [
+      ...(foundationFragment.normalizationWarnings ?? []),
+      ...middleFragment.normalizationWarnings,
+      ...(closingFragment.normalizationWarnings ?? [])
+    ]) {
+      if (!shardSkillNormalizationWarnings.includes(warning)) {
+        shardSkillNormalizationWarnings.push(warning);
+      }
+    }
+    const deduplicatedFinalRetryMiddle = deduplicateReviewParagraphs(
+      middleFragment.markdown,
+      context.run.language
+    );
+    middleFragment = {
+      ...middleFragment,
+      markdown: deduplicatedFinalRetryMiddle.markdown
+    };
+    if (
+      deduplicatedFinalRetryMiddle.changed &&
+      !shardSkillNormalizationWarnings.includes(
+        "deterministic_body_duplicate_paragraph_removed"
+      )
+    ) {
+      shardSkillNormalizationWarnings.push(
+        "deterministic_body_duplicate_paragraph_removed"
+      );
+    }
+    remainingFragmentSkillErrors = fragmentSkillErrors();
+  }
   if (remainingFragmentSkillErrors.length > 0) {
     context.reportValidationFailure(
       "synthesize_review",
@@ -3637,6 +3720,9 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
           : [])
       ]
     };
@@ -3644,6 +3730,7 @@ async function generateAndValidateShardedModelOutput(
   const peerReviewCallBudgetConsumedByShardRepair =
     bodySectionRepairCompleted ||
     shardTransportRetryCount >= 2 ||
+    shardSkillContractRetryAttempt === 6 ||
     (
       (shardTransportRetryCompleted ||
         shardContractRetryCompleted) &&
@@ -3695,6 +3782,9 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
           : [])
       ]
     };
@@ -3795,16 +3885,18 @@ async function generateAndValidateShardedModelOutput(
     reviewContentCorrectionPromise ??
     sectionRepairPromise ??
     introductionCorrectionPromise;
-  const peerReviewAttempt =
-    shardTransportRetryCompleted ||
-    shardContractRetryCompleted ||
-    shardSkillContractRetryCompleted ||
-    qaContractRetryRequired ||
-    reviewContentCorrectionRequired ||
-    sectionRepairCandidate !== null ||
-    introductionCorrectionRequired
-      ? 5
-      : 4;
+  const peerReviewAttempt: 4 | 5 | 6 =
+    nextAttempt >= 6
+      ? 6
+      : shardTransportRetryCompleted ||
+          shardContractRetryCompleted ||
+          shardSkillContractRetryCompleted ||
+          qaContractRetryRequired ||
+          reviewContentCorrectionRequired ||
+          sectionRepairCandidate !== null ||
+          introductionCorrectionRequired
+        ? 5
+        : 4;
   let correctedQaResponse: ResearchModelResponse | null = null;
   let correctedReviewResponse: ResearchModelResponse | null = null;
   let correctedSectionResponse: ResearchModelResponse | null = null;
@@ -4090,6 +4182,9 @@ async function generateAndValidateShardedModelOutput(
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
           : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
+          : []),
         "bounded_qa_contract_retry_completed"
       ]
     };
@@ -4205,6 +4300,9 @@ async function generateAndValidateShardedModelOutput(
           : []),
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
           : []),
         ...(qaContractRetryCompleted
           ? ["bounded_qa_contract_retry_completed"]
@@ -4477,6 +4575,9 @@ async function generateAndValidateShardedModelOutput(
         ...(shardSkillContractRetryCompleted
           ? ["bounded_shard_skill_contract_retry_completed"]
           : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
+          : []),
         ...(qaContractRetryCompleted
           ? ["bounded_qa_contract_retry_completed"]
           : []),
@@ -4745,6 +4846,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(shardSkillContractRetryCompleted
         ? ["bounded_shard_skill_contract_retry_completed"]
+        : []),
+      ...(shardSkillContractSecondRetryCompleted
+        ? ["bounded_shard_skill_contract_second_retry_completed"]
         : []),
       ...(qaContractRetryCompleted
         ? ["bounded_qa_contract_retry_completed"]

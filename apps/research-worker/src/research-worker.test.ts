@@ -459,6 +459,10 @@ describe("Research Worker controlled-beta workflow", () => {
       "bounded_shard_skill_contract_retry_completed"
     ],
     [
+      "skill-contract-repeat",
+      "bounded_shard_skill_contract_second_retry_completed"
+    ],
+    [
       "skill-prose",
       "bounded_shard_skill_contract_retry_completed"
     ],
@@ -807,6 +811,13 @@ describe("Research Worker controlled-beta workflow", () => {
                       "## Introduction\n\nShort English introduction."
                   }
                 }
+                : retryKind === "skill-contract-repeat"
+                  ? {
+                      review: {
+                        ...foundationFragment.review,
+                        abstract: "证".repeat(279)
+                      }
+                    }
                 : retryKind === "introduction-safety"
                   ? {
                       review: {
@@ -1818,6 +1829,26 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "skill-contract-repeat" &&
+            modelInput.stage === "synthesize_review" &&
+            modelInput.attempt === 5
+          ) {
+            expect(modelInput.prompt).toContain(
+              "BOUNDED FINAL MEDICAL-SKILL CONTRACT RETRY"
+            );
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify(foundationFragment),
+              gatewayRequestId:
+                "req_sharded_skill_contract_second_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 1_000,
+                totalTokens: 1_100
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -1918,6 +1949,13 @@ describe("Research Worker controlled-beta workflow", () => {
                       })
                   : retryKind === "skill-contract"
                     ? JSON.stringify(foundationFragment)
+                  : retryKind === "skill-contract-repeat"
+                    ? JSON.stringify({
+                        review: {
+                          ...foundationFragment.review,
+                          abstract: "证".repeat(279)
+                        }
+                      })
                   : retryKind === "body-section-repair"
                     ? JSON.stringify({
                         schema_version:
@@ -2044,22 +2082,28 @@ describe("Research Worker controlled-beta workflow", () => {
           ...workflowPolicy().budgets,
           llmCalls:
             retryKind === "transport-middle-and-closing-skill" ||
-            retryKind === "peer-contract"
-              ? retryKind === "peer-contract"
+            retryKind === "peer-contract" ||
+            retryKind === "skill-contract-repeat"
+              ? retryKind === "peer-contract" ||
+                retryKind === "skill-contract-repeat"
                 ? 7
                 : 6
               : 5,
           inputTokens:
             retryKind === "transport-middle-and-closing-skill" ||
-            retryKind === "peer-contract"
-              ? retryKind === "peer-contract"
+            retryKind === "peer-contract" ||
+            retryKind === "skill-contract-repeat"
+              ? retryKind === "peer-contract" ||
+                retryKind === "skill-contract-repeat"
                 ? 700_000
                 : 600_000
               : 500_000,
           outputTokens:
             retryKind === "transport-middle-and-closing-skill" ||
-            retryKind === "peer-contract"
-              ? retryKind === "peer-contract"
+            retryKind === "peer-contract" ||
+            retryKind === "skill-contract-repeat"
+              ? retryKind === "peer-contract" ||
+                retryKind === "skill-contract-repeat"
                 ? 126_000
                 : 108_000
               : 90_000
@@ -2206,6 +2250,8 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(attempts).toEqual(
       retryKind === "transport-middle-and-closing-skill"
         ? [1, 2, 3, 4, 5, 6]
+        : retryKind === "skill-contract-repeat"
+          ? [1, 2, 3, 4, 5, 6]
         : retryKind === "peer-contract"
           ? [1, 2, 3, 4, 5]
         : retryKind === "citation-closure" ||
