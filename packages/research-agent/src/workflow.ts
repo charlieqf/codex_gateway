@@ -135,7 +135,7 @@ export async function executeDoctorResearchWorkflow(input: {
   onValidationFailure?: (input: {
     runId: string;
     stage: "synthesize_review" | "validate_outputs";
-    attempt: 1 | 2 | 3 | 4 | 5 | 6;
+    attempt: 1 | 2 | 3 | 4 | 5 | 6 | 7;
     errorCodes: readonly string[];
     errorDetails?: readonly string[];
   }) => void;
@@ -783,7 +783,7 @@ class WorkflowContext {
 
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
-    attempt: 1 | 2 | 3 | 4 | 5 | 6,
+    attempt: 1 | 2 | 3 | 4 | 5 | 6 | 7,
     errorCodes: readonly string[],
     errorDetails: readonly string[] = []
   ): void {
@@ -4368,7 +4368,7 @@ async function generateAndValidateShardedModelOutput(
     : null;
   let peerReviewContractRetryCompleted = false;
   let peerReviewContractRetryUnavailable = false;
-  let peerReviewContractRetryAttempt: 5 | 6 | null = null;
+  let peerReviewContractRetryAttempt: 5 | 6 | 7 | null = null;
   if (
     peerReviewResponse !== null &&
     peerReview === null
@@ -4380,10 +4380,10 @@ async function generateAndValidateShardedModelOutput(
     );
     const nextPeerReviewAttempt = peerReviewAttempt + 1;
     if (
-      nextPeerReviewAttempt <= 6 &&
+      nextPeerReviewAttempt <= 7 &&
       context.modelCallsStarted < context.input.policy.budgets.llmCalls
     ) {
-      peerReviewContractRetryAttempt = nextPeerReviewAttempt as 5 | 6;
+      peerReviewContractRetryAttempt = nextPeerReviewAttempt as 5 | 6 | 7;
       const [contractRetryResult] = await Promise.allSettled([
         context.generateModel({
           stage: "validate_outputs",

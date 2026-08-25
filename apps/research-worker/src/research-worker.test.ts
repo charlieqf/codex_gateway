@@ -1890,6 +1890,48 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "skill-contract-multi" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 6
+          ) {
+            return {
+              text: "not a peer-review decision",
+              gatewayRequestId:
+                "req_sharded_multi_skill_peer_contract_failure",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
+            retryKind === "skill-contract-multi" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 7
+          ) {
+            expect(modelInput.prompt).toContain(
+              "BOUNDED PEER-REVIEW CONTRACT RETRY"
+            );
+            retryPrompt = modelInput.prompt;
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_multi_skill_peer_contract_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -2301,7 +2343,9 @@ describe("Research Worker controlled-beta workflow", () => {
         ? [1, 2, 3, 4, 5, 6]
         : retryKind === "skill-contract-repeat" ||
             retryKind === "skill-contract-multi"
-          ? [1, 2, 3, 4, 5, 6]
+          ? retryKind === "skill-contract-multi"
+            ? [1, 2, 3, 4, 5, 6, 7]
+            : [1, 2, 3, 4, 5, 6]
         : retryKind === "peer-contract"
           ? [1, 2, 3, 4, 5]
         : retryKind === "citation-closure" ||
@@ -3080,6 +3124,20 @@ describe("Research Worker controlled-beta workflow", () => {
     if (retryKind === "peer-contract") {
       expect(new Set(result.quality.warnings).size).toBe(
         result.quality.warnings.length
+      );
+    }
+    if (retryKind === "skill-contract-multi") {
+      expect(result.quality.warnings).toContain(
+        "bounded_peer_review_contract_retry_completed"
+      );
+      expect(validationEvents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            stage: "validate_outputs",
+            attempt: 6,
+            errorCodes: ["peer_review_contract_error"]
+          })
+        ])
       );
     }
     expect(result.quality.warnings).toEqual(
