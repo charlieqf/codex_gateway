@@ -493,6 +493,11 @@ export function loadResearchWorkerConfig(
       "RESEARCH_SYNTHESIS_SHARD_COUNT must be 1 or 3."
     );
   }
+  const doctorLookupBriefEnabled = parseBoolean(
+    env.RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED,
+    false,
+    "RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED"
+  );
   const fullSynthesisCallCount = 6;
   const requiredOutputTokenBudget =
     maximumOutputTokensPerCall * fullSynthesisCallCount +
@@ -704,6 +709,7 @@ export function loadResearchWorkerConfig(
       maximumOutputTokensPerCall,
       hardDeadlineMs,
       synthesisShardCount,
+      doctorLookupBriefEnabled,
       budgets,
       forbiddenOutputFragments
     },

@@ -172,7 +172,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ).rejects.toThrow("requires a fresh verified maintenance backup");
   });
 
-  it("leases a queued run, closes evidence, commits success, and publishes exactly four verified artifacts", async () => {
+  it("completes a brief doctor lookup in one model call without scientific-review appraisal", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -229,9 +229,11 @@ describe("Research Worker controlled-beta workflow", () => {
     }];
 
     let observedPrompt = "";
+    let modelCalls = 0;
     const modelClient: ResearchModelClient = {
       model: "test-model",
       async generate(input) {
+        modelCalls += 1;
         observedPrompt = input.prompt;
         return {
           text: JSON.stringify(closableOutput),
@@ -251,7 +253,19 @@ describe("Research Worker controlled-beta workflow", () => {
       adapters: adapters(0),
       modelClient,
       artifactRoot,
-      policy: workflowPolicy(),
+      policy: {
+        ...workflowPolicy(),
+        doctorLookupBriefEnabled: true,
+        maximumInputTokensPerCall: 40_000,
+        maximumOutputTokensPerCall: 18_000,
+        budgets: {
+          externalRequests: 1_200,
+          externalResponseBytes: 2_400_000_000,
+          llmCalls: 7,
+          inputTokens: 244_000,
+          outputTokens: 109_000
+        }
+      },
       signal: new AbortController().signal,
       onValidationFailure(event) {
         validationErrors.push([...event.errorCodes]);
@@ -262,11 +276,13 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(outcome, JSON.stringify(validationErrors)).toEqual({
       outcome: "succeeded"
     });
-    expect(observedPrompt).toContain("verified_publications");
+    expect(modelCalls).toBe(1);
+    expect(observedPrompt).toContain("verified_doctor_publications");
+    expect(observedPrompt).toContain("not a scientific literature review");
     expect(observedPrompt).not.toContain("allowed_numeric_contexts");
     expect(observedPrompt).toContain('"publication_year":2025');
     expect(observedPrompt).toContain(
-      "verified_publications"
+      "verified_doctor_publications"
     );
     expect(observedPrompt).toContain("Randomized evidence from the retrieved abstract");
     const run = store.getRunForSubject(created.receipt.run_id, "subj_worker_e2e");
@@ -320,14 +336,6 @@ describe("Research Worker controlled-beta workflow", () => {
       {
         stage: "synthesize_review",
         attempt: 1,
-        gateway_request_id: "req_model_test",
-        prompt_tokens: 100,
-        completion_tokens: 3_500,
-        error_code: null
-      },
-      {
-        stage: "validate_outputs",
-        attempt: 2,
         gateway_request_id: "req_model_test",
         prompt_tokens: 100,
         completion_tokens: 3_500,
