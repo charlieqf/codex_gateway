@@ -336,7 +336,8 @@ export async function executeDoctorResearchWorkflow(input: {
           ...doctorLiterature.sources.map((source) => source.source_id)
         ]),
         context.run.language
-      )
+      ),
+      context.run.mode
     );
     if (qualityErrors.length > 0) {
       context.reportValidationFailure(
@@ -3597,9 +3598,10 @@ async function generateAndValidateShardedModelOutput(
   );
   const initialBriefValidation = promoteBriefValidationWarnings(
     deterministicSafetyPreview,
-    assembledDraft
+    assembledDraft,
+    context.run.mode
   );
-  if (initialBriefValidation.ok) {
+  if (context.run.mode === "brief" && initialBriefValidation.ok) {
     return {
       output: initialBriefValidation.value,
       warnings: [
@@ -4374,9 +4376,13 @@ async function generateAndValidateShardedModelOutput(
   const acceptedPostCorrectionValidation =
     promoteBriefValidationWarnings(
       postCorrectionSafetyValidation,
-      assembledDraft
+      assembledDraft,
+      context.run.mode
     );
-  if (acceptedPostCorrectionValidation.ok) {
+  if (
+    context.run.mode === "brief" &&
+    acceptedPostCorrectionValidation.ok
+  ) {
     return {
       output: acceptedPostCorrectionValidation.value,
       warnings: [
@@ -4421,7 +4427,8 @@ async function generateAndValidateShardedModelOutput(
     postCorrectionSafetyValidation.ok
       ? []
       : hardBriefValidationErrors(
-          postCorrectionSafetyValidation.errors
+          postCorrectionSafetyValidation.errors,
+          context.run.mode
         );
   const [peerReviewResult] = await Promise.allSettled([
     context.generateModel({
@@ -4595,7 +4602,8 @@ async function generateAndValidateShardedModelOutput(
     );
     validation = promoteBriefValidationWarnings(
       validation,
-      assembledDraft
+      assembledDraft,
+      context.run.mode
     );
     const fallbackErrorCodes = validation.ok
       ? []
@@ -4833,7 +4841,8 @@ async function generateAndValidateShardedModelOutput(
   }
   validation = promoteBriefValidationWarnings(
     validation,
-    patchedDraft
+    patchedDraft,
+    context.run.mode
   );
   let peerReviewConvergenceCompleted = false;
   const convergenceSectionCandidate = !validation.ok
@@ -4978,7 +4987,8 @@ async function generateAndValidateShardedModelOutput(
     }
     validation = promoteBriefValidationWarnings(
       validation,
-      convergedDraft
+      convergedDraft,
+      context.run.mode
     );
     peerReviewConvergenceCompleted = true;
   }
@@ -7258,8 +7268,12 @@ const briefWarningOnlyValidationCodes = new Set([
 ]);
 
 function hardBriefValidationErrors(
-  errors: readonly string[]
+  errors: readonly string[],
+  mode: ResearchRunRecord["mode"]
 ): string[] {
+  if (mode !== "brief") {
+    return [...errors];
+  }
   return errors.filter(
     (error) =>
       !briefWarningOnlyValidationCodes.has(
@@ -7276,9 +7290,10 @@ function hardBriefValidationErrors(
  */
 function promoteBriefValidationWarnings(
   validation: ReturnType<typeof validateGeneratedOutput>,
-  draft: DoctorResearchModelDraft
+  draft: DoctorResearchModelDraft,
+  mode: ResearchRunRecord["mode"]
 ): ReturnType<typeof validateGeneratedOutput> {
-  if (validation.ok || !validation.candidate) {
+  if (mode !== "brief" || validation.ok || !validation.candidate) {
     return validation;
   }
   const errorCodes = [...new Set(validation.errorCodes)];
