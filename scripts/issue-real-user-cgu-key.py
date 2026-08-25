@@ -30,6 +30,7 @@ from codex_gateway_ops_common import DEFAULT_REMOTE_REPO, redact_secrets
 DEFAULT_GATEWAY_BASE_URL = "https://goldencode.instmarket.com.au:1443"
 DEFAULT_PROVIDER = "manual_trial"
 DEFAULT_PLAN_ID = "plan_internal_high_quota_image_v1"
+MIN_REAL_USER_RPM = 20
 MIN_REAL_USER_VALIDITY_DAYS = 90
 DEFAULT_REAL_USER_VALIDITY_DAYS = 92
 DEFAULT_OUTPUT_DIR = r"C:\Users\rdpuser\medevidence_api_keys"
@@ -74,7 +75,7 @@ def configure_stdio() -> None:
             reconfigure(encoding="utf-8", errors="replace")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Issue a real-user cgu_live key and write a local handoff JSON."
     )
@@ -105,7 +106,7 @@ def parse_args() -> argparse.Namespace:
         "--key-expires-at",
         help="Backing Gateway key expiration ISO timestamp. Defaults to now + 92 days; values under 90 days are rejected.",
     )
-    parser.add_argument("--rpm", type=positive_int, default=10)
+    parser.add_argument("--rpm", type=real_user_rpm, default=MIN_REAL_USER_RPM)
     parser.add_argument("--rpd", type=positive_int, default=200)
     parser.add_argument("--concurrent", type=positive_int, default=4)
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
@@ -146,13 +147,22 @@ def parse_args() -> argparse.Namespace:
         help="Disable a newly created partial subject if a later step fails.",
     )
     parser.add_argument("--what-if", action="store_true", help="Print planned safe settings only.")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def real_user_rpm(value: str) -> int:
+    parsed = positive_int(value)
+    if parsed < MIN_REAL_USER_RPM:
+        raise argparse.ArgumentTypeError(
+            f"value must be at least {MIN_REAL_USER_RPM} for a real user"
+        )
     return parsed
 
 

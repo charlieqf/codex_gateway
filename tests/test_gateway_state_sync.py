@@ -18,7 +18,7 @@ import gateway_state_sync as STATE_SYNC
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-INSERT INTO schema_migrations VALUES (24, '2026-01-01T00:00:00.000Z');
+INSERT INTO schema_migrations VALUES (25, '2026-01-01T00:00:00.000Z');
 CREATE TABLE plans (
   id TEXT PRIMARY KEY, display_name TEXT NOT NULL, policy_json TEXT NOT NULL,
   scope_allowlist_json TEXT NOT NULL, priority_class INTEGER NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE access_credentials (
   subject_id TEXT NOT NULL, label TEXT NOT NULL, scope TEXT NOT NULL,
   expires_at TEXT NOT NULL, revoked_at TEXT, rate_json TEXT NOT NULL,
   created_at TEXT NOT NULL, rotates_id TEXT, token_ciphertext TEXT,
-  allowed_public_models_json TEXT,
+  allowed_public_models_json TEXT, credential_class TEXT NOT NULL DEFAULT 'unknown',
   FOREIGN KEY(subject_id) REFERENCES subjects(id),
   FOREIGN KEY(rotates_id) REFERENCES access_credentials(id)
 );
@@ -61,7 +61,8 @@ CREATE TABLE unified_client_keys (
   revoked_at TEXT, codex_credential_id TEXT NOT NULL,
   codex_credential_prefix TEXT NOT NULL, codex_key_ciphertext TEXT NOT NULL,
   medevidence_key_ciphertext TEXT NOT NULL, medevidence_key_prefix TEXT,
-  created_at TEXT NOT NULL, metadata_json TEXT,
+  created_at TEXT NOT NULL, metadata_json TEXT, token_ciphertext TEXT,
+  credential_class TEXT NOT NULL DEFAULT 'unknown', is_current INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY(subject_id) REFERENCES subjects(id),
   FOREIGN KEY(codex_credential_id) REFERENCES access_credentials(id)
 );
@@ -110,7 +111,7 @@ def insert_user_chain(connection: sqlite3.Connection, suffix: str) -> None:
          f"phone-{suffix}", f"external-{suffix}", f"display-{suffix}"),
     )
     connection.execute(
-        "INSERT INTO access_credentials VALUES (?, ?, ?, ?, ?, 'code', ?, NULL, ?, ?, NULL, ?, ?)",
+        "INSERT INTO access_credentials VALUES (?, ?, ?, ?, ?, 'code', ?, NULL, ?, ?, NULL, ?, ?, 'desktop')",
         (f"credential-{suffix}", f"prefix-{suffix}", f"hash-{suffix}",
          f"subject-{suffix}", f"credential-label-{suffix}",
          "2027-01-01T00:00:00.000Z", '{"requestsPerMinute":10}', created,
@@ -123,11 +124,12 @@ def insert_user_chain(connection: sqlite3.Connection, suffix: str) -> None:
          "2027-01-01T00:00:00.000Z", created, '{"capabilities":["chat","image_generation"]}'),
     )
     connection.execute(
-        "INSERT INTO unified_client_keys VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO unified_client_keys VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'desktop', 1)",
         (f"unified-{suffix}", f"unified-prefix-{suffix}", f"unified-hash-{suffix}",
          f"subject-{suffix}", f"unified-label-{suffix}", "2027-01-01T00:00:00.000Z",
          f"credential-{suffix}", f"prefix-{suffix}", f"codex-cipher-{suffix}",
-         f"med-cipher-{suffix}", f"med-prefix-{suffix}", created, '{}'),
+         f"med-cipher-{suffix}", f"med-prefix-{suffix}", created, '{}',
+         f"unified-token-cipher-{suffix}"),
     )
     connection.execute(
         "INSERT INTO upstream_v2_bindings VALUES (?, ?, ?, 'active', ?, '{}', ?, ?)",

@@ -58,6 +58,7 @@ import {
   defaultRealUserPlanId,
   defaultRealUserProvider,
   defaultRealUserValidityDays,
+  minimumRealUserRequestsPerMinute,
   minRealUserValidityDays,
   publicRealUserIssueJob,
   RealUserIssueJobStore,
@@ -2533,6 +2534,11 @@ function parseRealUserIssueRequest(
   );
   if (requestsPerMinute instanceof GatewayError) {
     return requestsPerMinute;
+  }
+  if (requestsPerMinute < minimumRealUserRequestsPerMinute) {
+    return invalidRealUserIssueRequest(
+      `rpm must be at least ${minimumRealUserRequestsPerMinute}.`
+    );
   }
   const requestsPerDay = positiveIntegerField(
     body.rpd,

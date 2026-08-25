@@ -1092,6 +1092,82 @@ program
   });
 
 program
+  .command("ensure-user-rpm-minimum")
+  .argument("<minimum-rpm>", "minimum requests per minute", parsePositiveInteger)
+  .description(
+    "Raise non-expired desktop and legacy user API keys below an RPM floor."
+  )
+  .action((minimumRpm: number) => {
+    withAuditedStore(
+      {
+        action: "update-key",
+        params: {
+          operation: "ensure-user-rpm-minimum",
+          minimum_rpm: minimumRpm
+        }
+      },
+      (store) => {
+        const now = new Date();
+        const subjects = subjectMap(store.listSubjects({ includeArchived: true }));
+        const eligible = store
+          .listAccessCredentials({ includeRevoked: false })
+          .filter((credential) => {
+            const credentialClass = credential.credentialClass ?? "unknown";
+            const status = credentialStatus(
+              credential,
+              subjects.get(credential.subjectId),
+              now
+            );
+            return (
+              (credentialClass === "desktop" || credentialClass === "unknown") &&
+              (status === "active" || status === "user_disabled")
+            );
+          });
+        const beforeRpmDistribution: Record<string, number> = {};
+        let updatedCredentials = 0;
+
+        for (const credential of eligible) {
+          const rpm = credential.rate.requestsPerMinute;
+          const bucket = String(rpm);
+          beforeRpmDistribution[bucket] = (beforeRpmDistribution[bucket] ?? 0) + 1;
+          if (rpm >= minimumRpm) {
+            continue;
+          }
+          const updated = store.updateAccessCredentialByPrefix(credential.prefix, {
+            rate: {
+              ...credential.rate,
+              requestsPerMinute: minimumRpm
+            }
+          });
+          if (!updated) {
+            throw new Error(`Credential prefix disappeared during RPM update: ${credential.prefix}`);
+          }
+          updatedCredentials += 1;
+        }
+
+        const sortedDistribution = Object.fromEntries(
+          Object.entries(beforeRpmDistribution).sort(
+            ([left], [right]) => Number(left) - Number(right)
+          )
+        );
+        const summary = {
+          minimum_rpm: minimumRpm,
+          eligible_user_credentials: eligible.length,
+          updated_credentials: updatedCredentials,
+          credentials_unchanged: eligible.length - updatedCredentials,
+          before_rpm_distribution: sortedDistribution
+        };
+        return {
+          output: summary,
+          audit: {
+            params: summary
+          }
+        };
+      }
+    );
+  });
+
+program
   .command("disable-user")
   .argument("<user>")
   .description("Disable a user so all of their API keys are rejected.")

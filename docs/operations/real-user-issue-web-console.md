@@ -42,7 +42,7 @@ npm --workspace @codex-gateway/admin-cli run dev -- --db <gateway.db> `
 2. 填姓名、手机号。手机号决定 `external_user_id`（`phone_<数字>`），同号重复发放会被拒。
 3. 两个下拉：
    - **有效期**：默认 92 天，最少 90 天
-   - **限额档位**：标准 10/分·200/日·4 并发；加强 30/600/8；或自定义
+   - **限额档位**：标准 20/分·200/日·4 并发；加强 30/600/8；或自定义（RPM 不得低于 20）
 4. 点「发放 Key」→ 立即返回 job，页面轮询进度。
 
 **Plan 是固定的**，不给选：`plan_internal_high_quota_image_v1`，即真实用户的既定默认（含

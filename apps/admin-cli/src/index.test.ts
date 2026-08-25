@@ -20,6 +20,88 @@ afterEach(() => {
 });
 
 describe("codex-gateway-admin user API key operations", () => {
+  it("raises only eligible user credentials below an RPM minimum", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-user-rpm-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const issue = (
+      user: string,
+      rpm: number,
+      credentialClass?: "desktop" | "service"
+    ) =>
+      runCli(dbPath, [
+        "issue",
+        "--user",
+        user,
+        "--label",
+        `${user} key`,
+        "--scope",
+        "code",
+        "--rpm",
+        String(rpm),
+        ...(credentialClass ? ["--credential-class", credentialClass] : []),
+        "--no-entitlement-check"
+      ]) as { credential: { prefix: string } };
+
+    const desktopLow = issue("desktop-low", 10, "desktop");
+    const desktopHigh = issue("desktop-high", 30, "desktop");
+    const legacyLow = issue("legacy-low", 5);
+    const serviceLow = issue("service-low", 1, "service");
+    const disabledLow = issue("disabled-low", 8, "desktop");
+    const revokedLow = issue("revoked-low", 7, "desktop");
+    runCli(dbPath, ["disable-user", "disabled-low"]);
+    runCli(dbPath, ["revoke", revokedLow.credential.prefix]);
+
+    const result = runCli(dbPath, ["ensure-user-rpm-minimum", "20"]) as {
+      minimum_rpm: number;
+      eligible_user_credentials: number;
+      updated_credentials: number;
+      credentials_unchanged: number;
+      before_rpm_distribution: Record<string, number>;
+    };
+    expect(result).toEqual({
+      minimum_rpm: 20,
+      eligible_user_credentials: 4,
+      updated_credentials: 3,
+      credentials_unchanged: 1,
+      before_rpm_distribution: { "5": 1, "8": 1, "10": 1, "30": 1 }
+    });
+
+    const listed = runCli(dbPath, ["list"]) as {
+      credentials: Array<{
+        prefix: string;
+        rate: { requestsPerMinute: number };
+      }>;
+    };
+    const rpmByPrefix = new Map(
+      listed.credentials.map((credential) => [
+        credential.prefix,
+        credential.rate.requestsPerMinute
+      ])
+    );
+    expect(rpmByPrefix.get(desktopLow.credential.prefix)).toBe(20);
+    expect(rpmByPrefix.get(desktopHigh.credential.prefix)).toBe(30);
+    expect(rpmByPrefix.get(legacyLow.credential.prefix)).toBe(20);
+    expect(rpmByPrefix.get(disabledLow.credential.prefix)).toBe(20);
+    expect(rpmByPrefix.get(serviceLow.credential.prefix)).toBe(1);
+    expect(rpmByPrefix.get(revokedLow.credential.prefix)).toBe(7);
+
+    const audit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "update-key",
+      "--status",
+      "ok",
+      "--limit",
+      "1"
+    ]) as { events: Array<{ params: Record<string, unknown> }> };
+    expect(audit.events[0]?.params).toMatchObject({
+      operation: "ensure-user-rpm-minimum",
+      minimum_rpm: 20,
+      updated_credentials: 3
+    });
+  }, 40_000);
+
   it("keeps read-only credential diagnostics compatible with pre-migration-22 databases", () => {
     const db = new DatabaseSync(":memory:");
     try {

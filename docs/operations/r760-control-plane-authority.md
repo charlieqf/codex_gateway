@@ -1,6 +1,6 @@
 # R760 Gateway Control-Plane Authority
 
-Last updated: 2026-08-20
+Last updated: 2026-08-25
 
 ## Authority boundary
 
@@ -48,13 +48,26 @@ not a current authority path.
 
 ## User, credential, plan and entitlement writes
 
-`scripts/manage-r760-gateway-control.py` currently performs an automatic
-cross-environment mirror after its R760 write. It is therefore not an approved
-current mutation path until an R760-only mode is implemented, tested and made
-the documented default.
+`scripts/manage-r760-gateway-control.py` is the approved R760-only mutation
+wrapper. It creates and verifies an online R760 SQLite backup before every
+write, runs the allowlisted admin operation only on R760, and verifies SQLite
+integrity and foreign keys afterward. It never mirrors or validates Azure.
 
-Until then, any non-issuance user, credential, Plan or Entitlement mutation
-requires a separately reviewed R760-only procedure with:
+Use `--what-if` before a write where the wrapper offers a concrete plan. The
+global real-user RPM floor operation is:
+
+```powershell
+python scripts\manage-r760-gateway-control.py --what-if -- ensure-user-rpm-minimum 20
+python scripts\manage-r760-gateway-control.py -- ensure-user-rpm-minimum 20
+```
+
+This operation selects non-revoked, non-expired `desktop` and legacy `unknown`
+user credentials. It raises only credentials below the requested floor;
+credentials already at or above the floor, expired credentials, revoked
+credentials, and `service`/`operator` credentials remain unchanged.
+
+Every non-issuance user, credential, Plan or Entitlement mutation retains these
+requirements:
 
 - an R760 backup before the write;
 - an explicit target and dry-run where supported;
@@ -62,7 +75,7 @@ requires a separately reviewed R760-only procedure with:
 - R760-only public validation;
 - no mirror or dual-endpoint validation.
 
-Do not substitute a raw ad hoc command merely to bypass this restriction.
+Do not substitute a raw ad hoc command or the historical Azure mirror workflow.
 
 ## Usage authority and reports
 

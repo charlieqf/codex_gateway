@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an approved R760 control-plane write and mirror it to Azure.
+"""Run an approved R760-only control-plane write with a verified backup.
 
 The dedicated real-user issuance script remains the only supported command for
 creating deliverable cgu_live keys. This wrapper intentionally rejects admin
@@ -11,23 +11,28 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import secrets
 import sys
 from typing import Any
 
 from codex_gateway_ops_common import redact_secrets
 from gateway_state_sync import (
-    DEFAULT_AZURE_BACKUP_ROOT,
+    DEFAULT_R760_BACKUP_ROOT,
     RemoteGateway,
-    default_azure_gateway,
+    create_target_backup,
     default_r760_gateway,
     docker_command,
+    install_helper,
+    remove_helper_best_effort,
+    run_helper_json,
     run_ssh,
     shell_word,
-    sync_r760_to_azure,
 )
 
 
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
+BULK_USER_RPM_COMMAND = "ensure-user-rpm-minimum"
+USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "disable-user",
     "enable-user",
@@ -55,31 +60,27 @@ def positive_int(value: str) -> int:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     r760 = default_r760_gateway()
-    azure = default_azure_gateway()
     parser = argparse.ArgumentParser(
         description=(
-            "Run an approved user/key/plan write on authoritative R760, then "
-            "fail closed unless the Azure compatibility mirror converges."
+            "Run an approved user/key/plan write on authoritative R760 after "
+            "creating a verified online SQLite backup."
         )
     )
     parser.add_argument("--what-if", action="store_true")
     parser.add_argument("--timeout-seconds", type=positive_int, default=60)
-    parser.add_argument("--sync-max-passes", type=positive_int, default=3)
-    parser.add_argument("--compatibility-backup-root", default=DEFAULT_AZURE_BACKUP_ROOT)
+    parser.add_argument("--backup-root", default=DEFAULT_R760_BACKUP_ROOT)
     parser.add_argument("--r760-host", default=r760.host)
     parser.add_argument("--r760-user", default=r760.user)
     parser.add_argument("--r760-port", type=positive_int, default=r760.port)
     parser.add_argument("--r760-ssh-key", default=r760.ssh_key)
     parser.add_argument("--r760-container", default=r760.container)
-    parser.add_argument("--azure-host", default=azure.host)
-    parser.add_argument("--azure-user", default=azure.user)
-    parser.add_argument("--azure-port", type=positive_int, default=azure.port)
-    parser.add_argument("--azure-ssh-key", default=azure.ssh_key)
-    parser.add_argument("--azure-container", default=azure.container)
     parser.add_argument(
         "admin_args",
         nargs=argparse.REMAINDER,
-        help="Admin CLI write after '--', for example: -- disable-user <user-id>",
+        help=(
+            "Admin CLI write after '--', or the wrapper-owned "
+            f"'{BULK_USER_RPM_COMMAND} <rpm>' operation."
+        ),
     )
     args = parser.parse_args(argv)
     if args.admin_args and args.admin_args[0] == "--":
@@ -91,6 +92,13 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
+    if command == BULK_USER_RPM_COMMAND:
+        if len(admin_args) != 2:
+            raise ManagementError(
+                f"{BULK_USER_RPM_COMMAND} requires exactly one positive RPM value."
+            )
+        positive_int(admin_args[1])
+        return command, None
     if command in SIMPLE_WRITE_COMMANDS:
         return command, None
     allowed_nested = NESTED_WRITE_COMMANDS.get(command)
@@ -113,13 +121,14 @@ def run_remote_admin(
     ).decode("ascii")
     node_script = (
         'const {spawnSync}=require("node:child_process");'
+        'const fs=require("node:fs");'
         'const b=process.env.ADMIN_ARGS_B64||"";'
         'const a=JSON.parse(Buffer.from(b.replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8"));'
         f'const r=spawnSync("node",["apps/admin-cli/dist/index.js","--db","{GATEWAY_DB_PATH}",...a],'
-        '{encoding:"utf8"});'
-        'if(r.stdout)process.stdout.write(r.stdout);'
-        'if(r.stderr)process.stderr.write(r.stderr);'
-        'process.exit(r.status===null?1:r.status);'
+        '{encoding:"utf8",maxBuffer:16777216});'
+        'if(r.stdout)fs.writeSync(1,r.stdout);'
+        'if(r.stderr)fs.writeSync(2,r.stderr);'
+        'process.exitCode=r.status===null?1:r.status;'
     )
     remote_command = (
         f"{docker_command(endpoint)} exec -i -w /app -e ADMIN_ARGS_B64={payload} "
@@ -135,29 +144,67 @@ def run_remote_admin(
     return result
 
 
-def public_sync_result(value: dict[str, Any]) -> dict[str, Any]:
-    backup = value.get("backup") if isinstance(value.get("backup"), dict) else None
+def active_or_reenableable_user_credentials(value: dict[str, Any]) -> list[dict[str, Any]]:
+    credentials = value.get("credentials")
+    if not isinstance(credentials, list):
+        raise ManagementError("R760 credential inventory returned an unexpected result.")
+    return [
+        credential
+        for credential in credentials
+        if isinstance(credential, dict)
+        and credential.get("credential_class") in USER_CREDENTIAL_CLASSES
+        and credential.get("revoked_at") is None
+        and credential.get("status") != "expired"
+    ]
+
+
+def credential_rpm(credential: dict[str, Any]) -> int:
+    rate = credential.get("rate")
+    rpm = rate.get("requestsPerMinute") if isinstance(rate, dict) else None
+    if not isinstance(rpm, int) or rpm < 1:
+        raise ManagementError("R760 credential inventory contains an invalid RPM value.")
+    return rpm
+
+
+def user_rpm_plan(value: dict[str, Any], minimum_rpm: int) -> tuple[dict[str, Any], list[str]]:
+    credentials = active_or_reenableable_user_credentials(value)
+    distribution: dict[str, int] = {}
+    prefixes: list[str] = []
+    for credential in credentials:
+        rpm = credential_rpm(credential)
+        distribution[str(rpm)] = distribution.get(str(rpm), 0) + 1
+        if rpm < minimum_rpm:
+            prefix = credential.get("prefix")
+            if not isinstance(prefix, str) or not prefix:
+                raise ManagementError("R760 credential inventory contains a missing prefix.")
+            prefixes.append(prefix)
+    return (
+        {
+            "minimum_rpm": minimum_rpm,
+            "eligible_user_credentials": len(credentials),
+            "credentials_below_minimum": len(prefixes),
+            "credentials_unchanged": len(credentials) - len(prefixes),
+            "before_rpm_distribution": dict(
+                sorted(distribution.items(), key=lambda item: int(item[0]))
+            ),
+        },
+        prefixes,
+    )
+
+
+def validate_r760_inspection(value: dict[str, Any]) -> dict[str, Any]:
+    integrity = value.get("integrity") if isinstance(value.get("integrity"), dict) else {}
+    if integrity.get("quick_check") != "ok" or integrity.get("foreign_key_violations") != 0:
+        raise ManagementError("R760 SQLite integrity or foreign-key validation failed.")
     return {
-        "converged": value.get("converged") is True,
-        "passes": value.get("passes"),
-        "changed_rows": (value.get("initial_plan") or {}).get("changed_rows"),
-        "azure_backup_path": backup.get("backup_path") if backup else None,
+        "schema_version": value.get("migration"),
+        "quick_check": integrity.get("quick_check"),
+        "foreign_key_violations": integrity.get("foreign_key_violations"),
     }
 
 
-def execute(args: argparse.Namespace) -> dict[str, Any]:
-    command, subcommand = validate_admin_args(args.admin_args)
-    if args.what_if:
-        return {
-            "what_if": True,
-            "authority": "r760",
-            "compatibility_mirror": "azure",
-            "command": command,
-            "subcommand": subcommand,
-            "argument_count": len(args.admin_args),
-        }
-
-    r760 = RemoteGateway(
+def r760_endpoint(args: argparse.Namespace) -> RemoteGateway:
+    return RemoteGateway(
         name="r760",
         host=args.r760_host,
         user=args.r760_user,
@@ -165,40 +212,85 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         container=args.r760_container,
         port=args.r760_port,
     )
-    azure = RemoteGateway(
-        name="azure",
-        host=args.azure_host,
-        user=args.azure_user,
-        ssh_key=args.azure_ssh_key,
-        container=args.azure_container,
-        port=args.azure_port,
-        use_sudo=True,
+
+
+def execute(args: argparse.Namespace) -> dict[str, Any]:
+    command, subcommand = validate_admin_args(args.admin_args)
+    r760 = r760_endpoint(args)
+    bulk_minimum_rpm = (
+        int(args.admin_args[1]) if command == BULK_USER_RPM_COMMAND else None
     )
-    authority_result = run_remote_admin(
-        r760,
-        args.admin_args,
-        timeout_seconds=args.timeout_seconds,
-    )
-    mirror = sync_r760_to_azure(
-        apply=True,
-        r760=r760,
-        azure=azure,
-        backup_root=args.compatibility_backup_root,
-        max_passes=args.sync_max_passes,
-    )
-    if not mirror.get("converged"):
-        raise ManagementError(
-            "R760 write succeeded, but the Azure compatibility mirror did not converge. "
-            "Do not repeat the write blindly; run the mirror dry-run and reconcile it."
+    bulk_plan: dict[str, Any] | None = None
+    if bulk_minimum_rpm is not None:
+        inventory = run_remote_admin(r760, ["list"], timeout_seconds=args.timeout_seconds)
+        bulk_plan, _ = user_rpm_plan(inventory, bulk_minimum_rpm)
+    if args.what_if:
+        return {
+            "what_if": True,
+            "authority": "r760",
+            "authority_mode": "r760_only",
+            "command": command,
+            "subcommand": subcommand,
+            "argument_count": len(args.admin_args),
+            **({"plan": bulk_plan} if bulk_plan is not None else {}),
+        }
+
+    helper_path = f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
+    install_helper(r760, container_path=helper_path)
+    try:
+        before = validate_r760_inspection(
+            run_helper_json(r760, "inspect", helper_container_path=helper_path)
         )
-    return {
-        "status": "ok",
-        "authority": "r760",
-        "command": command,
-        "subcommand": subcommand,
-        "authority_result": authority_result,
-        "azure_compatibility_mirror": public_sync_result(mirror),
-    }
+        backup = create_target_backup(
+            r760,
+            backup_root=args.backup_root,
+            backup_label="user-rpm" if bulk_minimum_rpm is not None else "r760-control",
+            helper_container_path=helper_path,
+        )
+        if bulk_minimum_rpm is not None:
+            authority_result = run_remote_admin(
+                r760,
+                [BULK_USER_RPM_COMMAND, str(bulk_minimum_rpm)],
+                timeout_seconds=max(args.timeout_seconds, 600),
+            )
+        else:
+            authority_result = run_remote_admin(
+                r760,
+                args.admin_args,
+                timeout_seconds=args.timeout_seconds,
+            )
+        after = validate_r760_inspection(
+            run_helper_json(r760, "inspect", helper_container_path=helper_path)
+        )
+        result: dict[str, Any] = {
+            "status": "ok",
+            "authority": "r760",
+            "authority_mode": "r760_only",
+            "command": command,
+            "subcommand": subcommand,
+            "backup": backup,
+            "integrity_before": before,
+            "integrity_after": after,
+        }
+        if bulk_minimum_rpm is None:
+            result["authority_result"] = authority_result
+            return result
+
+        final_inventory = run_remote_admin(
+            r760, ["list"], timeout_seconds=args.timeout_seconds
+        )
+        final_plan, _ = user_rpm_plan(final_inventory, bulk_minimum_rpm)
+        if final_plan["credentials_below_minimum"] != 0:
+            raise ManagementError(
+                "R760 user RPM update completed, but post-write verification still found "
+                f"{final_plan['credentials_below_minimum']} credentials below the minimum."
+            )
+        result["plan"] = bulk_plan
+        result["updated_credentials"] = authority_result.get("updated_credentials")
+        result["post_write"] = final_plan
+        return result
+    finally:
+        remove_helper_best_effort(r760, container_path=helper_path)
 
 
 def main() -> int:

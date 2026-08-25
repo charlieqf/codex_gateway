@@ -6,7 +6,7 @@ const { chmodSync, existsSync, statSync } = require("node:fs");
 const { DatabaseSync, backup } = require("node:sqlite");
 
 const FORMAT = "codex_gateway_control_state.v1";
-const MIN_SCHEMA_VERSION = 24;
+const MIN_SCHEMA_VERSION = 25;
 
 const TABLES = {
   plans: {
@@ -56,6 +56,7 @@ const TABLES = {
       "codex_key_ciphertext",
       "medevidence_key_ciphertext",
       "medevidence_key_prefix",
+      "token_ciphertext",
       "created_at"
     ],
     unique: [["prefix"], ["hash"]]
@@ -114,7 +115,7 @@ const EXPECTED_COLUMNS = {
   access_credentials: [
     "id", "prefix", "hash", "subject_id", "label", "scope",
     "expires_at", "revoked_at", "rate_json", "created_at", "rotates_id",
-    "token_ciphertext", "allowed_public_models_json"
+    "token_ciphertext", "allowed_public_models_json", "credential_class"
   ],
   entitlements: [
     "id", "subject_id", "plan_id", "policy_snapshot_json",
@@ -126,7 +127,8 @@ const EXPECTED_COLUMNS = {
     "id", "prefix", "hash", "subject_id", "label", "expires_at",
     "revoked_at", "codex_credential_id", "codex_credential_prefix",
     "codex_key_ciphertext", "medevidence_key_ciphertext",
-    "medevidence_key_prefix", "created_at", "metadata_json"
+    "medevidence_key_prefix", "created_at", "metadata_json",
+    "token_ciphertext", "credential_class", "is_current"
   ],
   upstream_v2_bindings: [
     "subject_id", "v2_user_id", "v2_key_id", "state", "last_synced_at",

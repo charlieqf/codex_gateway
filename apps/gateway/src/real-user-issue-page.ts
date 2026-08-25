@@ -159,7 +159,7 @@ export function renderRealUserIssuePage(input: {
         <div>
           <label for="ratePreset">请求限额档位</label>
           <select id="ratePreset">
-            <option value="standard">标准 10/分 · 200/日 · 4 并发</option>
+            <option value="standard">标准 ${input.defaultRate.requestsPerMinute}/分 · ${input.defaultRate.requestsPerDay}/日 · ${input.defaultRate.concurrentRequests} 并发</option>
             <option value="high">加强 30/分 · 600/日 · 8 并发</option>
             <option value="custom">自定义…</option>
           </select>
@@ -170,7 +170,7 @@ export function renderRealUserIssuePage(input: {
         <input id="validityDays" type="number" min="90" step="1" value="92">
       </div>
       <div id="rateCustomWrap" class="grid three hidden" style="margin-top:14px">
-        <div><label for="rpm">每分钟请求</label><input id="rpm" type="number" min="1" step="1" value="10"></div>
+        <div><label for="rpm">每分钟请求</label><input id="rpm" type="number" min="${input.defaultRate.requestsPerMinute}" step="1" value="${input.defaultRate.requestsPerMinute}"></div>
         <div><label for="rpd">每日请求</label><input id="rpd" type="number" min="1" step="1" value="200"></div>
         <div><label for="concurrent">并发</label><input id="concurrent" type="number" min="1" step="1" value="4"></div>
       </div>
@@ -307,7 +307,13 @@ export function renderRealUserIssuePage(input: {
     }
 
     function readRate() {
-      if (els.ratePreset.value === "standard") { return { rpm: 10, rpd: 200, concurrent: 4 }; }
+      if (els.ratePreset.value === "standard") {
+        return {
+          rpm: CONFIG.defaultRate.requestsPerMinute,
+          rpd: CONFIG.defaultRate.requestsPerDay,
+          concurrent: CONFIG.defaultRate.concurrentRequests
+        };
+      }
       if (els.ratePreset.value === "high") { return { rpm: 30, rpd: 600, concurrent: 8 }; }
       return {
         rpm: Number(els.rpm.value),

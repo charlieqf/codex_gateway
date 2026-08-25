@@ -2000,6 +2000,7 @@ describe("gateway phase 1 routes", () => {
       expect(page.body).toContain("发放用户 Key");
       expect(page.body).toContain('BASE = "/gateway/admin/billing/v1"');
       expect(page.body).toContain('BASE + "/real-user-issue"');
+      expect(page.body).toContain("标准 20/分");
       // The plan is fixed and the scope is derived from it; neither may come
       // back as an operator-facing control.
       expect(page.body).toContain("plan_internal_high_quota_image_v1");
@@ -2045,6 +2046,20 @@ describe("gateway phase 1 routes", () => {
       });
       expect(shortValidity.statusCode).toBe(400);
       expect(shortValidity.json().error.message).toContain("90");
+
+      const lowRpm = await app.inject({
+        method: "POST",
+        url: "/gateway/admin/billing/v1/real-user-issue",
+        headers: billingHeaders,
+        payload: {
+          name: "张三",
+          phone: "13800138000",
+          plan_id: "plan_billing_v1",
+          rpm: 10
+        }
+      });
+      expect(lowRpm.statusCode).toBe(400);
+      expect(lowRpm.json().error.message).toContain("20");
 
       const scopeMismatch = await app.inject({
         method: "POST",

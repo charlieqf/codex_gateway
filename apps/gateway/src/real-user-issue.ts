@@ -38,8 +38,10 @@ const stepLabels: Record<RealUserIssueStepKey, string> = {
   prepare_phone_login: "准备手机号免验证码登录"
 };
 
+export const minimumRealUserRequestsPerMinute = 20;
+
 export const defaultRealUserIssueRate: RateLimitPolicy = {
-  requestsPerMinute: 10,
+  requestsPerMinute: minimumRealUserRequestsPerMinute,
   requestsPerDay: 200,
   concurrentRequests: 4
 };
@@ -364,6 +366,13 @@ export async function runRealUserIssueJob(
   let createdSubjectThisRun = false;
 
   try {
+    if (input.rate.requestsPerMinute < minimumRealUserRequestsPerMinute) {
+      throw new IssueStepError(
+        "create_subject",
+        "rpm_below_minimum",
+        `Real-user RPM must be at least ${minimumRealUserRequestsPerMinute}.`
+      );
+    }
     store.startStep(jobId, "create_subject");
     const created = await deps.createSubject({
       provider: input.provider,

@@ -18,7 +18,7 @@ Use `scripts\issue-real-user-cgu-key.py` for real users. The older
 `issue-desktop-e2e-opaque-key.ps1` script name is historical and is retained
 below only as a lower-level diagnostic.
 
-Current real-user trial defaults as of 2026-07-01:
+Current real-user trial defaults as of 2026-08-25:
 
 - plan: `plan_internal_high_quota_image_v1`
 - capabilities: `chat`, `tools`, `image_generation`
@@ -26,7 +26,7 @@ Current real-user trial defaults as of 2026-07-01:
   `--key-expires-at` values under 90 days are rejected
 - entitlement end: defaults to now + 92 days; operator-provided
   `--entitlement-end` values under 90 days are rejected
-- backing Gateway key rate: `10` requests/minute, `200` requests/day,
+- backing Gateway key rate: minimum/default `20` requests/minute, `200` requests/day,
   `4` concurrent requests
 - scope: `code`
 
@@ -152,7 +152,7 @@ sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
   node apps/admin-cli/dist/index.js --db /var/lib/codex-gateway/gateway.db \
   update-key <gateway-prefix> \
   --label "medevidence-unified-<yyyymmdd>-<short-user-id>" \
-  --rpm 10 --rpd 200 --concurrent 4 \
+  --rpm 20 --rpd 200 --concurrent 4 \
   --expires-at <iso-at-least-90-days-from-now>
 ```
 

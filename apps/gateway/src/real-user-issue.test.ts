@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultRealUserIssueRate,
   defaultExternalUserId,
+  minimumRealUserRequestsPerMinute,
   publicKeyPrefix,
   publicRealUserIssueJob,
   redactIssueMessage,
@@ -12,6 +14,17 @@ import {
   type RealUserIssueRunnerDeps,
   type ResolvedUnifiedKey
 } from "./real-user-issue.js";
+
+describe("real user issue defaults", () => {
+  it("uses a 20 RPM floor for newly issued real-user credentials", () => {
+    expect(minimumRealUserRequestsPerMinute).toBe(20);
+    expect(defaultRealUserIssueRate).toEqual({
+      requestsPerMinute: 20,
+      requestsPerDay: 200,
+      concurrentRequests: 4
+    });
+  });
+});
 
 const publicBaseUrl = "https://goldencode.example.com:1443";
 const subjectId = "subj_test_0001";
@@ -29,7 +42,7 @@ function issueInput(overrides: Partial<RealUserIssueInput> = {}): RealUserIssueI
     provider: "manual_trial",
     planId: "plan_internal_high_quota_image_v1",
     scope: "code",
-    rate: { requestsPerMinute: 10, requestsPerDay: 200, concurrentRequests: 4 },
+    rate: { requestsPerMinute: 20, requestsPerDay: 200, concurrentRequests: 4 },
     entitlementEnd: expiry,
     keyExpiresAt: expiry,
     requireImageCapability: true,
@@ -141,7 +154,7 @@ describe("real user issuance job", () => {
     expect(calls.subjectMetadata).toEqual([
       { subjectId, label: "张三", name: "张三", phoneNumber: "13800138000" }
     ]);
-    expect(calls.credentials[0]?.rpm).toBe(10);
+    expect(calls.credentials[0]?.rpm).toBe(20);
     expect(calls.credentials[0]?.prefix).toBe(codexStoredPrefix);
     expect(job?.result?.codexGatewayPrefix).toBe(codexPublicPrefix);
     expect(calls.phoneIdentities).toEqual([
@@ -172,6 +185,28 @@ describe("real user issuance job", () => {
     expect(calls.disabled).toEqual([
       { subjectId, reason: "real_user_issue_failed:phone_identity_prepare_failed" }
     ]);
+  });
+
+  it("rejects a below-floor RPM before creating a subject", async () => {
+    const store = new RealUserIssueJobStore();
+    const { deps, calls } = buildDeps({
+      async createSubject() {
+        throw new Error("createSubject must not be called");
+      }
+    });
+
+    const jobId = await runJob(
+      store,
+      deps,
+      issueInput({
+        rate: { requestsPerMinute: 19, requestsPerDay: 200, concurrentRequests: 4 }
+      })
+    );
+    const job = store.get(jobId);
+
+    expect(job?.state).toBe("failed");
+    expect(job?.error?.code).toBe("rpm_below_minimum");
+    expect(calls.disabled).toHaveLength(0);
   });
 
   it("hides the full key from other admin tokens", async () => {

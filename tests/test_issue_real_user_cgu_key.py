@@ -1,8 +1,10 @@
 import importlib.util
+import io
 import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -32,7 +34,7 @@ def arguments(output_dir: str, **overrides):
         "scope": "code",
         "entitlement_end": "2027-01-15T00:00:00.000Z",
         "key_expires_at": "2027-01-15T00:00:00.000Z",
-        "rpm": 10,
+        "rpm": 20,
         "rpd": 200,
         "concurrent": 4,
         "output_dir": output_dir,
@@ -119,6 +121,35 @@ def current_response():
 
 
 class IssueRealUserKeyTests(unittest.TestCase):
+    def test_cli_defaults_new_real_users_to_20_rpm(self):
+        args = ISSUE.parse_args(
+            [
+                "--name",
+                "Test User",
+                "--phone",
+                "0400000000",
+                "--client-version",
+                "1.2.3",
+            ]
+        )
+        self.assertEqual(args.rpm, 20)
+
+    def test_cli_rejects_real_user_rpm_below_20(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                ISSUE.parse_args(
+                    [
+                        "--name",
+                        "Test User",
+                        "--phone",
+                        "0400000000",
+                        "--client-version",
+                        "1.2.3",
+                        "--rpm",
+                        "10",
+                    ]
+                )
+
     def test_success_validates_r760_and_writes_r760_handoff(self):
         with tempfile.TemporaryDirectory() as directory:
             args = arguments(directory)
