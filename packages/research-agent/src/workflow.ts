@@ -4256,9 +4256,12 @@ async function generateAndValidateShardedModelOutput(
       "Peer review response state is inconsistent after model settlement."
     );
   }
-  const peerReview = peerReviewResponse
+  let peerReview = peerReviewResponse
     ? parsePeerReviewDecision(peerReviewResponse.text)
     : null;
+  let peerReviewContractRetryCompleted = false;
+  let peerReviewContractRetryUnavailable = false;
+  let peerReviewContractRetryAttempt: 5 | 6 | null = null;
   if (
     peerReviewResponse !== null &&
     peerReview === null
@@ -4268,12 +4271,67 @@ async function generateAndValidateShardedModelOutput(
       peerReviewAttempt,
       ["peer_review_contract_error"]
     );
+    const nextPeerReviewAttempt = peerReviewAttempt + 1;
+    if (
+      nextPeerReviewAttempt <= 6 &&
+      context.modelCallsStarted < context.input.policy.budgets.llmCalls
+    ) {
+      peerReviewContractRetryAttempt = nextPeerReviewAttempt as 5 | 6;
+      const [contractRetryResult] = await Promise.allSettled([
+        context.generateModel({
+          stage: "validate_outputs",
+          attempt: peerReviewContractRetryAttempt,
+          ...boundedCorrectionOptions(8_000, 180_000),
+          prompt: [
+            buildPeerReviewPatchPrompt({
+              run: context.run,
+              evidence,
+              draft: assembledDraft,
+              validationErrors: validation.ok
+                ? []
+                : validation.errors,
+              medicalSkillBundle
+            }),
+            "BOUNDED PEER-REVIEW CONTRACT RETRY",
+            "The prior response could not be parsed as doctor_research_peer_review.v1. Retry this same bounded peer review once. Return exactly one JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed.",
+            "Resolve every structured mandatory diagnostic in one decision. Keep at most 12 exact-substring replacements and do not return the complete draft."
+          ].join("\n\n"),
+          system: doctorResearchPeerReviewSystemPolicy
+        })
+      ]);
+      if (contractRetryResult?.status === "fulfilled") {
+        peerReviewResponse = contractRetryResult.value;
+        peerReview = parsePeerReviewDecision(
+          contractRetryResult.value.text
+        );
+        if (peerReview === null) {
+          context.reportValidationFailure(
+            "validate_outputs",
+            peerReviewContractRetryAttempt,
+            ["peer_review_contract_retry_error"]
+          );
+        } else {
+          peerReviewContractRetryCompleted = true;
+        }
+      } else if (
+        contractRetryResult?.status === "rejected" &&
+        isRecoverablePeerReviewError(contractRetryResult.reason)
+      ) {
+        peerReviewContractRetryUnavailable = true;
+      } else if (contractRetryResult?.status === "rejected") {
+        throw contractRetryResult.reason;
+      }
+    }
   }
   const peerReviewFallbackWarning =
     peerReviewUnavailableFallbackApplied
       ? "peer_review_model_unavailable_deterministic_fallback"
       : peerReview === null
-        ? "peer_review_contract_unusable_deterministic_fallback"
+        ? peerReviewContractRetryUnavailable
+          ? "peer_review_contract_retry_unavailable_deterministic_fallback"
+          : peerReviewContractRetryAttempt !== null
+            ? "peer_review_contract_retry_unusable_deterministic_fallback"
+            : "peer_review_contract_unusable_deterministic_fallback"
         : null;
   if (peerReviewFallbackWarning !== null) {
     validation = validateGeneratedOutput(
@@ -4714,6 +4772,9 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(peerReviewConvergenceCompleted
         ? ["bounded_peer_review_convergence_completed"]
+        : []),
+      ...(peerReviewContractRetryCompleted
+        ? ["bounded_peer_review_contract_retry_completed"]
         : []),
       ...peerReview.warnings.map(
         (warning) => `peer_review_${warning}`

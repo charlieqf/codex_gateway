@@ -478,7 +478,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ["content", "bounded_review_content_correction_completed"],
     [
       "peer-contract",
-      null
+      "bounded_peer_review_contract_retry_completed"
     ],
     [
       "peer-contract-conclusion-safety",
@@ -502,7 +502,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "correction-timeout",
-      null
+      "bounded_peer_review_contract_retry_completed"
     ],
     [
       "body-section-repair",
@@ -565,10 +565,7 @@ describe("Research Worker controlled-beta workflow", () => {
     foundation.review.title = "公开摘要证据的规范综合";
     foundation.review.abstract =
       "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。针对不同研究对象、数据来源、观察终点和随访框架，本文逐项比较其一致性与差异，并把样本选择、测量误差、偏倚控制及外部适用性纳入证据分级。对于病例报告、观察性队列和其他非随机证据，只描述其技术可行性或统计关联，不将其写成普遍临床获益。对摘要没有披露的统计方法、缺失数据处理和敏感性分析保持沉默，避免以题名或期刊信息补写事实。综述进一步梳理各主题之间的逻辑联系，说明哪些结论得到直接数据支持，哪些仅构成趋势或研究假设，并提出需要前瞻性验证、外部验证和长期患者结局研究的问题。";
-    if (
-      retryKind === "peer-contract" ||
-      retryKind === "peer-patch-mismatch"
-    ) {
+    if (retryKind === "peer-patch-mismatch") {
       foundation.review.abstract =
         "综述严格限定于公开元数据与摘要证据，围绕研究设计、方法差异、结果解释和适用边界展开综合。现有资料可以支持谨慎的学术比较，但不能替代全文评价，也不能越过研究设计推断临床因果关系。全文以可核验引文为基础，明确区分直接数据、间接推断与尚待验证的问题。针对不同研究对象、数据来源、观察终点和随访框架，本文逐项比较其一致性与差异，并把样本选择、测量误差、偏倚控制及外部适用性纳入证据分级。对于病例报告、观察性队列和其他非随机证据，只描述其技术可行性或统计关联，不将其写成普遍临床获益。该研究错误声称纳入999999例患者并获得确定性临床改善，且据此提出普遍治疗建议，但该数字无法由任何公开摘要核验。";
     }
@@ -1779,6 +1776,48 @@ describe("Research Worker controlled-beta workflow", () => {
               }
             };
           }
+          if (
+            retryKind === "peer-contract" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 4
+          ) {
+            retryPrompt = modelInput.prompt;
+            return {
+              text: "not a peer-review decision",
+              gatewayRequestId:
+                "req_sharded_peer_contract_failure",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
+          if (
+            retryKind === "peer-contract" &&
+            modelInput.stage === "validate_outputs" &&
+            modelInput.attempt === 5
+          ) {
+            expect(modelInput.prompt).toContain(
+              "BOUNDED PEER-REVIEW CONTRACT RETRY"
+            );
+            return {
+              text: JSON.stringify({
+                schema_version:
+                  "doctor_research_peer_review.v1",
+                approved: true,
+                replacements: [],
+                warnings: []
+              }),
+              gatewayRequestId:
+                "req_sharded_peer_contract_retry",
+              usage: {
+                promptTokens: 100,
+                completionTokens: 100,
+                totalTokens: 200
+              }
+            };
+          }
           if (modelInput.attempt === 4) {
             retryPrompt = modelInput.prompt;
             return {
@@ -2004,16 +2043,25 @@ describe("Research Worker controlled-beta workflow", () => {
         budgets: {
           ...workflowPolicy().budgets,
           llmCalls:
-            retryKind === "transport-middle-and-closing-skill"
-              ? 6
+            retryKind === "transport-middle-and-closing-skill" ||
+            retryKind === "peer-contract"
+              ? retryKind === "peer-contract"
+                ? 7
+                : 6
               : 5,
           inputTokens:
-            retryKind === "transport-middle-and-closing-skill"
-              ? 600_000
+            retryKind === "transport-middle-and-closing-skill" ||
+            retryKind === "peer-contract"
+              ? retryKind === "peer-contract"
+                ? 700_000
+                : 600_000
               : 500_000,
           outputTokens:
-            retryKind === "transport-middle-and-closing-skill"
-              ? 108_000
+            retryKind === "transport-middle-and-closing-skill" ||
+            retryKind === "peer-contract"
+              ? retryKind === "peer-contract"
+                ? 126_000
+                : 108_000
               : 90_000
         }
       },
@@ -2158,15 +2206,13 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(attempts).toEqual(
       retryKind === "transport-middle-and-closing-skill"
         ? [1, 2, 3, 4, 5, 6]
+        : retryKind === "peer-contract"
+          ? [1, 2, 3, 4, 5]
         : retryKind === "citation-closure" ||
-      retryKind === "peer-contract" ||
       retryKind === "peer-timeout" ||
       retryKind === "peer-convergence" ||
       retryKind === "peer-patch-mismatch" ||
       retryKind === "section-repair" ||
-      retryKind === "correction-timeout" ||
-      retryKind === "body-envelope" ||
-      retryKind === "closing-envelope" ||
       retryKind === "grace"
         ? [1, 2, 3, 4]
         : [1, 2, 3, 4, 5]
@@ -2728,6 +2774,8 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(result.review.markdown).not.toContain(
         convergenceUnsafeParagraph
       );
+    }
+    if (retryKind === "section-repair") {
       expect(result.quality.warnings).toContain(
         "controlled_trial_topic_section_below_target"
       );
@@ -2957,13 +3005,9 @@ describe("Research Worker controlled-beta workflow", () => {
         : retryKind === "peer-timeout" ||
         retryKind === "citation-closure" ||
         retryKind === "section-closure" ||
-        retryKind === "peer-contract" ||
         retryKind === "peer-contract-conclusion-safety" ||
         retryKind === "skill-normalization" ||
-        retryKind === "body-envelope" ||
-        retryKind === "closing-envelope" ||
-        retryKind === "section-repair" ||
-        retryKind === "correction-timeout"
+        retryKind === "section-repair"
           ? "peer_review_model_attempted"
           : "peer_review_model_completed",
         retryWarning
