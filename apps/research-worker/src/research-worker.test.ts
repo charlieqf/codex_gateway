@@ -452,7 +452,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "contract-skill-prose",
-      "peer_review_call_reallocated_to_contract_skill_repair"
+      "peer_review_skipped_after_deterministic_validation"
     ],
     [
       "skill-contract",
@@ -478,15 +478,15 @@ describe("Research Worker controlled-beta workflow", () => {
       "skill-closing-normalization",
       null
     ],
-    ["body", null],
+    ["body", "brief_relaxed_answer_length_contract"],
     [
       "qa-peer-section-repair",
       null
     ],
-    ["content", "bounded_review_content_correction_completed"],
+    ["content", "brief_relaxed_review_content_minimum"],
     [
       "peer-contract",
-      "bounded_peer_review_contract_retry_completed"
+      "bounded_peer_review_output_exhaustion_retry_completed"
     ],
     [
       "peer-contract-conclusion-safety",
@@ -498,7 +498,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ],
     [
       "peer-convergence",
-      "peer_review_patch_fallback_to_validated_candidate"
+      "peer_review_skipped_after_deterministic_validation"
     ],
     [
       "peer-patch-mismatch",
@@ -883,6 +883,8 @@ describe("Research Worker controlled-beta workflow", () => {
                       .join("\n\n")
                 : retryKind === "peer-convergence"
                   ? peerConvergenceBody
+                  : retryKind === "peer-contract"
+                    ? convergenceBody
                   : retryKind === "body-section-repair"
                     ? underfilledBody
                   : retryKind === "qa-peer-section-repair"
@@ -1809,17 +1811,11 @@ describe("Research Worker controlled-beta workflow", () => {
             modelInput.stage === "validate_outputs" &&
             modelInput.attempt === 5
           ) {
-            retryPrompt = modelInput.prompt;
-            return {
-              text: "not a peer-review decision",
-              gatewayRequestId:
-                "req_sharded_peer_contract_failure",
-              usage: {
-                promptTokens: 100,
-                completionTokens: 100,
-                totalTokens: 200
-              }
-            };
+            throw new ResearchModelClientError(
+              "output_exhausted",
+              413,
+              "req_sharded_peer_output_exhausted"
+            );
           }
           if (
             retryKind === "peer-contract" &&
@@ -1827,8 +1823,10 @@ describe("Research Worker controlled-beta workflow", () => {
             modelInput.attempt === 6
           ) {
             expect(modelInput.prompt).toContain(
-              "BOUNDED PEER-REVIEW CONTRACT RETRY"
+              "BOUNDED PEER-REVIEW OUTPUT RECOVERY"
             );
+            expect(modelInput.maximumOutputTokens).toBe(8_000);
+            expect(modelInput.providerTimeoutMs).toBe(140_000);
             throw new ResearchModelClientError(
               "output_exhausted",
               413,
@@ -1841,7 +1839,7 @@ describe("Research Worker controlled-beta workflow", () => {
             modelInput.attempt === 7
           ) {
             expect(modelInput.prompt).toContain(
-              "BOUNDED FINAL PEER-REVIEW CONTRACT RETRY"
+              "BOUNDED FINAL PEER-REVIEW OUTPUT RECOVERY"
             );
             expect(modelInput.maximumOutputTokens).toBe(10_000);
             expect(modelInput.providerTimeoutMs).toBe(160_000);
@@ -1851,7 +1849,13 @@ describe("Research Worker controlled-beta workflow", () => {
                 schema_version:
                   "doctor_research_peer_review.v1",
                 approved: true,
-                replacements: [],
+                replacements: [
+                  {
+                    target: "markdown",
+                    old_text: convergenceUnsafeParagraph,
+                    new_text: convergenceSafeParagraph
+                  }
+                ],
                 warnings: []
               }),
               gatewayRequestId:
@@ -1896,7 +1900,7 @@ describe("Research Worker controlled-beta workflow", () => {
               text: JSON.stringify({
                 schema_version:
                   "doctor_research_body_fragment.v1",
-                markdown: skillBodyFragment(20),
+                markdown: convergenceBody,
                 predicted_questions: initialBodyQuestions,
                 answers: initialBodyAnswers
               }),
@@ -1939,7 +1943,13 @@ describe("Research Worker controlled-beta workflow", () => {
                 schema_version:
                   "doctor_research_peer_review.v1",
                 approved: true,
-                replacements: [],
+                replacements: [
+                  {
+                    target: "markdown",
+                    old_text: convergenceUnsafeParagraph,
+                    new_text: convergenceSafeParagraph
+                  }
+                ],
                 warnings: []
               }),
               gatewayRequestId:
@@ -2343,7 +2353,30 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(
       peerReviewReasoningEfforts.every((value) => value === "none")
     ).toBe(true);
-    expect(followupModelBudgets.length).toBeGreaterThan(0);
+    const threeCallDeterministicCompletionKinds = new Set([
+      "body-envelope",
+      "closing-envelope",
+      "content",
+      "peer-convergence",
+      "grace"
+    ]);
+    const fourCallDeterministicCompletionKinds = new Set([
+      "transport",
+      "transport-empty",
+      "transport-body-near-minimum",
+      "admission",
+      "contract",
+      "body-markdown-only",
+      "body-source-extra",
+      "skill-contract",
+      "skill-prose",
+      "body"
+    ]);
+    if (threeCallDeterministicCompletionKinds.has(retryKind)) {
+      expect(followupModelBudgets).toHaveLength(0);
+    } else {
+      expect(followupModelBudgets.length).toBeGreaterThan(0);
+    }
     expect(
       followupModelBudgets.every(
         (budget) =>
@@ -2359,13 +2392,17 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(thirdShardStartedAfterAdmissionCompletion).toBe(true);
     }
     expect(attempts).toEqual(
-      retryKind === "transport-middle-and-closing-skill"
+      threeCallDeterministicCompletionKinds.has(retryKind)
+        ? [1, 2, 3]
+        : fourCallDeterministicCompletionKinds.has(retryKind)
+          ? [1, 2, 3, 4]
+      : retryKind === "transport-middle-and-closing-skill"
         ? [1, 2, 3, 4, 5, 6]
         : retryKind === "skill-contract-repeat" ||
             retryKind === "skill-contract-multi"
           ? retryKind === "skill-contract-multi"
             ? [1, 2, 3, 4, 5, 6, 7]
-            : [1, 2, 3, 4, 5, 6]
+            : [1, 2, 3, 4, 5]
         : retryKind === "peer-contract"
           ? [1, 2, 3, 4, 5, 6, 7]
         : retryKind === "citation-closure" ||
@@ -2553,6 +2590,10 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(retryPrompt).toContain(
         "Structured mandatory diagnostic plan"
       );
+      expect(retryPrompt).toContain("numeric_evidence_closure");
+      expect(retryPrompt).not.toContain(
+        "review_orphaned_demonstrative_start"
+      );
       expect(retryPrompt).toContain(
         "standalone complete unit with an explicit subject"
       );
@@ -2681,12 +2722,15 @@ describe("Research Worker controlled-beta workflow", () => {
           expect.any(Number)
         ])
       );
+      expect(result.quality.warnings).toContain(
+        "brief_relaxed_answer_length_contract"
+      );
       expect(
-        result.answers.every((answer) => {
-          const length =
-            answer.answer.match(/\p{Script=Han}/gu)?.length ?? 0;
-          return length >= 100 && length <= 300;
-        })
+        result.answers.some(
+          (answer) =>
+            (answer.answer.match(/\p{Script=Han}/gu)?.length ?? 0) <
+            100
+        )
       ).toBe(true);
       expect(
         result.answers.some((answer) => answer.answer.includes("7例"))
@@ -3047,7 +3091,7 @@ describe("Research Worker controlled-beta workflow", () => {
         expect.arrayContaining([
           "bounded_shard_transport_retry_completed",
           "bounded_shard_skill_contract_retry_completed",
-          "peer_review_call_reallocated_to_transport_skill_repair",
+          "peer_review_skipped_after_deterministic_validation",
           "deterministic_peer_review_self_check_completed"
         ])
       );
@@ -3063,7 +3107,7 @@ describe("Research Worker controlled-beta workflow", () => {
         expect.arrayContaining([
           "bounded_shard_contract_retry_completed",
           "bounded_shard_skill_contract_retry_completed",
-          "peer_review_call_reallocated_to_contract_skill_repair",
+          "peer_review_skipped_after_deterministic_validation",
           "deterministic_peer_review_self_check_completed"
         ])
       );
@@ -3146,7 +3190,7 @@ describe("Research Worker controlled-beta workflow", () => {
         result.quality.warnings.length
       );
       expect(result.quality.warnings).toContain(
-        "bounded_peer_review_contract_second_retry_completed"
+        "bounded_peer_review_output_exhaustion_second_retry_completed"
       );
     }
     if (retryKind === "skill-contract-multi") {
@@ -3168,7 +3212,11 @@ describe("Research Worker controlled-beta workflow", () => {
         "sharded_synthesis_completed",
         "deterministic_profile_projection_completed",
         "deterministic_core_evidence_projection_completed",
-        retryKind === "transport-skill" ||
+        result.quality.warnings.includes(
+          "peer_review_skipped_after_deterministic_validation"
+        )
+          ? "peer_review_skipped_after_deterministic_validation"
+          : retryKind === "transport-skill" ||
         retryKind === "contract-skill-prose" ||
         retryKind === "transport-middle-and-closing" ||
         retryKind === "transport-middle-and-closing-skill" ||

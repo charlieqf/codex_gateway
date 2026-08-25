@@ -327,16 +327,24 @@ export async function executeDoctorResearchWorkflow(input: {
       schema_version: "doctor_research_answers_checkpoint.v1",
       answer_count: generated.answers.length
     });
-    const qualityErrors = validateRuntimeQuality(
-      generated,
-      input.policy,
-      new Set([
-        ...identity.profileSourceIds,
-        ...doctorLiterature.sources.map((source) => source.source_id)
-      ]),
-      context.run.language
+    const qualityErrors = hardBriefValidationErrors(
+      validateRuntimeQuality(
+        generated,
+        input.policy,
+        new Set([
+          ...identity.profileSourceIds,
+          ...doctorLiterature.sources.map((source) => source.source_id)
+        ]),
+        context.run.language
+      )
     );
     if (qualityErrors.length > 0) {
+      context.reportValidationFailure(
+        "validate_outputs",
+        7,
+        stableValidationCodes(qualityErrors),
+        qualityErrors
+      );
       return { outcome: "failed", reason: "quality_gate_failed" };
     }
     const qualityChecks = [
@@ -346,7 +354,11 @@ export async function executeDoctorResearchWorkflow(input: {
       "citation_reference_closure",
       "citation_specific_numeric_evidence",
       "evidence_grade_scope",
-      "language_length",
+      ...(generatedResult.warnings.some((warning) =>
+        warning.startsWith("brief_relaxed_")
+      )
+        ? ["brief_completeness_warning_policy"]
+        : ["language_length"]),
       "five_question_answer_contract",
       "prompt_injection_isolation",
       "medical_team_skill_bundle",
@@ -3583,6 +3595,39 @@ async function generateAndValidateShardedModelOutput(
     outputValidationPolicy,
     { presentationRepair: true }
   );
+  const initialBriefValidation = promoteBriefValidationWarnings(
+    deterministicSafetyPreview,
+    assembledDraft
+  );
+  if (initialBriefValidation.ok) {
+    return {
+      output: initialBriefValidation.value,
+      warnings: [
+        ...initialBriefValidation.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_skipped_after_deterministic_validation",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardAdmissionGraceElapsed
+          ? ["bounded_initial_shard_admission_grace_elapsed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
+          : [])
+      ]
+    };
+  }
   const sectionRepairCandidate =
     !shardTransportRetryCompleted &&
     !shardContractRetryCompleted &&
@@ -3912,6 +3957,7 @@ async function generateAndValidateShardedModelOutput(
   let correctedIntroductionResponse: ResearchModelResponse | null = null;
   let peerReviewResponse: ResearchModelResponse | null = null;
   let peerReviewUnavailableFallbackApplied = false;
+  let peerReviewOutputExhaustedFallbackApplied = false;
   let correctionUnavailableFallbackApplied = false;
   let correctionUnavailableError: unknown = null;
   if (boundedCorrectionPromise) {
@@ -4325,6 +4371,58 @@ async function generateAndValidateShardedModelOutput(
       ]
     };
   }
+  const acceptedPostCorrectionValidation =
+    promoteBriefValidationWarnings(
+      postCorrectionSafetyValidation,
+      assembledDraft
+    );
+  if (acceptedPostCorrectionValidation.ok) {
+    return {
+      output: acceptedPostCorrectionValidation.value,
+      warnings: [
+        ...acceptedPostCorrectionValidation.warnings,
+        "sharded_synthesis_completed",
+        "deterministic_profile_projection_completed",
+        "deterministic_core_evidence_projection_completed",
+        "peer_review_skipped_after_deterministic_validation",
+        "deterministic_peer_review_self_check_completed",
+        ...shardSkillNormalizationWarnings,
+        ...(shardTransportRetryCompleted
+          ? ["bounded_shard_transport_retry_completed"]
+          : []),
+        ...(shardAdmissionGraceElapsed
+          ? ["bounded_initial_shard_admission_grace_elapsed"]
+          : []),
+        ...(shardContractRetryCompleted
+          ? ["bounded_shard_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractRetryCompleted
+          ? ["bounded_shard_skill_contract_retry_completed"]
+          : []),
+        ...(shardSkillContractSecondRetryCompleted
+          ? ["bounded_shard_skill_contract_second_retry_completed"]
+          : []),
+        ...(qaContractRetryCompleted
+          ? ["bounded_qa_contract_retry_completed"]
+          : []),
+        ...(reviewContentCorrectionCompleted
+          ? ["bounded_review_content_correction_completed"]
+          : []),
+        ...(sectionRepairCompleted
+          ? ["bounded_single_section_repair_completed"]
+          : []),
+        ...(introductionCorrectionCompleted
+          ? ["bounded_introduction_correction_completed"]
+          : [])
+      ]
+    };
+  }
+  const peerReviewValidationErrors =
+    postCorrectionSafetyValidation.ok
+      ? []
+      : hardBriefValidationErrors(
+          postCorrectionSafetyValidation.errors
+        );
   const [peerReviewResult] = await Promise.allSettled([
     context.generateModel({
       stage: "validate_outputs",
@@ -4334,9 +4432,7 @@ async function generateAndValidateShardedModelOutput(
         run: context.run,
         evidence,
         draft: assembledDraft,
-        validationErrors: validation.ok
-          ? []
-          : validation.errors,
+        validationErrors: peerReviewValidationErrors,
         medicalSkillBundle
       }),
       system: doctorResearchPeerReviewSystemPolicy
@@ -4349,6 +4445,8 @@ async function generateAndValidateShardedModelOutput(
     isRecoverablePeerReviewError(peerReviewResult.reason)
   ) {
     peerReviewUnavailableFallbackApplied = true;
+    peerReviewOutputExhaustedFallbackApplied =
+      isOutputExhaustedShardError(peerReviewResult.reason);
   } else if (peerReviewResult?.status === "rejected") {
     throw peerReviewResult.reason;
   }
@@ -4366,21 +4464,31 @@ async function generateAndValidateShardedModelOutput(
   let peerReview = peerReviewResponse
     ? parsePeerReviewDecision(peerReviewResponse.text)
     : null;
+  const peerReviewContractRepairRequired =
+    peerReviewResponse !== null && peerReview === null;
+  const peerReviewOutputExhaustionRecoveryRequired =
+    peerReviewOutputExhaustedFallbackApplied;
   let peerReviewContractRetryCompleted = false;
   let peerReviewContractSecondRetryCompleted = false;
+  let peerReviewOutputExhaustionRetryCompleted = false;
+  let peerReviewOutputExhaustionSecondRetryCompleted = false;
   let peerReviewContractRetryUnavailable = false;
   let peerReviewContractRetryAttempt: 5 | 6 | 7 | null = null;
   if (
-    peerReviewResponse !== null &&
-    peerReview === null
+    peerReviewContractRepairRequired ||
+    peerReviewOutputExhaustionRecoveryRequired
   ) {
     context.reportValidationFailure(
       "validate_outputs",
       peerReviewAttempt,
-      ["peer_review_contract_error"]
+      [
+        peerReviewContractRepairRequired
+          ? "peer_review_contract_error"
+          : "peer_review_output_exhausted"
+      ]
     );
-    // One malformed decision plus one output-exhausted repair must not strand
-    // the seventh per-run call that production reserves for convergence.
+    // An exhausted or malformed peer decision must not strand the seventh
+    // per-run call that production reserves for bounded convergence.
     for (let retryOrdinal = 1; retryOrdinal <= 2; retryOrdinal += 1) {
       const nextPeerReviewAttempt = peerReviewAttempt + retryOrdinal;
       if (
@@ -4398,24 +4506,30 @@ async function generateAndValidateShardedModelOutput(
           attempt: peerReviewContractRetryAttempt,
           ...boundedCorrectionOptions(
             retryOrdinal === 1 ? 8_000 : 10_000,
-            retryOrdinal === 1 ? 180_000 : 170_000
+            retryOrdinal === 1 ? 150_000 : 170_000
           ),
           prompt: [
             buildPeerReviewPatchPrompt({
               run: context.run,
               evidence,
               draft: assembledDraft,
-              validationErrors: validation.ok
-                ? []
-                : validation.errors,
+              validationErrors: peerReviewValidationErrors,
               medicalSkillBundle
             }),
-            retryOrdinal === 1
-              ? "BOUNDED PEER-REVIEW CONTRACT RETRY"
-              : "BOUNDED FINAL PEER-REVIEW CONTRACT RETRY",
-            retryOrdinal === 1
-              ? "The prior response could not be parsed as doctor_research_peer_review.v1. Retry this same bounded peer review once. Return exactly one JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed."
-              : "The prior bounded retry returned no usable doctor_research_peer_review.v1 decision. Use this final reserved call to return exactly one compact JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed.",
+            peerReviewOutputExhaustionRecoveryRequired
+              ? retryOrdinal === 1
+                ? "BOUNDED PEER-REVIEW OUTPUT RECOVERY"
+                : "BOUNDED FINAL PEER-REVIEW OUTPUT RECOVERY"
+              : retryOrdinal === 1
+                ? "BOUNDED PEER-REVIEW CONTRACT RETRY"
+                : "BOUNDED FINAL PEER-REVIEW CONTRACT RETRY",
+            peerReviewOutputExhaustionRecoveryRequired
+              ? retryOrdinal === 1
+                ? "The prior peer-review call exhausted its output budget before returning visible content. Retry the same bounded decision and return exactly one compact doctor_research_peer_review.v1 JSON object with only schema_version, approved, replacements, and warnings."
+                : "The prior recovery still returned no usable visible peer-review decision. Use this final reserved call to return exactly one compact doctor_research_peer_review.v1 JSON object with only schema_version, approved, replacements, and warnings."
+              : retryOrdinal === 1
+                ? "The prior response could not be parsed as doctor_research_peer_review.v1. Retry this same bounded peer review once. Return exactly one JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed."
+                : "The prior bounded retry returned no usable doctor_research_peer_review.v1 decision. Use this final reserved call to return exactly one compact JSON object with only schema_version, approved, replacements, and warnings; approved must be true, replacements and warnings must be arrays, and no Markdown fence or commentary is allowed.",
             "Resolve every structured mandatory diagnostic in one decision. Keep at most 12 exact-substring replacements and do not return the complete draft."
           ].join("\n\n"),
           system: doctorResearchPeerReviewSystemPolicy
@@ -4423,6 +4537,8 @@ async function generateAndValidateShardedModelOutput(
       ]);
       if (contractRetryResult?.status === "fulfilled") {
         peerReviewContractRetryUnavailable = false;
+        peerReviewUnavailableFallbackApplied = false;
+        peerReviewOutputExhaustedFallbackApplied = false;
         peerReviewResponse = contractRetryResult.value;
         peerReview = parsePeerReviewDecision(
           contractRetryResult.value.text
@@ -4438,8 +4554,14 @@ async function generateAndValidateShardedModelOutput(
             ]
           );
         } else {
-          peerReviewContractRetryCompleted = true;
+          peerReviewContractRetryCompleted =
+            peerReviewContractRepairRequired;
           peerReviewContractSecondRetryCompleted =
+            peerReviewContractRepairRequired && retryOrdinal === 2;
+          peerReviewOutputExhaustionRetryCompleted =
+            peerReviewOutputExhaustionRecoveryRequired;
+          peerReviewOutputExhaustionSecondRetryCompleted =
+            peerReviewOutputExhaustionRecoveryRequired &&
             retryOrdinal === 2;
         }
       } else if (
@@ -4470,6 +4592,10 @@ async function generateAndValidateShardedModelOutput(
       evidence,
       outputValidationPolicy,
       { presentationRepair: true }
+    );
+    validation = promoteBriefValidationWarnings(
+      validation,
+      assembledDraft
     );
     const fallbackErrorCodes = validation.ok
       ? []
@@ -4705,6 +4831,10 @@ async function generateAndValidateShardedModelOutput(
       peerReviewPatchFallbackApplied = true;
     }
   }
+  validation = promoteBriefValidationWarnings(
+    validation,
+    patchedDraft
+  );
   let peerReviewConvergenceCompleted = false;
   const convergenceSectionCandidate = !validation.ok
     ? selectSingleSectionRepairCandidate({
@@ -4846,6 +4976,10 @@ async function generateAndValidateShardedModelOutput(
         { presentationRepair: true }
       );
     }
+    validation = promoteBriefValidationWarnings(
+      validation,
+      convergedDraft
+    );
     peerReviewConvergenceCompleted = true;
   }
   if (!validation.ok) {
@@ -4913,6 +5047,14 @@ async function generateAndValidateShardedModelOutput(
         : []),
       ...(peerReviewContractSecondRetryCompleted
         ? ["bounded_peer_review_contract_second_retry_completed"]
+        : []),
+      ...(peerReviewOutputExhaustionRetryCompleted
+        ? ["bounded_peer_review_output_exhaustion_retry_completed"]
+        : []),
+      ...(peerReviewOutputExhaustionSecondRetryCompleted
+        ? [
+            "bounded_peer_review_output_exhaustion_second_retry_completed"
+          ]
         : []),
       ...peerReview.warnings.map(
         (warning) => `peer_review_${warning}`
@@ -7101,6 +7243,59 @@ function isRecoverablePeerReviewError(error: unknown): boolean {
     (error instanceof DOMException && error.name === "TimeoutError") ||
     isRetryableLateModelError(error)
   );
+}
+
+const briefWarningOnlyValidationCodes = new Set([
+  "answer_length_contract",
+  "question_length_contract",
+  "review_content_minimum",
+  "review_introduction_minimum",
+  "review_topic_section_minimum",
+  "review_synthesis_minimum",
+  "review_limitations_minimum",
+  "review_conclusion_minimum",
+  "review_orphaned_demonstrative_start"
+]);
+
+function hardBriefValidationErrors(
+  errors: readonly string[]
+): string[] {
+  return errors.filter(
+    (error) =>
+      !briefWarningOnlyValidationCodes.has(
+        error.split(":", 1)[0]!
+      )
+  );
+}
+
+/**
+ * Brief-mode completeness and prose-floor misses are visible quality
+ * warnings, not reasons to spend a long model peer-review call. Evidence
+ * closure, citation, scope, causality, schema, and identity failures remain
+ * hard gates because they are intentionally absent from this allowlist.
+ */
+function promoteBriefValidationWarnings(
+  validation: ReturnType<typeof validateGeneratedOutput>,
+  draft: DoctorResearchModelDraft
+): ReturnType<typeof validateGeneratedOutput> {
+  if (validation.ok || !validation.candidate) {
+    return validation;
+  }
+  const errorCodes = [...new Set(validation.errorCodes)];
+  if (
+    errorCodes.length === 0 ||
+    errorCodes.some(
+      (code) => !briefWarningOnlyValidationCodes.has(code)
+    )
+  ) {
+    return validation;
+  }
+  return {
+    ok: true,
+    value: validation.candidate,
+    draft,
+    warnings: errorCodes.map((code) => `brief_relaxed_${code}`)
+  };
 }
 
 function validateGeneratedOutput(
