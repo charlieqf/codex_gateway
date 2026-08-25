@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Current Phase
 
@@ -34,6 +34,27 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-25 real-user RPM floor:** a reported long-task 429 was traced to
+  the credential's fixed-minute request counter: chat continuation and Vision
+  Asset control/upload requests shared the same 10 RPM budget. All 186
+  non-revoked, non-expired `desktop`/legacy `unknown` credentials that were
+  below 20 RPM were raised to 20; credentials already above 20 were unchanged.
+  The verified final 210-credential distribution is 187 at 20, 20 at 30, two
+  at 60 and one at 120, with zero below 20. Release
+  `21a1f2b96cfe9aa94e9ac66772c54b159d829321` is now `current`,
+  `94afc9317fb0246b83acad96f657a9a69708c443` is `previous`, and the active
+  Gateway image is
+  `sha256:d06c664147cce96bd9ca0cf415e77d7c810cf4c208aae16afa13e0160fed956e`.
+  New real-user issuance now defaults to 20 RPM and rejects lower values in
+  the operator script, HTTP request parser and issuance runner; a live
+  authenticated `rpm=19` negative smoke returned HTTP 400 without creating a
+  user. The data-change backup is
+  `/data/backups/codex-gateway/user-rpm-pre-control-state-sync-20260825T084116Z-3546ae77.db`;
+  the deployment rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-real-user-rpm-floor-20260825T091305Z`.
+  Gateway/database/public health checks passed, restart count is zero, and
+  Research, Mihomo and `qwen38-fp8-local` retained their container IDs and
+  healthy state.
 - **2026-08-24 GLM-5.3 reasoning-effort P0:** R760 `current` is release
   `c896178f58294ec2fa4fd7c59efe261687780a99`, `previous` is
   `8d7acb977866cca41c38a3ec7c3ae4fc1a769ffe`, and the active Gateway image is
