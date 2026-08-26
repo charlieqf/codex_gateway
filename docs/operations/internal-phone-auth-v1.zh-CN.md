@@ -60,6 +60,7 @@ GATEWAY_PUBLIC_BASE_URL=https://goldencode.instmarket.com.au:1443
 GATEWAY_DESKTOP_VERSION_GATE=auth_only
 GATEWAY_MINIMUM_DESKTOP_VERSION=2.0.0-beta.40
 GATEWAY_DESKTOP_DOWNLOAD_URL=<absolute-https-url>
+GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION=<fixed-desktop-strict-semver-or-empty>
 GATEWAY_PHONE_AUTH_MODE=transition
 GATEWAY_PHONE_AUTH_LOGIN_PHONE_RPM=5
 GATEWAY_PHONE_AUTH_LOGIN_IP_RPM=20
@@ -84,6 +85,41 @@ Gateway 路由不得因版本 Header 缺失、非法或过旧返回 426。
 ```
 
 health 不得包含手机号、allowlist、Session、Key prefix、secret 路径或 secret 状态。
+
+## MedEvidence Origin 分版本切换
+
+Gateway 的 MedEvidence 地址切换与 Phone Auth 最低版本是两个独立门控。新增配置
+`GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION`：
+
+- 未设置或为空时，resolver 对所有客户端继续返回
+  `https://gw-47-116-7-37.nip.io`，部署新 Gateway 代码本身不会切流；
+- 设置为客户端团队确认支持新地址的严格 SemVer 后，仅该版本及更高版本返回
+  `https://r760.instmarket.com.au:1443`；
+- Header 缺失、格式非法或版本较低时仍返回旧地址，不返回 426；
+- 对已有 MedEvidence runtime key 但 `medevidence_base_url` 元数据为空的旧记录，
+  resolver 也按同一规则返回受控旧/新 Origin，不要求先迁移数据库；
+- Gateway 只对受控的旧、新两个 Origin 做版本选择，其他历史自定义元数据保持原行为；
+- Desktop 类凭据的数据库元数据只允许这两个受控 Origin，否则仍返回
+  `account_migration_required`。
+
+本阶段不批量改写 `unified_client_keys.metadata_json`，也不轮换 MedEvidence key。
+Phone identity 准备流程会保留已经是受控旧/新 Origin 的元数据；因此可先部署默认关闭的
+Gateway 能力，再由客户端团队提供首个修复版本号，最后只通过环境变量开启分版本切换。
+在旧客户端全部退出且准备轮换 key 之前，不要批量把元数据迁移为 R760 Origin。
+
+`GET /gateway/health` 通过非敏感字段公开当前策略，便于部署验收：
+
+```json
+{
+  "medevidence_routing": {
+    "mode": "legacy_only",
+    "r760_minimum_desktop_version": null
+  }
+}
+```
+
+开启后 `mode` 为 `versioned`，并显示配置的最低版本。该兼容策略无法修复旧客户端到
+nip.io 的 TLS/SNI reset；发生该网络故障的设备仍必须升级到支持 R760 Origin 的版本。
 
 ## 首次 Additive 部署与 canary 顺序（历史验收流程）
 

@@ -91,6 +91,7 @@ import {
 import {
   applyPrivateResponseHeaders,
   assertPhoneAuthVersionGateCompatibility,
+  desktopVersionHeader,
   desktopVersionGateError,
   isPhoneSessionRoute,
   resolveDesktopVersionGate,
@@ -99,13 +100,18 @@ import {
   type DesktopVersionGate
 } from "./desktop-version-gate.js";
 import {
+  isApprovedMedevidenceOrigin,
+  resolveMedevidenceOriginPolicy,
+  selectMedevidenceOrigin,
+  type MedevidenceOriginPolicy
+} from "./medevidence-origin-policy.js";
+import {
   phoneAuthContractErrorHandler,
   registerPhoneAuthRoutes,
   sendPhoneAuthError
 } from "./phone-auth-routes.js";
 import {
   PhoneAuthService,
-  phoneAuthMedevidenceOrigin,
   resolvePhoneAuthMode,
   resolvePhoneAuthServiceOptions
 } from "./services/phone-auth-service.js";
@@ -326,6 +332,7 @@ export interface GatewayOptions {
   phoneAuthStore?: PhoneAuthStore;
   phoneAuthService?: PhoneAuthService | null;
   desktopVersionGate?: DesktopVersionGate;
+  medevidenceOriginPolicy?: MedevidenceOriginPolicy;
   phoneAuthLoginRateLimiter?: CredentialRateLimiter;
   phoneAuthPhoneRequestsPerMinute?: number;
   phoneAuthIpRequestsPerMinute?: number;
@@ -561,6 +568,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     (isPlanEntitlementStore(sessions) ? sessions : undefined);
   const desktopVersionGate =
     options.desktopVersionGate ?? resolveDesktopVersionGate(process.env);
+  const medevidenceOriginPolicy =
+    options.medevidenceOriginPolicy ??
+    resolveMedevidenceOriginPolicy(process.env);
   const configuredPhoneAuthMode = resolvePhoneAuthMode(
     process.env.GATEWAY_PHONE_AUTH_MODE
   );
@@ -1168,6 +1178,11 @@ export function buildGateway(options: GatewayOptions = {}) {
           version_gate_mode: desktopVersionGate.mode,
           minimum_desktop_version: desktopVersionGate.minimumVersion
         },
+        medevidence_routing: {
+          mode: medevidenceOriginPolicy.mode,
+          r760_minimum_desktop_version:
+            medevidenceOriginPolicy.r760MinimumDesktopVersion
+        },
         provider: publicMetadata.providerName,
         store: {
           session: storeKind(sessions),
@@ -1509,9 +1524,13 @@ export function buildGateway(options: GatewayOptions = {}) {
       const medevidenceBaseUrl = normalizeBaseUrl(
         metadataString(result.record.metadata, "medevidence_base_url")
       );
+      const routeMissingMedevidenceMetadata = Boolean(
+        result.record.medevidenceKeyPrefix && medevidenceBaseUrl === null
+      );
       if (
         credentialClass === "desktop" &&
-        medevidenceBaseUrl !== phoneAuthMedevidenceOrigin
+        !isApprovedMedevidenceOrigin(medevidenceBaseUrl) &&
+        !routeMissingMedevidenceMetadata
       ) {
         return sendPhoneAuthError(
           request,
@@ -1574,6 +1593,18 @@ export function buildGateway(options: GatewayOptions = {}) {
 
       recordUnifiedKeyResolveAudit(adminAuditStore, result.record, request.log);
 
+      const receivedClientVersion = request.headers[desktopVersionHeader];
+      const clientVersion =
+        typeof receivedClientVersion === "string"
+          ? receivedClientVersion
+          : null;
+      const selectedMedevidenceBaseUrl = selectMedevidenceOrigin(
+        medevidenceBaseUrl,
+        clientVersion,
+        medevidenceOriginPolicy,
+        routeMissingMedevidenceMetadata
+      );
+
       return {
         valid: true,
         unified_key: {
@@ -1594,7 +1625,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           api_key: codexApiKey
         },
         medevidence: {
-          base_url: medevidenceBaseUrl,
+          base_url: selectedMedevidenceBaseUrl,
           key_prefix: result.record.medevidenceKeyPrefix,
           api_key: medevidenceApiKey
         }

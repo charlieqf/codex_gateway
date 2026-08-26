@@ -9,7 +9,8 @@ import { createSqliteStore } from "@codex-gateway/store-sqlite";
 import {
   PhoneAuthService,
   phoneAuthGatewayOrigin,
-  phoneAuthMedevidenceOrigin
+  phoneAuthMedevidenceOrigin,
+  phoneAuthR760MedevidenceOrigin
 } from "./phone-auth-service.js";
 
 const start = new Date("2026-08-20T00:00:00.000Z");
@@ -344,7 +345,28 @@ describe("PhoneAuthService", () => {
     duplicate.store.close();
   });
 
-  it("accepts only the approved MedEvidence origin", () => {
+  it("accepts both approved MedEvidence origins and rejects all others", () => {
+    const migrated = createFixture();
+    migrated.store.database
+      .prepare("UPDATE unified_client_keys SET metadata_json = ? WHERE id = ?")
+      .run(
+        JSON.stringify({
+          medevidence_base_url: phoneAuthR760MedevidenceOrigin
+        }),
+        migrated.unified.record.id
+      );
+    migrated.service.prepareIdentity({
+      phone: "13800138000",
+      subjectId: migrated.subjectId,
+      unifiedKey: migrated.unified.token,
+      requestId: "req_r760_origin"
+    });
+    expect(
+      migrated.store.getUnifiedClientKeyByPrefix(migrated.unified.record.prefix)
+        ?.metadata
+    ).toEqual({ medevidence_base_url: phoneAuthR760MedevidenceOrigin });
+    migrated.store.close();
+
     const fixture = createFixture();
     fixture.store.database
       .prepare("UPDATE unified_client_keys SET metadata_json = ? WHERE id = ?")

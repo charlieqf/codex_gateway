@@ -206,6 +206,10 @@ export function compareStrictSemVer(left: string, right: string): number {
   return 0;
 }
 
+export function isStrictSemVer(value: string): boolean {
+  return parseStrictSemVer(value) !== null;
+}
+
 function parseStrictSemVer(value: string): ParsedSemVer | null {
   const match = semVerPattern.exec(value);
   if (!match) {

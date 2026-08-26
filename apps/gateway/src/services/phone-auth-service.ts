@@ -32,11 +32,19 @@ import {
   type UnifiedClientKeyStore
 } from "@codex-gateway/core";
 import { resolvePemSecret, resolveProviderApiKey } from "./provider-secret.js";
+import {
+  isApprovedMedevidenceOrigin,
+  phoneAuthLegacyMedevidenceOrigin
+} from "../medevidence-origin-policy.js";
+
+export {
+  phoneAuthLegacyMedevidenceOrigin,
+  phoneAuthMedevidenceOrigin,
+  phoneAuthR760MedevidenceOrigin
+} from "../medevidence-origin-policy.js";
 
 export const phoneAuthGatewayOrigin =
   "https://goldencode.instmarket.com.au:1443";
-export const phoneAuthMedevidenceOrigin =
-  "https://gw-47-116-7-37.nip.io";
 
 export interface PhoneAuthServiceOptions {
   mode: PhoneAuthMode;
@@ -301,6 +309,9 @@ export class PhoneAuthService {
     }
     this.requireRuntimeBundle(key, now, false);
     this.requireActiveInternalAccount(input.subjectId, now);
+    const existingMedevidenceOrigin = normalizeBaseUrl(
+      metadataString(key.metadata, "medevidence_base_url")
+    );
     const phoneHash = phoneLookupHash(
       normalizedPhone,
       this.requiredPhoneLookupSecret()
@@ -319,7 +330,8 @@ export class PhoneAuthService {
       ),
       unifiedKeyMetadata: {
         ...(key.metadata ?? {}),
-        medevidence_base_url: phoneAuthMedevidenceOrigin
+        medevidence_base_url:
+          existingMedevidenceOrigin ?? phoneAuthLegacyMedevidenceOrigin
       },
       backingAllowedPublicModels: ["goldencode", "goldencode-local"],
       requestId: input.requestId,
@@ -755,7 +767,7 @@ export class PhoneAuthService {
       metadataString(unifiedKey.metadata, "medevidence_base_url")
     );
     const medevidenceOriginReady =
-      medevidenceBaseUrl === phoneAuthMedevidenceOrigin ||
+      isApprovedMedevidenceOrigin(medevidenceBaseUrl) ||
       (!requireDesktopClass && medevidenceBaseUrl === null);
     if (
       !credential ||

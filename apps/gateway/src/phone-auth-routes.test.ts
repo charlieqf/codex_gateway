@@ -18,6 +18,10 @@ import {
 import type { ImageGenerationProvider } from "./image-generation.js";
 import { buildGateway } from "./index.js";
 import {
+  phoneAuthLegacyMedevidenceOrigin,
+  phoneAuthR760MedevidenceOrigin
+} from "./medevidence-origin-policy.js";
+import {
   PhoneAuthService,
   phoneAuthGatewayOrigin,
   phoneAuthMedevidenceOrigin
@@ -43,7 +47,8 @@ for (const name of [
   "GATEWAY_PHONE_AUTH_MODE",
   "GATEWAY_DESKTOP_VERSION_GATE",
   "GATEWAY_MINIMUM_DESKTOP_VERSION",
-  "GATEWAY_DESKTOP_DOWNLOAD_URL"
+  "GATEWAY_DESKTOP_DOWNLOAD_URL",
+  "GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION"
 ]) {
   savedEnvironment.set(name, process.env[name]);
 }
@@ -59,6 +64,111 @@ afterEach(() => {
 });
 
 describe("internal phone auth v1 routes", () => {
+  it("keeps legacy clients on nip.io and routes only fixed clients to R760", async () => {
+    const fixture = createFixture({
+      medevidenceR760MinimumDesktopVersion: "2.0.0-beta.47"
+    });
+    try {
+      const health = await fixture.app.inject({
+        method: "GET",
+        url: "/gateway/health"
+      });
+      expect(health.json().medevidence_routing).toEqual({
+        mode: "versioned",
+        r760_minimum_desktop_version: "2.0.0-beta.47"
+      });
+
+      const resolve = (version?: string) =>
+        fixture.app.inject({
+          method: "POST",
+          url: "/gateway/unified-keys/resolve",
+          headers: {
+            authorization: `Bearer ${fixture.unified.token}`,
+            ...(version
+              ? { "x-medevidence-client-version": version }
+              : {})
+          },
+          payload: {}
+        });
+
+      const missingVersion = await resolve();
+      const lowerVersion = await resolve("2.0.0-beta.46");
+      const malformedVersion = await resolve("beta.47");
+      const fixedVersion = await resolve("2.0.0-beta.47");
+
+      expect(missingVersion.statusCode).toBe(200);
+      expect(lowerVersion.statusCode).toBe(200);
+      expect(malformedVersion.statusCode).toBe(200);
+      expect(fixedVersion.statusCode).toBe(200);
+      expect(missingVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(lowerVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(malformedVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(fixedVersion.json().medevidence.base_url).toBe(
+        phoneAuthR760MedevidenceOrigin
+      );
+      expect(
+        fixture.store.getUnifiedClientKeyByPrefix(
+          fixture.unified.record.prefix
+        )?.metadata
+      ).toEqual({
+        medevidence_base_url: phoneAuthLegacyMedevidenceOrigin
+      });
+
+      fixture.store.database
+        .prepare("UPDATE unified_client_keys SET metadata_json = ? WHERE id = ?")
+        .run(
+          JSON.stringify({
+            medevidence_base_url: phoneAuthR760MedevidenceOrigin
+          }),
+          fixture.unified.record.id
+        );
+      expect((await resolve()).json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect((await resolve("2.0.0-beta.47")).json().medevidence.base_url).toBe(
+        phoneAuthR760MedevidenceOrigin
+      );
+
+      fixture.store.database
+        .prepare("UPDATE unified_client_keys SET metadata_json = NULL WHERE id = ?")
+        .run(fixture.unified.record.id);
+      const missingMetadataWithoutVersion = await resolve();
+      const missingMetadataLowerVersion = await resolve("2.0.0-beta.46");
+      const missingMetadataMalformedVersion = await resolve("not-semver");
+      const missingMetadataFixedVersion = await resolve("2.0.0-beta.47");
+
+      expect(missingMetadataWithoutVersion.statusCode).toBe(200);
+      expect(missingMetadataLowerVersion.statusCode).toBe(200);
+      expect(missingMetadataMalformedVersion.statusCode).toBe(200);
+      expect(missingMetadataFixedVersion.statusCode).toBe(200);
+      expect(missingMetadataWithoutVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(missingMetadataLowerVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(missingMetadataMalformedVersion.json().medevidence.base_url).toBe(
+        phoneAuthLegacyMedevidenceOrigin
+      );
+      expect(missingMetadataFixedVersion.json().medevidence.base_url).toBe(
+        phoneAuthR760MedevidenceOrigin
+      );
+      expect(
+        fixture.store.getUnifiedClientKeyByPrefix(
+          fixture.unified.record.prefix
+        )?.metadata
+      ).toBeNull();
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
   it("implements the frozen login, bootstrap, resolve and current contract", async () => {
     const fixture = createFixture();
     try {
@@ -943,6 +1053,7 @@ function createFixture(
     phoneRequestsPerMinute?: number;
     ipRequestsPerMinute?: number;
     deviceRequestsPerMinute?: number;
+    medevidenceR760MinimumDesktopVersion?: string | null;
   } = {}
 ) {
   process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
@@ -1052,6 +1163,16 @@ function createFixture(
       minimumVersion: clientVersion,
       downloadUrl: "https://updates.example/medevidence.exe"
     },
+    medevidenceOriginPolicy: options.medevidenceR760MinimumDesktopVersion
+      ? {
+          mode: "versioned",
+          r760MinimumDesktopVersion:
+            options.medevidenceR760MinimumDesktopVersion
+        }
+      : {
+          mode: "legacy_only",
+          r760MinimumDesktopVersion: null
+        },
     billingAdminToken,
     billingAdminTokenMode: "env",
     phoneAuthLoginRateLimiter: loginRateLimiter,

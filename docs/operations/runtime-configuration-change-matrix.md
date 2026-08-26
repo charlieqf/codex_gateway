@@ -1,6 +1,6 @@
 # Runtime configuration change matrix
 
-Last updated: 2026-07-29
+Last updated: 2026-08-26
 
 This document distinguishes source/image changes, startup-only container
 configuration and already-online database policy. It is intended to prevent a
@@ -38,6 +38,7 @@ surface, not a recommendation to make every value dynamically writable.
 | User state, credential label/scope/expiry, RPM/RPD/concurrency, credential model allowlist | Gateway SQLite; read during authentication | Online through audited admin/billing commands; no restart | Keep online and database-backed |
 | Plan, entitlement, capability allowlist and token policy | Gateway SQLite; resolved on each protected request | Online through audited plan/entitlement/billing paths; no restart | Keep online and database-backed |
 | Billing admin tokens and unified-key records | Gateway SQLite | Online issue/revoke/rotate; no restart | Keep online and database-backed |
+| MedEvidence R760 minimum Desktop version | `GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION`, read by Gateway at startup | Recreate Gateway only; no image rebuild once the supporting code is deployed, and no database migration | Keep separate from the Phone Auth gate; blank means legacy-only and rollback is an env-only Gateway recreate |
 | Upstream account health, cooldown and sticky-session state | Gateway SQLite runtime state | Updated online by routing/runtime logic | Keep online; do not confuse it with pool membership configuration |
 | Research daily runs, rolling unique doctors, active brief, global queue and `needs_input` limits | API and Worker env; store captures an immutable limits object at startup | Today: no image rebuild when the value is already supported, but recreate all Research-aware containers to maintain parity | Highest-priority online-policy candidate; make Gateway the single admission authority and expose a policy version to Worker/maintenance |
 | Research control-plane read/mutation RPM | Gateway startup-created in-process limiter | Recreate Gateway | Candidate only after a persistent/versioned rate policy is implemented; avoid a partial hot reload that leaves old limiter state ambiguous |
