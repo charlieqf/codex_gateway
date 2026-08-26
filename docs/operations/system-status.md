@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
 ## Current Phase
 
@@ -34,6 +34,30 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-26 MedEvidence Origin version routing:** R760 `current` is release
+  `564a0baed6623490e9b52a1a55e56cf18e8e4701`, `previous` is
+  `2816d68801acd8403c80f3962051fbcde7e96e49`, and the active Gateway image is
+  `sha256:bc69c0615661d35c669d71006510ba5f0921924894f28fd0d920d42abfff4614`.
+  Only Gateway was recreated; Research LLM Gateway, Worker, maintenance,
+  Mihomo and `qwen38-fp8-local` retained their container IDs. Gateway is
+  healthy with restart count zero and remains loopback-only on
+  `127.0.0.1:18787`. The independent MedEvidence routing gate is enabled at
+  strict SemVer `2.0.0-beta.47`: missing Header, malformed versions and
+  `2.0.0-beta.46` resolve to the legacy nip.io Origin, while beta.47 and
+  beta.48 resolve to `https://r760.instmarket.com.au:1443`. A live public
+  resolver smoke used a temporary legacy-shaped `unknown` unified key with a
+  MedEvidence key prefix and null metadata; all five cases passed, the
+  resolver left metadata null, and the fixture was revoked/disabled and
+  removed. The deployment did not migrate unified-key metadata or rotate any
+  real token. Gateway SQLite remained at schema 27 with integrity `ok` and
+  zero foreign-key violations; `r760` health returned 200 and unauthenticated
+  `/ask/pubmed` returned 401 rather than 404. The protected rollback boundary
+  is
+  `/data/codex-gateway-r760/backups/pre-medevidence-origin-routing-20260826T121525Z`.
+  An initial Compose precheck found the candidate release's private env link
+  missing and automatically restored the old release/env/image before the
+  successful retry; no database or credential migration occurred in that
+  attempt.
 - **2026-08-25 Doctor lookup brief production release (supersedes older
   Doctor Research release statements below):** R760 `current` is
   `2816d68801acd8403c80f3962051fbcde7e96e49`, `previous` is
