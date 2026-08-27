@@ -34,6 +34,41 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-28 Doctor Research model-authored raw-URL repair (supersedes the
+  remaining 张文宏 model-output failure below):** R760 `current` is
+  `e4f27d31324cbddfb1052b19d4fce2d181afa8be`, `previous` is
+  `09783fcaf7c4fb64dc96422d90e2a176c91e5521`, and the Research Worker image
+  is
+  `sha256:378f090cdc015cc21935dc30e06bedc7714e6b5f2d98598ccec24c2a6b90d152`.
+  Sanitized production validation logs proved that the original strict
+  publication lookup was not the failure: its first model response had
+  `parse_error`, while the corrected response's only hard Doctor Lookup error
+  was `unsafe_model_markup:raw_url`; the remaining content, citation, length
+  and numeric diagnostics were brief-mode warnings. The existing bounded
+  presentation-repair pass now removes raw URLs only from model-authored
+  narrative fields, reparses the schema and reruns the complete validator.
+  Official/source URLs and PubMed references are not changed. Schema failure,
+  any other unsafe markup or any remaining hard error still fails closed. The
+  change adds no model call, source relaxation, publication fallback or retry;
+  unrelated diagnostic HTML-cleanup changes were removed from the final tree.
+  The exact Unicode-safe replay for `张文宏 / 复旦大学附属华山医院 / 感染科 /
+  上海`, run `drr_318c8ea6820e42df8a41b6026472ca7f`, succeeded in 99.946
+  seconds with 12 sources, five strictly attributed PubMed references and four
+  hash-verified artifacts. Its first model call returned unparsable content in
+  28.720 seconds; the one existing correction call completed in 20.845 seconds
+  and was accepted after deterministic raw-URL removal. Stored-result
+  verification found no raw URL in any narrative field while all official,
+  PubMed and Crossref source URLs remained present. The focused Research suite
+  passed 199 tests; build, typecheck, sensitive-artifact scan, dependency audit
+  and `git diff --check` passed. A broad Windows test run passed 833 tests with
+  two skips but hit unrelated resource-sensitive SQLite/Admin timing limits;
+  the SQLite case passed alone, while one Admin CLI case completed in about 37
+  seconds against its fixed 30-second timeout. Public and loopback health are
+  200, the Worker is healthy with zero restarts, both live databases report
+  integrity `ok` and zero foreign-key violations, and there are zero unfinished
+  Research runs, unfinalized reservations or active diagnostic users. The
+  protected backup is
+  `/data/codex-gateway-r760/backups/pre-research-raw-url-repair-20260827T233459Z`.
 - **2026-08-28 runtime Chinese-name PubMed identity release:** R760 `current` is
   `c254117f26d6b8501d8a641462a3cd3e7b0665b2`, `previous` is
   `fa6772029640cae1c7bac9860b2ba21eb3ac925b`, and the paired Gateway/Worker
