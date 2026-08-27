@@ -172,7 +172,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ).rejects.toThrow("requires a fresh verified maintenance backup");
   });
 
-  it("completes a brief doctor lookup in one model call without scientific-review appraisal", async () => {
+  it("completes a brief doctor lookup with no verified publication in one model call", async () => {
     const root = temporaryDirectory();
     const artifactRoot = path.join(root, "artifacts");
     const store = createResearchSqliteStore({
@@ -225,6 +225,12 @@ describe("Research Worker controlled-beta workflow", () => {
       "这位医生目前公开可核验的具体执业情况和就诊渠道分别是什么？";
     closableOutput.answers[0]!.answer =
       "请以医院官方公开信息和实际预约渠道为准。";
+    closableOutput.review.core_evidence = [];
+    closableOutput.review.references = [];
+    closableOutput.review.search_report.included_count = 0;
+    for (const answer of closableOutput.answers) {
+      answer.source_ids = ["src_official_1"];
+    }
     closableOutput.profile.expertise = ["Invented unsupported specialty"];
     closableOutput.profile.claims = [{
       claim_id: "clm_unsupported_extra",
@@ -256,7 +262,12 @@ describe("Research Worker controlled-beta workflow", () => {
     const outcome = await executeDoctorResearchWorkflow({
       lease,
       store,
-      adapters: adapters(0),
+      adapters: {
+        ...adapters(0),
+        async searchPubMed() {
+          return [];
+        }
+      },
       modelClient,
       artifactRoot,
       policy: {
@@ -286,7 +297,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(validationErrors).toContainEqual(
       expect.arrayContaining([
         "review_content_minimum",
-        "citation_reference_closure",
+        "reference_count_minimum",
         "paragraph_citation_coverage",
         "answer_length_contract"
       ])
@@ -294,11 +305,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(observedPrompt).toContain("verified_doctor_publications");
     expect(observedPrompt).toContain("not a scientific literature review");
     expect(observedPrompt).not.toContain("allowed_numeric_contexts");
-    expect(observedPrompt).toContain('"publication_year":2025');
-    expect(observedPrompt).toContain(
-      "verified_doctor_publications"
-    );
-    expect(observedPrompt).toContain("Randomized evidence from the retrieved abstract");
+    expect(observedPrompt).not.toContain('"publication_year":2025');
     const run = store.getRunForSubject(created.receipt.run_id, "subj_worker_e2e");
     expect(run?.status).toBe("succeeded");
     const stored = store.getRunResultForSubject(
@@ -314,6 +321,12 @@ describe("Research Worker controlled-beta workflow", () => {
         research_directions: string[];
         claims: Array<{ claim_type: string; text: string }>;
       };
+      review: {
+        core_evidence: unknown[];
+        references: unknown[];
+        search_report: { included_count: number };
+      };
+      source_coverage: { warnings: string[] };
       artifacts: Array<{
         artifact_id: string;
         kind: string;
@@ -325,6 +338,12 @@ describe("Research Worker controlled-beta workflow", () => {
       "research area cardiology"
     ]);
     expect(result.profile.expertise).toEqual([]);
+    expect(result.review.core_evidence).toEqual([]);
+    expect(result.review.references).toEqual([]);
+    expect(result.review.search_report.included_count).toBe(0);
+    expect(result.source_coverage.warnings).toContain(
+      "doctor_publication_evidence_not_found"
+    );
     expect(JSON.stringify(result.profile)).not.toContain(
       "Invented unsupported specialty"
     );

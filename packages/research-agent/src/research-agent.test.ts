@@ -106,13 +106,31 @@ describe("Doctor Research production contracts", () => {
     expect(parsed).toMatchObject({ ok: true });
   });
 
+  it("accepts an otherwise valid result with no verified publication evidence", () => {
+    const modelOutput = validModelOutput();
+    modelOutput.review.core_evidence = [];
+    modelOutput.review.references = [];
+    modelOutput.review.search_report.included_count = 0;
+    expect(
+      parseAndValidateDoctorResearchModelOutput(JSON.stringify(modelOutput))
+    ).toMatchObject({ ok: true });
+
+    const result = validResult();
+    result.review.core_evidence = [];
+    result.review.references = [];
+    result.review.search_report.included_count = 0;
+    expect(
+      parseAndValidateDoctorResearchResult(JSON.stringify(result))
+    ).toMatchObject({ ok: true });
+  });
+
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.6.115",
+      version: "1.6.116",
       workflowPolicyVersion: "doctor_research_workflow.v85",
       promptVersion: "doctor-research-prompt.v32",
-      validationPolicyVersion: "doctor_research_validation.v46",
+      validationPolicyVersion: "doctor_research_validation.v47",
       artifactPolicyVersion: "doctor_research_artifacts.v3",
       inputSchemaVersion: "doctor_research_run_input.v2",
       modelOutputSchemaVersion: "doctor_research_model_draft.v1",

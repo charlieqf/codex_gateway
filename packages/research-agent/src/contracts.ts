@@ -404,7 +404,7 @@ export const doctorResearchResultSchema = {
         markdown: { type: "string", minLength: 1 },
         core_evidence: {
           type: "array",
-          minItems: 1,
+          minItems: 0,
           items: {
             type: "object",
             additionalProperties: false,
@@ -431,7 +431,7 @@ export const doctorResearchResultSchema = {
         },
         references: {
           type: "array",
-          minItems: 1,
+          minItems: 0,
           items: {
             type: "object",
             additionalProperties: false,
@@ -481,7 +481,7 @@ export const doctorResearchResultSchema = {
             databases: stringArray(1),
             searched_at: { type: "string", pattern: isoInstantPattern },
             queries: stringArray(1),
-            included_count: { type: "integer", minimum: 1 }
+            included_count: { type: "integer", minimum: 0 }
           }
         }
       }
