@@ -9,11 +9,13 @@
 公开职位与专长、可核验的代表性发表和来源边界；不要求生成长篇医学综述，
 也不评价论文质量、证据等级或科研水平。
 
-生产版本为 `doctor-research-skill.1.6.116`，workflow `v85`、Prompt `v32`、
-validation `v47`。Worker 只使用内部 Tencent `glm-5.3`，reasoning level 为
-`low`；Qianfan 和 Aliyun 不在有效池或 secret mount 中。`brief` 正常路径仅调用
-模型一次，输出上限 8k、单次时限 120 秒；仅传输故障或真正的硬契约故障允许
-一次有界重试。
+生产 Worker 为 `doctor-research-skill.1.6.117`，workflow `v86`、Prompt `v32`、
+validation `v47`。当前 release 为
+`fa6772029640cae1c7bac9860b2ba21eb3ac925b`，previous 为
+`4df67f22e6dc0e5c9a9febde866a20e00b737218`。Worker 只使用内部 Tencent
+`glm-5.3`，reasoning level 为 `low`；Qianfan 和 Aliyun 不在有效池或 secret mount
+中。`brief` 正常路径仅调用模型一次，输出上限 8k、单次时限 120 秒；仅传输故障或真正
+的硬契约故障允许一次有界重试。
 
 仍然 fail-closed 的硬门槛包括：医生身份解析、官网来源闭环、发表归属、未知
 source/reference ID、schema、危险标记/禁止输出、prompt injection 隔离。以下旧科研
@@ -22,30 +24,55 @@ source/reference ID、schema、危险标记/禁止输出、prompt injection 隔�
 下文关于长篇综述和医学证据校验的要求是历史记录或完整研究模式要求，不再是医生
 速查的发布条件。
 
-`drr_975b80dcf45b486da0464a95e6682971` 的直接原因已经定位：身份和官网来源已
-完成核验，但没有发现能够安全归属于该医生本人的文献。业务流程和 Prompt 都允许
-这种情况，模型 schema 却仍要求 `core_evidence`、`references` 至少各 1 项且
-`included_count >= 1`，因此合法的“零篇可核验文献”无法通过结构校验。
+### 本次故障与文献漏检的最终结论
 
-`1.6.116` 仅把上述三个 schema 下限改为 0；没有新增重试、兜底或伪造引用。
-完整研究/非 `brief` 模式的最小证据门槛仍由原有流程 fail-closed 执行。使用数据库中
-原失败 run 的同一份输入（先校验输入 SHA-256，且不输出医生或查询正文）在生产回归为
-`drr_dea9face63f94247878c1c90435a5c38`，51.659 秒成功，结果为 0 篇参考文献、
-0 条核心证据、`included_count=0`，明确带
-`doctor_publication_evidence_not_found`，并生成 4 个产物。首次模型响应为
-`parse_error`，所以原有的一次有界契约修正执行了第二次也是最后一次模型调用；这不是
-本次修复新增的 fallback。
+`drr_975b80dcf45b486da0464a95e6682971` 同时暴露了两个独立问题。第一个是模型 schema
+仍要求 `core_evidence`、`references` 至少各 1 项且 `included_count >= 1`，使合法的
+零文献结果无法结构化返回；`1.6.116` 仅把这三个下限改为 0，没有新增重试、兜底或伪造
+引用。第二个问题是在该修复成功返回零篇后才确认的真实漏检：PubMed 确实存在该医生以
+`Bao-Guo Jiang` / `Jiang BG` 和 Peking University People's Hospital 英文机构发表的
+文献，但旧服务把中文姓名、医院和科室直接标成 PubMed Author/Affiliation 字段。NCBI
+会丢弃这些字段限定，候选检索无效；同时 brief 路径只检查返回列表的前 5 条，而不是在
+有界候选集合内寻找最多 5 条通过归属验证的文献。
 
-R760 当前 release 为 `3bcbf48e391e2816bb0ecf47656926b548711f71`，previous
-为 `564a0baed6623490e9b52a1a55e56cf18e8e4701`，Gateway/Worker 镜像为
-`sha256:d0861f6ab2dc18c62b6ab4a9130d46527e980ac4a6f2c0ef8909f4b09d43bca1`；
-两者健康、restart 0，内部 LLM Gateway/Maintenance 未重建。发布前在线备份
-`/data/codex-gateway-r760/backups/pre-doctor-publication-contract-116-20260827T095620Z`
-的四个 SQLite 副本均通过 integrity、外键和 SHA-256 校验。测试账号的 key 已撤销、
-entitlement 已取消、用户已禁用，临时目录和测试预约均已清理。公网与 loopback 健康
-检查均为 200；Gateway、Research 和内部 LLM SQLite 均为 `ok`、外键错误为 0。
-本地门禁通过 build、826 个 Node 测试（另 2 个跳过）、56 个 Python 测试、
-`git diff --check` 和零漏洞审计。
+`4df67f22e6dc0e5c9a9febde866a20e00b737218` 增加了经 PMC 双语来源核验的英文文献身份、
+最多 5 个确定性拉丁作者变体、组合首字母兼容、NCBI 字段保留检查，以及“最多扫描 40 条、
+最多接收 5 条”的分离上限。它没有加入开放网页文献兜底、宽松作者归属或额外模型重试。
+首次生产重放仍为零篇，随后发现原输入科室为“骨科”，注册表锚点却是“创伤骨科”；
+`fa6772029640cae1c7bac9860b2ba21eb3ac925b` 只补充了这个经核验的科室别名。
+
+最终使用数据库中 SHA-256 核验过的原输入重放为
+`drr_54bcc1f8c78b4903afdee1483fb96e95`：43.780 秒成功，四个产物逐一通过大小和 SHA-256
+校验，纳入 5 篇文献，PMID 为 `34100460`、`31209421`、`30632509`、`29424054`、
+`29263472`。实际检索式已使用 `Bao-Guo Jiang` / `Jiang BG` 等英文作者变体、英文医院和
+英文科室，不再使用中文 PubMed 字段。
+
+### 四位医生覆盖对照与仍存在的通用缺口
+
+同一生产入口还用四位官网可核验的北京协和医院医生做了普通三字段测试，不向请求手工提供
+英文名或文献身份：知名组郎景和、赵玉沛分别在 107.263 秒和 45.560 秒成功；公开曝光相对
+少的杨璐、文煜冰分别在 47.611 秒和 24.979 秒成功。四条 run 都是结构化成功、四产物哈希
+正确，但均返回 0 篇，因为生成的 PubMed 检索式仍使用中文姓名/医院/科室。
+
+独立 PubMed 核对找到了四人的可归属记录，例如郎景和 PMID `40087731`、赵玉沛 PMID
+`32131872`、杨璐 PMID `36916519`、文煜冰 PMID `39478870` 和 `38730122`；以拉丁姓名变体、
+PUMCH 英文机构及科室限定进行的同上游候选检索也都返回非零候选。因此“0 篇”不能对用户
+表述成“医生没有文献”，只能表述为“本次服务未找到可安全归属的文献”。如果产品要求每次
+查询都尽可能找到已有 PubMed 文献，下一项 P0 应是有证据来源的中英文身份 enrichment，
+并继续用机构、科室、共同作者或 ORCID 做闭合验证；不能直接对中文名做无证据拼音猜测，也
+不能退化为作者名命中即归属。
+
+当前 Gateway 镜像为
+`sha256:898250b6d95fbe913253a4e1b83dccb3998051b682277664a81c6b4adb6743ce`，
+Worker 镜像保持
+`sha256:b6f40c8a629fb2e41c6733cb5404a0bf68b7a61ff2e5a263685391e825ec6550`。
+最终别名发布只重建 Gateway，Worker、内部 LLM Gateway 和 Maintenance 容器 ID 未变化；
+所有容器 healthy、restart 0。保护备份
+`/data/codex-gateway-r760/backups/pre-doctor-literature-118-20260827T124340Z` 的四个 SQLite
+副本均通过 integrity、外键和 SHA-256 校验。实现发布门禁通过 build、827 个 Node 测试
+（另 2 个跳过）、56 个 Python 测试和零漏洞审计；最终别名增量另通过 30 个 Gateway 路由
+测试和 9 个 Docker 契约测试。所有临时 key 已撤销、entitlement 已取消、用户已禁用，
+临时 smoke 文件已清理。
 
 运维教训：一次较早的发布脚本没有用 shell errexit 执行，导致 `[1,0,0]` 预检
 没有阻止后续步骤，可能中断过一个公网请求；现行脚本必须使用 `bash -euo pipefail`

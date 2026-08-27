@@ -34,6 +34,53 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-27 Doctor publication identity and exact-query fix (supersedes the
+  zero-publication conclusion immediately below):** The zero-publication result
+  was not the final evidence state. PubMed independently contains papers for
+  the reported doctor under `Bao-Guo Jiang` / `Jiang BG` and the English
+  Peking University People's Hospital affiliation. Chinese values tagged as
+  PubMed Author/Affiliation fields were discarded by NCBI query translation,
+  and the brief collector inspected only the first five candidates rather than
+  scanning the bounded candidate set for five verified records. Release
+  `4df67f22e6dc0e5c9a9febde866a20e00b737218` added the verified bilingual
+  identity, bounded Latin author variants, retained-field checking, a 40-record
+  scan capped at five accepted publications, combined-initial matching and the
+  required PMC source. It did not add an open-web literature fallback, relaxed
+  author-only attribution or another model retry. The first production replay
+  then exposed that the stored input used department `骨科` while the registry
+  anchor used `创伤骨科`; release
+  `fa6772029640cae1c7bac9860b2ba21eb3ac925b` adds only that verified department
+  alias. The final hash-verified exact replay
+  `drr_54bcc1f8c78b4903afdee1483fb96e95` succeeded in 43.780 seconds with five
+  verified references (PMIDs `34100460`, `31209421`, `30632509`, `29424054`
+  and `29263472`) and four artifact hashes verified end to end.
+  Four ordinary, unseeded production queries were also run as a coverage
+  comparison: well-known PUMCH doctors 郎景和 and 赵玉沛 completed in 107.263
+  and 45.560 seconds; lower-public-profile PUMCH doctors 杨璐 and 文煜冰
+  completed in 47.611 and 24.979 seconds. All four produced structurally valid,
+  hash-verified artifacts but zero publications because their Chinese
+  identities were not mapped to PubMed Latin identities. Direct PubMed checks
+  found attributable records for all four, so this is a confirmed generic
+  coverage limitation, not evidence that they have no literature. Keep
+  publication attribution fail-closed; the next improvement should be a
+  verified bilingual identity-enrichment stage, not broad transliteration or
+  author-only fallback.
+  R760 `current` is `fa6772029640cae1c7bac9860b2ba21eb3ac925b`, `previous` is
+  `4df67f22e6dc0e5c9a9febde866a20e00b737218`, the Gateway image is
+  `sha256:898250b6d95fbe913253a4e1b83dccb3998051b682277664a81c6b4adb6743ce`,
+  and the unchanged Worker image is
+  `sha256:b6f40c8a629fb2e41c6733cb5404a0bf68b7a61ff2e5a263685391e825ec6550`
+  with `doctor-research-skill.1.6.117`, workflow `v86`, prompt `v32` and
+  validation `v47`. The final alias deployment recreated only Gateway; Worker,
+  internal LLM Gateway and maintenance retained their container IDs. All are
+  healthy with restart count zero, and the protected backup is
+  `/data/codex-gateway-r760/backups/pre-doctor-literature-118-20260827T124340Z`;
+  all four SQLite copies passed integrity and foreign-key checks and have a
+  SHA-256 manifest. The implementation release passed build, 827 Node tests
+  with two skips, 56 Python tests and zero-vulnerability audit; the final alias
+  delta additionally passed 30 Gateway route and nine Docker contract tests.
+  All disposable keys were revoked, entitlements cancelled, users disabled and
+  smoke files removed.
 - **2026-08-27 Doctor lookup zero-publication contract fix (supersedes older
   Doctor Research release statements below):** Reported run
   `drr_975b80dcf45b486da0464a95e6682971` resolved the doctor identity and
