@@ -546,12 +546,39 @@ function extractHtmlTitle(html: string): string {
 }
 
 function htmlToText(html: string): string {
-  const withoutUnsafeBlocks = html
-    .replace(/<(script|style|noscript|template|svg|canvas)\b[\s\S]*?<\/\1>/giu, " ")
-    .replace(/<!--[\s\S]*?-->/gu, " ");
+  const withoutUnsafeBlocks = stripUnsafeHtmlRegions(html);
   return normalizeText(
     decodeHtmlEntities(withoutUnsafeBlocks.replace(/<[^>]+>/gu, " "))
   ).slice(0, 200_000);
+}
+
+function stripUnsafeHtmlRegions(html: string): string {
+  const opening = /<!--|<(script|style|noscript|template|svg|canvas)\b[^>]*>/giu;
+  let cursor = 0;
+  let output = "";
+  for (;;) {
+    opening.lastIndex = cursor;
+    const match = opening.exec(html);
+    if (!match) {
+      return output + html.slice(cursor);
+    }
+    output += `${html.slice(cursor, match.index)} `;
+    if (match[0] === "<!--") {
+      const closingAt = html.indexOf("-->", opening.lastIndex);
+      if (closingAt < 0) {
+        return output;
+      }
+      cursor = closingAt + 3;
+      continue;
+    }
+    const closing = new RegExp(`</${match[1]}\\s*>`, "giu");
+    closing.lastIndex = opening.lastIndex;
+    const closingMatch = closing.exec(html);
+    if (!closingMatch) {
+      return output;
+    }
+    cursor = closing.lastIndex;
+  }
 }
 
 function decodeHtmlEntities(value: string): string {
