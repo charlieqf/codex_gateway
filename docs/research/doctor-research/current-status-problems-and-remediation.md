@@ -1,16 +1,16 @@
 # Doctor Research API 现状、问题与解决思路
 
-更新时间：2026-08-25
+更新时间：2026-08-27
 
-## 当前生产结论（2026-08-25，覆盖下文历史约束）
+## 当前生产结论（2026-08-27，覆盖下文历史约束）
 
 用户要的是在几分钟内查清一位医生的具体公开情况，不是评审其科研成果。
 因此 R760 `brief` 模式现定义为“医生身份与公开资料速查”：查身份、医院/科室、
 公开职位与专长、可核验的代表性发表和来源边界；不要求生成长篇医学综述，
 也不评价论文质量、证据等级或科研水平。
 
-生产版本为 `doctor-research-skill.1.6.115`，workflow `v85`、Prompt `v32`、
-validation `v46`。Worker 只使用内部 Tencent `glm-5.3`，reasoning level 为
+生产版本为 `doctor-research-skill.1.6.116`，workflow `v85`、Prompt `v32`、
+validation `v47`。Worker 只使用内部 Tencent `glm-5.3`，reasoning level 为
 `low`；Qianfan 和 Aliyun 不在有效池或 secret mount 中。`brief` 正常路径仅调用
 模型一次，输出上限 8k、单次时限 120 秒；仅传输故障或真正的硬契约故障允许
 一次有界重试。
@@ -22,20 +22,30 @@ source/reference ID、schema、危险标记/禁止输出、prompt injection 隔�
 下文关于长篇综述和医学证据校验的要求是历史记录或完整研究模式要求，不再是医生
 速查的发布条件。
 
-原用户报错请求的最终生产回归 run
-`drr_a4e4f55e7e384f91979a75fb3bdac229` 在 42.082 秒内成功：1 次模型调用，
-模型阶段 29.585 秒，14,858 prompt tokens、2,568 completion tokens，产出 5 个
-问题、5 个答案和 4 个经大小/SHA-256 验证的产物。此前 `1.6.113` 回归约 8 分钟
-后因严格医学评审契约失败；`1.6.114` 已降到约 84 秒，但仍把短简介、引文覆盖和
-问答长度当成硬失败；`1.6.115` 修正了最后这层产品契约错配。
+`drr_975b80dcf45b486da0464a95e6682971` 的直接原因已经定位：身份和官网来源已
+完成核验，但没有发现能够安全归属于该医生本人的文献。业务流程和 Prompt 都允许
+这种情况，模型 schema 却仍要求 `core_evidence`、`references` 至少各 1 项且
+`included_count >= 1`，因此合法的“零篇可核验文献”无法通过结构校验。
 
-R760 当前 release 为 `2816d68801acd8403c80f3962051fbcde7e96e49`，previous
-为 `0e53b8343d3100232af43de845383bc55ed50fe2`，Gateway/Worker 镜像为
-`sha256:72daf28ea388a5d1971ed47333e7e51ff0ef0be73f83cd668133535c96ad14d1`；
+`1.6.116` 仅把上述三个 schema 下限改为 0；没有新增重试、兜底或伪造引用。
+完整研究/非 `brief` 模式的最小证据门槛仍由原有流程 fail-closed 执行。使用数据库中
+原失败 run 的同一份输入（先校验输入 SHA-256，且不输出医生或查询正文）在生产回归为
+`drr_dea9face63f94247878c1c90435a5c38`，51.659 秒成功，结果为 0 篇参考文献、
+0 条核心证据、`included_count=0`，明确带
+`doctor_publication_evidence_not_found`，并生成 4 个产物。首次模型响应为
+`parse_error`，所以原有的一次有界契约修正执行了第二次也是最后一次模型调用；这不是
+本次修复新增的 fallback。
+
+R760 当前 release 为 `3bcbf48e391e2816bb0ecf47656926b548711f71`，previous
+为 `564a0baed6623490e9b52a1a55e56cf18e8e4701`，Gateway/Worker 镜像为
+`sha256:d0861f6ab2dc18c62b6ab4a9130d46527e980ac4a6f2c0ef8909f4b09d43bca1`；
 两者健康、restart 0，内部 LLM Gateway/Maintenance 未重建。发布前在线备份
-`/data/codex-gateway-r760/backups/pre-doctor-lookup-115-20260825T101225Z`
+`/data/codex-gateway-r760/backups/pre-doctor-publication-contract-116-20260827T095620Z`
 的四个 SQLite 副本均通过 integrity、外键和 SHA-256 校验。测试账号的 key 已撤销、
-entitlement 已取消、用户已禁用，临时请求和产物目录已删除。
+entitlement 已取消、用户已禁用，临时目录和测试预约均已清理。公网与 loopback 健康
+检查均为 200；Gateway、Research 和内部 LLM SQLite 均为 `ok`、外键错误为 0。
+本地门禁通过 build、826 个 Node 测试（另 2 个跳过）、56 个 Python 测试、
+`git diff --check` 和零漏洞审计。
 
 运维教训：一次较早的发布脚本没有用 shell errexit 执行，导致 `[1,0,0]` 预检
 没有阻止后续步骤，可能中断过一个公网请求；现行脚本必须使用 `bash -euo pipefail`

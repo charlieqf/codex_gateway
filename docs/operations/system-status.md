@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
 ## Current Phase
 
@@ -34,6 +34,37 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-27 Doctor lookup zero-publication contract fix (supersedes older
+  Doctor Research release statements below):** Reported run
+  `drr_975b80dcf45b486da0464a95e6682971` resolved the doctor identity and
+  official sources but found zero publications that could be safely attributed
+  to that doctor. Brief mode already permits that evidence state, while the
+  shared model schema still required at least one `core_evidence` item, one
+  `reference` and `included_count >= 1`; the model therefore could not return a
+  valid structured zero-publication result. Release
+  `3bcbf48e391e2816bb0ecf47656926b548711f71` changes only those three schema
+  lower bounds to zero. It adds no retry or fallback, does not fabricate a
+  reference, and leaves the full/non-brief minimum-evidence gate fail-closed.
+  Worker `doctor-research-skill.1.6.116` uses workflow `v85`, prompt `v32` and
+  validation `v47`. The exact stored input was hash-verified and replayed in
+  production as `drr_dea9face63f94247878c1c90435a5c38`; it succeeded in
+  51.659 seconds with zero references, zero core-evidence rows, zero included
+  publications, the explicit `doctor_publication_evidence_not_found` warning
+  and four artifacts. The first model response had a `parse_error`, so the
+  existing bounded contract correction made the second and final model call.
+  R760 `current` is the release above, `previous` is
+  `564a0baed6623490e9b52a1a55e56cf18e8e4701`, and the paired Gateway/Worker
+  image is
+  `sha256:d0861f6ab2dc18c62b6ab4a9130d46527e980ac4a6f2c0ef8909f4b09d43bca1`.
+  Only Gateway and Worker were recreated; all four business containers are
+  healthy with zero restarts, and public plus loopback health returned 200.
+  Gateway, Research and internal-LLM SQLite checks returned `ok` with zero
+  foreign-key violations. The protected rollback boundary is
+  `/data/codex-gateway-r760/backups/pre-doctor-publication-contract-116-20260827T095620Z`.
+  The disposable credential is revoked, its entitlement cancelled, its user
+  disabled, and no temporary smoke directory or unfinished smoke reservation
+  remains. Local validation passed the build, 826 Node tests with two skips,
+  56 Python tests, `git diff --check` and a zero-vulnerability audit.
 - **2026-08-26 MedEvidence Origin version routing:** R760 `current` is release
   `564a0baed6623490e9b52a1a55e56cf18e8e4701`, `previous` is
   `2816d68801acd8403c80f3962051fbcde7e96e49`, and the active Gateway image is
