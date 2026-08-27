@@ -5199,7 +5199,7 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(topicInferencePrompt).not.toContain("外科临床介绍");
     expect(outcome).toEqual({ outcome: "succeeded" });
     expect(observedQueries).toHaveLength(2);
-    expect(observedQueries[0]).toContain('"陆清声"[Author]');
+    expect(observedQueries[0]).toContain('"Lu QS"[Author]');
     expect(observedQueries[1]).toContain(
       '"vascular"[Title/Abstract] OR "endovascular"[Title/Abstract]'
     );

@@ -83,6 +83,11 @@ import {
   type ResearchExternalServiceErrorKind,
   ResearchHttpError
 } from "./safe-http.js";
+import {
+  literatureAffiliationMatches,
+  literatureAuthorMatches,
+  resolveDoctorLiteratureIdentity
+} from "./literature-identity.js";
 
 export interface DoctorResearchWorkflowPolicy {
   resultTtlSeconds: number;
@@ -1759,9 +1764,9 @@ async function collectLiterature(
     maximumCandidates?: number;
   }
 ): Promise<CollectedLiterature> {
-  const literatureIdentity =
-    context.run.input.doctor.literatureIdentity ??
-    context.run.input.doctor;
+  const literatureIdentity = resolveDoctorLiteratureIdentity(
+    context.run.input.doctor
+  );
   context.chargeExternal(3);
   const pmids = await context.input.adapters.searchPubMed(
     query,
@@ -1789,10 +1794,10 @@ async function collectLiterature(
     }
     const matchingAuthorAffiliations =
       pubmed.authorAffiliations?.filter((author) =>
-        namesCompatible(literatureIdentity.name, author.author)
+        literatureAuthorMatches(literatureIdentity, author.author)
       ) ?? [];
     const authorNameMatched = pubmed.authors.some((author) =>
-      namesCompatible(literatureIdentity.name, author)
+      literatureAuthorMatches(literatureIdentity, author)
     );
     if (options.requireDoctorIdentity && !authorNameMatched) {
       continue;
@@ -1801,15 +1806,10 @@ async function collectLiterature(
       options.requireDoctorIdentity &&
       !matchingAuthorAffiliations.some((author) =>
         author.affiliations.some(
-          (affiliation) =>
-            textContains(
-              affiliation,
-              literatureIdentity.hospital ?? ""
-            ) &&
-            textContains(
-              affiliation,
-              literatureIdentity.department ?? ""
-            )
+          (affiliation) => literatureAffiliationMatches(
+            literatureIdentity,
+            affiliation
+          )
         )
       )
     ) {
@@ -1857,7 +1857,7 @@ async function collectLiterature(
       authors: uniqueBy(
         [
           ...pubmed.authors.filter((author) =>
-            namesCompatible(literatureIdentity.name, author)
+            literatureAuthorMatches(literatureIdentity, author)
           ),
           ...pubmed.authors.slice(0, 20)
         ],
@@ -10727,11 +10727,11 @@ function extractNumericTokens(value: string): string[] {
 }
 
 function buildDoctorPubMedSearchQuery(run: ResearchRunRecord): string {
-  const doctor =
-    run.input.doctor.literatureIdentity ?? run.input.doctor;
+  const doctor = run.input.doctor;
+  const literatureIdentity = resolveDoctorLiteratureIdentity(doctor);
   const currentYear = run.createdAt.getUTCFullYear();
   const startYear = currentYear - run.input.options.publicationYears + 1;
-  const authorTerms = pubMedAuthorNameVariants(doctor.name).map(
+  const authorTerms = literatureIdentity.authorNames.map(
     (name) => `"${name}"[Author]`
   );
   const identityTerms = [
@@ -10739,49 +10739,30 @@ function buildDoctorPubMedSearchQuery(run: ResearchRunRecord): string {
       ? authorTerms[0]!
       : `(${authorTerms.join(" OR ")})`
   ];
-  if (doctor.hospital) {
-    identityTerms.push(
-      `"${doctor.hospital.replace(/["()[\]{}]/gu, " ")}"[Affiliation]`
-    );
+  const hospitalTerms = literatureIdentity.hospitalQueryTerms.length > 0
+    ? literatureIdentity.hospitalQueryTerms
+    : doctor.hospital
+      ? [doctor.hospital]
+      : [];
+  if (hospitalTerms.length > 0) {
+    identityTerms.push(renderPubMedAffiliationTerms(hospitalTerms));
   }
-  if (doctor.department) {
-    identityTerms.push(
-      `"${doctor.department.replace(/["()[\]{}]/gu, " ")}"[Affiliation]`
-    );
+  const departmentTerms = literatureIdentity.departmentQueryTerms.length > 0
+    ? literatureIdentity.departmentQueryTerms
+    : doctor.department
+      ? [doctor.department]
+      : [];
+  if (departmentTerms.length > 0) {
+    identityTerms.push(renderPubMedAffiliationTerms(departmentTerms));
   }
   return `(${identityTerms.join(" AND ")}) AND (${startYear}:${currentYear}[Date - Publication])`;
 }
 
-function pubMedAuthorNameVariants(value: string): string[] {
-  const original = value.replace(/["()[\]{}]/gu, " ").trim();
-  const latinTokens = original.match(/[A-Za-z]+/gu) ?? [];
-  if (
-    latinTokens.length < 2 ||
-    latinTokens.join("").length !==
-      (original.match(/[A-Za-z]/gu) ?? []).length
-  ) {
-    return [original];
-  }
-  const variants = [original];
-  const addInitialVariants = (
-    surname: string,
-    givenNames: readonly string[]
-  ): void => {
-    const initials = givenNames.map((token) => token[0]!.toUpperCase());
-    variants.push(
-      `${surname} ${initials.join("")}`,
-      `${surname} ${initials.join(" ")}`
-    );
-  };
-  addInitialVariants(
-    latinTokens.at(-1)!,
-    latinTokens.slice(0, -1)
+function renderPubMedAffiliationTerms(values: readonly string[]): string {
+  const terms = values.map(
+    (value) => `"${value.replace(/["()[\]{}]/gu, " ")}"[Affiliation]`
   );
-  addInitialVariants(latinTokens[0]!, latinTokens.slice(1));
-  return uniqueBy(
-    variants.map((variant) => variant.replace(/\s+/gu, " ").trim()),
-    (variant) => normalizeEvidenceText(variant)
-  ).slice(0, 5);
+  return terms.length === 1 ? terms[0]! : `(${terms.join(" OR ")})`;
 }
 
 function buildFieldPubMedSearchQuery(
