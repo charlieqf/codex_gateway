@@ -205,6 +205,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (values === null) {
       throw new ResearchExternalServiceError("invalid_payload");
     }
+    if (!pubMedIdentityFieldsWereRetained(normalizedQuery, response.value)) {
+      return [];
+    }
     return [...new Set(values)].slice(0, this.maximumPubMedResults);
   }
 
@@ -910,6 +913,37 @@ function extractValidNcbiSearchPmids(value: unknown): readonly string[] | null {
     return null;
   }
   return idList;
+}
+
+function pubMedIdentityFieldsWereRetained(
+  query: string,
+  value: unknown
+): boolean {
+  const requiredFields = ["author", "affiliation"].filter((field) =>
+    query.toLowerCase().includes(`[${field}]`)
+  );
+  if (requiredFields.length === 0) {
+    return true;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const esearchResult = Reflect.get(value, "esearchresult");
+  if (
+    esearchResult === null ||
+    typeof esearchResult !== "object" ||
+    Array.isArray(esearchResult)
+  ) {
+    return false;
+  }
+  const translation = Reflect.get(esearchResult, "querytranslation");
+  if (typeof translation !== "string" || translation.trim() === "") {
+    return true;
+  }
+  const normalizedTranslation = translation.toLowerCase();
+  return requiredFields.every((field) =>
+    normalizedTranslation.includes(`[${field}]`)
+  );
 }
 
 interface NcbiSummaryRecord {

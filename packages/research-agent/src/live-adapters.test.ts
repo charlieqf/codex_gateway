@@ -582,6 +582,36 @@ describe("Doctor Research live first-party adapters", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
+  it("rejects a PubMed identity search when NCBI drops every identity field", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        esearchresult: {
+          idlist: ["1001", "1002"],
+          querytranslation: "2022:2026[Date - Publication]"
+        }
+      })
+    );
+    const adapters = new LiveResearchAdapters({
+      ncbi: { maximumResults: 5 },
+      crossref: {},
+      orcid: { enabled: false },
+      officialWeb: {
+        provider: "direct",
+        allowedDomains: ["hospital.example"]
+      },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl
+    });
+
+    await expect(
+      adapters.searchPubMed(
+        '("\u59dc\u4fdd\u56fd"[Author] AND "\u5317\u4eac\u5927\u5b66\u4eba\u6c11\u533b\u9662"[Affiliation]) AND (2022:2026[Date - Publication])',
+        new AbortController().signal
+      )
+    ).resolves.toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("classifies an exhausted malformed PubMed response as a request-scoped upstream payload error", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(null));
     const adapters = new LiveResearchAdapters({

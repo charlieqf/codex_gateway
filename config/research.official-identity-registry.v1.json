@@ -14,6 +14,19 @@
         "hospital": "Changhai Hospital",
         "department": "Vascular Surgery"
       }
+    },
+    {
+      "name": "姜保国",
+      "hospital": "北京大学人民医院",
+      "department": "创伤骨科",
+      "official_profile_urls": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC7439035/"
+      ],
+      "literature_identity": {
+        "name": "Bao-Guo Jiang",
+        "hospital": "Peking University People's Hospital",
+        "department": "Trauma and Orthopedics"
+      }
     }
   ]
 }

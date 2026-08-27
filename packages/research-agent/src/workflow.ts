@@ -202,7 +202,8 @@ export async function executeDoctorResearchWorkflow(input: {
         maximumPublications: Math.min(
           5,
           input.policy.maximumPublications
-        )
+        ),
+        maximumCandidates: input.policy.maximumPublications
       }
     );
     const doctorLookupBrief =
@@ -1755,6 +1756,7 @@ async function collectLiterature(
   options: {
     requireDoctorIdentity: boolean;
     maximumPublications: number;
+    maximumCandidates?: number;
   }
 ): Promise<CollectedLiterature> {
   const literatureIdentity =
@@ -1769,7 +1771,14 @@ async function collectLiterature(
   const sources: DoctorResearchSource[] = [];
   const publicationEvidence: PublicationEvidence[] = [];
   let crossrefQueried = false;
-  for (const pmid of pmids.slice(0, options.maximumPublications)) {
+  const maximumCandidates = Math.max(
+    options.maximumPublications,
+    options.maximumCandidates ?? options.maximumPublications
+  );
+  for (const pmid of pmids.slice(0, maximumCandidates)) {
+    if (references.length >= options.maximumPublications) {
+      break;
+    }
     context.chargeExternal(6);
     const pubmed = await context.input.adapters.getPubMedMetadata(
       pmid,
@@ -9125,10 +9134,10 @@ function officialSourceBridgesLiteratureIdentity(
   }
   let displayAt = evidencePhraseIndexOf(source, display);
   while (displayAt >= 0) {
-    const windowStart = Math.max(0, displayAt - 1_000);
+    const windowStart = Math.max(0, displayAt - 1_500);
     const windowEnd = Math.min(
       source.length,
-      displayAt + display.length + 1_000
+      displayAt + display.length + 1_500
     );
     if (
       evidencePhraseContains(
@@ -10722,8 +10731,14 @@ function buildDoctorPubMedSearchQuery(run: ResearchRunRecord): string {
     run.input.doctor.literatureIdentity ?? run.input.doctor;
   const currentYear = run.createdAt.getUTCFullYear();
   const startYear = currentYear - run.input.options.publicationYears + 1;
-  const name = doctor.name.replace(/["()[\]{}]/gu, " ").trim();
-  const identityTerms = [`"${name}"[Author]`];
+  const authorTerms = pubMedAuthorNameVariants(doctor.name).map(
+    (name) => `"${name}"[Author]`
+  );
+  const identityTerms = [
+    authorTerms.length === 1
+      ? authorTerms[0]!
+      : `(${authorTerms.join(" OR ")})`
+  ];
   if (doctor.hospital) {
     identityTerms.push(
       `"${doctor.hospital.replace(/["()[\]{}]/gu, " ")}"[Affiliation]`
@@ -10735,6 +10750,38 @@ function buildDoctorPubMedSearchQuery(run: ResearchRunRecord): string {
     );
   }
   return `(${identityTerms.join(" AND ")}) AND (${startYear}:${currentYear}[Date - Publication])`;
+}
+
+function pubMedAuthorNameVariants(value: string): string[] {
+  const original = value.replace(/["()[\]{}]/gu, " ").trim();
+  const latinTokens = original.match(/[A-Za-z]+/gu) ?? [];
+  if (
+    latinTokens.length < 2 ||
+    latinTokens.join("").length !==
+      (original.match(/[A-Za-z]/gu) ?? []).length
+  ) {
+    return [original];
+  }
+  const variants = [original];
+  const addInitialVariants = (
+    surname: string,
+    givenNames: readonly string[]
+  ): void => {
+    const initials = givenNames.map((token) => token[0]!.toUpperCase());
+    variants.push(
+      `${surname} ${initials.join("")}`,
+      `${surname} ${initials.join(" ")}`
+    );
+  };
+  addInitialVariants(
+    latinTokens.at(-1)!,
+    latinTokens.slice(0, -1)
+  );
+  addInitialVariants(latinTokens[0]!, latinTokens.slice(1));
+  return uniqueBy(
+    variants.map((variant) => variant.replace(/\s+/gu, " ").trim()),
+    (variant) => normalizeEvidenceText(variant)
+  ).slice(0, 5);
 }
 
 function buildFieldPubMedSearchQuery(
@@ -10820,8 +10867,12 @@ function initialsCovered(fullTokens: string[], abbreviatedTokens: string[]): boo
     abbreviatedTokens.length > 0 &&
     abbreviatedTokens.every(
       (abbreviated) =>
-        abbreviated.length === 1 &&
-        fullTokens.some((full) => full.startsWith(abbreviated))
+        (abbreviated.length === 1 &&
+          fullTokens.some((full) => full.startsWith(abbreviated))) ||
+        (abbreviated.length === fullTokens.length &&
+          [...abbreviated].every((initial, index) =>
+            fullTokens[index]!.startsWith(initial)
+          ))
     )
   );
 }

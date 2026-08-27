@@ -4813,9 +4813,12 @@ describe("Research Worker controlled-beta workflow", () => {
     );
     const bilingualAdapters = adapters(0);
     const observedQueries: string[] = [];
+    const observedMetadataPmids: string[] = [];
     bilingualAdapters.searchPubMed = async (query) => {
       observedQueries.push(query);
-      return ["1001"];
+      return observedQueries.length === 1
+        ? ["9001", "9002", "9003", "9004", "9005", "1001"]
+        : ["1001"];
     };
     bilingualAdapters.fetchApprovedSource = async () => ({
       sourceId: "src_official_1",
@@ -4824,31 +4827,39 @@ describe("Research Worker controlled-beta workflow", () => {
       accessedAt: "2026-07-18T03:00:00.000Z",
       contentSha256: "a".repeat(64),
       untrustedText:
-        "陆清声 海军军医大学第一附属医院 血管外科。LU Qingsheng。" +
+        "陆清声 海军军医大学第一附属医院 血管外科。" +
+        "bridge ".repeat(170) +
+        "LU Qingsheng。" +
         "研究方向为血管外科临床证据。"
     });
-    bilingualAdapters.getPubMedMetadata = async () => ({
-      referenceId: "ref_pubmed_1001",
-      pmid: "1001",
-      doi: null,
-      title: "Retrieved Clinical Evidence",
-      journal: "Evidence Journal",
-      publicationYear: 2025,
-      authors: ["Lu Q"],
-      authorAffiliations: [
-        {
-          author: "Qingsheng Lu",
-          affiliations: [
-            "Department of Vascular Surgery, Changhai Hospital, Naval Medical University, Shanghai, China."
-          ]
-        }
-      ],
-      abstractText:
-        "Randomized evidence from the retrieved abstract supports cautious synthesis.",
-      sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
-      accessedAt: "2026-07-18T03:00:00.000Z",
-      contentSha256: "b".repeat(64)
-    });
+    bilingualAdapters.getPubMedMetadata = async (pmid) => {
+      observedMetadataPmids.push(pmid);
+      if (pmid !== "1001") {
+        return null;
+      }
+      return {
+        referenceId: "ref_pubmed_1001",
+        pmid: "1001",
+        doi: null,
+        title: "Retrieved Clinical Evidence",
+        journal: "Evidence Journal",
+        publicationYear: 2025,
+        authors: ["Lu Q"],
+        authorAffiliations: [
+          {
+            author: "Qingsheng Lu",
+            affiliations: [
+              "Department of Vascular Surgery, Changhai Hospital, Naval Medical University, Shanghai, China."
+            ]
+          }
+        ],
+        abstractText:
+          "Randomized evidence from the retrieved abstract supports cautious synthesis.",
+        sourceUrl: "https://pubmed.ncbi.nlm.nih.gov/1001/",
+        accessedAt: "2026-07-18T03:00:00.000Z",
+        contentSha256: "b".repeat(64)
+      };
+    };
     const localizedOutput = modelOutput();
     localizedOutput.profile.research_directions = [
       "研究方向为血管外科临床证据"
@@ -4915,7 +4926,10 @@ describe("Research Worker controlled-beta workflow", () => {
         }
       },
       artifactRoot: fixture.artifactRoot,
-      policy: workflowPolicy(),
+      policy: {
+        ...workflowPolicy(),
+        maximumPublications: 6
+      },
       signal: new AbortController().signal,
       onValidationFailure(event) {
         validationErrors.push([...event.errorCodes]);
@@ -4927,8 +4941,17 @@ describe("Research Worker controlled-beta workflow", () => {
       outcome: "succeeded"
     });
     expect(observedQueries).toEqual([
-      '("Lu Qingsheng"[Author] AND "Changhai Hospital"[Affiliation] AND "Vascular Surgery"[Affiliation]) AND (2022:2026[Date - Publication])',
+      '(("Lu Qingsheng"[Author] OR "Qingsheng L"[Author] OR "Lu Q"[Author]) AND "Changhai Hospital"[Affiliation] AND "Vascular Surgery"[Affiliation]) AND (2022:2026[Date - Publication])',
       '("vascular"[Title/Abstract]) AND (2022:2026[Date - Publication])'
+    ]);
+    expect(observedMetadataPmids).toEqual([
+      "9001",
+      "9002",
+      "9003",
+      "9004",
+      "9005",
+      "1001",
+      "1001"
     ]);
     const stored = fixture.store.getRunResultForSubject(
       fixture.lease.run.runId,

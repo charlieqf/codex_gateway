@@ -224,7 +224,7 @@ class ResearchDockerContractTests(unittest.TestCase):
         self.assertIn("RESEARCH_WEB_SEARCH_PROVIDER=serpapi", worker)
         self.assertIn("RESEARCH_SERPAPI_ENGINE=google", worker)
         self.assertIn(
-            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.116",
+            "RESEARCH_WORKER_VERSION=doctor-research-skill.1.6.117",
             worker,
         )
         self.assertIn("RESEARCH_MAX_LLM_CALLS_PER_RUN=7", worker)
@@ -292,10 +292,11 @@ class ResearchDockerContractTests(unittest.TestCase):
             registry["schema_version"],
             "doctor_research_official_identity_registry.v1",
         )
-        self.assertEqual(len(registry["entries"]), 1)
+        self.assertEqual(len(registry["entries"]), 2)
+        entries = {entry["name"]: entry for entry in registry["entries"]}
         self.assertEqual(
             {
-                key: registry["entries"][0][key]
+                key: entries["陆清声"][key]
                 for key in ("name", "hospital", "department")
             },
             {
@@ -305,9 +306,22 @@ class ResearchDockerContractTests(unittest.TestCase):
             },
         )
         self.assertEqual(
-            registry["entries"][0]["literature_identity"]["name"],
+            entries["陆清声"]["literature_identity"]["name"],
             "Lu Qingsheng",
         )
+        self.assertEqual(
+            entries["姜保国"]["literature_identity"],
+            {
+                "name": "Bao-Guo Jiang",
+                "hospital": "Peking University People's Hospital",
+                "department": "Trauma and Orthopedics",
+            },
+        )
+        self.assertEqual(
+            entries["姜保国"]["official_profile_urls"],
+            ["https://pmc.ncbi.nlm.nih.gov/articles/PMC7439035/"],
+        )
+        self.assertIn("pmc.ncbi.nlm.nih.gov", api_example_env)
         self.assertIn(
             "COPY config/research.official-identity-registry.v1.json ",
             dockerfile,
