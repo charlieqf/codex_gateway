@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Current Phase
 
@@ -34,6 +34,40 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-28 runtime Chinese-name PubMed identity release:** R760 `current` is
+  `c254117f26d6b8501d8a641462a3cd3e7b0665b2`, `previous` is
+  `fa6772029640cae1c7bac9860b2ba21eb3ac925b`, and the paired Gateway/Worker
+  image is
+  `sha256:04a3a81c590e32c8b1925574013da7352a782ea51aafef18b8c98d2840dde7f3`.
+  Worker `doctor-research-skill.1.6.118` uses workflow `v87`, prompt `v32` and
+  validation `v47`. For an arbitrary Chinese doctor name, the Worker now
+  creates at most five surname-aware Latin PubMed author variants at runtime;
+  it does not use a doctor-name mapping table. A publication remains
+  attributable only when one matching author's own affiliation entry contains
+  the distinctive hospital anchors and department anchors. The release adds
+  no open-web literature fallback, author-only relaxation, extra model call or
+  retry.
+  Pre-release live NCBI checks found strictly attributable papers for all ten
+  selected doctors. Production then ran ten Chinese-only cases without an
+  English literature identity or submitted official-profile URL. Nine
+  succeeded with 44 total verified publications and four hash-verified
+  artifacts each: 郎景和 5/65s, 赵玉沛 5/56s, 杨璐 4/86s, 文煜冰 5/75s,
+  乔杰 5/96s, 葛均波 5/46s, 陈赛娟 5/70s, 李为民 5/51s and 王伟林 5/86s.
+  The two deliberately lower-public-profile PUMCH cases, 杨璐 and 文煜冰,
+  both succeeded. 张文宏 run `drr_7f6dc1d20534446299b45673f943644d`
+  failed after retrieval with `model_contract_error`: both Tencent GLM-5.3
+  calls returned HTTP 200, but the first response had `parse_error` and the
+  single existing contract correction still contained unsafe markup plus
+  other validation defects. This remaining model-output variance is separate
+  from publication discovery and attribution and stayed fail-closed.
+  Build, 839 Node tests with two skips, 56 Python tests, dependency install,
+  secret scan, `git diff --check` and a zero-vulnerability production audit
+  passed before deployment. Public and loopback health, authenticated models
+  and chat, all four SQLite integrity/foreign-key checks, and zero unfinished
+  public/internal reservations passed afterward. The protected backup is
+  `/data/codex-gateway-r760/backups/pre-doctor-pinyin-runtime-118-20260827T141513Z`.
+  All 12 disposable credentials were revoked, their entitlements cancelled and
+  users disabled; no active Research run or temporary smoke directory remains.
 - **2026-08-27 Doctor publication identity and exact-query fix (supersedes the
   zero-publication conclusion immediately below):** The zero-publication result
   was not the final evidence state. PubMed independently contains papers for
