@@ -541,43 +541,91 @@ function parseRetryAfter(value: string | string[] | null | undefined): number | 
 }
 
 function extractHtmlTitle(html: string): string {
-  const match = /<title\b[^>]*>([\s\S]*?)<\/title>/iu.exec(html);
-  return match ? normalizeText(decodeHtmlEntities(match[1]!)).slice(0, 300) : "";
+  const lower = html.toLowerCase();
+  let openingAt = lower.indexOf("<title");
+  while (openingAt >= 0) {
+    const boundary = lower[openingAt + 6];
+    if (!boundary || !/[a-z0-9_]/u.test(boundary)) {
+      const openingEnd = lower.indexOf(">", openingAt + 6);
+      if (openingEnd < 0) {
+        return "";
+      }
+      const closingAt = lower.indexOf("</title>", openingEnd + 1);
+      if (closingAt < 0) {
+        return "";
+      }
+      return normalizeText(
+        decodeHtmlEntities(html.slice(openingEnd + 1, closingAt))
+      ).slice(0, 300);
+    }
+    openingAt = lower.indexOf("<title", openingAt + 6);
+  }
+  return "";
 }
 
 function htmlToText(html: string): string {
-  const withoutUnsafeBlocks = stripUnsafeHtmlRegions(html);
   return normalizeText(
-    decodeHtmlEntities(withoutUnsafeBlocks.replace(/<[^>]+>/gu, " "))
+    decodeHtmlEntities(stripHtmlMarkup(html))
   ).slice(0, 200_000);
 }
 
-function stripUnsafeHtmlRegions(html: string): string {
-  const opening = /<!--|<(script|style|noscript|template|svg|canvas)\b[^>]*>/giu;
+function stripHtmlMarkup(html: string): string {
+  const lower = html.toLowerCase();
+  const unsafeTags = new Set([
+    "script",
+    "style",
+    "noscript",
+    "template",
+    "svg",
+    "canvas"
+  ]);
   let cursor = 0;
   let output = "";
   for (;;) {
-    opening.lastIndex = cursor;
-    const match = opening.exec(html);
-    if (!match) {
+    const openingAt = html.indexOf("<", cursor);
+    if (openingAt < 0) {
       return output + html.slice(cursor);
     }
-    output += `${html.slice(cursor, match.index)} `;
-    if (match[0] === "<!--") {
-      const closingAt = html.indexOf("-->", opening.lastIndex);
+    output += `${html.slice(cursor, openingAt)} `;
+    if (lower.startsWith("<!--", openingAt)) {
+      const closingAt = lower.indexOf("-->", openingAt + 4);
       if (closingAt < 0) {
         return output;
       }
       cursor = closingAt + 3;
       continue;
     }
-    const closing = new RegExp(`</${match[1]}\\s*>`, "giu");
-    closing.lastIndex = opening.lastIndex;
-    const closingMatch = closing.exec(html);
-    if (!closingMatch) {
+    const openingEnd = html.indexOf(">", openingAt + 1);
+    if (openingEnd < 0) {
       return output;
     }
-    cursor = closing.lastIndex;
+    const tagText = lower
+      .slice(openingAt + 1, Math.min(openingEnd, openingAt + 80))
+      .trimStart();
+    const tag = /^[a-z][a-z0-9]*/u.exec(tagText)?.[0];
+    if (!tag || !unsafeTags.has(tag)) {
+      cursor = openingEnd + 1;
+      continue;
+    }
+    const closingNeedle = `</${tag}`;
+    let closingAt = lower.indexOf(closingNeedle, openingEnd + 1);
+    while (
+      closingAt >= 0 &&
+      !/[\s>]/u.test(lower[closingAt + closingNeedle.length] ?? "")
+    ) {
+      closingAt = lower.indexOf(
+        closingNeedle,
+        closingAt + closingNeedle.length
+      );
+    }
+    if (closingAt < 0) {
+      return output;
+    }
+    const closingEnd = html.indexOf(">", closingAt + closingNeedle.length);
+    if (closingEnd < 0) {
+      return output;
+    }
+    cursor = closingEnd + 1;
   }
 }
 

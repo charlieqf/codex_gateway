@@ -60,8 +60,23 @@ describe("Doctor Research live first-party adapters", () => {
     });
   });
 
-  it("bounds malformed unsafe HTML cleanup", async () => {
-    const body = `Visible profile ${"<script>".repeat(20_000)}hidden`;
+  it.each([
+    [
+      "unsafe blocks",
+      `Visible profile ${"<script>".repeat(20_000)}hidden`,
+      "Visible profile"
+    ],
+    [
+      "generic tags",
+      `Visible profile ${"<".repeat(20_000)}hidden`,
+      "Visible profile"
+    ],
+    [
+      "title tags",
+      `Visible profile ${"<title>".repeat(20_000)}hidden`,
+      "Visible profile hidden"
+    ]
+  ])("bounds malformed %s cleanup", async (_kind, body, expected) => {
     const result = await fetchApprovedWebDocument({
       url: new URL("https://hospital.example/doctors/example"),
       allowedDomains: ["hospital.example"],
@@ -80,7 +95,7 @@ describe("Doctor Research live first-party adapters", () => {
       })
     });
 
-    expect(result.text).toBe("Visible profile");
+    expect(result.text).toBe(expected);
   }, 1_000);
 
   it("falls back to the next pinned public address after a connection error", async () => {
