@@ -7509,7 +7509,10 @@ function promoteBriefValidationWarnings(
     ok: true,
     value: validation.candidate,
     draft,
-    warnings: errorCodes.map((code) => `brief_relaxed_${code}`)
+    warnings: [
+      ...(validation.warnings ?? []),
+      ...errorCodes.map((code) => `brief_relaxed_${code}`)
+    ]
   };
 }
 
@@ -7533,6 +7536,7 @@ function validateGeneratedOutput(
       errorCodes: string[];
       candidate?: DoctorResearchModelOutput;
       draft?: DoctorResearchModelDraft;
+      warnings?: string[];
     } {
   const parsedDraft = parseAndValidateDoctorResearchModelDraft(text);
   const legacyOutput = parsedDraft.ok
@@ -7691,6 +7695,22 @@ function validateGeneratedOutput(
   }
   const profileSourceIdSet = new Set(profileSourceIds);
   let finalizedValue = reparsed.value;
+  let deterministicRawUrlRemovalApplied = false;
+  if (
+    options.presentationRepair &&
+    unsafeModelMarkupDiagnostics(finalizedValue).includes("raw_url")
+  ) {
+    const rawUrlRepair = stripRawUrlsFromModelNarrative(finalizedValue);
+    if (rawUrlRepair.changed) {
+      const repaired = parseAndValidateDoctorResearchModelOutput(
+        JSON.stringify(rawUrlRepair.output)
+      );
+      if (repaired.ok) {
+        finalizedValue = repaired.value;
+        deterministicRawUrlRemovalApplied = true;
+      }
+    }
+  }
   let qualityErrors = collectCompleteRuntimeQualityErrors(
     finalizedValue,
     policy,
@@ -7760,6 +7780,9 @@ function validateGeneratedOutput(
                 "deterministic_inline_enumeration_normalization_applied"
               ]
             : []),
+          ...(deterministicRawUrlRemovalApplied
+            ? ["deterministic_model_raw_url_removed"]
+            : []),
           ...collectReviewContractTargetWarnings(
             finalizedValue,
             policy,
@@ -7772,7 +7795,10 @@ function validateGeneratedOutput(
         errors: qualityErrors,
         errorCodes: stableValidationCodes(qualityErrors),
         candidate: finalizedValue,
-        draft
+        draft,
+        warnings: deterministicRawUrlRemovalApplied
+          ? ["deterministic_model_raw_url_removed"]
+          : []
       };
 }
 
@@ -10720,6 +10746,64 @@ function unsafeModelMarkupDiagnostics(
     diagnostics.push("raw_url");
   }
   return diagnostics;
+}
+
+function stripRawUrlsFromModelNarrative(
+  output: DoctorResearchModelOutput
+): { output: DoctorResearchModelOutput; changed: boolean } {
+  let changed = false;
+  const repair = (value: string): string => {
+    const repaired = value
+      .replace(
+        /\b[a-z][a-z0-9+.-]{1,31}:\/\/[^\s<>()\[\]{}"'`,;!?，。；：！？]+|\b(?:www\.)[^\s<>()\[\]{}"'`,;!?，。；：！？]+|\b(?:javascript|vbscript|data|mailto|file|tel|sms|blob|about|cid):[^\s<>()\[\]{}"'`,;!?，。；：！？]*/giu,
+        ""
+      )
+      .replace(/[ \t]{2,}/gu, " ")
+      .replace(/\s+([,.;!?，。；：！？])/gu, "$1")
+      .trim();
+    changed ||= repaired !== value;
+    return repaired;
+  };
+  return {
+    output: {
+      ...output,
+      profile: {
+        ...output.profile,
+        positions: output.profile.positions.map(repair),
+        expertise: output.profile.expertise.map(repair),
+        education_and_career:
+          output.profile.education_and_career.map(repair),
+        research_directions: output.profile.research_directions.map(repair),
+        representative_outputs:
+          output.profile.representative_outputs.map(repair),
+        claims: output.profile.claims.map((claim) => ({
+          ...claim,
+          text: repair(claim.text)
+        }))
+      },
+      review: {
+        ...output.review,
+        title: repair(output.review.title),
+        abstract: repair(output.review.abstract),
+        keywords: output.review.keywords.map(repair),
+        markdown: repair(output.review.markdown),
+        core_evidence: output.review.core_evidence.map((item) => ({
+          ...item,
+          study_type: repair(item.study_type),
+          sample_and_source: repair(item.sample_and_source),
+          methods: repair(item.methods),
+          key_results: repair(item.key_results),
+          limitations: repair(item.limitations)
+        }))
+      },
+      predicted_questions: output.predicted_questions.map(repair),
+      answers: output.answers.map((answer) => ({
+        ...answer,
+        answer: repair(answer.answer)
+      }))
+    },
+    changed
+  };
 }
 
 function modelNarrativeStrings(

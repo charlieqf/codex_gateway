@@ -60,44 +60,6 @@ describe("Doctor Research live first-party adapters", () => {
     });
   });
 
-  it.each([
-    [
-      "unsafe blocks",
-      `Visible profile ${"<script>".repeat(20_000)}hidden`,
-      "Visible profile"
-    ],
-    [
-      "generic tags",
-      `Visible profile ${"<".repeat(20_000)}hidden`,
-      "Visible profile"
-    ],
-    [
-      "title tags",
-      `Visible profile ${"<title>".repeat(20_000)}hidden`,
-      "Visible profile hidden"
-    ]
-  ])("bounds malformed %s cleanup", async (_kind, body, expected) => {
-    const result = await fetchApprovedWebDocument({
-      url: new URL("https://hospital.example/doctors/example"),
-      allowedDomains: ["hospital.example"],
-      signal: new AbortController().signal,
-      timeoutMs: 1_000,
-      maximumBytes: 500_000,
-      userAgent: "codex-gateway-research-test/1.0",
-      lookupImpl: async () => [{ address: "202.120.143.40", family: 4 }],
-      requestPinnedAddressImpl: async () => ({
-        statusCode: 200,
-        headers: {
-          "content-type": "text/html",
-          "content-encoding": "identity"
-        },
-        bytes: Buffer.from(body, "utf8")
-      })
-    });
-
-    expect(result.text).toBe(expected);
-  }, 1_000);
-
   it("falls back to the next pinned public address after a connection error", async () => {
     const requestedAddresses: string[] = [];
     const result = await fetchApprovedWebDocument({

@@ -541,92 +541,17 @@ function parseRetryAfter(value: string | string[] | null | undefined): number | 
 }
 
 function extractHtmlTitle(html: string): string {
-  const lower = html.toLowerCase();
-  let openingAt = lower.indexOf("<title");
-  while (openingAt >= 0) {
-    const boundary = lower[openingAt + 6];
-    if (!boundary || !/[a-z0-9_]/u.test(boundary)) {
-      const openingEnd = lower.indexOf(">", openingAt + 6);
-      if (openingEnd < 0) {
-        return "";
-      }
-      const closingAt = lower.indexOf("</title>", openingEnd + 1);
-      if (closingAt < 0) {
-        return "";
-      }
-      return normalizeText(
-        decodeHtmlEntities(html.slice(openingEnd + 1, closingAt))
-      ).slice(0, 300);
-    }
-    openingAt = lower.indexOf("<title", openingAt + 6);
-  }
-  return "";
+  const match = /<title\b[^>]*>([\s\S]*?)<\/title>/iu.exec(html);
+  return match ? normalizeText(decodeHtmlEntities(match[1]!)).slice(0, 300) : "";
 }
 
 function htmlToText(html: string): string {
+  const withoutUnsafeBlocks = html
+    .replace(/<(script|style|noscript|template|svg|canvas)\b[\s\S]*?<\/\1>/giu, " ")
+    .replace(/<!--[\s\S]*?-->/gu, " ");
   return normalizeText(
-    decodeHtmlEntities(stripHtmlMarkup(html))
+    decodeHtmlEntities(withoutUnsafeBlocks.replace(/<[^>]+>/gu, " "))
   ).slice(0, 200_000);
-}
-
-function stripHtmlMarkup(html: string): string {
-  const lower = html.toLowerCase();
-  const unsafeTags = new Set([
-    "script",
-    "style",
-    "noscript",
-    "template",
-    "svg",
-    "canvas"
-  ]);
-  let cursor = 0;
-  let output = "";
-  for (;;) {
-    const openingAt = html.indexOf("<", cursor);
-    if (openingAt < 0) {
-      return output + html.slice(cursor);
-    }
-    output += `${html.slice(cursor, openingAt)} `;
-    if (lower.startsWith("<!--", openingAt)) {
-      const closingAt = lower.indexOf("-->", openingAt + 4);
-      if (closingAt < 0) {
-        return output;
-      }
-      cursor = closingAt + 3;
-      continue;
-    }
-    const openingEnd = html.indexOf(">", openingAt + 1);
-    if (openingEnd < 0) {
-      return output;
-    }
-    const tagText = lower
-      .slice(openingAt + 1, Math.min(openingEnd, openingAt + 80))
-      .trimStart();
-    const tag = /^[a-z][a-z0-9]*/u.exec(tagText)?.[0];
-    if (!tag || !unsafeTags.has(tag)) {
-      cursor = openingEnd + 1;
-      continue;
-    }
-    const closingNeedle = `</${tag}`;
-    let closingAt = lower.indexOf(closingNeedle, openingEnd + 1);
-    while (
-      closingAt >= 0 &&
-      !/[\s>]/u.test(lower[closingAt + closingNeedle.length] ?? "")
-    ) {
-      closingAt = lower.indexOf(
-        closingNeedle,
-        closingAt + closingNeedle.length
-      );
-    }
-    if (closingAt < 0) {
-      return output;
-    }
-    const closingEnd = html.indexOf(">", closingAt + closingNeedle.length);
-    if (closingEnd < 0) {
-      return output;
-    }
-    cursor = closingEnd + 1;
-  }
 }
 
 function decodeHtmlEntities(value: string): string {

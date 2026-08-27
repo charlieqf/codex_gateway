@@ -220,7 +220,7 @@ describe("Research Worker controlled-beta workflow", () => {
     ).toBe(true);
     const closableOutput = modelOutput();
     closableOutput.review.markdown =
-      "这是面向患者的简短医生公开资料汇总，具体出诊与执业信息仍应通过医院官方渠道核对。";
+      "这是面向患者的简短医生公开资料汇总，具体出诊与执业信息仍应通过医院官方渠道核对 https://attacker.invalid/profile。";
     closableOutput.predicted_questions[0] =
       "这位医生目前公开可核验的具体执业情况和就诊渠道分别是什么？";
     closableOutput.answers[0]!.answer =
@@ -299,7 +299,8 @@ describe("Research Worker controlled-beta workflow", () => {
         "review_content_minimum",
         "reference_count_minimum",
         "paragraph_citation_coverage",
-        "answer_length_contract"
+        "answer_length_contract",
+        "unsafe_model_markup"
       ])
     );
     expect(observedPrompt).toContain("verified_doctor_publications");
@@ -322,11 +323,14 @@ describe("Research Worker controlled-beta workflow", () => {
         claims: Array<{ claim_type: string; text: string }>;
       };
       review: {
+        markdown: string;
         core_evidence: unknown[];
         references: unknown[];
         search_report: { included_count: number };
       };
       source_coverage: { warnings: string[] };
+      quality: { warnings: string[] };
+      sources: Array<{ source_id: string; url: string }>;
       artifacts: Array<{
         artifact_id: string;
         kind: string;
@@ -341,6 +345,19 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(result.review.core_evidence).toEqual([]);
     expect(result.review.references).toEqual([]);
     expect(result.review.search_report.included_count).toBe(0);
+    expect(result.review.markdown).not.toContain("attacker.invalid");
+    expect(result.sources).toContainEqual(
+      expect.objectContaining({
+        source_id: "src_official_1",
+        url: "https://hospital.example/doctor/example"
+      })
+    );
+    expect(
+      result.quality.warnings,
+      JSON.stringify(result.quality.warnings)
+    ).toContain(
+      "deterministic_model_raw_url_removed"
+    );
     expect(result.source_coverage.warnings).toContain(
       "doctor_publication_evidence_not_found"
     );
