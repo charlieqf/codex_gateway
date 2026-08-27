@@ -2439,7 +2439,8 @@ async function generateAndValidateModelOutput(
     context.reportValidationFailure(
       "synthesize_review",
       1,
-      validation.errorCodes
+      validation.errorCodes,
+      validation.errors
     );
   }
   if (doctorLookupBrief) {
@@ -8129,9 +8130,11 @@ function validateRuntimeQuality(
   ) {
     errors.push("profile_claim_source_closure");
   }
-  if (containsUnsafeModelMarkup(output)) {
-    errors.push("unsafe_model_markup");
-  }
+  errors.push(
+    ...unsafeModelMarkupDiagnostics(output).map(
+      (diagnostic) => `unsafe_model_markup:${diagnostic}`
+    )
+  );
   if (
     /\b(?:unverified|not verified|not validated)\b|未核验|未经核验/u.test(
       modelNarrativeStrings(output).join("\n")
@@ -10675,25 +10678,48 @@ function isObservationalOnlyEvidence(value: string): boolean {
   );
 }
 
-function containsUnsafeModelMarkup(
+function unsafeModelMarkupDiagnostics(
   output: DoctorResearchModelOutput
-): boolean {
+): string[] {
   const narrative = modelNarrativeStrings(output).join("\n");
-  return (
-    /<\/?[a-z][^>]*>|<!--|<!doctype|\?>/iu.test(narrative) ||
-    /!\s*\[/u.test(narrative) ||
-    /\]\s*\(/u.test(narrative) ||
-    /^\s*\[[^\]]+\]:\s*\S+/imu.test(narrative) ||
+  const diagnostics: string[] = [];
+  if (/<\/?[a-z][^>]*>|<!--|<!doctype|\?>/iu.test(narrative)) {
+    diagnostics.push("html_markup");
+  }
+  if (/!\s*\[/u.test(narrative)) {
+    diagnostics.push("markdown_image");
+  }
+  if (/\]\s*\(/u.test(narrative)) {
+    diagnostics.push("markdown_link");
+  }
+  if (/^\s*\[[^\]]+\]:\s*\S+/imu.test(narrative)) {
+    diagnostics.push("markdown_reference");
+  }
+  if (
     /&(?:#[0-9]{1,7}|#x[0-9a-f]{1,6}|[a-z][a-z0-9]{1,31});/iu.test(
       narrative
-    ) ||
-    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(
+    )
+  ) {
+    diagnostics.push("html_entity");
+  }
+  if (
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/u.test(
       narrative
-    ) ||
+    )
+  ) {
+    diagnostics.push("control_character");
+  }
+  if (/[\u202a-\u202e\u2066-\u2069]/u.test(narrative)) {
+    diagnostics.push("bidi_control");
+  }
+  if (
     /\b[a-z][a-z0-9+.-]{1,31}:\/\/|\b(?:javascript|vbscript|data|mailto|file|tel|sms|blob|about|cid):|\bwww\./iu.test(
       narrative
     )
-  );
+  ) {
+    diagnostics.push("raw_url");
+  }
+  return diagnostics;
 }
 
 function modelNarrativeStrings(

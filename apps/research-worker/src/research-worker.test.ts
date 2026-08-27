@@ -3431,7 +3431,7 @@ describe("Research Worker controlled-beta workflow", () => {
       }
     ];
     hallucinated.review.markdown =
-      "The retrieved publication enrolled 2025 patients, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].";
+      "The retrieved publication enrolled 2025 patients, but an unsafe [external link](https://attacker.invalid/) must not reach an artifact [1].\n<b>unsafe</b> ![image] &nbsp; \u0001 \u202a javascript:blocked\n[source]: citation";
     const numericHallucinated = modelOutput();
     numericHallucinated.review.markdown =
       "The retrieved publication enrolled 2025 patients and established a precise effect, repurposing the publication year as an unsupported sample size [1].";
@@ -3440,6 +3440,7 @@ describe("Research Worker controlled-beta workflow", () => {
       stage: string;
       attempt: number;
       errorCodes: readonly string[];
+      errorDetails?: readonly string[];
     }> = [];
     let repairPrompt = "";
     const outcome = await executeDoctorResearchWorkflow({
@@ -3494,6 +3495,16 @@ describe("Research Worker controlled-beta workflow", () => {
         errorCodes: expect.arrayContaining([
           "unsafe_model_markup",
           "numeric_evidence_closure"
+        ]),
+        errorDetails: expect.arrayContaining([
+          "unsafe_model_markup:html_markup",
+          "unsafe_model_markup:markdown_image",
+          "unsafe_model_markup:markdown_link",
+          "unsafe_model_markup:markdown_reference",
+          "unsafe_model_markup:html_entity",
+          "unsafe_model_markup:control_character",
+          "unsafe_model_markup:bidi_control",
+          "unsafe_model_markup:raw_url"
         ])
       }),
       expect.objectContaining({
@@ -3509,6 +3520,9 @@ describe("Research Worker controlled-beta workflow", () => {
     ]);
     expect(JSON.stringify(validationEvents)).not.toContain(
       "clm_research_direction_invented"
+    );
+    expect(JSON.stringify(validationEvents)).not.toContain(
+      "attacker.invalid"
     );
     expect(JSON.stringify(validationEvents)).not.toContain(
       "Invented oncology program"
