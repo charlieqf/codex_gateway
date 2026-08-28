@@ -58,8 +58,31 @@ Current operational state:
   28.720 seconds; the one existing correction call completed in 20.845 seconds
   and was accepted after deterministic raw-URL removal. Stored-result
   verification found no raw URL in any narrative field while all official,
-  PubMed and Crossref source URLs remained present. The focused Research suite
-  passed 199 tests; build, typecheck, sensitive-artifact scan, dependency audit
+  PubMed and Crossref source URLs remained present. A subsequent exact-input
+  production rerun of all ten Chinese-only doctors succeeded 10/10 with 49
+  strictly attributed references and 40 artifacts: 张文宏 5/291.129s, 郎景和
+  5/54.901s, 赵玉沛 5/68.154s, 杨璐 4/132.416s, 文煜冰 5/50.714s, 乔杰
+  5/78.915s, 葛均波 5/38.122s, 陈赛娟 5/108.476s, 李为民 5/53.103s and
+  王伟林 5/50.306s. The run IDs, in that order, are
+  `drr_21f3e397a967446984bbbc23e04b5d5b`,
+  `drr_7b250a971ddb43be8b3fc24ac9f0d32f`,
+  `drr_71a0a29cb6d84ad3bd94bcd4e1d5d52e`,
+  `drr_674cbde8f9a54014a7298ea8703bc957`,
+  `drr_ba4c046389104ea59987e0806f9a14e1`,
+  `drr_8c499e78052645cf9f26ea1d6feaa737`,
+  `drr_0de9c0a201584739ac15efd71547d282`,
+  `drr_d6b7b5533a294fe9b056e61f8aa1fbeb`,
+  `drr_49235119968546968f7cc5df9dbaa563` and
+  `drr_28974c618590434aa88b8660f0c9b5da`. All 40 stored artifact files
+  matched their recorded size and SHA-256, all ten narratives were raw-URL
+  free, and all source URLs remained present. Only 张文宏 required the new
+  deterministic raw-URL repair. Its 291-second outlier came from a 110-second
+  upstream model failure followed by the one existing transport retry. One
+  retryable request-scope HTTP 500 during 赵玉沛 recovered before success; its
+  temporary 20-RPM smoke credential later received HTTP 429 during artifact
+  download, so its four stored files were verified directly on the Worker.
+  The focused Research suite passed 199 tests; build, typecheck,
+  sensitive-artifact scan, dependency audit
   and `git diff --check` passed. A broad Windows test run passed 833 tests with
   two skips but hit unrelated resource-sensitive SQLite/Admin timing limits;
   the SQLite case passed alone, while one Admin CLI case completed in about 37
@@ -67,7 +90,8 @@ Current operational state:
   200, the Worker is healthy with zero restarts, both live databases report
   integrity `ok` and zero foreign-key violations, and there are zero unfinished
   Research runs, unfinalized reservations or active diagnostic users. The
-  protected backup is
+  ten batch credentials were revoked, entitlements cancelled, users disabled
+  and the temporary batch directory removed. The protected backup is
   `/data/codex-gateway-r760/backups/pre-research-raw-url-repair-20260827T233459Z`.
 - **2026-08-28 runtime Chinese-name PubMed identity release:** R760 `current` is
   `c254117f26d6b8501d8a641462a3cd3e7b0665b2`, `previous` is
