@@ -4,7 +4,7 @@
 
 面向团队：MedEvidence / GoldenCode Desktop 客户端团队
 
-文档状态：调查交接；Gateway 开发分支已实现并完成案例回归，尚未部署；客户端修复待验证
+文档状态：调查交接；Gateway 已在 R760 上线并启用精确准入；客户端修复待验证
 
 关联用户反馈：杜衡反馈 GoldenCode Local 返回 `MedCode upstream rejected the request.`
 
@@ -322,7 +322,7 @@ GoldenCode Local 的本次上下文超过 32K。客户端已尝试压缩，但�
 
 ## 8. Gateway 配合项与当前开发状态
 
-客户端仍必须做发送前保护。Gateway 本地开发分支已经实现两层保护，尚未部署：
+客户端仍必须做发送前保护。Gateway 已在 R760 生产启用两层保护：
 
 1. 仅针对 `local_openai`，可通过 `MEDCODE_LOCAL_CONTEXT_ADMISSION_MODE=disabled|shadow|enforce`
    启用 vLLM `/tokenize` 精确预检；默认 `disabled`，建议先 `shadow` 观测再切换 `enforce`。
@@ -425,6 +425,36 @@ node scripts/validate-duheng-local-context.mjs `
 
 客户端可以识别明确的 `context_compaction_required`、`context_length_exceeded` 和 `context_too_large`，但不应把所有通用 `invalid_request` 猜测为上下文错误。
 
+### 8.2 R760 生产上线验证
+
+2026-08-30，Gateway commit `6a9ae87d34b39809b97e0904e01cb62919bd7e89` 已部署到
+R760，`MEDCODE_LOCAL_CONTEXT_ADMISSION_MODE=enforce`。仅 Gateway 容器被重建，Qwen、Research
+和 Mihomo 容器保持原实例。
+
+使用上述固定 fixture、57 个真实工具定义和隐私安全的确定性客户端开销，通过生产 Gateway 重放：
+
+```text
+request_id                = req-397950e7-44cc-458c-b31d-dd615c66bc80
+http_status               = 413
+error_code                = context_compaction_required
+prompt_tokens             = 24,577
+requested_output_tokens   = 8,192
+total_tokens              = 32,769
+context_limit             = 32,768
+overflow_tokens           = 1
+token_count_source        = provider_tokenizer
+generation_attempted      = false
+token_reservation_created = false
+```
+
+生产双模型、Local SSE、工具调用、429、撤销和日志敏感信息 smoke 均通过；`/v1/models` 已返回
+`context_error_contract_version=1` 与 `context_overflow_recovery=compact_and_retry_once`。增强 smoke
+中的一次云模型控制请求遇到 Tencent provider-origin 503，按约束只做一次聚焦控制重试，
+`req-02cf5c14-f321-4261-92ea-b0b146fa83a2` 返回 200，判断为瞬时上游网络异常而非本次发布回归。
+
+上线前备份、数据库完整性、临时用户/凭证/预留清理、监听面和服务健康均已复核。完整发布证据与
+回滚边界见 `docs/operations/goldencode-local-context-admission-release-2026-08-30.zh-CN.md`。
+
 ## 9. 建议测试矩阵
 
 ### 9.1 单元测试
@@ -490,11 +520,9 @@ node scripts/validate-duheng-local-context.mjs `
 
 本交接基于 2026-08-30 的真实事件、Gateway/vLLM 日志、R760 只读健康检查以及当前 Desktop 源码检查形成。
 
-- 初始调查轮只新增本说明文档；随后 Gateway 本地开发分支已实现本节所述错误协议、精确
-  tokenizer 预检、灰度开关、模型能力字段、观测日志和自动化测试。
-- Gateway 代码改动尚未部署，生产仍保持原行为，需完成评审、shadow 观测和发布审批。
-- 未修改 Desktop 代码、数据库或线上配置。
-- 未部署或发布 Desktop。
-- 未重启 Gateway、Qwen 或其他服务。
-- 未执行新的模型请求或 Live E2E；文中请求 ID 来自已发生的用户事件。
-- Gateway 和 Desktop 工作树中的既有未跟踪/未提交内容均未触碰。
+- Gateway 已实现错误协议、精确 tokenizer 预检、灰度开关、模型能力字段、观测日志和自动化测试。
+- Gateway commit `6a9ae87d34b39809b97e0904e01cb62919bd7e89` 已部署到 R760，并以 `enforce` 模式生效。
+- 未修改 Desktop 代码、Desktop 数据库或 Desktop 线上配置；未部署或发布 Desktop。
+- 发布时仅重建 Gateway；Qwen、Research、Mihomo 和其他服务未重启或重建。
+- 已执行生产 Gateway 双模型 smoke 和杜衡案例重放；尚未执行安装版 Desktop 的完整压缩 Live E2E。
+- Gateway 和 Desktop 工作树中的既有无关未跟踪/未提交内容均未触碰。

@@ -81,6 +81,11 @@ auth_header="Authorization: Bearer $token"
 stage=models
 curl -fsS --max-time 30 -H "$auth_header" "$base_url/v1/models" > "$tmp/models.json"
 jq -e '[.data[].id] | sort == ["goldencode", "goldencode-local"]' "$tmp/models.json" >/dev/null
+jq -e '.data[] | select(.id == "goldencode-local")
+  | .context_error_contract_version == 1
+    and .context_overflow_recovery == "compact_and_retry_once"
+    and .context_window == 32768
+    and .max_output_tokens == 8192' "$tmp/models.json" >/dev/null
 
 cat > "$tmp/local.json" <<'JSON'
 {"model":"goldencode-local","messages":[{"role":"user","content":"Reply with a short confirmation that local inference works."}],"stream":false,"reasoning_effort":"low","max_tokens":64}
@@ -211,6 +216,7 @@ fi
 
 echo "request_id=$request_id"
 echo "models=goldencode,goldencode-local"
+echo "local_context_contract=version-1,compact-and-retry-once,32768,8192"
 echo "auth=401/401/revoke-401"
 echo "chat=goldencode-200,goldencode-local-200,sse-done,tools-required-named-none-followup-200"
 echo "rate_limit=429"

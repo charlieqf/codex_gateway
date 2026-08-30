@@ -1,6 +1,6 @@
 # System Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-30
 
 ## Current Phase
 
@@ -34,6 +34,30 @@ evidence only and must not be used as current operating instructions.
 
 Current operational state:
 
+- **2026-08-30 GoldenCode Local context admission release:** R760 `current` is
+  `6a9ae87d34b39809b97e0904e01cb62919bd7e89`, `previous` is
+  `e4f27d31324cbddfb1052b19d4fce2d181afa8be`, and the active Gateway image is
+  `sha256:f36bbfa7ca0b719778b3e8b7268bdddb571ff40bcebb799ffa2b8c1976817a8e`.
+  Only Gateway was recreated. `goldencode-local` now runs exact vLLM
+  `/tokenize` admission in `enforce` mode; an oversized request receives HTTP
+  413 `context_compaction_required` with the effective context and token
+  breakdown before generation. Tokenizer failure remains fail-open and an
+  explicit upstream vLLM context-validation 400 remains a structured fallback.
+  The pinned Du Heng replay request
+  `req-397950e7-44cc-458c-b31d-dd615c66bc80` reproduced 24,577 prompt + 8,192
+  requested output = 32,769 against the 32,768 limit, returned overflow 1 and
+  created no generation attempt or token reservation. The dual-model, SSE,
+  tool, rate-limit, revocation and log-secret smoke passed; a later Tencent
+  control call had one provider-origin 503 and the single focused control
+  retry `req-02cf5c14-f321-4261-92ea-b0b146fa83a2` returned 200. Gateway and
+  Qwen are healthy with zero restarts, Research/Qwen/Mihomo container IDs were
+  unchanged, all three live SQLite databases pass integrity and foreign-key
+  checks, and temporary users, credentials, reservations and fixture files are
+  clean. The verified rollback boundary is
+  `/opt/codex-gateway-r760/backups/pre-local-context-admission-20260830T043123Z`.
+  Desktop compaction/rebuild/one-shot-retry implementation and installed-app
+  E2E remain separate release gates. Full evidence is in
+  `docs/operations/goldencode-local-context-admission-release-2026-08-30.zh-CN.md`.
 - **2026-08-28 Doctor Research model-authored raw-URL repair (supersedes the
   remaining 张文宏 model-output failure below):** R760 `current` is
   `e4f27d31324cbddfb1052b19d4fce2d181afa8be`, `previous` is
