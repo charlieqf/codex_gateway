@@ -119,6 +119,42 @@ describe("gatewayErrorMetadata", () => {
     });
   });
 
+  it("publishes actionable model context overflow metadata", () => {
+    const error = new GatewayError({
+      code: "context_compaction_required",
+      message: "Compact earlier context and retry once.",
+      httpStatus: 413,
+      contractVersion: 1,
+      failureKind: "model_context_overflow",
+      transformedRetryAllowed: true,
+      recommendedAction: "compact_and_retry_once",
+      recoveryOwner: "client",
+      contextWindowDetails: {
+        contextLimitTokens: 32_768,
+        promptTokens: 24_577,
+        requestedOutputTokens: 8_192,
+        totalTokens: 32_769,
+        overflowTokens: 1,
+        tokenCountSource: "upstream_validation"
+      }
+    });
+
+    expect(gatewayErrorMetadata(error, { requestId: "req_context_contract" })).toEqual({
+      contract_version: 1,
+      failure_kind: "model_context_overflow",
+      transformed_retry_allowed: true,
+      recommended_action: "compact_and_retry_once",
+      recovery_owner: "client",
+      context_limit: 32_768,
+      prompt_tokens: 24_577,
+      requested_output_tokens: 8_192,
+      total_tokens: 32_769,
+      overflow_tokens: 1,
+      token_count_source: "upstream_validation",
+      request_id: "req_context_contract"
+    });
+  });
+
   it("publishes actionable unsupported reasoning metadata", () => {
     const error = new GatewayError({
       code: "unsupported_reasoning_effort",

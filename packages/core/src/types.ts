@@ -444,6 +444,7 @@ export type StreamEvent =
       type: "error";
       code: string;
       message: string;
+      gatewayError?: import("./errors.js").GatewayError;
       responseSummary?: ProviderResponseSummary;
       providerFailure?: import("./provider-failure.js").ProviderFailureClassification;
     };

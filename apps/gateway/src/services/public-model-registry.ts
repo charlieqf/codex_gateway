@@ -124,7 +124,13 @@ export function openAIModelObject(model: PublicModelConfig, id?: string | number
     owned_by: "medcode",
     context_window: model.contextWindow,
     max_context_window: model.maxContextWindow,
-    max_output_tokens: model.maxOutputTokens
+    max_output_tokens: model.maxOutputTokens,
+    ...(model.runtime === "local_openai"
+      ? {
+          context_error_contract_version: 1,
+          context_overflow_recovery: "compact_and_retry_once"
+        }
+      : {})
   };
 }
 

@@ -255,6 +255,12 @@ import {
   resolveChatRequestTimeoutMs
 } from "./services/chat-request-deadline.js";
 import {
+  contextCompactionRequiredError,
+  parseLocalContextAdmissionMode,
+  providerTokenizedContextWindowDetails,
+  type LocalContextAdmissionMode
+} from "./services/local-context-admission.js";
+import {
   assessToolLoopShadow,
   parseToolLoopShadowPolicy,
   toolLoopGuardAssessed,
@@ -344,6 +350,7 @@ export interface GatewayOptions {
   imageGenerationBillingFallbacks?: ImageGenerationBillingFallbackInput[];
   visionAssetService?: VisionAssetService | null;
   activeRequestRegistry?: ActiveRequestRegistry;
+  localContextAdmissionMode?: LocalContextAdmissionMode;
   now?: () => Date;
   logger?: boolean;
 }
@@ -452,6 +459,9 @@ export function buildGateway(options: GatewayOptions = {}) {
   const toolLoopShadowPolicy = parseToolLoopShadowPolicy(process.env, (message) =>
     app.log.warn(message)
   );
+  const localContextAdmissionMode =
+    options.localContextAdmissionMode ??
+    parseLocalContextAdmissionMode(process.env.MEDCODE_LOCAL_CONTEXT_ADMISSION_MODE);
   const visionRequestBodyLimitBytes = parsePositiveIntegerEnv(
     process.env.MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES,
     30 * 1_024 * 1_024,
@@ -2372,6 +2382,85 @@ export function buildGateway(options: GatewayOptions = {}) {
     ) + (parsed.images?.length ?? 0) * estimatedTokensPerVisionImage;
     request.gatewayEstimatedPromptTokens = request.gatewayEstimatedTokens;
     request.gatewayPromptEstimateMethod = PROMPT_TOKEN_ESTIMATE_METHOD;
+    if (
+      attempt.runtime === "local_openai" &&
+      localContextAdmissionMode !== "disabled"
+    ) {
+      if (!attempt.adapter.countPromptTokens) {
+        request.log.warn(
+          {
+            request_id: request.id,
+            public_model_id: publicModel.id,
+            local_context_admission_mode: localContextAdmissionMode
+          },
+          "Local context admission tokenizer is unavailable; request will continue."
+        );
+      } else {
+        try {
+          const tokenCount = await attempt.adapter.countPromptTokens({
+            upstreamAccount: attempt.adapterInputUpstreamAccount,
+            subject: attempt.subject,
+            scope: attempt.scope,
+            session: attempt.session,
+            message: prompt,
+            chatMessages: parsed.messages,
+            images: parsed.images,
+            reasoningEffort: attempt.reasoningEffort,
+            maximumOutputTokens,
+            clientTools: nativeClientTools ? parsed.tools : undefined,
+            clientToolChoice: nativeClientTools ? parsed.toolChoice : undefined,
+            signal: executionOptions.signal
+          });
+          request.gatewayEstimatedPromptTokens = tokenCount.promptTokens;
+          request.gatewayPromptEstimateMethod = tokenCount.source;
+          const contextWindowDetails = providerTokenizedContextWindowDetails({
+            configuredContextLimitTokens: attempt.limits.contextWindow,
+            requestedOutputTokens: maximumOutputTokens,
+            tokenCount
+          });
+          const fields = {
+            request_id: request.id,
+            public_model_id: publicModel.id,
+            local_context_admission_mode: localContextAdmissionMode,
+            configured_context_limit_tokens: attempt.limits.contextWindow,
+            provider_context_limit_tokens: tokenCount.maxContextTokens,
+            effective_context_limit_tokens: Math.min(
+              attempt.limits.contextWindow,
+              tokenCount.maxContextTokens
+            ),
+            prompt_tokens: tokenCount.promptTokens,
+            requested_output_tokens: maximumOutputTokens,
+            total_tokens: tokenCount.promptTokens + maximumOutputTokens,
+            overflow_tokens: contextWindowDetails?.overflowTokens ?? 0,
+            would_reject: contextWindowDetails !== null
+          };
+          if (contextWindowDetails) {
+            request.log.warn(
+              fields,
+              localContextAdmissionMode === "enforce"
+                ? "Local context admission rejected an oversized request."
+                : "Local context admission shadow check would reject the request."
+            );
+            if (localContextAdmissionMode === "enforce") {
+              attempt.release();
+              return fail(contextCompactionRequiredError(contextWindowDetails));
+            }
+          } else {
+            request.log.info(fields, "Local context admission check passed.");
+          }
+        } catch (error) {
+          request.log.warn(
+            {
+              request_id: request.id,
+              public_model_id: publicModel.id,
+              local_context_admission_mode: localContextAdmissionMode,
+              error: error instanceof Error ? error.message : String(error)
+            },
+            "Local context admission tokenizer failed; request will continue."
+          );
+        }
+      }
+    }
     request.gatewayToolLoopGuard = toolLoopGuardNotAssessed(
       toolLoopShadowPolicy,
       toolLoopShadowPolicy.mode === "disabled"

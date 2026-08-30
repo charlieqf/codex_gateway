@@ -426,8 +426,12 @@ export async function collectProviderMessage(
 export function streamErrorToGatewayError(event: {
   code: string;
   message: string;
+  gatewayError?: GatewayError;
   providerFailure?: ProviderFailureClassification;
 }): GatewayError {
+  if (event.gatewayError?.contextWindowDetails) {
+    return event.gatewayError;
+  }
   const failure = event.providerFailure;
   if (event.code === "client_aborted") {
     return new GatewayError({

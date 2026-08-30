@@ -55,6 +55,36 @@ describe("streamErrorToGatewayError", () => {
     );
   });
 
+  it("preserves structured gateway context recovery details from an adapter", () => {
+    const gatewayError = new GatewayError({
+      code: "context_compaction_required",
+      message: "Compact earlier context and retry once.",
+      httpStatus: 413,
+      upstreamStatus: 400,
+      contractVersion: 1,
+      failureKind: "model_context_overflow",
+      transformedRetryAllowed: true,
+      recommendedAction: "compact_and_retry_once",
+      recoveryOwner: "client",
+      contextWindowDetails: {
+        contextLimitTokens: 32_768,
+        promptTokens: 24_577,
+        requestedOutputTokens: 8_192,
+        totalTokens: 32_769,
+        overflowTokens: 1,
+        tokenCountSource: "upstream_validation"
+      }
+    });
+
+    expect(
+      streamErrorToGatewayError({
+        code: gatewayError.code,
+        message: gatewayError.message,
+        gatewayError
+      })
+    ).toBe(gatewayError);
+  });
+
   it.each([
     ["upstream_incomplete_stream", "Incomplete upstream stream."],
     ["upstream_empty_response", "Empty upstream response."]

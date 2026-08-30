@@ -11,6 +11,7 @@ import {
   type ProviderKind,
   type ProviderFailureKind,
   type ProviderFailureStage,
+  type ProviderPromptTokenCount,
   type ProviderResponseSummary,
   type ProviderStreamTermination,
   type StreamEvent,
@@ -18,6 +19,10 @@ import {
   type UpstreamAccount
 } from "@codex-gateway/core";
 import { buildOpenRouterIdentityGuardPrompt } from "./openrouter-identity-guard.js";
+import {
+  contextCompactionRequiredError,
+  localContextWindowDetails
+} from "./local-context-admission.js";
 
 export interface OpenAICompatibleProviderOptions {
   providerKind: Extract<
@@ -106,6 +111,42 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     }
   }
 
+  async countPromptTokens(input: MessageInput): Promise<ProviderPromptTokenCount> {
+    const abort = createAbortSignal(input.signal, Math.min(this.options.timeoutMs, 30_000));
+    try {
+      const response = await this.fetchImpl(tokenizeUrl(this.options.baseUrl), {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({
+          model: this.options.upstreamModel,
+          messages: this.requestMessages(input),
+          ...(nativeToolCallsEnabled(input) ? { tools: input.clientTools } : {}),
+          return_token_strs: false
+        }),
+        signal: abort.signal
+      });
+      if (!response.ok) {
+        throw new Error(`Provider tokenizer returned HTTP ${response.status}.`);
+      }
+      const payload = (await response.json()) as unknown;
+      if (!isRecord(payload)) {
+        throw new Error("Provider tokenizer returned an invalid response.");
+      }
+      const promptTokens = positiveSafeInteger(payload.count);
+      const maxContextTokens = positiveSafeInteger(payload.max_model_len);
+      if (promptTokens === null || maxContextTokens === null) {
+        throw new Error("Provider tokenizer returned invalid token limits.");
+      }
+      return {
+        promptTokens,
+        maxContextTokens,
+        source: "provider_tokenizer"
+      };
+    } finally {
+      abort.cleanup();
+    }
+  }
+
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const abort = createAbortSignal(input.signal, this.options.timeoutMs);
     let failureStage: ProviderFailureStage = "before_headers";
@@ -124,6 +165,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           type: "error",
           code: normalized.code,
           message: normalized.message,
+          gatewayError: normalized,
           providerFailure: normalized.providerFailure
         };
         return;
@@ -186,6 +228,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
             type: "error",
             code: normalized.code,
             message: normalized.message,
+            gatewayError: normalized,
             providerFailure: normalized.providerFailure,
             responseSummary: {
               finishReason,
@@ -247,6 +290,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           type: "error",
           code: normalized.code,
           message: normalized.message,
+          gatewayError: normalized,
           providerFailure: normalized.providerFailure,
           responseSummary
         };
@@ -275,6 +319,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         type: "error",
         code: normalized.code,
         message: normalized.message,
+        gatewayError: normalized,
         providerFailure: normalized.providerFailure
       };
     } finally {
@@ -419,7 +464,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     const normalizedBase =
       input.signal?.aborted && input.signal.reason instanceof GatewayError
         ? input.signal.reason
-        : this.normalize(err);
+        : this.normalize(err, input);
     const normalized = withProviderFailure(normalizedBase, failure);
     if (input.onProviderError) {
       try {
@@ -431,7 +476,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     return normalized;
   }
 
-  private normalize(err: unknown): GatewayError {
+  private normalize(err: unknown, input?: MessageInput): GatewayError {
     if (err instanceof GatewayError) {
       return err;
     }
@@ -446,6 +491,13 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         });
       }
       if (err.status === 400) {
+        const contextWindowDetails =
+          this.options.providerKind === "local-openai"
+            ? localContextWindowDetails(err.message, input?.maximumOutputTokens)
+            : null;
+        if (contextWindowDetails) {
+          return contextCompactionRequiredError(contextWindowDetails, err.status);
+        }
         return new GatewayError({
           code: "invalid_request",
           message: "MedCode upstream rejected the request.",
@@ -880,6 +932,10 @@ function modelsUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/models`;
 }
 
+function tokenizeUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "").replace(/\/v1$/i, "")}/tokenize`;
+}
+
 function openAIModelsContain(value: unknown, model: string): boolean {
   if (!isRecord(value) || !Array.isArray(value.data)) {
     return false;
@@ -944,6 +1000,12 @@ function tokenCount(value: unknown): number {
   return Math.trunc(value);
 }
 
+function positiveSafeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : null;
+}
+
 function isAbortError(err: unknown): boolean {
   if (err instanceof Error && err.message === "upstream_timeout") {
     return true;
@@ -994,6 +1056,10 @@ function withProviderFailure(
     transformedRetryAllowed: error.transformedRetryAllowed,
     recommendedAction: error.recommendedAction,
     recoveryOwner: error.recoveryOwner,
+    parameter: error.parameter,
+    requestedValue: error.requestedValue,
+    supportedValues: error.supportedValues,
+    contextWindowDetails: error.contextWindowDetails,
     providerFailure
   }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
 }

@@ -276,6 +276,12 @@ describe("public model registry", () => {
       contextWindow: 32768,
       maxOutputTokens: 8192
     });
+    expect(openAIModelObject(registry.get("qwen3.8-27b-fp8")!)).toMatchObject({
+      context_window: 32768,
+      max_output_tokens: 8192,
+      context_error_contract_version: 1,
+      context_overflow_recovery: "compact_and_retry_once"
+    });
     expect(
       registry
         .listAvailable({ openRouterAvailable: false, localOpenAIAvailable: false })

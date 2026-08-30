@@ -721,6 +721,123 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it("rejects an oversized local request before generation with compaction metadata", async () => {
+    await runLocalContextAdmissionTurn(
+      { mode: "enforce", promptTokens: 24_577 },
+      ({ response, tokenizeRequests, completionRequests, store }) => {
+        expect(response.statusCode).toBe(413);
+        expect(response.json().error).toMatchObject({
+          code: "context_compaction_required",
+          type: "invalid_request_error",
+          retryable: false,
+          contract_version: 1,
+          failure_kind: "model_context_overflow",
+          transformed_retry_allowed: true,
+          recommended_action: "compact_and_retry_once",
+          recovery_owner: "client",
+          context_limit: 32_768,
+          prompt_tokens: 24_577,
+          requested_output_tokens: 8_192,
+          total_tokens: 32_769,
+          overflow_tokens: 1,
+          token_count_source: "provider_tokenizer",
+          request_id: expect.any(String)
+        });
+        expect(tokenizeRequests).toHaveLength(1);
+        expect(tokenizeRequests[0]).toMatchObject({
+          model: "qwen3.8-27b-fp8",
+          messages: [
+            { role: "system", content: "Preserve the task." },
+            { role: "user", content: "Continue working." }
+          ],
+          tools: [
+            expect.objectContaining({
+              type: "function",
+              function: expect.objectContaining({ name: "write_file" })
+            })
+          ]
+        });
+        expect(completionRequests).toHaveLength(0);
+        expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+          status: "error",
+          errorCode: "context_compaction_required",
+          gatewayEstimatedPromptTokens: 24_577,
+          gatewayPromptEstimateMethod: "provider_tokenizer",
+          upstreamAttemptCount: 0
+        });
+      }
+    );
+  });
+
+  it("allows a local request that exactly fills the effective context window", async () => {
+    await runLocalContextAdmissionTurn(
+      { mode: "enforce", promptTokens: 24_576 },
+      ({ response, tokenizeRequests, completionRequests, store }) => {
+        expect(response.statusCode).toBe(200);
+        expect(response.json().choices[0].message.content).toBe("local admission ok");
+        expect(tokenizeRequests).toHaveLength(1);
+        expect(completionRequests).toHaveLength(1);
+        expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+          status: "ok",
+          gatewayEstimatedPromptTokens: 24_576,
+          gatewayPromptEstimateMethod: "provider_tokenizer",
+          upstreamAttemptCount: 1
+        });
+      }
+    );
+  });
+
+  it("observes local overflow without rejecting in shadow mode", async () => {
+    await runLocalContextAdmissionTurn(
+      { mode: "shadow", promptTokens: 24_577 },
+      ({ response, tokenizeRequests, completionRequests }) => {
+        expect(response.statusCode).toBe(200);
+        expect(tokenizeRequests).toHaveLength(1);
+        expect(completionRequests).toHaveLength(1);
+      }
+    );
+  });
+
+  it("fails open when the local tokenizer is temporarily unavailable", async () => {
+    await runLocalContextAdmissionTurn(
+      { mode: "enforce", tokenizerStatus: 500 },
+      ({ response, tokenizeRequests, completionRequests }) => {
+        expect(response.statusCode).toBe(200);
+        expect(tokenizeRequests).toHaveLength(1);
+        expect(completionRequests).toHaveLength(1);
+      }
+    );
+  });
+
+  it("maps a local upstream context rejection when exact admission is disabled", async () => {
+    await runLocalContextAdmissionTurn(
+      { mode: "disabled", completionStatus: 400 },
+      ({ response, tokenizeRequests, completionRequests, store }) => {
+        expect(response.statusCode).toBe(413);
+        expect(response.json().error).toMatchObject({
+          code: "context_compaction_required",
+          contract_version: 1,
+          recommended_action: "compact_and_retry_once",
+          context_limit: 32_768,
+          prompt_tokens: 24_577,
+          requested_output_tokens: 8_192,
+          total_tokens: 32_769,
+          overflow_tokens: 1,
+          token_count_source: "upstream_validation",
+          request_id: expect.any(String)
+        });
+        expect(tokenizeRequests).toHaveLength(0);
+        expect(completionRequests).toHaveLength(1);
+        expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+          status: "error",
+          errorCode: "context_compaction_required",
+          upstreamAttemptCount: 1,
+          upstreamHttpStatus: 400
+        });
+      }
+    );
+  });
+
   it("keeps a mixed Gateway ready when only local inference is unavailable", async () => {
     await withTemporaryEnv(
       {
@@ -15812,6 +15929,141 @@ async function startOpenAICompatibleSseServer(
         server.close((err) => (err ? reject(err) : resolve()));
       })
   };
+}
+
+async function runLocalContextAdmissionTurn(
+  input: {
+    mode: "disabled" | "shadow" | "enforce";
+    promptTokens?: number;
+    tokenizerStatus?: number;
+    completionStatus?: number;
+  },
+  assertions: (input: {
+    response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
+    tokenizeRequests: Array<Record<string, unknown>>;
+    completionRequests: Array<Record<string, unknown>>;
+    store: ReturnType<typeof createCredentialBackedStore>["store"];
+  }) => void
+): Promise<void> {
+  const tokenizeRequests: Array<Record<string, unknown>> = [];
+  const completionRequests: Array<Record<string, unknown>> = [];
+  const server = await startOpenAICompatibleSseServer(async (request, body, response) => {
+    if (request.url === "/tokenize") {
+      tokenizeRequests.push(JSON.parse(body) as Record<string, unknown>);
+      const status = input.tokenizerStatus ?? 200;
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(
+        status === 200
+          ? JSON.stringify({
+              count: input.promptTokens,
+              max_model_len: 32_768,
+              tokens: []
+            })
+          : JSON.stringify({ error: { message: "tokenizer unavailable" } })
+      );
+      return;
+    }
+    if (request.url === "/v1/chat/completions") {
+      completionRequests.push(JSON.parse(body) as Record<string, unknown>);
+      if (input.completionStatus === 400) {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            error: {
+              message:
+                "This model's maximum context length is 32768 tokens. However, you requested 32769 tokens (24577 in the messages, 8192 in the completion)."
+            }
+          })
+        );
+        return;
+      }
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [{ delta: { content: "local admission ok" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 100, completion_tokens: 4, total_tokens: 104 }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+      return;
+    }
+    response.writeHead(404).end();
+  });
+
+  try {
+    await withTemporaryEnv(
+      {
+        MEDCODE_PUBLIC_MODEL_ID: "qwen3.8-27b-fp8",
+        MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+        MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+          "qwen3.8-27b-fp8": {
+            displayName: "Qwen3.8 27B FP8 (R760)",
+            runtime: "local_openai",
+            upstreamModel: "qwen3.8-27b-fp8",
+            contextWindow: 32_768,
+            maxContextWindow: 32_768,
+            upstreamContextWindow: 65_536,
+            maxOutputTokens: 8_192,
+            enabled: true
+          }
+        }),
+        MEDCODE_LOCAL_OPENAI_BASE_URL: `${server.baseUrl}/v1`,
+        MEDCODE_LOCAL_OPENAI_TIMEOUT_MS: "5000",
+        MEDCODE_LOCAL_OPENAI_API_KEY: undefined,
+        MEDCODE_LOCAL_OPENAI_API_KEY_FILE: undefined,
+        GATEWAY_REQUIRE_ENTITLEMENT: "0"
+      },
+      async () => {
+        const { store, headers } = createCredentialBackedStore();
+        const app = buildGateway({
+          authMode: "credential",
+          provider: new FakeProvider(),
+          sessionStore: store,
+          observationStore: store,
+          localContextAdmissionMode: input.mode,
+          logger: false
+        });
+        try {
+          const response = await app.inject({
+            method: "POST",
+            url: "/v1/chat/completions",
+            headers,
+            payload: {
+              model: "qwen3.8-27b-fp8",
+              messages: [
+                { role: "system", content: "Preserve the task." },
+                { role: "user", content: "Continue working." }
+              ],
+              tools: [
+                {
+                  type: "function",
+                  function: {
+                    name: "write_file",
+                    parameters: {
+                      type: "object",
+                      properties: { path: { type: "string" } },
+                      required: ["path"]
+                    }
+                  }
+                }
+              ],
+              max_tokens: 8_192
+            }
+          });
+          assertions({
+            response,
+            tokenizeRequests,
+            completionRequests,
+            store
+          });
+        } finally {
+          await app.close();
+        }
+      }
+    );
+  } finally {
+    await server.close();
+  }
 }
 
 async function eventually(assertion: () => void, timeoutMs = 1000): Promise<void> {

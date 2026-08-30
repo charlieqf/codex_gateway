@@ -252,6 +252,92 @@ describe("OpenAICompatibleProviderAdapter", () => {
     }
   });
 
+  it("counts the exact local prompt through the top-level vLLM tokenize route", async () => {
+    const captured: Array<{
+      url: string | URL | Request;
+      headers: Headers;
+      body: Record<string, unknown>;
+    }> = [];
+    const provider = new OpenAICompatibleProviderAdapter({
+      providerKind: "local-openai",
+      apiKey: "",
+      apiKeyEnv: "MEDCODE_LOCAL_OPENAI_API_KEY",
+      apiKeyRequired: false,
+      includeIdentityGuard: false,
+      preserveChatMessages: true,
+      baseUrl: "http://local-vllm.invalid/v1",
+      upstreamModel: "qwen3.8-27b-fp8",
+      timeoutMs: 5_000,
+      fetchImpl: async (url, init) => {
+        captured.push({
+          url,
+          headers: new Headers(init?.headers),
+          body: JSON.parse(String(init?.body)) as Record<string, unknown>
+        });
+        return new Response(
+          JSON.stringify({
+            count: 24_577,
+            max_model_len: 32_768,
+            tokens: []
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    const result = await provider.countPromptTokens({
+      upstreamAccount: {
+        ...openRouterAccount(),
+        id: "local-openai-main",
+        provider: "local-openai"
+      },
+      subject: testSubject(),
+      scope: "code",
+      session: testSession(),
+      message: "serialized fallback must not be sent",
+      chatMessages: [
+        { role: "system", content: "You are the local coding model." },
+        { role: "user", content: "Use the weather tool." }
+      ],
+      clientTools: [
+        {
+          type: "function",
+          function: {
+            name: "get_weather",
+            parameters: { type: "object" }
+          }
+        }
+      ],
+      clientToolChoice: "auto"
+    });
+
+    expect(result).toEqual({
+      promptTokens: 24_577,
+      maxContextTokens: 32_768,
+      source: "provider_tokenizer"
+    });
+    expect(captured).toHaveLength(1);
+    expect(String(captured[0].url)).toBe("http://local-vllm.invalid/tokenize");
+    expect(captured[0].headers.get("authorization")).toBeNull();
+    expect(captured[0].body).toMatchObject({
+      model: "qwen3.8-27b-fp8",
+      messages: [
+        { role: "system", content: "You are the local coding model." },
+        { role: "user", content: "Use the weather tool." }
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "get_weather",
+            parameters: { type: "object" }
+          }
+        }
+      ],
+      return_token_strs: false
+    });
+  });
+
   it("sends image inputs to xAI as multimodal content with server storage disabled", async () => {
     const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
     const server = await startSseServer(async (request, body, response) => {
@@ -1065,6 +1151,71 @@ describe("OpenAICompatibleProviderAdapter", () => {
     });
   });
 
+  it("classifies a local vLLM context rejection as client compaction required", async () => {
+    const events = await providerEvents(
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message:
+                "This model's maximum context length is 32768 tokens. However, you requested 32769 tokens (24577 in the messages, 8192 in the completion)."
+            }
+          }),
+          { status: 400 }
+        ),
+      {
+        providerKind: "local-openai",
+        maximumOutputTokens: 8_192
+      }
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "error",
+      code: "context_compaction_required",
+      message:
+        "The request exceeds the effective model context window. Compact earlier context and retry once.",
+      gatewayError: {
+        httpStatus: 413,
+        upstreamStatus: 400,
+        contractVersion: 1,
+        failureKind: "model_context_overflow",
+        transformedRetryAllowed: true,
+        recommendedAction: "compact_and_retry_once",
+        recoveryOwner: "client",
+        contextWindowDetails: {
+          contextLimitTokens: 32_768,
+          promptTokens: 24_577,
+          requestedOutputTokens: 8_192,
+          totalTokens: 32_769,
+          overflowTokens: 1,
+          tokenCountSource: "upstream_validation"
+        }
+      },
+      providerFailure: {
+        origin: "provider",
+        kind: "http_request",
+        stage: "after_headers",
+        upstreamStatus: 400
+      }
+    });
+  });
+
+  it("keeps unrelated local HTTP 400 responses as invalid requests", async () => {
+    const events = await providerEvents(
+      async () =>
+        new Response(JSON.stringify({ error: { message: "Unsupported field." } }), {
+          status: 400
+        }),
+      { providerKind: "local-openai" }
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "error",
+      code: "invalid_request",
+      gatewayError: { httpStatus: 400 }
+    });
+  });
+
   it("distinguishes missing bodies, malformed SSE, and interrupted streams", async () => {
     const missing = await providerEvents(async () => new Response(null, { status: 200 }));
     expect(missing[0]).toMatchObject({
@@ -1157,14 +1308,24 @@ describe("OpenAICompatibleProviderAdapter", () => {
 
 async function providerEvents(
   fetchImpl: typeof fetch,
-  options: { timeoutMs?: number; signal?: AbortSignal } = {}
+  options: {
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    providerKind?: "openrouter" | "local-openai";
+    maximumOutputTokens?: number;
+  } = {}
 ) {
   const provider = new OpenAICompatibleProviderAdapter({
-    providerKind: "openrouter",
-    apiKey: "sk-test-redacted",
-    apiKeyEnv: "MEDCODE_OPENROUTER_API_KEY",
+    providerKind: options.providerKind ?? "openrouter",
+    apiKey: options.providerKind === "local-openai" ? "" : "sk-test-redacted",
+    apiKeyEnv:
+      options.providerKind === "local-openai"
+        ? "MEDCODE_LOCAL_OPENAI_API_KEY"
+        : "MEDCODE_OPENROUTER_API_KEY",
+    apiKeyRequired: options.providerKind !== "local-openai",
     baseUrl: "https://provider.invalid/v1",
-    upstreamModel: "z-ai/glm-5.2",
+    upstreamModel:
+      options.providerKind === "local-openai" ? "qwen3.8-27b-fp8" : "z-ai/glm-5.2",
     timeoutMs: options.timeoutMs ?? 5_000,
     fetchImpl
   });
@@ -1174,6 +1335,7 @@ async function providerEvents(
     scope: "code",
     session: testSession(),
     message: "diagnostic test",
+    maximumOutputTokens: options.maximumOutputTokens,
     signal: options.signal
   };
   const events = [];

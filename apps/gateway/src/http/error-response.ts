@@ -68,7 +68,20 @@ export function gatewayErrorMetadata(
     ...(error.supportedValues !== undefined
       ? { supported_values: [...error.supportedValues] }
       : {}),
-    ...(context.requestId && isRateLimited ? { request_id: context.requestId } : {}),
+    ...(error.contextWindowDetails
+      ? {
+          context_limit: error.contextWindowDetails.contextLimitTokens,
+          prompt_tokens: error.contextWindowDetails.promptTokens,
+          requested_output_tokens:
+            error.contextWindowDetails.requestedOutputTokens,
+          total_tokens: error.contextWindowDetails.totalTokens,
+          overflow_tokens: error.contextWindowDetails.overflowTokens,
+          token_count_source: error.contextWindowDetails.tokenCountSource
+        }
+      : {}),
+    ...(context.requestId && (isRateLimited || error.contextWindowDetails)
+      ? { request_id: context.requestId }
+      : {}),
     ...(retryAfterSeconds !== undefined
       ? { retry_after_seconds: retryAfterSeconds }
       : {}),

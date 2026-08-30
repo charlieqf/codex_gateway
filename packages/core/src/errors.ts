@@ -92,9 +92,23 @@ export type GatewayFailureKind =
   | ToolCallValidationFailureKind
   | "confirmed_output_limit"
   | "argument_budget_exceeded"
+  | "model_context_overflow"
   | "upstream_incomplete";
 
 export type GatewayRecoveryOwner = "client" | "gateway";
+
+export type GatewayContextTokenCountSource =
+  | "provider_tokenizer"
+  | "upstream_validation";
+
+export interface GatewayContextWindowDetails {
+  contextLimitTokens: number;
+  promptTokens: number;
+  requestedOutputTokens: number;
+  totalTokens: number;
+  overflowTokens: number;
+  tokenCountSource: GatewayContextTokenCountSource;
+}
 
 export class GatewayError extends Error {
   readonly code: GatewayErrorCode;
@@ -110,6 +124,7 @@ export class GatewayError extends Error {
   readonly parameter?: string;
   readonly requestedValue?: string;
   readonly supportedValues?: readonly string[];
+  readonly contextWindowDetails?: GatewayContextWindowDetails;
 
   constructor(input: {
     code: GatewayErrorCode;
@@ -126,6 +141,7 @@ export class GatewayError extends Error {
     parameter?: string;
     requestedValue?: string;
     supportedValues?: readonly string[];
+    contextWindowDetails?: GatewayContextWindowDetails;
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -142,6 +158,7 @@ export class GatewayError extends Error {
     this.parameter = input.parameter;
     this.requestedValue = input.requestedValue;
     this.supportedValues = input.supportedValues;
+    this.contextWindowDetails = input.contextWindowDetails;
   }
 }
 
