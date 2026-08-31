@@ -1,46 +1,40 @@
-# Desktop Client Turn Diagnostics Runbook
+# Desktop Client Turn Diagnostics
 
-Use the admin CLI `client-turn` command to join Desktop diagnostic uploads with
-Gateway model request observations by `turn_code` or `client_turn_id`.
+Last updated: 2026-08-31.
 
-Production container example:
+Use this only when a normal user/time-window message query is insufficient and
+a Desktop `turn_code`, `client_turn_id` or support code is available.
+
+## R760 Query
+
+Run from an R760 SSH session:
 
 ```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+docker exec codex_gateway_r760-gateway-1 \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
   --client-events-db /var/lib/codex-gateway/client-events.db \
   client-turn T:7K3P2 \
-  --at "2026-07-01 16:07" \
+  --at "2026-08-31 14:00" \
   --window-minutes 15 \
   --timezone Asia/Shanghai
 ```
 
-Output includes:
+The command opens both SQLite databases read-only and returns:
 
-- `client_diagnostics`: matching `client_diagnostic_events`, including
-  `metadata.client_turn_id`, `metadata.turn_code`, and
-  `metadata.gateway_request_id` when present.
-- `gateway_requests`: matching `request_events`, including public model id,
-  resolved upstream model, reasoning effort, tool choice, upstream HTTP status,
-  finish reason, content chars, tool call count/names, raw response hash/chars,
-  `upstream_empty_stop`, `upstream_attempt_count`, and `upstream_attempts`.
-  `upstream_attempts` is internal JSON with one entry per upstream attempt,
-  including retry kind, tool choice, runtime/model/account attribution, finish
-  reason, status/error code, content chars, tool call summary, raw response
-  hash/chars, and empty-stop classification.
-- `timeline`: merged chronological view of the client diagnostics and Gateway
-  model request rows.
+- matching client diagnostic events;
+- correlated Gateway request events and upstream attempts;
+- a merged timeline.
 
-Notes:
+`--at` accepts an ISO time with offset or a local
+`YYYY-MM-DD HH:mm` interpreted using `--timezone`.
 
-- `--at` accepts ISO datetimes with an explicit offset, or
-  `YYYY-MM-DD HH:mm` interpreted in `--timezone`.
-- The command opens both SQLite files read-only and does not run migrations.
-- Diagnostic metadata preserves unknown fields and accepts P0 summary objects
-  such as `request_shape`, `stream_terminal`, and `tool_schema_validation`.
-  Gateway still rejects credential/secret material recursively; these objects
-  must contain shapes and counts, not raw prompts, raw bodies, API keys, bearer
-  tokens, or cookies.
-- Normal user UI/support blocks must not include resolved upstream model,
-  reasoning effort, raw prompt, raw tool args, API keys, or credentials.
+## Privacy
+
+Return only the target user's necessary timeline, IDs, statuses and sanitized
+diagnostics. Do not include phone numbers, credentials, raw prompts, raw tool
+arguments, provider bodies, cookies or tokens in ordinary support output.
+
+If the timeline shows Gateway success but the artifact or UI failed, classify
+the issue on the Desktop/tool-loop side. Do not infer Gateway failure from the
+visible client outcome alone.

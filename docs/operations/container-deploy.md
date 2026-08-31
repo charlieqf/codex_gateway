@@ -1,286 +1,100 @@
-# Container Deployment Runbook
+# R760 Gateway Container Deployment
 
-This runbook describes the isolated Docker Compose deployment path for Codex
-Gateway. It is designed for the Azure Ubuntu VM MVP while avoiding interference
-with existing services.
+Last updated: 2026-08-31.
 
-## Files
+This runbook covers the current authoritative R760 Compose project. Historical
+Azure internal-trial deployment commands are not a production path.
 
-- `Dockerfile`: builds the gateway runtime image with Node 24 and Codex CLI.
-- `compose.azure.yml`: starts the gateway on VM loopback only.
-- `compose.edge.example.yml`: optional future public TLS example; do not use on
-  the shared VM without a maintenance window.
-- `ops/nginx/codex-gateway-public-trial.example.conf`: Nginx example for a
-  dedicated public trial hostname that proxies to the loopback gateway.
-- `config/gateway.container.example.env`: template for production container
-  environment.
-- `ops/systemd/codex-gateway-compose.service`: optional future systemd wrapper.
-
-Do not commit `config/gateway.container.env`; it is ignored by Git and should
-contain only deployment-local values.
-
-## Runtime Boundaries
-
-The default compose service maps:
+## Runtime Boundary
 
 ```text
-VM 127.0.0.1:18787 -> gateway container 0.0.0.0:8787
+app root:        /opt/codex-gateway-r760
+current release: /opt/codex-gateway-r760/current
+compose project: codex_gateway_r760
+gateway:         codex_gateway_r760-gateway-1
+listener:        127.0.0.1:18787->8787
 ```
 
-It does not publish `80/443` and contains no public edge service. Public TLS is
-kept in a separate example compose file to avoid accidental activation.
+The active Gateway container labels identify the exact Compose files and env
+file. Verify those labels before deployment; do not guess or copy a historical
+command.
 
-The gateway container runs as a non-root user and uses:
+Current verified shape:
 
 ```text
-/var/lib/codex-gateway/gateway.db
-/var/lib/codex-gateway/client-events.db
-/var/lib/codex-gateway/codex-home
+compose.azure.yml
+compose.research-production.yml
+/opt/codex-gateway-r760/shared/config/compose.r760.override.yml
+config/research.production.compose.env
 ```
 
-Those are container paths. In the current Azure VM public internal-trial deployment,
-they are backed by Docker named volume `codex_gateway_test_gateway_state`; the
-VM host path is Docker-managed under
-`/var/lib/docker/volumes/codex_gateway_test_gateway_state/_data`. The host does
-not need a `/var/lib/codex-gateway` directory.
+## Preconditions
 
-`$HOME/codex-gateway-state/gateway.db` is legacy native/smoke-test state and is
-not the production database for `gw.instmarket.com.au`.
+1. The intended revision is committed and pushed.
+2. Local build, focused tests and `git diff --check` pass.
+3. The release archive comes from committed `HEAD`, not the dirty tree.
+4. A new immutable release directory exists and `current`/`previous` are
+   recorded.
+5. A verified pre-change backup covers affected SQLite/config state.
+6. Protected files exist with correct owner/mode; values are not printed.
+7. Unrelated working-tree and production services remain untouched.
 
-The default compose service also sets conservative local limits:
+## Compose Validation
 
-```text
-cpus: 1.0
-mem_limit: 1g
-pids_limit: 256
-cap_drop: ALL
-no-new-privileges: true
-```
-
-## Production Environment
-
-Create the local env file:
+From the intended release:
 
 ```bash
-cp config/gateway.container.example.env config/gateway.container.env
-chmod 600 config/gateway.container.env
+cd /opt/codex-gateway-r760/current
+docker compose \
+  --env-file config/research.production.compose.env \
+  -p codex_gateway_r760 \
+  -f compose.azure.yml \
+  -f compose.research-production.yml \
+  -f /opt/codex-gateway-r760/shared/config/compose.r760.override.yml \
+  --profile research-production \
+  config --quiet
 ```
 
-Minimum required production values:
+Never print the rendered Compose configuration.
 
-```bash
-NODE_ENV=production
-GATEWAY_AUTH_MODE=credential
-GATEWAY_SQLITE_PATH=/var/lib/codex-gateway/gateway.db
-GATEWAY_CLIENT_EVENTS_SQLITE_PATH=/var/lib/codex-gateway/client-events.db
-CODEX_HOME=/var/lib/codex-gateway/codex-home
-CODEX_WORKDIR=/app
-CODEX_SKIP_GIT_REPO_CHECK=1
-```
+## Recreate The Gateway Only
 
-Do not set `GATEWAY_DEV_ACCESS_TOKEN` in production. The gateway startup path
-fails fast if production has a dev token, missing SQLite path, missing
-`CODEX_HOME`, or non-credential auth mode.
-
-The default container image does not include a `.git` directory under `/app`.
-Keep `CODEX_SKIP_GIT_REPO_CHECK=1` for this packaged runtime unless
-`CODEX_WORKDIR` is changed to a mounted trusted git checkout.
-
-## Build
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml build gateway
-```
-
-## Start
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
-docker compose -p codex_gateway_test -f compose.azure.yml ps
-curl -fsS http://127.0.0.1:18787/gateway/health
-```
-
-Expected health response includes:
-
-```json
-{
-  "state": "ready",
-  "service": "codex-gateway",
-  "auth_mode": "credential",
-  "store": {
-    "session": "sqlite",
-    "observation": "enabled"
-  }
-}
-```
-
-The health endpoint intentionally exposes only non-sensitive runtime state. It
-does not reveal token values, SQLite paths, or `CODEX_HOME`.
-
-## Bootstrap API Key
-
-Issue the first API key inside the running container:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  issue --user bootstrap --name "Bootstrap User" --phone "+15550000000" --label bootstrap --scope code
-```
-
-`GATEWAY_API_KEY_ENCRYPTION_SECRET` must be set in the container environment
-before issuing or rotating keys. The token is printed and stored as encrypted
-`token_ciphertext`, so operators can later run `reveal-key <credential-prefix>`.
-Do not put the full token in Git, shell history, or audit notes.
-
-## Codex Login
-
-The Codex login state must live in the persistent `gateway_state` volume:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
-  codex login --device-auth
-```
-
-Authorize the device code in a browser. Do not print or copy `auth.json`.
-
-## Usage and Retention
-
-Inspect recent events:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  events --user bootstrap --limit 50
-```
-
-Generate a dynamic daily report:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  report-usage --user bootstrap --days 7
-```
-
-`events` and `report-usage` include token usage fields when upstream provider
-usage is available: `prompt_tokens`, `completion_tokens`, `total_tokens`,
-`cached_prompt_tokens`, `estimated_tokens`, and `usage_source`.
-
-Inspect Desktop client message and diagnostic uploads from inside the running
-container:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-messages --user "Alice Zhang" --limit 5
-
-docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-diagnostics --user "Alice Zhang" --limit 50
-
-docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-medevidence-tool-audit \
-  --hours 48 \
-  --timezone Asia/Shanghai \
-  --limit 100 \
-  --min-question-length 50 \
-  --format jsonl
-```
-
-The admin CLI opens both SQLite files read-only for these query commands. Use
-`--include-text` only when the support case requires full prompt text. The
-MedEvidence tool audit export intentionally returns full audit text from
-diagnostic metadata and matching Desktop messages; treat its stdout as sensitive
-support material.
-
-Preview retention cleanup first:
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml exec gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  prune-events --before-days 30 --dry-run
-```
-
-Run without `--dry-run` only after reviewing `matched`.
-
-## Stop
-
-```bash
-docker compose -p codex_gateway_test -f compose.azure.yml stop gateway
-```
-
-This preserves the SQLite DB and Codex login state.
-
-## Upgrade
-
-```bash
-git fetch origin main
-git merge --ff-only origin/main
-docker compose -p codex_gateway_test -f compose.azure.yml build gateway
-docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
-curl -fsS http://127.0.0.1:18787/gateway/health
-```
-
-## Rollback
-
-Record the previous commit before upgrade. To roll back:
-
-```bash
-git merge --ff-only <known-good-commit>
-docker compose -p codex_gateway_test -f compose.azure.yml build gateway
-docker compose -p codex_gateway_test -f compose.azure.yml up -d gateway
-```
-
-If the database schema has moved forward, prefer restoring a DB backup rather
-than downgrading blindly.
-
-## Backup
-
-Stop the gateway or ensure no writes are in progress, then copy the state volume
-to a local backup directory:
-
-```bash
-docker run --rm \
-  -v codex_gateway_test_gateway_state:/data:ro \
-  -v "$PWD/backups:/backup" \
-  busybox tar czf /backup/gateway-state-$(date +%Y%m%d-%H%M%S).tgz /data
-```
-
-If `codex-home` is included, treat the archive as a sensitive credential backup.
-Encrypt it and restrict access.
-
-## Public TLS
-
-The public edge examples are intentionally separated from `compose.azure.yml`.
-Do not use them on the shared VM until `80/443` ownership and the maintenance
-window are explicitly confirmed.
-
-On the current shared VM, existing Nginx owns public `80` and proxies an
-existing service to `127.0.0.1:8081`. For a controlled internal public trial,
-prefer the Nginx example in
-`ops/nginx/codex-gateway-public-trial.example.conf`: it leaves the gateway
-container loopback-only and has Nginx proxy the dedicated hostname to
-`127.0.0.1:18787`.
-
-The Caddy edge example is for a future VM where this project owns `80/443`:
+When the approved change affects only Gateway:
 
 ```bash
 docker compose \
-  -p codex_gateway \
+  --env-file config/research.production.compose.env \
+  -p codex_gateway_r760 \
   -f compose.azure.yml \
-  -f compose.edge.example.yml \
-  up -d caddy
+  -f compose.research-production.yml \
+  -f /opt/codex-gateway-r760/shared/config/compose.r760.override.yml \
+  --profile research-production \
+  up -d --no-deps --force-recreate gateway
 ```
 
-On the current shared VM, public TLS integration should be handled as a separate
-maintenance task.
+Do not recreate Research, Qwen, Mihomo, Nginx or infrastructure unless they are
+explicitly in scope.
+
+## Verification
+
+```bash
+readlink -f /opt/codex-gateway-r760/current
+readlink -f /opt/codex-gateway-r760/previous
+docker ps --filter label=com.docker.compose.project=codex_gateway_r760 \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+curl -fsS http://127.0.0.1:18787/gateway/health
+```
+
+Also require:
+
+- expected image/revision labels;
+- no unexpected container restart;
+- public TLS health;
+- bug-specific smoke;
+- SQLite `quick_check=ok` and zero foreign-key violations when databases are
+  in scope;
+- sanitized recent-log scan;
+- cleanup of temporary users, credentials, reservations and files.
+
+Update `system-status.md` and the local Skill current-state reference only
+after live verification. Put detailed evidence in a dated release report.

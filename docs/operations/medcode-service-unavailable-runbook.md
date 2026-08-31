@@ -1,153 +1,84 @@
-# MedCode Service Unavailable Runbook
+# MedCode Service Unavailable
 
-Use this runbook when a user reports:
+Last updated: 2026-08-31.
 
-```text
-MedCode service is temporarily unavailable.
+Use this runbook after collecting the affected user, approximate time and any
+session/message/request ID. Start read-only; do not restart or reauthenticate
+from the generic UI message alone.
+
+## 1. Locate The Request
+
+For a named Desktop user, query messages first:
+
+```powershell
+$cutoff = (Get-Date).ToUniversalTime().AddHours(-2).ToString("o")
+python scripts\query-client-messages.py `
+  --user "<name>" --since $cutoff --timezone Asia/Shanghai `
+  --limit 100 --include-text --format json
 ```
 
-## Rules
+Use the resulting message/request IDs. Do not inspect unrelated users.
 
-- Start read-only. Do not restart Gateway, Docker, Nginx, or host services until
-  the failure mode is known.
-- Run operational commands from an interactive SSH session on the VM. Do not
-  compose quote-heavy Bash, JSON, heredocs, or Docker commands inside Windows
-  PowerShell.
-- Do not print container env, `auth.json`, API keys, bearer tokens, ChatGPT
-  tokens, or device codes.
-- Use the release checkout:
+## 2. Check R760 Service Shape
 
-```bash
-cd /home/qian/codex-gateway-release-4697fba-20260803T083513Z
+```powershell
+Invoke-RestMethod https://goldencode.instmarket.com.au:1443/gateway/health
+ssh -p 7723 -i $env:USERPROFILE\.ssh\id_ed25519 `
+  -o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes `
+  root@117.186.49.26 `
+  "docker ps --filter label=com.docker.compose.project=codex_gateway_r760 --format '{{.Names}}|{{.Status}}|{{.Ports}}'"
 ```
 
-## 1. Check Service Shape
+Expected: Gateway and Research services healthy; only Gateway publishes
+`127.0.0.1:18787->8787`. The local Qwen container is independently healthy
+and has no host port.
 
-From the VM:
+If the container is down, switch to the container incident path. Do not continue
+with provider-account remediation.
 
-```bash
-curl -fsS https://gw.instmarket.com.au/gateway/health
-systemctl is-active nginx docker medevidence-v2 medevidence-v2-worker 2>/dev/null || true
-sudo docker compose -p codex_gateway_test -f compose.azure.yml ps
-```
+## 3. Inspect Events And Sanitized Logs
 
-Expected:
-
-- Gateway health is `state=ready`.
-- Existing host services are active.
-- Gateway container is healthy.
-- Gateway still publishes only `127.0.0.1:18787->8787`.
-
-If the container or host services are down, stop this runbook and use the
-container/host incident path. Do not continue with account reauthentication.
-
-## 2. Inspect Recent Gateway Events
+Inside R760:
 
 ```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
+docker exec codex_gateway_r760-gateway-1 \
   node apps/admin-cli/dist/index.js \
   --db /var/lib/codex-gateway/gateway.db \
-  events --limit 50
+  events --limit 100
+
+docker logs --since 2h codex_gateway_r760-gateway-1 2>&1 \
+  | grep -E 'sanitized error|context_compaction_required|context window|service_unavailable|rate limit|429|provider_reauth_required|output_length|truncated' \
+  | tail -n 160 || true
 ```
 
-Look for:
+Prefer filters by the known request, user or credential prefix through the
+admin CLI. Never print container environment, provider response bodies, full
+keys or auth files.
 
-- `error_code=service_unavailable`
-- the affected `upstream_account_id`
-- whether the other upstream account still has `status=ok`
-- unusually large `estimated_tokens`
-- `rate_limited=true` or a non-empty `limit_kind`
-- `missing_credential` rows, which usually indicate unauthenticated probes or
-  client credential issues rather than an upstream outage
+## 4. Classify Before Acting
 
-## 3. Inspect Sanitized Provider Logs
-
-```bash
-sudo docker logs --since 2h codex_gateway_test-gateway-1 2>&1 \
-  | grep -E 'Provider returned sanitized error|refresh token|context window|service_unavailable|provider_reauth_required|rate limit|429' \
-  | tail -n 120 || true
-```
-
-Then check whether the issue is still happening:
-
-```bash
-sudo docker logs --since 15m codex_gateway_test-gateway-1 2>&1 \
-  | grep -E 'Provider returned sanitized error|refresh token|context window|service_unavailable|provider_reauth_required|rate limit|429' \
-  | tail -n 40 || true
-```
-
-## 4. Classify The Failure
-
-| Evidence | Meaning | Action |
+| Evidence | Classification | Next action |
 | --- | --- | --- |
-| `refresh token ... revoked` or `refresh token ... already used` | Upstream Codex login state is invalid. | Reauthenticate the affected account. |
-| `ran out of room in the model's context window` | The request context is too large. | Tell the user to start a new conversation or reduce history/materials. Do not reauth. |
-| `rate limit`, `429`, or `rate_limited=true` | Request or upstream rate limit. | Use retry guidance and inspect `limit_kind`; do not reauth. |
-| `missing_credential` only | Missing/invalid client credential or probe traffic. | Validate the user's API key with `/gateway/credentials/current`; do not reauth. |
-| One account has repeated `service_unavailable`, the other has `ok` | Account-specific upstream problem. | Inspect logs for refresh-token evidence, then reauth if confirmed. |
+| `context_compaction_required` | GoldenCode Local request exceeds 32K admission | Client compacts, rebuilds and retries once |
+| Upstream context-window error | Context too large | Reduce history/material; do not reauthenticate |
+| Gateway/provider 429 | Capacity or quota | Inspect origin, limit kind and retry-after |
+| `missing_credential` / `invalid_credential` | Client/resolver authentication | Validate current credential path |
+| Provider 5xx with Tencent route | Provider failure | Correlate neighboring requests and retry policy |
+| Output length / truncated tool args | Long-output contract | Use long-output diagnostics |
+| Gateway calls all `ok`, artifact missing/bad | Desktop/tool-loop/artifact | Move to Desktop investigation |
+| Explicit provider credential/auth failure | Provider authentication | Use the provider-specific authorized recovery |
 
-## 5. Inspect Upstream Account State
+A generic `service_unavailable` is not proof of credential failure.
 
-```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway node -e '
-const { DatabaseSync } = require("node:sqlite");
-const db = new DatabaseSync("/var/lib/codex-gateway/gateway.db", { readonly: true });
-const rows = db.prepare(
-  "select id,state,last_used_at,cooldown_until from upstream_accounts order by id"
-).all();
-console.log(JSON.stringify(rows, null, 2));
-'
-```
+## 5. Recovery And Verification
 
-Expected healthy state:
+Any mutation requires explicit authorization and the provider/component-specific
+procedure. After recovery:
 
-- `codex-pro-1`: `state=active`, `cooldown_until=null`
-- `sub_openai_codex_dev`: `state=active`, `cooldown_until=null`
+- re-run the exact failing request shape or a bounded equivalent;
+- confirm a new request event has the expected terminal status;
+- verify public health and container restart count;
+- scan recent sanitized logs;
+- confirm no temporary user, credential, reservation or file remains.
 
-## 6. Reauthenticate Affected Account
-
-Only run this after the evidence points to invalid upstream Codex login state.
-This script sets only `CODEX_HOME`, runs `codex login --device-auth`, verifies
-with the live model, and repairs the account row after a successful probe.
-
-For `codex-pro-1`:
-
-```bash
-bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1
-```
-
-If the running Gateway process has already loaded the account as
-`reauth_required`, recreate only the Gateway service after the successful probe:
-
-```bash
-bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1 --recreate-gateway
-```
-
-For verify-only checks:
-
-```bash
-bash scripts/reauth-upstream-codex-account.sh --account codex-pro-1 --verify-only
-bash scripts/reauth-upstream-codex-account.sh --account sub_openai_codex_dev --verify-only
-```
-
-## 7. Confirm Recovery
-
-After reauthentication, confirm:
-
-```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  events --limit 30
-
-sudo docker logs --since 15m codex_gateway_test-gateway-1 2>&1 \
-  | grep -E 'Provider returned sanitized error|refresh token|context window|service_unavailable|provider_reauth_required' \
-  | tail -n 40 || true
-```
-
-Recovery indicators:
-
-- affected account has new `status=ok` request events
-- `upstream_accounts.state=active`
-- `cooldown_until=null`
-- no fresh refresh-token provider errors
+Report the request IDs and classification, not secrets or raw provider bodies.

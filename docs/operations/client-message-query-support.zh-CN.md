@@ -1,298 +1,112 @@
-# Desktop 用户消息查询排障交接说明
+# Desktop 用户消息查询
 
-本文说明 Gateway 团队应承接的 Desktop 用户消息查询和排障工作。核心原则：凡是依赖
-Gateway 用户身份、API key、Desktop 上传消息或客户端诊断事件的数据查询，都应由
-Gateway 运维侧提供稳定、只读、可审计的入口，而不是由 App 或 MedEvidence v2 团队
-临时 SSH 到生产环境执行 ad-hoc SQL。
+最后更新：2026-08-31。
 
-## 背景
+本说明只覆盖 Gateway 中的 Desktop 用户消息。标准查询应在十几秒内完成；
+只有无结果、用户重名或关联缺失时才进入进一步排障。
 
-Desktop 会把用户本轮原始问题上传到 Codex/MedCode Gateway：
+## 快速查询
 
-- endpoint: `POST /gateway/client-events/messages`
-- 主身份库: `/var/lib/codex-gateway/gateway.db`，这是 gateway 容器内路径
-- 客户端事件库: `/var/lib/codex-gateway/client-events.db`，这是 gateway 容器内路径
-- 消息表: `client_message_events`
-- 诊断表: `client_diagnostic_events`
-
-因此，类似“查用户杜衡在 Desktop app 里最近一个问题”这类支持请求，事实数据源在 Gateway，而不是 MedEvidence v2 的 `requests` 表。MedEvidence v2 只能回答 evidence service 请求本身，例如 `/ask/async` 的 request/job 状态；无法可靠还原 Desktop 用户发给 MedCode agent 的原始消息。
-
-自 2026-08-06 起，R760 是唯一 Gateway 控制、请求事件、用量和客户端消息权威端，
-客户端使用 `https://goldencode.instmarket.com.au:1443`。Azure 已逻辑下线，不再作为
-兼容、镜像或报表来源；不得为了消息查询运行 Azure 同步或归并流程。
-
-R760 边界：Compose project `codex_gateway_r760`，container
-`codex_gateway_r760-gateway-1`；容器内主库为 `/var/lib/codex-gateway/gateway.db`，
-客户端事件库为 `/var/lib/codex-gateway/client-events.db`。两个库用途不同，查询时通过
-`subject_id + client_message_id` 关联，不得互相覆盖。
-
-Azure 兼容容器的历史部署形态为：
-
-- 公开入口: `https://gw.instmarket.com.au`，由 VM 主机 Nginx 代理到 `127.0.0.1:18787`
-- compose project: `codex_gateway_test`
-- gateway container: `codex_gateway_test-gateway-1`
-- Docker volume: `codex_gateway_test_gateway_state`
-- 容器内数据目录: `/var/lib/codex-gateway`
-- VM 主机实际 volume 目录: `/var/lib/docker/volumes/codex_gateway_test_gateway_state/_data`
-
-不要把 VM 主机上的 `/var/lib/codex-gateway` 当成生产路径；当前主机上没有这个目录是正常的。也不要把 `~/codex-gateway-state/gateway.db` 当成当前生产库；这是早期 native/smoke 验证留下的用户目录状态，不承载当前 `gw.instmarket.com.au` 生产流量。
-
-标准消息查询 wrapper 默认且应只查询 R760：
+查询指定用户最近 48 小时消息：
 
 ```powershell
-python scripts\query-client-messages.py --user "<用户>" --limit 20
+Set-Location C:\work\code\codex-gateway
+$cutoff = (Get-Date).ToUniversalTime().AddHours(-48).ToString("o")
+python scripts\query-client-messages.py `
+  --user "<用户>" `
+  --since $cutoff `
+  --timezone Asia/Shanghai `
+  --limit 500 `
+  --include-text `
+  --format json
 ```
 
-## 客户端消息管理网页
+如果用户要求特定主题，例如 PPT：
 
-统一入口：
+1. 只执行一次用户和时间窗口查询；
+2. 在结果中筛选 `ppt`、`pptx`、`PowerPoint`、`幻灯片`、
+   `演示文稿` 等关键词；
+3. 找出命中的 `session_id`；
+4. 按时间顺序整理这些会话中的相关消息；
+5. 返回必要的 session/message/request ID 和请求状态。
+
+不要先阅读部署历史，不要查询 Azure，不要同步数据库，也不要为普通查询
+编写 ad-hoc SQL。
+
+## 数据源
+
+R760 是唯一权威端：
+
+```text
+Compose project: codex_gateway_r760
+Container:       codex_gateway_r760-gateway-1
+Identity/events: /var/lib/codex-gateway/gateway.db
+Client events:   /var/lib/codex-gateway/client-events.db
+Messages table:  client_message_events
+Diagnostics:     client_diagnostic_events
+```
+
+Desktop 原始用户消息位于 Gateway，不在 MedEvidence v2 的
+`requests` 表。MedEvidence v2 只能查询 evidence-service 请求和 job。
+
+## 管理页面与请求关联
+
+管理页面：
 
 `https://goldencode.instmarket.com.au:1443/gateway/admin/client-messages`
 
-页面使用 Gateway admin messages token 调用只读 JSON 接口，提供：
+对应只读 JSON：
 
-1. 最近 1/24/48 小时、7/30 天预设，或自定义开始/结束时间；
-2. 按用户查看指定时段内全部消息，消息使用分页加载，不再受单次 1000 条硬截断影响；
-3. 每条消息的整体结果：成功、部分失败、失败或无请求记录；
-4. 每条消息关联的模型请求次数、成功/失败/限流次数、端到端耗时、输入/输出/总 token；
-5. 指定时段内每个用户的请求次数、成功数、失败数、限流数、平均耗时和 token 用量；
-6. 用户列表按请求次数、token、失败数、限流数、平均耗时或姓名升降序排列；
-7. 按消息正文、session id、message id 或 upload request id 搜索，并可显示完整正文。
+`/gateway/admin/client-messages.json`
 
-消息与模型请求采用 `request_events.subject_id + request_events.client_message_id` 精确关联。
-同一条客户端消息可能因 agent/tool loop 触发多次模型请求，因此页面按整条消息聚合：
+它支持用户、正文、session、message、时间窗口、分页和完整正文过滤，并按
+`request_events.subject_id + request_events.client_message_id` 精确关联：
 
-- 全部请求成功：`成功`；
-- 同时有成功与失败：`部分失败`；
-- 只有失败请求：`失败`；
-- 没有精确关联请求：`无请求记录`，不做基于时间的猜测关联；
-- 端到端耗时取最早请求开始到最晚请求结束；同时显示各次调用耗时合计；
-- token 先使用 provider 实际 usage，缺失时单独显示估算量，避免把估算伪装为实测。
+- 成功、部分失败、失败或无请求记录；
+- 请求数、成功/失败/限流数；
+- 端到端耗时；
+- provider 实测 token 与缺失时的估算；
+- Gateway request ID 与 upstream attempt。
 
-## Gateway 团队应承接的查询
+使用管理 token 时不得打印或保存 token。普通用户 API key 不能访问该页面。
 
-Gateway 运维提供稳定只读命令，覆盖以下常见支持问题：
+## CLI 参数
 
-1. 按用户显示名、subject id、API key prefix 或 unified key 查询最近 N 条 Desktop 用户消息。
-2. 按 Desktop `session_id` 或 `message_id` 查询对应的用户消息、agent、model、engine、app version 和上传时间。
-3. 用 unified key 定位 Gateway credential 与 subject，但命令不得打印 full key。
-4. 查询某用户/API key 是否 active、expired、revoked、disabled，及其 scope、过期时间和限流配置。
-5. 按 `request_id` 查询一次 client message ingest 是否成功写入、是否重复、是否触发限流。
-6. 查询同一用户最近的 `client_diagnostic_events`，用于关联 prompt submit、provider stream、MedEvidence tool call、polling 和 error/timeout。
-7. 按 MedEvidence diagnostic metadata 中的 `request_id` 或 `article_id` 反查对应 Desktop session/message，辅助判断是 Desktop 渲染问题、Gateway/MedCode 问题，还是 MedEvidence v2 问题。
-8. 查询 message upload 健康情况，例如最近成功上传时间、失败诊断、缺失 credential、上传被关闭、429/5xx、idempotency conflict。
-
-## 命令入口
-
-优先使用上述 wrapper 或 admin/ops 只读命令，而不是让操作者手写 SQL。下列直接
-Compose 示例是 Azure 旧客户端兼容查询；R760 查询应优先用 wrapper，避免误选节点。
-默认情况下，`--client-events-db` 会从 `--db` 所在目录推导为同级
-`client-events.db`；直接排障建议显式传入：
-
-```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-messages --user "杜衡" --limit 5
-```
-
-消息查询参数：
+`query-client-messages.py` 支持：
 
 ```text
---user <display-name-or-subject-id>
---subject-id <id>
---credential-prefix <prefix>
---unified-key-env <env-name>
---session-id <id>
---message-id <id>
---request-id <id>
---limit <n>
---json
---include-text
---preview-chars <n>
---since <iso-or-local-time>
---timezone <iana-zone>
+--user / --subject-id / --credential-prefix
+--session-id / --message-id / --request-id
+--limit / --since / --timezone
+--include-text / --preview-chars
+--format text|json
 ```
 
-诊断查询入口：
+默认 R760。历史 Azure 查询开关只允许用于单独批准的数据恢复调查，不属于
+普通支持流程。
 
-```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-diagnostics --user "杜衡" --session-id <id> --message-id <id> --limit 50
-```
+## 输出与隐私
 
-诊断查询额外支持：
+对外只返回完成任务所需内容：
 
-```text
---tool-call-id <id>
---article-id <id>
---category <category>
---action <action>
---status <started|ok|error|aborted|timeout|queued|dropped>
---include-metadata
-```
+- 用户显示名；
+- 消息时间和必要正文；
+- session/message/upload request ID；
+- Gateway request ID、状态、错误码和耗时；
+- 与问题直接相关的 app version、agent、model 路由。
 
-`client-diagnostics --request-id <id>` 会同时匹配 Gateway ingest `request_id` 和 `metadata.request_id`，用于反查 MedEvidence diagnostic metadata 中的 request id。
+不得返回手机号、完整或前缀 credential、unified key、token、其他用户正文或
+无关附件元数据。完整正文属于敏感支持材料，不写入普通运维日志或文档。
 
-MedEvidence tool 审计导出入口：
+Gateway 请求成功不等于本地导出文件有效。PPTX、HTML 等 artifact 是否存在、
+能否打开以及视觉质量，需要 Desktop 侧文件或 artifact 证据。
 
-```bash
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-medevidence-tool-audit \
-  --hours 48 \
-  --timezone Asia/Shanghai \
-  --limit 100 \
-  --min-question-length 50 \
-  --format jsonl
-```
+## 仅在失败时升级
 
-该命令面向 MedEvidence App 上传的 `client_diagnostic_events.metadata_json` 审计字段，并会按
-`session_id/message_id` 反查 `client_message_events` 中的 Desktop 原始消息。支持：
+- **用户重名：** 使用明确的 subject id，不能猜测。
+- **无消息：** 核对时间、Desktop app/version、消息上传是否启用。
+- **有消息但无关联请求：** 查询 client diagnostics 或 support code。
+- **有 Gateway 错误：** 按 request ID 使用症状 runbook 分类。
+- **Gateway 全部成功但文件失败：** 转 Desktop/tool-loop/artifact 排障。
 
-```text
---hours <n>
---since <iso>
---timezone <iana-zone>
---limit <n>
---min-question-length <n>
---entrypoint <value>
---format <json|jsonl|csv>
---user / --subject-id / --credential-prefix / --unified-key-env
---session-id / --message-id / --tool-call-id / --request-id / --article-id
-```
-
-默认筛选最近 48 小时、`entrypoint=gateway`、`question` 长度大于 50 字符，按
-diagnostic `created_at desc` 导出最多 100 条。`entrypoint` 来自 metadata；为了兼容当前只由
-Gateway 采集的 MedEvidence tool diagnostic，缺失时命令按 `gateway` 处理，并在输出中标记
-`entrypoint_source=default_gateway`。
-
-导出字段包括：
-
-```text
-request_id, gateway_diagnostic_ingest_request_id, created_at, created_at_local,
-session_id, message_id, tool_call_id, agent, status, error_code,
-selected_backend, entrypoint, question, question_length, question_hash,
-original_user_text, original_user_length, original_user_hash,
-medevidence_tool_text, question_same_as_user, question_derived,
-medevidence_question_guard, guard_reject_count, tool_outcome, result_class,
-article_id, parent_article_id_present
-```
-
-边界说明：
-
-- Gateway CLI 直接读取的是 `client-events.db`，不是 MedEvidence v2 RDS。
-- `original_user_text`、`medevidence_tool_text`、hash、length、guard 和 `tool_outcome` 等字段只要在 diagnostic metadata JSON 中上传，Gateway 会整体保存并可导出。
-- `selected_backend`、`result_class`、MedEvidence `status` 等上游执行字段如果需要出现在该 CLI 导出里，也需要 App diagnostic metadata 一并上传；否则需由 Gateway ops 使用 `metadata.request_id` 去 MedEvidence RDS 做另一次只读联查。
-- 当前 Gateway diagnostic metadata 上限为 192KB UTF-8，diagnostic body 上限为 256KB，足够短期承载 Desktop 原文和抽取后的 MedEvidence question。显式 credential/secret 形态的 key 或 value 仍会被拒绝保存。
-
-处理 unified key 时，不要把完整 key 放进命令行历史。使用环境变量或 stdin：
-
-```bash
-export SUPPORT_UNIFIED_KEY='cmev1...'
-sudo docker compose -p codex_gateway_test -f compose.azure.yml exec -T gateway \
-  node apps/admin-cli/dist/index.js \
-  --db /var/lib/codex-gateway/gateway.db \
-  --client-events-db /var/lib/codex-gateway/client-events.db \
-  client-messages --unified-key-env SUPPORT_UNIFIED_KEY --limit 5
-```
-
-命令内部只应使用 MedCode half 计算 credential prefix/hash，并在输出中最多显示 prefix。不得输出 MedCode key、MedEvidence key 或完整 unified key。
-
-## 输出要求
-
-默认输出应足够支持排障，但避免不必要泄露：
-
-- subject id、用户显示名、credential prefix、credential 状态
-- message id、session id、Gateway ingest request id
-- created_at、received_at，必须明确时区
-- agent、provider_id、model_id、engine
-- app_name、app_version
-- 默认只显示 prompt preview；需要完整正文时显式加 `--include-text`
-- JSON 模式用于进一步机器处理
-
-示例输出字段：
-
-```json
-{
-  "subject": {
-    "id": "medcode-trial-user-1",
-    "name": "杜衡",
-    "state": "active"
-  },
-  "credential": {
-    "prefix": "0ZLslPJ_XNKMXA",
-    "scope": "code",
-    "expires_at": "2026-07-01T00:00:00.000Z",
-    "revoked_at": null
-  },
-  "messages": [
-    {
-      "received_at": "2026-05-07T03:31:19.227Z",
-      "received_at_local": "2026-05-07 11:31:19 Asia/Shanghai",
-      "session_id": "ses_...",
-      "message_id": "msg_...",
-      "agent": "general",
-      "engine": "agent",
-      "text_preview": "请不要调用 MedEvidence..."
-    }
-  ]
-}
-```
-
-## 隐私和安全要求
-
-- 不得在日志、stdout、审计事件或文档中打印 full API key、unified key、token ciphertext、`CODEX_HOME/auth.json` 或 browser/device auth token。
-- 不得把完整用户 prompt 写入普通运维日志。命令 stdout 可以在操作者显式请求 `--include-text` 时返回正文，但该输出应视为敏感支持材料。
-- 查询命令必须只读打开 SQLite，不能执行 migration、VACUUM、prune、update、delete 或任何 schema 变更。
-- 不要通过 `docker compose down`、重启 gateway、修改 Nginx 或改环境变量来完成查询。
-- 查询 full text 前应有明确支持原因，例如用户报障、内部试用复盘、或产品质量分析。长期应在 admin audit 中记录 operator、目标 subject/credential、查询类型、ticket/reason，但 audit 中不得保存 prompt 正文。
-- 如果需要把结果发给 App/MedEvidence 团队，应只发必要片段；优先发 message id、request id、时间、agent、状态和脱敏 prompt 摘要。
-
-## 排障分工
-
-Gateway 团队负责：
-
-- Gateway subject/API key 到用户的映射。
-- Desktop message upload 和 diagnostic upload 是否入库。
-- client-events SQLite schema、索引、查询命令和权限控制。
-- API key 状态、限流、credential auth、ingest request id 和 gateway access 日志关联。
-- MedCode provider 请求链路、OpenAI-compatible `/v1/chat/completions` 请求事件和 usage 事件。
-
-App/Desktop 团队负责：
-
-- Desktop 是否按约定上传用户原始 text parts。
-- app_name/app_version/session_id/message_id/agent/model/engine 字段是否正确。
-- 上传失败不得影响用户主流程。
-- renderer/sidecar 本地 UI、消息保存、诊断事件采集和字段传播。
-
-MedEvidence v2 团队负责：
-
-- `/ask/async`、`/request/<request_id>`、worker/job/account 状态。
-- MedEvidence rich asset、structured_article、polling 和 evidence service 结果。
-- 当 Gateway diagnostic metadata 中存在 MedEvidence `request_id` 或 `article_id` 时，继续做 evidence service 侧排障。
-
-## 已补齐的交付物
-
-Gateway 团队已把以下能力产品化：
-
-1. `client-messages` 只读 admin CLI 命令，支持按 user、credential prefix、unified key env、session/message/request id 查询。
-2. `client-diagnostics` 只读 admin CLI 命令，支持按 user/session/message/tool_call/request id、metadata request id、article id 查询。
-3. `client-medevidence-tool-audit` 只读 admin CLI 命令，支持 JSON/JSONL/CSV 导出 MedEvidence tool diagnostic metadata，并反查 Desktop 原始消息。
-4. 命令只读打开主 `gateway.db` 和 `client-events.db`，不执行 migration 或 schema 变更。
-5. 默认只输出 prompt preview；显式 `--include-text` 才输出完整正文。审计导出命令会输出完整审计文本，应按敏感支持材料处理。
-6. 单元测试覆盖 unified key env 解析不泄露、preview/full text 开关、跨库关联、diagnostic metadata 查询和 MedEvidence tool 审计 JSONL/CSV 导出。
-7. 生产 runbook 示例命令，避免操作者临时拼 SQL。
-
-仍需运维流程长期补齐：
-
-1. 用户报障时应收集时间、用户、问题摘要、session/message/request id、是否 Desktop、是否 MedEvidence direct/tool。
-2. 查询 full text 的长期 operator/ticket/reason 审计，但 audit 中不得保存 prompt 正文。
-
-不要把临时 SQL 或一次性脚本作为常态支持路径；如果现有命令无法覆盖新的排障场景，应优先补 CLI 参数和测试，再更新本 runbook。
+整个查询过程保持只读，不重启服务、不修改配置、不写数据库。

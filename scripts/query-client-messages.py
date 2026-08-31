@@ -3,8 +3,8 @@
 Query recent Desktop client messages from a live Codex Gateway container.
 
 This is a read-only wrapper around the deployed admin CLI `client-messages`
-command. R760 is the default. Use `--azure-compatibility` only to inspect old
-clients that still send telemetry to Azure. By default the script prints a
+command. R760 is the default. Use `--azure-compatibility` only for a separately
+authorized historical recovery investigation. By default the script prints a
 readable support view with prompt previews. Use `--include-text` only when full
 user prompts are needed for a support reason.
 """
@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--azure-compatibility",
         action="store_true",
-        help="Query the temporary Azure compatibility endpoint for old-client telemetry.",
+        help="Query the retired Azure endpoint for an authorized historical recovery investigation.",
     )
     parser.add_argument("--vm-host", default=DEFAULT_VM_HOST)
     parser.add_argument("--vm-user", default=DEFAULT_VM_USER)

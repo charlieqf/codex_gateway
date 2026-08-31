@@ -1,11 +1,9 @@
 # Doctor Research API 调用说明与注意事项
 
-本文面向 Doctor Research 受限试用的客户端开发者和调用方。尚未迁移的客户端继续
-使用 Azure 生产入口 `https://gw.instmarket.com.au`；经明确安排参加 R760 分批迁移的
-客户端使用 `https://goldencode.instmarket.com.au:1443`，并保留本文现有的
-`/gateway/research/v1/...` 路径，不要在 Research 路径前添加 `/v1`。该能力仍处于
-`controlled-trial`：只能使用分配给实名用户且已开通 Doctor Research entitlement
-的专用凭据，最终状态同步和切换完成前不得自行扩大迁移范围。
+本文面向 Doctor Research 受限试用的客户端开发者和调用方。唯一支持的生产入口是
+`https://goldencode.instmarket.com.au:1443`，并保留本文现有的
+`/gateway/research/v1/...` 路径；不要在 Research 路径前添加 `/v1`。只能使用分配给
+实名用户且已开通 Doctor Research entitlement 的专用凭据。
 
 ## 1. 调用前准备
 
@@ -19,7 +17,7 @@
 - 请求正文只需医生姓名、医院和科室。产品契约是对任意医生发起公开身份发现和研究，
   已审核身份注册表只能作为缓存，不能作为医生准入白名单；不得自行翻译或猜测
   `literature_identity`。
-- 当前生产 `1.6.100` 已启用 Worker-only SerpAPI 凭据和显式 Google 搜索引擎。未命中审核
+- 当前生产已启用 Worker-only 搜索凭据和显式搜索引擎。未命中审核
   缓存的医生会继续执行通用公网身份发现，不再因为“未预先收录”直接失败。这里的“支持
   任意医生”表示任意医生都可提交检索，不保证公开资料不足、冲突或无法形成闭合证据时
   一定成功。
@@ -51,7 +49,7 @@
 
 ```http
 POST /gateway/research/v1/doctor-runs HTTP/1.1
-Host: gw.instmarket.com.au
+Host: goldencode.instmarket.com.au:1443
 Authorization: Bearer <key>
 Idempotency-Key: research:his-user-42:case-20260722-001
 Content-Type: application/json
@@ -92,13 +90,13 @@ Accept: application/json
 三字段只减少用户输入，不降低身份门槛；公开资料确实不足或相互冲突时仍会 fail-closed，
 但不得再把“未预先收录”当作失败依据。
 
-当前生产还移除了第二层隐性白名单：医生本人可核验的 PubMed 论文是可选的
+当前生产没有第二层隐性白名单：医生本人可核验的 PubMed 论文是可选的
 履历证据，不再要求每位医生先有至少 3 篇绑定论文才能进入领域研究。没有医生本人论文时，
 结果必须显示 `doctor_publication_evidence_not_found` warning，代表作列表保持为空；领域综述
 仍必须从医生科室或官方资料推导出有界英文检索主题，并继续满足最少参考文献、引用闭合、
 数值证据和医学质量门槛。这个变化扩大可研究医生覆盖面，不会把其他作者论文归到该医生名下。
 
-自 R760 `1.6.105` 起，医生个人研究方向同样只在核实的官方来源含有可直接引用的明确表述时
+医生个人研究方向只在核实的官方来源含有可直接引用的明确表述时
 才会输出。官网只确认姓名、医院和科室而没有个人方向表述时，服务不会要求用户补交主页，也
 不会编造方向或终止整个任务；`research_directions` 保持为空，返回
 `doctor_research_direction_evidence_not_found` warning，并明确说明后续内容是相关领域综述，
@@ -316,24 +314,9 @@ redirect、非 loopback 明文 HTTP、符号链接 key/request 文件和不安�
 配置为 600 秒。成功事件还会输出 `quality_status` 和去重后的 `warnings`；调用方应保存并
 展示 warning，而不是因为已经下载到文件就把它静默丢弃。
 
-生产 `1.6.99 @ cb703da` 已用同一未登记工程病例连续完成 5 次真实公网调用，耗时分别为
-257.217、211.159、177.257、247.307 和 226.116 秒。五次均在 10 分钟内成功，逐次验证
-恰好 3 MD + 1 五行 TXT、manifest、文件大小和全部 SHA-256；每个 Worker 模型调用都可由
-`run_id:stage:attempt` 关联到 Gateway/provider 时间线，结束后 active run 和内部 reservation
-均归零。这个结果证明当前工程链路达到五连稳定性目标，不代表病例已经获得医学团队代表性
-认可，也不替代四文件人工内容验收。
-
 Python 示例 `1.1` 会把命令行的三个必填参数原样构造成顶层最小请求；默认的 `brief`、
 `zh-CN`、最近 5 年和 Vancouver 格式由服务端填充，只有明确提供的可选参数才会上送。
 请求文件仍兼容旧版嵌套 `doctor` 结构，但新接入方应优先使用三字段顶层结构。
-
-生产 `1.6.100 @ 29790d2` 又以本示例的最小三字段调用真实病例“陆清声 / 海军军医大学
-第一附属医院 / 血管外科”。它修复了论文标题高频连接词 `for/and` 被误选为 PubMed 主题词、
-从而错误返回 `insufficient_research_evidence` 的工程缺陷。修复后搜索闭合 40 篇字段文献；
-第一次合成因正文短节和结尾结构两个独立硬门槛同时失败而正确零产物终止，第二次在
-173.301 秒成功。成功 run `drr_acadf775c00c42c1924ebf3180a519b7` 产生恰好 3 MD + 1
-五行 TXT，客户端逐项验证文件名、大小和 SHA-256。这个结果证明任意医生发现和本示例程序
-可以走通，不表示模型输出每次都会通过质量门槛，也不替代医学团队的人工内容验收。
 
 命令行逐字段方式仍受支持，查看完整参数：
 
@@ -345,7 +328,7 @@ python scripts/doctor-research-demo.py --help
 
 Doctor Research 会对身份、引用、数字、证据等级、安全和四文件完整性 fail-closed。
 不能通过客户端重试、删除诊断或放宽校验把失败包装为成功。医学团队维护的 Skill 仍是
-业务权威来源。生产 `1.6.100` 受控试用策略继续按原目标生成，但把纯篇幅完整度拆成
+业务权威来源。当前受控试用策略继续按原目标生成，但把纯篇幅完整度拆成
 “目标值”和“最低发布线”，以免证据闭合且结构完整的边界短文仅因少量字数不足而整单失败：
 
 | 内容 | 原生成目标 | `controlled-trial` 最低发布线 |

@@ -1,18 +1,20 @@
-# Codex App GoldenCode External Access
+# Codex GoldenCode External Access
 
-External Codex users can use the same OpenAI-compatible base URL as the
-MedEvidence/GoldenCode Desktop client:
+Last updated: 2026-08-31.
+
+External Codex users use the authoritative R760 OpenAI-compatible base:
 
 ```text
-https://gw.instmarket.com.au/v1
+https://goldencode.instmarket.com.au:1443/v1
 ```
 
-The Desktop client continues to call `POST /v1/chat/completions`. Codex uses
-`POST /v1/responses`; both routes coexist under the same `/v1` base URL.
+Use the cloud model `goldencode` for this Codex configuration. The separate
+`goldencode-local` Desktop route has a 32,768-token admission limit and is not
+the default external Codex profile described here.
 
-## Codex configuration
+## Codex Configuration
 
-Add the following to the user's Codex `config.toml`:
+Add this provider to the user's Codex `config.toml`:
 
 ```toml
 model = "goldencode"
@@ -21,51 +23,28 @@ model_reasoning_effort = "medium"
 
 [model_providers.medevidence_goldencode]
 name = "MedEvidence GoldenCode"
-base_url = "https://gw.instmarket.com.au/v1"
+base_url = "https://goldencode.instmarket.com.au:1443/v1"
 env_key = "GOLDENCODE_API_KEY"
 wire_api = "responses"
 ```
 
-Set the API key in the user's environment before starting Codex:
+Set the issued unified key in the process environment before starting Codex:
 
 ```powershell
 $env:GOLDENCODE_API_KEY = "cgu_live_<user-key>"
 ```
 
-Do not paste a real `cgu_live_*` key into repository files, screenshots,
-tickets, logs, or shared chat. Restart Codex after changing `config.toml` or
-the environment variable.
+Never paste the real key into repository files, screenshots, tickets, logs or
+shared chat. Restart Codex after changing `config.toml` or its environment.
 
-## Routing behavior
+## Contract
 
-`model = "goldencode"` selects the four-member GoldenCode pool:
+- A valid `cgu_live_*` key authenticates directly on Gateway business routes.
+- User/key state, entitlement, rate limits and token accounting still apply.
+- The Responses adapter supports text, streaming, function calls, function
+  results and subsequent turns.
+- Capture `X-Request-Id` for support investigations.
 
-- `goldencode-qianfan` -> Qianfan `glm-5.2`
-- `goldencode-tencent` -> Tencent `glm-5.2`
-- `goldencode-aliyun` -> Aliyun `glm-5.2`
-- `goldencode-openrouter` -> OpenRouter `z-ai/glm-5.2`
-
-The pool uses deterministic HRW selection. Requests in one Codex conversation
-stay on the same member through the Responses `prompt_cache_key`; different
-conversations distribute across the four members. All members use reasoning
-effort `medium`.
-
-## Authentication and compatibility
-
-- A valid `cgu_live_*` key authenticates directly on Gateway business routes;
-  Codex does not need to call `/gateway/unified-keys/resolve` first.
-- Unified-key expiry/revocation, backing Gateway-key expiry/revocation, disabled
-  users, rate limits, entitlements, token accounting, and request observations
-  still apply.
-- The Responses adapter supports text output, streaming events, Codex function
-  tools, function-call results, and subsequent turns.
-- `/v1/responses` intentionally accepts only `model = "goldencode"` for this
-  external Codex surface.
-
-## Release verification
-
-Use `scripts/smoke-codex-responses-public.mjs` with a temporary handoff JSON.
-The script reads the full key only from the local file, runs a real Codex CLI
-tool-call/follow-up flow, prints only the safe key prefix, and removes its
-temporary Codex home. Revoke the temporary unified key and backing Gateway key,
-disable the smoke user, and remove the handoff JSON after the run.
+For a real-user key, follow
+[MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md).
+For current model/runtime status, see [System Status](./system-status.md).

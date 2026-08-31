@@ -1,10 +1,11 @@
 # Doctor Research Agent API：Azure Codex Gateway 服务化设计方案
 
-> 2026-08-06 后继文档说明：本文保留最初 Azure 服务化架构决策及其历史依据，
-> 不再作为当前 Gateway 权威端或公网拓扑说明。R760 正式四容器已部署并通过
-> DNS-only `https://goldencode.instmarket.com.au:1443` 直接承接迁移客户端；CN1
-> 边缘保持暗路由。发钥、用户/key、Plan/entitlement 和用量查询现以 R760 为权威，
-> Azure `gw` 仅兼容旧客户端并保留 Doctor Research 临时回滚边界。后继计划见
+> 2026-08-31 后继文档说明：本文只保留最初 Azure 服务化架构决策及历史依据，
+> 不再作为当前 Gateway 权威端、公网拓扑或部署说明。R760 四容器是唯一支持的
+> Doctor Research 运行环境，入口为
+> `https://goldencode.instmarket.com.au:1443`；CN1 保持暗路由。前 Azure Gateway 与
+> Research 已退出日常兼容和回滚路径。当前运行说明见本目录 `README.md` 和
+> `production-runbook.md`；原迁移计划见
 > `../../implementation/domestic-gateway-doctor-research-migration-plan-2026-07-30.zh-CN.md`。
 > 当前所有运行中的 GLM-5.2 路径均为 Tencent-only；阿里和百度订阅恢复前不得
 > 重新启用其成员或把 OpenRouter 加回 `goldencode`。

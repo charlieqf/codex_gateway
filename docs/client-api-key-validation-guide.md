@@ -1,198 +1,93 @@
-# 客户端开发者说明：API key 填写与校验
+# 客户端 API Key 填写与校验
 
-版本日期：2026-04-24
+版本日期：2026-08-31。
 
-本文面向需要让用户填写 MedCode API key 的客户端开发者。典型场景包括 IDE 插件、CLI、桌面端设置页、内部 Web 控制台或后端管理页面。
-
-## 接入地址
-
-生产试用网关：
+本文面向 Desktop、CLI、IDE 插件和内部 Web 客户端。生产 Gateway 为：
 
 ```text
-https://gw.instmarket.com.au
+origin: https://goldencode.instmarket.com.au:1443
+base:   https://goldencode.instmarket.com.au:1443/v1
 ```
 
-API key 使用标准 Bearer 认证：
+请求使用标准 Bearer 认证：
 
 ```http
 Authorization: Bearer <API_KEY>
 ```
 
-不要在日志、埋点、错误上报、URL query、截图或公开配置文件里记录完整 API key。界面上如需展示已保存的 key，只展示前后少量字符或服务端返回的 `credential.prefix`。
+## 保存前校验
 
-## 校验 API key
-
-用户填写 API key 后，客户端应调用：
+用户输入 key 后调用：
 
 ```http
 GET /gateway/credentials/current
 ```
 
-curl 示例：
-
 ```bash
-curl -sS https://gw.instmarket.com.au/gateway/credentials/current \
-  -H "Authorization: Bearer $MEDCODE_API_KEY"
+curl -sS https://goldencode.instmarket.com.au:1443/gateway/credentials/current \
+  -H "Authorization: Bearer $GOLDENCODE_API_KEY"
 ```
 
-这个接口只做 API key 校验并返回公开元信息：
+该接口不调用模型、不创建会话，也不消耗普通模型请求限额。成功响应包含：
 
-- 不调用 MedCode 上游模型服务。
-- 不创建会话。
-- 不消耗普通请求限额。
-- 缺少、错误、过期、吊销或所属用户被停用时返回 `401`。
+- `subject.id` 和显示名称；
+- `credential.prefix`、scope、过期时间和速率限制；
+- 当前 entitlement、能力和 token 用量字段（如果适用）。
 
-成功响应：
+只展示服务端返回的安全 prefix，不要自行回显完整 key。
 
-```json
-{
-  "valid": true,
-  "subject": {
-    "id": "trial-user-1",
-    "label": "Trial User 1"
-  },
-  "credential": {
-    "prefix": "cgw_xxxxxxxx",
-    "scope": "code",
-    "expires_at": "2026-05-06T10:00:00.000Z",
-    "rate": {
-      "requestsPerMinute": 10,
-      "requestsPerDay": 200,
-      "concurrentRequests": 1
-    }
-  }
-}
-```
+## 推荐客户端流程
 
-字段含义：
+1. 在受保护的设置界面接收 key；
+2. 调用 `/gateway/credentials/current`；
+3. `200` 时保存到系统凭据存储，并显示 prefix/到期时间；
+4. `401` 时不保存，提示 key 缺失、错误、过期、吊销或用户停用；
+5. `426` 时提示升级客户端；
+6. `429`、`5xx` 或网络错误时不要判定 key 无效，按响应建议重试；
+7. 调用 `GET /v1/models` 获取当前模型，不硬编码历史模型列表。
 
-| 字段 | 含义 |
-| --- | --- |
-| `valid` | 固定为 `true`，表示当前 API key 可用。 |
-| `subject.id` | API key 所属用户或接入方的内部 ID。 |
-| `subject.label` | API key 所属用户或接入方的显示名称。 |
-| `credential.prefix` | API key 前缀，可用于界面展示和问题排查；不是完整 key。 |
-| `credential.scope` | 当前权限范围，试用阶段通常是 `code`。 |
-| `credential.expires_at` | 过期时间；`null` 表示未设置过期时间。 |
-| `credential.rate.requestsPerMinute` | 每分钟请求上限。 |
-| `credential.rate.requestsPerDay` | 每日请求上限；`null` 表示未设置日上限。 |
-| `credential.rate.concurrentRequests` | 同一个 API key 的并发请求上限。 |
+当前公共文本模型是：
 
-## 推荐交互流程
+- `goldencode`：云端模型；
+- `goldencode-local`：R760 本地模型，32,768 token context。
 
-1. 用户在设置页输入 API key。
-2. 客户端调用 `GET /gateway/credentials/current`。
-3. 如果返回 `200`，保存 API key，并在界面展示 `credential.prefix`、过期时间和限额信息。
-4. 如果返回 `401`，不要保存 API key，提示用户检查 key 是否正确、是否过期、是否已被吊销。
-5. 如果返回 `429`、`5xx` 或网络错误，不要判断 key 一定无效，提示用户稍后重试或联系管理员。
-6. 后续模型调用使用 `https://gw.instmarket.com.au/v1`。当前默认/兼容模型 ID 是 `medcode`；如 Gateway 启用更多 public model，客户端应以 `GET /v1/models` 返回的 id 为准。
-
-## TypeScript 示例
-
-```ts
-type CredentialInfo = {
-  valid: true;
-  subject: {
-    id: string;
-    label: string | null;
-  };
-  credential: {
-    prefix: string;
-    scope: string;
-    expires_at: string | null;
-    rate: {
-      requestsPerMinute: number;
-      requestsPerDay: number | null;
-      concurrentRequests: number;
-    };
-  };
-};
-
-type ValidationResult =
-  | { ok: true; data: CredentialInfo }
-  | { ok: false; status: number; code?: string; message: string };
-
-export async function validateMedCodeApiKey(apiKey: string): Promise<ValidationResult> {
-  const res = await fetch("https://gw.instmarket.com.au/gateway/credentials/current", {
-    method: "GET",
-    headers: {
-      authorization: `Bearer ${apiKey}`
-    }
-  });
-
-  if (res.ok) {
-    return { ok: true, data: (await res.json()) as CredentialInfo };
-  }
-
-  let code: string | undefined;
-  let message = `API key validation failed with HTTP ${res.status}.`;
-
-  try {
-    const body = (await res.json()) as { error?: { code?: string; message?: string } };
-    code = body.error?.code;
-    message = body.error?.message ?? message;
-  } catch {
-    // Keep the generic message when the response is not JSON.
-  }
-
-  return { ok: false, status: res.status, code, message };
-}
-```
-
-## 错误处理建议
-
-| HTTP | `error.code` | 客户端建议 |
-| --- | --- | --- |
-| 401 | `missing_credential` | 提示用户输入 API key。 |
-| 401 | `invalid_credential` | 提示用户检查 API key 是否复制完整。 |
-| 401 | `revoked_credential` | 提示用户联系管理员重新发放 key。 |
-| 401 | `expired_credential` | 提示用户 key 已过期，需要换新 key。 |
-| 429 | `rate_limited` | 按 `retry_after_seconds` 延迟后重试。 |
-| 503 | `service_unavailable` | 提示服务暂不可用，稍后重试或联系管理员。 |
-
-客户端不要把 `401` 之外的错误直接解释成 API key 无效。网络错误、`429` 和 `5xx` 更可能是临时状态。
-
-## 校验通过后的模型调用
-
-OpenAI SDK 配置：
+## 最小调用示例
 
 ```ts
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: process.env.MEDCODE_API_KEY,
-  baseURL: "https://gw.instmarket.com.au/v1"
+  apiKey: process.env.GOLDENCODE_API_KEY,
+  baseURL: "https://goldencode.instmarket.com.au:1443/v1"
 });
 
 const completion = await client.chat.completions.create({
-  model: "medcode",
-  messages: [{ role: "user", content: "Explain this TypeScript error." }]
+  model: "goldencode",
+  messages: [{ role: "user", content: "Reply with: ok" }]
 });
-
-console.log(completion.choices[0]?.message?.content);
 ```
 
-当前兼容入口是 OpenAI Chat Completions beta：
+## 错误处理
 
-- `GET /v1/models`
-- `GET /v1/models/{id}`，当前默认 id 是 `medcode`
-- `POST /v1/chat/completions`
+| HTTP | 典型错误 | 客户端动作 |
+| --- | --- | --- |
+| 401 | credential 无效/过期/吊销 | 重新输入或联系管理员 |
+| 413 | `context_compaction_required` | 压缩历史、重建请求，最多重试一次 |
+| 426 | 客户端版本过低 | 升级客户端 |
+| 429 | `rate_limited` | 遵守 `Retry-After`/`retry_after_seconds` |
+| 5xx | 服务或上游暂不可用 | 保留 request ID，稍后重试 |
 
-当前默认/兼容模型 ID 是 `medcode`。请求未启用的模型 ID 会返回 `404` 和
-`model_not_found`。客户端不要硬编码可用模型集合，应读取 `/v1/models`。
-模型可用性以 `/v1/models` 当前返回的 MedCode public models 为准。当前 Gateway
-不按 key 做 per-model 授权，客户端不需要用 `feature_policy.medcode_models` 禁用
-Max / Expert / Pro / Standard。
+不要把非 401 错误解释为 key 无效。
 
-## 排查信息
+## 隐私与排障
 
-向服务管理员反馈问题时，请提供：
+不要把完整 key 放入源码、普通配置、URL query、日志、埋点、截图、工单
+或聊天。排障只提供：
 
-- 出错时间和时区。
-- 调用的 endpoint。
-- HTTP 状态码。
-- 响应 header 里的 `X-Request-Id`。
-- 响应体里的 `error.code`。
-- `credential.prefix`，不要提供完整 API key。
+- 时间与时区；
+- endpoint、model 和 HTTP 状态；
+- `X-Request-Id` 与 `error.code`；
+- `credential.prefix`；
+- 必要的 app version/session/message ID。
 
-不要发送完整 API key、完整 `Authorization` header、用户私有代码或本地文件内容。
+不要提供完整 Authorization header、用户私有正文或本地文件内容。

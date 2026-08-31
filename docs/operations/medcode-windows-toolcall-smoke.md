@@ -1,5 +1,10 @@
 # MedCode Windows Tool-Call Smoke
 
+Current routing note (2026-08-31): use the R760 base
+`https://goldencode.instmarket.com.au:1443/v1` and model `goldencode`. The
+document retains the MedCode product/test names for case compatibility; they do
+not mean the retired public model id `medcode`.
+
 Last updated: 2026-04-23
 
 ## Purpose
@@ -297,7 +302,7 @@ Request body shape:
 
 ```json
 {
-  "model": "medcode",
+  "model": "goldencode",
   "messages": [
     {
       "role": "user",
