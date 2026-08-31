@@ -796,6 +796,39 @@ function providerOutputLengthError(
   return providerProtocolError(summary, error);
 }
 
+export function providerToolOutputLengthError(
+  summary: ProviderStreamSummary
+): GatewayError {
+  const confirmed: ProviderStreamSummary = {
+    ...summary,
+    outputLimitHit: true,
+    truncationConfidence: "confirmed",
+    gatewayRecoveryAction: "error",
+    attempts: summary.attempts.map((attempt, index) =>
+      index === summary.attempts.length - 1
+        ? {
+            ...attempt,
+            outputLimitHit: true,
+            truncationConfidence: "confirmed",
+            gatewayRecoveryAction: "error"
+          }
+        : attempt
+    )
+  };
+  return providerOutputLengthError(confirmed, "tool_call");
+}
+
+export function providerToolOutputReachedTokenLimit(
+  summary: ProviderStreamSummary,
+  maximumOutputTokens: number | undefined
+): boolean {
+  return (
+    summary.toolCallCount > 0 &&
+    maximumOutputTokens !== undefined &&
+    (summary.usage?.completionTokens ?? -1) >= maximumOutputTokens
+  );
+}
+
 function resolveCollectedOutputKind(
   requested: ProviderOutputKind,
   collected: Pick<CollectedProviderMessage, "content" | "toolCalls">

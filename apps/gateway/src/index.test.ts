@@ -721,6 +721,188 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it.each([
+    {
+      incident: "req-b717",
+      promptTokens: 23_553,
+      argumentBytes: 24_024
+    },
+    {
+      incident: "req-eb2c",
+      promptTokens: 23_703,
+      argumentBytes: 22_209
+    }
+  ])(
+    "returns recoverable truncation immediately for the Du Heng $incident Local failure shape",
+    async ({ promptTokens, argumentBytes }) => {
+    const argumentsPrefix = '{"filePath":"/tmp/report.html","content":"';
+    const truncatedArguments =
+      argumentsPrefix + "x".repeat(argumentBytes - Buffer.byteLength(argumentsPrefix, "utf8"));
+    expect(Buffer.byteLength(truncatedArguments, "utf8")).toBe(argumentBytes);
+    const captured: CapturedOpenAICompatibleRequest[] = [];
+    const server = await startOpenAICompatibleSseServer(async (request, body, response) => {
+      if (request.method === "GET" && request.url === "/v1/models") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: [{ id: "qwen3.8-27b-fp8" }] }));
+        return;
+      }
+      captured.push({
+        headers: request.headers,
+        body: JSON.parse(body) as Record<string, unknown>
+      });
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call_local_truncated_write",
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: truncatedArguments
+                    }
+                  }
+                ]
+              },
+              finish_reason: "tool_calls"
+            }
+          ],
+          usage: {
+            prompt_tokens: promptTokens,
+            completion_tokens: 8_192,
+            total_tokens: promptTokens + 8_192
+          }
+        })}\n\n`
+      );
+      response.end("data: [DONE]\n\n");
+    });
+
+    try {
+      await withTemporaryEnv(
+        {
+          MEDCODE_PUBLIC_MODEL_ID: "goldencode-local",
+          MEDCODE_PUBLIC_MODELS_JSON_FILE: undefined,
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({
+            "goldencode-local": {
+              displayName: "GoldenCode Local",
+              runtime: "local_openai",
+              upstreamModel: "qwen3.8-27b-fp8",
+              contextWindow: 32_768,
+              maxContextWindow: 32_768,
+              upstreamContextWindow: 65_536,
+              maxOutputTokens: 8_192,
+              enabled: true
+            }
+          }),
+          MEDCODE_LOCAL_OPENAI_BASE_URL: `${server.baseUrl}/v1`,
+          MEDCODE_LOCAL_OPENAI_TIMEOUT_MS: "5000",
+          MEDCODE_LOCAL_OPENAI_API_KEY: undefined,
+          MEDCODE_LOCAL_OPENAI_API_KEY_FILE: undefined,
+          MEDCODE_NATIVE_FILE_TOOL_RECOVERY_MODE: undefined,
+          MEDCODE_NATIVE_FILE_TOOL_SOFT_ARGUMENT_BYTES: undefined,
+          MEDCODE_NATIVE_FILE_TOOL_HARD_ARGUMENT_BYTES: undefined,
+          GATEWAY_REQUIRE_ENTITLEMENT: "0"
+        },
+        async () => {
+          const { store, headers } = createCredentialBackedStore();
+          const app = buildGateway({
+            authMode: "credential",
+            provider: new FakeProvider(),
+            sessionStore: store,
+            observationStore: store,
+            logger: false
+          });
+
+          try {
+            const response = await app.inject({
+              method: "POST",
+              url: "/v1/chat/completions",
+              headers,
+              payload: {
+                model: "goldencode-local",
+                messages: [
+                  {
+                    role: "user",
+                    content: "Create a complete interactive HTML app from the source file."
+                  }
+                ],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "write",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          filePath: { type: "string" },
+                          content: { type: "string", maxLength: 32_000 }
+                        },
+                        required: ["filePath", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  }
+                ],
+                tool_choice: "auto",
+                max_tokens: 8_192
+              }
+            });
+            const requestId = expectRequestIdHeader(response);
+
+            expect(response.statusCode).toBe(502);
+            expect(response.json().error).toMatchObject({
+              code: "tool_call_output_truncated",
+              type: "server_error",
+              request_id: requestId,
+              contract_version: 1,
+              failure_kind: "confirmed_output_limit",
+              retryable: false,
+              transformed_retry_allowed: true,
+              recommended_action: "compact_and_generate_in_chunks",
+              recovery_owner: "client"
+            });
+            expect(captured).toHaveLength(1);
+            expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({
+              status: "error",
+              errorCode: "tool_call_output_truncated",
+              provider: "local-openai",
+              upstreamRuntime: "local_openai",
+              upstreamModel: "qwen3.8-27b-fp8",
+              upstreamFinishReason: "tool_calls",
+              promptTokens,
+              completionTokens: 8_192,
+              totalTokens: promptTokens + 8_192,
+              upstreamAttemptCount: 1,
+              upstreamAttempts: [
+                expect.objectContaining({
+                  index: 1,
+                  kind: "native_initial",
+                  finishReason: "tool_calls",
+                  errorCode: "tool_call_output_truncated",
+                  toolValidationFailureKind: "invalid_json",
+                  maxToolArgumentBytes: argumentBytes,
+                  outputLimitHit: true,
+                  truncationConfidence: "confirmed",
+                  gatewayRecoveryAction: "error",
+                  gatewayRecoveryOwner: "client",
+                  completionTokens: 8_192
+                })
+              ]
+            });
+          } finally {
+            await app.close();
+          }
+        }
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
   it("rejects an oversized local request before generation with compaction metadata", async () => {
     await runLocalContextAdmissionTurn(
       { mode: "enforce", promptTokens: 24_577 },

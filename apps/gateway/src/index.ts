@@ -204,6 +204,8 @@ import {
   collectProviderMessage,
   providerCompletionError,
   providerStreamSummaryFromError,
+  providerToolOutputLengthError,
+  providerToolOutputReachedTokenLimit,
   ProviderStreamSummaryCollector,
   streamErrorToGatewayError,
   type CollectedProviderMessage,
@@ -3724,6 +3726,18 @@ function nativeCollectionToResult(
         : "none"
     );
     const validationError = attachProviderStreamSummary(parsed, providerSummary);
+    if (
+      assessment.validationKind === "invalid_json" &&
+      (assessment.outputLimitHit ||
+        providerToolOutputReachedTokenLimit(
+          providerSummary,
+          input.request.maximumOutputTokens
+        ))
+    ) {
+      return providerToolOutputLengthError(
+        providerStreamSummaryFromError(validationError) ?? providerSummary
+      );
+    }
     if (
       assessment.validationKind !== "invalid_json" ||
       !assessment.argumentBudgetExceeded

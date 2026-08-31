@@ -4,6 +4,7 @@ import {
   combineProviderStreamSummaries,
   collectProviderMessage,
   providerStreamSummaryFromError,
+  providerToolOutputReachedTokenLimit,
   streamErrorToGatewayError
 } from "./provider-stream.js";
 import {
@@ -169,6 +170,64 @@ describe("collectProviderMessage", () => {
         })
       ]
     });
+  });
+
+  it("detects token-ceiling evidence without overriding a provider tool_calls reason", async () => {
+    const result = await collectProviderMessage({
+      provider: fakeProvider([
+        {
+          type: "tool_call",
+          callId: "call_max_tokens_write",
+          name: "write",
+          argumentsJson: '{"filePath":"report.html","content":"unfinished'
+        },
+        {
+          type: "completed",
+          usage: {
+            promptTokens: 23_553,
+            completionTokens: 8_192,
+            totalTokens: 31_745,
+            cachedPromptTokens: 0
+          },
+          responseSummary: {
+            finishReason: "tool_calls",
+            terminationKind: "finish_reason_and_done"
+          }
+        }
+      ]),
+      upstreamAccount: upstreamAccount(),
+      subject: subject(),
+      scope: "code",
+      session: session(),
+      message: "write a long HTML file",
+      outputTruncationMode: "shadow"
+    });
+
+    expect(result).not.toBeInstanceOf(GatewayError);
+    if (result instanceof GatewayError) {
+      throw result;
+    }
+    expect(result.providerSummary).toMatchObject({
+      finishReason: "tool_calls",
+      outputLimitHit: false,
+      truncationConfidence: "none",
+      usage: {
+        promptTokens: 23_553,
+        completionTokens: 8_192,
+        totalTokens: 31_745
+      },
+      attempts: [
+        expect.objectContaining({
+          finishReason: "tool_calls",
+          completionTokens: 8_192,
+          outputLimitHit: false,
+          truncationConfidence: "none",
+          gatewayRecoveryAction: null
+        })
+      ]
+    });
+    expect(providerToolOutputReachedTokenLimit(result.providerSummary, 8_192)).toBe(true);
+    expect(providerToolOutputReachedTokenLimit(result.providerSummary, 8_193)).toBe(false);
   });
 
   it("returns output_length_exceeded for ordinary text in error mode", async () => {
