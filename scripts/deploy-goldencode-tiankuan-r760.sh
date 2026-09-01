@@ -77,6 +77,15 @@ db_audit() {
         integrity: one(gateway, "pragma integrity_check").integrity_check,
         foreign_key_violations: gateway.prepare("pragma foreign_key_check").all().length,
         unfinished_reservations: one(gateway, "select count(*) as value from token_reservations where finalized_at is null").value,
+        stale_reservations: one(gateway, `
+          select count(*) as value
+          from token_reservations
+          where finalized_at is null
+            and (
+              (kind = 'reservation' and expires_at is not null and expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+              or (kind = 'soft_write' and created_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour'))
+            )
+        `).value,
         active_research_runs: one(research, "select count(*) as value from research_runs where status in ('"'"'queued'"'"','"'"'running'"'"')").value
       };
       gateway.close();
@@ -113,7 +122,7 @@ printf '%s\n' "$pre_audit" > "$backup/pre-db-audit.json"
 printf '%s' "$pre_audit" | jq -e '
   .integrity == "ok"
   and .foreign_key_violations == 0
-  and .unfinished_reservations == 0
+  and .stale_reservations == 0
   and .active_research_runs == 0
 ' >/dev/null
 pre_schema=$(printf '%s' "$pre_audit" | jq -er .schema)
@@ -313,7 +322,7 @@ printf '%s' "$post_audit" | jq -e \
     .schema == $schema
     and .integrity == "ok"
     and .foreign_key_violations == 0
-    and .unfinished_reservations == 0
+    and .stale_reservations == 0
     and .active_research_runs == 0
   ' >/dev/null
 
