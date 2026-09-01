@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-08-31.
+Last verified: 2026-09-01.
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,12 +18,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Read-only verification on 2026-08-31:
+Read-only verification on 2026-09-01:
 
 - `current`:
-  `14935735f92f631e16355d62944feaef479f2921`
+  `643235f8b9651ba099b8b48b6453097e16846034`
 - `previous`:
-  `6a9ae87d34b39809b97e0904e01cb62919bd7e89`
+  `14935735f92f631e16355d62944feaef479f2921`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
@@ -32,11 +32,11 @@ Read-only verification on 2026-08-31:
 
 The public text surface contains:
 
-- `goldencode`: Tencent GLM-5.3 cloud route
+- `goldencode`: sticky Tencent GLM-5.3 and TianKuan official/GLM-5.3 pool
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
 
 Image generation remains separate under client model
-`medcode-image-default`.
+`medcode-image-default`; its primary upstream model is `gpt-image-2`.
 
 ## GoldenCode Local Context Admission
 
