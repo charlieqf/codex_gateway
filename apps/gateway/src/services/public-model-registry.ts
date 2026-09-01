@@ -6,6 +6,7 @@ export type OpenAICompatibleRuntimeKind =
   | "qianfan"
   | "aliyun"
   | "tencent"
+  | "tiankuan"
   | "tokenswitch"
   | "local_openai";
 export type PublicModelPoolRuntimeKind = Exclude<
@@ -78,6 +79,7 @@ export interface PublicModelAvailability {
   qianfanAvailable?: boolean;
   aliyunAvailable?: boolean;
   tencentAvailable?: boolean;
+  tiankuanAvailable?: boolean;
   tokenSwitchAvailable?: boolean;
   localOpenAIAvailable?: boolean;
   poolMemberAdapterKeys?: ReadonlySet<string>;
@@ -220,6 +222,9 @@ function isModelAvailable(model: PublicModelConfig, input: PublicModelAvailabili
   }
   if (model.runtime === "tencent") {
     return input.tencentAvailable === true;
+  }
+  if (model.runtime === "tiankuan") {
+    return input.tiankuanAvailable === true;
   }
   if (model.runtime === "tokenswitch") {
     return input.tokenSwitchAvailable === true;
@@ -396,6 +401,7 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
     value === "qianfan" ||
     value === "aliyun" ||
     value === "tencent" ||
+    value === "tiankuan" ||
     value === "tokenswitch" ||
     value === "local_openai" ||
     value === "pool"
@@ -403,7 +409,7 @@ function parseRuntime(value: unknown, id: string): ChatRuntimeKind {
     return value;
   }
   throw new Error(
-    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, tokenswitch, local_openai, or pool.`
+    `Public model '${id}' runtime must be codex, openrouter, qianfan, aliyun, tencent, tiankuan, tokenswitch, local_openai, or pool.`
   );
 }
 
@@ -586,12 +592,13 @@ function parsePoolMemberRuntime(
     value === "qianfan" ||
     value === "aliyun" ||
     value === "tencent" ||
+    value === "tiankuan" ||
     value === "tokenswitch"
   ) {
     return value;
   }
   throw new Error(
-    `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch.`
+    `Public model '${modelId}' pool.members[${index}].runtime must be openrouter, qianfan, aliyun, tencent, tiankuan, or tokenswitch.`
   );
 }
 

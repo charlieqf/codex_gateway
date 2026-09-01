@@ -324,6 +324,7 @@ describe("public model registry", () => {
     expect(goldencode?.pool?.members.map((member) => member.id)).toEqual([
       "goldencode-qianfan",
       "goldencode-tencent",
+      "goldencode-tiankuan",
       "goldencode-tokenswitch",
       "goldencode-aliyun",
       "goldencode-openrouter"
@@ -338,6 +339,7 @@ describe("public model registry", () => {
           poolMemberAdapterKeys: new Set([
             "qianfan:goldencode-qianfan",
             "tencent:goldencode-tencent",
+            "tiankuan:goldencode-tiankuan",
             "tokenswitch:goldencode-tokenswitch",
             "aliyun:goldencode-aliyun",
             "openrouter:goldencode-openrouter"
@@ -528,7 +530,9 @@ describe("public model registry", () => {
           }
         })
       })
-    ).toThrow("runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch");
+    ).toThrow(
+      "runtime must be openrouter, qianfan, aliyun, tencent, tiankuan, or tokenswitch"
+    );
 
     expect(() =>
       resolvePublicModelRegistry({
@@ -548,7 +552,9 @@ describe("public model registry", () => {
           }
         })
       })
-    ).toThrow("runtime must be openrouter, qianfan, aliyun, tencent, or tokenswitch");
+    ).toThrow(
+      "runtime must be openrouter, qianfan, aliyun, tencent, tiankuan, or tokenswitch"
+    );
 
     expect(() =>
       resolvePublicModelRegistry({

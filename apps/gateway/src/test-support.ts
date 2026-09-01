@@ -59,6 +59,11 @@ export function goldencodePoolConfig(): GoldencodePublicModelFixture {
           upstreamModel: "glm-5.2"
         },
         {
+          id: "goldencode-tiankuan",
+          runtime: "tiankuan",
+          upstreamModel: "official/glm-5.3"
+        },
+        {
           id: "goldencode-tokenswitch",
           runtime: "tokenswitch",
           upstreamModel: "glm-5.2"

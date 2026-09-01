@@ -25,6 +25,7 @@ export type UpstreamRuntimeKind =
   | "qianfan"
   | "aliyun"
   | "tencent"
+  | "tiankuan"
   | "tokenswitch"
   | "local_openai"
   | "xai";
@@ -75,6 +76,7 @@ export interface ChatRuntimeDispatcherInput {
   qianfanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   aliyunAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tencentAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
+  tiankuanAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   tokenSwitchAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   localOpenAIAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
   xaiVisionAdapterForModel?: (model: PublicModelConfig) => ProviderAdapter | null;
@@ -83,6 +85,7 @@ export interface ChatRuntimeDispatcherInput {
   qianfanAccount?: UpstreamAccount;
   aliyunAccount?: UpstreamAccount;
   tencentAccount?: UpstreamAccount;
+  tiankuanAccount?: UpstreamAccount;
   tokenSwitchAccount?: UpstreamAccount;
   localOpenAIAccount?: UpstreamAccount;
   xaiVisionAccount?: UpstreamAccount;
@@ -113,6 +116,10 @@ export function createChatRuntimeDispatcher(
     tencent: {
       account: input.tencentAccount ?? defaultTencentVirtualAccount(),
       adapterForModel: input.tencentAdapterForModel ?? (() => null)
+    },
+    tiankuan: {
+      account: input.tiankuanAccount ?? defaultTiankuanVirtualAccount(),
+      adapterForModel: input.tiankuanAdapterForModel ?? (() => null)
     },
     tokenswitch: {
       account: input.tokenSwitchAccount ?? defaultTokenSwitchVirtualAccount(),
@@ -431,6 +438,18 @@ function defaultTencentVirtualAccount(): UpstreamAccount {
     provider: "tencent",
     label: "Tencent TokenHub Main",
     credentialRef: "ENV:MEDCODE_TENCENT_TOKENHUB_API_KEY",
+    state: "active",
+    lastUsedAt: null,
+    cooldownUntil: null
+  };
+}
+
+function defaultTiankuanVirtualAccount(): UpstreamAccount {
+  return {
+    id: "tiankuan-main",
+    provider: "tiankuan",
+    label: "TianKuan Main",
+    credentialRef: "ENV:MEDCODE_TIANKUAN_API_KEY",
     state: "active",
     lastUsedAt: null,
     cooldownUntil: null

@@ -502,6 +502,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const qianfanAdapters = createQianfanAdapters(publicModelRegistry.models, process.env, app.log);
   const aliyunAdapters = createAliyunAdapters(publicModelRegistry.models, process.env, app.log);
   const tencentAdapters = createTencentAdapters(publicModelRegistry.models, process.env, app.log);
+  const tiankuanAdapters = createTiankuanAdapters(publicModelRegistry.models, process.env, app.log);
   const tokenSwitchAdapters = createTokenSwitchAdapters(
     publicModelRegistry.models,
     process.env,
@@ -524,6 +525,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       qianfan: qianfanAdapters,
       aliyun: aliyunAdapters,
       tencent: tencentAdapters,
+      tiankuan: tiankuanAdapters,
       tokenswitch: tokenSwitchAdapters
     },
     clock
@@ -534,6 +536,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     qianfanAdapterForModel: (model) => qianfanAdapters.get(model.id) ?? null,
     aliyunAdapterForModel: (model) => aliyunAdapters.get(model.id) ?? null,
     tencentAdapterForModel: (model) => tencentAdapters.get(model.id) ?? null,
+    tiankuanAdapterForModel: (model) => tiankuanAdapters.get(model.id) ?? null,
     tokenSwitchAdapterForModel: (model) => tokenSwitchAdapters.get(model.id) ?? null,
     localOpenAIAdapterForModel: (model) => localOpenAIAdapters.get(model.id) ?? null,
     xaiVisionAdapterForModel: (model) => xaiVisionAdapters.get(model.id) ?? null,
@@ -543,6 +546,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   const qianfanAvailable = qianfanAdapters.size > 0;
   const aliyunAvailable = aliyunAdapters.size > 0;
   const tencentAvailable = tencentAdapters.size > 0;
+  const tiankuanAvailable = tiankuanAdapters.size > 0;
   const tokenSwitchAvailable = tokenSwitchAdapters.size > 0;
   const localOpenAIAvailable = localOpenAIAdapters.size > 0;
   const publicModelAvailability = {
@@ -550,6 +554,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     qianfanAvailable,
     aliyunAvailable,
     tencentAvailable,
+    tiankuanAvailable,
     tokenSwitchAvailable,
     localOpenAIAvailable,
     poolMemberAdapterKeys: poolMemberAdapterKeys({
@@ -557,6 +562,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       qianfan: qianfanAdapters,
       aliyun: aliyunAdapters,
       tencent: tencentAdapters,
+      tiankuan: tiankuanAdapters,
       tokenswitch: tokenSwitchAdapters
     })
   };
@@ -5457,6 +5463,7 @@ function isOpenAICompatibleRuntime(runtime: PublicModelConfig["runtime"]): boole
     runtime === "qianfan" ||
     runtime === "aliyun" ||
     runtime === "tencent" ||
+    runtime === "tiankuan" ||
     runtime === "tokenswitch" ||
     runtime === "local_openai"
   );
@@ -7313,6 +7320,31 @@ function createTencentAdapters(
   });
 }
 
+function createTiankuanAdapters(
+  models: PublicModelConfig[],
+  env: NodeJS.ProcessEnv,
+  logger?: { warn: (obj: Record<string, unknown>, msg: string) => void }
+): OpenAICompatibleAdapterMap {
+  return createOpenAICompatibleAdapters({
+    models,
+    env,
+    logger,
+    runtime: "tiankuan",
+    providerKind: "tiankuan",
+    displayName: "TianKuan",
+    apiKeyEnvName:
+      env.MEDCODE_TIANKUAN_API_KEY_ENV?.trim() || "MEDCODE_TIANKUAN_API_KEY",
+    baseUrl: env.MEDCODE_TIANKUAN_BASE_URL ?? "https://tokens.tiankuan.com/v1",
+    timeoutMs: parsePositiveIntegerEnv(
+      env.MEDCODE_TIANKUAN_TIMEOUT_MS,
+      300_000,
+      "MEDCODE_TIANKUAN_TIMEOUT_MS"
+    ),
+    reasoningForTarget: (target) => target.reasoning ?? { effort: "none" },
+    reasoningParameterStyle: "effort_field"
+  });
+}
+
 function createTokenSwitchAdapters(
   models: PublicModelConfig[],
   env: NodeJS.ProcessEnv,
@@ -7503,8 +7535,20 @@ function createOpenAICompatibleAdapters(input: {
   models: PublicModelConfig[];
   env: NodeJS.ProcessEnv;
   logger?: { warn: (obj: Record<string, unknown>, msg: string) => void };
-  runtime: "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch";
-  providerKind: "openrouter" | "qianfan" | "aliyun" | "tencent" | "tokenswitch";
+  runtime:
+    | "openrouter"
+    | "qianfan"
+    | "aliyun"
+    | "tencent"
+    | "tiankuan"
+    | "tokenswitch";
+  providerKind:
+    | "openrouter"
+    | "qianfan"
+    | "aliyun"
+    | "tencent"
+    | "tiankuan"
+    | "tokenswitch";
   displayName: string;
   apiKeyEnvName: string;
   baseUrl: string;

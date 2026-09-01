@@ -7108,7 +7108,7 @@ describe("gateway phase 1 routes", () => {
             observationStore: store,
             logger: false
           });
-          const sessionId = sessionIdForGoldencodeMember("goldencode-tokenswitch");
+          const sessionId = sessionIdForGoldencodeMember("goldencode-tiankuan");
           const expectedMemberId = hrwAccountForKey(
             `client_session:${sessionId}`,
             goldencodeMemberIds()
@@ -7179,6 +7179,7 @@ describe("gateway phase 1 routes", () => {
             if (
               expectedRuntime === "aliyun" ||
               expectedRuntime === "tencent" ||
+              expectedRuntime === "tiankuan" ||
               expectedRuntime === "tokenswitch"
             ) {
               expect(captured[0].body.reasoning_effort).toBe("medium");
@@ -7348,6 +7349,8 @@ describe("gateway phase 1 routes", () => {
       MEDCODE_QIANFAN_BASE_URL: server.baseUrl,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
       MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
+      MEDCODE_TIANKUAN_API_KEY: "provider-test-key",
+      MEDCODE_TIANKUAN_BASE_URL: server.baseUrl,
       MEDCODE_TOKENSWITCH_API_KEY: "provider-test-key",
       MEDCODE_TOKENSWITCH_BASE_URL: server.baseUrl,
       MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
@@ -15967,6 +15970,7 @@ async function startGoldencodeRuntimeServers(): Promise<{
   const captured: Record<GoldencodeRuntime, CapturedOpenAICompatibleRequest[]> = {
     qianfan: [],
     tencent: [],
+    tiankuan: [],
     tokenswitch: [],
     aliyun: [],
     openrouter: []
@@ -15980,6 +15984,11 @@ async function startGoldencodeRuntimeServers(): Promise<{
     "tencent-goldencode-ok",
     captured.tencent,
     { "x-request-id": "tencent_req_goldencode" }
+  );
+  const tiankuan = await startOpenAICompatibleCaptureServer(
+    "tiankuan-goldencode-ok",
+    captured.tiankuan,
+    { "x-request-id": "tiankuan_req_goldencode" }
   );
   const tokenswitch = await startOpenAICompatibleCaptureServer(
     "tokenswitch-goldencode-ok",
@@ -16003,6 +16012,8 @@ async function startGoldencodeRuntimeServers(): Promise<{
       MEDCODE_QIANFAN_BASE_URL: qianfan.baseUrl,
       MEDCODE_TENCENT_TOKENHUB_API_KEY: "provider-test-key",
       MEDCODE_TENCENT_TOKENHUB_BASE_URL: tencent.baseUrl,
+      MEDCODE_TIANKUAN_API_KEY: "provider-test-key",
+      MEDCODE_TIANKUAN_BASE_URL: tiankuan.baseUrl,
       MEDCODE_TOKENSWITCH_API_KEY: "provider-test-key",
       MEDCODE_TOKENSWITCH_BASE_URL: tokenswitch.baseUrl,
       MEDCODE_ALIYUN_DASHSCOPE_API_KEY: "provider-test-key",
@@ -16014,6 +16025,7 @@ async function startGoldencodeRuntimeServers(): Promise<{
       await Promise.all([
         qianfan.close(),
         tencent.close(),
+        tiankuan.close(),
         tokenswitch.close(),
         aliyun.close(),
         openrouter.close()

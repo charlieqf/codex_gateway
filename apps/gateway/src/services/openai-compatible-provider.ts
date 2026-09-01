@@ -31,6 +31,7 @@ export interface OpenAICompatibleProviderOptions {
     | "qianfan"
     | "aliyun"
     | "tencent"
+    | "tiankuan"
     | "tokenswitch"
     | "local-openai"
     | "xai"
