@@ -72,20 +72,22 @@ db_audit() {
       const gateway = new DatabaseSync("/var/lib/codex-gateway/gateway.db", { readonly: true });
       const research = new DatabaseSync("/var/lib/codex-gateway-research/research.db", { readonly: true });
       const one = (db, sql) => db.prepare(sql).get();
+      const now = new Date();
+      const staleSoftWriteBefore = new Date(now.getTime() - 60 * 60_000);
       const result = {
         schema: one(gateway, "select max(version) as value from schema_migrations").value,
         integrity: one(gateway, "pragma integrity_check").integrity_check,
         foreign_key_violations: gateway.prepare("pragma foreign_key_check").all().length,
         unfinished_reservations: one(gateway, "select count(*) as value from token_reservations where finalized_at is null").value,
-        stale_reservations: one(gateway, `
+        stale_reservations: gateway.prepare(`
           select count(*) as value
           from token_reservations
           where finalized_at is null
             and (
-              (kind = 'reservation' and expires_at is not null and expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-              or (kind = 'soft_write' and created_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 hour'))
+              (kind = ? and expires_at is not null and expires_at <= ?)
+              or (kind = ? and created_at <= ?)
             )
-        `).value,
+        `).get("reservation", now.toISOString(), "soft_write", staleSoftWriteBefore.toISOString()).value,
         active_research_runs: one(research, "select count(*) as value from research_runs where status in ('"'"'queued'"'"','"'"'running'"'"')").value
       };
       gateway.close();
