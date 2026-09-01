@@ -39,6 +39,7 @@ test "$candidate_release" != "$old_current"
 test -f "$candidate_release/compose.azure.yml"
 test -f "$candidate_release/compose.research-production.yml"
 test -x "$candidate_release/scripts/smoke-goldencode-dual-provider.sh"
+test -x "$candidate_release/scripts/smoke-gpt-image-2-r760.sh"
 test -r "$gateway_env"
 test "$(stat -c '%a' "$gateway_env")" = 600
 test -r "$gateway_override"
@@ -139,15 +140,23 @@ registry_candidate=$(printf '%s' "$registry" | jq -ce '
 
 env_candidate=$backup/gateway.container.env.candidate
 awk -v registry="$registry_candidate" '
-  BEGIN { models = 0 }
+  BEGIN { models = 0; image_models = 0 }
   /^MEDCODE_PUBLIC_MODELS_JSON=/ {
     print "MEDCODE_PUBLIC_MODELS_JSON=" registry
     models = 1
     next
   }
+  /^MEDCODE_IMAGE_MODEL_MAP_JSON=/ {
+    print "MEDCODE_IMAGE_MODEL_MAP_JSON={\"medcode-image-default\":\"gpt-image-2\"}"
+    image_models = 1
+    next
+  }
   /^MEDCODE_TIANKUAN_(API_KEY|API_KEY_FILE|BASE_URL|TIMEOUT_MS)=/ { next }
   { print }
-  END { if (!models) exit 1 }
+  END {
+    if (!models) exit 1
+    if (!image_models) print "MEDCODE_IMAGE_MODEL_MAP_JSON={\"medcode-image-default\":\"gpt-image-2\"}"
+  }
 ' "$gateway_env" > "$env_candidate"
 printf '%s\n' \
   'MEDCODE_TIANKUAN_BASE_URL=https://tokens.tiankuan.com/v1' \
@@ -172,6 +181,10 @@ docker run --rm \
       throw new Error("TianKuan registry member mismatch.");
     }
     if (!process.env.MEDCODE_TIANKUAN_API_KEY?.trim()) throw new Error("TianKuan key missing.");
+    const imageModels = JSON.parse(process.env.MEDCODE_IMAGE_MODEL_MAP_JSON ?? "null");
+    if (imageModels?.["medcode-image-default"] !== "gpt-image-2") {
+      throw new Error("GPT Image 2 model map mismatch.");
+    }
   '
 
 docker run --rm \
@@ -207,6 +220,25 @@ docker run --rm \
       throw new Error("TianKuan chat preflight failed.");
     }
     process.stdout.write("tiankuan_preflight=ok\n");
+  '
+
+docker run --rm \
+  --network codex_gateway_r760_default \
+  --env-file "$env_candidate" \
+  --entrypoint node \
+  "$candidate_image" \
+  --input-type=module -e '
+    const key = process.env.MEDCODE_IMAGE_OPENAI_API_KEY;
+    if (!key) throw new Error("Image API key missing.");
+    const response = await fetch("https://api.openai.com/v1/models/gpt-image-2", {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(30000)
+    });
+    const body = await response.json();
+    if (!response.ok || body.id !== "gpt-image-2") {
+      throw new Error("GPT Image 2 access preflight failed.");
+    }
+    process.stdout.write("gpt_image_2_access=ok\n");
   '
 
 compose_for "$candidate_release" config --quiet
@@ -270,6 +302,10 @@ BASE_URL=https://goldencode.instmarket.com.au:1443 \
   "$candidate_release/scripts/smoke-goldencode-dual-provider.sh" |
   tee "$backup/dual-provider-smoke.txt"
 
+BASE_URL=https://goldencode.instmarket.com.au:1443 \
+  "$candidate_release/scripts/smoke-gpt-image-2-r760.sh" |
+  tee "$backup/gpt-image-2-smoke.txt"
+
 post_audit=$(db_audit "$candidate_image")
 printf '%s\n' "$post_audit" > "$backup/post-db-audit.json"
 printf '%s' "$post_audit" | jq -e \
@@ -291,6 +327,7 @@ echo "release=$candidate_release"
 echo "gateway_image=$(docker inspect -f '{{.Image}}' "$gateway_container")"
 echo "schema=$pre_schema"
 echo "goldencode_pool=tencent,tiankuan"
+echo "image_primary=gpt-image-2"
 echo "research_containers=unchanged"
 echo "qwen_container=unchanged"
 echo "Gateway GoldenCode TianKuan dual-provider cutover completed."
