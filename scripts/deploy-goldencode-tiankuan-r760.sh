@@ -309,13 +309,21 @@ for service in research-llm-gateway research-worker research-maintenance mihomo;
 done
 test "$(docker inspect -f '{{.Id}}' "$qwen_container")" = "$(cat "$backup/qwen-container-id.txt")"
 
-BASE_URL=https://goldencode.instmarket.com.au:1443 \
-  "$candidate_release/scripts/smoke-goldencode-dual-provider.sh" |
-  tee "$backup/dual-provider-smoke.txt"
+if ! BASE_URL=https://goldencode.instmarket.com.au:1443 \
+  "$candidate_release/scripts/smoke-goldencode-dual-provider.sh" \
+  > "$backup/dual-provider-smoke.txt"; then
+  cat "$backup/dual-provider-smoke.txt"
+  exit 1
+fi
+cat "$backup/dual-provider-smoke.txt"
 
-BASE_URL=https://goldencode.instmarket.com.au:1443 \
-  "$candidate_release/scripts/smoke-gpt-image-2-r760.sh" |
-  tee "$backup/gpt-image-2-smoke.txt"
+if ! BASE_URL=https://goldencode.instmarket.com.au:1443 \
+  "$candidate_release/scripts/smoke-gpt-image-2-r760.sh" \
+  > "$backup/gpt-image-2-smoke.txt"; then
+  cat "$backup/gpt-image-2-smoke.txt"
+  exit 1
+fi
+cat "$backup/gpt-image-2-smoke.txt"
 
 post_audit=$(db_audit "$candidate_image")
 printf '%s\n' "$post_audit" > "$backup/post-db-audit.json"

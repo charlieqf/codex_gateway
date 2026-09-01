@@ -106,7 +106,7 @@ for member in goldencode-tencent goldencode-tiankuan; do
     messages: [{role:"user",content:("Reply exactly " + $marker + ".")}],
     stream: false,
     reasoning_effort: "low",
-    max_tokens: 256
+    max_tokens: 1024
   }' > "$tmp/request-$runtime.json"
 
   stage=chat_$runtime
