@@ -55,6 +55,7 @@ describe("LLaDAImageGenerationProvider", () => {
       return new Response(
         JSON.stringify({
           created: 1_700_000_000,
+          output_format: "jpeg",
           data: [
             {
               b64_json: "ZmFrZS1pbWFnZQ==",
@@ -86,7 +87,7 @@ describe("LLaDAImageGenerationProvider", () => {
       quality: "low",
       response_format: "b64_json",
       output_format: "jpeg",
-      output_compression: 40
+      output_compression: 60
     });
     expect(result.data[0]).toEqual({
       b64_json: "ZmFrZS1pbWFnZQ==",

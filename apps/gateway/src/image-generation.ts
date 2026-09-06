@@ -433,7 +433,7 @@ export class LLaDAImageGenerationProvider implements ImageGenerationProvider {
           output_format: input.request.outputFormat,
           ...(input.request.outputCompression === undefined
             ? {}
-            : { output_compression: input.request.outputCompression })
+            : { output_compression: lladaQualityFromCompression(input.request.outputCompression) })
         }),
         signal: controller.signal
       });
@@ -790,6 +790,10 @@ function qualityFromCompression(outputCompression: number | undefined): number |
   return Math.min(100, Math.max(1, 100 - outputCompression));
 }
 
+function lladaQualityFromCompression(outputCompression: number): number {
+  return Math.min(100, Math.max(0, 100 - outputCompression));
+}
+
 async function parseJsonResponse(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
@@ -833,12 +837,23 @@ function parseLLaDAImageResult(payload: unknown): ImageGenerationResult {
   if (!isRecord(payload) || !Array.isArray(payload.data)) {
     throw upstreamShapeError();
   }
+  const declaredFormat =
+    typeof payload.output_format === "string"
+      ? (payload.output_format as ImageGenerationOutputFormat)
+      : undefined;
+  if (declaredFormat !== undefined && !supportedFormats.includes(declaredFormat)) {
+    throw upstreamShapeError();
+  }
+  const declaredMimeType = declaredFormat === undefined ? undefined : mimeTypeForFormat(declaredFormat);
   const data = payload.data.map((item) => {
     if (!isRecord(item) || typeof item.b64_json !== "string" || item.b64_json.length === 0) {
       throw upstreamShapeError();
     }
     const mimeType = typeof item.mime_type === "string" ? item.mime_type : "image/png";
     if (!supportedImageMimeTypes.has(mimeType)) {
+      throw upstreamShapeError();
+    }
+    if (declaredMimeType !== undefined && mimeType !== declaredMimeType) {
       throw upstreamShapeError();
     }
     return {
