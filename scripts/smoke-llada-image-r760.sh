@@ -115,6 +115,33 @@ jq -e '.events | any(
   and .status == "ok"
 )' "$tmp/events.json" >/dev/null
 
+stage=text_control
+jq -n '{
+  model:"goldencode",
+  messages:[{role:"user",content:"Reply with GATEWAY_TEXT_OK."}],
+  reasoning_effort:"low",
+  max_tokens:256,
+  stream:false
+}' > "$tmp/text-request.json"
+text_status=$(curl -sS --max-time 120 -D "$tmp/text-headers.txt" \
+  -o "$tmp/text-response.json" -w '%{http_code}' \
+  -H "$auth_header" \
+  -H 'Content-Type: application/json' \
+  --data-binary @"$tmp/text-request.json" \
+  "$base_url/v1/chat/completions")
+test "$text_status" = 200
+jq -e '.choices[0].message.content | type == "string" and length > 0' \
+  "$tmp/text-response.json" >/dev/null
+text_request_id=$(request_id_from_headers "$tmp/text-headers.txt")
+test -n "$text_request_id"
+admin events --request-id "$text_request_id" --limit 5 > "$tmp/text-events.json"
+jq -e '.events | any(
+  .public_model_id == "goldencode"
+  and (.provider == "tencent" or .provider == "tiankuan")
+  and (.upstream_model == "glm-5.3" or .upstream_model == "official/glm-5.3")
+  and .status == "ok"
+)' "$tmp/text-events.json" >/dev/null
+
 stage=cleanup_key
 admin revoke "$prefix" > "$tmp/revoke.json"
 prefix=
@@ -128,6 +155,9 @@ fi
 if docker logs "$gateway_container" 2>&1 | grep -Fq 'minimal cobalt blue circle'; then
   exit 1
 fi
+if docker logs "$gateway_container" 2>&1 | grep -Fq 'GATEWAY_TEXT_OK'; then
+  exit 1
+fi
 
 echo "base_url=$base_url"
 echo "public_model=medcode-image-default"
@@ -135,7 +165,9 @@ echo "provider=llada-image"
 echo "upstream_model=llada-image-turbo-fp8"
 echo "image_generation=200-valid-jpeg"
 echo "duration_ms=$duration_ms"
+echo "text_control=200-goldencode"
 echo "temporary_key=revoke-401"
 echo "log_secret_scan=clean"
 echo "request_id=$request_id"
+echo "text_request_id=$text_request_id"
 stage=complete

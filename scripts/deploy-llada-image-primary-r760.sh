@@ -185,6 +185,8 @@ printf '%s\n' \
 printf 'MEDCODE_IMAGE_LLADA_API_KEY=%s\n' "$llada_key" >> "$env_candidate"
 llada_key=
 chmod 0600 "$env_candidate"
+test "$(grep -v '^MEDCODE_IMAGE_' "$gateway_env" | sha256sum | cut -d' ' -f1)" = \
+  "$(grep -v '^MEDCODE_IMAGE_' "$env_candidate" | sha256sum | cut -d' ' -f1)"
 
 docker run --rm \
   --env-file "$env_candidate" \
@@ -282,14 +284,6 @@ done
 test "$(docker inspect -f '{{.Id}}' "$qwen_container")" = "$(cat "$backup/qwen-container-id.txt")"
 
 if ! BASE_URL=https://goldencode.instmarket.com.au:1443 \
-  "$candidate_release/scripts/smoke-goldencode-dual-provider.sh" \
-  > "$backup/dual-provider-smoke.txt"; then
-  cat "$backup/dual-provider-smoke.txt"
-  exit 1
-fi
-cat "$backup/dual-provider-smoke.txt"
-
-if ! BASE_URL=https://goldencode.instmarket.com.au:1443 \
   "$candidate_release/scripts/smoke-llada-image-r760.sh" \
   > "$backup/llada-image-smoke.txt"; then
   cat "$backup/llada-image-smoke.txt"
@@ -318,6 +312,7 @@ echo "release=$candidate_release"
 echo "gateway_image=$(docker inspect -f '{{.Image}}' "$gateway_container")"
 echo "schema=$pre_schema"
 echo "goldencode_pool=unchanged"
+echo "non_image_config=unchanged"
 echo "image_primary=llada-image-turbo-fp8"
 echo "image_first_fallback=gpt-image-2"
 echo "research_containers=unchanged"
