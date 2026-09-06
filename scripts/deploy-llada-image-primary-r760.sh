@@ -49,6 +49,24 @@ docker image inspect "$candidate_image" >/dev/null
 test "$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$candidate_image")" = "$candidate_revision"
 test "$(docker inspect -f '{{.State.Health.Status}}' "$qwen_container")" = healthy
 
+for config_name in \
+  gateway.container.env \
+  research.production.api.env \
+  research.production.compose.env \
+  research.production.goldencode.r760.json \
+  research.production.llm-gateway.env \
+  research.production.worker.env; do
+  shared_path=$gateway_shared/$config_name
+  release_path=$candidate_release/config/$config_name
+  test -r "$shared_path"
+  if [ -L "$release_path" ]; then
+    test "$(readlink -f "$release_path")" = "$shared_path"
+  else
+    test ! -e "$release_path"
+    ln -s "$shared_path" "$release_path"
+  fi
+done
+
 compose_for() {
   release=$1
   shift
