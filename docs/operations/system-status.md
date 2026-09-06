@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-01.
+Last verified: 2026-09-06.
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,12 +18,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Read-only verification on 2026-09-01:
+Read-only verification on 2026-09-06:
 
 - `current`:
-  `643235f8b9651ba099b8b48b6453097e16846034`
+  `b641ebbcc02b616726909fac4bda8ee9e4901981`
 - `previous`:
-  `14935735f92f631e16355d62944feaef479f2921`
+  `643235f8b9651ba099b8b48b6453097e16846034`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
@@ -36,7 +36,8 @@ The public text surface contains:
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
 
 Image generation remains separate under client model
-`medcode-image-default`; its primary upstream model is `gpt-image-2`.
+`medcode-image-default`; its primary upstream is the external
+`llada-image-turbo-fp8` API, with `gpt-image-2` retained as the first fallback.
 
 ## GoldenCode Local Context Admission
 
