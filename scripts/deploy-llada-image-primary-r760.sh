@@ -88,7 +88,9 @@ db_audit() {
               or (kind = ? and created_at <= ?)
             )
         `).get("reservation", now.toISOString(), "soft_write", staleSoftWriteBefore.toISOString()).value,
-        active_research_runs: one(research, "select count(*) as value from research_runs where status in ('queued','running')").value
+        active_research_runs: research
+          .prepare("select count(*) as value from research_runs where status in (?, ?)")
+          .get("queued", "running").value
       };
       gateway.close();
       research.close();
