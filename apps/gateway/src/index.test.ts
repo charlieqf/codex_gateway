@@ -1686,6 +1686,60 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("uses the fallback image provider when the global primary is rate limited", async () => {
+    const { store, headers } = createImageEntitledStore();
+    const primaryImageProvider = new FakeImageGenerationProvider(
+      new GatewayError({
+        code: "rate_limited",
+        message: "Generation queue is full.",
+        httpStatus: 429,
+        upstreamStatus: 429
+      }),
+      "llada-image"
+    );
+    const fallbackImageProvider = new FakeImageGenerationProvider();
+    const app = buildGateway({
+      authMode: "credential",
+      provider: new FakeProvider(),
+      sessionStore: store,
+      observationStore: store,
+      imageGenerationProvider: primaryImageProvider,
+      imageGenerationBillingFallbacks: [
+        {
+          accountId: "image-billing-fallback-gpt-image-2",
+          provider: fallbackImageProvider,
+          upstreamModel: "gpt-image-2"
+        }
+      ],
+      logger: false
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/gateway/images/generations",
+      headers,
+      payload: {
+        model: "medcode-image-default",
+        prompt: "Create a diagram.",
+        size: "1024x1024"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(primaryImageProvider.calls).toHaveLength(1);
+    expect(fallbackImageProvider.calls).toHaveLength(1);
+    expect(store.listRequestEvents({ limit: 5 })).toEqual([
+      expect.objectContaining({
+        upstreamAccountId: "image-billing-fallback-gpt-image-2",
+        provider: "openai-api",
+        upstreamModel: "gpt-image-2",
+        status: "ok"
+      })
+    ]);
+
+    await app.close();
+  });
+
   it("tries the next billing fallback image provider when a fallback key is also exhausted", async () => {
     const { store, headers } = createImageEntitledStore();
     const billingLimitError = new GatewayError({
@@ -5331,6 +5385,29 @@ describe("gateway phase 1 routes", () => {
         CODEX_HOME: "/var/lib/codex-gateway/codex-home"
       })
     ).not.toThrow();
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        MEDCODE_IMAGE_GENERATION_ENABLED: "1",
+        MEDCODE_IMAGE_PRIMARY_PROVIDER: "llada",
+        MEDCODE_IMAGE_LLADA_API_KEY: "llada-test-key"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      validateRuntimeEnvironment({
+        NODE_ENV: "production",
+        GATEWAY_AUTH_MODE: "credential",
+        GATEWAY_SQLITE_PATH: "/var/lib/codex-gateway/gateway.db",
+        CODEX_HOME: "/var/lib/codex-gateway/codex-home",
+        MEDCODE_IMAGE_GENERATION_ENABLED: "1",
+        MEDCODE_IMAGE_PRIMARY_PROVIDER: "llada"
+      })
+    ).toThrow("Production LLaDA image generation requires MEDCODE_IMAGE_LLADA_API_KEY");
 
     expect(() =>
       validateRuntimeEnvironment({

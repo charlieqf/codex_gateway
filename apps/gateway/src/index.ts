@@ -188,6 +188,7 @@ import {
   finalizeImageGenerationResult,
   GeminiImageGenerationProvider,
   isImageBillingLimitError,
+  LLaDAImageGenerationProvider,
   maxPromptCharsFromEnv,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
@@ -2184,7 +2185,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         });
       } catch (err) {
         const error = imageErrorFromUnknown(err);
-        if (isImageBillingLimitError(error) && imageGenerationBillingFallbacks.length > 0) {
+        if (isImageFallbackRetryableError(error) && imageGenerationBillingFallbacks.length > 0) {
           try {
             return await generateImageWithBillingFallbacks(request, abort, {
               parsed,
@@ -6782,8 +6783,25 @@ function createDefaultImageGenerationProvider(
   if (env.MEDCODE_IMAGE_GENERATION_ENABLED !== "1") {
     return undefined;
   }
+  const primaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
+  if (primaryProvider === "llada") {
+    if (!env.MEDCODE_IMAGE_LLADA_API_KEY) {
+      throw new Error(
+        "MEDCODE_IMAGE_LLADA_API_KEY is required when LLaDA image generation is primary."
+      );
+    }
+    return new LLaDAImageGenerationProvider({
+      apiKey: env.MEDCODE_IMAGE_LLADA_API_KEY,
+      baseUrl: env.MEDCODE_IMAGE_LLADA_BASE_URL,
+      timeoutMs: parsePositiveIntegerEnv(
+        env.MEDCODE_IMAGE_LLADA_TIMEOUT_MS ?? env.MEDCODE_IMAGE_TIMEOUT_MS,
+        240_000,
+        "MEDCODE_IMAGE_LLADA_TIMEOUT_MS"
+      )
+    });
+  }
   if (!env.MEDCODE_IMAGE_OPENAI_API_KEY) {
-    throw new Error("MEDCODE_IMAGE_OPENAI_API_KEY is required when image generation is enabled.");
+    throw new Error("MEDCODE_IMAGE_OPENAI_API_KEY is required when OpenAI image generation is primary.");
   }
   return new OpenAIImageGenerationProvider({
     apiKey: env.MEDCODE_IMAGE_OPENAI_API_KEY,
@@ -6794,6 +6812,14 @@ function createDefaultImageGenerationProvider(
       "MEDCODE_IMAGE_TIMEOUT_MS"
     )
   });
+}
+
+function parseImagePrimaryProvider(value: string | undefined): "openai" | "llada" {
+  const normalized = value?.trim().toLowerCase() || "openai";
+  if (normalized === "openai" || normalized === "llada") {
+    return normalized;
+  }
+  throw new Error("MEDCODE_IMAGE_PRIMARY_PROVIDER must be openai or llada.");
 }
 
 function resolveImageGenerationBillingFallbacks(
@@ -6831,6 +6857,28 @@ function createDefaultImageGenerationBillingFallbacks(
     return [];
   }
   const fallbacks: ImageGenerationBillingFallback[] = [];
+  if (
+    parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER) === "llada" &&
+    env.MEDCODE_IMAGE_OPENAI_API_KEY?.trim()
+  ) {
+    fallbacks.push({
+      accountId: `${imageBillingFallbackAccountId}-gpt-image-2`,
+      provider: new OpenAIImageGenerationProvider({
+        apiKey: env.MEDCODE_IMAGE_OPENAI_API_KEY,
+        baseUrl: env.MEDCODE_IMAGE_OPENAI_BASE_URL,
+        timeoutMs: parsePositiveIntegerEnv(
+          env.MEDCODE_IMAGE_TIMEOUT_MS,
+          180_000,
+          "MEDCODE_IMAGE_TIMEOUT_MS"
+        )
+      }),
+      upstreamModel: parseImageBillingFallbackModel(
+        env.MEDCODE_IMAGE_OPENAI_MODEL,
+        "gpt-image-2",
+        "MEDCODE_IMAGE_OPENAI_MODEL"
+      )
+    });
+  }
   const apiKey = env.MEDCODE_IMAGE_BILLING_FALLBACK_OPENAI_API_KEY?.trim();
   if (apiKey) {
     fallbacks.push({
@@ -8089,8 +8137,14 @@ export function validateRuntimeEnvironment(env: NodeJS.ProcessEnv) {
   if (env.GATEWAY_DEV_ACCESS_TOKEN) {
     throw new Error("Production runtime must not set GATEWAY_DEV_ACCESS_TOKEN.");
   }
-  if (env.MEDCODE_IMAGE_GENERATION_ENABLED === "1" && !env.MEDCODE_IMAGE_OPENAI_API_KEY) {
-    throw new Error("Production image generation requires MEDCODE_IMAGE_OPENAI_API_KEY.");
+  if (env.MEDCODE_IMAGE_GENERATION_ENABLED === "1") {
+    const imagePrimaryProvider = parseImagePrimaryProvider(env.MEDCODE_IMAGE_PRIMARY_PROVIDER);
+    if (imagePrimaryProvider === "llada" && !env.MEDCODE_IMAGE_LLADA_API_KEY) {
+      throw new Error("Production LLaDA image generation requires MEDCODE_IMAGE_LLADA_API_KEY.");
+    }
+    if (imagePrimaryProvider === "openai" && !env.MEDCODE_IMAGE_OPENAI_API_KEY) {
+      throw new Error("Production OpenAI image generation requires MEDCODE_IMAGE_OPENAI_API_KEY.");
+    }
   }
   if (Boolean(env.GATEWAY_UPSTREAM_V2_BASE_URL) !== Boolean(env.GATEWAY_UPSTREAM_V2_TOKEN)) {
     throw new Error("Production upstream v2 config requires GATEWAY_UPSTREAM_V2_BASE_URL and GATEWAY_UPSTREAM_V2_TOKEN together.");

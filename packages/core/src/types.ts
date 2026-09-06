@@ -8,6 +8,7 @@ export type ProviderKind =
   | "tokenswitch"
   | "local-openai"
   | "openai-api"
+  | "llada-image"
   | "xai"
   | "gemini"
   | "anthropic"

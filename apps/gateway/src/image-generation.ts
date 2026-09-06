@@ -53,7 +53,7 @@ export interface ImageGenerationResult {
 
 export type ImageGenerationProviderKind = Extract<
   ProviderKind,
-  "openai-api" | "xai" | "gemini"
+  "openai-api" | "llada-image" | "xai" | "gemini"
 >;
 
 export interface ImageGenerationProvider {
@@ -66,6 +66,12 @@ export interface ImageGenerationProvider {
 }
 
 export interface OpenAIImageGenerationProviderOptions {
+  apiKey: string;
+  baseUrl?: string;
+  timeoutMs?: number;
+}
+
+export interface LLaDAImageGenerationProviderOptions {
   apiKey: string;
   baseUrl?: string;
   timeoutMs?: number;
@@ -255,7 +261,11 @@ export async function finalizeImageGenerationResult(input: {
   result: ImageGenerationResult;
 }): Promise<ImageGenerationResult> {
   const hasSvgOutput = input.result.data.some((item) => item.mime_type?.startsWith("image/svg+xml"));
-  if (input.request.outputSize === input.request.size && !hasSvgOutput) {
+  const requestedMimeType = mimeTypeForFormat(input.request.outputFormat);
+  const hasMismatchedFormat = input.result.data.some(
+    (item) => item.mime_type !== undefined && item.mime_type !== requestedMimeType
+  );
+  if (input.request.outputSize === input.request.size && !hasSvgOutput && !hasMismatchedFormat) {
     return input.result;
   }
 
@@ -389,6 +399,84 @@ export class OpenAIImageGenerationProvider implements ImageGenerationProvider {
 
   private get timeoutMs(): number {
     return this.options.timeoutMs ?? 180_000;
+  }
+}
+
+export class LLaDAImageGenerationProvider implements ImageGenerationProvider {
+  readonly providerKind = "llada-image" as const;
+
+  constructor(private readonly options: LLaDAImageGenerationProviderOptions) {}
+
+  async generate(input: {
+    request: ImageGenerationRequest;
+    upstreamModel: string;
+    signal?: AbortSignal;
+  }): Promise<ImageGenerationResult> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("upstream_timeout")), this.timeoutMs);
+    const abortFromParent = () => controller.abort(input.signal?.reason);
+    input.signal?.addEventListener("abort", abortFromParent, { once: true });
+
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/images/generations`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.apiKey}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model: input.upstreamModel,
+          prompt: input.request.prompt,
+          size: input.request.size,
+          quality: input.request.quality,
+          response_format: "b64_json",
+          output_format: input.request.outputFormat,
+          ...(input.request.outputCompression === undefined
+            ? {}
+            : { output_compression: input.request.outputCompression })
+        }),
+        signal: controller.signal
+      });
+      const payload = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw normalizeOpenAIImageError(response.status, payload);
+      }
+      return parseLLaDAImageResult(payload);
+    } catch (err) {
+      if (err instanceof GatewayError) {
+        throw err;
+      }
+      if (controller.signal.aborted) {
+        if (isClientAbortReason(controller.signal.reason)) {
+          throw new GatewayError({
+            code: "client_aborted",
+            message: "Client aborted image generation.",
+            httpStatus: 499
+          });
+        }
+        throw new GatewayError({
+          code: "upstream_timeout",
+          message: "Image generation timed out.",
+          httpStatus: 504
+        });
+      }
+      throw new GatewayError({
+        code: "upstream_unavailable",
+        message: "Image generation service is unavailable.",
+        httpStatus: 503
+      });
+    } finally {
+      clearTimeout(timeout);
+      input.signal?.removeEventListener("abort", abortFromParent);
+    }
+  }
+
+  private get baseUrl(): string {
+    return (this.options.baseUrl ?? "https://image-api.instmarket.com.au").replace(/\/+$/, "");
+  }
+
+  private get timeoutMs(): number {
+    return this.options.timeoutMs ?? 240_000;
   }
 }
 
@@ -741,6 +829,35 @@ function parseOpenAIImageResult(
   };
 }
 
+function parseLLaDAImageResult(payload: unknown): ImageGenerationResult {
+  if (!isRecord(payload) || !Array.isArray(payload.data)) {
+    throw upstreamShapeError();
+  }
+  const data = payload.data.map((item) => {
+    if (!isRecord(item) || typeof item.b64_json !== "string" || item.b64_json.length === 0) {
+      throw upstreamShapeError();
+    }
+    const mimeType = typeof item.mime_type === "string" ? item.mime_type : "image/png";
+    if (!supportedImageMimeTypes.has(mimeType)) {
+      throw upstreamShapeError();
+    }
+    return {
+      b64_json: item.b64_json,
+      mime_type: mimeType
+    };
+  });
+  if (data.length === 0) {
+    throw upstreamShapeError();
+  }
+  return {
+    created: typeof payload.created === "number" ? Math.trunc(payload.created) : undefined,
+    data,
+    usage: isRecord(payload.usage) ? (payload.usage as ImageGenerationUsage) : undefined
+  };
+}
+
+const supportedImageMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+
 function parseGeminiImageResult(
   payload: unknown,
   outputFormat: ImageGenerationOutputFormat
@@ -875,6 +992,7 @@ function isBillingLimitText(value: string): boolean {
     lower.includes("insufficient_quota") ||
     lower.includes("insufficient quota") ||
     lower.includes("quota exceeded") ||
+    lower.includes("no credits remaining") ||
     (lower.includes("resource_exhausted") && lower.includes("quota")) ||
     (lower.includes("billing") && lower.includes("limit"))
   );

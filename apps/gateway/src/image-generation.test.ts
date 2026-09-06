@@ -5,6 +5,7 @@ import {
   finalizeImageGenerationResult,
   GeminiImageGenerationProvider,
   isImageBillingLimitError,
+  LLaDAImageGenerationProvider,
   OpenAIImageGenerationProvider,
   parseImageGenerationRequest,
   resolveImageUpstreamModel,
@@ -29,10 +30,83 @@ describe("image provider attribution", () => {
     expect(new OpenAIImageGenerationProvider({ apiKey: "test-openai" }).providerKind).toBe(
       "openai-api"
     );
+    expect(new LLaDAImageGenerationProvider({ apiKey: "test-llada" }).providerKind).toBe(
+      "llada-image"
+    );
     expect(new XAIImageGenerationProvider({ apiKey: "test-xai" }).providerKind).toBe("xai");
     expect(new GeminiImageGenerationProvider({ apiKey: "test-gemini" }).providerKind).toBe(
       "gemini"
     );
+  });
+});
+
+describe("LLaDAImageGenerationProvider", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    globalThis.fetch = originalFetch;
+  });
+
+  it("requests base64 JPEG output and preserves the actual upstream MIME type", async () => {
+    let url: string | undefined;
+    let body: Record<string, unknown> | undefined;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      url = String(input);
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          created: 1_700_000_000,
+          data: [
+            {
+              b64_json: "ZmFrZS1pbWFnZQ==",
+              mime_type: "image/jpeg"
+            }
+          ]
+        }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+
+    const provider = new LLaDAImageGenerationProvider({
+      apiKey: "llada-test",
+      timeoutMs: 30_000
+    });
+    const result = await provider.generate({
+      request: {
+        ...request,
+        outputCompression: 40
+      },
+      upstreamModel: "llada-image-turbo-fp8"
+    });
+
+    expect(url).toBe("https://image-api.instmarket.com.au/v1/images/generations");
+    expect(body).toMatchObject({
+      model: "llada-image-turbo-fp8",
+      prompt: "Create a diagram.",
+      size: "1024x1024",
+      quality: "low",
+      response_format: "b64_json",
+      output_format: "jpeg",
+      output_compression: 40
+    });
+    expect(result.data[0]).toEqual({
+      b64_json: "ZmFrZS1pbWFnZQ==",
+      mime_type: "image/jpeg"
+    });
+  });
+
+  it("treats legacy LLaDA responses without mime_type as PNG", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ data: [{ b64_json: "ZmFrZS1pbWFnZQ==" }] }), {
+        status: 200
+      })
+    ) as unknown as typeof fetch;
+
+    const result = await new LLaDAImageGenerationProvider({ apiKey: "llada-test" }).generate({
+      request,
+      upstreamModel: "llada-image-turbo-fp8"
+    });
+
+    expect(result.data[0].mime_type).toBe("image/png");
   });
 });
 
@@ -176,6 +250,26 @@ describe("OpenAIImageGenerationProvider", () => {
       httpStatus: 503,
       upstreamStatus: 429
     });
+  });
+
+  it("recognizes exhausted OpenAI credits as a billing-limit failure", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ error: { message: "Your organization has no credits remaining." } }),
+        { status: 429 }
+      )
+    ) as unknown as typeof fetch;
+
+    try {
+      await new OpenAIImageGenerationProvider({ apiKey: "sk-test" }).generate({
+        request,
+        upstreamModel: "gpt-image-2"
+      });
+      throw new Error("expected provider.generate to fail");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GatewayError);
+      expect(isImageBillingLimitError(err as GatewayError)).toBe(true);
+    }
   });
 });
 
@@ -419,6 +513,37 @@ describe("resolveImageUpstreamModel", () => {
 });
 
 describe("finalizeImageGenerationResult", () => {
+  it("transcodes same-size PNG output to the requested JPEG contract", async () => {
+    const source = await sharp({
+      create: {
+        width: 1024,
+        height: 1024,
+        channels: 3,
+        background: "#ffffff"
+      }
+    })
+      .png()
+      .toBuffer();
+
+    const finalized = await finalizeImageGenerationResult({
+      request,
+      result: {
+        data: [
+          {
+            b64_json: source.toString("base64"),
+            mime_type: "image/png"
+          }
+        ]
+      }
+    });
+
+    const metadata = await sharp(Buffer.from(finalized.data[0].b64_json, "base64")).metadata();
+    expect(metadata.format).toBe("jpeg");
+    expect(metadata.width).toBe(1024);
+    expect(metadata.height).toBe(1024);
+    expect(finalized.data[0].mime_type).toBe("image/jpeg");
+  });
+
   it("resizes 1024 upstream images to the requested 1080 square output", async () => {
     const source = await sharp({
       create: {
