@@ -21,14 +21,20 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-07; local inference verification on 2026-09-06:
 
 - `current`:
-  `840f287b14a9fa7da546dc1213e19e05574bee69`
+  `ebad087785d4158767bca99c8f841e33df4eca97`
 - `previous`:
-  `b4fbed48f9df36ca5bba70be0590997cbac23b4b`
+  `840f287b14a9fa7da546dc1213e19e05574bee69`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
+
+Gateway and Research Worker share revision `ebad087`, with Doctor Research Skill
+`1.6.119`. Three overseas doctors with the original Chinese institution inputs
+and one Chinese doctor passed public execution and all 16 artifact downloads.
+Results retain source and literature quality warnings. Release evidence:
+[Doctor Search overseas repair](../research/doctor-research/overseas-doctor-release-2026-09-07.zh-CN.md).
 
 The public text surface contains:
 
