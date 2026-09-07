@@ -25,6 +25,13 @@ export interface ApprovedWebDocument {
   sizeBytes: number;
 }
 
+export class ResearchSourceFormatError extends Error {
+  constructor() {
+    super("Approved source returned an unsupported content type.");
+    this.name = "ResearchSourceFormatError";
+  }
+}
+
 export interface ApprovedWebAddress {
   address: string;
   family: number;
@@ -251,7 +258,7 @@ export async function fetchApprovedWebDocument(input: {
       contentType !== "application/xhtml+xml" &&
       contentType !== "text/plain"
     ) {
-      throw new Error("Approved source returned an unsupported content type.");
+      throw new ResearchSourceFormatError();
     }
     const contentEncoding = String(
       response.headers["content-encoding"] ?? "identity"

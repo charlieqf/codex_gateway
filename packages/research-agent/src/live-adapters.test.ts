@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ResearchSourceFormatError } from "./safe-http.js";
 import {
   fetchApprovedWebDocument,
   isPublicResearchAddress,
@@ -345,7 +346,7 @@ describe("Doctor Research live first-party adapters", () => {
     });
 
     expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 4
+      officialSearchRequestUnits: 6
     });
     await expect(
       adapters.searchOfficialSources(
@@ -474,6 +475,101 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).toHaveLength(3);
     expect(sources.some((source) => source?.url.includes("fourth"))).toBe(false);
+  });
+
+  it.each([false, true])("recovers an overseas profile with bounded searches and deduplicates candidates (reviewed homepage: %s)", async (reviewedHomepage) => {
+    const queries: string[] = [];
+    const adapters = new LiveResearchAdapters({
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["tum.de"], maximumResults: 2 },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async (input) => {
+        const url = new URL(String(input));
+        const q = url.searchParams.get("q")!;
+        queries.push(q);
+        const results = q.endsWith("official site")
+          ? [{ title: "Technical University of Munich", link: "https://www.tum.de/en/" }]
+          : q.includes("site:")
+            ? [
+                { title: "Markus Schwaiger", link: "https://www.professoren.tum.de/en/schwaiger-markus" },
+                { title: "Markus Schwaiger", link: "https://www.professoren.tum.de/en/schwaiger-markus" }
+              ]
+            : [{ title: "Markus Schwaiger conference", link: "https://conference.example/program.pdf" }];
+        return jsonResponse({ search_metadata: { status: "Success" }, organic_results: results });
+      },
+      approvedDocumentFetchImpl: async (input) => ({ url: input.url.href, title: "Markus Schwaiger", text: "Nuclear Medical Clinic and Policlinic", contentSha256: "a".repeat(64), sizeBytes: 50 })
+    });
+    const ids = await adapters.searchOfficialSources(
+      '"Markus Schwaiger" Technical University of Munich', new AbortController().signal,
+      {
+        doctorName: "Markus Schwaiger", hospital: "Technical University of Munich",
+        hospitalHomepage: reviewedHomepage ? "https://www.tum.de/en/" : undefined
+      }
+    );
+    expect(queries).toHaveLength(reviewedHomepage ? 2 : 3);
+    expect(queries.at(-1)).toBe('"Markus Schwaiger" site:tum.de');
+    expect(ids).toHaveLength(3);
+    expect(await adapters.fetchApprovedSource(ids[0]!, new AbortController().signal)).toMatchObject({
+      url: "https://www.professoren.tum.de/en/schwaiger-markus", discoveryKinds: ["doctor_identity"]
+    });
+  });
+
+  it("preserves first-pass candidates when a broad supplemental search fills the result limit", async () => {
+    const adapters = new LiveResearchAdapters({
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["hospital.example"], maximumResults: 2 },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async (input) => {
+        const q = new URL(String(input)).searchParams.get("q");
+        return jsonResponse({ search_metadata: { status: "Success" }, organic_results:
+          q?.endsWith("official site") ? [] : q === '"Example Doctor" Example Hospital'
+            ? [{ title: "Example Doctor", link: "https://hospital.example/profile" }]
+            : [1, 2].map((n) => ({title: "Example Doctor", link: `https://other.example/profile-${n}`}))
+        });
+      },
+      approvedDocumentFetchImpl: async (input) => ({ url: input.url.href, title: "Profile", text: "Example Doctor", contentSha256: "a".repeat(64), sizeBytes: 50 })
+    });
+    const signal = new AbortController().signal;
+    const ids = await adapters.searchOfficialSources('"Example Doctor" Example Hospital', signal, { doctorName: "Example Doctor", hospital: "Example Hospital" });
+    expect(ids).toHaveLength(2);
+    expect((await adapters.fetchApprovedSource(ids[0]!, signal))?.url).toBe("https://hospital.example/profile");
+  });
+
+  it.each([
+    { error: new ResearchHttpError(403, null), kind: "http_error", httpStatus: 403 },
+    { error: new ResearchSourceFormatError(), kind: "unsupported_format", httpStatus: null }
+  ])("records a permanent source failure without retrying or exposing error text: $kind", async ({error, kind, httpStatus}) => {
+    const fetchDocument = vi.fn(async () => { throw error; });
+    const adapters = new LiveResearchAdapters({
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["hospital.example"] },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async () => jsonResponse({ search_metadata: { status: "Success" }, organic_results: [{ title: "Example Doctor", link: "https://hospital.example/cv" }] }),
+      approvedDocumentFetchImpl: fetchDocument
+    });
+    const signal = new AbortController().signal;
+    const ids = await adapters.searchOfficialSources('"Example Doctor"', signal);
+    expect(await adapters.fetchApprovedSource(ids[0]!, signal)).toBeNull();
+    expect(fetchDocument).toHaveBeenCalledTimes(1);
+    expect(adapters.officialSourceFailures).toEqual([{ sourceId: ids[0], kind, httpStatus }]);
+    await adapters.searchOfficialSources('"Example Doctor"', signal);
+    expect(adapters.officialSourceFailures).toEqual([]);
+  });
+
+  it.each([
+    { error: "Google hasn't returned any results for this query.", status: "Success", empty: true },
+    { error: "Your account has run out of searches.", status: "Success", empty: false },
+    { error: "Google hasn't returned any results for this query.", status: "Error", empty: false }
+  ])("distinguishes a successful empty search from a provider failure: $error / $status", async ({error, status, empty}) => {
+    const adapters = new LiveResearchAdapters({
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["hospital.example"] },
+      userAgent: "codex-gateway-research-test/1.0",
+      fetchImpl: async () => jsonResponse({ search_metadata: { status }, error })
+    });
+    const result = adapters.searchOfficialSources('"Example Doctor"', new AbortController().signal);
+    if (empty) await expect(result).resolves.toEqual([]);
+    else await expect(result).rejects.toThrow("provider returned an error");
   });
 
   it("keeps exact identity candidates when the optional hospital search is unavailable", async () => {
@@ -769,10 +865,10 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 4
+      officialSearchRequestUnits: 6
     });
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
     );
   });
 
@@ -823,7 +919,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
     );
   });
 
@@ -874,7 +970,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
     );
   });
 
@@ -928,7 +1024,7 @@ describe("Doctor Research live first-party adapters", () => {
     );
     expect((error as Error).message).not.toContain("serpapi-test-key");
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
     );
   });
 

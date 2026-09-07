@@ -47,7 +47,14 @@ export interface FrozenOfficialSource {
   discoveryKinds?: readonly OfficialSourceDiscoveryKind[];
 }
 
+export interface OfficialSourceFailure {
+  sourceId: string;
+  httpStatus: number | null;
+  kind: "http_error" | "unsupported_format" | "fetch_error";
+}
+
 export interface ResearchAdapterBundle {
+  readonly officialSourceFailures?: readonly OfficialSourceFailure[];
   readonly versions?: Readonly<Record<string, string>>;
   readonly budgetHints?: {
     officialSearchRequestUnits: number;
@@ -74,6 +81,8 @@ export interface ResearchAdapterBundle {
     options?: {
       seedUrls?: readonly string[];
       hospital?: string;
+      doctorName?: string;
+      hospitalHomepage?: string;
     }
   ): Promise<readonly string[]>;
   fetchApprovedSource(

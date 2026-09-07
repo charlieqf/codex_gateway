@@ -5743,6 +5743,53 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it.each([
+    { name: "Felix Mottaghy", hospital: "Uniklinik RWTH Aachen", department: "Nuklearmedizin", home: "https://www.ukaachen.de/de/", profile: "https://www.ukaachen.de/klinik/team", accepted: true },
+    { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://www.professoren.tum.de/en/schwaiger-markus", accepted: true },
+    { name: "Paola Anna Erba", hospital: "Università degli Studi di Milano-Bicocca", department: "DIPARTIMENTO DI MEDICINA E CHIRURGIA", home: "https://www.unimib.it/it/", profile: "https://www.unimib.it/paola-anna-erba", accepted: true },
+    { name: "Felix Mottaghy", hospital: "德国亚琛工业大学医院", department: "核医学科", evidenceHospital: "Uniklinik RWTH Aachen", evidenceDepartment: "Nuklearmedizin", home: "https://www.ukaachen.de/en/", profile: "https://www.ukaachen.de/klinik/team", accepted: true },
+    { name: "Markus Schwaiger", hospital: "德国慕尼黑工业大学（TUM）", department: "核医学诊所", evidenceHospital: "Technical University of Munich", evidenceDepartment: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://www.professoren.tum.de/en/schwaiger-markus", accepted: true },
+    { name: "Paola Anna Erba", hospital: "比萨大学医院", department: "区域核医学中心", evidenceHospital: "University Hospital in Pisa", evidenceDepartment: "Regional Center of Nuclear Medicine at the University Hospital in Pisa", home: "https://pisa.example/en/", profile: "https://www.europeancancer.org/content/paola-anna-erba.html", accepted: true },
+    { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Cardiology", home: "https://www.tum.de/en/", profile: "https://www.professoren.tum.de/en/schwaiger-markus", accepted: false },
+    { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://tum.de.attacker.example/profile", accepted: false },
+    { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://nottum.de/profile", accepted: false }
+  ])("verifies international institution evidence without accepting a wrong department or host: $profile / $department", async (doctor) => {
+    const input = runInput();
+    input.doctor = { ...input.doctor, name: doctor.name, hospital: doctor.hospital, department: doctor.department };
+    const fixture = createLeasedWorkflowFixture("international_identity", input);
+    const evidenceHospital = doctor.evidenceHospital ?? doctor.hospital;
+    const evidenceDepartment = doctor.evidenceDepartment ??
+      (doctor.name === "Markus Schwaiger" ? "Nuclear Medical Clinic and Policlinic" : doctor.department);
+    const sourceAdapters = adapters(0);
+    sourceAdapters.searchOfficialSources = async (query, _signal, options) => {
+      expect(query).toBe(`"${doctor.name}" ${evidenceHospital}`);
+      expect(options?.doctorName).toBe(doctor.name);
+      return ["src_home", "src_doctor"];
+    };
+    sourceAdapters.fetchApprovedSource = async (sourceId) => ({
+      sourceId, url: sourceId === "src_home" ? doctor.home : doctor.profile,
+      title: sourceId === "src_home" ? evidenceHospital : doctor.name,
+      accessedAt: "2026-09-07T08:00:00.000Z", contentSha256: "a".repeat(64),
+      untrustedText: sourceId === "src_home" ? evidenceHospital : `${doctor.name}. ${evidenceDepartment}.`,
+      discoveryKinds: [sourceId === "src_home" ? "hospital_official" : "doctor_identity"]
+    });
+    sourceAdapters.searchPubMed = async () => [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease, store: fixture.store, adapters: sourceAdapters,
+      modelClient: { model: "test-model", async generate() {
+        expect(doctor.accepted).toBe(true);
+        return { text: '{"terms":["healthcare"]}', gatewayRequestId: "req_international", usage: { promptTokens: 100, completionTokens: 10, totalTokens: 110 } };
+      } },
+      artifactRoot: fixture.artifactRoot, policy: workflowPolicy(), signal: new AbortController().signal, now: () => fixture.now
+    });
+    expect(outcome).toEqual({ outcome: "failed", reason: doctor.accepted ? "insufficient_research_evidence" : "identity_not_resolved" });
+    const checkpoint = fixture.store.database.prepare("SELECT payload_json FROM research_checkpoints WHERE run_id = ? AND stage = 'resolve_identity'")
+      .get(fixture.lease.run.runId) as { payload_json: string };
+    expect(JSON.parse(checkpoint.payload_json).official_source_count).toBe(doctor.accepted ? 1 : 0);
+    expect(fixture.lease.run.input.doctor).toMatchObject({ name: doctor.name, hospital: doctor.hospital, department: doctor.department });
+    fixture.store.close();
+  });
+
   it("resolves an explicit parenthetical hospital alias across two fetched sources", async () => {
     const input = runInput();
     input.doctor = {

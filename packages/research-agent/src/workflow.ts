@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  reviewedDepartmentNames,
+  reviewedInstitutionHomepage,
+  reviewedInstitutionNames
+} from "./institution-names.js";
 import type {
   AcquiredResearchLease,
   DoctorResearchRunInput,
@@ -178,6 +183,9 @@ export async function executeDoctorResearchWorkflow(input: {
     await context.checkpoint("resolve_identity", 13, {
       schema_version: "doctor_research_identity_checkpoint.v1",
       official_source_count: identityEvidence.officialSources.length,
+      discovered_source_count: identityEvidence.discoveredSourceCount,
+      fetched_source_count: identityEvidence.fetchedSourceCount,
+      source_failures: input.adapters.officialSourceFailures ?? [],
       hospital_official_domain_count:
         identityEvidence.hospitalOfficialDomainCount,
       hospital_domain_matched_source_count:
@@ -1081,6 +1089,8 @@ async function discoverIdentityEvidence(
   hospitalAliasCandidateCount: number;
   hospitalAliasMatchedSourceCount: number;
   hospitalAliasAmbiguous: boolean;
+  discoveredSourceCount: number;
+  fetchedSourceCount: number;
 }> {
   let orcidIdentity: FrozenIdentityRecord | null = null;
   if (context.run.input.doctor.orcid) {
@@ -1091,11 +1101,12 @@ async function discoverIdentityEvidence(
     );
   }
   const doctor = context.run.input.doctor;
+  const searchHospital = doctor.hospital
+    ? reviewedInstitutionNames(doctor.hospital)[0]!
+    : undefined;
   const officialQuery = [
     `"${doctor.name}"`,
-    doctor.hospital,
-    doctor.department,
-    "doctor profile"
+    searchHospital
   ]
     .filter((value): value is string => Boolean(value))
     .join(" ");
@@ -1110,7 +1121,9 @@ async function discoverIdentityEvidence(
     context.callSignal(),
     {
       seedUrls: doctor.officialProfileUrls ?? [],
-      ...(doctor.hospital ? { hospital: doctor.hospital } : {})
+      doctorName: doctor.name,
+      hospitalHomepage: doctor.hospital ? reviewedInstitutionHomepage(doctor.hospital) : undefined,
+      ...(searchHospital ? { hospital: searchHospital } : {})
     }
   );
   const fetchedSources: FrozenOfficialSource[] = [];
@@ -1194,7 +1207,9 @@ async function discoverIdentityEvidence(
     const domainVerificationSourceIds =
       sourceHostname === null
         ? []
-        : [...(hospitalOfficialDomains.get(sourceHostname) ?? [])];
+        : [...new Set([...hospitalOfficialDomains]
+            .filter(([hostname]) => sourceHostname === hostname || sourceHostname.endsWith(`.${hostname}`))
+            .flatMap(([, sourceIds]) => [...sourceIds]))];
     const domainIdentityWindow =
       exactIdentityWindow === null &&
       source.discoveryKinds?.includes("doctor_identity") === true &&
@@ -1296,7 +1311,9 @@ async function discoverIdentityEvidence(
     hospitalDomainMatchedSourceCount,
     hospitalAliasCandidateCount: hospitalAliases.size,
     hospitalAliasMatchedSourceCount,
-    hospitalAliasAmbiguous
+    hospitalAliasAmbiguous,
+    discoveredSourceCount: sourceIds.length,
+    fetchedSourceCount: fetchedSources.length
   };
 }
 
@@ -9209,13 +9226,13 @@ function officialIdentityEvidenceWindowForHospitalPhrases(
   }
   const source = normalizeEvidenceText(sourceText);
   const name = normalizeEvidenceText(doctor.name);
-  const department = normalizeEvidenceText(doctor.department);
+  const departments = reviewedDepartmentNames(doctor.department).map(normalizeEvidenceText);
   const hospitalPhrases = rawHospitalPhrases
     .map(normalizeEvidenceText)
     .filter((phrase) => phrase.length >= 2);
   if (
     name.length < 2 ||
-    department.length < 2 ||
+    departments.every((department) => department.length < 2) ||
     hospitalPhrases.length === 0
   ) {
     return null;
@@ -9229,7 +9246,7 @@ function officialIdentityEvidenceWindowForHospitalPhrases(
       hospitalPhrases.some((hospital) =>
         evidencePhraseContains(local, hospital)
       ) &&
-      evidencePhraseContains(local, department)
+      departments.some((department) => evidencePhraseContains(local, department))
     ) {
       return local;
     }
@@ -9320,8 +9337,8 @@ function validHospitalAliasCandidate(
     return null;
   }
   const distinctiveCore = normalizedCandidate
-    .replace(/(?:医院|医学中心|医疗中心|卫生中心|门诊部|hospital|medical center|medical centre|clinic)/giu, "")
-    .replace(/(?:附属|affiliate(?:d)?|university|大学)/giu, "")
+    .replace(/(?:医院|医学中心|医疗中心|卫生中心|门诊部|universitätsklinikum|uniklinik|klinikum|klinik|policlinico|ospedale|hospital|medical center|medical centre|clinic)/giu, "")
+    .replace(/(?:附属|affiliate(?:d)?|university|universität|università|université|大学)/giu, "")
     .replace(/^第[一二三四五六七八九十百0-9]+/u, "")
     .replace(/\s+/gu, "");
   return Array.from(distinctiveCore).length >= 2 ? candidate : null;
@@ -9356,8 +9373,8 @@ function officialDoctorDepartmentEvidenceWindow(
   }
   const source = normalizeEvidenceText(sourceText);
   const name = normalizeEvidenceText(doctor.name);
-  const department = normalizeEvidenceText(doctor.department);
-  if (name.length < 2 || department.length < 2) {
+  const departments = reviewedDepartmentNames(doctor.department).map(normalizeEvidenceText);
+  if (name.length < 2 || departments.every((department) => department.length < 2)) {
     return null;
   }
   let nameAt = evidencePhraseIndexOf(source, name);
@@ -9365,7 +9382,7 @@ function officialDoctorDepartmentEvidenceWindow(
     const windowStart = Math.max(0, nameAt - 5_000);
     const windowEnd = Math.min(source.length, nameAt + name.length + 5_000);
     const local = source.slice(windowStart, windowEnd);
-    if (evidencePhraseContains(local, department)) {
+    if (departments.some((department) => evidencePhraseContains(local, department))) {
       return local;
     }
     nameAt = evidencePhraseIndexOf(source, name, nameAt + name.length);
@@ -9393,12 +9410,12 @@ function hospitalOfficialAnchorHostname(
     return null;
   }
   const normalizedTitle = normalizeEvidenceText(source.title);
-  const normalizedHospital = normalizeEvidenceText(hospital);
+  const hospitalPhrases = officialHospitalEvidencePhrases(hospital);
   const normalizedDocument = normalizeEvidenceText(
     `${source.title} ${source.untrustedText}`
   );
   const titleMatchesHospital =
-    evidencePhraseContains(normalizedTitle, normalizedHospital) ||
+    hospitalPhrases.some((phrase) => evidencePhraseContains(normalizedTitle, phrase)) ||
     hospitalAliasesFromEvidence(
       `${source.title} ${source.untrustedText}`,
       hospital
@@ -9406,8 +9423,8 @@ function hospitalOfficialAnchorHostname(
       evidencePhraseContains(normalizedTitle, normalizeEvidenceText(alias))
     );
   if (
-    normalizedHospital.length < 2 ||
-    !evidencePhraseContains(normalizedDocument, normalizedHospital) ||
+    hospitalPhrases.length === 0 ||
+    !hospitalPhrases.some((phrase) => evidencePhraseContains(normalizedDocument, phrase)) ||
     !hospitalTitleHasFacilityMarker(normalizedTitle) ||
     !titleMatchesHospital
   ) {
@@ -9424,14 +9441,14 @@ function isRootLikeHospitalUrl(url: URL): boolean {
   const segments = path.split("/").filter(Boolean);
   return (
     segments.length === 1 &&
-    /^(?:index(?:\.(?:html?|php|aspx?))?|home|default(?:\.(?:html?|php|aspx?))?|portal|html|cn|zh|zh-cn)$/iu.test(
+    /^(?:index(?:\.(?:html?|php|aspx?))?|home|default(?:\.(?:html?|php|aspx?))?|portal|html|cn|zh|zh-cn|en|en-us|en-gb|de|it|fr|es|pt|ja|ko)$/iu.test(
       segments[0]!
     )
   );
 }
 
 function hospitalTitleHasFacilityMarker(normalizedTitle: string): boolean {
-  return /医院|医学中心|医疗中心|\bhospital\b|\bmedical (?:center|centre)\b|\bclinic\b/iu.test(
+  return /医院|医学中心|医疗中心|大学|(?<![\p{L}\p{N}])(?:hospital|medical (?:center|centre)|clinic|uniklinik|universitätsklinikum|klinikum|klinik|ospedale|policlinico|university|universität|università|université)(?![\p{L}\p{N}])/iu.test(
     normalizedTitle
   );
 }
@@ -9463,7 +9480,7 @@ function officialHospitalEvidencePhrases(hospital: string): string[] {
   if (normalized.length < 2) {
     return [];
   }
-  const phrases = [normalized];
+  const phrases = [...new Set([normalized, ...reviewedInstitutionNames(hospital).map(normalizeEvidenceText)])];
   const affiliatedAt = normalized.lastIndexOf("附属");
   if (affiliatedAt >= 0) {
     const suffix = normalized.slice(affiliatedAt + "附属".length).trim();
@@ -9552,6 +9569,7 @@ function buildModelPrompt(
       "Use official public evidence to summarize only supported positions, specialties, education or career facts, and research directions. For each non-identity profile claim, copy an exact contiguous factual excerpt from the cited official source; omit unsupported claims.",
       "Leave representative_outputs empty; the Worker adds only publications attributed to this doctor by verified author and affiliation evidence.",
       "Use review.title, review.abstract, and review.markdown as a short doctor-profile report covering identity, current public appointment or affiliation, specialty, supported career facts, and any verified representative publications. Do not grade or critique publications.",
+      "The requested institution is an identity-search anchor and may be a former affiliation. Preserve dates and past/present qualifiers from the evidence, distinguish current appointments from historical employment, and never present the requested institution as a current appointment without supporting source text.",
       "Keep core_evidence limited to verified publications when present; describe bibliographic facts neutrally and do not infer clinical effectiveness. It may be empty when no verified publication is available.",
       "Provide exactly five short practical follow-up questions and concise answers grounded only in supplied source IDs. It is acceptable to state that a detail is not available in the retrieved public sources.",
       "Do not invent affiliations, titles, credentials, awards, projects, dates, identifiers, publications, source IDs, or medical advice.",

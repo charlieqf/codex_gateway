@@ -5,6 +5,7 @@ import {
   type FrozenOfficialSource,
   type FrozenPublicationMetadata,
   type OfficialSourceDiscoveryKind,
+  type OfficialSourceFailure,
   type ResearchAdapterBundle
 } from "./adapters.js";
 import {
@@ -13,7 +14,8 @@ import {
   fetchBoundedJson,
   fetchBoundedText,
   ResearchExternalServiceError,
-  ResearchHttpError
+  ResearchHttpError,
+  ResearchSourceFormatError
 } from "./safe-http.js";
 
 export interface LiveResearchAdapterOptions {
@@ -60,6 +62,10 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   private readonly fetchImpl?: typeof fetch;
   private readonly approvedDocumentFetch: typeof fetchApprovedWebDocument;
   private nextNcbiRequestAt = 0;
+  private readonly sourceFailures = new Map<string, OfficialSourceFailure>();
+  get officialSourceFailures(): readonly OfficialSourceFailure[] {
+    return [...this.sourceFailures.values()];
+  }
   private readonly officialSources = new Map<
     string,
     {
@@ -132,16 +138,16 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       official_web:
         options.officialWeb.provider === "serpapi"
           ? options.officialWeb.serpApiEngine === "baidu"
-            ? "serpapi-baidu-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
-            : "serpapi-google-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+            ? "serpapi-baidu-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
+            : "serpapi-google-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
           : options.officialWeb.provider === "brave"
-            ? "brave-bounded-hospital-identity-search-v3+pinned-source-fetch.v2"
+            ? "brave-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
             : "direct-reviewed-source-fetch.v1"
     });
     validateAllowedDomains(options.officialWeb.allowedDomains);
     this.budgetHints = Object.freeze({
       officialSearchRequestUnits:
-        options.officialWeb.provider === "direct" ? 0 : 4
+        options.officialWeb.provider === "direct" ? 0 : 6
     });
     if (
       options.userAgent !== options.userAgent.trim() ||
@@ -484,10 +490,13 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     options: {
       seedUrls?: readonly string[];
       hospital?: string;
+      doctorName?: string;
+      hospitalHomepage?: string;
     } = {}
   ): Promise<readonly string[]> {
     const query = boundedOfficialIdentityQuery(normalizedDoctorName);
     this.officialSources.clear();
+    this.sourceFailures.clear();
     const doctorSourceIds: string[] = [];
     const hospitalSourceIds: string[] = [];
     const registerSource = (input: {
@@ -537,7 +546,13 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       : null;
     const [identitySearch, hospitalSearch] = await Promise.allSettled([
       this.searchOfficialWeb(query, signal, this.maximumOfficialResults),
-      hospitalQuery
+      options.hospitalHomepage && options.hospital
+        ? Promise.resolve<readonly OfficialSearchResult[]>([{
+            url: options.hospitalHomepage,
+            title: options.hospital,
+            description: ""
+          }])
+        : hospitalQuery
         ? this.searchOfficialWeb(
             hospitalQuery,
             signal,
@@ -551,9 +566,60 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (hospitalSearch.status === "rejected" && signal.aborted) {
       throw hospitalSearch.reason;
     }
-    const results = identitySearch.value;
+    let results = identitySearch.value;
     const hospitalResults =
       hospitalSearch.status === "fulfilled" ? hospitalSearch.value : [];
+    // A discovered institution host is only a search hint. The workflow must
+    // still fetch and verify the institution and the doctor's affiliation.
+    const institutionHost = hospitalResults
+      .filter((result) =>
+        typeof result.title === "string" && options.hospital &&
+        normalizeText(result.title).toLowerCase().includes(
+          normalizeText(options.hospital).toLowerCase()
+        )
+      )
+      .map((result) =>
+        typeof result.url === "string" ? approvedDiscoveredUrl(result.url) : null
+      )
+      .find((url) =>
+        url && /^\/(?:[a-z]{2}(?:-[a-z]{2})?\/?)?$/iu.test(url.pathname)
+      )
+      ?.hostname.replace(/^www\./u, "");
+    const onInstitutionHost = (result: OfficialSearchResult): boolean => {
+      const url = typeof result.url === "string"
+        ? approvedDiscoveredUrl(result.url) : null;
+      return Boolean(
+        institutionHost && url &&
+        (url.hostname === institutionHost || url.hostname.endsWith(`.${institutionHost}`)) &&
+        !/\.pdf$/iu.test(url.pathname) &&
+        searchResultMentionsRequestedIdentity(result, query)
+      );
+    };
+    if (options.doctorName && !results.some(onInstitutionHost)) {
+      const nameQuery = `"${boundedQuery(options.doctorName, 100).replaceAll('"', "")}"`;
+      const supplementalQuery = institutionHost
+        ? `${nameQuery} site:${institutionHost}`
+        : nameQuery;
+      if (supplementalQuery !== query) {
+        const supplemental = await this.searchOfficialWeb(
+          supplementalQuery,
+          signal,
+          this.maximumOfficialResults
+        );
+        results = [...results, ...supplemental];
+      }
+    }
+    // Prefer institution pages and readable HTML over PDF candidates, then
+    // deduplicate before applying the shared doctor-source limit.
+    results = [...new Map(results
+      .filter((result): result is OfficialSearchResult & { url: string } =>
+        typeof result.url === "string" && searchResultMentionsRequestedIdentity(result, query))
+      .map((result) => [result.url, result])).values()]
+      .sort((left, right) => {
+        const rank = (result: OfficialSearchResult & { url: string }): number =>
+          onInstitutionHost(result) ? 0 : /\.pdf(?:[?#]|$)/iu.test(result.url) ? 2 : 1;
+        return rank(left) - rank(right);
+      });
     for (const result of results.slice(0, this.maximumOfficialResults)) {
       if (
         !result ||
@@ -692,6 +758,16 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       }
       throw new Error("Official web search request failed.");
     }
+    // SerpAPI documents this successful, empty Google response with an error
+    // field. It is not a provider outage or an authentication failure.
+    if (
+      engine === "google" && response.value.search_metadata?.status === "Success" &&
+      response.value.error === "Google hasn't returned any results for this query." &&
+      (response.value.organic_results === undefined ||
+        (Array.isArray(response.value.organic_results) && response.value.organic_results.length === 0))
+    ) {
+      return [];
+    }
     if (
       typeof response.value.error === "string" &&
       response.value.error.trim() !== ""
@@ -735,9 +811,19 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
           maximumBytes: this.maximumSourceBytes,
           userAgent: this.options.userAgent
         });
+        this.sourceFailures.delete(sourceId);
         break;
       } catch (error) {
         lastError = error;
+        this.sourceFailures.set(sourceId, {
+          sourceId,
+          httpStatus: error instanceof ResearchHttpError ? error.statusCode : null,
+          kind: error instanceof ResearchHttpError
+            ? "http_error"
+            : error instanceof ResearchSourceFormatError
+              ? "unsupported_format"
+              : "fetch_error"
+        });
         if (signal.aborted) {
           throw error;
         }
@@ -745,7 +831,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
           error instanceof ResearchHttpError &&
           error.statusCode < 500 &&
           error.statusCode !== 429;
-        if (permanentHttpFailure) {
+        if (permanentHttpFailure || error instanceof ResearchSourceFormatError) {
           if (selected.required) {
             throw error;
           }
