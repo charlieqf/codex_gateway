@@ -21,9 +21,9 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-07; local inference verification on 2026-09-06:
 
 - `current`:
-  `b641ebbcc02b616726909fac4bda8ee9e4901981`
+  `b4fbed48f9df36ca5bba70be0590997cbac23b4b`
 - `previous`:
-  `643235f8b9651ba099b8b48b6453097e16846034`
+  `b641ebbcc02b616726909fac4bda8ee9e4901981`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
@@ -36,8 +36,10 @@ The public text surface contains:
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
 
 The [TianKuan suspension record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)
-contains the verified configuration backup and Tencent smoke evidence. The failover
-implementation is not deployed or enabled in production.
+contains the provider-disable decision. The [Gateway failover release](./goldencode-failover-release-2026-09-07.zh-CN.md)
+enables P0 for all `goldencode` text requests while retaining Tencent as the only
+enabled member. Provider quota cooldown remains disabled. Cross-provider public
+acceptance awaits TianKuan restoration; Tencent-only public acceptance passed.
 
 Image generation remains separate under client model
 `medcode-image-default`; its primary upstream is the external

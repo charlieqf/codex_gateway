@@ -1,7 +1,8 @@
 # GoldenCode 腾讯／天宽双向故障切换实施方案
 
-日期：2026-09-07。状态：本地代码已实施，尚未部署。本文保留设计依据；实际配置与验证见
-[实施记录](./goldencode-failover-implementation-2026-09-07.zh-CN.md)。
+日期：2026-09-07。状态：代码已实施并部署，P0 已启用、P1 未启用。本文保留设计依据；
+实际实现见[实施记录](./goldencode-failover-implementation-2026-09-07.zh-CN.md)，
+线上配置与验证见[发布记录](./goldencode-failover-release-2026-09-07.zh-CN.md)。
 按用户后续指令，生产天宽已暂停，当前只启用腾讯，见
 [天宽暂停记录](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)。
 
