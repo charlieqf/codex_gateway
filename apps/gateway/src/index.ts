@@ -2346,6 +2346,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     let statelessAttempts = 1;
     const gatewayContext = getGatewayContext(request);
     const { subject, scope } = gatewayContext;
+    const goldencodeRequestFailover = publicModel.id === "goldencode" &&
+      publicModel.runtime === "pool" && modality === "text" &&
+      publicModel.pool!.members.every((member) => member.runtime === "tencent" || member.runtime === "tiankuan") &&
+      goldencodeNativeFailover && (!goldencodeFailoverSubjects.size || goldencodeFailoverSubjects.has(subject.id));
+    request.gatewayProviderFailoverEnabled = goldencodeRequestFailover;
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
       modality,
@@ -2367,10 +2372,6 @@ export function buildGateway(options: GatewayOptions = {}) {
     applyChatRuntimeContext(request, attempt);
     const shape = createChatCompletionShape(parsed.model);
     const nativeClientTools = hasNativeClientTools(parsed, attempt.runtime);
-    const goldencodeRequestFailover = publicModel.id === "goldencode" &&
-      publicModel.runtime === "pool" && modality === "text" &&
-      publicModel.pool!.members.every((member) => member.runtime === "tencent" || member.runtime === "tiankuan") &&
-      goldencodeNativeFailover && (!goldencodeFailoverSubjects.size || goldencodeFailoverSubjects.has(subject.id));
     const nativeFailover = nativeClientTools && goldencodeRequestFailover;
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     request.gatewayToolChoice = serializeToolChoice(
@@ -3251,7 +3252,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             streamStart.state,
             chatCompletion.error,
             clock(),
-            { requestId: request.id }
+            gatewayErrorResponseContext(request, chatCompletion.error)
           ),
           chatCompletion.error
         );
@@ -3262,9 +3263,10 @@ export function buildGateway(options: GatewayOptions = {}) {
         writeResponsesFailure(
           request,
           sse,
-          createResponsesFailedEvent(parsed, streamStart.state, result, clock(), {
-            requestId: request.id
-          }),
+          createResponsesFailedEvent(
+            parsed, streamStart.state, result, clock(),
+            gatewayErrorResponseContext(request, result)
+          ),
           result
         );
         return;
@@ -3279,9 +3281,10 @@ export function buildGateway(options: GatewayOptions = {}) {
       writeResponsesFailure(
         request,
         sse,
-        createResponsesFailedEvent(parsed, streamStart.state, error, clock(), {
-          requestId: request.id
-        }),
+        createResponsesFailedEvent(
+          parsed, streamStart.state, error, clock(),
+          gatewayErrorResponseContext(request, error)
+        ),
         error
       );
     } finally {
@@ -4647,9 +4650,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 }
 
 function sendError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
-  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
-  const errorContext = gatewayErrorResponseContext(request);
+  const errorContext = gatewayErrorResponseContext(request, error);
   applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
   if (request.routeOptions.config?.responseDialect === "research") {
@@ -4670,7 +4672,7 @@ function writeOpenAIStreamError(
   sse: SseHandle,
   error: GatewayError
 ): boolean {
-  const errorContext = gatewayErrorResponseContext(request);
+  const errorContext = gatewayErrorResponseContext(request, error);
   const payload = openAIErrorPayload(error, errorContext);
   if (reply.raw.headersSent) {
     return sse.writeData(payload);
@@ -4710,10 +4712,13 @@ function credentialPublicModelAccessError(
 }
 
 function gatewayErrorResponseContext(
-  request: FastifyRequest
+  request: FastifyRequest,
+  error: GatewayError
 ): GatewayErrorResponseContext {
+  inferUpstreamRateLimitOrigin(request, error);
   return {
     requestId: request.id,
+    providerFailoverEnabled: request.gatewayProviderFailoverEnabled,
     limitKind: request.gatewayLimitKind,
     limitDetails: request.gatewayLimitDetails,
     rateLimitOrigin: request.gatewayRateLimitOrigin
@@ -4739,9 +4744,8 @@ function inferUpstreamRateLimitOrigin(
 }
 
 function sendImageError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
-  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
-  const errorContext = gatewayErrorResponseContext(request);
+  const errorContext = gatewayErrorResponseContext(request, error);
   applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
   return {
@@ -5063,12 +5067,11 @@ function isImageFallbackRetryableError(error: GatewayError): boolean {
 }
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
-  inferUpstreamRateLimitOrigin(request, error);
   markGatewayError(request, error);
   if (error.upstreamStatus !== undefined) {
     request.gatewayUpstreamHttpStatus = error.upstreamStatus;
   }
-  const errorContext = gatewayErrorResponseContext(request);
+  const errorContext = gatewayErrorResponseContext(request, error);
   applyGatewayErrorHeaders(reply, error, errorContext);
   reply.code(error.httpStatus);
   return openAIErrorPayload(error, errorContext);

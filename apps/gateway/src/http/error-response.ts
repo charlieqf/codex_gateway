@@ -8,6 +8,7 @@ import type {
 
 export interface GatewayErrorResponseContext {
   requestId?: string | null;
+  providerFailoverEnabled?: boolean;
   limitKind?: LimitKind | null;
   limitDetails?: LimitDetails | null;
   rateLimitOrigin?: RateLimitOrigin | null;
@@ -44,6 +45,19 @@ export function gatewayErrorMetadata(
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    // Only final error serializers consume this context. Internal attempts and
+    // transformed client recovery retain their separate contracts.
+    ...(context.providerFailoverEnabled && (
+      error.code === "upstream_timeout" ||
+      error.code === "upstream_unavailable" ||
+      error.code === "upstream_incomplete_stream" ||
+      error.code === "upstream_empty_response" ||
+      error.code === "service_unavailable" ||
+      error.code === "client_aborted" ||
+      (error.code === "rate_limited" && rateLimitOrigin(context) === "upstream")
+    )
+      ? { retry_contract_version: 1, automatic_retry_allowed: false }
+      : {}),
     ...(error.contractVersion !== undefined
       ? { contract_version: error.contractVersion }
       : {}),

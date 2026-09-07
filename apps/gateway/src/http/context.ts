@@ -58,6 +58,7 @@ declare module "fastify" {
     gatewayObservationFirstByteAt?: Date;
     gatewayObservationRecorded?: boolean;
     gatewayErrorCode?: GatewayErrorCode | string;
+    gatewayProviderFailoverEnabled?: boolean;
     gatewayRateLimited?: boolean;
     gatewayLimitKind?: LimitKind;
     gatewayLimitDetails?: LimitDetails;

@@ -16192,6 +16192,7 @@ describe("GoldenCode native provider failover", () => {
       expect(response.body).toContain("call_failover_ok");
       expect(response.body).not.toContain("upstream_unavailable");
       expect(response.body).not.toContain("quota_test_request");
+      expect(response.body).not.toContain("automatic_retry_allowed");
       const event = store.listRequestEvents({ limit: 1 })[0]!;
       expect(event.status).toBe("ok");
       expect(event.errorCode).toBeNull();
@@ -16205,14 +16206,50 @@ describe("GoldenCode native provider failover", () => {
     });
   });
 
-  it("stops after two failures without exposing an incomplete tool call", async () => {
-    await runGoldenCodeFailoverFixture({ bothFail: true }, async ({ app, headers, calls, store }) => {
-      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
-        payload: nativeFailoverPayload("chat/completions", false) });
-      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+  const errorCases = [false, true].flatMap((plain) =>
+    [false, true].flatMap((stream) => ["chat/completions", "responses"].map((api) => ({ plain, stream, api })))
+  );
+
+  it.each(errorCases)("publishes one final stop after two failures, $api stream=$stream plain=$plain", async ({ plain, stream, api }) => {
+    await runGoldenCodeFailoverFixture({ bothFail: true, status: 504 }, async ({ app, headers, calls, store }) => {
+      const payload = nativeFailoverPayload(api, stream);
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+      expect(response.statusCode).toBe(api === "responses" && stream ? 200 : 504);
+      expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_timeout",
+        retryable: true, retry_contract_version: 1, automatic_retry_allowed: false,
+        request_id: response.headers["x-request-id"] });
+      expect(response.body).not.toContain("recovery_owner");
       expect(calls).toHaveLength(2);
       expect(response.body).not.toContain("call_failover_ok");
       expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(2);
+    });
+  });
+
+  it.each(errorCases)("stops on the shared deadline without a second provider call, $api stream=$stream plain=$plain", async ({ plain, stream, api }) => {
+    await runGoldenCodeFailoverFixture({ hang: true }, async ({ app, headers, calls, store }) => {
+      const payload = nativeFailoverPayload(api, stream);
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`,
+        headers: { ...headers, "x-medcode-request-timeout-ms": "150" }, payload });
+      expect(publicFailoverError(response.body)).toMatchObject({ code: "upstream_timeout",
+        retry_contract_version: 1, automatic_retry_allowed: false,
+        request_id: response.headers["x-request-id"] });
+      expect(calls).toHaveLength(1);
+      expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(1);
+    });
+  });
+
+  it("publishes an SSE stop after text delivery without a success terminator or replay", async () => {
+    await runGoldenCodeFailoverFixture({ partialText: true }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: { model: "goldencode", stream: true, messages: [{ role: "user", content: "Say hello." }] } });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("partial text");
+      expect(publicFailoverError(response.body)).toMatchObject({
+        retry_contract_version: 1, automatic_retry_allowed: false,
+        request_id: response.headers["x-request-id"] });
+      expect(calls).toHaveLength(1);
     });
   });
 
@@ -16225,11 +16262,14 @@ describe("GoldenCode native provider failover", () => {
     });
   });
 
-  it("never restores or calls a disabled TianKuan member", async () => {
-    await runGoldenCodeFailoverFixture({ first: "tencent", disabledMember: "tiankuan" }, async ({ app, headers, calls, store }) => {
-      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
-        payload: nativeFailoverPayload("chat/completions", false) });
-      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+  it.each(errorCases)("stops with TianKuan disabled, $api stream=$stream plain=$plain", async ({ plain, stream, api }) => {
+    await runGoldenCodeFailoverFixture({ first: "tencent", disabledMember: "tiankuan", status: 429 }, async ({ app, headers, calls, store }) => {
+      const payload = nativeFailoverPayload(api, stream);
+      if (plain) { delete payload.tools; delete payload.tool_choice; }
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+      expect(publicFailoverError(response.body)).toMatchObject({ code: "rate_limited",
+        rate_limit_origin: "upstream", retry_contract_version: 1, automatic_retry_allowed: false,
+        request_id: response.headers["x-request-id"] });
       expect(calls.map((call) => call.runtime)).toEqual(["tencent"]);
       expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(1);
     });
@@ -16237,9 +16277,10 @@ describe("GoldenCode native provider failover", () => {
 
   it("limits rollout to the configured subjects", async () => {
     await runGoldenCodeFailoverFixture({ subjects: "another_subject" }, async ({ app, headers, calls }) => {
-      await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
         payload: nativeFailoverPayload("chat/completions", false) });
       expect(calls).toHaveLength(1);
+      expect(response.body).not.toContain("automatic_retry_allowed");
     });
   });
 
@@ -16249,6 +16290,7 @@ describe("GoldenCode native provider failover", () => {
         payload: nativeFailoverPayload("chat/completions", false) });
       expect(response.statusCode).toBeGreaterThanOrEqual(400);
       expect(calls.map((call) => call.runtime)).toEqual(["tiankuan", "tencent"]);
+      expect(response.body).not.toContain("automatic_retry_allowed");
     });
   });
 
@@ -16312,6 +16354,7 @@ describe("GoldenCode native provider failover", () => {
         payload: nativeFailoverPayload("chat/completions", false) });
       expect(response.statusCode).toBeGreaterThanOrEqual(400);
       expect(calls).toHaveLength(1);
+      expect(response.body).not.toContain("automatic_retry_allowed");
     });
   });
 
@@ -16341,6 +16384,17 @@ describe("GoldenCode native provider failover", () => {
   });
 });
 
+function publicFailoverError(body: string): Record<string, unknown> {
+  expect(body).not.toContain("[DONE]");
+  expect(body).not.toContain("response.completed");
+  if (body.startsWith("{")) return JSON.parse(body).error;
+  const errors = body.split("\n").filter((line) => line.startsWith("data: "))
+    .map((line) => JSON.parse(line.slice(6)))
+    .filter((frame) => frame.error || frame.type === "response.failed");
+  expect(errors).toHaveLength(1);
+  return errors[0].error ?? errors[0].response.error;
+}
+
 function nativeFailoverPayload(api: string, stream: boolean): Record<string, unknown> {
   const tool = { name: "lookup", description: "Look up a record", parameters: {
     type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false
@@ -16358,6 +16412,7 @@ async function runGoldenCodeFailoverFixture(options: {
   first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
   repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
   disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
+  hang?: boolean; partialText?: boolean;
 }, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
   calls: Array<{ runtime: string; body: Record<string, unknown> }>;
   store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
@@ -16367,6 +16422,13 @@ async function runGoldenCodeFailoverFixture(options: {
     const body = JSON.parse(raw) as Record<string, unknown>;
     const runtime = String(body.model).startsWith("official/") ? "tiankuan" : "tencent";
     calls.push({ runtime, body });
+    if (options.hang) return;
+    if (options.partialText) {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "partial text" } }] })}\n\n`);
+      response.end(`data: ${JSON.stringify({ error: { code: "server_error", message: "stream failed" } })}\n\n`);
+      return;
+    }
     if (options.status === "reset" && runtime === first) { response.destroy(); return; }
     const repair = ((options.repairThenFail || options.repairSuccess) && calls.length === 1) || (options.fallbackInvalid && calls.length === 2);
     if (!repair && !options.repairSuccess && !options.partial && (options.bothFail || (runtime === first && (!options.recover || calls.length === 1)))) {

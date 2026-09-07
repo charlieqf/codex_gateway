@@ -29,6 +29,39 @@ const gatewayLimitKinds: LimitKind[] = [
 ];
 
 describe("gatewayErrorMetadata", () => {
+  it.each([
+    "upstream_timeout", "upstream_unavailable", "upstream_incomplete_stream",
+    "upstream_empty_response", "service_unavailable", "client_aborted"
+  ] as const)("stops automatic replay of final %s only in the failover scope", (code) => {
+    const error = new GatewayError({ code, message: "Request ended.", httpStatus: 503 });
+    expect(gatewayErrorMetadata(error, { providerFailoverEnabled: true })).toEqual({
+      retry_contract_version: 1,
+      automatic_retry_allowed: false
+    });
+    expect(gatewayErrorMetadata(error)).toEqual({});
+  });
+
+  it.each(["gateway", "upstream", "unknown"] as const)("distinguishes %s rate limits from completed provider recovery", (origin) => {
+    const metadata = gatewayErrorMetadata(rateLimitedError(), {
+      providerFailoverEnabled: true,
+      rateLimitOrigin: origin
+    });
+    expect(metadata.automatic_retry_allowed).toBe(origin === "upstream" ? false : undefined);
+    expect(metadata.retry_contract_version).toBe(origin === "upstream" ? 1 : undefined);
+    expect(metadata.retry_after_seconds).toBe(30);
+  });
+
+  it.each([
+    "context_compaction_required", "context_length_exceeded", "output_length_exceeded",
+    "tool_call_output_truncated", "tool_call_validation_failed", "invalid_request"
+  ] as const)("preserves the separate %s recovery contract", (code) => {
+    const error = new GatewayError({ code, message: "Transform the request.", httpStatus: 413,
+      transformedRetryAllowed: true, recoveryOwner: "client" });
+    expect(gatewayErrorMetadata(error, { providerFailoverEnabled: true })).toEqual({
+      transformed_retry_allowed: true, recovery_owner: "client"
+    });
+  });
+
   it("exports the frozen additive Research error codes", () => {
     expect(gatewayErrorCodes).toEqual(
       expect.arrayContaining([

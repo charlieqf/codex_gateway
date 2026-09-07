@@ -25,6 +25,11 @@ HTTP 错误响应与已经开始输出后的 SSE `data:` 错误帧使用同一�
   用户手动重试，以避免工具副作用被重复执行。
 - `request_id` 与 `X-Request-Id` 相同，SSE payload 中仍重复携带。
 
+2026-09-07 补充：GoldenCode 已完成本次供应商故障处理时，使用独立的
+`retry_contract_version: 1` 与 `automatic_retry_allowed: false` 告知客户端停止自动重试，
+原 `retryable` 分类保持不变。适用范围、Responses 格式与发布验证见
+[最终错误停止自动重试契约](../operations/goldencode-terminal-retry-contract-2026-09-07.zh-CN.md)。
+
 ## 成功与终止
 
 1. Gateway 下游 SSE 只有 `data: [DONE]` 是成功提交信号。
