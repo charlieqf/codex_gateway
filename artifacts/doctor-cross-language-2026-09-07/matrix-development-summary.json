@@ -1,0 +1,118 @@
+{
+  "total": 32,
+  "completed": 32,
+  "profiles": {
+    "felix": {
+      "name": "Felix Mottaghy",
+      "cases": {
+        "zh-zh-zh": "error",
+        "zh-zh-en": "matched",
+        "zh-en-zh": "matched",
+        "zh-en-en": "matched",
+        "en-zh-zh": "matched",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "error": 1,
+        "matched": 7
+      }
+    },
+    "markus": {
+      "name": "Markus Schwaiger",
+      "cases": {
+        "zh-zh-zh": "not_found",
+        "zh-zh-en": "not_found",
+        "zh-en-zh": "error",
+        "zh-en-en": "matched",
+        "en-zh-zh": "matched",
+        "en-zh-en": "matched",
+        "en-en-zh": "error",
+        "en-en-en": "error"
+      },
+      "states": {
+        "not_found": 2,
+        "error": 3,
+        "matched": 3
+      }
+    },
+    "paola": {
+      "name": "Paola Anna Erba",
+      "cases": {
+        "zh-zh-zh": "matched",
+        "zh-zh-en": "not_found",
+        "zh-en-zh": "matched",
+        "zh-en-en": "matched",
+        "en-zh-zh": "not_found",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "matched": 6,
+        "not_found": 2
+      }
+    },
+    "zhao": {
+      "name": "Yupei Zhao",
+      "cases": {
+        "zh-zh-zh": "ambiguous",
+        "zh-zh-en": "matched",
+        "zh-en-zh": "matched",
+        "zh-en-en": "ambiguous",
+        "en-zh-zh": "error",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "ambiguous": 2,
+        "matched": 5,
+        "error": 1
+      }
+    }
+  },
+  "states": {
+    "error": 5,
+    "matched": 21,
+    "not_found": 4,
+    "ambiguous": 2
+  },
+  "errors": {
+    "Unterminated string in JSON at position 320 (line 1 column 321)": 1,
+    "unobserved_search_host": 4
+  },
+  "mechanical_rejections": {
+    "unsupported_source_or_tense": 14,
+    "quotation_not_in_fetched_source": 3
+  },
+  "controls_planned": 8,
+  "controls_executed": 6,
+  "control_states": {
+    "not_found": 6
+  },
+  "recorded_model_calls": 96,
+  "calls_by_stage": {
+    "discover_identity": 32,
+    "select_identity_sources": 31,
+    "resolve_identity": 27,
+    "resolve_identity_control_1": 3,
+    "resolve_identity_control_2": 3
+  },
+  "tokens": {
+    "promptTokens": 352168,
+    "completionTokens": 33673,
+    "reasoningTokens": 5788,
+    "totalTokens": 385841
+  },
+  "completed_elapsed_ms": {
+    "count": 27,
+    "median": 53067,
+    "maximum": 103336,
+    "note": "Includes controls on all-English cases; excludes failed cases without elapsed_ms; warm document cache."
+  },
+  "fetch_failure_records": 68,
+  "search_failure_records": 1,
+  "unique_fetched_urls": 59
+}

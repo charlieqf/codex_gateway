@@ -1,0 +1,15 @@
+﻿{
+    "code_changes_after_freeze_allowed":  false,
+    "frozen_at_utc":  "2026-09-07T11:56:49.1277165Z",
+    "blind_inputs_read_by_implementer":  false,
+    "files":  [
+                  {
+                      "sha256":  "85a67dae20f976288d8236f604b6e11562a9a60423f5990385bc91cea1062fef",
+                      "file":  "doctor-cross-language-live.mjs"
+                  },
+                  {
+                      "sha256":  "116edd7000610db8014d1ae8f590abb789a8a83ced6e5c38b65c9375642badad",
+                      "file":  "doctor-cross-language.mjs"
+                  }
+              ]
+}

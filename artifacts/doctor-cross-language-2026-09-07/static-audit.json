@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-09-07",
+  "auditor": "Independent blind-case researcher/evaluator",
+  "scope": {
+    "files": [
+      "artifacts/doctor-cross-language-2026-09-07/frozen/doctor-cross-language.mjs",
+      "artifacts/doctor-cross-language-2026-09-07/frozen/doctor-cross-language-live.mjs"
+    ],
+    "method": "Read-only source review, private fixture fingerprint scan with counts-only output, and offline synthetic core probes with stubbed generation/search/fetch.",
+    "frozen_code_modified": false,
+    "live_model_calls_by_auditor": 0,
+    "external_fetches_by_audit_probes": 0,
+    "production_or_secret_access_by_auditor": false,
+    "blind_identities_disclosed_in_this_report": false,
+    "not_audited": [
+      "The imported /app model-client, safe-http and config implementations are outside these two frozen files.",
+      "This source-level audit does not independently attest the remote container's actual files, provider HTTP payloads or server-side model behavior."
+    ]
+  },
+  "hashes": {
+    "doctor-cross-language.mjs": "116EDD7000610DB8014D1AE8F590ABB789A8A83CED6E5C38B65C9375642BADAD",
+    "doctor-cross-language-live.mjs": "85A67DAE20F976288D8236F604B6E11562A9A60423F5990385BC91CEA1062FEF",
+    "match_preannounced_freeze": true,
+    "blind_input_matrix_sha256": "8fad7a66ae890f7937cba9110d52185557378476c91840c92dccce7d64bfcd8d"
+  },
+  "blinding_assessment": {
+    "verdict": "No held-out case identity/institution hardcoding or paired-fixture/ground-truth leakage found in the two reviewed files. This is not a claim of absence of all development-set bias.",
+    "private_fingerprint_check": {
+      "unique_fingerprints_checked": 51,
+      "matched_fingerprints": 0,
+      "coverage": "Both-language fixture person names and institution names, acceptable identity/institution aliases and primary-source hostnames.",
+      "fingerprint_values_omitted_to_preserve_blinding": true,
+      "explicit_network_url_literals_found": 1,
+      "network_url_class": "Generic search-provider endpoint only."
+    },
+    "manual_inspection": [
+      "No doctor-specific conditional branches, per-doctor translation tables, institution-domain mappings, expected-answer lists or reads of blind-ground-truth.json were found.",
+      "The core implementation has no file reads and receives only the selected doctor object plus generic retrieval/model callbacks and optional control objects.",
+      "The runner parses the whole matrix locally, constructs one three-field doctor object per combination, and keeps profile.name.en as expected_name in result metadata. That local evaluation field is not included in resolveCrossLanguageDoctor's arguments or in model prompts.",
+      "chinese_name_status, case_id and negative_controls metadata likewise are not included in requested model data; the control objects contain the same three selected fields with one replacement.",
+      "Generated search-plan hypotheses and fetched public documents can independently contain another-language name. That is ordinary model/retrieval behavior, distinct from supplying the matrix's paired value or standard answer.",
+      "There is no model-response cache or cross-case prompt history in these files. A shared public-document fetch cache exists and has separate reliability/performance implications."
+    ],
+    "data_flow_evidence": [
+      {"file": "doctor-cross-language-live.mjs", "lines": [19, 20], "observation": "Matrix expansion creates selected doctor fields and stores expected_name separately."},
+      {"file": "doctor-cross-language-live.mjs", "lines": [44, 45, 47], "observation": "Only item.doctor goes into the resolver; expected_name is emitted later in local result metadata."},
+      {"file": "doctor-cross-language.mjs", "lines": [94, 99, 107, 127, 131], "observation": "Model prompts serialize the requested selected fields and stage-specific public retrieval data; no matrix, expected_name or ground-truth object is serialized."}
+    ]
+  },
+  "offline_prompt_probe": {
+    "description": "Synthetic doctor data and in-memory callbacks; no actual blind-case identity was used or sent to any model.",
+    "requested_keys_in_every_stage": ["name", "hospital", "department"],
+    "stages": [
+      {"stage": "discover_identity", "prompt_keys": ["task", "requested"]},
+      {"stage": "select_identity_sources", "prompt_keys": ["requested", "untrusted_search_results", "observed_hosts"]},
+      {"stage": "resolve_identity", "prompt_keys": ["task", "requested", "untrusted_fetched_documents"]},
+      {"stage": "resolve_identity_control_1", "prompt_keys": ["task", "requested", "untrusted_fetched_documents"]},
+      {"stage": "resolve_identity_control_2", "prompt_keys": ["task", "requested", "untrusted_fetched_documents"]}
+    ],
+    "paired_fixture_values_expected_name_or_truth_in_prompt": false,
+    "limitation": "The actual wire serialization inside the imported model-client was not exercised."
+  },
+  "findings": [
+    {
+      "id": "S01",
+      "severity": "medium",
+      "category": "development_set_ranking_bias",
+      "file": "doctor-cross-language.mjs",
+      "lines": [67, 68, 69, 70, 114],
+      "finding": "The generic-looking title score includes the specialty-specific German token nuklearmedizin. Titles matching it receive +2 alongside institution words such as hospital/clinic. Other specialties do not receive equivalent explicit vocabulary bonuses.",
+      "interpretation": "This is a real specialty/language-specific ranking heuristic and a plausible development-set bias given the development cases. It is not a doctor/translation/domain lookup table. Source alone cannot prove the historical reason the token was added.",
+      "actual_scope": "selectCandidates is used to rank institution-site follow-up results. Initial pooled search results are selected by the model without this rank function; selected initial results precede appended follow-up results.",
+      "impact": "May change which follow-up sources survive the six-source follow-up limit, and therefore recall. A bias-free generalization claim is not justified.",
+      "action_for_this_experiment": "Keep frozen implementation unchanged and disclose this retained bias when interpreting blind performance."
+    },
+    {
+      "id": "S02",
+      "severity": "high",
+      "category": "semantic_verification_not_mechanically_enforced",
+      "file": "doctor-cross-language.mjs",
+      "lines": [37, 44, 46, 47, 48, 51, 54, 55, 57],
+      "finding": "validateVerification verifies allowed labels, name-token/cross-script conditions and quote occurrence. It does not mechanically establish that the quoted institution and department equal the requested institution/department, that the affiliation quote links those fields, that source_type is true, or that a current label is supported by the source date/content.",
+      "offline_probe": "A fabricated model response naming a different hospital and Cardiology was accepted as matched for a request containing Unrelated Example Hospital 9XYZ and Ophthalmology. The quoted source explicitly described a 1998 appointment ending in 2001, while the fabricated match labelled it current. All quotations were real substrings of the synthetic source.",
+      "impact": "This does not prove the real model made such a mistake. It proves that quote containment is not an independent semantic or temporal guard. Human/source-based adjudication of positive and negative controls remains necessary.",
+      "action_for_this_experiment": "Score identity, institution, specialty and current/former/unclear status independently against fetched evidence. Do not equate program matched with a verified true positive."
+    },
+    {
+      "id": "S03",
+      "severity": "medium",
+      "category": "short_name_false_negative",
+      "file": "doctor-cross-language.mjs",
+      "lines": [51, 52],
+      "finding": "All quotation fields must have at least four JavaScript string units. An exact standalone two- or three-character Chinese person name is rejected even when it appears verbatim and the other fields establish the relationship.",
+      "offline_probe": "A synthetic three-character Han name with exact matching input/person_name/person_quote and valid other quotes was downgraded from matched to not_found with quotation_not_in_fetched_source. Unicode transport was explicitly verified.",
+      "impact": "The error label conflates short-but-present quotations with missing quotations; it can lower native Chinese recall or make success depend on whether the model adds adjacent text.",
+      "action_for_this_experiment": "When reviewing mechanical rejections, distinguish absent evidence from this quote-length threshold."
+    },
+    {
+      "id": "S04",
+      "severity": "medium",
+      "category": "global_script_coverage_limit",
+      "file": "doctor-cross-language.mjs",
+      "lines": [46, 47, 48],
+      "finding": "The cross-script exemption is based only on whether exactly one name contains Han characters. Latin/Cyrillic, Latin/Arabic and other non-Han transliteration pairs do not qualify and generally fail token containment.",
+      "offline_probe": "A synthetic Cyrillic name and its Latin transliteration, marked transliteration with otherwise valid source quotations, were rejected with person_name_mismatch. Unicode transport was explicitly verified.",
+      "impact": "The implementation can be evaluated for Chinese/English input dimensions but should not be called universally script-agnostic. The four-case matrix does not test every writing system."
+    },
+    {
+      "id": "S05",
+      "severity": "medium",
+      "category": "correlated_fetch_failure_and_warm_cache_effect",
+      "file": "doctor-cross-language-live.mjs",
+      "lines": [22, 34, 35, 37, 40, 41, 52],
+      "finding": "documentCache retains in-flight promises by requested URL across cases, including rejected promises. A transient failure or abort from the first requesting case remains cached for later combinations without a retry; successful documents also make later cases warm-cache reads.",
+      "impact": "Case failures and timings are correlated, so the 32 language combinations are not independent network trials. This is a reliability/performance confound, not paired-answer leakage.",
+      "action_for_this_experiment": "Retain observed failures, inspect repeated URL failures and source_cache_hit when interpreting recall/latency, and disclose shared caching."
+    },
+    {
+      "id": "S06",
+      "severity": "low",
+      "category": "reported_internal_hash_incomplete",
+      "file": "doctor-cross-language.mjs",
+      "lines": [135],
+      "finding": "record.prototype_sha256 hashes plannerSystem + verifierSystem only. It excludes selectorSystem and all executable logic.",
+      "impact": "That result field cannot identify the full implementation. The separately verified whole-file frozen hashes do provide the appropriate source artifact identity."
+    },
+    {
+      "id": "S07",
+      "severity": "medium",
+      "category": "evidence_window_recall_limit",
+      "file": "doctor-cross-language.mjs",
+      "lines": [24, 26, 28, 29, 34, 125, 126],
+      "finding": "Verifier evidence is a maximum 8,000-character excerpt composed from a page prefix and first name/token occurrences. A department, relationship statement or appointment date elsewhere in an official page can be omitted even when the full fetched source contains it.",
+      "impact": "A model not_found/unclear may reflect excerpt selection rather than lack of public evidence. Full source files and the supplied excerpt must be distinguished during adjudication."
+    }
+  ],
+  "negative_control_scope": {
+    "count_per_all_english_case": 2,
+    "replacement_institution": "Unrelated Example Hospital 9XYZ",
+    "replacement_department": "Ophthalmology",
+    "stage": "Verification only, reusing documents fetched for the original positive request.",
+    "new_discovery_or_retrieval_per_control": false,
+    "interpretation": "These test verifier rejection on the existing evidence set, not end-to-end retrieval for the modified request. Whether the specialty control is truly negative must be assessed against each independent ground truth after execution.",
+    "risk": "The replacement objects go only to the control verification calls; they are not included in the positive planner/search requests."
+  },
+  "overall_conclusion": "The reviewed frozen version preserves the specified held-out identity/input blinding at its visible model-call boundary. It retains a specialty-specific ranking bias and meaningful correctness/measurement limits. Independent adjudication is required before reporting success rates or global generalization. No code changes were made."
+}

@@ -1,0 +1,1442 @@
+{
+  "schema_version": 1,
+  "evaluation_date": "2026-09-07",
+  "snapshot_type": "complete",
+  "input_result_sha256": "adb59c96be577e40ba632bcefd35b3606bfb8ebd8b410b8f20feab3a875189cc",
+  "rubric_sha256": "6f3e3181cc368c72ccaa76a887f1922d3c8f4c84fdfa0b20fbfe9651ef2c91d6",
+  "frozen_hashes": {
+    "core": "116edd7000610db8014d1ae8f590abb789a8a83ced6e5c38b65c9375642badad",
+    "runner": "85a67dae20f976288d8236f604b6e11562a9a60423f5990385bc91cea1062fef",
+    "matrix": "8fad7a66ae890f7937cba9110d52185557378476c91840c92dccce7d64bfcd8d"
+  },
+  "summary": {
+    "planned_positive_cases": 32,
+    "evaluated_positive_cases": 32,
+    "pending_positive_cases": 0,
+    "program_matched": 25,
+    "program_not_found": 6,
+    "program_ambiguous": 1,
+    "execution_errors": 0,
+    "independent_identity_correct": 25,
+    "independent_institution_and_department_correct": 24,
+    "full_contract_pass": 1,
+    "accepted_match_count": 47,
+    "verbatim_quote_count": 188,
+    "identity_false_acceptances": 0,
+    "institution_or_specialty_factual_false_acceptances": 1,
+    "current_claim_evidence_deficiency_cases": 19,
+    "quote_field_support_deficiency_cases": 16,
+    "planned_negative_controls": 8,
+    "completed_negative_controls": 8,
+    "definitive_correct_rejections": 7,
+    "pending_negative_controls": 0,
+    "negative_false_acceptances": 1,
+    "raw_negative_control_not_found": 6,
+    "raw_negative_control_matched": 1,
+    "raw_negative_control_ambiguous": 1,
+    "negative_rejections_dependent_on_mechanical_quote_failure": 1,
+    "applicable_negative_controls": 8,
+    "informative_negative_controls": 8,
+    "negative_safe_ambiguous_abstentions": 0,
+    "negative_not_scored": 0,
+    "negative_information_insufficient": 0,
+    "by_profile": [
+      {
+        "profile_id": "blind01",
+        "cases": 8,
+        "program_matched": 8,
+        "identity_correct": 8,
+        "three_dimensions_correct": 8,
+        "full_contract_pass": 0
+      },
+      {
+        "profile_id": "blind02",
+        "cases": 8,
+        "program_matched": 8,
+        "identity_correct": 8,
+        "three_dimensions_correct": 8,
+        "full_contract_pass": 1
+      },
+      {
+        "profile_id": "blind03",
+        "cases": 8,
+        "program_matched": 1,
+        "identity_correct": 1,
+        "three_dimensions_correct": 0,
+        "full_contract_pass": 0
+      },
+      {
+        "profile_id": "blind04",
+        "cases": 8,
+        "program_matched": 8,
+        "identity_correct": 8,
+        "three_dimensions_correct": 8,
+        "full_contract_pass": 0
+      }
+    ],
+    "by_language_combination": [
+      {
+        "languages": {
+          "name": "zh",
+          "hospital": "zh",
+          "department": "zh"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "zh",
+          "hospital": "zh",
+          "department": "en"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "zh",
+          "hospital": "en",
+          "department": "zh"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "zh",
+          "hospital": "en",
+          "department": "en"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "en",
+          "hospital": "zh",
+          "department": "zh"
+        },
+        "cases": 4,
+        "program_matched": 4,
+        "identity_correct": 4,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 1
+      },
+      {
+        "languages": {
+          "name": "en",
+          "hospital": "zh",
+          "department": "en"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "en",
+          "hospital": "en",
+          "department": "zh"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      },
+      {
+        "languages": {
+          "name": "en",
+          "hospital": "en",
+          "department": "en"
+        },
+        "cases": 4,
+        "program_matched": 3,
+        "identity_correct": 3,
+        "three_dimensions_correct": 3,
+        "full_contract_pass": 0
+      }
+    ]
+  },
+  "denominator_notes": [
+    "以全部 32 个正例为分母，6 个 not_found 和 1 个 ambiguous 不计成功。",
+    "独立身份正确只指明确返回的真实人物结论；没有返回人物的正例弃答不算成功。",
+    "严格契约检查每条已接受匹配的引用字段；整页支持正确身份不代表四个指定引用字段均满足要求。",
+    "current 的合理性允许本轮实际提供给模型的其他有日期文档佐证；不会用模型未见到的独立标准答案追补证据。",
+    "证据不足/字段引用错误不等于人物或全部事实错误；第三组 Cancer Research 替代 Medical Oncology 另记为实际科室误认。"
+  ],
+  "limitations": [
+    "相同来源跨语言组合共享，时间及抓取失败不独立。",
+    "现职证据不足不等于已证明医生离任；错误的是输出的证据充分性/精确断言。",
+    "已保留静态审计发现的特定专科词排序偏置；不能从小样本推断所有全球医生或文字系统表现。"
+  ],
+  "cases": [
+    {
+      "case_id": "blind01-zh-zh-zh",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 11,
+      "source_cache_hits": 5,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_incomplete",
+        "possible_role_start_conflation"
+      ],
+      "adjudication_notes": [
+        "三条匹配均为同一正确人物和医院/专科。团队名单的关联引文只列姓名及科室，未包含医院。无日期简介和 2023 年获奖简介不能保证当前主任头衔。首条 explanation 将 since 1999 接在主任医师/科主任描述后，可能混淆到院工作与职务起任时间。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-zh-zh-en",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "quotation_not_in_fetched_source",
+        "quotation_not_in_fetched_source"
+      ],
+      "source_count": 6,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_incomplete",
+        "short_name_mechanical_rejection",
+        "quotation_rejection"
+      ],
+      "adjudication_notes": [
+        "最终只保留官方团队名单；关联引文未含医院。被拒绝的个人页 person_quote 是原文真实的三字姓名，唯一问题为长度小于 4；另一拒绝含姓名与逗号间空白差异。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-zh-en-zh",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 5,
+      "source_cache_hits": 5,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current"
+      ],
+      "adjudication_notes": [
+        "个人介绍中的工作年份句可在此人独立简介上下文中支持医院/专科关系；其本身不提供简介更新日。2023 年获奖简介不能单独证明当前主任岗位。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-zh-en-en",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "quotation_not_in_fetched_source"
+      ],
+      "source_count": 6,
+      "source_cache_hits": 6,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "quotation_rejection"
+      ],
+      "adjudication_notes": [
+        "人物/医院/专科正确；现职依据缺少岗位时效。原始第三条将页面内分散的团队文字拼成连续引文，被机械验证正确拒绝。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-en-zh-zh",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "current_institution_specialty_supported_but_current_leadership_precision_unsupported",
+      "mechanical_rejections": [
+        "quotation_not_in_fetched_source"
+      ],
+      "source_count": 12,
+      "source_cache_hits": 6,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current_role_precision",
+        "quotation_rejection"
+      ],
+      "adjudication_notes": [
+        "最终只留 2023 年获奖人物简介。模型可见 2026-08-05 招生计划，能补强当期医院/风湿病导师关系，但未列主任头衔；不能把 2023 年主任描述直接作为当前主任岗位。原始个人页关联引文跳过中间履历段落，故被拒绝。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-en-zh-en",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "current_institution_specialty_supported_but_current_leadership_precision_unsupported",
+      "mechanical_rejections": [],
+      "source_count": 11,
+      "source_cache_hits": 10,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current_role_precision",
+        "source_date_omitted_by_excerpt"
+      ],
+      "adjudication_notes": [
+        "人物/医院/科室正确，2026 导师计划支持当期机构/专业。关于主任岗位仍使用无日期个人页、2023 新闻及合作院校介绍。模型明确称合作院校页无日期并据现在时推断 current；完整页面实际标 2024-09-17，日期不在截取窗口。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-en-en-zh",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "current_institution_specialty_supported_but_current_leadership_precision_unsupported",
+      "mechanical_rejections": [],
+      "source_count": 11,
+      "source_cache_hits": 11,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current_role_precision",
+        "source_type_misclassified",
+        "source_date_omitted_by_excerpt"
+      ],
+      "adjudication_notes": [
+        "人物/医院/科室正确；2026 导师计划未列主任职务。合作大学页面被标为 professional_organization，实际为大学合作项目师资介绍。完整页 2024-09-17 更新日未进入验证窗口。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind01-en-en-en",
+      "profile_id": "blind01",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "current_institution_specialty_supported_but_current_leadership_precision_unsupported",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 11,
+      "source_cache_hits": 11,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current_role_precision"
+      ],
+      "adjudication_notes": [
+        "人物/医院/科室正确。2026 导师计划支持当期医院/专业关系，不能更新 2023 人物简介中的主任头衔。标为 other 的合作大学证据被拒绝；该拒绝不把最终身份匹配变成错误。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-zh-zh-zh",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 6,
+      "source_cache_hits": 5,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "两条官方个人/团队介绍均支持正确身份及医院专科，但均无岗位更新时间。模型把研究员设定音译称为 standard，未提供该中文译名为官方/既有名称的证据。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-zh-zh-en",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 6,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "institution_quote_missing_target",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "医院页 institution_quote 仅为服务团队描述，没有医院名称。另一研究机构介绍的医院引文正确。无日期主页加 2022 年公司公告不能证明测试日现职；2012 明确限定为到目标医院工作，未误定主任起任日期。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-zh-en-zh",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [],
+      "source_count": 9,
+      "source_cache_hits": 5,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "department_quote_partial",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "2026-03-17 医院新闻在验证窗口内，明确支持当前主任岗位，故时态合理。第二条 department_quote 只有 Research Program: Theranostics，未引出请求中的完整核医学部门；虽该页其他引文有完整部门，字段契约仍不完整。since 2012 按医院/核医学工作期间理解，主任起任日仍未知。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-zh-en-en",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [],
+      "source_count": 9,
+      "source_cache_hits": 9,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "affiliation_quote_incomplete",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "2026-03-17 新闻支持当前主任岗位。第一条 affiliation_quote 只列姓名和职位，没有目标医院；第二条引用完整。2012 的说明明确引用到院核医学/PET 工作，不视为主任起任日。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-en-zh-zh",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": true,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 9,
+      "source_cache_hits": 9,
+      "fetch_failure_count": 2,
+      "failure_reasons": [],
+      "adjudication_notes": [
+        "两条被接受匹配的四类引文均逐字真实且支持请求的三维关联。2026-03-17 医院新闻在模型窗口中，模型原始回复明确引用该日期与主任职务；该新闻因 source_type=other 被机械丢弃为独立匹配，但仍是本轮模型实际看到的有效时效佐证。since 2012 按医院/核医学工作起点理解，不认定为主任起任日。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-en-zh-en",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [],
+      "source_count": 9,
+      "source_cache_hits": 9,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "institution_quote_wrong_entity"
+      ],
+      "adjudication_notes": [
+        "2026-03-17 新闻支持现职。第二条 institution_quote 引的是 St Vincent's Centre for Applied Medical Research；这是关联研究机构，不是请求医院的译名。该页 affiliation_quote 能证实医院任职，但 institution_quote 字段错误。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-en-en-zh",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 6,
+      "source_cache_hits": 6,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_missing_person"
+      ],
+      "adjudication_notes": [
+        "无日期团队页/个人页可确认身份关系，但本组合没有 2026 新闻，现职推断不充分。第一条 affiliation_quote 描述医院服务团队整体，不含此人或此人角色；第二条引文完整。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind02-en-en-en",
+      "profile_id": "blind02",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [],
+      "source_count": 9,
+      "source_cache_hits": 9,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "department_quote_partial"
+      ],
+      "adjudication_notes": [
+        "2026-03-17 新闻支持现职。第二条 department_quote 仅为 Research Program: Theranostics，未引出完整的诊疗一体化与核医学部门，按冻结字段契约不算完整通过。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "equivalent_specialty_or_department"
+    },
+    {
+      "case_id": "blind03-zh-zh-zh",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 0,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "name_transliteration_planning_miss",
+        "no_relevant_sources",
+        "no_institution_first_recovery"
+      ],
+      "adjudication_notes": [
+        "规划将输入姓氏收窄为错误拉丁拼写；每条查询都包含该带引号姓名，未进行机构+科室优先补救。搜索结果为社交/讣告/族谱等无关页面；选择器选择 0 个来源，验证输入为空。not_found 是合理安全弃答，但正例失败；不是引文规则造成。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-zh-zh-en",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 0,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "name_transliteration_planning_miss",
+        "no_relevant_sources",
+        "no_institution_first_recovery"
+      ],
+      "adjudication_notes": [
+        "两个英文候选只改变名的拼写而沿用错误姓氏，正确姓名未进入候选。无目标医院/专业来源，选择器选择 0 个来源，最终无证据弃答。科室改为英文未修复音译规划问题。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-zh-en-zh",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 0,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "name_transliteration_planning_miss",
+        "namesake_selection",
+        "fetch_failures",
+        "no_institution_first_recovery"
+      ],
+      "adjudication_notes": [
+        "规划仍将姓氏误写为 Garnier。选中的两个 LVHN 页面针对异人/异机构；一个抓取错误、一个 403，最终验证文档为空。即使这两页抓取成功也不是标准答案人物。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-zh-en-en",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 0,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "name_transliteration_planning_miss",
+        "no_relevant_sources",
+        "no_institution_first_recovery"
+      ],
+      "adjudication_notes": [
+        "中文姓名的四种组合全部未产生正确英文姓氏。英文医院和科室未纠正首轮错误猜名，选择器无有效来源并安全弃答。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-en-zh-zh",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "no",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 8,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 3,
+      "failure_reasons": [
+        "department_substitution",
+        "research_institute_directory_insufficient",
+        "affiliation_quote_generic_category",
+        "unsupported_current"
+      ],
+      "adjudication_notes": [
+        "姓名确为 Christina Canil，父医院与其实际任职有关。但 Cancer Research / Recherche sur le cancer 是 OHRI 研究项目，不能替换 Medical Oncology / 肿瘤内科。两条 affiliation_quote 仅定义研究人员通常属于哪些职业/机构，不是此人精确癌症中心科室关联。模型自己承认部门只是 approximate，却仍返回 matched，是三维匹配误接受。"
+      ],
+      "institution_relationship": "documented_parent_child",
+      "department_relationship": "research_program_substituted_for_clinical_department"
+    },
+    {
+      "case_id": "blind03-en-zh-en",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 2,
+      "source_cache_hits": 2,
+      "fetch_failure_count": 3,
+      "failure_reasons": [
+        "fetch_failures",
+        "dynamic_profile_text_missing",
+        "no_complete_affiliation_evidence",
+        "literal_unicode_escape_in_query_url"
+      ],
+      "adjudication_notes": [
+        "英文姓名规划正确。注册机构/论文/ResearchGate 返回 403；大学动态页仅抓到姓名 15 字符，被最小正文长度过滤；学会节目只列主持人，未列医院或科室。not_found 合理但正例失败。注册 URL 内实际保留了文字形式的 \\u003d，不能据此断言 403 全由该问题导致。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-en-en-zh",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "not_found",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 8,
+      "source_cache_hits": 8,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "fetch_failures",
+        "no_complete_affiliation_evidence",
+        "literal_unicode_escape_in_query_url"
+      ],
+      "adjudication_notes": [
+        "英文名正确，找到 2026 临床试验联络人与 OHRI 癌症研究目录，但没有一份模型可见文档同时支持姓名、癌症中心和肿瘤内科。此组合正确拒绝把 Cancer Research 等同 Medical Oncology，与 en-zh-zh 的过宽接受形成不一致。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind03-en-en-en",
+      "profile_id": "blind03",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "ambiguous",
+      "program_matched": false,
+      "name_correct": "not_asserted",
+      "institution_correct": "not_asserted",
+      "department_correct": "not_asserted",
+      "independent_identity_correct": null,
+      "full_contract_pass": false,
+      "quotation_authenticity": "not_asserted",
+      "temporal_assessment": "not_assessable",
+      "mechanical_rejections": [],
+      "source_count": 8,
+      "source_cache_hits": 8,
+      "fetch_failure_count": 2,
+      "failure_reasons": [
+        "no_complete_affiliation_evidence",
+        "positive_ambiguous_abstention",
+        "fetch_failures",
+        "literal_unicode_escape_in_query_url"
+      ],
+      "adjudication_notes": [
+        "最终 ambiguous、matches=[]。医院癌症中心联络关系可见，但肿瘤内科任职缺证；不计独立明确身份成功或完整通过。两个负对照另行评分，不因正例未通过而认定未执行。"
+      ],
+      "institution_relationship": "not_asserted",
+      "department_relationship": "not_asserted"
+    },
+    {
+      "case_id": "blind04-zh-zh-zh",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "reasonable_current",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 5,
+      "source_cache_hits": 0,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "affiliation_quote_incomplete",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "Peter Rossing、大学与临床医学/内分泌学身份正确。2026-06-06 活动师资表日期及大学临床医学教授信息在本轮窗口，时效不是只靠无日期主页。主页的 affiliation_quote 仅有 Clinical Professor / Department of Clinical Medicine，未包含大学名称；委员会条目仅给上级临床医学系，不额外声称它单独证实内分泌亚专业。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-zh-zh-en",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "zh",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 10,
+      "source_cache_hits": 10,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "department_quote_is_qualification",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "大学主页证实准确三维身份，现职仍用无日期个人陈述及 2025 学会简介推断。第二条 department_quote 是 2004 年取得内科/内分泌专科资格，不是大学科室任职；不能单独形成所请求的精确科室关联。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-zh-en-zh",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 10,
+      "source_cache_hits": 2,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "唯一被接受的大学个人页支持三维身份，但没有人事更新时间；其他本轮来源为无日期委员会/企业简介和 2025 学会简介。2026 论文或指南条目不自动更新任职日期。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-zh-en-en",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "zh",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 11,
+      "source_cache_hits": 11,
+      "fetch_failure_count": 0,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_incomplete",
+        "unverified_transliteration_overstatement"
+      ],
+      "adjudication_notes": [
+        "大学和内分泌学身份正确；关联引文只列姓名、科室及职称，没有大学名称。多个无日期/旧简介的现在时不能直接断定测试日现职。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-en-zh-zh",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "quotation_not_in_fetched_source"
+      ],
+      "source_count": 10,
+      "source_cache_hits": 9,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_incomplete"
+      ],
+      "adjudication_notes": [
+        "英文姓名及三维真实对应正确。关联引文只列姓名/部门/职称，未引出请求大学。可见的委员会和大学简介均无更新日期；2025 学会资料不能单独作为当前岗位证明。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-en-zh-en",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "en",
+        "hospital": "zh",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 5,
+      "source_cache_hits": 5,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "affiliation_quote_incomplete"
+      ],
+      "adjudication_notes": [
+        "模型明确将 affiliation_period 写成 undated institutional profile，却仍标 current。关联引文只列职称/科室，未含大学；这是冻结提示明确要求避免的无日期推断。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-en-en-zh",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "zh"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [],
+      "source_count": 3,
+      "source_cache_hits": 3,
+      "fetch_failure_count": 9,
+      "failure_reasons": [
+        "unsupported_current",
+        "department_quote_is_qualification"
+      ],
+      "adjudication_notes": [
+        "大学个人页身份正确。辅助 ISN 来源实际为 2025-02-03，2004 年专科资格不能替代大学内分泌科室任职。当前任职断言无足够时效；本轮并未抓到独立标准答案中 2026 年大学科室名册。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    },
+    {
+      "case_id": "blind04-en-en-en",
+      "profile_id": "blind04",
+      "languages": {
+        "name": "en",
+        "hospital": "en",
+        "department": "en"
+      },
+      "evaluation_status": "evaluated",
+      "execution_status": "completed",
+      "program_status": "matched",
+      "program_matched": true,
+      "name_correct": "yes",
+      "institution_correct": "yes",
+      "department_correct": "yes",
+      "independent_identity_correct": true,
+      "full_contract_pass": false,
+      "quotation_authenticity": "verbatim",
+      "temporal_assessment": "unsupported_current",
+      "mechanical_rejections": [
+        "unsupported_source_or_tense"
+      ],
+      "source_count": 10,
+      "source_cache_hits": 10,
+      "fetch_failure_count": 1,
+      "failure_reasons": [
+        "unsupported_current",
+        "department_quote_is_qualification"
+      ],
+      "adjudication_notes": [
+        "全英文身份对应正确。使用无日期大学页及 2025 学会简介推断 current，并以 2004 资格句作为部门引文。最终眼科负对照保留两条内分泌匹配，单独记为结构化请求匹配错误。"
+      ],
+      "institution_relationship": "equivalent_name",
+      "department_relationship": "department_and_specialty_hierarchy"
+    }
+  ],
+  "negative_controls": [
+    {
+      "control_id": "blind01-en-en-en-control-1",
+      "parent_case_id": "blind01-en-en-en",
+      "modified_dimension": "hospital",
+      "applicability": "applicable",
+      "applicability_reason": "虚构替换医院不对应独立身份的真实机构。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind01-en-en-en-control-2",
+      "parent_case_id": "blind01-en-en-en",
+      "modified_dimension": "department",
+      "applicability": "applicable",
+      "applicability_reason": "独立标准答案及本轮证据均不支持此人眼科任职；常见临床研究关联不等于眼科科室。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind02-en-en-en-control-1",
+      "parent_case_id": "blind02-en-en-en",
+      "modified_dimension": "hospital",
+      "applicability": "applicable",
+      "applicability_reason": "虚构替换医院不对应独立身份的真实机构。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind02-en-en-en-control-2",
+      "parent_case_id": "blind02-en-en-en",
+      "modified_dimension": "department",
+      "applicability": "applicable",
+      "applicability_reason": "独立标准答案及本轮证据均不支持此人眼科任职；常见临床研究关联不等于眼科科室。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind03-en-en-en-control-1",
+      "parent_case_id": "blind03-en-en-en",
+      "modified_dimension": "hospital",
+      "applicability": "applicable",
+      "applicability_reason": "虚构替换医院不对应独立身份的真实机构。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind03-en-en-en-control-2",
+      "parent_case_id": "blind03-en-en-en",
+      "modified_dimension": "department",
+      "applicability": "applicable",
+      "applicability_reason": "独立标准答案及本轮证据均不支持此人眼科任职；常见临床研究关联不等于眼科科室。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "matched",
+      "raw_model_match_count": 2,
+      "mechanical_rejections": [
+        "quotation_not_in_fetched_source",
+        "quotation_not_in_fetched_source"
+      ],
+      "returned_department_names": [],
+      "robustness_note": "原始模型 status=matched 且返回两条不符合眼科的匹配；一条科室引文为空，另一条引文标点不逐字，机械层将其降为 not_found。最终拒绝计通过，但不是模型稳定完成语义拒绝的证据。"
+    },
+    {
+      "control_id": "blind04-en-en-en-control-1",
+      "parent_case_id": "blind04-en-en-en",
+      "modified_dimension": "hospital",
+      "applicability": "applicable",
+      "applicability_reason": "虚构替换医院不对应独立身份的真实机构。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "not_found",
+      "accepted_match_count": 0,
+      "outcome": "definitive_correct_rejection",
+      "strict_pass": true,
+      "reason_review": "修改后请求与实际调用存在，已检查模型理由针对错误医院/科室，原人物和真实机构/专业的材料足够。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "not_found",
+      "raw_model_match_count": 0,
+      "mechanical_rejections": [],
+      "returned_department_names": []
+    },
+    {
+      "control_id": "blind04-en-en-en-control-2",
+      "parent_case_id": "blind04-en-en-en",
+      "modified_dimension": "department",
+      "applicability": "applicable",
+      "applicability_reason": "独立标准答案及本轮证据均不支持此人眼科任职；常见临床研究关联不等于眼科科室。",
+      "execution": "completed",
+      "evidence_challenge": "informative",
+      "program_status": "ambiguous",
+      "accepted_match_count": 2,
+      "outcome": "false_acceptance",
+      "strict_pass": false,
+      "reason_review": "理由明确说没有眼科关系，但 ambiguous 下仍保留两条被机械接受的内分泌/糖尿病血管病匹配。按修改后的请求属于结构化误接受；不声称模型在文字解释里把此人称作眼科医生。",
+      "mechanical_result_reproduced": true,
+      "raw_model_status": "ambiguous",
+      "raw_model_match_count": 2,
+      "mechanical_rejections": [],
+      "returned_department_names": [
+        "Internal Medicine: Endocrinology",
+        "Diabetic angiopathy / endocrinology"
+      ],
+      "outcome_detail": "narrative_rejects_ophthalmology_but_structured_matches_retain_unrelated_departments"
+    }
+  ],
+  "evidence_retention": "Raw provider responses, per-quotation review and fetched page caches are retained locally in blind-evaluation.json, blind-result.json and blind/sources; only metrics and adjudication notes are versioned here."
+}

@@ -1,0 +1,21 @@
+{
+  "dataset_preparer": "/root/blind_doctor_cases",
+  "dataset": "scripts/experiments/doctor-cross-language.blind-matrix.json",
+  "dataset_sha256": "8fad7a66ae890f7937cba9110d52185557378476c91840c92dccce7d64bfcd8d",
+  "profiles": 4,
+  "cases": 32,
+  "code_manifest": "frozen-manifest.json",
+  "implementer_read_input_before_frozen_run": false,
+  "implementer_read_ground_truth_before_run": false,
+  "ground_truth_uploaded_to_runtime": false,
+  "model_receives_paired_translations": false,
+  "model_receives_expected_name": false,
+  "production_workflow_or_identity_aliases_imported": false,
+  "modify_frozen_code_after_results": false,
+  "caveats": [
+    "This is process separation, not an operating-system access barrier between agents.",
+    "This does not establish that the pretrained model has never encountered these public figures.",
+    "Document cache is shared within one matrix, with no prior conversation or identity verdict reused.",
+    "Error and not_found outcomes remain in the denominator; no case-specific repair or successful-only rerun."
+  ]
+}

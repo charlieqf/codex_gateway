@@ -1,0 +1,10 @@
+{
+ "dimensions":["name","hospital","department"],
+ "languages":["zh","en"],
+ "profiles":[
+  {"id":"felix","name":{"zh":"费利克斯·莫塔吉","en":"Felix Mottaghy"},"hospital":{"zh":"德国亚琛工业大学医院","en":"RWTH Aachen University Hospital"},"department":{"zh":"核医学科","en":"Nuclear Medicine"},"chinese_name_status":"test_transliteration_not_verified_official_name"},
+  {"id":"markus","name":{"zh":"马库斯·施瓦伊格","en":"Markus Schwaiger"},"hospital":{"zh":"德国慕尼黑工业大学（TUM）","en":"Technical University of Munich"},"department":{"zh":"核医学诊所","en":"Nuclear Medicine Clinic"},"chinese_name_status":"test_transliteration_not_verified_official_name"},
+  {"id":"paola","name":{"zh":"保拉·安娜·埃尔巴","en":"Paola Anna Erba"},"hospital":{"zh":"比萨大学医院","en":"University Hospital in Pisa"},"department":{"zh":"区域核医学中心","en":"Regional Center of Nuclear Medicine"},"chinese_name_status":"test_transliteration_not_verified_official_name"},
+  {"id":"zhao","name":{"zh":"赵玉沛","en":"Yupei Zhao"},"hospital":{"zh":"北京协和医院","en":"Peking Union Medical College Hospital"},"department":{"zh":"基本外科","en":"General Surgery"},"chinese_name_status":"native_name"}
+ ]
+}

@@ -1,0 +1,111 @@
+{
+  "total": 32,
+  "completed": 32,
+  "profiles": {
+    "blind01": {
+      "name": "Mengtao Li",
+      "cases": {
+        "zh-zh-zh": "matched",
+        "zh-zh-en": "matched",
+        "zh-en-zh": "matched",
+        "zh-en-en": "matched",
+        "en-zh-zh": "matched",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "matched": 8
+      }
+    },
+    "blind02": {
+      "name": "Louise Emmett",
+      "cases": {
+        "zh-zh-zh": "matched",
+        "zh-zh-en": "matched",
+        "zh-en-zh": "matched",
+        "zh-en-en": "matched",
+        "en-zh-zh": "matched",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "matched": 8
+      }
+    },
+    "blind03": {
+      "name": "Christina Canil",
+      "cases": {
+        "zh-zh-zh": "not_found",
+        "zh-zh-en": "not_found",
+        "zh-en-zh": "not_found",
+        "zh-en-en": "not_found",
+        "en-zh-zh": "matched",
+        "en-zh-en": "not_found",
+        "en-en-zh": "not_found",
+        "en-en-en": "ambiguous"
+      },
+      "states": {
+        "not_found": 6,
+        "matched": 1,
+        "ambiguous": 1
+      }
+    },
+    "blind04": {
+      "name": "Peter Rossing",
+      "cases": {
+        "zh-zh-zh": "matched",
+        "zh-zh-en": "matched",
+        "zh-en-zh": "matched",
+        "zh-en-en": "matched",
+        "en-zh-zh": "matched",
+        "en-zh-en": "matched",
+        "en-en-zh": "matched",
+        "en-en-en": "matched"
+      },
+      "states": {
+        "matched": 8
+      }
+    }
+  },
+  "states": {
+    "matched": 25,
+    "not_found": 6,
+    "ambiguous": 1
+  },
+  "errors": {},
+  "mechanical_rejections": {
+    "quotation_not_in_fetched_source": 5,
+    "unsupported_source_or_tense": 6
+  },
+  "controls_planned": 8,
+  "controls_executed": 8,
+  "control_states": {
+    "not_found": 7,
+    "ambiguous": 1
+  },
+  "recorded_model_calls": 104,
+  "calls_by_stage": {
+    "discover_identity": 32,
+    "select_identity_sources": 32,
+    "resolve_identity": 32,
+    "resolve_identity_control_1": 4,
+    "resolve_identity_control_2": 4
+  },
+  "tokens": {
+    "promptTokens": 410161,
+    "completionTokens": 31691,
+    "reasoningTokens": 3498,
+    "totalTokens": 441852
+  },
+  "completed_elapsed_ms": {
+    "count": 32,
+    "median": 55235.0,
+    "maximum": 90017,
+    "note": "Includes controls on all-English cases; excludes failed cases without elapsed_ms; warm document cache."
+  },
+  "fetch_failure_records": 42,
+  "search_failure_records": 3,
+  "unique_fetched_urls": 56
+}

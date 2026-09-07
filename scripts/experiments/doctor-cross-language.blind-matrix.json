@@ -1,0 +1,34 @@
+{
+  "dimensions": ["name", "hospital", "department"],
+  "languages": ["zh", "en"],
+  "profiles": [
+    {
+      "id": "blind01",
+      "name": {"zh": "李梦涛", "en": "Mengtao Li"},
+      "hospital": {"zh": "北京协和医院", "en": "Peking Union Medical College Hospital"},
+      "department": {"zh": "风湿免疫科", "en": "Department of Rheumatology"},
+      "chinese_name_status": "verified_native_chinese_name"
+    },
+    {
+      "id": "blind02",
+      "name": {"zh": "路易丝·埃米特", "en": "Louise Emmett"},
+      "hospital": {"zh": "悉尼圣文森特医院", "en": "St Vincent's Hospital Sydney"},
+      "department": {"zh": "诊疗一体化与核医学科", "en": "Theranostics and Nuclear Medicine"},
+      "chinese_name_status": "test_transliteration_not_verified_official_name"
+    },
+    {
+      "id": "blind03",
+      "name": {"zh": "克里斯蒂娜·卡尼尔", "en": "Christina Canil"},
+      "hospital": {"zh": "渥太华医院癌症中心", "en": "The Ottawa Hospital Cancer Centre"},
+      "department": {"zh": "肿瘤内科", "en": "Medical Oncology"},
+      "chinese_name_status": "test_transliteration_not_verified_official_name"
+    },
+    {
+      "id": "blind04",
+      "name": {"zh": "彼得·罗辛", "en": "Peter Rossing"},
+      "hospital": {"zh": "哥本哈根大学", "en": "University of Copenhagen"},
+      "department": {"zh": "临床医学系内分泌学", "en": "Department of Clinical Medicine, Internal Medicine: Endocrinology"},
+      "chinese_name_status": "test_transliteration_not_verified_official_name"
+    }
+  ]
+}
