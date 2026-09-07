@@ -34,6 +34,7 @@ documents.
 | GoldenCode Local context admission | [Local Context Admission Release](./goldencode-local-context-admission-release-2026-08-30.zh-CN.md) |
 | Current Tencent-only routing / TianKuan suspension | [TianKuan Suspension Record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md) |
 | Gateway failover release and Tencent-only public acceptance | [GoldenCode Failover Release](./goldencode-failover-release-2026-09-07.zh-CN.md) |
+| Final provider error / stop client automatic retry | [GoldenCode Terminal Retry Contract](./goldencode-terminal-retry-contract-2026-09-07.zh-CN.md) |
 | Tencent/TianKuan bidirectional failover code/configuration | [GoldenCode Failover Implementation](./goldencode-failover-implementation-2026-09-07.zh-CN.md) |
 | Tencent/TianKuan bidirectional failover design | [GoldenCode Failover Implementation Plan](./goldencode-tencent-tiankuan-failover-implementation-plan-2026-09-07.zh-CN.md) |
 | External Codex configuration | [Codex GoldenCode External Access](./codex-goldencode-external-access.md) |
