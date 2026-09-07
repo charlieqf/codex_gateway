@@ -1,6 +1,6 @@
 # Runbook Index
 
-Last updated: 2026-08-31.
+Last updated: 2026-09-07.
 
 Choose one path for the task. Do not read every operations document.
 
@@ -32,6 +32,9 @@ documents.
 | Task | Runbook |
 | --- | --- |
 | GoldenCode Local context admission | [Local Context Admission Release](./goldencode-local-context-admission-release-2026-08-30.zh-CN.md) |
+| Current Tencent-only routing / TianKuan suspension | [TianKuan Suspension Record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md) |
+| Tencent/TianKuan bidirectional failover code/configuration | [GoldenCode Failover Implementation (not deployed)](./goldencode-failover-implementation-2026-09-07.zh-CN.md) |
+| Tencent/TianKuan bidirectional failover design | [GoldenCode Failover Implementation Plan](./goldencode-tencent-tiankuan-failover-implementation-plan-2026-09-07.zh-CN.md) |
 | External Codex configuration | [Codex GoldenCode External Access](./codex-goldencode-external-access.md) |
 | CN1 loopback/dark edge | [CN1 GoldenCode Gateway](./cn1-goldencode-gateway.md) |
 | R760 image egress | [R760 Mihomo Image Egress](./r760-mihomo-image-egress.md) |

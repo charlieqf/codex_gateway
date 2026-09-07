@@ -202,6 +202,7 @@ import {
   assessProviderCompletion,
   attachProviderStreamSummary,
   combineProviderStreamSummaries,
+  combineSuccessfulProviderStreamSummaries,
   collectProviderMessage,
   providerCompletionError,
   providerStreamSummaryFromError,
@@ -272,6 +273,8 @@ import {
 } from "./services/tool-loop-shadow.js";
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
+import { NativeCallBudget, canFailoverNativeError, nativeFailoverEnabled, runNativeToolFailover } from "./services/native-tool-failover.js";
+import { quotaCooldownMs, type QuotaRequestShape } from "./services/provider-quota-circuit.js";
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
   resolveVisionAssetService,
@@ -451,6 +454,12 @@ export function buildGateway(options: GatewayOptions = {}) {
   const chatRequestTimeoutPolicy = parseChatRequestTimeoutPolicy(process.env, (message) =>
     app.log.warn(message)
   );
+  const goldencodeNativeFailover = nativeFailoverEnabled(process.env.GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE);
+  const failoverSubjectIds = process.env.GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS?.trim();
+  const goldencodeFailoverSubjects = new Set(failoverSubjectIds ? failoverSubjectIds.split(",").map((id) => id.trim()) : []);
+  if (goldencodeFailoverSubjects.has("")) {
+    throw new Error("GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS must not contain empty entries.");
+  }
   const nativeToolForceRequiredMode = parseNativeToolForceRequiredMode(
     process.env.MEDCODE_NATIVE_TOOL_FORCE_REQUIRED_MODE,
     (message) => app.log.warn(message)
@@ -529,7 +538,8 @@ export function buildGateway(options: GatewayOptions = {}) {
       tiankuan: tiankuanAdapters,
       tokenswitch: tokenSwitchAdapters
     },
-    clock
+    clock,
+    app.log
   );
   const chatRuntimeDispatcher = createChatRuntimeDispatcher({
     codexRouter: upstreamRouter,
@@ -2344,6 +2354,11 @@ export function buildGateway(options: GatewayOptions = {}) {
       subject,
       scope,
       affinityKey,
+      quotaRequest: publicModel.id === "goldencode" && modality === "text" ? {
+        promptTokens: estimatePromptTokens(chatMessagesToPrompt(parsed, { includeToolsContext: false }),
+          chatCompletionEstimateExtras(parsed, false, "tencent")),
+        maximumOutputTokens: parsed.maximumOutputTokens ?? publicModel.maxOutputTokens
+      } : undefined,
       createSession: createStatelessSession
     });
     if (attempt instanceof GatewayError) {
@@ -2352,6 +2367,11 @@ export function buildGateway(options: GatewayOptions = {}) {
     applyChatRuntimeContext(request, attempt);
     const shape = createChatCompletionShape(parsed.model);
     const nativeClientTools = hasNativeClientTools(parsed, attempt.runtime);
+    const goldencodeRequestFailover = publicModel.id === "goldencode" &&
+      publicModel.runtime === "pool" && modality === "text" &&
+      publicModel.pool!.members.every((member) => member.runtime === "tencent" || member.runtime === "tiankuan") &&
+      goldencodeNativeFailover && (!goldencodeFailoverSubjects.size || goldencodeFailoverSubjects.has(subject.id));
+    const nativeFailover = nativeClientTools && goldencodeRequestFailover;
     const strictClientTools = hasStrictClientTools(parsed) && !nativeClientTools;
     request.gatewayToolChoice = serializeToolChoice(
       nativeClientTools
@@ -2621,7 +2641,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderEvent
           });
           if (strictResult instanceof GatewayError) {
-            recordChatRuntimeErrorOutcome(attempt, strictResult);
+            attempt.recordError(strictResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
             request.gatewayErrorCode = strictResult.code;
             writeOpenAIStreamError(request, reply, sse, strictResult);
@@ -2665,7 +2685,17 @@ export function buildGateway(options: GatewayOptions = {}) {
           }
         } else if (nativeClientTools) {
           const onProviderError = createProviderErrorLogger(request);
-          const nativeResult = await runNativeClientTools({
+          const nativeResult = await runNativeWithFailover({
+            failover: nativeFailover,
+            runtime: attempt,
+            deadlineAt: deadline.deadlineAt,
+            now: clock,
+            outputCommitted: () => initialChunkSent || sse.isClosed(),
+            selected: (next) => {
+              attempt = next;
+              applyChatRuntimeContext(request, next);
+              activeRequest.update({ upstreamRuntime: next.runtime, upstreamAccountId: next.adapterInputUpstreamAccount.id });
+            },
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
             upstreamRuntime: attempt.runtime,
@@ -2685,7 +2715,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             onProviderEvent
           });
           if (nativeResult instanceof GatewayError) {
-            recordChatRuntimeErrorOutcome(attempt, nativeResult);
+            if (!nativeFailover) attempt.recordError(nativeResult);
             markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
             request.gatewayErrorCode = nativeResult.code;
             writeOpenAIStreamError(request, reply, sse, nativeResult);
@@ -2693,7 +2723,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           } else if (nativeResult.toolCalls.length > 0) {
             writeInitialChunk();
             activeRequest.markFirstByte();
-            if (!sse.isClosed()) {
+            if (!nativeFailover && !sse.isClosed()) {
               attempt.recordSuccess();
             }
             hasToolCalls = true;
@@ -2722,7 +2752,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           } else {
             writeInitialChunk();
             activeRequest.markFirstByte();
-            if (!sse.isClosed()) {
+            if (!nativeFailover && !sse.isClosed()) {
               attempt.recordSuccess();
             }
             usage = nativeResult.usage;
@@ -2786,8 +2816,10 @@ export function buildGateway(options: GatewayOptions = {}) {
                 attempt.recordError(error);
                 if (
                   !initialChunkSent &&
+                  !deadline.signal.aborted &&
+                  (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
                   statelessAttempts < maxStatelessAttempts &&
-                  isStatelessRetryableProviderError(error) &&
+                  (goldencodeRequestFailover ? canFailoverNativeError(error, errorSummary) : isStatelessRetryableProviderError(error)) &&
                   attempt.beginRetry
                 ) {
                   attemptedAccountIds.add(attempt.runtimeInstanceId);
@@ -2860,8 +2892,10 @@ export function buildGateway(options: GatewayOptions = {}) {
                 attempt.recordError(completionError);
                 if (
                   !initialChunkSent &&
+                  !deadline.signal.aborted &&
+                  (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
                   statelessAttempts < maxStatelessAttempts &&
-                  isStatelessRetryableProviderError(completionError) &&
+                  (goldencodeRequestFailover ? canFailoverNativeError(completionError) : isStatelessRetryableProviderError(completionError)) &&
                   attempt.beginRetry
                 ) {
                   attemptedAccountIds.add(attempt.runtimeInstanceId);
@@ -2909,10 +2943,9 @@ export function buildGateway(options: GatewayOptions = {}) {
                   }
                 }
               }
-              markProviderStreamSummary(
-                request,
-                combineProviderStreamSummaries(providerSummaries) ?? successSummary
-              );
+              const finalSummary = combineSuccessfulProviderStreamSummaries(providerSummaries) ?? successSummary;
+              usage = openAIUsageFromTokenUsage(finalSummary.usage ?? undefined);
+              markProviderStreamSummary(request, finalSummary);
             }
             break;
           }
@@ -2944,7 +2977,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     let usage: OpenAIChatUsage | null = null;
     const deadline = createChatRequestDeadline({
       timeoutMs: chatRequestTimeoutMs,
-      parentSignals: [executionOptions.signal],
+      parentSignals: [executionOptions.signal, request.gatewayClientDisconnect?.signal],
       now: clock()
     });
     const activeRequest = beginActiveRequest(attempt, deadline.deadlineAt);
@@ -2974,7 +3007,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderEvent
         });
         if (strictResult instanceof GatewayError) {
-          recordChatRuntimeErrorOutcome(attempt, strictResult);
+          attempt.recordError(strictResult);
           markProviderStreamSummary(request, providerStreamSummaryFromError(strictResult));
           return fail(strictResult);
         }
@@ -2988,7 +3021,17 @@ export function buildGateway(options: GatewayOptions = {}) {
         markOpenAITokenUsage(request, usage);
       } else if (nativeClientTools) {
         const onProviderError = createProviderErrorLogger(request);
-        const nativeResult = await runNativeClientTools({
+        const nativeResult = await runNativeWithFailover({
+          failover: nativeFailover,
+          runtime: attempt,
+          deadlineAt: deadline.deadlineAt,
+          now: clock,
+          outputCommitted: () => false,
+          selected: (next) => {
+            attempt = next;
+            applyChatRuntimeContext(request, next);
+            activeRequest.update({ upstreamRuntime: next.runtime, upstreamAccountId: next.adapterInputUpstreamAccount.id });
+          },
           provider: attempt.adapter,
           upstreamAccount: attempt.adapterInputUpstreamAccount,
           upstreamRuntime: attempt.runtime,
@@ -3008,11 +3051,11 @@ export function buildGateway(options: GatewayOptions = {}) {
           onProviderEvent
         });
         if (nativeResult instanceof GatewayError) {
-          recordChatRuntimeErrorOutcome(attempt, nativeResult);
+          if (!nativeFailover) attempt.recordError(nativeResult);
           markProviderStreamSummary(request, providerStreamSummaryFromError(nativeResult));
           return fail(nativeResult);
         }
-        attempt.recordSuccess();
+        if (!nativeFailover) attempt.recordSuccess();
         activeRequest.markFirstByte();
         markFirstByte(request);
         content = nativeResult.content;
@@ -3061,8 +3104,10 @@ export function buildGateway(options: GatewayOptions = {}) {
             }
             attempt.recordError(attemptResult);
             if (
+              !deadline.signal.aborted &&
+              (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
               statelessAttempts < maxStatelessAttempts &&
-              isStatelessRetryableProviderError(attemptResult) &&
+              (goldencodeRequestFailover ? canFailoverNativeError(attemptResult) : isStatelessRetryableProviderError(attemptResult)) &&
               attempt.beginRetry
             ) {
               attemptedAccountIds.add(attempt.runtimeInstanceId);
@@ -3107,12 +3152,9 @@ export function buildGateway(options: GatewayOptions = {}) {
         }
         content = collected.content;
         toolCalls.push(...collected.toolCalls.map(providerToolCallToOpenAI));
-        usage = openAIUsageFromTokenUsage(collected.usage);
-        markProviderStreamSummary(
-          request,
-          combineProviderStreamSummaries(providerSummaries) ?? collected.providerSummary
-        );
-        markTokenUsage(request, collected.usage);
+        const finalSummary = combineSuccessfulProviderStreamSummaries(providerSummaries) ?? collected.providerSummary;
+        usage = openAIUsageFromTokenUsage(finalSummary.usage ?? undefined);
+        markProviderStreamSummary(request, finalSummary);
       }
 
       return createChatCompletionResponse({
@@ -3452,7 +3494,7 @@ function publicSessionStreamEvent(event: StreamEvent): StreamEvent {
 interface StrictClientToolsInput {
   provider: ProviderAdapter;
   upstreamAccount: UpstreamAccount;
-  upstreamRuntime: string;
+  upstreamRuntime: ChatRuntimeContext["runtime"];
   upstreamModel: string;
   subject: Subject;
   scope: Scope;
@@ -3469,6 +3511,9 @@ interface StrictClientToolsInput {
 }
 
 interface NativeClientToolsInput extends StrictClientToolsInput {
+  callBudget?: NativeCallBudget;
+  onNativeCall?: (shape: QuotaRequestShape) => void;
+  failoverAttempt?: boolean;
   nativeToolForceRequiredMode: NativeToolForceRequiredMode;
 }
 
@@ -3489,6 +3534,37 @@ interface StrictToolCollection {
   parsed: StrictToolDecision | GatewayError;
 }
 
+async function runNativeWithFailover(input: NativeClientToolsInput & {
+  failover: boolean;
+  runtime: ChatRuntimeContext;
+  deadlineAt: Date | null;
+  now: () => Date;
+  outputCommitted: () => boolean;
+  selected: (runtime: ChatRuntimeContext) => void;
+}): Promise<StrictClientToolsResult | GatewayError> {
+  const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget) => runNativeClientTools({
+    ...input, callBudget,
+    request: { ...input.request, maximumOutputTokens: input.request.maximumOutputTokens ?? runtime.limits.maxOutputTokens },
+    onNativeCall: runtime.updateQuotaRequest,
+    failoverAttempt: runtime.runtimeInstanceId !== input.runtime.runtimeInstanceId,
+    provider: runtime.adapter, upstreamAccount: runtime.adapterInputUpstreamAccount,
+    upstreamRuntime: runtime.runtime, upstreamModel: runtime.upstreamModel,
+    subject: runtime.subject, scope: runtime.scope, session: runtime.session,
+    reasoningEffort: runtime.reasoningEffort
+  });
+  if (!input.failover) {
+    return input.runtime.updateQuotaRequest ? execute(input.runtime) : runNativeClientTools(input);
+  }
+  const result = await runNativeToolFailover({
+    ...input,
+    signal: input.signal!,
+    onDecision: (fields) => input.log?.info({ request_id: input.requestId, ...fields }, "Native tool provider failover assessed."),
+    execute
+  });
+  if (result instanceof GatewayError) return result;
+  return { ...result, usage: openAIUsageFromTokenUsage(result.providerSummary?.usage ?? undefined) };
+}
+
 async function runNativeClientTools(
   input: NativeClientToolsInput
 ): Promise<StrictClientToolsResult | GatewayError> {
@@ -3507,7 +3583,8 @@ async function runNativeClientTools(
     );
   }
 
-  const first = await collectNativeClientTools(input, firstToolChoice, input.prompt, "native_initial");
+  const first = await collectNativeClientTools(input, firstToolChoice, input.prompt,
+    input.failoverAttempt ? "stateless_retry" : "native_initial");
   if (first instanceof GatewayError) {
     return first;
   }
@@ -3529,7 +3606,7 @@ async function runNativeClientTools(
       firstResult,
       input.prompt
     );
-    if (!retryPlan) {
+    if (!retryPlan || input.callBudget?.remaining === 0) {
       return firstResult;
     }
 
@@ -3574,7 +3651,7 @@ async function runNativeClientTools(
     input.prompt,
     input.nativeToolForceRequiredMode
   );
-  if (!retryPlan) {
+  if (!retryPlan || input.callBudget?.remaining === 0) {
     return validateNativeCompletion(firstResult);
   }
 
@@ -3635,11 +3712,21 @@ function attachPreviousProviderStreamSummaries(
 }
 
 async function collectNativeClientTools(
-  input: StrictClientToolsInput,
+  input: NativeClientToolsInput,
   toolChoice: ChatCompletionRequest["toolChoice"],
   prompt = input.prompt,
   attemptKind = "native"
 ): Promise<CollectedProviderMessage | GatewayError> {
+  if (input.signal?.aborted) {
+    return input.signal.reason instanceof GatewayError ? input.signal.reason : new GatewayError({
+      code: "client_aborted", message: "Request ended before native provider execution.", httpStatus: 499
+    });
+  }
+  input.callBudget?.consume();
+  input.onNativeCall?.({
+    promptTokens: estimatePromptTokens(prompt, chatCompletionEstimateExtras(input.request, false, input.upstreamRuntime)),
+    maximumOutputTokens: input.request.maximumOutputTokens!
+  });
   const chatMessages = localOpenAIChatMessagesForAttempt(input, prompt);
   return collectProviderMessage({
     provider: input.provider,
@@ -7701,7 +7788,8 @@ function assertUniqueOpenAICompatibleAdapterTargetIds(
 function createPublicModelPoolRouters(
   models: PublicModelConfig[],
   adaptersByRuntime: Record<PublicModelPoolRuntimeKind, OpenAICompatibleAdapterMap>,
-  now: () => Date
+  now: () => Date,
+  log: StrictClientToolsLogger
 ): PublicModelPoolRouters {
   const routers: PublicModelPoolRouters = new Map();
   for (const model of models) {
@@ -7728,6 +7816,11 @@ function createPublicModelPoolRouters(
       routers.set(
         model.id,
         new UpstreamAccountRouter(runtimes, {
+          onQuotaStateChanged: (accountId, state) => log.info({
+            public_model_id: model.id, upstream_account_id: accountId, quota_circuit: state
+          }, "Provider quota circuit state changed."),
+          quotaCooldownMs: model.id === "goldencode" && model.pool.members.every((m) => m.runtime === "tencent" || m.runtime === "tiankuan")
+            ? quotaCooldownMs(process.env.GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS) : undefined,
           softAffinity: "credential",
           cooldown: defaultUpstreamCooldown(),
           now
@@ -7910,18 +8003,6 @@ function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome |
 
 function isStatelessRetryableProviderError(error: GatewayError): boolean {
   return upstreamOutcomeFromError(error) !== null;
-}
-
-function recordChatRuntimeErrorOutcome(
-  runtime: ChatRuntimeContext,
-  error: GatewayError
-): void {
-  if (error.code === "client_aborted") {
-    return;
-  }
-  if (!runtime.recordError(error)) {
-    runtime.recordSuccess();
-  }
 }
 
 function recordUpstreamErrorOutcome(

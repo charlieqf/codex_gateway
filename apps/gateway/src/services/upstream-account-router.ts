@@ -9,6 +9,7 @@ import {
   type UpstreamAccountState
 } from "@codex-gateway/core";
 import type { ImageGenerationProvider } from "../image-generation.js";
+import { ProviderQuotaCircuit, type ProviderQuotaState, type QuotaRequestShape } from "./provider-quota-circuit.js";
 
 export interface UpstreamAccountRuntimeInput {
   upstreamAccount: UpstreamAccount;
@@ -25,7 +26,9 @@ export interface UpstreamAccountSelection {
 }
 
 export interface UpstreamAccountLease extends UpstreamAccountSelection {
+  updateQuotaRequest?(shape: QuotaRequestShape): void;
   release(): void;
+  recordOutcome(outcome: UpstreamAccountOutcome): void;
 }
 
 export interface UpstreamImageLease {
@@ -40,6 +43,7 @@ export type UpstreamAccountOutcome =
   | "success"
   | "provider_reauth_required"
   | "rate_limited"
+  | "quota_exhausted"
   | "service_error";
 
 export type ImageProviderOutcome =
@@ -88,6 +92,7 @@ interface UpstreamAccountRuntime {
   weight: number;
   maxConcurrent: number | null;
   inflight: number;
+  quota?: ProviderQuotaCircuit;
   image: {
     state: "active" | "key_invalid" | "unhealthy" | "missing";
     cooldownUntil: Date | null;
@@ -96,6 +101,8 @@ interface UpstreamAccountRuntime {
 }
 
 interface UpstreamAccountRouterOptions {
+  quotaCooldownMs?: number;
+  onQuotaStateChanged?: (accountId: string, state: ProviderQuotaState) => void;
   softAffinity?: UpstreamSoftAffinity;
   cooldown?: UpstreamAccountCooldownConfig;
   onAccountUpdated?: (account: UpstreamAccount) => void;
@@ -118,6 +125,7 @@ export class UpstreamAccountRouter {
   private readonly runtimes: UpstreamAccountRuntime[];
   private readonly cooldown: UpstreamAccountCooldownConfig;
   private readonly onAccountUpdated?: (account: UpstreamAccount) => void;
+  private readonly onQuotaStateChanged?: UpstreamAccountRouterOptions["onQuotaStateChanged"];
   private readonly now: () => Date;
 
   constructor(inputs: UpstreamAccountRuntimeInput[], options: UpstreamAccountRouterOptions = {}) {
@@ -127,6 +135,7 @@ export class UpstreamAccountRouter {
     this.softAffinity = options.softAffinity ?? "credential";
     this.cooldown = options.cooldown ?? defaultCooldown();
     this.onAccountUpdated = options.onAccountUpdated;
+    this.onQuotaStateChanged = options.onQuotaStateChanged;
     this.now = options.now ?? (() => new Date());
     const ids = new Set<string>();
     this.runtimes = inputs.map((input) => {
@@ -152,6 +161,7 @@ export class UpstreamAccountRouter {
         weight: input.weight ?? 1,
         maxConcurrent: input.maxConcurrent ?? null,
         inflight: 0,
+        quota: options.quotaCooldownMs ? new ProviderQuotaCircuit(options.quotaCooldownMs, () => this.now().getTime()) : undefined,
         image: {
           state: input.upstreamAccount.imageApiKeyEnv && input.imageProvider ? "active" : "missing",
           cooldownUntil: null,
@@ -207,13 +217,13 @@ export class UpstreamAccountRouter {
   }
 
   beginStateless(
-    input: { affinityKey?: string | null; excludeAccountIds?: Iterable<string> } = {}
+    input: { affinityKey?: string | null; excludeAccountIds?: Iterable<string>; quotaRequest?: QuotaRequestShape } = {}
   ): UpstreamAccountLease | GatewayError {
-    const runtime = this.chooseRuntime(input.affinityKey ?? null, input.excludeAccountIds);
+    const runtime = this.chooseRuntime(input.affinityKey ?? null, input.excludeAccountIds, input.quotaRequest);
     if (runtime instanceof GatewayError) {
       return runtime;
     }
-    return this.lease(runtime);
+    return this.lease(runtime, input.quotaRequest);
   }
 
   beginImage(
@@ -234,6 +244,7 @@ export class UpstreamAccountRouter {
 
     const now = this.now();
     if (outcome === "success") {
+      if (runtime.quota && runtime.quota.blockedUntil !== null) return runtime.upstreamAccount;
       runtime.upstreamAccount.state = "active";
       runtime.upstreamAccount.lastUsedAt = now;
       runtime.upstreamAccount.cooldownUntil = null;
@@ -316,7 +327,7 @@ export class UpstreamAccountRouter {
       });
     }
     const nowMs = this.now().getTime();
-    if (isCoolingDown(runtime.upstreamAccount, nowMs)) {
+    if (isCoolingDown(runtime.upstreamAccount, nowMs) || (runtime.quota && !runtime.quota.allows())) {
       return new GatewayError({
         code: "rate_limited",
         message: "The upstream account for this session is cooling down.",
@@ -337,7 +348,8 @@ export class UpstreamAccountRouter {
 
   private chooseRuntime(
     affinityKey: string | null,
-    excludeAccountIds: Iterable<string> | undefined
+    excludeAccountIds: Iterable<string> | undefined,
+    quotaRequest?: QuotaRequestShape
   ): UpstreamAccountRuntime | GatewayError {
     const excluded = new Set(excludeAccountIds ?? []);
     const nowMs = this.now().getTime();
@@ -346,6 +358,7 @@ export class UpstreamAccountRouter {
         !excluded.has(runtime.upstreamAccount.id) &&
         runtime.enabled &&
         runtime.upstreamAccount.state === "active" &&
+        (!runtime.quota || runtime.quota.allows(quotaRequest)) &&
         !isCoolingDown(runtime.upstreamAccount, nowMs) &&
         !isAtConcurrencyCap(runtime)
     );
@@ -398,6 +411,7 @@ export class UpstreamAccountRouter {
         (runtime) =>
           runtime.enabled &&
           runtime.upstreamAccount.state === "active" &&
+          (!runtime.quota || runtime.quota.allows()) &&
           !isCoolingDown(runtime.upstreamAccount, nowMs) &&
           !isAtConcurrencyCap(runtime)
       ) ?? null
@@ -417,7 +431,8 @@ export class UpstreamAccountRouter {
     const busy = enabled.filter(
       (runtime) =>
         runtime.upstreamAccount.state === "active" &&
-        (isCoolingDown(runtime.upstreamAccount, nowMs) || isAtConcurrencyCap(runtime))
+        (isCoolingDown(runtime.upstreamAccount, nowMs) || isAtConcurrencyCap(runtime) ||
+          (runtime.quota && !runtime.quota.allows()))
     );
     if (busy.length > 0) {
       return new GatewayError({
@@ -464,17 +479,53 @@ export class UpstreamAccountRouter {
     });
   }
 
-  private lease(runtime: UpstreamAccountRuntime): UpstreamAccountLease {
+  private lease(runtime: UpstreamAccountRuntime, shape?: QuotaRequestShape): UpstreamAccountLease {
+    if (runtime.quota && !shape) {
+      throw new Error("Quota-aware leases require a request token budget.");
+    }
+    const ticket = runtime.quota && shape ? runtime.quota.begin(shape) : undefined;
+    const reportQuota = () => {
+      if (runtime.quota) this.onQuotaStateChanged?.(runtime.upstreamAccount.id, runtime.quota.snapshot());
+    };
+    if (ticket?.recovery) reportQuota();
     runtime.inflight += 1;
     let released = false;
+    let outcomeRecorded = false;
+    const syncQuota = () => {
+      const until = runtime.quota?.blockedUntil;
+      if (until !== null && until !== undefined) {
+        runtime.upstreamAccount.cooldownUntil = new Date(Math.max(until, runtime.upstreamAccount.cooldownUntil?.getTime() ?? 0));
+        this.onAccountUpdated?.(runtime.upstreamAccount);
+      }
+    };
     return {
       upstreamAccount: runtime.upstreamAccount,
       provider: runtime.provider,
+      recordOutcome: (outcome) => {
+        if (released || outcomeRecorded) return;
+        outcomeRecorded = true;
+        if (ticket) runtime.quota!.finish(ticket, outcome === "quota_exhausted" ? "quota" : outcome === "success" ? "success" : "other");
+        this.recordOutcome(runtime.upstreamAccount.id, outcome);
+        syncQuota();
+        if (ticket && (ticket.recovery || outcome === "quota_exhausted")) reportQuota();
+      },
+      ...(ticket ? { updateQuotaRequest: (actual: QuotaRequestShape) => {
+        if (released || outcomeRecorded) return;
+        ticket.shape = {
+          promptTokens: Math.max(ticket.shape.promptTokens, actual.promptTokens),
+          maximumOutputTokens: Math.max(ticket.shape.maximumOutputTokens, actual.maximumOutputTokens)
+        };
+      } } : {}),
       release: () => {
         if (released) {
           return;
         }
         released = true;
+        if (!outcomeRecorded && ticket) {
+          runtime.quota!.finish(ticket, "other");
+          syncQuota();
+          if (ticket.recovery) reportQuota();
+        }
         runtime.inflight = Math.max(0, runtime.inflight - 1);
       }
     };

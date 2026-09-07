@@ -609,6 +609,21 @@ export function combineProviderStreamSummaries(
   };
 }
 
+/** Aggregate billed work, while successful delivery has no terminal provider failure. */
+export function combineSuccessfulProviderStreamSummaries(
+  summaries: ProviderStreamSummary[]
+): ProviderStreamSummary | null {
+  const combined = combineProviderStreamSummaries(summaries);
+  const terminal = summaries.at(-1);
+  return combined && terminal ? {
+    ...combined,
+    errorCode: null,
+    failure: null,
+    upstreamRequestId: terminal.upstreamRequestId,
+    upstreamHttpStatus: terminal.upstreamHttpStatus
+  } : combined;
+}
+
 export function withProviderStreamAttempt(
   summary: ProviderStreamSummary,
   attempt: ProviderStreamAttemptContext | undefined
@@ -621,7 +636,8 @@ export function withProviderStreamAttempt(
 
 export function attachProviderStreamSummary(
   error: GatewayError,
-  summary: ProviderStreamSummary
+  summary: ProviderStreamSummary,
+  options: { preserveAttemptOutcomes?: boolean } = {}
 ): GatewayError {
   const failure = error.providerFailure ?? summary.failure;
   if (failure && !error.providerFailure) {
@@ -630,7 +646,7 @@ export function attachProviderStreamSummary(
       configurable: true
     });
   }
-  const attempts = summary.attempts.map((attempt, index) =>
+  const attempts = options.preserveAttemptOutcomes ? summary.attempts : summary.attempts.map((attempt, index) =>
     index === summary.attempts.length - 1
       ? {
           ...attempt,

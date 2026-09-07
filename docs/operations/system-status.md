@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-06.
+Last verified: 2026-09-07 (Gateway routing and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,7 +18,7 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Read-only verification on 2026-09-06:
+Gateway and Compose verification on 2026-09-07; local inference verification on 2026-09-06:
 
 - `current`:
   `b641ebbcc02b616726909fac4bda8ee9e4901981`
@@ -32,8 +32,12 @@ Read-only verification on 2026-09-06:
 
 The public text surface contains:
 
-- `goldencode`: sticky Tencent GLM-5.3 and TianKuan official/GLM-5.3 pool
+- `goldencode`: Tencent GLM-5.3 only; TianKuan is disabled pending payment and explicit restoration.
 - `goldencode-local`: R760 Qwen3.8-27B-FP8 local route
+
+The [TianKuan suspension record](./goldencode-tiankuan-suspension-2026-09-07.zh-CN.md)
+contains the verified configuration backup and Tencent smoke evidence. The failover
+implementation is not deployed or enabled in production.
 
 Image generation remains separate under client model
 `medcode-image-default`; its primary upstream is the external

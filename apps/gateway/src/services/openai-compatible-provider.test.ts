@@ -16,6 +16,40 @@ import {
 import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js";
 
 describe("OpenAICompatibleProviderAdapter", () => {
+  it("preserves HTTP failure without inventing an empty-body hash when reading fails", async () => {
+    const events = await providerEvents(async () => new Response(new ReadableStream({
+      start(controller) { controller.error(new Error("body reset")); }
+    }), { status: 402, headers: { "x-request-id": "header_quota_id" } }));
+    expect(events[0]).toMatchObject({ type: "error", responseSummary: {
+      upstreamHttpStatus: 402, upstreamRequestId: "header_quota_id", rawResponseHash: null, rawResponseChars: null
+    } });
+  });
+
+  it.each([
+    ["quota_request_123", "quota_request_123"],
+    ["sk-test-redacted", null],
+    ["prefix-sk-test-redacted-end", null],
+    ["cgu_live_sensitive", null],
+    ["bad id with spaces", null],
+    ["x".repeat(161), null]
+  ])("records safe error-body request identifiers: %s", async (requestId, expected) => {
+    const events = await providerEvents(async () => new Response(JSON.stringify({
+      request_id: requestId, error: { message: "quota exhausted" }
+    }), { status: 402, headers: { "content-type": "application/json" } }));
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "error", responseSummary: {
+      upstreamHttpStatus: 402, upstreamRequestId: expected, semanticOutputChars: 0, terminationKind: "error"
+    } });
+    expect(events[0]).not.toHaveProperty("responseSummary.rawResponse");
+  });
+
+  it("prefers the error response header ID over an error-body ID", async () => {
+    const events = await providerEvents(async () => new Response(JSON.stringify({ request_id: "body_id" }), {
+      status: 503, headers: { "content-type": "application/json", "x-request-id": "header_id" }
+    }));
+    expect(events[0]).toMatchObject({ responseSummary: { upstreamRequestId: "header_id", upstreamHttpStatus: 503 } });
+  });
+
   it("sends fixed OpenRouter model config and maps streaming usage", async () => {
     const captured: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
     const server = await startSseServer(async (request, body, response) => {

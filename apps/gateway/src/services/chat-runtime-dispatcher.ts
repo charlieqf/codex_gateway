@@ -18,6 +18,7 @@ import {
   type UpstreamAccountRouter,
   type UpstreamSoftAffinity
 } from "./upstream-account-router.js";
+import type { QuotaRequestShape } from "./provider-quota-circuit.js";
 
 export type UpstreamRuntimeKind =
   | "codex"
@@ -48,6 +49,7 @@ export interface ChatRuntimeContext {
   scope: Scope;
   session: GatewaySession;
   release(): void;
+  updateQuotaRequest?(shape: QuotaRequestShape): void;
   recordSuccess(): void;
   recordError(error: GatewayError): boolean;
   beginRetry?(input: { excludeAccountIds: Iterable<string> }): ChatRuntimeContext | GatewayError;
@@ -58,6 +60,7 @@ export interface ChatRuntimeDispatcher {
 }
 
 interface RuntimeBeginInput {
+  quotaRequest?: QuotaRequestShape;
   model: PublicModelConfig;
   modality?: "text" | "vision";
   reasoningEffort: string | null;
@@ -239,7 +242,8 @@ function beginPoolRuntime(
   }
   const lease = router.beginStateless({
     affinityKey: input.affinityKey,
-    excludeAccountIds
+    excludeAccountIds,
+    quotaRequest: input.quotaRequest
   });
   if (lease instanceof GatewayError) {
     return lease;
@@ -256,7 +260,6 @@ function beginPoolRuntime(
     });
   }
   return contextFromLease({
-    router,
     lease,
     input,
     runtime: member.runtime,
@@ -279,7 +282,6 @@ function beginCodexRuntime(
     return lease;
   }
   return contextFromLease({
-    router,
     lease,
     input,
     runtime: "codex",
@@ -290,7 +292,6 @@ function beginCodexRuntime(
 }
 
 function contextFromLease(input: {
-  router: UpstreamAccountRouter;
   lease: UpstreamAccountLease;
   input: RuntimeBeginInput;
   runtime: UpstreamRuntimeKind;
@@ -298,7 +299,7 @@ function contextFromLease(input: {
   reasoningEffort: string | null;
   beginRetry(input: { excludeAccountIds: Iterable<string> }): ChatRuntimeContext | GatewayError;
 }): ChatRuntimeContext {
-  const { router, lease } = input;
+  const { lease } = input;
   const beginInput = input.input;
   const session = beginInput.createSession(beginInput.subject.id, lease.upstreamAccount.id);
   return {
@@ -318,15 +319,14 @@ function contextFromLease(input: {
     scope: beginInput.scope,
     session,
     release: () => lease.release(),
-    recordSuccess: () => {
-      router.recordOutcome(lease.upstreamAccount.id, "success");
-    },
+    updateQuotaRequest: lease.updateQuotaRequest,
+    recordSuccess: () => lease.recordOutcome("success"),
     recordError: (error) => {
       const outcome = upstreamOutcomeFromError(error);
       if (!outcome) {
         return false;
       }
-      router.recordOutcome(lease.upstreamAccount.id, outcome);
+      lease.recordOutcome(outcome);
       return true;
     },
     beginRetry: input.beginRetry
@@ -378,6 +378,9 @@ function reasoningEffortFromConfig(reasoning: Record<string, unknown> | undefine
 }
 
 function upstreamOutcomeFromError(error: GatewayError): UpstreamAccountOutcome | null {
+  if (error.providerFailure?.origin === "provider" && error.providerFailure.upstreamStatus === 402) {
+    return "quota_exhausted";
+  }
   if (error.code === "provider_reauth_required") {
     return "provider_reauth_required";
   }

@@ -1,6 +1,6 @@
 # Runtime configuration change matrix
 
-Last updated: 2026-08-26
+Last updated: 2026-09-07
 
 This document distinguishes source/image changes, startup-only container
 configuration and already-online database policy. It is intended to prevent a
@@ -40,6 +40,7 @@ surface, not a recommendation to make every value dynamically writable.
 | Billing admin tokens and unified-key records | Gateway SQLite | Online issue/revoke/rotate; no restart | Keep online and database-backed |
 | MedEvidence R760 minimum Desktop version | `GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION`, read by Gateway at startup | Recreate Gateway only; no image rebuild once the supporting code is deployed, and no database migration | Keep separate from the Phone Auth gate; blank means legacy-only and rollback is an env-only Gateway recreate |
 | Upstream account health, cooldown and sticky-session state | Gateway SQLite runtime state | Updated online by routing/runtime logic | Keep online; do not confuse it with pool membership configuration |
+| GoldenCode native failover mode, subject rollout list and provider quota cooldown | Startup environment; [implementation and defaults](./goldencode-failover-implementation-2026-09-07.zh-CN.md); code not yet deployed | First deploy supporting code; subsequent setting changes recreate Gateway only | P0 subject rollout and P1 whole-pool health are separate; P1 circuit state is process-local and resets on restart; disabled pool members remain disabled |
 | Research daily runs, rolling unique doctors, active brief, global queue and `needs_input` limits | API and Worker env; store captures an immutable limits object at startup | Today: no image rebuild when the value is already supported, but recreate all Research-aware containers to maintain parity | Highest-priority online-policy candidate; make Gateway the single admission authority and expose a policy version to Worker/maintenance |
 | Research control-plane read/mutation RPM | Gateway startup-created in-process limiter | Recreate Gateway | Candidate only after a persistent/versioned rate policy is implemented; avoid a partial hot reload that leaves old limiter state ambiguous |
 | Public model registry, aliases, context/output ceilings and request timeouts | Gateway env/JSON loaded at startup | Recreate Gateway; rebuild only when parser/code changes | Keep restart-gated for now; a future versioned routing policy may move safe non-secret weights/ceilings online |

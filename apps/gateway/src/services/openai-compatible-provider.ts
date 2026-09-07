@@ -161,13 +161,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       failureStage = "after_headers";
 
       if (!response.ok) {
-        const normalized = await this.errorFromResponse(response, input, failureStage);
+        const { error: normalized, responseSummary } = await this.errorFromResponse(response, input, failureStage);
         yield {
           type: "error",
           code: normalized.code,
           message: normalized.message,
           gatewayError: normalized,
-          providerFailure: normalized.providerFailure
+          providerFailure: normalized.providerFailure,
+          responseSummary
         };
         return;
       }
@@ -437,14 +438,29 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     response: Response,
     input: MessageInput,
     stage: ProviderFailureStage
-  ): Promise<GatewayError> {
-    const body = await response.text().catch(() => "");
-    return this.normalizeAndReport(
+  ): Promise<{ error: GatewayError; responseSummary: ProviderResponseSummary }> {
+    // HTTP status remains authoritative if the optional diagnostic body cannot be read.
+    const body = await response.text().catch(() => null);
+    let bodyRequestId: unknown;
+    if (body) {
+      try { bodyRequestId = (JSON.parse(body) as { request_id?: unknown }).request_id; } catch { /* Non-JSON error body. */ }
+    }
+    const candidate = upstreamRequestId(response.headers) ?? bodyRequestId;
+    const requestId = typeof candidate === "string" && /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate) &&
+      (!this.options.apiKey || !candidate.includes(this.options.apiKey)) && !/^(sk-|xai-|cgu_)/i.test(candidate) ? candidate : null;
+    const error = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
       input,
       { stage, upstreamStatus: response.status }
     );
+    return { error, responseSummary: {
+      finishReason: null, upstreamRequestId: requestId, upstreamHttpStatus: response.status,
+      semanticOutputChars: 0, visibleOutputChars: 0,
+      rawResponseHash: body === null ? null : createHash("sha256").update(body).digest("hex"),
+      rawResponseChars: body?.length ?? null,
+      terminationKind: "error"
+    } };
   }
 
   private normalizeAndReport(

@@ -39,6 +39,49 @@ class FakeImageGenerationProvider implements ImageGenerationProvider {
 }
 
 describe("UpstreamAccountRouter", () => {
+  it("rejects a missing quota budget without consuming a lease", () => {
+    const router = new UpstreamAccountRouter([runtime("quota-member")], { quotaCooldownMs: 60000 });
+    expect(() => router.beginStateless()).toThrow("require a request token budget");
+    const valid = router.beginStateless({ quotaRequest: { promptTokens: 100, maximumOutputTokens: 8192 } });
+    expect(valid).not.toBeInstanceOf(Error);
+    if ("release" in valid) valid.release();
+  });
+  it("holds quota cooldown through stale successes and releases the sole recovery lease", () => {
+    let now = new Date(0);
+    const states: string[] = [];
+    const router = new UpstreamAccountRouter([runtime("quota-member", { maxConcurrent: 3 })], {
+      now: () => now, quotaCooldownMs: 60000,
+      onQuotaStateChanged: (_id, state) => states.push(state.state)
+    });
+    const shape = { promptTokens: 100, maximumOutputTokens: 8192 };
+    const acquire = () => {
+      const lease = router.beginStateless({ quotaRequest: shape });
+      if (!("release" in lease)) throw lease;
+      return lease;
+    };
+    const stale = acquire();
+    const failed = acquire();
+    failed.updateQuotaRequest!({ ...shape, promptTokens: 200 });
+    failed.recordOutcome("quota_exhausted"); failed.release();
+    stale.recordOutcome("success"); stale.release();
+    expect(router.beginStateless({ quotaRequest: shape })).toMatchObject({ code: "rate_limited" });
+    now = new Date(61000);
+    expect(router.beginStateless({ quotaRequest: shape })).toMatchObject({ code: "rate_limited" });
+    shape.promptTokens = 200;
+    expect(router.beginStateless({ quotaRequest: { ...shape, maximumOutputTokens: 256 } })).toMatchObject({ code: "rate_limited" });
+    const cancelled = acquire();
+    expect(router.beginStateless({ quotaRequest: shape })).toMatchObject({ code: "rate_limited" });
+    cancelled.release(); cancelled.release();
+    cancelled.recordOutcome("success"); // Completion after lease release must not restore service.
+    expect(router.beginStateless({ quotaRequest: shape })).toMatchObject({ code: "rate_limited" });
+    now = new Date(122000);
+    const recovered = acquire(); recovered.recordOutcome("success"); recovered.release();
+    const small = router.beginStateless({ quotaRequest: { promptTokens: 1, maximumOutputTokens: 256 } });
+    expect(small).not.toBeInstanceOf(Error);
+    if ("release" in small) small.release();
+    expect(states).toEqual(["open", "half_open", "open", "half_open", "closed"]);
+  });
+
   it("parses pool config and rejects duplicate account ids", () => {
     expect(() =>
       parseUpstreamAccountPoolConfig(

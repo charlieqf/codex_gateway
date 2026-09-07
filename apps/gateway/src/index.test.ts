@@ -16172,6 +16172,251 @@ async function withTemporaryEnv(
   }
 }
 
+describe("GoldenCode native provider failover", () => {
+  it.each([",", "subj_dev,", "subj_dev,,another_subject"])("rejects empty rollout entries: %s", async (subjects) => {
+    await withTemporaryEnv({ GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: subjects }, async () => {
+      expect(() => buildGateway({ provider: new FakeProvider(), logger: false })).toThrow("must not contain empty entries");
+    });
+  });
+
+  const cases = ["tencent", "tiankuan"].flatMap((first) =>
+    [false, true].flatMap((stream) => ["chat/completions", "responses"].map((api) => ({ first, stream, api })))
+  );
+
+  it.each(cases)("switches from $first, $api stream=$stream with terminal success", async ({ first, stream, api }) => {
+    await runGoldenCodeFailoverFixture({ first }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers,
+        payload: nativeFailoverPayload(api, stream) });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(calls.map((call) => call.runtime)).toEqual([first, first === "tencent" ? "tiankuan" : "tencent"]);
+      expect(response.body).toContain("call_failover_ok");
+      expect(response.body).not.toContain("upstream_unavailable");
+      expect(response.body).not.toContain("quota_test_request");
+      const event = store.listRequestEvents({ limit: 1 })[0]!;
+      expect(event.status).toBe("ok");
+      expect(event.errorCode).toBeNull();
+      expect(event.upstreamFailureOrigin).toBeNull();
+      expect(event.upstreamFailureKind).toBeNull();
+      expect(event.upstreamRequestId).toBe("success_test_request");
+      expect(event.upstreamAttempts).toHaveLength(2);
+      expect(event.upstreamAttempts?.[0]).toMatchObject({ upstreamHttpStatus: 402, upstreamRequestId: "quota_test_request" });
+      expect(event.upstreamAttempts?.[1]).toMatchObject({ upstreamHttpStatus: 200 });
+      expect(calls.every((call) => call.body.max_tokens === 8192)).toBe(true);
+    });
+  });
+
+  it("stops after two failures without exposing an incomplete tool call", async () => {
+    await runGoldenCodeFailoverFixture({ bothFail: true }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls).toHaveLength(2);
+      expect(response.body).not.toContain("call_failover_ok");
+      expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(2);
+    });
+  });
+
+  it.each([429, 503, "reset"] as const)("switches after provider %s", async (status) => {
+    await runGoldenCodeFailoverFixture({ status }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(calls).toHaveLength(2);
+    });
+  });
+
+  it("never restores or calls a disabled TianKuan member", async () => {
+    await runGoldenCodeFailoverFixture({ first: "tencent", disabledMember: "tiankuan" }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls.map((call) => call.runtime)).toEqual(["tencent"]);
+      expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(1);
+    });
+  });
+
+  it("limits rollout to the configured subjects", async () => {
+    await runGoldenCodeFailoverFixture({ subjects: "another_subject" }, async ({ app, headers, calls }) => {
+      await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it("does not repair a malformed fallback with a third call", async () => {
+    await runGoldenCodeFailoverFixture({ fallbackInvalid: true }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls.map((call) => call.runtime)).toEqual(["tiankuan", "tencent"]);
+    });
+  });
+
+  it("retains and bills both actual calls after successful argument repair", async () => {
+    await runGoldenCodeFailoverFixture({ repairSuccess: true }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(calls.map((call) => call.runtime)).toEqual(["tiankuan", "tiankuan"]);
+      expect(response.json().usage).toMatchObject({ prompt_tokens: 14, completion_tokens: 10, total_tokens: 24 });
+      const event = store.listRequestEvents({ limit: 1 })[0]!;
+      expect(event).toMatchObject({ status: "ok", totalTokens: 24 });
+      expect(event.upstreamAttempts?.map((attempt) => attempt.totalTokens)).toEqual([12, 12]);
+    });
+  });
+
+  it("sends the configured output budget when omitted by a native client", async () => {
+    await runGoldenCodeFailoverFixture({}, async ({ app, headers, calls }) => {
+      const payload = nativeFailoverPayload("chat/completions", false);
+      delete payload.max_tokens;
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(calls.map((call) => call.body.max_tokens)).toEqual([128000, 128000]);
+    });
+  });
+
+  it.each([false, true])("does not replay partial tool output, stream=%s", async (stream) => {
+    await runGoldenCodeFailoverFixture({ partial: true }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", stream) });
+      expect(response.body).toContain("error");
+      expect(response.body).not.toContain("call_failover_ok");
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it.each(cases)("preserves plain-text failover from $first, $api stream=$stream", async ({ first, stream, api }) => {
+    await runGoldenCodeFailoverFixture({ first, plain: true }, async ({ app, headers, calls, store }) => {
+      const payload = nativeFailoverPayload(api, stream);
+      delete payload.tools; delete payload.tool_choice;
+      const response = await app.inject({ method: "POST", url: `/v1/${api}`, headers, payload });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.body).toContain("failover text ok");
+      expect(calls).toHaveLength(2);
+      expect(store.listRequestEvents({ limit: 1 })[0]).toMatchObject({ status: "ok", totalTokens: 12 });
+    });
+  });
+
+  it.each([400, 401, 403, 404])("does not fail over provider HTTP %i", async (status) => {
+    await runGoldenCodeFailoverFixture({ status }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it("keeps failover disabled by default", async () => {
+    await runGoldenCodeFailoverFixture({ enabled: false }, async ({ app, headers, calls }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it("shares two calls with native argument repair", async () => {
+    await runGoldenCodeFailoverFixture({ repairThenFail: true }, async ({ app, headers, calls, store }) => {
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: nativeFailoverPayload("chat/completions", false) });
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(calls.map((call) => call.runtime)).toEqual(["tiankuan", "tiankuan"]);
+      expect(store.listRequestEvents({ limit: 1 })[0]?.upstreamAttempts).toHaveLength(2);
+    });
+  });
+
+  it("keeps a quota-failed member cold until an adequate recovery request succeeds", async () => {
+    let now = new Date("2026-09-07T01:00:00Z");
+    await runGoldenCodeFailoverFixture({ cooldown: "60", clock: () => now, recover: true }, async ({ app, headers, calls }) => {
+      const send = (maximum = 8192) => app.inject({ method: "POST", url: "/v1/chat/completions", headers,
+        payload: { ...nativeFailoverPayload("chat/completions", false), max_tokens: maximum } });
+      expect((await send()).statusCode).toBe(200);
+      expect((await send()).statusCode).toBe(200);
+      now = new Date(now.getTime() + 61000);
+      expect((await send(256)).statusCode).toBe(200);
+      expect((await send()).statusCode).toBe(200);
+      expect((await send(256)).statusCode).toBe(200);
+      expect(calls.map((call) => call.runtime)).toEqual(["tiankuan", "tencent", "tencent", "tencent", "tiankuan", "tiankuan"]);
+    });
+  });
+});
+
+function nativeFailoverPayload(api: string, stream: boolean): Record<string, unknown> {
+  const tool = { name: "lookup", description: "Look up a record", parameters: {
+    type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false
+  } };
+  return { model: "goldencode", stream, tool_choice: "required", reasoning_effort: "high",
+    ...(api === "responses" ? {
+      input: "Use lookup to inspect the test record.", tools: [{ type: "function", ...tool }], max_output_tokens: 8192
+    } : {
+      messages: [{ role: "user", content: "Use lookup to inspect the test record." }],
+      tools: [{ type: "function", function: tool }], max_tokens: 8192
+    }) };
+}
+
+async function runGoldenCodeFailoverFixture(options: {
+  first?: string; bothFail?: boolean; status?: number | "reset"; enabled?: boolean;
+  repairThenFail?: boolean; cooldown?: string; clock?: () => Date; recover?: boolean;
+  disabledMember?: string; subjects?: string; fallbackInvalid?: boolean; repairSuccess?: boolean; partial?: boolean; plain?: boolean;
+}, run: (fixture: { app: ReturnType<typeof buildGateway>; headers: Record<string, string>;
+  calls: Array<{ runtime: string; body: Record<string, unknown> }>;
+  store: ReturnType<typeof createModelEntitledStore>["store"] }) => Promise<void>): Promise<void> {
+  const first = options.first ?? "tiankuan";
+  const calls: Array<{ runtime: string; body: Record<string, unknown> }> = [];
+  const server = await startOpenAICompatibleSseServer((_request, raw, response) => {
+    const body = JSON.parse(raw) as Record<string, unknown>;
+    const runtime = String(body.model).startsWith("official/") ? "tiankuan" : "tencent";
+    calls.push({ runtime, body });
+    if (options.status === "reset" && runtime === first) { response.destroy(); return; }
+    const repair = ((options.repairThenFail || options.repairSuccess) && calls.length === 1) || (options.fallbackInvalid && calls.length === 2);
+    if (!repair && !options.repairSuccess && !options.partial && (options.bothFail || (runtime === first && (!options.recover || calls.length === 1)))) {
+      response.writeHead(typeof options.status === "number" ? options.status : 402, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "enterprise quota exhausted" }, request_id: "quota_test_request" }));
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/event-stream", "x-request-id": "success_test_request" });
+    if (options.partial) {
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "partial_call", type: "function", function: { name: "lookup", arguments: '{"query":' } }] } }] })}\n\n`);
+      response.end(`data: ${JSON.stringify({ error: { code: "server_error", message: "stream failed" } })}\n\n`);
+      return;
+    }
+    if (options.plain) {
+      response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: "failover text ok" }, finish_reason: "stop" }], usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } })}\n\n`);
+      response.end("data: [DONE]\n\n"); return;
+    }
+    response.write(`data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "call_failover_ok", type: "function",
+      function: { name: "lookup", arguments: repair ? '{"query":' : '{"query":"test"}' } }] }, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 7, completion_tokens: 5, total_tokens: 12 } })}\n\n`);
+    response.end("data: [DONE]\n\n");
+  });
+  const config = goldencodePoolConfig();
+  config.reasoning = { effort: "high" };
+  config.pool.members = config.pool.members.filter((member) => ["tencent", "tiankuan"].includes(member.runtime));
+  config.pool.members.find((member) => member.runtime === "tencent")!.upstreamModel = "glm-5.3";
+  if (options.disabledMember) config.pool.members.find((member) => member.runtime === options.disabledMember)!.enabled = false;
+  let session = "";
+  for (let i = 0; i < 1000; i += 1) {
+    session = `native-failover-${i}`;
+    if (hrwAccountForKey(`client_session:${session}`, config.pool.members.map((member) => member.id)) === `goldencode-${first}`) break;
+  }
+  try {
+    await withTemporaryEnv({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: config }),
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "tencent-test-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: server.baseUrl,
+      MEDCODE_TIANKUAN_API_KEY: "tiankuan-test-key", MEDCODE_TIANKUAN_BASE_URL: server.baseUrl,
+      GATEWAY_GOLDENCODE_NATIVE_FAILOVER_MODE: options.enabled === false ? undefined : "enforce",
+      GATEWAY_GOLDENCODE_FAILOVER_SUBJECT_IDS: options.subjects ?? "subj_dev",
+      GATEWAY_GOLDENCODE_QUOTA_COOLDOWN_SECONDS: options.cooldown ?? "0"
+    }, async () => {
+      const { store, headers } = createModelEntitledStore(["goldencode"]);
+      const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store,
+        observationStore: store, logger: false, ...(options.clock ? { now: options.clock } : {}) });
+      try { await run({ app, store, calls, headers: { ...headers, "x-medcode-client-session-id": session } }); }
+      finally { await app.close(); }
+    });
+  } finally { await server.close(); }
+}
+
 async function startOpenAICompatibleSseServer(
   handler: (
     request: http.IncomingMessage,
