@@ -33,6 +33,11 @@ describe("native failover eligibility", () => {
     expect(nativeFailoverEnabled("enforce")).toBe(true);
     expect(() => nativeFailoverEnabled("true")).toThrow();
   });
+  it("does not enable failover for a classified body timeout during streaming", () => {
+    expect(canFailoverNativeError(new GatewayError({ code: "upstream_timeout", message: "timed out", httpStatus: 504,
+      providerFailure: { origin: "network", kind: "body_timeout", stage: "streaming", upstreamStatus: 200, transportCode: "UND_ERR_BODY_TIMEOUT" }
+    }))).toBe(false);
+  });
 });
 
 describe("native failover request lifecycle", () => {

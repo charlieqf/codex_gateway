@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHash } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,9 +14,121 @@ import {
   collectProviderMessage,
   providerStreamSummaryFromError
 } from "./provider-stream.js";
+import { ProviderStreamSummaryCollector } from "./provider-stream.js";
 import { OpenAICompatibleProviderAdapter } from "./openai-compatible-provider.js";
 
 describe("OpenAICompatibleProviderAdapter", () => {
+  it.each(["body_timeout", "deadline", "client_abort", "invalid_json"] as const)(
+    "retains partial stream evidence after %s without delivering incomplete tools",
+    async (ending) => {
+      const reasoning = "synthetic private reasoning";
+      const argumentsPart = '{"content":"片段';
+      const frames = [
+        JSON.stringify({ choices: [{ delta: { reasoning_content: reasoning } }] }),
+        JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: "call_partial", function: { name: "write", arguments: argumentsPart } }] } }] }),
+        JSON.stringify({ choices: [], usage: { prompt_tokens: 7, completion_tokens: 9, total_tokens: 16 } })
+      ];
+      if (ending === "invalid_json") frames.push("{invalid-json");
+      const chunks = [":keepalive\n\n", ...frames.map((frame) => `data: ${frame}\n\n`)];
+      const controller = new AbortController();
+      const provider = new OpenAICompatibleProviderAdapter({
+        providerKind: "tencent", apiKey: "", apiKeyEnv: "SYNTHETIC_UNUSED", apiKeyRequired: false,
+        baseUrl: "https://synthetic.invalid/v1", upstreamModel: "synthetic", timeoutMs: 5000,
+        fetchImpl: async () => {
+          let index = 0;
+          return new Response(new ReadableStream({
+            pull(stream) {
+              if (index < chunks.length) {
+                stream.enqueue(new TextEncoder().encode(chunks[index++]));
+              } else if (ending === "body_timeout") {
+                stream.error(new TypeError("terminated", { cause: Object.assign(new Error("timeout"), { code: "UND_ERR_BODY_TIMEOUT" }) }));
+              } else {
+                controller.abort(new GatewayError({ code: ending === "client_abort" ? "client_aborted" : "upstream_timeout", message: "Synthetic end", httpStatus: 504 }));
+                stream.error(controller.signal.reason);
+              }
+            }
+          }, { highWaterMark: 0 }), { status: 200, headers: { "x-request-id": "safe_partial_id" } });
+        }
+      });
+      const collector = new ProviderStreamSummaryCollector();
+      const events = [];
+      for await (const event of provider.message({
+        upstreamAccount: openRouterAccount(), subject: testSubject(), session: testSession(), scope: "code",
+        message: "Synthetic task", signal: controller.signal,
+        clientTools: [{ type: "function", function: { name: "write", parameters: { type: "object" } } }]
+      })) {
+        collector.record(event);
+        events.push(event);
+      }
+      expect(events.map((event) => event.type)).toEqual(["error"]);
+      const summary = collector.snapshot({ provider: "tencent" });
+      expect(summary).toMatchObject({
+        completed: false, upstreamHttpStatus: 200, upstreamRequestId: "safe_partial_id", toolCallCount: 0,
+        semanticOutputChars: reasoning.length + argumentsPart.length,
+        rawResponseChars: frames.reduce((total, frame) => total + frame.length, 0),
+        rawResponseHash: createHash("sha256").update(frames.join("")).digest("hex"),
+        terminationKind: "error", usage: null,
+        failure: { kind: { body_timeout: "body_timeout", deadline: "deadline_exceeded", client_abort: "client_aborted", invalid_json: "stream_protocol" }[ending], stage: "streaming", upstreamStatus: 200 },
+        errorCode: ending === "client_abort" ? "client_aborted" : ending === "invalid_json" ? "upstream_unavailable" : "upstream_timeout",
+        streamProgress: {
+          responseBytes: Buffer.byteLength(chunks.join("")), responseChunks: chunks.length,
+          sseDataEvents: frames.length, reasoningChars: reasoning.length,
+          observedToolCallCount: 1, toolArgumentBytes: Buffer.byteLength(argumentsPart),
+          reportedUsage: { promptTokens: 7, completionTokens: 9, totalTokens: 16 }
+        }
+      });
+      expect(summary.streamProgress!.firstResponseByteMs).toBeGreaterThanOrEqual(0);
+      expect(summary.streamProgress!.lastResponseByteMs).toBeGreaterThanOrEqual(summary.streamProgress!.firstResponseByteMs!);
+      expect(summary.attempts[0].streamProgress).toEqual(summary.streamProgress);
+      expect(JSON.stringify(summary)).not.toContain(reasoning);
+      expect(JSON.stringify(summary)).not.toContain(argumentsPart);
+    }
+  );
+
+  it.each(["safe_header_id", "cgu_live_private", "unsafe id", "x".repeat(161)])(
+    "sanitizes upstream header identifiers when a response stream throws: %s", async (requestId) => {
+      const events = await providerEvents(async () => new Response(new ReadableStream({
+        start(controller) { controller.error(new Error("body reset")); }
+      }), { status: 200, headers: { "x-request-id": requestId } }));
+      expect(events[0]).toMatchObject({ responseSummary: { upstreamHttpStatus: 200,
+        upstreamRequestId: requestId === "safe_header_id" ? requestId : null,
+        rawResponseChars: 0,
+        streamProgress: { responseBytes: 0, firstResponseByteMs: null, lastResponseByteMs: null }
+      } });
+    }
+  );
+
+  it("classifies header timeout without inventing response bytes or a response hash", async () => {
+    const events = await providerEvents(async () => {
+      throw new TypeError("fetch failed", { cause: Object.assign(new Error("header wait"), { code: "UND_ERR_HEADERS_TIMEOUT" }) });
+    });
+    const collector = new ProviderStreamSummaryCollector();
+    events.forEach((event) => collector.record(event));
+    expect(collector.snapshot()).toMatchObject({ errorCode: "upstream_timeout",
+      failure: { origin: "network", kind: "headers_timeout", stage: "before_headers" },
+      upstreamHttpStatus: null, rawResponseChars: null, rawResponseHash: null,
+      streamProgress: { responseBytes: 0, firstResponseByteMs: null }
+    });
+  });
+
+  it("records bytes received even when the final SSE data frame never becomes parseable", async () => {
+    const partial = ':ping\n\ndata: {"choices":';
+    let sent = false;
+    const events = await providerEvents(async () => new Response(new ReadableStream({
+      pull(controller) {
+        if (!sent) {
+          sent = true;
+          controller.enqueue(new TextEncoder().encode(partial));
+        } else {
+          controller.error(new TypeError("terminated", { cause: Object.assign(new Error("timeout"), { code: "UND_ERR_BODY_TIMEOUT" }) }));
+        }
+      }
+    }, { highWaterMark: 0 }), { status: 200 }));
+    expect(events[0]).toMatchObject({ code: "upstream_timeout", responseSummary: {
+      rawResponseChars: 0, streamProgress: { responseBytes: Buffer.byteLength(partial), responseChunks: 1, sseDataEvents: 0 }
+    } });
+  });
+
   it("preserves HTTP failure without inventing an empty-body hash when reading fails", async () => {
     const events = await providerEvents(async () => new Response(new ReadableStream({
       start(controller) { controller.error(new Error("body reset")); }

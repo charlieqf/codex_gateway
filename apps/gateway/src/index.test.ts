@@ -446,6 +446,62 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it.each([false, true])("persists interrupted response statistics and exposes them only to admin diagnostics (stream=%s)", async (stream) => {
+    const { store, headers } = createCredentialBackedStore();
+    const clientEventsStore = createSqliteClientEventsStore({ path: ":memory:" });
+    const rawData = JSON.stringify({ choices: [{ delta: { reasoning_content: "synthetic private reasoning" } }] });
+    const dataFrames = [rawData, ...(stream ? [JSON.stringify({ choices: [{ delta: { content: "partial text" } }] })] : [])];
+    const wireFrames = dataFrames.map((data) => `data: ${data}\n\n`);
+    const wireData = wireFrames.join("");
+    const provider = new OpenAICompatibleProviderAdapter({
+      providerKind: "tencent", baseUrl: "https://synthetic.invalid/v1", apiKey: "", apiKeyEnv: "SYNTHETIC_UNUSED",
+      apiKeyRequired: false, upstreamModel: "synthetic", timeoutMs: 5000,
+      fetchImpl: async () => {
+        let index = 0;
+        return new Response(new ReadableStream({
+          pull(controller) {
+            if (index < wireFrames.length) {
+              controller.enqueue(new TextEncoder().encode(wireFrames[index++]));
+            } else {
+              controller.error(new TypeError("terminated", { cause: Object.assign(new Error("timeout"), { code: "UND_ERR_BODY_TIMEOUT" }) }));
+            }
+          }
+        }, { highWaterMark: 0 }), { status: 200, headers: { "x-request-id": "upstream_partial_test" } });
+      }
+    });
+    const app = buildGateway({ authMode: "credential", provider, sessionStore: store,
+      observationStore: store, clientEventsStore, adminMessagesToken: "admin-messages-token-1234567890", logger: false });
+    try {
+      await app.inject({ method: "POST", url: "/gateway/client-events/messages", headers,
+        payload: clientMessagePayload({ event_id: "evt_partial", session_id: "ses_partial", message_id: "msg_partial", text: "Synthetic task" }) });
+      const response = await app.inject({ method: "POST", url: "/v1/chat/completions",
+        headers: { ...headers, "x-medcode-client-message-id": "msg_partial", "x-medcode-client-session-id": "ses_partial" },
+        payload: { model: "medcode", stream, messages: [{ role: "user", content: "Synthetic task" }] }
+      });
+      expect(response.statusCode).toBe(stream ? 200 : 504);
+      expect(response.body).toContain('"code":"upstream_timeout"');
+      expect(response.body).not.toContain("synthetic private reasoning");
+      expect(response.body).not.toContain("streamProgress");
+      expect(response.body).not.toContain("UND_ERR_BODY_TIMEOUT");
+      const event = store.listRequestEvents({ requestId: expectRequestIdHeader(response) })[0];
+      expect(event).toMatchObject({ errorCode: "upstream_timeout", upstreamFailureKind: "body_timeout",
+        upstreamHttpStatus: 200, upstreamRequestId: "upstream_partial_test", terminalSource: "transport_error",
+        cancelRequested: false, cancelObserved: false, upstreamRawResponseChars: dataFrames.reduce((total, data) => total + data.length, 0),
+        upstreamAttempts: [expect.objectContaining({ streamProgress: {
+          responseBytes: Buffer.byteLength(wireData), responseChunks: wireFrames.length,
+          firstResponseByteMs: expect.any(Number), lastResponseByteMs: expect.any(Number),
+          sseDataEvents: dataFrames.length, reasoningChars: 27, observedToolCallCount: 0, toolArgumentBytes: 0
+        } })]
+      });
+      const admin = await app.inject({ method: "GET", url: "/gateway/admin/client-messages.json?include_text=1&limit=10",
+        headers: { authorization: "Bearer admin-messages-token-1234567890" } });
+      expect(admin.statusCode).toBe(200);
+      expect(admin.json().messages[0].gateway_requests[0].upstream_attempts[0]).toMatchObject({
+        failure: { kind: "body_timeout" }, stream_progress: { response_bytes: Buffer.byteLength(wireData), reasoning_chars: 27 }
+      });
+    } finally { await app.close(); }
+  });
+
   it("records one xAI fetch transport attempt without changing the public error contract", async () => {
     const { store, headers } = createCredentialBackedStore();
     const provider = new OpenAICompatibleProviderAdapter({

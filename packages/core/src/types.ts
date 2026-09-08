@@ -289,6 +289,7 @@ export interface UpstreamAttemptSummary {
   rawResponseHash: string | null;
   rawResponseChars: number | null;
   emptyStop: boolean | null;
+  streamProgress?: ProviderStreamProgress;
   terminationKind?: ProviderStreamTermination | null;
   durationMs?: number | null;
   promptTokens?: number | null;
@@ -410,6 +411,21 @@ export type ProviderStreamTermination =
   | "error"
   | "eof_before_terminal";
 
+/** Metadata only; timings are relative to the start of this provider attempt. */
+export interface ProviderStreamProgress {
+  responseBytes: number;
+  responseChunks: number;
+  firstResponseByteMs: number | null;
+  lastResponseByteMs: number | null;
+  sseDataEvents: number;
+  reasoningChars: number;
+  /** Native calls observed upstream; may be incomplete and must not be executed. */
+  observedToolCallCount: number;
+  toolArgumentBytes: number;
+  /** Provider-reported usage retained for diagnostics, not inferred billing usage. */
+  reportedUsage?: TokenUsage;
+}
+
 export interface ProviderResponseSummary {
   finishReason?: string | null;
   upstreamRequestId?: string | null;
@@ -425,6 +441,7 @@ export interface ProviderResponseSummary {
   rawResponseHash?: string | null;
   rawResponseChars?: number | null;
   terminationKind?: ProviderStreamTermination | null;
+  streamProgress?: ProviderStreamProgress;
 }
 
 export type StreamEvent =

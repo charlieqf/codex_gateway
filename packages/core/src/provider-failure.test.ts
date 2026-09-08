@@ -16,6 +16,8 @@ describe("provider failure classification", () => {
     ["ECONNRESET", "connection_reset"],
     ["EPIPE", "connection_reset"],
     ["UND_ERR_SOCKET", "connection_reset"],
+    ["UND_ERR_HEADERS_TIMEOUT", "headers_timeout"],
+    ["UND_ERR_BODY_TIMEOUT", "body_timeout"],
     ["ERR_TLS_CERT_ALTNAME_INVALID", "tls"],
     ["UND_ERR_PROXY", "proxy_connect"]
   ] as const)("classifies nested transport code %s", (code, kind) => {
@@ -65,6 +67,20 @@ describe("provider failure classification", () => {
         stage: "before_headers"
       })
     ).toMatchObject({ origin: "gateway", kind: "deadline_exceeded" });
+  });
+
+  it("keeps body timeout classification with successful response headers and respects cancellation", () => {
+    const error = new TypeError("terminated", {
+      cause: Object.assign(new Error("body timed out"), { code: "UND_ERR_BODY_TIMEOUT" })
+    });
+    expect(classifyProviderFailure({ error, stage: "streaming", upstreamStatus: 200 })).toEqual({
+      origin: "network", kind: "body_timeout", stage: "streaming",
+      transportCode: "UND_ERR_BODY_TIMEOUT", upstreamStatus: 200
+    });
+    for (const abortSource of ["client", "gateway"] as const) {
+      expect(classifyProviderFailure({ error, stage: "streaming", upstreamStatus: 200, abortSource }))
+        .toMatchObject({ origin: abortSource, kind: abortSource === "client" ? "client_aborted" : "deadline_exceeded" });
+    }
   });
 
   it.each([401, 403])(

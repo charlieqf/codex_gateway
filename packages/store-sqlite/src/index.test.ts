@@ -824,6 +824,11 @@ describe("SqliteGatewayStore", () => {
 
   it("persists request events", () => {
     const store = createSeededStore(":memory:");
+    const streamProgress = {
+      responseBytes: 512, responseChunks: 4, firstResponseByteMs: 10,
+      lastResponseByteMs: 110, sseDataEvents: 3, reasoningChars: 25,
+      observedToolCallCount: 1, toolArgumentBytes: 4096
+    };
     store.insertRequestEvent({
       requestId: "req_1",
       credentialId: "cred_1",
@@ -871,6 +876,7 @@ describe("SqliteGatewayStore", () => {
           upstreamAccountId: "openrouter-main",
           finishReason: "tool_calls",
           upstreamRequestId: "up_req_1a",
+          streamProgress,
           upstreamHttpStatus: 200,
           errorCode: null,
           contentChars: 0,
@@ -1024,6 +1030,7 @@ describe("SqliteGatewayStore", () => {
             kind: "native_initial",
             purpose: "primary",
             failure: null,
+            streamProgress,
             toolChoice: "required",
             toolCallCount: 1,
             toolNames: ["write_file"],

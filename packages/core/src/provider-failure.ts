@@ -14,6 +14,8 @@ export const providerFailureKinds = [
   "deadline_exceeded",
   "dns",
   "connect",
+  "headers_timeout",
+  "body_timeout",
   "connection_reset",
   "tls",
   "proxy_connect",
@@ -315,6 +317,9 @@ function classifyTransportCode(
   if (dnsCodes.has(code)) {
     return classification("network", "dns", stage, code, upstreamStatus);
   }
+  if (code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT") {
+    return classification("network", code === "UND_ERR_BODY_TIMEOUT" ? "body_timeout" : "headers_timeout", stage, code, upstreamStatus);
+  }
   if (connectCodes.has(code)) {
     return classification("network", "connect", stage, code, upstreamStatus);
   }
@@ -383,7 +388,7 @@ function inspectErrorChain(error: unknown): {
 function originForKind(kind: ProviderFailureKind): ProviderFailureOrigin {
   if (kind === "client_aborted") return "client";
   if (kind === "deadline_exceeded") return "gateway";
-  if (["dns", "connect", "connection_reset", "tls"].includes(kind)) return "network";
+  if (["dns", "connect", "headers_timeout", "body_timeout", "connection_reset", "tls"].includes(kind)) return "network";
   if (kind === "proxy_connect") return "proxy";
   if (kind === "unknown") return "unknown";
   return "provider";

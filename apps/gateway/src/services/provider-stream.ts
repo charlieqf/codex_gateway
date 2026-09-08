@@ -10,6 +10,7 @@ import {
   type ProviderErrorDiagnostic,
   type ProviderFailureClassification,
   type ProviderResponseSummary,
+  type ProviderStreamProgress,
   type ProviderStreamTermination,
   type Scope,
   type StreamEvent,
@@ -55,6 +56,7 @@ export interface ProviderStreamSummary {
   toolNames: string[];
   rawResponseHash: string | null;
   rawResponseChars: number | null;
+  streamProgress?: ProviderStreamProgress;
   emptyStop: boolean | null;
   terminationKind: ProviderStreamTermination | null;
   durationMs: number;
@@ -128,8 +130,9 @@ export class ProviderStreamSummaryCollector {
   private finishReason: string | null = null;
   private upstreamRequestId: string | null = null;
   private upstreamHttpStatus: number | null = null;
-  private upstreamRawHash: string | null = null;
-  private upstreamRawChars: number | null = null;
+  private upstreamRawHash: string | null | undefined;
+  private upstreamRawChars: number | null | undefined;
+  private streamProgress: ProviderStreamProgress | undefined;
   private terminationKind: ProviderStreamTermination | null = null;
   private errorCode: string | null = null;
   private failure: ProviderFailureClassification | null = null;
@@ -232,8 +235,9 @@ export class ProviderStreamSummaryCollector {
       visibleOutputChars: this.visibleOutputChars,
       toolCallCount: this.toolCallCount,
       toolNames: [...this.toolNames].sort(),
-      rawResponseHash: this.upstreamRawHash ?? this.normalizedRawHash(),
-      rawResponseChars: this.upstreamRawChars ?? this.normalizedChars,
+      rawResponseHash: this.upstreamRawHash === undefined ? this.normalizedRawHash() : this.upstreamRawHash,
+      rawResponseChars: this.upstreamRawChars === undefined ? this.normalizedChars : this.upstreamRawChars,
+      ...(this.streamProgress ? { streamProgress: structuredClone(this.streamProgress) } : {}),
       terminationKind: this.terminationKind,
       durationMs: Math.max(0, this.now() - this.startedAtMs),
       usage: this.usage ? { ...this.usage } : null,
@@ -308,6 +312,9 @@ export class ProviderStreamSummaryCollector {
     }
     if (summary.terminationKind !== undefined) {
       this.terminationKind = summary.terminationKind;
+    }
+    if (summary.streamProgress) {
+      this.streamProgress = structuredClone(summary.streamProgress);
     }
   }
 }
@@ -898,6 +905,7 @@ function providerSummaryToAttempt(
     toolNames: [...summary.toolNames],
     rawResponseHash: summary.rawResponseHash,
     rawResponseChars: summary.rawResponseChars,
+    ...(summary.streamProgress ? { streamProgress: structuredClone(summary.streamProgress) } : {}),
     emptyStop: summary.emptyStop,
     terminationKind: summary.terminationKind,
     durationMs: summary.durationMs,

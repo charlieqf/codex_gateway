@@ -13,6 +13,7 @@ import {
   type ProviderFailureStage,
   type ProviderPromptTokenCount,
   type ProviderResponseSummary,
+  type ProviderStreamProgress,
   type ProviderStreamTermination,
   type StreamEvent,
   type TokenUsage,
@@ -150,9 +151,38 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
 
   async *message(input: MessageInput): AsyncIterable<StreamEvent> {
     const abort = createAbortSignal(input.signal, this.options.timeoutMs);
+    const startedAt = performance.now();
     let failureStage: ProviderFailureStage = "before_headers";
+    let response: Response | undefined;
+    let usage: TokenUsage | undefined;
+    let finishReason: string | null = null;
+    let semanticOutputChars = 0;
+    let visibleOutputChars = 0;
+    const rawResponseHash = createHash("sha256");
+    let rawResponseChars = 0;
+    const nativeToolCalls = nativeToolCallsEnabled(input) ? new NativeToolCallAccumulator() : null;
+    const progress: ProviderStreamProgress = {
+      responseBytes: 0, responseChunks: 0, firstResponseByteMs: null,
+      lastResponseByteMs: null, sseDataEvents: 0, reasoningChars: 0,
+      observedToolCallCount: 0, toolArgumentBytes: 0
+    };
+    const responseSummary = (terminationKind: ProviderStreamTermination): ProviderResponseSummary => ({
+      finishReason,
+      upstreamRequestId: this.safeRequestId(response ? upstreamRequestId(response.headers) : null),
+      upstreamHttpStatus: response?.status ?? null,
+      semanticOutputChars,
+      visibleOutputChars,
+      rawResponseHash: failureStage === "streaming" ? rawResponseHash.copy().digest("hex") : null,
+      rawResponseChars: failureStage === "streaming" ? rawResponseChars : null,
+      terminationKind,
+      streamProgress: {
+        ...progress,
+        ...(nativeToolCalls?.progress() ?? {}),
+        ...(usage ? { reportedUsage: { ...usage } } : {})
+      }
+    });
     try {
-      const response = await this.fetchImpl(chatCompletionsUrl(this.options.baseUrl), {
+      response = await this.fetchImpl(chatCompletionsUrl(this.options.baseUrl), {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify(this.requestBody(input)),
@@ -194,30 +224,34 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           type: "error",
           code: normalized.code,
           message: normalized.message,
-          providerFailure: normalized.providerFailure
+          providerFailure: normalized.providerFailure,
+          responseSummary: responseSummary("error")
         };
         return;
       }
 
       failureStage = "streaming";
-      let usage: TokenUsage | undefined;
-      let finishReason: string | null = null;
-      let semanticOutputChars = 0;
-      let visibleOutputChars = 0;
       let sawDone = false;
       let sawFinishReason = false;
-      const rawResponseHash = createHash("sha256");
-      let rawResponseChars = 0;
-      const nativeToolCalls = nativeToolCallsEnabled(input)
-        ? new NativeToolCallAccumulator()
-        : null;
-      for await (const chunk of parseOpenAISse(response.body)) {
+      for await (const chunk of parseOpenAISse(response.body, {
+        onChunk: (bytes) => {
+          if (bytes === 0) return;
+          const elapsed = Math.max(0, Math.round(performance.now() - startedAt));
+          progress.responseBytes += bytes;
+          progress.responseChunks += 1;
+          progress.firstResponseByteMs ??= elapsed;
+          progress.lastResponseByteMs = elapsed;
+        },
+        onData: (data) => {
+          rawResponseHash.update(data, "utf8");
+          rawResponseChars += data.length;
+          progress.sseDataEvents += 1;
+        }
+      })) {
         if (chunk.type === "done") {
           sawDone = true;
           break;
         }
-        rawResponseHash.update(chunk.rawData, "utf8");
-        rawResponseChars += chunk.rawData.length;
         const upstreamStreamError = openAIStreamError(chunk.value);
         if (upstreamStreamError) {
           const normalized = this.normalizeAndReport(
@@ -232,22 +266,14 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
             message: normalized.message,
             gatewayError: normalized,
             providerFailure: normalized.providerFailure,
-            responseSummary: {
-              finishReason,
-              upstreamRequestId: upstreamRequestId(response.headers),
-              upstreamHttpStatus: response.status,
-              semanticOutputChars,
-              visibleOutputChars,
-              rawResponseHash: rawResponseHash.digest("hex"),
-              rawResponseChars,
-              terminationKind: "error"
-            }
+            responseSummary: responseSummary("error")
           };
           return;
         }
         const event = mapOpenAIStreamChunk(chunk.value, nativeToolCalls);
         semanticOutputChars += event.semanticOutputChars;
         visibleOutputChars += event.visibleOutputChars;
+        progress.reasoningChars += event.reasoningChars ?? 0;
         for (const mappedEvent of event.events) {
           yield mappedEvent;
         }
@@ -260,16 +286,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         }
       }
       const terminationKind = providerStreamTermination(sawDone, sawFinishReason);
-      const responseSummary: ProviderResponseSummary = {
-        finishReason,
-        upstreamRequestId: upstreamRequestId(response.headers),
-        upstreamHttpStatus: response.status,
-        semanticOutputChars,
-        visibleOutputChars,
-        rawResponseHash: rawResponseHash.digest("hex"),
-        rawResponseChars,
-        terminationKind
-      };
+      const completedSummary = responseSummary(terminationKind);
 
       if (terminationKind === "eof_before_terminal") {
         const normalized = this.normalizeAndReport(
@@ -294,7 +311,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
           message: normalized.message,
           gatewayError: normalized,
           providerFailure: normalized.providerFailure,
-          responseSummary
+          responseSummary: completedSummary
         };
         return;
       }
@@ -308,11 +325,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       yield {
         type: "completed",
         ...(usage ? { usage } : {}),
-        responseSummary
+        responseSummary: completedSummary
       };
     } catch (err) {
       const normalized = this.normalizeAndReport(err, "exception", input, {
         stage: failureStage,
+        upstreamStatus: response?.status,
         ...(failureStage === "streaming" && err instanceof SyntaxError
           ? { originHint: "provider" as const, kindHint: "stream_protocol" as const }
           : {})
@@ -322,7 +340,8 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         code: normalized.code,
         message: normalized.message,
         gatewayError: normalized,
-        providerFailure: normalized.providerFailure
+        providerFailure: normalized.providerFailure,
+        responseSummary: responseSummary("error")
       };
     } finally {
       abort.cleanup();
@@ -446,8 +465,7 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       try { bodyRequestId = (JSON.parse(body) as { request_id?: unknown }).request_id; } catch { /* Non-JSON error body. */ }
     }
     const candidate = upstreamRequestId(response.headers) ?? bodyRequestId;
-    const requestId = typeof candidate === "string" && /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate) &&
-      (!this.options.apiKey || !candidate.includes(this.options.apiKey)) && !/^(sk-|xai-|cgu_)/i.test(candidate) ? candidate : null;
+    const requestId = this.safeRequestId(candidate);
     const error = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
@@ -481,7 +499,9 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     const normalizedBase =
       input.signal?.aborted && input.signal.reason instanceof GatewayError
         ? input.signal.reason
-        : this.normalize(err, input);
+        : failure.kind === "body_timeout" || failure.kind === "headers_timeout"
+          ? new GatewayError({ code: "upstream_timeout", message: "MedCode service timed out.", httpStatus: 504 })
+          : this.normalize(err, input);
     const normalized = withProviderFailure(normalizedBase, failure);
     if (input.onProviderError) {
       try {
@@ -491,6 +511,12 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       }
     }
     return normalized;
+  }
+
+  private safeRequestId(candidate: unknown): string | null {
+    return typeof candidate === "string" && /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate) &&
+      (!this.options.apiKey || !candidate.includes(this.options.apiKey)) && !/^(sk-|xai-|cgu_)/i.test(candidate)
+      ? candidate : null;
   }
 
   private normalize(err: unknown, input?: MessageInput): GatewayError {
@@ -560,6 +586,7 @@ interface ParsedOpenAIChunk {
   finishReason: string | null;
   semanticOutputChars: number;
   visibleOutputChars: number;
+  reasoningChars?: number;
 }
 
 interface ProviderFailureContext {
@@ -580,7 +607,8 @@ interface ParsedOpenAISseDone {
 }
 
 async function* parseOpenAISse(
-  body: ReadableStream<Uint8Array>
+  body: ReadableStream<Uint8Array>,
+  observe: { onChunk(bytes: number): void; onData(data: string): void }
 ): AsyncIterable<ParsedOpenAISseData | ParsedOpenAISseDone> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -591,6 +619,7 @@ async function* parseOpenAISse(
       if (done) {
         break;
       }
+      observe.onChunk(value.byteLength);
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() ?? "";
@@ -607,6 +636,7 @@ async function* parseOpenAISse(
           yield { type: "done" };
           return;
         }
+        observe.onData(data);
         yield {
           type: "data",
           value: JSON.parse(data) as unknown,
@@ -622,6 +652,7 @@ async function* parseOpenAISse(
         return;
       }
       if (data) {
+        observe.onData(data);
         yield {
           type: "data",
           value: JSON.parse(data) as unknown,
@@ -695,7 +726,7 @@ function mapOpenAIStreamChunk(
       semanticOutputChars += structuredOutputChars(delta.tool_calls);
       semanticOutputChars += structuredOutputChars(delta.function_call);
     }
-    nativeToolCalls?.append(delta.tool_calls);
+    if (nativeToolCalls) semanticOutputChars += nativeToolCalls.append(delta.tool_calls);
   }
 
   return {
@@ -704,7 +735,8 @@ function mapOpenAIStreamChunk(
     finishReason:
       typeof choice.finish_reason === "string" ? choice.finish_reason : null,
     semanticOutputChars,
-    visibleOutputChars: semanticOutputChars - reasoningOutputChars
+    visibleOutputChars: semanticOutputChars - reasoningOutputChars,
+    reasoningChars: reasoningOutputChars
   };
 }
 
@@ -814,10 +846,11 @@ interface PendingNativeToolCall {
 class NativeToolCallAccumulator {
   private readonly pending = new Map<number, PendingNativeToolCall>();
 
-  append(value: unknown): void {
+  append(value: unknown): number {
     if (!Array.isArray(value)) {
-      return;
+      return 0;
     }
+    let argumentChars = 0;
     for (const [fallbackIndex, item] of value.entries()) {
       if (!isRecord(item)) {
         continue;
@@ -845,11 +878,20 @@ class NativeToolCallAccumulator {
         }
         if (typeof item.function.arguments === "string") {
           current.argumentsJson += item.function.arguments;
+          argumentChars += item.function.arguments.length;
         }
       }
 
       this.pending.set(index, current);
     }
+    return argumentChars;
+  }
+
+  progress(): Pick<ProviderStreamProgress, "observedToolCallCount" | "toolArgumentBytes"> {
+    return {
+      observedToolCallCount: this.pending.size,
+      toolArgumentBytes: [...this.pending.values()].reduce((bytes, call) => bytes + Buffer.byteLength(call.argumentsJson, "utf8"), 0)
+    };
   }
 
   drain(): StreamEvent[] {

@@ -103,7 +103,8 @@ export function markProviderEvent(
   }
   if (
     event.type === "error" &&
-    (event.code === "client_aborted" || event.code === "upstream_timeout")
+    (event.code === "client_aborted" || event.code === "upstream_timeout") &&
+    (!event.providerFailure || ["client_aborted", "deadline_exceeded"].includes(event.providerFailure.kind))
   ) {
     request.gatewayCancelObserved = true;
   }
@@ -137,10 +138,12 @@ export function markProviderCallFinished(
     request.gatewayTerminalSource = "gateway_deadline";
   } else if (request.gatewayErrorCode) {
     request.gatewayTerminalSource =
-      request.gatewayUpstreamHttpStatus !== null &&
-      request.gatewayUpstreamHttpStatus !== undefined
-        ? "provider_response"
-        : "transport_error";
+      request.gatewayProviderFailure?.origin === "network" || request.gatewayProviderFailure?.origin === "proxy"
+        ? "transport_error"
+        : request.gatewayUpstreamHttpStatus !== null &&
+          request.gatewayUpstreamHttpStatus !== undefined
+          ? "provider_response"
+          : "transport_error";
   } else {
     request.gatewayTerminalSource = "provider_response";
   }

@@ -1047,6 +1047,16 @@ function publicGatewayRequest(event: RequestEventRecord) {
       duration_ms: attempt.durationMs ?? null,
       upstream_http_status: attempt.upstreamHttpStatus ?? null,
       upstream_request_id: attempt.upstreamRequestId ?? null,
+      stream_progress: attempt.streamProgress ? {
+        response_bytes: attempt.streamProgress.responseBytes,
+        response_chunks: attempt.streamProgress.responseChunks,
+        first_response_byte_ms: attempt.streamProgress.firstResponseByteMs,
+        last_response_byte_ms: attempt.streamProgress.lastResponseByteMs,
+        sse_data_events: attempt.streamProgress.sseDataEvents,
+        reasoning_chars: attempt.streamProgress.reasoningChars,
+        observed_tool_call_count: attempt.streamProgress.observedToolCallCount,
+        tool_argument_bytes: attempt.streamProgress.toolArgumentBytes
+      } : null,
       error_code: attempt.errorCode ?? null,
       failure: attempt.failure ? publicProviderFailure(attempt.failure) : null,
       prompt_tokens: attempt.promptTokens ?? null,
