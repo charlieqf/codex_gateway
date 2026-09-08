@@ -1,6 +1,6 @@
 # Gateway 异常流统计及超时分类修复
 
-日期：2026-09-08。状态：本地实现与验证完成，尚未部署 R760。
+日期：2026-09-08。状态：修复 `6640d0e` 已于北京时间 19:11 部署 R760，19:19 完成验收。详见[发布记录](../operations/r760-timeout-observability-release-2026-09-08.zh-CN.md)。
 
 ## 修复结果
 
@@ -87,7 +87,7 @@ if ($LASTEXITCODE -ne 0) { throw 'R760 timeout self-test failed' }
 
 这一步验证容器内运行版本的适配器、期限处理与统计收集器。HTTP 路由、取消标记、SQLite 和管理员 JSON 链路由前述 `apps/gateway/src/index.test.ts` 回归覆盖。
 
-最后使用测试账号在 Desktop 发起一次简短正常请求，通过该条客户端消息关联的管理员 JSON 查看 `gateway_requests[].upstream_attempts[].stream_progress`：应有非零 `response_bytes` 和 `sse_data_events`，首末读取时间有值且顺序正确。按正常请求实际行为验收，不要求每条请求都有推理或工具参数。
+最后通过一条上线后正常 Desktop 请求关联的管理员 JSON 查看 `gateway_requests[].upstream_attempts[].stream_progress`：应有非零 `response_bytes` 和 `sse_data_events`，首末读取时间有值且顺序正确。管理员页面默认隐藏名称或 ID 含 smoke 的测试账号，因此这一步应使用普通账号的受限只读查询；smoke 请求可直接核验 SQLite。按正常请求实际行为验收，不要求每条请求都有推理或工具参数。
 
 若上线后出现新的实际超时，按请求 ID 检查 R760 请求记录：响应体超时应为 `upstream_failure_kind=body_timeout`、`terminal_source=transport_error`，且未发生其他取消时 `cancel_requested=false`、`cancel_observed=false`；Gateway 总期限应为 `deadline_exceeded`、`gateway_deadline`。在已经收到上游数据的情况下，应保留实际 HTTP 状态及流进度。只看客户端 HTTP 200 或“超时”提示不足以完成这项验收。
 
@@ -99,4 +99,4 @@ node docs/outbox/r760-medcode-timeout-repro-2026-09-08.mjs --runtime-root=.
 
 ## 生产状态与后续
 
-本次没有 SSH 写入、修改生产配置、部署、重启或创建测试用户。修复上线后才能为新请求记录这些数据；历史失败时已经丢失的统计无法补回。此修复解决诊断缺失和分类问题，不能单独保证腾讯长请求不再触及总期限。
+修复已部署并对新请求生效；配置和其他服务保持一致，临时测试凭据已撤销并完成清理。历史失败时已经丢失的统计无法补回。此修复解决诊断缺失和分类问题，不能单独保证腾讯长请求不再触及总期限。

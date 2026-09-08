@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-07 (Gateway routing and Compose services).
+Last verified: 2026-09-08 (Gateway timeout observability release and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,23 +18,29 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway and Compose verification on 2026-09-07; local inference verification on 2026-09-06:
+Gateway and Compose verification on 2026-09-08; local inference verification on 2026-09-06:
 
 - `current`:
-  `ebad087785d4158767bca99c8f841e33df4eca97`
+  `6640d0eda4db0f90ecf6aa18adbfb95e38b8f251`
 - `previous`:
-  `840f287b14a9fa7da546dc1213e19e05574bee69`
+  `ebad087785d4158767bca99c8f841e33df4eca97`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway and Research Worker share revision `ebad087`, with Doctor Research Skill
-`1.6.119`. Three overseas doctors with the original Chinese institution inputs
+Gateway runs `6640d0e`; Research Worker remains on the existing runtime with
+Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
 [Doctor Search overseas repair](../research/doctor-research/overseas-doctor-release-2026-09-07.zh-CN.md).
+
+The [timeout observability release](./r760-timeout-observability-release-2026-09-08.zh-CN.md)
+preserves interrupted stream progress and classifies header/body read timeouts.
+Public success/deadline tests and ordinary-user admin correlation passed;
+synthetic body-timeout tests passed inside the deployed container. Gateway
+configuration and all other service containers remain unchanged.
 
 The public text surface contains:
 
