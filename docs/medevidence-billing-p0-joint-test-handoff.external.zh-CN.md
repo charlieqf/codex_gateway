@@ -1,12 +1,16 @@
 # MedEvidence Billing P0 联调交付说明（外发版）
 
-更新时间：2026-05-13
+历史交付记录：2026-05-13；当前接入说明更新：2026-09-09。
 
-本文面向收费/充值团队，描述当前测试环境可联调的 Billing Admin P0 范围。完整接口说明见 `docs/medevidence-billing-integration-guide.external.zh-CN.md`。
+地址更新（2026-09-08）：当前权威接入地址为 `https://goldencode.instmarket.com.au:1443`，Billing 路径与幂等合同保持不变。下文 2026-05 的验证结果及其中旧域名属于历史记录，不代表新入口上的完整业务重验结果。
+
+本文面向收费/充值团队，保留 2026-05 的 Billing Admin P0 交付范围和验证记录；接入地址按顶部说明更新。完整接口说明见[集成指南](./medevidence-billing-integration-guide.external.zh-CN.md)。本轮已部署的手机号关联、开户、免费权益及 Desktop 登录见[2026-09-09 联调说明](./outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。
+
+2026-09-09 兼容修订取消 resolve 强制前置，5 月版原样 `POST /subjects` 请求、嵌套响应及幂等规则继续支持。手机号开户可在该请求中直接增加 phone 字段，也可继续使用 resolve → subjects；手机号新开户自动获得每日 100 万 token 免费权益和手机号登录身份。原样不带 phone、也没有 resolve 记录的请求仍按旧 Billing 行为开户及付费事件授权。免费转付费首次使用 `purchase` + `replace_current=true`。Desktop 使用现有手机号 v1 登录和 bootstrap，不使用外部短信 token 换 Key。
 
 ## 1. 测试环境
 
-- Base URL：`https://gw.instmarket.com.au`
+- Base URL：`https://goldencode.instmarket.com.au:1443`（保留 `:1443`；不再使用历史 `https://gw.instmarket.com.au` 作为对接配置）
 - Billing Admin 前缀：`/gateway/admin/billing/v1`
 - 认证：`Authorization: Bearer <billing-admin-token>`
 - Token 由 MedEvidence 通过安全渠道单独交付；不要写入代码库、日志、截图、工单正文或聊天记录。

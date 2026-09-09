@@ -56,10 +56,10 @@ function fixture() {
     method: "POST", url: "/gateway/admin/billing/v1/subjects/resolve", headers: { authorization: `Bearer ${adminToken}` },
     payload: { provider, external_user_id: id, phone }
   });
-  const create = (id: string, idempotencyKey = `signup:${id}`) => app.inject({
+  const create = (id: string, idempotencyKey = `signup:${id}`, phone?: string) => app.inject({
     method: "POST", url: "/gateway/admin/billing/v1/subjects",
     headers: { authorization: `Bearer ${adminToken}`, "idempotency-key": idempotencyKey },
-    payload: { provider, external_user_id: id, scope_allowlist: ["code"] }
+    payload: { provider, external_user_id: id, scope_allowlist: ["code"], ...(phone === undefined ? {} : { phone }) }
   });
   const seed = (id = "subj_existing", phone = "13800138000") => {
     const subject: Subject = { id, label: "Existing phone user", phoneNumber: phone, externalProvider: "manual_trial", externalUserId: `manual_${id}`, state: "active", createdAt: now };
@@ -217,13 +217,110 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.listEntitlements({ subjectId })).toEqual([entitlement]);
   });
 
-  it("requires backend authorization for linking and rejects uncoordinated creates before upstream work", async () => {
+  it("requires backend authorization for linking and direct phone creation", async () => {
     const f = fixture();
     const response = await f.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects/resolve", headers: { authorization: `Bearer external-access-token-test-only` }, payload: { provider, external_user_id: "21", phone: "13800138000" } });
     expect(response.statusCode).toBe(401);
-    expect((await f.create("21")).json().error.code).toBe("identity_link_required");
+    const create = await f.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects", headers: { authorization: "Bearer external-access-token-test-only", "idempotency-key": "untrusted-create" }, payload: { provider, external_user_id: "21", phone: "13800138000" } });
+    expect(create.statusCode).toBe(401);
     expect(f.createUser).not.toHaveBeenCalled();
     expect(f.store.listSubjects()).toHaveLength(0);
+  });
+
+  it("accepts May's unchanged create payload for the configured provider without resolve", async () => {
+    const f = fixture();
+    const request = { method: "POST" as const, url: "/gateway/admin/billing/v1/subjects",
+      headers: { authorization: `Bearer ${adminToken}`, "idempotency-key": `${provider}:bu_abc123:create_subject` },
+      payload: { provider, external_user_id: "bu_abc123", display_name: "Alice", scope_allowlist: ["code"], metadata: { signup_source: "web", locale: "zh-CN" } } };
+    const response = await f.app.inject(request);
+    expect(response.statusCode).toBe(200);
+    const created = response.json();
+    expect(created).toMatchObject({ created: true, idempotent_replay: false,
+      subject: { external_user_id: "bu_abc123", display_name: "Alice", state: "active" },
+      credential: { state: "active", issued_at: now.toISOString() } });
+    expect(created.subject.id).toMatch(/^subj_/);
+    expect(created.credential.key).toMatch(/^cgu_live_/);
+    expect(created.credential.expires_at).toBeDefined();
+    expect(created.subject_id).toBeUndefined();
+    expect(f.store.getSubject(created.subject.id)?.phoneNumber).toBeNull();
+    expect(f.store.listEntitlements({ subjectId: created.subject.id })).toHaveLength(0);
+    expect(f.store.database.prepare("SELECT COUNT(*) AS count FROM phone_auth_identities").get()?.count).toBe(0);
+    expect(f.store.getExternalSubjectRegistrationState({ provider, externalUserId: "bu_abc123" })).toBeNull();
+    const replay = (await f.app.inject(request)).json();
+    expect(replay).toMatchObject({ created: false, idempotent_replay: true, subject: { id: created.subject.id } });
+    expect(replay.credential.key).toBeUndefined();
+    expect((await f.app.inject({ ...request, payload: { ...request.payload, display_name: "Changed" } })).json().error.code).toBe("idempotency_conflict");
+    expect((await f.app.inject({ ...request, headers: { ...request.headers, "idempotency-key": "different-event" } })).json().error.code).toBe("subject_already_exists");
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates and enrolls a new phone in one request and replays without resetting the grant", async () => {
+    const f = fixture();
+    const response = await f.create("22", "direct:22", "13800138000");
+    expect(response.statusCode).toBe(200);
+    const { subject, credential } = response.json();
+    const grants = f.store.listEntitlements({ subjectId: subject.id });
+    expect(grants).toHaveLength(1);
+    expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 1_000_000 }, state: "active" });
+    const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "direct-phone-test-device", requestId: "login-direct" });
+    expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap-direct").unified_key.key).toBe(credential.key);
+    const replay = (await f.create("22", "direct:22", "13800138000")).json();
+    expect(replay.idempotent_replay).toBe(true);
+    expect(replay.credential.key).toBeUndefined();
+    expect(f.store.listEntitlements({ subjectId: subject.id })).toEqual(grants);
+    expect((await f.create("22", "direct:22", "13900139000")).json().error.code).toBe("idempotency_conflict");
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("links an existing phone internally and preserves May's existing-subject recovery contract", async () => {
+    const f = fixture();
+    const old = f.seed();
+    const grant = f.pay(old.subject.id);
+    const before = f.store.getSubject(old.subject.id);
+    const response = await f.create("21", "direct:existing", "13800138000");
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("subject_already_exists");
+    const lookup = await f.app.inject({ url: `/gateway/admin/billing/v1/subjects?provider=${provider}&external_user_id=21`, headers: { authorization: `Bearer ${adminToken}` } });
+    expect(lookup.json().subject.id).toBe(old.subject.id);
+    expect(f.store.getSubject(old.subject.id)).toEqual(before);
+    expect(f.store.listUnifiedClientKeys()).toEqual([old.unified.record]);
+    expect(f.store.listEntitlements()).toEqual([grant]);
+    expect(f.createUser).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid phone extensions and another provider before provisioning", async () => {
+    const f = fixture();
+    for (const phone of [null, 13800138000, "", "invalid"]) {
+      const response = await f.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects", headers: { authorization: `Bearer ${adminToken}`, "idempotency-key": "bad-phone" }, payload: { provider, external_user_id: "22", phone } });
+      expect(response.statusCode).toBe(400);
+    }
+    const other = await f.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects", headers: { authorization: `Bearer ${adminToken}`, "idempotency-key": "other-provider" }, payload: { provider: "other", external_user_id: "22", phone: "13800138000" } });
+    expect(other.statusCode).toBe(400);
+    expect(f.store.getExternalSubjectRegistrationState({ provider, externalUserId: "22" })).toBeNull();
+    expect(f.createUser).not.toHaveBeenCalled();
+  });
+
+  it("resumes a failed direct phone event without falling back to legacy or changing payload", async () => {
+    const f = fixture();
+    f.createUser.mockRejectedValueOnce(new Error("upstream test failure"));
+    expect((await f.create("22", "direct:22", "13800138000")).statusCode).toBe(503);
+    expect((await f.create("22", "different-event", "13800138000")).json().error.code).toBe("account_pending");
+    expect((await f.create("22", "direct:22")).json().error.code).toBe("idempotency_conflict");
+    expect((await f.create("22", "direct:22", "13800138000")).statusCode).toBe(200);
+    expect(f.store.listSubjects()).toHaveLength(1);
+    expect(f.store.listEntitlements()).toHaveLength(1);
+  });
+
+  it("does not consume a new phone reservation during an in-flight legacy create", async () => {
+    const f = fixture();
+    f.createUser.mockImplementationOnce(async () => {
+      await f.resolve("22");
+      return { status: "created", user: { id: "v2_test" }, key: { id: "v2_key_test", key: "test-key", keyPrefix: "test-prefix" } };
+    });
+    expect((await f.create("22")).json().error.code).toBe("account_pending");
+    expect(f.store.listSubjects()).toHaveLength(0);
+    expect((await f.create("22")).statusCode).toBe(200);
+    expect(f.store.listEntitlements()).toHaveLength(1);
   });
 
   it("rejects ambiguous or disabled phone accounts and conflicting external bindings", async () => {

@@ -3,6 +3,8 @@ import datetime, fcntl, hashlib, json, os, pathlib, shutil, sqlite3, subprocess
 import re, sys
 REV = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', REV)
+PREVIOUS = sys.argv[2]
+assert re.fullmatch(r'[0-9a-f]{40}', PREVIOUS) and PREVIOUS != REV
 ROOT = pathlib.Path('/opt/codex-gateway-r760')
 RELEASE = ROOT / 'releases' / REV
 BACKUP = ROOT / 'backups' / ('phone-signup-' + REV[:12])
@@ -26,8 +28,9 @@ def audit(path):
         return result
 
 meta = inspect(CONTAINER)
-assert meta['Image'] == 'sha256:474c620d9604bda01644223ca101b868beb454db5922198cd1e46aff21078d70'
-assert (ROOT / 'current').resolve().name == '6640d0eda4db0f90ecf6aa18adbfb95e38b8f251'
+assert meta['Config']['Labels']['org.opencontainers.image.revision'] == PREVIOUS
+assert (ROOT / 'current').resolve().name == PREVIOUS
+assert meta['State'].get('Health', {}).get('Status') == 'healthy'
 BACKUP.mkdir(mode=0o700, exist_ok=False)
 state = {'revision': REV, 'old_current': str((ROOT / 'current').resolve()),
          'old_previous': str((ROOT / 'previous').resolve()), 'old_image_id': meta['Image'],

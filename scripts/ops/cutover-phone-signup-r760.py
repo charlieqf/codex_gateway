@@ -42,19 +42,11 @@ with sqlite3.connect(dbpath.as_uri() + '?mode=ro', uri=True) as db:
 compose = ['docker', 'compose', '--env-file', state['compose_env_file'], '-p', 'codex_gateway_r760',
            '-f', str(RELEASE / 'compose.azure.yml'), '-f', str(RELEASE / 'compose.research-production.yml'),
            '-f', str(ROOT / 'shared/config/compose.r760.override.yml'), '--profile', 'research-production']
-env_path = ROOT / 'shared/config/gateway.container.env'
-original_env = env_path.read_text()
-assert not any(line.startswith('GATEWAY_BILLING_IDENTITY_PROVIDER=') for line in original_env.splitlines())
-expected_env = dict(line.split('=', 1) for line in meta['Config']['Env'])
-expected_env['GATEWAY_BILLING_IDENTITY_PROVIDER'] = 'medevidence_billing'
-state['expected_env_sha256'] = hashlib.sha256('\n'.join(sorted(k + '=' + v for k, v in expected_env.items())).encode()).hexdigest()
+state['expected_env_sha256'] = state['env_sha256']
+state['expected_config_sha256'] = dict(state['config_sha256'])
 changed = False
 try:
     changed = True
-    env_path.write_text(original_env.rstrip('\n') + '\nGATEWAY_BILLING_IDENTITY_PROVIDER=medevidence_billing\n')
-    os.chmod(env_path, 0o600)
-    state['expected_config_sha256'] = dict(state['config_sha256'])
-    state['expected_config_sha256'][str(env_path)] = hashlib.sha256(env_path.read_bytes()).hexdigest()
     with (BACKUP / 'compose-configured-validation.log').open('w') as log:
         subprocess.run(compose + ['config', '--quiet'], stdout=log, stderr=subprocess.STDOUT, check=True)
     subprocess.run(['docker', 'stop', '-t', '30', CONTAINER], check=True, stdout=subprocess.DEVNULL)
@@ -82,17 +74,16 @@ try:
     state['deployed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     state['gateway_started_at'] = current['State']['StartedAt']
     state['gateway_container_id'] = current['Id']
-    state['only_added_env'] = 'GATEWAY_BILLING_IDENTITY_PROVIDER'
+    state['only_added_env'] = None
     state['other_containers_unchanged'] = True
     (BACKUP / 'deployment.json').write_text(json.dumps(state, indent=2) + '\n')
     print(json.dumps({'deployed_at': state['deployed_at'], 'revision': REV, 'image': current['Image'],
                       'health': health['state'], 'restart_count': current['RestartCount'],
-                      'only_added_env': 'GATEWAY_BILLING_IDENTITY_PROVIDER', 'other_containers_unchanged': True}), flush=True)
+                      'configuration_unchanged': True, 'other_containers_unchanged': True}), flush=True)
     changed = False
 finally:
     if changed:
         print('cutover_failed_rolling_back', flush=True)
-        shutil.copy2(BACKUP / 'gateway.container.env', env_path)
         subprocess.run(['docker', 'tag', state['old_image_id'], state['old_image_tag']], check=True)
         point('current', state['old_current'])
         point('previous', state['old_previous'])

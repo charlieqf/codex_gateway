@@ -78,11 +78,18 @@ export function create(
     }
     assertNoExternalSubject(db, input.provider, input.externalUserId);
 
+    const registration = externalIdentities.registration(db, input.provider, input.externalUserId);
+    if (registration && !input.phoneSignup) {
+      // A phone registration may have started during a legacy upstream call.
+      // Retry through the coordinated path; never consume it without enrollment.
+      throw new GatewayError({ code: "account_pending", message: "Phone signup started during provisioning; retry the original creation event.", httpStatus: 409 });
+    }
+
     const subject: Subject = {
       id: input.subjectId,
       label: input.displayName || input.externalUserId,
       name: null,
-      phoneNumber: externalIdentities.registration(db, input.provider, input.externalUserId)?.phone_number ?? null,
+      phoneNumber: registration?.phone_number ?? null,
       externalProvider: input.provider,
       externalUserId: input.externalUserId,
       displayName: input.displayName ?? null,

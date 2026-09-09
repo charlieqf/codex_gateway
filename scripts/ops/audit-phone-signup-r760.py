@@ -23,7 +23,7 @@ for name, expected in state['others'].items():
     services[name] = {'unchanged': True, 'health': health or 'running'}
 report = {'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'revision': state['revision'],
           'image': meta['Image'], 'health': meta['State']['Health']['Status'], 'restarts': meta['RestartCount'],
-          'only_added_env': 'GATEWAY_BILLING_IDENTITY_PROVIDER', 'services': services, 'databases': {}}
+          'configuration_unchanged': True, 'services': services, 'databases': {}}
 for mount in meta['Mounts']:
     names = ['gateway.db', 'client-events.db'] if mount['Destination'] == '/var/lib/codex-gateway' else ['research.db'] if mount['Destination'] == '/var/lib/codex-gateway-research' else []
     for name in names:

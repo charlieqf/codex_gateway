@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   defaultPublicModelAliasGroups,
   mergeEntitlementTokenPolicy,
+  normalizeMainlandChinaPhone,
   billingPayloadHash,
   encryptSecret,
   extractBillingAdminTokenPrefix,
@@ -315,6 +316,23 @@ export function registerBillingAdminRoutes(
         );
         if (replay) {
           return billingSecurityHeaders(reply).send(publicCreateSubjectResult(replay, null));
+        }
+        if (parsed.phone) {
+          if (parsed.provider !== options.externalIdentityProvider) {
+            return sendBillingError(request, reply, invalidRequest("Phone signup requires the configured identity provider."));
+          }
+          if (!options.externalIdentityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
+            return sendBillingError(request, reply, serviceUnavailable("Phone signup is not configured."));
+          }
+          if (parsed.scopeAllowlist.length !== 1 || parsed.scopeAllowlist[0] !== "code") {
+            return sendBillingError(request, reply, invalidRequest("Phone signup requires scope_allowlist [code]."));
+          }
+          // A single create request can coordinate its phone internally. Keep
+          // existing-subject 409/query recovery and all legacy response fields.
+          options.externalIdentityStore.resolveExternalSubject({
+            provider: parsed.provider, externalUserId: parsed.externalUserId,
+            phone: parsed.phone, requestId: request.id, now: billingNow(options)
+          });
         }
         if (options.billingStore.getBillingSubjectByExternal(parsed.provider, parsed.externalUserId)) {
           return sendBillingError(
@@ -1246,6 +1264,7 @@ function parseCreateSubjectRequest(
       provider: string;
       externalUserId: string;
       displayName: string | null;
+      phone: string | null;
       scopeAllowlist: Scope[];
       metadata: Record<string, unknown> | null;
       payloadHash: string;
@@ -1286,11 +1305,17 @@ function parseCreateSubjectRequest(
   if (metadata instanceof GatewayError) {
     return metadata;
   }
+  const phone = body.phone === undefined ? null
+    : typeof body.phone === "string" ? normalizeMainlandChinaPhone(body.phone) : null;
+  if (body.phone !== undefined && !phone) {
+    return invalidRequest("phone must be a supported mainland China phone number.");
+  }
   return {
     idempotencyKey,
     provider,
     externalUserId,
     displayName: optionalString(body.display_name),
+    phone,
     scopeAllowlist,
     metadata,
     payloadHash: billingPayloadHash(body)
@@ -2943,7 +2968,10 @@ async function provisionBillingSubject(
   }
 
   let signupPhone: string | null = null;
-  if (parsed.provider === options.externalIdentityProvider) {
+  // May's create contract remains valid without a phone or a reservation.
+  // A reservation comes from optional resolve or from create's phone field.
+  if (parsed.provider === options.externalIdentityProvider &&
+      options.externalIdentityStore?.getExternalSubjectRegistrationState(parsed) != null) {
     if (!options.externalIdentityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
       throw serviceUnavailable("Identity linking, phone auth and unified key recovery must be configured before signup.");
     }

@@ -1,6 +1,6 @@
 # MedEvidence 短信／临时登录：Gateway 联调说明
 
-2026-09-09。状态：已部署 R760，公网验收通过，可开始客户端／身份后端联调。发布提交 63c818f，详见[上线验收记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
+2026-09-09。兼容修订：取消 resolve 强制前置，兼容 5 月原样开户；本修订发布结果见运维状态与对应验收记录。先前 63c818f 的两步开户验收见[历史上线记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 本文是本轮联调入口。先前 medevidence-sms-runtime-v2 外部 token 换 Key 候选合同已撤回，客户端使用现有手机号 v1 合同。
 
@@ -9,7 +9,7 @@
 统一 Origin：https://goldencode.instmarket.com.au:1443，原路径不变。
 
 1. Desktop 调用身份后端真实短信登录接口，保存手机号及外部 access/refresh token，即完成外部短信登录。
-2. 身份后端用既有 Billing Admin 凭据调用下述关联／开户接口。新账户自动获得免费权益并准备手机号登录；旧账户复用原 Subject、Key 和权益。
+2. 身份后端用既有 Billing Admin 凭据调用 POST /subjects 并传 phone；Gateway 内部关联或开户。新手机号账户自动获得免费权益并准备手机号登录，旧账户保留原 Subject、Key 和权益。原样不带 phone 且无 resolve 记录的 5 月 Billing 请求仍可开户，沿用原付费事件流程。
 3. Desktop 以手机号调用 Gateway login/start，取得独立 Phone Session，再通过 bootstrap 领取 cgu_live Key，沿用 resolver/current 和模型调用流程。
 4. 支付页使用外部短信会话，无需先取得模型 Key。外部 token 不发送给 Gateway 领取 Key。
 
@@ -42,13 +42,28 @@ Phone Session 的 auth_method 仍为 transition_phone_only；Desktop 可记录 U
 
 既有登录版本门槛为 2.0.0-beta.40；MedEvidence 上游切换至 R760 的版本门槛为 2.0.0-beta.47。客户端发送实际版本，不伪造版本绕过门槛。
 
-## 身份／支付后端：先关联，再开户
+## 身份／支付后端：直接开户，resolve 可选
 
 以下接口仅供服务端使用，复用既有 Authorization: Bearer <Billing Admin 凭据>。管理凭据不分发给 Desktop。
 
 映射约定：provider=medevidence_billing；APP_ENV=prod 时 external_user_id=str(user_id)，其他环境为 medevidence_test_{user_id}。
 
-第一步：POST /gateway/admin/billing/v1/subjects/resolve，JSON：
+推荐：直接 POST /gateway/admin/billing/v1/subjects，沿用 Authorization、Content-Type 和 Idempotency-Key，请求体：
+
+```json
+{
+  "provider": "medevidence_billing",
+  "external_user_id": "medevidence_test_21",
+  "phone": "13800138000",
+  "scope_allowlist": ["code"]
+}
+```
+
+Gateway 内部完成手机号关联和新开户准备。若匹配到既有账户，建立外部关联后沿用旧合同返回 409 subject_already_exists；使用 GET /subjects?provider=...&external_user_id=... 取回 subject.id。保留旧账户、Key、权益及用量，不重复开户。
+
+phone 是向后兼容的可选扩展。5 月原样请求不带 phone 且无 resolve 记录时，仍创建原 Billing Subject 和 Key，不自动赋予手机号登录和免费权益；响应继续为 subject.id、credential.key、credential.issued_at、credential.expires_at，不返回顶层 subject_id/key/expired_at。该路径的原付费事件流程保持可用。
+
+可选两步流程的第一步：POST /gateway/admin/billing/v1/subjects/resolve，JSON：
 
 ```json
 {
@@ -66,7 +81,7 @@ Phone Session 的 auth_method 仍为 transition_phone_only；Desktop 可记录 U
 
 该接口只返回状态、Subject 标识和 request_id，不返回完整 Key。手机号冲突返回 409 identity_conflict，账户停用返回 403 account_disabled；不自动改绑、复活账户或删除历史。稳定外部身份关联后，不因请求中的手机号变化而自动迁移到另一 Subject；换绑单独处理。
 
-第二步：POST /gateway/admin/billing/v1/subjects，增加请求头：
+可选两步流程的第二步：POST /gateway/admin/billing/v1/subjects，增加请求头（直接开户也使用此固定业务事件规则）：
 
 ```http
 Idempotency-Key: medevidence_billing:medevidence_test_21:create_subject
@@ -85,11 +100,11 @@ Content-Type: application/json
 
 姓名可空：name=null，手机号独立保存，display_name 可省略。不使用“姓名=手机号”；人工发 Key 工具的姓名必填不适用于此接口。
 
-Gateway 在同一数据库事务中保存 Subject、模型凭据、可恢复的当前 cgu_live Key、免费权益和 Phone identity。200 返回时，新用户即可走 Desktop v1，无需再人工登记或另调 phone-auth-identities。
+对于直接提供 phone 或沿用 resolve 的手机号新开户，Gateway 在同一数据库事务中保存 Subject、模型凭据、可恢复的当前 cgu_live Key、免费权益和 Phone identity。200 返回时，新用户即可走 Desktop v1，无需再人工登记或另调 phone-auth-identities。
 
 订单归属使用 subject.id（subj_...），不能使用 credential.id（uck_...）、Key 或 prefix。首次响应含 credential.key；相同业务事件重试返回 idempotent_replay=true，不再次返回完整 Key、不重复发额度。Desktop 可通过手机号 bootstrap 取回当前 Key，不依赖收费侧保存了首次响应。收费侧若仍需恢复完整 Key，沿用既有受控轮换流程。
 
-启用本轮 provider 后，跳过 resolve 的新开户返回 409 identity_link_required。身份后端需要接入 resolve，并等待 Gateway 开户成功；仅身份后端数据库创建成功不等于 Gateway 已准备完毕。
+不再因跳过 resolve 拒绝开户。身份后端等待所选开户请求成功；仅身份后端数据库创建成功不等于 Gateway 已准备完毕。手机号开户失败重试保持原 Idempotency-Key 和请求体；不要增删 phone 字段来重试同一事件。
 
 ## 免费额度与首次付费
 
@@ -107,8 +122,8 @@ Gateway 在同一数据库事务中保存 Subject、模型凭据、可恢复的�
 
 Migration 28 增加关联／开户状态表。免费 Plan 在首次新手机号开户事务中创建，之后复用，不批量修改历史账户。
 
-类型检查与 338 项测试通过，固定提交的 Linux 镜像内再次通过同组测试。公网开户、手机号登录、bootstrap、resolver/current、goldencode 真实模型调用及 R760 MedEvidence 运行 Key 检查均通过；原有账户、Key 和权益逐条比对无变化，测试账户已清理。证据见[发布验收记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
+兼容修订增加 5 月原样请求、直接手机号开户、旧账户关联、错误输入和并发重试的回归覆盖。本轮类型检查与 344 项相关测试通过；公网部署验收另记。先前 63c818f 的 338 项测试及两步流程上线证据见[历史发布记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
-公网验收使用临时测试账户与真实模型调用，不代替真实 captcha／短信／支付验收。身份后端接入 resolve、客户端完成 SMS→v1 适配后，可以执行真实端到端联调。
+公网验收使用临时测试账户与真实模型调用，不代替真实 captcha／短信／支付验收。身份后端可直接发送带 phone 的开户请求，也可沿用可选 resolve 流程；客户端继续 SMS→v1 适配。
 
 正式用户协议和隐私政策链接仍由产品提供，分别配置 MEDEVIDENCE_AUTH_TERMS_URL、MEDEVIDENCE_AUTH_PRIVACY_URL；本轮不编造或发布这些协议。当前客户端表单仍会受链接缺失影响。
