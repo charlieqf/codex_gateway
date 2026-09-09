@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-08 (Gateway timeout observability release and Compose services).
+Last verified: 2026-09-09 (Gateway phone signup release, public acceptance and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,19 +18,19 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway and Compose verification on 2026-09-08; local inference verification on 2026-09-06:
+Gateway and Compose verification on 2026-09-09; local inference verification on 2026-09-06:
 
 - `current`:
-  `6640d0eda4db0f90ecf6aa18adbfb95e38b8f251`
+  `63c818f3c0588f602eaa51438b46981d8a34cc9e`
 - `previous`:
-  `ebad087785d4158767bca99c8f841e33df4eca97`
+  `6640d0eda4db0f90ecf6aa18adbfb95e38b8f251`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `6640d0e`; Research Worker remains on the existing runtime with
+Gateway runs `63c818f`; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -39,8 +39,15 @@ Results retain source and literature quality warnings. Release evidence:
 The [timeout observability release](./r760-timeout-observability-release-2026-09-08.zh-CN.md)
 preserves interrupted stream progress and classifies header/body read timeouts.
 Public success/deadline tests and ordinary-user admin correlation passed;
-synthetic body-timeout tests passed inside the deployed container. Gateway
-configuration and all other service containers remain unchanged.
+synthetic body-timeout tests passed during that release.
+
+The [phone signup release](./r760-phone-signup-release-2026-09-09.zh-CN.md)
+adds backend identity linking and atomic new-account provisioning with a
+1,000,000-token daily free entitlement and phone enrollment. Desktop reuses
+phone-auth v1 after external SMS login; external-token v2 is withdrawn.
+Only GATEWAY_BILLING_IDENTITY_PROVIDER was added to runtime configuration.
+Public signup/login/key/model acceptance passed, pre-existing control rows
+are unchanged, and all other service containers remain unchanged.
 
 The public text surface contains:
 

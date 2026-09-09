@@ -48,7 +48,7 @@ async function login(account) {
   assert.equal(session.subject.id, account.subjectId);
   assert.equal(session.auth_method, "transition_phone_only");
   const bootstrap = await call("/gateway/auth/v1/session/bootstrap", { method: "POST", token: session.access_token, body: {} });
-  assert.equal(bootstrap.unified_key.key, account.key);
+  assert.ok(bootstrap.unified_key.key === account.key, "Bootstrap must recover the same key");
   const current = await call("/gateway/account/v1/current", { token: session.access_token });
   assert.equal(current.subject.id, account.subjectId);
   const resolved = await call("/gateway/unified-keys/resolve", { method: "POST", token: account.key, body: {} });
@@ -69,13 +69,21 @@ try {
   const issued = await call("/gateway/admin/billing/v1/subjects", { method: "POST", token: admin, body: createBody, event: `${run}:create` });
   fresh.subjectId = issued.subject.id; fresh.key = issued.credential.key;
   const ready = await login(fresh);
+  const medevidence = ready.resolved.medevidence;
+  assert.ok(["https://r760.instmarket.com.au:1443", "https://gw-47-116-7-37.nip.io"].includes(medevidence.base_url));
+  const runtimeResponse = await fetch(`${medevidence.base_url}/validate-key`, {
+    headers: { "X-API-Key": medevidence.api_key }, redirect: "error", signal: AbortSignal.timeout(20_000)
+  });
+  assert.equal(runtimeResponse.status, 200, "MedEvidence runtime credential is not accepted");
+  assert.equal((await runtimeResponse.json()).valid, true, "MedEvidence runtime credential is not valid");
+  report.medevidence_runtime = { base_url: medevidence.base_url, valid: true };
   assert.equal(ready.current.identity.plan_id, "plan_free_daily_1m_v1");
   assert.equal(ready.credential.credential.token.tokensPerDay, 1_000_000);
   assert.equal(db.prepare("SELECT name FROM subjects WHERE id = ?").get(fresh.subjectId).name, null);
   const initial = db.prepare("SELECT id FROM entitlements WHERE subject_id = ?").get(fresh.subjectId).id;
   const replay = await call("/gateway/admin/billing/v1/subjects", { method: "POST", token: admin, body: createBody, event: `${run}:create` });
   assert.equal(replay.idempotent_replay, true);
-  assert.equal(replay.credential.key, undefined);
+  assert.equal(typeof replay.credential.key, "undefined");
   await login(fresh);
   assert.deepEqual(db.prepare("SELECT id FROM entitlements WHERE subject_id = ?").all(fresh.subjectId).map(x => x.id), [initial]);
   const model = await call("/v1/chat/completions", { method: "POST", token: ready.resolved.codex_gateway.api_key,

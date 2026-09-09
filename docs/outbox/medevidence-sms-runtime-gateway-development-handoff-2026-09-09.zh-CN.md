@@ -1,6 +1,6 @@
 # MedEvidence 短信登录：Gateway 交付说明
 
-2026-09-09，修订 3。新用户自动开户、每日 100 万 token 免费权益及 Phone identity 已完成实现，正在执行 R760 发布验收。
+2026-09-09，修订 3。新用户自动开户、每日 100 万 token 免费权益及 Phone identity 已部署 R760，公网联调验收通过，发布提交 63c818f。
 
 完整合同、示例、错误和重试规则统一维护在[Gateway 联调说明](./medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)，以该文档为准。
 

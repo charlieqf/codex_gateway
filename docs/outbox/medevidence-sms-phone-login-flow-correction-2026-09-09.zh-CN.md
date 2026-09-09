@@ -2,7 +2,7 @@
 
 2026-09-09。用户确认：真实短信登录成功后，Desktop 以同一手机号复用 Gateway phone-auth v1 领取模型 Key，外部 token 留在身份／支付链路；先前外部 token 换 Key 的 v2 候选合同撤回。
 
-随后确认的新用户自动开户、每日 100 万 token 免费权益及手机号登录准备已完成实现，正在执行 R760 发布验收。当前细节统一见[Gateway 联调说明](./medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。
+随后确认的新用户自动开户、每日 100 万 token 免费权益及手机号登录准备已部署 R760，公网验收通过。当前细节统一见[Gateway 联调说明](./medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。
 
 | 登录标签 | 流程 |
 | --- | --- |

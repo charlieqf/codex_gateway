@@ -1,6 +1,6 @@
 # MedEvidence 短信／临时登录：Gateway 联调说明
 
-2026-09-09。状态：实现和本地验证完成，等待本次 R760 发布及公网验收记录。
+2026-09-09。状态：已部署 R760，公网验收通过，可开始客户端／身份后端联调。发布提交 63c818f，详见[上线验收记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 本文是本轮联调入口。先前 medevidence-sms-runtime-v2 外部 token 换 Key 候选合同已撤回，客户端使用现有手机号 v1 合同。
 
@@ -107,7 +107,7 @@ Gateway 在同一数据库事务中保存 Subject、模型凭据、可恢复的�
 
 Migration 28 增加关联／开户状态表。免费 Plan 在首次新手机号开户事务中创建，之后复用，不批量修改历史账户。
 
-类型检查与 338 项测试通过，覆盖事务回滚、并发开户、旧账户保护、额度累计、UTC 重置、付费替换、临时登录及 v1/resolver/current。上线提交、公网请求 ID 和清理结果见本轮发布验收记录。
+类型检查与 338 项测试通过，固定提交的 Linux 镜像内再次通过同组测试。公网开户、手机号登录、bootstrap、resolver/current、goldencode 真实模型调用及 R760 MedEvidence 运行 Key 检查均通过；原有账户、Key 和权益逐条比对无变化，测试账户已清理。证据见[发布验收记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 公网验收使用临时测试账户与真实模型调用，不代替真实 captcha／短信／支付验收。身份后端接入 resolve、客户端完成 SMS→v1 适配后，可以执行真实端到端联调。
 

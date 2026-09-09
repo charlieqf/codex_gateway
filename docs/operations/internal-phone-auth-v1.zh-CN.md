@@ -1,11 +1,16 @@
 # R760 双轨兼容手机号登录 v1 操作说明
 
-> 状态（2026-08-22）：R760 additive 部署、prefix contract hotfix、Desktop
-> beta.40 A/B/U live acceptance、自动关窗和权威数据不变量审计均已完成；双方
-> 已签收 `contract_frozen`。业务 owner 随后批准为所有符合条件的现有
-> MedEvidence 用户启用手机号免验证码登录，并明确排除 2 名不再纳入本次上线的
-> 用户。生产当前为 `transition / auth_only / 2.0.0-beta.40`；153 个现有用户的
-> Phone identity 已启用，旧 `cgu_live_*` 路径保持可用。
+> 当前用途（2026-09-09 用户确认）：已上线的 Gateway 手机号免验证码登录 v1；
+> Desktop 的“临时登录”直接使用它，“短信登录”在外部身份后端成功后也复用它领取 Key。
+> Gateway 外部 token 换 Key v2 已撤回，见[确认流程与客户端修订](../outbox/medevidence-sms-phone-login-flow-correction-2026-09-09.zh-CN.md)。
+> 2026-09-09：新用户由身份后端走 resolve → create_subject，Gateway 自动完成每日 100 万免费权益和手机号身份准备，已上线并通过公网验收，见[联调说明](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。该后台开户流程与下述公开登录入口的“未知手机号不自动开户”边界相容。
+> 以下 health 和账户统计保留 2026-09-08 的核查时间：
+> 公网 health 返回 `transition / auth_only / 2.0.0-beta.40`；MedEvidence routing
+> 为 `versioned`，R760 最低路由版本为 `2.0.0-beta.47`。
+> R760 DB 于 2026-09-08 11:38:32 UTC 只读核查：208 条 active Phone identity 均有
+> 恢复密文、current/desktop Key，关联 Subject 和凭据有效性元数据正常；另有 2 条
+> disabled identity。本次未解密 Key、逐用户判断权益或执行登录。下文 153 人批次是
+> 2026-08-22 的历史记录；覆盖范围已在 2026-08-24 完成系统恢复，不限于 manual_trial。
 
 本实现只用于 R760 权威 Gateway。权威实施规格为
 [`MedEvidence R760 双轨兼容手机号免验证码登录 Gateway 实施规格 v1`](../implementation/medevidence-r760-dual-track-phone-auth-gateway-implementation-spec-2026-08-21.zh-CN.md)，
@@ -13,13 +18,13 @@ Desktop/Gateway 联调使用新的
 [`medevidence-r760-dual-track-phone-auth-v1`](../contracts/medevidence-r760-dual-track-phone-auth-v1/README.md)
 contract；旧 frozen contract 只提供未变化的 wire shape。
 
-## 不变量与生产状态
+## v1 不变量与已核对的生产配置
 
 - `GATEWAY_PHONE_AUTH_MODE=transition`；
 - `GATEWAY_DESKTOP_VERSION_GATE=auth_only`；
 - `GATEWAY_MINIMUM_DESKTOP_VERSION=2.0.0-beta.40`；
 - migration 25 保持原 SQL，additive schema 在开关关闭时不改变旧请求路径；
-- 未登记手机号返回 `phone_not_registered`，不得自动创建 Subject、Key、Plan 或 entitlement；
+- 公开 login/start 对未登记手机号返回 `phone_not_registered`，不自动创建 Subject、Key、Plan 或 entitlement；新用户通过受认证的后台开户接口准备后再登录；
 - Phone identity/Session、旧 `cgu_live_*`、backing credential、Plan、entitlement、capability、额度窗口和既有用量锚定同一 `subject_id`；
 - login、refresh、logout、replay、Session 过期、identity disable 和 Desktop 升级均不得撤销旧 Key 或改变 Plan/用量；
 - R760 是唯一运行、控制和用量权威，不使用 Azure、CN1 或第二 Gateway 兼容、重试或回滚。
@@ -33,7 +38,7 @@ contract；旧 frozen contract 只提供未变化的 wire shape。
 1. 先重读实时 `docs/operations/system-status.md` 并对 R760 做只读核验；文档内的历史 release SHA 不能替代实时事实。
 2. 建立并验证 current/previous release、Gateway image、完整 Compose overlay、正式配置、SQLite 备份与六个命名卷的回滚边界；不得打印 env、rendered Compose 或 secret 内容。
 3. 为受控目标 Subject 核对唯一中国大陆手机号、活动 Subject、活动 Plan、`code` scope、`chat` capability 和原有用量快照。
-4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；Gateway 公网 Origin 为 `https://goldencode.instmarket.com.au:1443`，统一 Key 元数据中的 MedEvidence Origin 为 `https://gw-47-116-7-37.nip.io`（均按规范化 Origin 比较）。
+4. 核对 backing credential 与当前 `cgu_live_*` 未撤销、未过期且可恢复；Gateway 公网 Origin 为 `https://goldencode.instmarket.com.au:1443`。统一 Key 元数据中的 MedEvidence Origin 允许受控旧地址或 R760 地址，按下文分版本路由规则处理，不能要求所有 Key 都使用旧 nip.io 地址。
 5. 配置稳定的 Ed25519 和加密 secret 文件。R760 继续使用现有 `gateway_state` 卷内固定目录，不增加第二 secret fallback：
 
    ```text
@@ -133,7 +138,11 @@ nip.io 的 TLS/SNI reset；发生该网络故障的设备仍必须升级到支�
 
 任何一步失败都应先恢复配置开关和 previous image/config 边界；保留 additive schema，不恢复旧数据库，不切换到 Azure/CN1。
 
-## 批量启用、后续发放与停用
+## 存量准备、后续发放与停用
+
+当前存量准备依据是有效的 code credential bundle、active chat entitlement 和唯一、受支持手机号，不能只按 `provider=manual_trial` 筛选。2026-08-24 已补齐历史 direct key 和其他发行路径的符合条件账户；详细证据见[系统恢复结果](../implementation/medevidence-r760-phone-auth-systemic-recovery-result-2026-08-24.zh-CN.md)。手机号、Subject、Key 恢复材料由 Gateway 自查；Billing 测试开户的 Key 保存行为不能代表全部真实用户。
+
+以下人数仅还原首次上线批次：
 
 2026-08-22 的生产批次以现有有效 `manual_trial` MedEvidence 用户为权威范围：161 个目标中排除
 8 个诊断、船期、合成测试、重复/非权威或 owner 明确排除的 Subject，最终启用 153 个 Phone
@@ -142,8 +151,8 @@ identity。批量准备为每个目标复用同一 Subject、Plan、entitlement 
 不变量见
 [`生产双轨 Phone Auth 上线结果`](../implementation/medevidence-r760-global-dual-track-phone-auth-rollout-result-2026-08-22.zh-CN.md)。
 
-以后通过正式 real-user issuance 流程发放、且提供有效唯一手机号的新用户，会在同一事务流程后自动
-准备 Phone identity。未知手机号仍返回 `403 phone_not_registered`，不得在登录请求中自动创建
+以后通过正式 real-user issuance 流程发放、且提供有效唯一手机号的新用户，会在正式发放作业成功前执行
+`prepare_phone_login`，准备 Phone identity 和可恢复的 current Key。未知手机号仍返回 `403 phone_not_registered`，不得在登录请求中自动创建
 Subject、Key、Plan 或 entitlement。
 
 需要对单个既有 Subject 补登记时，使用现有 Billing Admin 认证：
