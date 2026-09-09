@@ -1,0 +1,12 @@
+{
+  "contract_id": "medevidence-sms-runtime-v2",
+  "contract_version": 2,
+  "artifact_state": "withdrawn",
+  "withdrawn_at": "2026-09-09",
+  "reason": "SMS login succeeds at the identity backend; model credentials use the existing Gateway phone-only v1 flow.",
+  "replacement_contract_id": "medevidence-r760-dual-track-phone-auth-v1",
+  "replacement_fixture": "../medevidence-r760-dual-track-phone-auth-v1/fixtures.json",
+  "replacement_notice": "../../outbox/medevidence-sms-phone-login-flow-correction-2026-09-09.zh-CN.md",
+  "archived_fixture": "fixtures.withdrawn-2026-09-09.json",
+  "archived_fixture_sha256": "970fdf9b2b9b352da90a3e873647a86b3d676ba0679c7ebf9e1ae90ae8a106e5"
+}

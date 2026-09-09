@@ -12,6 +12,7 @@ import type {
   UpstreamV2BindingRecord
 } from "./types.js";
 import type { PublicModelAliasGroup } from "./public-model-usage.js";
+import type { PreparePhoneAuthIdentityInput } from "./phone-auth.js";
 
 export const billingEventTypes = [
   "purchase",
@@ -174,6 +175,8 @@ export interface CreateBillingSubjectInput {
   gatewayCredential: AccessCredentialRecord;
   unifiedClientKey: UnifiedClientKeyRecord;
   upstreamV2Binding: UpstreamV2BindingRecord;
+  /** Server-built enrollment for a newly resolved phone; committed with its free grant. */
+  phoneSignup?: PreparePhoneAuthIdentityInput;
   now?: Date;
 }
 

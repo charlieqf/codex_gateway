@@ -43,17 +43,25 @@ export function grant(
   deps: EntitlementStoreDependencies
 ): Entitlement {
   const now = input.now ?? new Date();
-  return runInTransaction(db, "BEGIN IMMEDIATE", () => {
-    const plan = deps.getPlan(input.planId);
-    if (!plan) {
-      throw new Error(`Plan not found: ${input.planId}`);
-    }
-    if (plan.state !== "active") {
-      throw new Error(`Plan is deprecated and cannot grant new entitlements: ${input.planId}`);
-    }
-    assertActiveCredentialScopesAllowed(deps, input.subjectId, plan.scopeAllowlist, now);
-    return insertFromPlan(db, plan, input, now);
-  });
+  return runInTransaction(db, "BEGIN IMMEDIATE", () => grantInTransaction(db, input, deps, now));
+}
+
+/** Caller owns the write transaction, e.g. atomic subject signup. */
+export function grantInTransaction(
+  db: DatabaseSync,
+  input: GrantEntitlementInput,
+  deps: EntitlementStoreDependencies,
+  now: Date
+): Entitlement {
+  const plan = deps.getPlan(input.planId);
+  if (!plan) {
+    throw new Error(`Plan not found: ${input.planId}`);
+  }
+  if (plan.state !== "active") {
+    throw new Error(`Plan is deprecated and cannot grant new entitlements: ${input.planId}`);
+  }
+  assertActiveCredentialScopesAllowed(deps, input.subjectId, plan.scopeAllowlist, now);
+  return insertFromPlan(db, plan, input, now);
 }
 
 export function renew(

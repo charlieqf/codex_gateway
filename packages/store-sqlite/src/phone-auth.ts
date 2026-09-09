@@ -21,7 +21,14 @@ export function prepareIdentity(
   db: DatabaseSync,
   input: PreparePhoneAuthIdentityInput
 ): PhoneAuthIdentity {
-  return runInTransaction(db, "BEGIN IMMEDIATE", () => {
+  return runInTransaction(db, "BEGIN IMMEDIATE", () => prepareIdentityInTransaction(db, input));
+}
+
+/** Caller owns the write transaction, e.g. atomic subject signup. */
+export function prepareIdentityInTransaction(
+  db: DatabaseSync,
+  input: PreparePhoneAuthIdentityInput
+): PhoneAuthIdentity {
     const subject = db
       .prepare("SELECT state FROM subjects WHERE id = ?")
       .get(input.subjectId) as { state: string } | undefined;
@@ -150,7 +157,6 @@ export function prepareIdentity(
       now: input.now
     });
     return mustIdentityByPhoneHash(db, input.phoneHash);
-  });
 }
 
 export function setIdentityState(

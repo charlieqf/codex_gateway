@@ -991,6 +991,30 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(db, 28, `
+    CREATE TABLE external_subject_registrations (
+      provider TEXT NOT NULL,
+      external_user_id TEXT NOT NULL,
+      phone_number TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('ready', 'creating', 'linked')),
+      subject_id TEXT,
+      idempotency_key TEXT,
+      payload_hash TEXT,
+      request_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (provider, external_user_id),
+      FOREIGN KEY (subject_id) REFERENCES subjects(id),
+      CHECK ((state = 'linked' AND subject_id IS NOT NULL) OR
+             (state != 'linked' AND subject_id IS NULL))
+    );
+    CREATE UNIQUE INDEX idx_external_subject_registration_subject
+      ON external_subject_registrations(provider, subject_id)
+      WHERE subject_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_external_subject_registration_pending_phone
+      ON external_subject_registrations(phone_number) WHERE state != 'linked';
+  `, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

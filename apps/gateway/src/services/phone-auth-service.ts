@@ -27,6 +27,7 @@ import {
   type PhoneAuthMode,
   type PhoneAuthSession,
   type PhoneAuthStore,
+  type PreparePhoneAuthIdentityInput,
   type PlanEntitlementStore,
   type UnifiedClientKeyRecord,
   type UnifiedClientKeyStore
@@ -309,6 +310,22 @@ export class PhoneAuthService {
     }
     this.requireRuntimeBundle(key, now, false);
     this.requireActiveInternalAccount(input.subjectId, now);
+    return this.store.preparePhoneAuthIdentity(this.identityPreparation({
+      ...input, key, now
+    }));
+  }
+
+  /** Build encrypted enrollment before a new Subject's atomic store commit. */
+  identityPreparation(input: PreparePhoneAuthInput & {
+    key: UnifiedClientKeyRecord;
+    now: Date;
+  }): PreparePhoneAuthIdentityInput {
+    const normalizedPhone = normalizeMainlandChinaPhone(input.phone);
+    const { key, now } = input;
+    if (!normalizedPhone || key.subjectId !== input.subjectId ||
+        verifyUnifiedClientKeyToken(input.unifiedKey, key, now)) {
+      throw invalidRequest();
+    }
     const existingMedevidenceOrigin = normalizeBaseUrl(
       metadataString(key.metadata, "medevidence_base_url")
     );
@@ -316,7 +333,7 @@ export class PhoneAuthService {
       normalizedPhone,
       this.requiredPhoneLookupSecret()
     );
-    return this.store.preparePhoneAuthIdentity({
+    return {
       phoneHash,
       phoneCiphertext: encryptSecret(
         normalizedPhone,
@@ -336,7 +353,7 @@ export class PhoneAuthService {
       backingAllowedPublicModels: ["goldencode", "goldencode-local"],
       requestId: input.requestId,
       now
-    });
+    };
   }
 
   setIdentityState(

@@ -1,0 +1,252 @@
+{
+  "contract_id": "medevidence-sms-runtime-v2",
+  "contract_version": 2,
+  "artifact_state": "contract_candidate",
+  "synthetic_notice": "All users and keys are synthetic fixtures, never issued. JWTs must be generated with test-only keys. Expiry uses the fixed fixture clock 2026-09-09T00:00:00Z.",
+  "origin": "https://goldencode.instmarket.com.au:1443",
+  "requests": {
+    "authorize": {
+      "credential_type": "external_access_token",
+      "client": "medevidence-desktop",
+      "device_id": "desktop-device-example-01",
+      "contract_version": 2
+    },
+    "resolve": {
+      "provider": "medevidence_billing",
+      "external_user_id": "medevidence_test_21",
+      "phone": "13800138000"
+    }
+  },
+  "id_mapping": [
+    {
+      "identity_app_env": "prod",
+      "user_id": 21,
+      "external_user_id": "21",
+      "configured_prefix": ""
+    },
+    {
+      "identity_app_env": "non-prod",
+      "user_id": 21,
+      "external_user_id": "medevidence_test_21",
+      "configured_prefix": "medevidence_test_"
+    }
+  ],
+  "responses": {
+    "authorized": {
+      "contract_version": 2,
+      "subject": {
+        "id": "subj_sms_fixture",
+        "state": "active"
+      },
+      "entitlement": {
+        "state": "active",
+        "plan_id": "plan_sms_fixture",
+        "period_kind": "one_off",
+        "period_start": "2026-09-09T00:00:00.000Z",
+        "period_end": "2030-09-09T00:00:00.000Z",
+        "feature_policy": {
+          "capabilities": [
+            "chat",
+            "tools"
+          ]
+        }
+      },
+      "request_id": "req-sms-fixture",
+      "status": "authorized",
+      "runtime": {
+        "unified_key": "cgu_live_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "unified_prefix": "cgu_live_AAAAAAAAAAAAAAAA",
+        "unified_expires_at": "2030-09-09T00:00:00.000Z",
+        "resolver_url": "https://goldencode.instmarket.com.au:1443/gateway/unified-keys/resolve",
+        "capabilities": [
+          "chat",
+          "tools"
+        ]
+      }
+    },
+    "account_ready": {
+      "contract_version": 2,
+      "subject": {
+        "id": "subj_sms_fixture",
+        "state": "active"
+      },
+      "entitlement": {
+        "state": "none",
+        "plan_id": null,
+        "period_kind": null,
+        "period_start": null,
+        "period_end": null,
+        "feature_policy": null
+      },
+      "request_id": "req-sms-fixture",
+      "status": "account_ready",
+      "runtime": null
+    },
+    "resolve_linked": {
+      "status": "linked",
+      "subject": {
+        "id": "subj_sms_fixture",
+        "state": "active"
+      },
+      "request_id": "req-sms-fixture"
+    },
+    "resolve_create_ready": {
+      "status": "create_ready",
+      "subject": null,
+      "request_id": "req-sms-fixture"
+    },
+    "resolve_pending": {
+      "status": "account_pending",
+      "subject": null,
+      "request_id": "req-sms-fixture"
+    }
+  },
+  "errors": [
+    {
+      "http_status": 400,
+      "body": {
+        "error": {
+          "code": "invalid_request",
+          "message": "Invalid runtime authorization request.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 401,
+      "body": {
+        "error": {
+          "code": "external_token_invalid",
+          "message": "The external access token is invalid.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 401,
+      "body": {
+        "error": {
+          "code": "external_token_expired",
+          "message": "The external access token has expired.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 401,
+      "body": {
+        "error": {
+          "code": "expired_credential",
+          "message": "The runtime credential has expired.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 401,
+      "body": {
+        "error": {
+          "code": "revoked_credential",
+          "message": "The runtime credential is revoked.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 403,
+      "body": {
+        "error": {
+          "code": "account_disabled",
+          "message": "The account is disabled.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 409,
+      "body": {
+        "error": {
+          "code": "identity_link_required",
+          "message": "The external identity must be linked before runtime authorization.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 409,
+      "body": {
+        "error": {
+          "code": "account_pending",
+          "message": "Account creation is pending.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 409,
+      "body": {
+        "error": {
+          "code": "identity_conflict",
+          "message": "External identity or phone account has a conflicting association.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 409,
+      "body": {
+        "error": {
+          "code": "account_migration_required",
+          "message": "The account needs runtime credential preparation.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 503,
+      "body": {
+        "error": {
+          "code": "service_unavailable",
+          "message": "External runtime authorization is not configured.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 503,
+      "body": {
+        "error": {
+          "code": "identity_service_unavailable",
+          "message": "External identity verification is temporarily unavailable.",
+          "request_id": "req-sms-fixture"
+        }
+      }
+    },
+    {
+      "http_status": 426,
+      "body": {
+        "error": {
+          "code": "client_upgrade_required",
+          "message": "A newer MedEvidence Desktop version is required.",
+          "request_id": "req-sms-fixture",
+          "minimum_version": "2.0.0-beta.40",
+          "download_url": "https://updates.example/medevidence-fixture.exe"
+        }
+      }
+    },
+    {
+      "http_status": 429,
+      "headers": {
+        "retry-after": "60"
+      },
+      "body": {
+        "error": {
+          "code": "auth_rate_limited",
+          "message": "Too many authorization requests.",
+          "request_id": "req-sms-fixture",
+          "retry_after_seconds": 60
+        }
+      }
+    }
+  ]
+}

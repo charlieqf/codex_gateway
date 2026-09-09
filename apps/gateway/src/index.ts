@@ -110,6 +110,7 @@ import {
   registerPhoneAuthRoutes,
   sendPhoneAuthError
 } from "./phone-auth-routes.js";
+import type { ExternalIdentityStore } from "@codex-gateway/core";
 import {
   PhoneAuthService,
   resolvePhoneAuthMode,
@@ -343,6 +344,9 @@ export interface GatewayOptions {
   planEntitlementStore?: PlanEntitlementStore;
   phoneAuthStore?: PhoneAuthStore;
   phoneAuthService?: PhoneAuthService | null;
+  externalIdentityProvider?: string | null;
+  externalIdentityStore?: ExternalIdentityStore;
+  unifiedKeyRecoverySecret?: string | null;
   desktopVersionGate?: DesktopVersionGate;
   medevidenceOriginPolicy?: MedevidenceOriginPolicy;
   phoneAuthLoginRateLimiter?: CredentialRateLimiter;
@@ -774,6 +778,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   const billingAdminStore =
     options.billingAdminStore ?? (isBillingAdminStore(sessions) ? sessions : undefined);
+  const externalIdentityProvider = options.externalIdentityProvider ?? process.env.GATEWAY_BILLING_IDENTITY_PROVIDER?.trim() ?? null;
+  if (externalIdentityProvider && !/^[A-Za-z0-9._:-]{1,100}$/.test(externalIdentityProvider)) {
+    throw new Error("Invalid GATEWAY_BILLING_IDENTITY_PROVIDER.");
+  }
+  const externalIdentityStore = options.externalIdentityStore ?? (isExternalIdentityStore(sessions) ? sessions : undefined);
+  const unifiedKeyRecoverySecret = options.unifiedKeyRecoverySecret === undefined
+    ? resolveProviderApiKey(process.env, "GATEWAY_UNIFIED_KEY_RECOVERY_KEY").apiKey
+    : options.unifiedKeyRecoverySecret;
   const billingAdminTokenStore =
     options.billingAdminTokenStore ?? (isBillingAdminTokenStore(sessions) ? sessions : undefined);
   const billingAdminAccess = resolveBillingAdminAccess({
@@ -1844,6 +1856,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     publicBaseUrl: publicGatewayBaseUrl,
     desktopClientVersion: desktopVersionGate.minimumVersion,
     phoneAuthService,
+    externalIdentityProvider,
+    externalIdentityStore,
+    unifiedKeyRecoverySecret,
     publicModels: publicModelRegistry.models.map((model) => ({
       id: model.id,
       aliases: model.aliases,
@@ -8338,6 +8353,14 @@ function isPhoneAuthStore(
     typeof candidate.revokePhoneAuthSession === "function" &&
     typeof candidate.recordPhoneAuthAudit === "function"
   );
+}
+
+function isExternalIdentityStore(store: GatewayStore): store is GatewayStore & ExternalIdentityStore {
+  const candidate = store as Partial<ExternalIdentityStore>;
+  return typeof candidate.getSubjectByExternalIdentity === "function" &&
+    typeof candidate.getExternalSubjectRegistrationState === "function" &&
+    typeof candidate.resolveExternalSubject === "function" &&
+    typeof candidate.claimExternalSubjectCreate === "function";
 }
 
 function isBillingAdminStore(store: GatewayStore): store is GatewayStore & BillingAdminStore {

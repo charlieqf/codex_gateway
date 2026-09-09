@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
   GatewayError,
+  phoneSignupFreePlan,
+  phoneSignupFreePlanId,
+  normalizeMainlandChinaPhone,
   type AccessCredentialRecord,
   type BillingSubjectCredential,
   type BillingSubjectLifecycleEventType,
@@ -26,6 +29,10 @@ import {
 import { rowToAccessCredential, rowToUnifiedClientKey } from "./row-mappers.js";
 import { runInTransaction } from "./sql.js";
 import * as subjectsStore from "./subjects.js";
+import * as externalIdentities from "./external-identities.js";
+import * as entitlements from "./entitlements.js";
+import * as plans from "./plans.js";
+import * as phoneAuth from "./phone-auth.js";
 import * as unifiedClientKeys from "./unified-client-keys.js";
 
 const v2BindingColumns =
@@ -75,7 +82,7 @@ export function create(
       id: input.subjectId,
       label: input.displayName || input.externalUserId,
       name: null,
-      phoneNumber: null,
+      phoneNumber: externalIdentities.registration(db, input.provider, input.externalUserId)?.phone_number ?? null,
       externalProvider: input.provider,
       externalUserId: input.externalUserId,
       displayName: input.displayName ?? null,
@@ -83,10 +90,33 @@ export function create(
       createdAt: now
     };
 
+    if (subject.phoneNumber && subjectsStore.list(db, { includeArchived: true }).some(
+      existing => normalizeMainlandChinaPhone(existing.phoneNumber ?? "") === subject.phoneNumber
+    )) {
+      throw new GatewayError({ code: "identity_conflict", message: "The phone acquired another account during signup.", httpStatus: 409 });
+    }
     subjectsStore.upsert(db, subject);
     accessCredentials.insert(db, input.gatewayCredential);
     unifiedClientKeys.insert(db, input.unifiedClientKey);
     insertV2Binding(db, input.upstreamV2Binding);
+    externalIdentities.completeCreate(db, input, subject.id);
+    if (input.phoneSignup) {
+      if (!subject.phoneNumber || input.phoneSignup.subjectId !== subject.id ||
+          input.phoneSignup.unifiedKeyId !== input.unifiedClientKey.id) {
+        throw new GatewayError({ code: "identity_conflict", message: "Phone signup does not match the created subject.", httpStatus: 409 });
+      }
+      // This branch is only reachable for an actual new Subject. Replays and
+      // links to an existing account never grant or replace an entitlement.
+      if (!plans.get(db, phoneSignupFreePlanId)) plans.create(db, phoneSignupFreePlan(now));
+      entitlements.grantInTransaction(db, {
+        subjectId: subject.id, planId: phoneSignupFreePlanId, periodKind: "unlimited",
+        notes: "Automatic phone signup: daily 1,000,000 tokens (UTC).", now
+      }, {
+        getPlan: id => plans.get(db, id),
+        listAccessCredentials: filter => accessCredentials.list(db, filter)
+      }, now);
+      phoneAuth.prepareIdentityInTransaction(db, input.phoneSignup);
+    }
     const event = insertCreateEvent(db, input, now);
     insertCreateAudit(db, input, event.id, now);
 
@@ -151,8 +181,21 @@ export function rotate(
     }
 
     const subject = assertActiveSubject(db, input.subjectId);
+    if (input.unifiedClientKey.isCurrent) {
+      db.prepare("UPDATE unified_client_keys SET is_current = 0 WHERE subject_id = ? AND is_current = 1").run(input.subjectId);
+    }
     accessCredentials.insert(db, input.gatewayCredential);
     unifiedClientKeys.insert(db, input.unifiedClientKey);
+
+    // Rotation moves an already-enrolled phone identity to the new current key.
+    // It never enrolls a new phone user or revokes their Phone Session.
+    if (input.unifiedClientKey.isCurrent && db.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'phone_auth_identities'"
+    ).get()) {
+      db.prepare("UPDATE phone_auth_identities SET unified_key_id = ?, updated_at = ? WHERE subject_id = ?").run(
+        input.unifiedClientKey.id, now.toISOString(), input.subjectId
+      );
+    }
 
     const revokedCredentialIds = input.revokePrevious
       ? supersedeAccessCredentials(db, input.subjectId, input.gatewayCredential.id, now, input.gracePeriodSeconds)
