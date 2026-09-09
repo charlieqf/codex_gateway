@@ -1,6 +1,6 @@
 # MedEvidence 短信／临时登录：Gateway 联调说明
 
-2026-09-09。兼容修订：取消 resolve 强制前置，兼容 5 月原样开户；本修订发布结果见运维状态与对应验收记录。先前 63c818f 的两步开户验收见[历史上线记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
+2026-09-09。兼容修订已部署 R760，提交 27f10d9：取消 resolve 强制前置，兼容 5 月原样开户，公网验收通过。见[兼容修订上线记录](../operations/r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)。先前 63c818f 的两步开户验收见[历史上线记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 本文是本轮联调入口。先前 medevidence-sms-runtime-v2 外部 token 换 Key 候选合同已撤回，客户端使用现有手机号 v1 合同。
 
@@ -122,7 +122,7 @@ Content-Type: application/json
 
 Migration 28 增加关联／开户状态表。免费 Plan 在首次新手机号开户事务中创建，之后复用，不批量修改历史账户。
 
-兼容修订增加 5 月原样请求、直接手机号开户、旧账户关联、错误输入和并发重试的回归覆盖。本轮类型检查与 344 项相关测试通过；公网部署验收另记。先前 63c818f 的 338 项测试及两步流程上线证据见[历史发布记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
+兼容修订增加 5 月原样请求、直接手机号开户、旧账户关联、错误输入和并发重试的回归覆盖。本地及固定提交的 Linux 镜像内类型检查与 344 项相关测试通过；三种开户方式、公网手机号登录、Key、免费权益及真实模型验证通过，见[本轮验收](../operations/r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)。先前 63c818f 的 338 项测试及两步流程上线证据见[历史发布记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 公网验收使用临时测试账户与真实模型调用，不代替真实 captcha／短信／支付验收。身份后端可直接发送带 phone 的开户请求，也可沿用可选 resolve 流程；客户端继续 SMS→v1 适配。
 

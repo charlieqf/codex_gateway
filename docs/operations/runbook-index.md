@@ -26,7 +26,7 @@ documents.
 | Real-user/Desktop key provisioning details | [MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md) |
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
-| SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [R760 Release](./r760-phone-signup-release-2026-09-09.zh-CN.md); deployed, phone-auth v1 reused, external-token v2 withdrawn |
+| SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused |
 
 ## Runtime Components
 

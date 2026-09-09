@@ -3,7 +3,7 @@
 > 当前用途（2026-09-09 用户确认）：已上线的 Gateway 手机号免验证码登录 v1；
 > Desktop 的“临时登录”直接使用它，“短信登录”在外部身份后端成功后也复用它领取 Key。
 > Gateway 外部 token 换 Key v2 已撤回，见[确认流程与客户端修订](../outbox/medevidence-sms-phone-login-flow-correction-2026-09-09.zh-CN.md)。
-> 2026-09-09：新用户由身份后端走 resolve → create_subject，Gateway 自动完成每日 100 万免费权益和手机号身份准备，已上线并通过公网验收，见[联调说明](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。该后台开户流程与下述公开登录入口的“未知手机号不自动开户”边界相容。
+> 2026-09-09 兼容修订已上线：身份后端可直接 POST /subjects 并带 phone，Gateway 自动完成手机号新账户、每日 100 万免费权益和手机号身份准备；resolve 为可选两步流程。5 月原样不带 phone、也无 resolve 记录的请求继续按旧 Billing 规则开户。见[联调说明](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)。公开登录入口仍不会为未知手机号自动开户。
 > 以下 health 和账户统计保留 2026-09-08 的核查时间：
 > 公网 health 返回 `transition / auth_only / 2.0.0-beta.40`；MedEvidence routing
 > 为 `versioned`，R760 最低路由版本为 `2.0.0-beta.47`。
