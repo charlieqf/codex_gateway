@@ -33,4 +33,14 @@
 
 部署须从本分支已提交、测试、推送的 revision 生成源码归档，叠加两个组件的构建产物到已核实的原 Worker 基础镜像。只重建 research-worker，保留既有 Gateway current/previous 与其他服务实例。部署前创建并验证 Research SQLite 和配置备份；部署后检查镜像 revision、心跳、健康、重启数、公开 API 和产物校验。原用户的历史失败任务不由探针修改。
 
-线上发布和公网验收结果在实际执行后另行补录。
+## 已发布版本
+
+2026-09-10 11:34 UTC，R760 Research Worker 已更新为提交 `8efd541caea150e5ffb6dea59a8b4f354a19abd8`，镜像 ID `sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be`，心跳版本 `research-repair-8efd541caea1`。提交后的 TypeScript 构建通过；Research Agent、Worker 和 Gateway Research 路由共 **289 项测试通过**。
+
+- 只重建 `research-worker`；Gateway 容器仍为 `143c1445aef8`，`current=8dab89da424ce722df2c433d52132e19707536b9`、`previous=31946c97954af05399582010f5da7589204aac4b`。
+- 复用容器标签确认的原 `ebad087` 两个 Compose 文件、共享 R760 override 和生产 env 文件；共享 override 中单独固定 Worker 镜像、版本及预算。
+- 已验证备份：`/opt/codex-gateway-r760/backups/doctor-research-repair-8efd541caea150e5ffb6dea59a8b4f354a19abd8`。Research SQLite 快照、配置副本和发布元数据均受权限保护；数据库 `quick_check=ok`、外键违规 0。
+- 源码归档 SHA-256：`1f89a06b40d1dcc5b236c4e7bd6ca9bc86e5ac77d698ec11738b03b1cde8dcde`；两个组件构建归档：`af61867bd28dc0d1806dd8aa7a355e8698ff99709acfdd8a52357e9e79aa476f`。
+- 回滚须只处理 Worker 配置及旧镜像 `sha256:d97bfc98b8751082f9ca1337f133c1df04e41af16c33ae2cb1216ca33b79e136`，使用相同 Compose 组合。共享 override 如已有其他后续变更，不可整文件覆盖。Gateway 的 current/previous 不承担本次 Worker 回滚。
+
+公网验收使用临时 Research 测试权益。首次测试脚本默认 `code` scope，与 Research Plan 的 `medical` scope 不符，权益配置返回 409，未创建 Research 任务；脚本已禁用该临时账号并撤销其两类凭证。改用正确 `medical` scope 后成功创建独立测试账号。此错误属于测试准备，不计入搜索回归成功率。

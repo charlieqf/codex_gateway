@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """R760 worker-only release. Archives must come from a tested, pushed commit.
 
-Arguments: revision source_archive_sha256 build_archive_sha256.
+Arguments: revision source_archive_sha256 build_archive_sha256
+           [expected_current_image expected_current_override_sha256].
 Does not change Gateway release symlinks. Prints metadata, never config values.
 """
 import hashlib
@@ -17,13 +18,18 @@ import sys
 import tarfile
 import yaml
 
-revision, source_hash, build_hash = sys.argv[1:]
+assert len(sys.argv) in (4, 6)
+revision, source_hash, build_hash = sys.argv[1:4]
 assert re.fullmatch(r"[a-f0-9]{40}", revision)
 assert all(re.fullmatch(r"[a-f0-9]{64}", h) for h in (source_hash, build_hash))
 base = Path('/opt/codex-gateway-r760')
 worker = 'codex_gateway_r760-research-worker-1'
 expected_image = 'sha256:d97bfc98b8751082f9ca1337f133c1df04e41af16c33ae2cb1216ca33b79e136'
 expected_override = 'c6096af6f8cab70d87744123173de363c0d874d6a2b21a82e313e568847ed010'
+if len(sys.argv) == 6:
+    expected_image, expected_override = sys.argv[4:6]
+assert re.fullmatch(r'sha256:[a-f0-9]{64}', expected_image)
+assert re.fullmatch(r'[a-f0-9]{64}', expected_override)
 
 def run(args):
     p = subprocess.run(args, capture_output=True, text=True)
@@ -47,7 +53,21 @@ override = Path(files[-1])
 original_override = override.read_bytes()
 assert sha(override) == expected_override
 parsed = yaml.safe_load(original_override)
-assert 'research-worker' not in parsed['services']
+previous_worker = parsed['services'].get('research-worker')
+base_override = original_override
+if previous_worker is not None:
+    # Only replace the exact block written by this script, preserving every
+    # other service byte for byte. Unknown worker config requires review.
+    assert set(previous_worker) == {'image', 'environment'}
+    assert set(previous_worker['environment']) == {
+        'RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN',
+        'RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN', 'RESEARCH_WORKER_VERSION'}
+    previous_block = ('  research-worker:\n    image: '+previous_worker['image']+'\n    environment:\n'
+        '      RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000"\n'
+        '      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000"\n'
+        '      RESEARCH_WORKER_VERSION: "'+previous_worker['environment']['RESEARCH_WORKER_VERSION']+'"\n').encode()
+    assert base_override.count(previous_block) == 1
+    base_override = base_override.replace(previous_block, b'', 1)
 assert original_override.count(b'services:\n') == 1
 envfile = Path(labels['com.docker.compose.project.environment_file'])
 assert envfile.is_file() and stat.S_IMODE(envfile.stat().st_mode) & 0o007 == 0
@@ -116,10 +136,10 @@ block = ('services:\n  research-worker:\n    image: '+image+'\n    environment:\
          '      RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000"\n'
          '      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000"\n'
          '      RESEARCH_WORKER_VERSION: "research-repair-'+revision[:12]+'"\n').encode()
-updated = original_override.replace(b'services:\n',block,1)
+updated = base_override.replace(b'services:\n',block,1)
 check = yaml.safe_load(updated)
 del check['services']['research-worker']
-assert check == parsed
+assert check == yaml.safe_load(base_override)
 temporary = override.with_suffix('.research-repair.tmp')
 assert not temporary.exists()
 temporary.write_bytes(updated)

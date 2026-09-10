@@ -838,13 +838,21 @@ function parseStrictModelJson(
       if (character === '"') inString = !inString;
       repaired += character;
     }
-    if (repaired === candidate) {
-      return { ok: false };
-    }
     try {
       return { ok: true, value: JSON.parse(repaired) };
     } catch {
-      return { ok: false };
+      // A reproduced Riemer response contained one complete object followed
+      // by one extra closing brace. Accept only that exact transport defect;
+      // missing delimiters, multiple objects, and surrounding prose still fail.
+      if (!repaired.endsWith("}}")) return { ok: false };
+      try {
+        const value: unknown = JSON.parse(repaired.slice(0, -1));
+        return value !== null && typeof value === "object" && !Array.isArray(value)
+          ? { ok: true, value }
+          : { ok: false };
+      } catch {
+        return { ok: false };
+      }
     }
   }
 }

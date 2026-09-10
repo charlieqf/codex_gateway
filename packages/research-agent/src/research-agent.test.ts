@@ -293,6 +293,17 @@ describe("Doctor Research production contracts", () => {
     }
   });
 
+  it("accepts one redundant terminal brace after a complete model object only", () => {
+    const output = validModelOutput();
+    const valid = JSON.stringify(output);
+    expect(parseAndValidateDoctorResearchModelOutput(valid + "}"))
+      .toEqual({ ok: true, value: output });
+    for (const rejected of [valid + "}}", valid + "{}", valid + "} trailing", valid.slice(0, -1)]) {
+      expect(parseAndValidateDoctorResearchModelOutput(rejected))
+        .toMatchObject({ ok: false, kind: "parse_error" });
+    }
+  });
+
   it("assembles server-owned identifiers and artifact manifests after validation", () => {
     const publicResult = validResult();
     expect(
