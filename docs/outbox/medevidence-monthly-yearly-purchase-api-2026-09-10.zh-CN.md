@@ -4,15 +4,15 @@
 本批沿用现有 Billing v1 接口，没有新增支付页面或修改客户端。
 
 **后续确认的月付要求：保留 Free 每日免费额度，月付额度另行记账。**
-以下接口表和 purchase 示例说明现有接口能力，不代表该新增双额度需求已经实现。
-现有 replace_current 升级会替换免费权益，不能直接当作满足本次月付产品需求的实现。
+该需求已在本批 Gateway 代码中实现，部署验收另行记录；具体规则和新增用量字段见
+[免费与付费独立记账合同](./medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md)。
 
 ## 当前三个对外档位
 
 | 产品 | plan_id | token 总量策略 | 支付事件周期 |
 | --- | --- | --- | --- |
 | Free | plan_free_daily_10k_v1 | 新用户每日 10,000 token；无额外月总量上限 | 免费开户流程发放 |
-| 月付 | plan_paid_monthly_v1 | 现有模板每日 5,000,000、每月 50,000,000 token；保留独立 Free 额度的需求待实现 | monthly，明确一个月起止时间 |
+| 月付 | plan_paid_monthly_v1 | 付费模板每日 5,000,000、每月 50,000,000 token，基础 Free 独立保留 | monthly，明确一个月起止时间 |
 | 年付 | plan_paid_yearly_v1 | 无每日、每月或年度累计 token 上限 | one_off，明确一年起止时间 |
 
 月付和年付都允许首次购买；续费是同一产品的后续权益事件，不是另一个对外等级。
@@ -32,11 +32,9 @@ Free 每日额度在购买月付后继续存在，不能转为付费额度、一
 次日免费额度独立重置，未使用部分不累积，月付已使用量不因此重置。
 存量用户原有免费权益版本不能被这次说明自动降额。
 
-该模型需要把基础免费额度与付费额度分开记账，并在同一次模型请求的预留／结算中正确分配，
-包括跨两部分额度的请求、并发扣量、失败结算与重复事件。当前单一 active entitlement、按
-entitlement 计量和 replace_current 的行为尚不支持这一产品语义。
-把月付 tokensPerDay 改为 10,000 会限制整个付费账户；改成 5,010,000 也不能形成独立免费额度。
-本次没有修改现有月付 Plan 或用户权益来代替这项开发。
+实现保留基础 Free entitlement 和付费 entitlement 各自的账本，在同一事务中预留／结算。
+购买不会重置当天免费额度，也不会把已有免费消耗复制到付费账本；原有月付 Plan 限额保持不变。
+详细并发、失败结算、历史账户迁移和接口展示规则见独立记账合同。
 
 ## 已提供的接口
 
@@ -49,7 +47,8 @@ entitlement 计量和 replace_current 的行为尚不支持这一产品语义。
 | GET /gateway/admin/billing/v1/subjects?provider=medevidence_billing&external_user_id=... | 查回账户与 subject.id | 已提供 |
 | POST /gateway/admin/billing/v1/subjects | 仅首次开户；已有账户不要重复创建 | 已提供，保留五月规范及可选 phone 扩展 |
 | POST /gateway/admin/billing/v1/entitlement-events | 支付成功后开通购买或续费权益 | 已提供，支持月付和明确一年期限 |
-| GET /gateway/admin/billing/v1/subjects/{subject_id} | 查询用户当前账户及权益状态 | 已提供 |
+| GET /gateway/admin/billing/v1/subjects/{subject_id} | 查询账户和凭据 | 已提供 |
+| GET /gateway/admin/billing/v1/users/{subject_id}/entitlements | 查询当前付费、基础 Free 和历史权益 | 已提供，本批增加 free_allowance |
 | GET /gateway/admin/billing/v1/entitlement-events/{idempotencyKey} | 按 URL 编码后的业务幂等键查询事件结果 | 已提供 |
 
 支付页面、订单、SKU、金额计算、收款和支付结果确认由支付团队负责。
@@ -83,8 +82,9 @@ Content-Type: application/json
 }
 ```
 
-`replace_current=true` 用于将当前免费权益替换为付费权益。不存在当前权益的首次购买
-可不传该字段；已有付费用户须按实际升级或续费业务处理，不能无条件覆盖。
+本批双额度实现中，购买月／年付都会保留当前 Free；兼容 `replace_current=true` 的旧请求。
+只有 Free 或没有当前权益时可不传该字段；已有付费用户须按实际升级或续费业务处理，
+`replace_current=true` 会替换当前付费权益，不能无条件覆盖。
 `amount_minor`、`currency` 可按实际订单补充，CNY 的金额单位为分；本文不替支付团队设定价格。
 
 成功返回 HTTP 200，主要字段为：
@@ -112,8 +112,7 @@ Content-Type: application/json
 ## 月付、续费与恢复
 
 - 月付购买使用同一个接口和 purchase，把 plan_id 换为 plan_paid_monthly_v1，period_kind
-  换为 monthly，period_end 由支付团队按一个月计算。这是现有接口的字段用法；当前用
-  replace_current 升级不会保留独立 Free 额度，月付新需求验收须等待额度模型调整。
+  换为 monthly，period_end 由支付团队按一个月计算。本批升级保留基础 Free 和其已用额度。
   不要使用内部 CLI 的自然月续费代替支付事件。
 - 已有有效付费周期的续费使用 renew，period_start 从原到期时间起算，period_end 顺延一个月
   或一年。年付仍使用 one_off。当前只支持一个 scheduled 后续权益，重复提前购买不能随意叠加。
@@ -135,11 +134,11 @@ Content-Type: application/json
    的有效期覆盖付费期；本次只新增 Plan，没有全局修改任何用户 Key。
 2. **旧凭据的更严格额度。** Plan 与凭据 token override 仍按更严格者合并；购买方应回读实际
    生效策略，若个别历史 Key 仍有累计限额，由 Gateway 按明确目标用户处理，不进行批量迁移。
-3. **到期行为。** 本次验证的是年付权益按期失效；付费期满自动回 Free 尚未增加。
+3. **到期行为。** 双额度实现保留基础 Free，付费期满后继续使用该 Free 权益。
 4. **真实收款验收。** 本次执行了隔离的购买、免费升级、幂等重放、跨闰年续费和到期测试；
    未创建真实支付订单、未为真实用户试发一年权益，也未修改或发布客户端 EXE。
-5. **月付保留基础免费额度。** 现有 purchase + replace_current 测试仅验证权益替换，
-   不验证免费与付费双额度；后续须实现独立记账并验证扣减、每日重置和并发行为。
+5. **月付保留基础免费额度。** 本批代码增加双账本与相应扣减、每日重置、并发和 HTTP 路由测试；
+   客户端余额展示应接入独立记账合同的新字段，真实支付仍需联合验收。
 
 ## 操作证据
 

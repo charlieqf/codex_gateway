@@ -3,6 +3,8 @@ ROOT = pathlib.Path('/opt/codex-gateway-r760')
 import re, sys
 REV = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', REV)
+EXPECTED_SCHEMA = int(sys.argv[2]) if len(sys.argv) > 2 else 28
+assert EXPECTED_SCHEMA in [28, 29]
 BACKUP = ROOT / 'backups' / ('phone-signup-' + REV[:12])
 state = json.loads((BACKUP / 'deployment.json').read_text())
 def inspect(name): return json.loads(subprocess.check_output(['docker', 'inspect', name], text=True))[0]
@@ -36,7 +38,7 @@ for mount in meta['Mounts']:
             report['databases'][name] = result
             if name == 'gateway.db':
                 report['schema'] = db.execute('select max(version) from schema_migrations').fetchone()[0]
-                assert report['schema'] == 28
+                assert report['schema'] == EXPECTED_SCHEMA
                 # Compare pre-existing control rows against the verified backup;
                 # never emit their names, phones, hashes or encrypted credentials.
                 report['existing_control_rows'] = {}

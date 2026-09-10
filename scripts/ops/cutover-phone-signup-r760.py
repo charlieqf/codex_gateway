@@ -2,6 +2,8 @@ import datetime, fcntl, hashlib, json, os, pathlib, shutil, sqlite3, subprocess,
 import re, sys
 REV = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', REV)
+assert len(sys.argv) == 2 or (len(sys.argv) == 3 and sys.argv[2] == '--forward-only')
+FORWARD_ONLY = len(sys.argv) == 3
 ROOT = pathlib.Path('/opt/codex-gateway-r760')
 RELEASE = ROOT / 'releases' / REV
 BACKUP = ROOT / 'backups' / ('phone-signup-' + REV[:12])
@@ -83,6 +85,11 @@ try:
     changed = False
 finally:
     if changed:
+        if FORWARD_ONLY:
+            state['cutover_failed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            state['recovery_mode'] = 'forward-only-preserve-billing-ledger'
+            (BACKUP / 'deployment.json').write_text(json.dumps(state, indent=2) + '\n')
+            raise RuntimeError('Cutover failed; forward repair required. Old-image rollback is incompatible with the new quota ledger; no database restored.')
         print('cutover_failed_rolling_back', flush=True)
         subprocess.run(['docker', 'tag', state['old_image_id'], state['old_image_tag']], check=True)
         point('current', state['old_current'])

@@ -15166,6 +15166,66 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("keeps Free alongside a Billing purchase and splits actual Chat/Responses usage in both transport modes", async () => {
+    const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.end('data: {"choices":[{"delta":{"content":"quota success"},"finish_reason":"stop"}],"usage":{"prompt_tokens":18000,"completion_tokens":2000,"total_tokens":20000}}\n\ndata: [DONE]\n\n');
+    });
+    const config = goldencodePoolConfig();
+    config.pool.members = config.pool.members.filter((member) => member.runtime === "tencent");
+    try { await withTemporaryEnv({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: config }),
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic", MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl
+    }, async () => {
+    const { store, issued } = createCredentialBackedStore();
+    const now = new Date("2026-09-10T10:00:00Z");
+    const policy = { ...unrestrictedTokenPolicy(), tokensPerMinute: 300_000 };
+    store.createPlan({ id: "plan_free_daily_10k_v1", displayName: "Free", scopeAllowlist: ["code"],
+      policy: { ...policy, tokensPerDay: 10_000 } });
+    store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
+      policy: { ...policy, tokensPerDay: 100_000, tokensPerMonth: 200_000 } });
+    const free = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_free_daily_10k_v1", periodKind: "unlimited", now });
+    const provider = new FakeProvider([{ type: "message_delta", text: "quota success" },
+      { type: "completed", providerSessionRef: "quota_thread", usage: { promptTokens: 18_000, completionTokens: 2_000, totalTokens: 20_000 } }]);
+    const app = buildGateway({ authMode: "credential", provider, sessionStore: store, observationStore: store,
+      billingAdminToken: "billing-admin-token-1234567890", now: () => now, logger: false });
+    try {
+      const purchase = await app.inject({ method: "POST", url: "/gateway/admin/billing/v1/entitlement-events",
+        headers: { authorization: "Bearer billing-admin-token-1234567890", "Idempotency-Key": "medevidence_billing:quota:purchase" },
+        payload: { provider: "medevidence_billing", external_order_id: "quota_order", event_type: "purchase", apply_mode: "apply",
+          subject_id: "subj_dev", plan_id: "plan_paid_monthly_v1", period_kind: "monthly", period_start: now.toISOString(),
+          period_end: "2026-10-10T10:00:00Z", replace_current: true } });
+      expect(purchase.statusCode, purchase.body).toBe(200);
+      expect(purchase.json().cancelled_entitlement_ids).not.toContain(free.id);
+      const billingState = await app.inject({ method: "GET", url: "/gateway/admin/billing/v1/users/subj_dev/entitlements",
+        headers: { authorization: "Bearer billing-admin-token-1234567890" } });
+      expect(billingState.statusCode).toBe(200);
+      expect(billingState.json()).toMatchObject({ current: { plan_id: "plan_paid_monthly_v1" }, free_allowance: { id: free.id }, history: [] });
+      const headers = { authorization: `Bearer ${issued.token}` };
+      for (const url of ["/v1/chat/completions", "/v1/responses"]) {
+        for (const stream of [false, true]) {
+          const response = await app.inject({ method: "POST", url, headers, payload: url.endsWith("responses")
+            ? { model: "goldencode", input: "Say ok.", stream }
+            : { model: "goldencode", messages: [{ role: "user", content: "Say ok." }], stream } });
+          expect(response.statusCode, response.body).toBe(200);
+          expect(response.body).toContain("quota success");
+          const events = store.listRequestEvents({ requestId: String(response.headers["x-request-id"]) });
+          expect(events).toHaveLength(1);
+          expect(events[0].totalTokens).toBe(20_000);
+        }
+      }
+      const current = await app.inject({ method: "GET", url: "/gateway/credentials/current", headers });
+      expect(current.statusCode).toBe(200);
+      expect(current.json()).toMatchObject({ plan: { display_name: "Monthly" }, token_usage: {
+        accounting_mode: "free_then_paid_v1", day: { used: 70_000 }, month: { used: 70_000 },
+        free_allowance: { entitlement_id: free.id, day: { used: 10_000, remaining: 0 } }
+      } });
+      expect(current.body).not.toContain("free_policy_snapshot_json");
+      expect(current.body).not.toContain("missingUsageCharge");
+    } finally { await app.close(); }
+    }); } finally { await upstream.close(); }
+  });
+
   it("uses active plan entitlements for token budgets without exposing internal charge fields", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({

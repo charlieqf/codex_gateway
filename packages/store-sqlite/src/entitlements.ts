@@ -29,6 +29,7 @@ import {
   cancelScheduled
 } from "./entitlement-transitions.js";
 import { runInTransaction } from "./sql.js";
+import { ensureFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
 
 export interface EntitlementStoreDependencies {
   getPlan(id: string): Plan | null;
@@ -207,11 +208,14 @@ function insertFromPlan(
             `No active entitlement usage found to carry for user: ${input.subjectId}`
           );
         }
+        if (isRetailPaidPlan(plan.id) && isFreeAllowance(current)) {
+          throw new Error("Free usage remains in its own ledger and cannot be carried into a paid entitlement.");
+        }
         replacedEntitlementId = current.id;
       }
-      cancelCurrent(db, input.subjectId, now, "replaced");
+      cancelCurrent(db, input.subjectId, now, "replaced", isRetailPaidPlan(plan.id));
       cancelScheduled(db, input.subjectId, now, "replaced");
-    } else if (entitlementQueries.currentExists(db, input.subjectId)) {
+    } else if (entitlementQueries.currentExists(db, input.subjectId, isRetailPaidPlan(plan.id))) {
       throw new Error(`User already has an active or paused entitlement: ${input.subjectId}`);
     }
   } else if (input.replace) {
@@ -276,6 +280,7 @@ function insertFromPlan(
     ).run(entitlement.id, replacedEntitlementId);
   }
 
+  if (isRetailPaidPlan(plan.id)) ensureFreeAllowance(db, input.subjectId, now);
   return entitlement;
 }
 

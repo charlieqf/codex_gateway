@@ -107,11 +107,13 @@ export interface ListBillingEntitlementsInput {
   subjectId: string;
   limit?: number;
   cursor?: string;
+  now?: Date;
 }
 
 export interface BillingEntitlementListResult {
   subjectId: string;
   current: Entitlement | null;
+  freeAllowance?: Entitlement | null;
   history: Entitlement[];
   nextCursor: string | null;
 }

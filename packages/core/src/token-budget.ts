@@ -160,6 +160,13 @@ export interface TokenUsageSnapshot {
   minute: WindowSnapshot;
   day: WindowSnapshot;
   month: WindowSnapshot;
+  /** Day/month above are paid usage when this independent base allowance exists. */
+  freeAllowance?: {
+    entitlementId: string;
+    planId: string;
+    day: WindowSnapshot;
+    month: WindowSnapshot;
+  };
 }
 
 export interface WindowSnapshot {

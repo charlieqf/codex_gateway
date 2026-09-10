@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { runInTransaction } from "./sql.js";
+import { activeFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
+import { get as getEntitlement } from "./entitlement-queries.js";
 import {
   GatewayError,
   validateTokenPolicy,
@@ -9,6 +11,7 @@ import {
   type CleanupResult,
   type FinalizeInput,
   type FinalizeResult,
+  type Entitlement,
   type GetUsageInput,
   type LimitDetails,
   type LimitKind,
@@ -58,6 +61,10 @@ export interface TokenReservationListRow {
   finalPromptTokens: number;
   finalCompletionTokens: number;
   finalTotalTokens: number;
+  freeEntitlementId: string | null;
+  freeReservedTokens: number;
+  finalFreeTokens: number | null;
+  finalPaidTokens: number | null;
   finalCachedPromptTokens: number;
   finalEstimatedTokens: number;
   finalReasoningTokens: number;
@@ -89,6 +96,12 @@ interface ReservationRow {
   credential_id: string;
   subject_id: string;
   entitlement_id: string | null;
+  free_entitlement_id: string | null;
+  free_reserved_tokens: number;
+  free_policy_snapshot_json: string | null;
+  free_month_window_start: string | null;
+  final_free_tokens: number | null;
+  final_paid_tokens: number | null;
   scope: Scope;
   upstream_account_id: string | null;
   provider: ProviderKind | null;
@@ -179,6 +192,12 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         return { ok: true, reservationId: existing.id };
       }
 
+      const free = this.freeAllowanceFor(input, now);
+      const freeWindows = windowBoundaries(now);
+      const freeReserved = free ? Math.min(reservedTokens,
+        this.freeRemaining(input.subjectId, free.id, free.policySnapshot, freeWindows.day, freeWindows.month, now)) : 0;
+      const paidReserved = reservedTokens - freeReserved;
+
       const minuteRejected = this.windowRejection({
         subjectId: input.subjectId,
         entitlementId,
@@ -193,31 +212,38 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         return minuteRejected;
       }
 
-      const dayRejected = this.windowRejection({
+      const dayRejected = free && paidReserved === 0 ? null : this.windowRejection({
         subjectId: input.subjectId,
         entitlementId,
         kind: "day",
         windowStart: windows.day,
         windowEnd: windowEnd("day", windows.day),
         limit: policy.tokensPerDay,
-        reservedTokens,
+        reservedTokens: paidReserved,
         now
       });
       if (dayRejected) {
         return dayRejected;
       }
 
-      const monthRejected = this.windowRejection({
+      const monthRejected = free && paidReserved === 0 ? null : this.windowRejection({
         subjectId: input.subjectId,
         entitlementId,
         kind: "month",
         windowStart: windows.month,
         windowEnd: windows.monthEnd ?? windowEnd("month", windows.month),
         limit: policy.tokensPerMonth,
-        reservedTokens,
+        reservedTokens: paidReserved,
         now
       });
       if (monthRejected) {
+        if (free && free.policySnapshot.tokensPerDay !== null && free.policySnapshot.tokensPerDay > 0 &&
+          free.policySnapshot.tokensPerMonth === null) {
+          return tokenRejection(monthRejected.limitKind, monthRejected.error.message,
+            Math.min(monthRejected.error.retryAfterSeconds ?? Infinity,
+              Math.max(1, Math.ceil((windowEnd("day", windows.day).getTime() - now.getTime()) / 1000))),
+            monthRejected.details);
+        }
         return monthRejected;
       }
 
@@ -247,6 +273,11 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         windows
       });
 
+      if (free) {
+        this.db.prepare(`UPDATE token_reservations SET free_entitlement_id = ?, free_reserved_tokens = ?,
+          free_policy_snapshot_json = ?, free_month_window_start = ? WHERE id = ?`)
+          .run(free.id, freeReserved, JSON.stringify(free.policySnapshot), freeWindows.month.toISOString(), reservationId);
+      }
       return { ok: true, reservationId };
     });
   }
@@ -337,6 +368,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
     const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const free = this.freeAllowanceFor(input, now);
+    const freeWindows = windowBoundaries(now);
 
     return {
       source: input.entitlementId ? "entitlement" : "subject",
@@ -358,6 +391,14 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         policy.tokensPerDay,
         now
       ),
+      ...(free ? { freeAllowance: {
+        entitlementId: free.id,
+        planId: free.planId,
+        day: this.readUsageWindow(input.subjectId, free.id, "day", freeWindows.day,
+          windowEnd("day", freeWindows.day), free.policySnapshot.tokensPerDay, now),
+        month: this.readUsageWindow(input.subjectId, free.id, "month", freeWindows.month,
+          windowEnd("month", freeWindows.month), free.policySnapshot.tokensPerMonth, now)
+      } } : {}),
       month: this.readUsageWindow(
         input.subjectId,
         input.entitlementId ?? null,
@@ -441,6 +482,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       finalPromptTokens: row.final_prompt_tokens,
       finalCompletionTokens: row.final_completion_tokens,
       finalTotalTokens: row.final_total_tokens,
+      freeEntitlementId: row.free_entitlement_id,
+      freeReservedTokens: row.free_reserved_tokens,
+      finalFreeTokens: row.final_free_tokens,
+      finalPaidTokens: row.final_paid_tokens,
       finalCachedPromptTokens: row.final_cached_prompt_tokens,
       finalEstimatedTokens: row.final_estimated_tokens,
       finalReasoningTokens: row.final_reasoning_tokens ?? 0,
@@ -511,12 +556,33 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         final,
         now
       );
+      // The request ledger and technical minute rate retain the complete usage.
+      // Only cumulative day/month balances are split. Finalized rows no longer
+      // reserve capacity, so the free calculation protects all OTHER requests.
+      let freeTokens = 0;
+      let paidUsage = final;
+      if (row.free_entitlement_id && row.free_policy_snapshot_json && row.free_month_window_start) {
+        const freePolicy = validateTokenPolicy(JSON.parse(row.free_policy_snapshot_json));
+        freeTokens = Math.min(final.totalTokens, this.freeRemaining(row.subject_id,
+          row.free_entitlement_id, freePolicy, row.day_window_start, row.free_month_window_start, now));
+        const freeUsage = portionOfUsage(final, freeTokens);
+        paidUsage = subtractUsage(final, freeUsage);
+        for (const [kind, start] of [
+          ["minute", row.minute_window_start], ["day", row.day_window_start], ["month", row.free_month_window_start]
+        ] as const) {
+          this.addUsageToWindow(row.subject_id, row.free_entitlement_id, kind, start, freeUsage, now);
+        }
+      }
+      const primary = row.entitlement_id ? getEntitlement(this.db, row.entitlement_id) : null;
+      this.db.prepare("UPDATE token_reservations SET final_free_tokens = ?, final_paid_tokens = ? WHERE id = ?")
+        .run(primary && isFreeAllowance(primary) ? final.totalTokens : freeTokens,
+          primary && isRetailPaidPlan(primary.planId) ? paidUsage.totalTokens : 0, row.id);
       this.addUsageToWindow(
         row.subject_id,
         row.entitlement_id,
         "day",
         row.day_window_start,
-        final,
+        paidUsage,
         now
       );
       this.addUsageToWindow(
@@ -524,7 +590,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         row.entitlement_id,
         "month",
         row.month_window_start,
-        final,
+        paidUsage,
         now
       );
 
@@ -634,6 +700,22 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     return row ?? null;
   }
 
+  private freeAllowanceFor(input: { subjectId: string; entitlementId?: string | null; scope?: Scope }, now: Date): Entitlement | null {
+    if (!input.entitlementId) return null;
+    const paid = getEntitlement(this.db, input.entitlementId);
+    if (!paid || paid.subjectId !== input.subjectId || !isRetailPaidPlan(paid.planId)) return null;
+    const free = activeFreeAllowance(this.db, input.subjectId, now);
+    return free && (!input.scope || free.scopeAllowlist.includes(input.scope)) ? free : null;
+  }
+
+  private freeRemaining(subjectId: string, entitlementId: string, policy: TokenLimitPolicy,
+    day: Date | string, month: Date | string, now: Date): number {
+    return Math.max(0, Math.min(...([
+      ["day", day, policy.tokensPerDay], ["month", month, policy.tokensPerMonth]
+    ] as const).map(([kind, start, limit]) => limit === null ? Infinity : limit -
+      this.windowUsed(subjectId, entitlementId, kind, start) - this.activeReserved(subjectId, entitlementId, kind, start, now))));
+  }
+
   private windowRejection(input: {
     subjectId: string;
     entitlementId: string | null;
@@ -738,16 +820,18 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     const row = entitlementId
       ? (this.db
           .prepare(
-            `SELECT COALESCE(SUM(reserved_tokens), 0) AS reserved
+            `SELECT COALESCE(SUM(CASE WHEN entitlement_id = ?
+               THEN ${kind === "minute" ? "reserved_tokens" : "reserved_tokens - free_reserved_tokens"}
+               ELSE free_reserved_tokens END), 0) AS reserved
              FROM token_reservations
-             WHERE entitlement_id = ?
+             WHERE ((entitlement_id = ? AND ${column} = ?)
+               OR (free_entitlement_id = ? AND ${kind === "month" ? "free_month_window_start" : column} = ?))
                AND kind = 'reservation'
                AND finalized_at IS NULL
                AND expires_at IS NOT NULL
-               AND expires_at > ?
-               AND ${column} = ?`
+               AND expires_at > ?`
           )
-          .get(entitlementId, now.toISOString(), iso(windowStart)) as
+          .get(entitlementId, entitlementId, iso(windowStart), entitlementId, iso(windowStart), now.toISOString()) as
           | { reserved: number }
           | undefined)
       : (this.db
@@ -884,19 +968,21 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                  final_reasoning_tokens = 0,
                  final_usage_source = 'none',
                  over_request_limit = 0
-             WHERE entitlement_id = ?
+             WHERE ((entitlement_id = ? AND ${column} = ?)
+               OR (free_entitlement_id = ? AND ${kind === "month" ? "free_month_window_start" : column} = ?))
                AND kind = 'reservation'
                AND finalized_at IS NULL
                AND expires_at IS NOT NULL
-               AND expires_at > ?
-               AND ${column} = ?`
+               AND expires_at > ?`
           )
           .run(
             now.toISOString(),
             now.toISOString(),
             entitlementId,
-            now.toISOString(),
-            windowStart.toISOString()
+            windowStart.toISOString(),
+            entitlementId,
+            windowStart.toISOString(),
+            now.toISOString()
           )
       : this.db
           .prepare(
@@ -976,6 +1062,31 @@ interface FinalUsage {
   estimatedTokens: number;
   reasoningTokens: number;
   source: FinalizeResult["finalUsageSource"];
+}
+
+function portionOfUsage(usage: FinalUsage, tokens: number): FinalUsage {
+  const ratio = usage.totalTokens > 0 ? tokens / usage.totalTokens : 0;
+  const promptTokens = Math.min(tokens, Math.floor(usage.promptTokens * ratio));
+  const completionTokens = Math.min(usage.completionTokens, tokens - promptTokens);
+  return {
+    promptTokens, completionTokens, totalTokens: tokens,
+    cachedPromptTokens: Math.min(promptTokens, Math.floor(usage.cachedPromptTokens * ratio)),
+    estimatedTokens: Math.floor(usage.estimatedTokens * ratio),
+    reasoningTokens: Math.min(completionTokens, Math.floor(usage.reasoningTokens * ratio)),
+    source: usage.source
+  };
+}
+
+function subtractUsage(whole: FinalUsage, part: FinalUsage): FinalUsage {
+  return {
+    promptTokens: whole.promptTokens - part.promptTokens,
+    completionTokens: whole.completionTokens - part.completionTokens,
+    totalTokens: whole.totalTokens - part.totalTokens,
+    cachedPromptTokens: whole.cachedPromptTokens - part.cachedPromptTokens,
+    estimatedTokens: whole.estimatedTokens - part.estimatedTokens,
+    reasoningTokens: whole.reasoningTokens - part.reasoningTokens,
+    source: whole.source
+  };
 }
 
 function finalUsageForRow(row: ReservationRow, usage: TokenUsage | undefined): FinalUsage {
@@ -1070,6 +1181,12 @@ function reservationColumns(): string {
     "credential_id",
     "subject_id",
     "entitlement_id",
+    "free_entitlement_id",
+    "free_reserved_tokens",
+    "free_policy_snapshot_json",
+    "free_month_window_start",
+    "final_free_tokens",
+    "final_paid_tokens",
     "scope",
     "upstream_account_id",
     "provider",

@@ -30,6 +30,9 @@ import * as plansStore from "./plans.js";
 import * as requestEvents from "./request-events.js";
 import { rowToEntitlement } from "./row-mappers.js";
 import * as subjectsStore from "./subjects.js";
+import { activeFreeAllowance, ensureFreeAllowance, freePlanSql, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
+import { activeForSubjectInTransaction } from "./entitlement-transitions.js";
+import { runInTransaction } from "./sql.js";
 
 const billingEventColumns =
   "id, idempotency_key, payload_hash, provider, external_order_id, external_event_id, event_type, apply_mode, subject_id, plan_id, entitlement_id, status, amount_minor, currency, period_kind, period_start, period_end, applied_at, error_message, metadata_json, created_at";
@@ -47,12 +50,26 @@ export function apply(
     }
   }
 
-  preflight(db, input, now);
-
   let finished = false;
   db.exec("BEGIN IMMEDIATE");
   try {
-    const row = existing ?? insertInitialEvent(db, input, now);
+    const lockedExisting = getByIdempotencyKey(db, input.idempotencyKey);
+    if (lockedExisting) {
+      assertPayloadMatches(lockedExisting, input.payloadHash);
+      if (lockedExisting.status === "applied" || lockedExisting.status === "ignored") {
+        const result = replayResult(db, lockedExisting);
+        db.exec("COMMIT");
+        finished = true;
+        return result;
+      }
+    }
+    if (input.applyMode !== "log_only") {
+      assertSubjectExists(db, input.subjectId);
+      activeForSubjectInTransaction(db, input.subjectId, now);
+    }
+    // Validate under the same write lock as insertion and Free preservation.
+    preflight(db, input, now);
+    const row = lockedExisting ?? insertInitialEvent(db, input, now);
     if (input.applyMode === "log_only") {
       updateEventIgnored(db, row.id);
       const updated = mustGetBillingEvent(db, row.id);
@@ -155,15 +172,17 @@ export function listEntitlements(
   input: ListBillingEntitlementsInput
 ): BillingEntitlementListResult {
   assertSubjectExists(db, input.subjectId);
-  const now = new Date();
-  const current = activeEntitlement(db, input.subjectId, now);
+  const now = input.now ?? new Date();
+  const current = runInTransaction(db, "BEGIN IMMEDIATE", () => activeForSubjectInTransaction(db, input.subjectId, now));
+  const freeAllowance = current && isRetailPaidPlan(current.planId) ? activeFreeAllowance(db, input.subjectId, now) : null;
   const all = entitlementQueries
     .list(db, { subjectId: input.subjectId })
-    .filter((entitlement) => entitlement.id !== current?.id);
+    .filter((entitlement) => entitlement.id !== current?.id && entitlement.id !== freeAllowance?.id);
   const page = paginate(all, input.limit, input.cursor);
   return {
     subjectId: input.subjectId,
     current,
+    ...(freeAllowance ? { freeAllowance } : {}),
     history: page.items,
     nextCursor: page.nextCursor
   };
@@ -252,7 +271,9 @@ function preflight(db: DatabaseSync, input: ApplyBillingEntitlementEventInput, n
     const scheduled = scheduledEntitlements(db, input.subjectId);
 
     if (input.eventType === "purchase") {
-      if ((active || paused) && !input.replaceCurrent) {
+      const conflicts = [active, paused].some((entitlement) => entitlement &&
+        !(isRetailPaidPlan(plan.id) && isFreeAllowance(entitlement)));
+      if (conflicts && !input.replaceCurrent) {
         throw new GatewayError({
           code: "entitlement_already_active",
           message: "Subject already has an active or paused entitlement.",
@@ -311,7 +332,8 @@ function applyEntitlementChange(
       cancelledEntitlementIds.push(
         ...cancelEntitlements(
           db,
-          activeAndMaybePausedEntitlements(db, input.subjectId, Boolean(input.replacePaused)),
+          activeAndMaybePausedEntitlements(db, input.subjectId, Boolean(input.replacePaused))
+            .filter((entitlement) => !(isRetailPaidPlan(plan.id) && isFreeAllowance(entitlement))),
           now,
           "replaced",
           billingEventId,
@@ -333,6 +355,7 @@ function applyEntitlementChange(
     }
 
     const entitlement = insertEntitlementFromPlan(db, plan, input, period, now);
+    if (isRetailPaidPlan(plan.id)) ensureFreeAllowance(db, input.subjectId, now);
     insertTransitionAudit(
       db,
       input.eventType === "renew" ? "entitlement-renew" : "entitlement-grant",
@@ -685,7 +708,7 @@ function activeEntitlement(db: DatabaseSync, subjectId: string, now: Date): Enti
          AND state = 'active'
          AND period_start <= ?
          AND (period_end IS NULL OR period_end > ?)
-       ORDER BY period_start DESC, created_at DESC
+       ORDER BY CASE WHEN (${freePlanSql}) THEN 1 ELSE 0 END, period_start DESC, created_at DESC
        LIMIT 1`
     )
     .get(subjectId, now.toISOString(), now.toISOString());
@@ -734,7 +757,7 @@ function latestEntitlementByState(
        FROM entitlements
        WHERE subject_id = ?
          AND state = ?
-       ORDER BY period_start DESC, created_at DESC
+       ORDER BY CASE WHEN (${freePlanSql}) THEN 1 ELSE 0 END, period_start DESC, created_at DESC
        LIMIT 1`
     )
     .get(subjectId, state);
@@ -746,11 +769,21 @@ function resolveTransitionTarget(
   input: ApplyBillingEntitlementEventInput,
   now: Date
 ): Entitlement {
-  const target = input.entitlementId
+  let target = input.entitlementId
     ? entitlementQueries.get(db, input.entitlementId)
     : input.eventType === "resume"
       ? latestEntitlementByState(db, input.subjectId, "paused")
       : activeEntitlement(db, input.subjectId, now);
+  if (!input.entitlementId && target && isFreeAllowance(target)) {
+    const retail = entitlementQueries.list(db, { subjectId: input.subjectId })
+      .filter((entitlement) => isRetailPaidPlan(entitlement.planId));
+    if (retail.length > 0) {
+      // A payment cancellation must never accidentally cancel the base Free
+      // allowance after the paid entitlement has been paused or expired.
+      target = retail.find((entitlement) => ["active", "paused", "scheduled"].includes(entitlement.state) &&
+        (!entitlement.periodEnd || entitlement.periodEnd > now)) ?? null;
+    }
+  }
   if (!target || target.subjectId !== input.subjectId) {
     throw new GatewayError({
       code: "entitlement_not_found",

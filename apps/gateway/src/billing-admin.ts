@@ -13,6 +13,7 @@ import {
   storedAllowedPublicModelsAreCorrupt,
   isBillingEventType,
   publicFeaturePolicy,
+  publicTokenUsage,
   validateBillingIdempotencyKey,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
@@ -717,12 +718,14 @@ export function registerBillingAdminRoutes(
       try {
         const result = options.billingStore.listBillingEntitlements({
           subjectId: request.params.subjectId,
+          now: options.now?.(),
           limit: parseLimit(request.query.limit, 50),
           cursor: optionalString(request.query.cursor) ?? undefined
         });
         return billingSecurityHeaders(reply).send({
           subject_id: result.subjectId,
           current: result.current ? publicEntitlement(result.current) : null,
+          ...(result.freeAllowance ? { free_allowance: publicEntitlement(result.freeAllowance) } : {}),
           history: result.history.map(publicEntitlement),
           next_cursor: result.nextCursor
         });
@@ -2418,12 +2421,7 @@ function tokenResetContext(
 }
 
 function publicTokenUsageSnapshot(snapshot: TokenUsageSnapshot) {
-  return {
-    source: snapshot.source,
-    minute: publicWindowSnapshot(snapshot.minute),
-    day: publicWindowSnapshot(snapshot.day),
-    month: publicWindowSnapshot(snapshot.month)
-  };
+  return publicTokenUsage(snapshot);
 }
 
 function publicRateLimitResetResult(result: RateLimitResetResult) {
