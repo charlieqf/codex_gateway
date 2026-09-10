@@ -1,6 +1,6 @@
 # MedEvidence 短信登录：Gateway 交付说明
 
-2026-09-09，修订 4。兼容 5 月原样开户、取消 resolve 强制前置，已部署 R760，发布提交 27f10d9。直接提供 phone 或可选两步流程均支持新用户每日 100 万 token 免费权益及 Phone identity，公网验收通过。
+2026-09-10，修订 5。沿用兼容 5 月原样开户、resolve 可选的接口。新开户默认免费权益临时调整为每日 1 万 token（`plan_free_daily_10k_v1`）；此前已发放的每日 100 万 token 和其他既有权益不变。直接提供 phone 或可选两步流程均支持新用户免费权益及 Phone identity。发布状态见 Gateway 当前运行状态和本轮上线记录。
 
 完整合同、示例、错误和重试规则统一维护在[Gateway 联调说明](./medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)，以该文档为准。
 

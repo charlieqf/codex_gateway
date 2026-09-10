@@ -100,8 +100,8 @@ try {
   assert.equal(runtimeResponse.status, 200, "MedEvidence runtime credential is not accepted");
   assert.equal((await runtimeResponse.json()).valid, true, "MedEvidence runtime credential is not valid");
   report.medevidence_runtime = { base_url: medevidence.base_url, valid: true };
-  assert.equal(ready.current.identity.plan_id, "plan_free_daily_1m_v1");
-  assert.equal(ready.credential.credential.token.tokensPerDay, 1_000_000);
+  assert.equal(ready.current.identity.plan_id, "plan_free_daily_10k_v1");
+  assert.equal(ready.credential.credential.token.tokensPerDay, 10_000);
   assert.equal(db.prepare("SELECT name FROM subjects WHERE id = ?").get(fresh.subjectId).name, null);
   const initial = db.prepare("SELECT id FROM entitlements WHERE subject_id = ?").get(fresh.subjectId).id;
   const replay = await call("/gateway/admin/billing/v1/subjects", { method: "POST", token: admin, body: createBody, event: `${run}:create` });
@@ -113,7 +113,7 @@ try {
     body: { model: "goldencode", messages: [{ role: "user", content: "Reply only OK." }], max_tokens: 256, stream: false } });
   assert.ok(model.choices?.length > 0, "Model response missing choices");
   report.new_account = { subject_id: fresh.subjectId, plan_id: ready.current.identity.plan_id,
-    daily_tokens: 1_000_000, no_resolve: true, no_name: true, same_key_on_relogin: true, grant_count: 1, model_http_status: 200 };
+    daily_tokens: 10_000, no_resolve: true, no_name: true, same_key_on_relogin: true, grant_count: 1, model_http_status: 200 };
 
   const linked = await call("/gateway/admin/billing/v1/subjects/resolve", { method: "POST", token: admin,
     body: { provider, external_user_id: fresh.externalId, phone: fresh.phone } });
@@ -130,9 +130,9 @@ try {
     body: { provider, external_user_id: twoStep.externalId, scope_allowlist: ["code"] }, event: `${run}:two_step:create` });
   twoStep.subjectId = twoIssued.subject.id; twoStep.key = twoIssued.credential.key;
   const twoReady = await login(twoStep);
-  assert.equal(twoReady.current.identity.plan_id, "plan_free_daily_1m_v1");
-  assert.equal(twoReady.credential.credential.token.tokensPerDay, 1_000_000);
-  report.optional_resolve = { subject_id: twoStep.subjectId, two_step_supported: true, daily_tokens: 1_000_000 };
+  assert.equal(twoReady.current.identity.plan_id, "plan_free_daily_10k_v1");
+  assert.equal(twoReady.credential.credential.token.tokensPerDay, 10_000);
+  report.optional_resolve = { subject_id: twoStep.subjectId, two_step_supported: true, daily_tokens: 10_000 };
 
   const unknown = await call("/gateway/auth/v1/login/start", { method: "POST", status: 403,
     body: { phone: unusedPhone(), client: "medevidence-desktop", device_id: `${run}_unknown`, contract_version: 1 } });

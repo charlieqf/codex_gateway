@@ -4,6 +4,10 @@
 
 本文是本轮联调入口。先前 medevidence-sms-runtime-v2 外部 token 换 Key 候选合同已撤回，客户端使用现有手机号 v1 合同。
 
+2026-09-10 测试期额度调整：之后新开户默认使用 `plan_free_daily_10k_v1`，每日 10,000 token。
+此前已发放的 `plan_free_daily_1m_v1` 和其他既有权益、Key、用量保持不变；首次使用短信登录的老账户仍按老账户关联。
+这是 Gateway 发放默认值的调整，客户端和身份后端请求格式不变。
+
 ## 流程与地址
 
 统一 Origin：https://goldencode.instmarket.com.au:1443，原路径不变。
@@ -108,7 +112,7 @@ Content-Type: application/json
 
 ## 免费额度与首次付费
 
-- 新账户 Plan：plan_free_daily_1m_v1，每日累计 1,000,000 token，月累计不额外设限。
+- 新账户 Plan：plan_free_daily_10k_v1，每日累计 10,000 token，月累计不额外设限。这是 2026-09-10 起的临时测试默认值；已发放的每日 1,000,000 token 权益保持不变。
 - 沿用 UTC 00:00 日窗口，即北京时间 08:00。重复登录、换设备、重复开户和轮换 Key 不重置用量。
 - 保留服务端限制：20 次／分钟、200 次／天、4 并发；token 每分钟上限 300,000。
 - 免费 Plan 开放文本聊天和工具调用。本次未开放免费图像、医生研究等独立能力。

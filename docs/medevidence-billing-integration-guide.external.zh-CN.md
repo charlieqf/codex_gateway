@@ -20,7 +20,7 @@ MedEvidence 负责模型访问账号、opaque key、套餐、权益、能力开�
 
 - 收费/充值团队拥有注册页、登录、找回密码、支付页、订单状态机和退款流程。
 - 收费/充值团队后端通过服务端接口调用 MedEvidence，不允许客户端直接调用后台接口。
-- 手机号登录后，身份／收费后端可直接调用 `POST /subjects` 并带 phone；Gateway 内部关联既有账户或为新账户准备 Key、每日 100 万 token 免费权益及手机号登录身份。旧的不带 phone 的 Billing 开户仍返回 `subject.id` 和 opaque `credential.key`（`cgu_live_*`），权益继续沿用原支付事件流程。
+- 手机号登录后，身份／收费后端可直接调用 `POST /subjects` 并带 phone；Gateway 内部关联既有账户或为新账户准备 Key、每日免费权益及手机号登录身份。2026-09-10 起新开户临时默认每日 1 万 token；此前已发放的每日 100 万 token 和其他既有权益保持不变。旧的不带 phone 的 Billing 开户仍返回 `subject.id` 和 opaque `credential.key`（`cgu_live_*`），权益继续沿用原支付事件流程。
 - Desktop 完成外部短信登录后，用既有 Gateway 手机号 v1 登录和 bootstrap 领取当前 `cgu_live_*`。外部短信会话与 Gateway Phone Session 分别保存；外部会话用于身份／支付接口。MedEvidence 后端完成模型凭据校验和请求路由。
 - 付费状态以收费系统订单为准；模型是否可用，以 MedEvidence 返回的 entitlement / quota 状态为准。
 
@@ -216,9 +216,9 @@ Content-Type: application/json
 注意：
 
 - 响应是上述嵌套结构：账户 ID 为 `subject.id`，Key 为 `credential.key`，有效期字段为 `credential.expires_at`。不返回顶层 `subject_id`、`key` 或 `expired_at`；Key 前缀为 `cgu_live_*`。收费侧可以自行封装返回结构，但应从这些字段准确映射，不能把 `credential.id` 当作账户 ID。
-- 提供 phone 或沿用 resolve 的手机号新开户，在同一事务中准备 Subject、Key、`plan_free_daily_1m_v1` 免费权益和 Phone identity。成功返回 200 后，Desktop 可以走手机号 v1 登录，无需人工登记或单独发放免费额度。
+- 提供 phone 或沿用 resolve 的手机号新开户，在同一事务中准备 Subject、Key、`plan_free_daily_10k_v1` 免费权益和 Phone identity。成功返回 200 后，Desktop 可以走手机号 v1 登录，无需人工登记或单独发放免费额度。旧版 `plan_free_daily_1m_v1` 继续保留供既有权益使用，不批量迁移老用户。
 - 提供 phone 匹配到既有账户时，会建立外部身份关联，沿用旧规范返回 `409 subject_already_exists`；按第 4.2 节 provider/external_user_id 查询取回原 `subject.id`。不会再建账户、轮换 Key 或改动原权益。
-- 免费额度为每天累计 1,000,000 token，沿用 UTC 00:00 日窗口；重复开户、登录不重置额度。首次从免费转付费使用 `purchase` + `replace_current=true`，不对无期末的免费权益使用 `renew`。
+- 新开户免费额度临时设为每天累计 10,000 token，沿用 UTC 00:00 日窗口；重复开户、登录不重置额度。额度以已发放权益快照为准，既有用户不受默认值调整影响。首次从免费转付费使用 `purchase` + `replace_current=true`，不对无期末的免费权益使用 `renew`。
 - `credential.key` 只在首次成功响应里返回一次。
 - 同一 `Idempotency-Key` replay 时只返回 `key_prefix`，不会再次返回 `credential.key` 原文。
 - 收费侧若需保管完整 Key，应在首次响应后立即安全持久化；后续步骤失败不重新 create。Desktop 可通过已准备的手机号登录和 bootstrap 取回当前 Key；收费侧后台若需恢复遗失的完整 Key，沿用受控轮换流程。

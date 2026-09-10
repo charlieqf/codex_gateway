@@ -117,7 +117,7 @@ export function create(
       if (!plans.get(db, phoneSignupFreePlanId)) plans.create(db, phoneSignupFreePlan(now));
       entitlements.grantInTransaction(db, {
         subjectId: subject.id, planId: phoneSignupFreePlanId, periodKind: "unlimited",
-        notes: "Automatic phone signup: daily 1,000,000 tokens (UTC).", now
+        notes: "Automatic phone signup: daily free token allowance (UTC).", now
       }, {
         getPlan: id => plans.get(db, id),
         listAccessCredentials: filter => accessCredentials.list(db, filter)

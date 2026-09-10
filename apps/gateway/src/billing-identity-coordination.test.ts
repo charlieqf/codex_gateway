@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import { generateKeyPairSync } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { defaultFeaturePolicy, decryptSecret, encryptSecret, issueAccessCredential, issueUnifiedClientKey, phoneSignupFreePlanId, type Subject } from "@codex-gateway/core";
+import { defaultFeaturePolicy, decryptSecret, encryptSecret, issueAccessCredential, issueUnifiedClientKey, phoneSignupFreePlan, phoneSignupFreePlanId, type Subject } from "@codex-gateway/core";
 import { createSqliteStore, SqliteTokenBudgetLimiter } from "@codex-gateway/store-sqlite";
 import { registerBillingAdminRoutes } from "./billing-admin.js";
 import { PhoneAuthService, phoneAuthGatewayOrigin } from "./services/phone-auth-service.js";
@@ -119,7 +119,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const grants = f.store.listEntitlements({ subjectId: subject.id });
     expect(grants).toHaveLength(1);
     expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, periodKind: "unlimited", periodEnd: null,
-      policySnapshot: { tokensPerDay: 1_000_000, tokensPerMonth: null }, state: "active" });
+      policySnapshot: { tokensPerDay: 10_000, tokensPerMonth: null }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "sms-desktop-test-device", requestId: "login" });
     expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap").unified_key.key).toBe(credential.key);
     expect(f.store.listUnifiedClientKeys({ subjectId: subject.id })).toEqual([current]);
@@ -183,7 +183,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.listEntitlements({ subjectId, state: "active" })[0]?.planId).toBe("plan_test");
   });
 
-  it("enforces the daily million across retries, sessions and key rotation, and resets at UTC midnight", async () => {
+  it("enforces the daily 10k across retries, sessions and key rotation, and resets at UTC midnight", async () => {
     const f = fixture();
     await f.resolve("22");
     const subjectId = (await f.create("22")).json().subject.id;
@@ -197,11 +197,11 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     });
     for (let i = 0; i < 4; i++) {
       const at = new Date(now.getTime() + i * 60_000);
-      const result = await acquire(`use-${i}`, at, 250_000);
+      const result = await acquire(`use-${i}`, at, 2_500);
       expect(result.ok).toBe(true);
       if (!result.ok) throw new Error("unexpected budget rejection");
       await limiter.finalize({ reservationId: result.reservationId,
-        usage: { promptTokens: 200_000, completionTokens: 50_000, totalTokens: 250_000 }, now: at });
+        usage: { promptTokens: 2_000, completionTokens: 500, totalTokens: 2_500 }, now: at });
     }
     expect((await f.create("22")).json().idempotent_replay).toBe(true);
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "second-desktop-device", requestId: "relogin" });
@@ -261,7 +261,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const { subject, credential } = response.json();
     const grants = f.store.listEntitlements({ subjectId: subject.id });
     expect(grants).toHaveLength(1);
-    expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 1_000_000 }, state: "active" });
+    expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 10_000 }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "direct-phone-test-device", requestId: "login-direct" });
     expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap-direct").unified_key.key).toBe(credential.key);
     const replay = (await f.create("22", "direct:22", "13800138000")).json();
@@ -270,6 +270,34 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.listEntitlements({ subjectId: subject.id })).toEqual(grants);
     expect((await f.create("22", "direct:22", "13900139000")).json().error.code).toBe("idempotency_conflict");
     expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("grants new users 10k/day while retaining the old 1M plan, entitlement, key and usage on linking", async () => {
+    const f = fixture();
+    const template = phoneSignupFreePlan(now);
+    const oldPlan = f.store.createPlan({ ...template, id: "plan_free_daily_1m_v1",
+      displayName: "Free · 1,000,000 tokens/day", policy: { ...template.policy, tokensPerDay: 1_000_000 } });
+    const old = f.seed();
+    const grant = f.store.grantEntitlement({ subjectId: old.subject.id, planId: oldPlan.id, periodKind: "unlimited", now });
+    const limiter = new SqliteTokenBudgetLimiter({ db: f.store.database });
+    const used = await limiter.acquire({ requestId: "old-free-usage", credentialId: old.backing.record.id,
+      subjectId: old.subject.id, entitlementId: grant.id, scope: "code", upstreamAccountId: null,
+      provider: null, policy: grant.policySnapshot, estimatedPromptTokens: 20_000, now });
+    expect(used.ok).toBe(true);
+    if (!used.ok) throw new Error("Old free grant unexpectedly reduced");
+    await limiter.finalize({ reservationId: used.reservationId,
+      usage: { promptTokens: 19_000, completionTokens: 1_000, totalTokens: 20_000 }, now });
+    const oldUsage = f.store.database.prepare("SELECT * FROM entitlement_token_windows WHERE entitlement_id=? ORDER BY window_kind,window_start").all(grant.id);
+    expect((await f.create("old-free", "link:old-free", "13800138000")).json().error.code).toBe("subject_already_exists");
+    const created = await f.create("new-free", "create:new-free", "13900139000");
+    expect(created.statusCode).toBe(200);
+    const newId = created.json().subject.id;
+    expect(f.store.listEntitlements({ subjectId: newId })[0]).toMatchObject({
+      planId: "plan_free_daily_10k_v1", policySnapshot: { tokensPerDay: 10_000 } });
+    expect(f.store.getPlan(oldPlan.id)).toEqual(oldPlan);
+    expect(f.store.listEntitlements({ subjectId: old.subject.id })).toEqual([grant]);
+    expect(f.store.listUnifiedClientKeys({ subjectId: old.subject.id })).toEqual([old.unified.record]);
+    expect(f.store.database.prepare("SELECT * FROM entitlement_token_windows WHERE entitlement_id=? ORDER BY window_kind,window_start").all(grant.id)).toEqual(oldUsage);
   });
 
   it("links an existing phone internally and preserves May's existing-subject recovery contract", async () => {
