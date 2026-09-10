@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"24376a26b7237085c7adf258282c4a839010a68c97b44cb74b28717f0004e467\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Advanced maternal age as a risk factor for endometrial receptivity in repeated implantation failure: intersectional transcriptomic analysis and gene validation.\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Multivariate logistic regression further demonstrated maternal age as an independent risk factor for ER displacement (OR = 1.118, 95% CI: 1.013-1.234, p = 0.027).\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Advanced maternal age as a risk factor for endometrial receptivity in repeated implantation failure: intersectional transcriptomic analysis and gene validation.\"}},{\"path\":\"/coreEvidence/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"the identified candidate genes should be regarded as preliminary molecular associations requiring further functional validation.\"}}]},\"workingNotes\":\"根据复核反馈，src_pubmed_42718970 的引文改为单个精确原文引句（不用passageId组合），共替换4处：facts[3]研究方向、facts[4]代表作一、topics第二引、coreEvidence[1]局限引句。其余提案内容不变，等待复核。\"}",
+  "usage": {
+    "promptTokens": 24067,
+    "completionTokens": 776,
+    "reasoningTokens": 416,
+    "totalTokens": 24843
+  },
+  "gatewayRequestId": "req-1811e630-0d4f-4aa3-86d8-a8a649ac8215"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"沈嵘\",\"institution\":\"南京市妇幼保健院（南京医科大学附属妇产医院）\",\"department\":\"党委书记、主任医师、教授、博士生导师\",\"limitations\":[\"第四临床医学院副院长一职未在已读页面中得到验证\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"quote\":\"市妇幼保健院党委书记沈嵘参加调研。\",\"explanation\":\"南京市卫生健康委员会官网（医院行政主管部门）2024年报道确认沈嵘任南京市妇幼保健院党委书记。\"},{\"aspect\":\"institution\",\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"quote\":\"沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\",\"explanation\":\"中国优生优育协会专业委员会名单确认沈嵘在南京市妇幼保健院（南京医科大学附属妇产医院）任职，专业职称为主任医师、教授、博士生导师，行政职务为党委书记。\"},{\"aspect\":\"department\",\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"quote\":\"沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\",\"explanation\":\"同一名录明确列出其党委书记职务及主任医师专业职称，与请求中的医院领导职务相符。\"},{\"aspect\":\"authority\",\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"quote\":\"文章来源：南京市妇幼保健院 发布时间：2024-08-15\",\"explanation\":\"该报道由南京市卫生健康委员会官网发布，来源为南京市妇幼保健院，属政府权威渠道。\"}]}}",
+  "usage": {
+    "promptTokens": 5370,
+    "completionTokens": 383,
+    "reasoningTokens": 0,
+    "totalTokens": 5753
+  },
+  "gatewayRequestId": "req-9403bb50-799f-4487-a013-13d92f98106b"
+}

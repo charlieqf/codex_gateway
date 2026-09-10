@@ -1,0 +1,10 @@
+{
+  "text": "{\"workingNotes\":\"已验证本人文献（Rong Shen，Women's Hospital of Nanjing Medical University/Nanjing Maternity and Child Health Care Hospital=南京市妇幼保健院）：41553083（早孕中心/生育力保存，2026）、41329546（生殖医学，2025）、39068427（生殖医学，2024）、37690219（生殖医学，2023）、37382170（生殖医学，2023）、37057923（妇科，2023）、36695944（生殖医学，2023）。排除：40953689（Ruifan Shen，中国药科大学）、39388677（Rulong Shen，俄亥俄州立）。待读：42718970（有标题无摘要观察）、36243240、35724775、35574002。研究领域：反复种植失败/冻融胚胎移植/慢性子宫内膜炎/生殖医学。计划读这4篇后做一次领域检索（RIF+FET）补充文献。\",\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42718970\",\"36243240\",\"35724775\",\"35574002\"]},{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"repeated implantation failure AND frozen-thawed embryo transfer AND (chronic endometritis OR endometrial receptivity)\"}]}",
+  "usage": {
+    "promptTokens": 22719,
+    "completionTokens": 594,
+    "reasoningTokens": 290,
+    "totalTokens": 23313
+  },
+  "gatewayRequestId": "req-8b3a8789-4c3d-4948-8f5a-112fd2ec5415"
+}

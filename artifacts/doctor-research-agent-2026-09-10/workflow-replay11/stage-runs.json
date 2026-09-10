@@ -1,0 +1,68 @@
+[
+  {
+    "stage": "validate_outputs",
+    "attempt": 4,
+    "duration_ms": 36502,
+    "error_code": null,
+    "prompt_tokens": 17111,
+    "completion_tokens": 2787,
+    "admission_wait_ms": 0,
+    "client_total_ms": 36498,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 5,
+    "duration_ms": 30696,
+    "error_code": null,
+    "prompt_tokens": 17907,
+    "completion_tokens": 2422,
+    "admission_wait_ms": 0,
+    "client_total_ms": 30693,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 6,
+    "duration_ms": 115313,
+    "error_code": null,
+    "prompt_tokens": 26263,
+    "completion_tokens": 5886,
+    "admission_wait_ms": 0,
+    "client_total_ms": 115311,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 7,
+    "duration_ms": 43273,
+    "error_code": null,
+    "prompt_tokens": 26421,
+    "completion_tokens": 3437,
+    "admission_wait_ms": 0,
+    "client_total_ms": 43270,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 8,
+    "duration_ms": 13341,
+    "error_code": null,
+    "prompt_tokens": 26699,
+    "completion_tokens": 875,
+    "admission_wait_ms": 0,
+    "client_total_ms": 13339,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 9,
+    "duration_ms": 12975,
+    "error_code": null,
+    "prompt_tokens": 26703,
+    "completion_tokens": 921,
+    "admission_wait_ms": 0,
+    "client_total_ms": 12973,
+    "terminal_source": "provider_response"
+  }
+]

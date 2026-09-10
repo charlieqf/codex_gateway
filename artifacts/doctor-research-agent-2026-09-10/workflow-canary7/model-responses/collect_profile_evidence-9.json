@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"88114a8785cea4258f11451fe3c110760360af0b2b44367f15096343289e61d0\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_1\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/coreEvidence/1/limitations/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_2\"}}]},\"workingNotes\":\"复核连续三次拒绝：src_pubmed_42718970 的引文quote未精确匹配已读源文本。改为仅用该源的passageId引用：facts[3]研究方向→title；facts[4]代表作一→text_1（含OR=1.118结果）；topics第二引→title；coreEvidence[1]局限→text_2（含候选基因初步性声明）。其余提案内容不变，等待复核。\"}",
+  "usage": {
+    "promptTokens": 23147,
+    "completionTokens": 796,
+    "reasoningTokens": 513,
+    "totalTokens": 23943
+  },
+  "gatewayRequestId": "req-e5896bc9-4012-4592-bd3a-a811d6eebc44"
+}

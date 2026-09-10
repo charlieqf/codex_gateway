@@ -245,7 +245,12 @@ export async function reviewNarrativeWithAgent(input: {
     }
     // A single surrounding JSON fence changes presentation only. Do not
     // salvage partial JSON, choose among multiple objects, or repair content.
-    const decision = parseDecision(text);
+    const parsed = parseDecision(text);
+    // Acceptance/rejection with no replacement field unambiguously means no
+    // requested edits. A revision still requires explicit replacements, and
+    // unknown fields (including any alternate edit payload) remain invalid.
+    const decision = isObject(parsed) && (parsed.decision === "accept" || parsed.decision === "reject") &&
+      !Object.hasOwn(parsed, "replacements") ? { ...parsed, replacements: [] } : parsed;
     // This call site selects and validates one protocol. An optional model
     // version label has no authority to select another parser or semantics.
     // Ignore that redundant label; validate every actual decision field and
@@ -259,7 +264,7 @@ export async function reviewNarrativeWithAgent(input: {
       checkNames.every(name => ["pass", "fail", "uncertain"].includes(String((decision.checks as Record<string, unknown>)[name]))) &&
       Array.isArray(decision.replacements) && decision.replacements.length <= 80;
     if (!valid || !isObject(decision) || !Array.isArray(decision.replacements)) {
-      feedback = ["narrative_decision_invalid_schema_or_hash", "Invalid decision schema or stale candidate hash. Return the exact schema for the current candidate."];
+      feedback = ["narrative_decision_invalid_schema_or_hash", ...decisionDiagnostics(decision, candidateHash)];
     } else if (decision.decision === "accept") {
       if (decision.replacements.length === 0 && diagnostics.blocking.length === 0 &&
           checkNames.every(name => (decision.checks as Record<string, unknown>)[name] === "pass")) {
@@ -287,4 +292,21 @@ export async function reviewNarrativeWithAgent(input: {
   }
   input.observe?.({ call: input.maximumCalls, outcome: "review_budget_exhausted", diagnostics: input.inspect(draft).blocking });
   return null;
+}
+
+function decisionDiagnostics(value: unknown, candidateHash: string): string[] {
+  if (!isObject(value)) return ["Return one complete JSON object; no surrounding commentary or partial object."];
+  const required = ["candidate_sha256", "decision", "checks", "explanation", "replacements"];
+  const errors: string[] = [];
+  for (const key of required) if (!Object.hasOwn(value, key)) errors.push(`Missing field: ${key}.`);
+  const unknown = Object.keys(value).filter(key => !required.includes(key) && key !== "schema_version");
+  if (unknown.length) errors.push(`Unexpected fields: ${unknown.join(", ").slice(0, 300)}.`);
+  if (value.candidate_sha256 !== candidateHash) errors.push("candidate_sha256 must exactly equal the current supplied hash; previous candidates are stale.");
+  if (!["accept", "revise", "reject"].includes(String(value.decision))) errors.push("decision must be accept, revise or reject.");
+  if (!isObject(value.checks) || Object.keys(value.checks).sort().join() !== [...checkNames].sort().join() ||
+      checkNames.some(name => !["pass", "fail", "uncertain"].includes(String((value.checks as Record<string, unknown>)[name])))) errors.push(`checks needs exactly ${checkNames.join(", ")}, each pass, fail or uncertain.`);
+  if (typeof value.explanation !== "string" || !value.explanation.trim()) errors.push("explanation must be a nonempty string.");
+  if (!Array.isArray(value.replacements) || value.replacements.length > 80) errors.push("replacements must be an array of at most 80 edits; a revision must specify its changes.");
+  if (value.schema_version !== undefined && typeof value.schema_version !== "string") errors.push("Omit the optional schema_version metadata.");
+  return errors.length ? errors : ["Return the exact decision schema for the current candidate."];
 }

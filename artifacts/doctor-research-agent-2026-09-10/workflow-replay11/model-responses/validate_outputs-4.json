@@ -1,0 +1,10 @@
+{
+  "text": "{\"findings\":[{\"target_id\":\"review_block_32\",\"source_id\":\"src_pubmed_42494861\",\"explanation\":\"draft称‘抗骨吸收药物在髋部更有优势’，依据摘要中‘antiresorptive agents were more effective for hip BMD’一句；但同一摘要两次明确指出‘ABA showed the highest effect on total hip BMD’及结论‘ABA is superior for total hip BMD’，即abaloparatide在全髋骨密度上效应最高。摘要本身表述矛盾，draft单方面采信抗骨吸收药物更优的说法而未提示与ABA全髋最优的表述冲突，review_block_21存在同样问题，应作为歧义标注而非定论。\"},{\"target_id\":\"review_block_23\",\"source_id\":\"src_pubmed_42681806\",\"explanation\":\"draft描述法国SNDS研究人群为‘81,263例口服双膦酸盐、19,111例静脉双膦酸盐与28,606例denosumab起始治疗的60岁及以上女性’。摘要的纳入条件更严格：2012至2015年间起始治疗、且此后持续治疗≥3年（双膦酸盐）或≥2年（denosumab）者方可入组；draft省略了持续治疗资格条件与起始时间窗，使人群定义比实际研究人群更宽泛。\"},{\"target_id\":\"core_row_7_sample_and_source\",\"source_id\":\"src_pubmed_42287137\",\"explanation\":\"该行称证据来源为‘美国USC妇产科团队’。提供的摘要中并未提及作者所属机构（USC或妇产科团队），此机构归属在来源文本中无依据，需核实元数据或删除。\"},{\"target_id\":\"review_block_21\",\"source_id\":\"src_pubmed_42494861\",\"explanation\":\"draft将网络meta分析样本量表述为‘共80,780例（原文标注为80-7,808）’。摘要原文为‘Twenty-three RCTs comprising 80-7, 808 postmenopausal women’，该数字存在排版异常且无法从摘要确定是80,780还是其他数值；draft给出的具体数字80,780是一种未经来源确认的解读，宜保持为不确定表述。\"}]}",
+  "usage": {
+    "promptTokens": 17111,
+    "completionTokens": 2787,
+    "reasoningTokens": 2293,
+    "totalTokens": 19898
+  },
+  "gatewayRequestId": "req-ab833c8c-66e1-40ef-a700-15ad90312ae2"
+}

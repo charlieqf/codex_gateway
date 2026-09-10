@@ -1,0 +1,10 @@
+{
+  "text": "{\"candidate_sha256\":\"069f28ee99b378f99bbbd4dcd2f17d33881d9342c55bb8727609bfc415046040\",\"decision\":\"accept\",\"checks\":{\"citations\":\"pass\",\"numerical_claims\":\"pass\",\"evidence_scope\":\"pass\",\"coherence\":\"pass\",\"questions_answers\":\"pass\"},\"explanation\":\"逐项复核前次审阅与源审计的全部发现，均已在当前文本中解决：ESCORT两组均用地舒单抗且比较背景方案（block_4/19/21）；QUALYOR为症状性HOA（block_10）；SNDS研究补入2012-2015年起始及持续治疗≥3/≥2年的入组条件（block_23）；zoledronate停药试验的共同主要终点已改为Zol后12及24个月且数值性差异明确标注非显著（block_23/29）；针刺meta腰背痛两组合并列最优（block_16、answer_4）；网络meta样本量保留排版歧义表述、ABA全髋最优与抗骨吸收药物髋部更优的摘要内部矛盾已作歧义标注（block_21）；core_row_7机构信息已删除；block_26不再自相矛盾，明确声明数值取自公开摘要。抽查所有17项摘要的数值、置信区间、终点与设计描述，与候选文本一致；观察性证据均配因果限定；五组问答证据一致；长度与结构达标。启发式指出的段落起始均为有明确主语的过渡句，属误报；causal标记核查后block_15/22均含观察性限定。无阻塞诊断，接受。\"}",
+  "usage": {
+    "promptTokens": 26699,
+    "completionTokens": 875,
+    "reasoningTokens": 506,
+    "totalTokens": 27574
+  },
+  "gatewayRequestId": "req-756d512c-ff30-469f-92ea-05cd55f439b5"
+}

@@ -22,6 +22,27 @@ function decision(prompt: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe("narrative review Agent boundary", () => {
+  it("accepts a complete independent approval with omitted empty edits, but never ignores unknown edit fields", async () => {
+    for (const unknownEdits of [false, true]) {
+      const result = await reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence, maximumCalls: 1, inspect,
+        async generate({ prompt }) {
+          const { replacements: _empty, ...approved } = decision(prompt);
+          return JSON.stringify({ ...approved, ...(unknownEdits ? { edits: [{ target_id: "title", value: "Unsafe hidden change" }] } : {}) });
+        }
+      });
+      expect(result?.draft ?? null).toEqual(unknownEdits ? null : draft());
+    }
+  });
+
+  it("reports the specific missing field instead of a generic format error", async () => {
+    await reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence, maximumCalls: 2, inspect,
+      async generate({ prompt, call }) {
+        if (call === 1) { const { replacements: _absent, ...revision } = decision(prompt, { decision: "revise" }); return JSON.stringify(revision); }
+        expect(payload(prompt).prior_feedback).toContain("Missing field: replacements.");
+        return JSON.stringify(decision(prompt));
+      }
+    });
+  });
   it("applies nonoverlapping text edits and individual answer corrections against the original targets, requiring another review", async () => {
     const initial = draft();
     const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence, maximumCalls: 3, inspect,

@@ -2078,6 +2078,15 @@ async function collectAgentResearchEvidence(
     source_id: p.sourceId, source_type: "official_web" as const, title: p.title, url: p.url,
     accessed_at: p.accessedAt, content_sha256: p.contentSha256, untrusted_text: p.untrustedText
   }));
+  for (const record of result.state.publications) {
+    const p = record.value;
+    const sourceId = `src_pubmed_${record.pmid}`;
+    if (record.status === "succeeded" && p && sourceIds.has(sourceId) && p.sourceUrl && p.accessedAt && p.contentSha256) {
+      identity.sourceEvidence.push({ source_id: sourceId, source_type: "pubmed", title: p.title, url: p.sourceUrl,
+        accessed_at: p.accessedAt, content_sha256: p.contentSha256,
+        untrusted_text: `${p.title}\n${p.abstractText ?? ""}` });
+    }
+  }
   identity.sources = identity.sourceEvidence.map(({ untrusted_text: _text, ...source }) => source);
   identity.profileSourceIds = uniqueBy([...identity.profileSourceIds, ...facts.flatMap(f => f.citations.map(c => c.sourceId))], x => x);
   identity.reviewedProfile = profileFromInvestigatedFacts(facts, identity.profileSourceIds);
@@ -8155,7 +8164,7 @@ function validateGeneratedOutput(
         ...(evidence.sources.some((source) => source.source_type === "orcid")
           ? ["orcid"]
           : []),
-        ...(representativeClaims.length > 0 ? ["pubmed"] : [])
+        ...(representativeClaims.length > 0 || identity.sourceEvidence.some(source => source.source_type === "pubmed") ? ["pubmed"] : [])
       ],
       cutoff_date: run.createdAt.toISOString().slice(0, 10),
       warnings: [

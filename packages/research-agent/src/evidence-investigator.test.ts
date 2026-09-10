@@ -59,6 +59,31 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it.each(["quote", "passageId"])("lets the reviewer assess a personal research fact cited to a read paper (%s)", async mode => {
+    const proposal = JSON.parse(JSON.stringify(conclusion()));
+    proposal.evidence.facts.push({ type: "research_direction", text: "Alice studies hormone monitoring in adults.",
+      citations: [{ sourceId: "src_pubmed_101", ...(mode === "quote" ? { quote: paper.abstractText } : { passageId: "title" }) }] });
+    const f = fixture([read, proposal, accept]);
+    expect((await investigateDoctorEvidence(f.input)).outcome).toBe("resolved");
+    const review = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    expect(review.publications[0]).toMatchObject({ pmid: "101", journal: paper.journal, abstractText: paper.abstractText });
+    expect(review.proposed.facts[1].citations[0].quote).toBe(mode === "quote" ? paper.abstractText : paper.title);
+  });
+
+  it("includes metadata for a profile-cited paper outside the selected lists and requires independent attribution review", async () => {
+    const proposal = JSON.parse(JSON.stringify(conclusion()));
+    proposal.evidence.doctorPublications = [];
+    proposal.evidence.fieldPublications = [];
+    proposal.evidence.coreEvidence = [];
+    proposal.evidence.topics = { terms: [], explanation: "Only a profile was requested.", citations: [] };
+    proposal.evidence.facts = [{ type: "representative_output", text: "Alice authored this paper.", citations: [{ sourceId: "src_pubmed_101", passageId: "title" }] }];
+    const f = fixture([read, proposal, { accepted: false, issues: ["The paper belongs to a different person."] }, { unresolved: "insufficient_evidence" }],
+      { publication: { ...paper, authors: ["Other C"], authorAffiliations: [{ author: "Other C", affiliations: ["Another hospital"] }] } });
+    f.input.profileOnly = true;
+    expect((await investigateDoctorEvidence(f.input)).outcome).toBe("unresolved");
+    const review = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    expect(review.publications[0]).toMatchObject({ authors: ["Other C"], authorAffiliations: [{ author: "Other C", affiliations: ["Another hospital"] }] });
+  });
   it("resolves read passage and selected-author affiliation IDs to original text, retaining semantic review", async () => {
     const proposal = conclusion();
     const selected = JSON.parse(JSON.stringify(proposal));

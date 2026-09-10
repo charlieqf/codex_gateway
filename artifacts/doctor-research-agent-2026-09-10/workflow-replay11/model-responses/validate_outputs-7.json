@@ -1,0 +1,10 @@
+{
+  "text": "{\"candidate_sha256\":\"cb246cb44ddf3eb0c520b1113cc8e3851a859df149627e12b2f03a46c90b5137\",\"decision\":\"revise\",\"checks\":{\"citations\":\"pass\",\"numerical_claims\":\"pass\",\"evidence_scope\":\"pass\",\"coherence\":\"fail\",\"questions_answers\":\"pass\"},\"explanation\":\"前次修订已正确解决源审计问题：ESCORT两组均用地舒单抗、QUALYOR症状性HOA、SNDS持续治疗入组条件、zoledronate数值性差异、针刺meta并列最优、网络meta样本量歧义与ABA全髋矛盾标注、core_row_7机构删除，逐项核对与摘要一致。仍发现两处问题：(1) review_block_23将zoledronate试验的共同主要终点写为“末次denosumab后12及24个月”，摘要原文为Zol给药后12及24个月的LS BMD变化组间相似；(2) review_block_26声明“本综述不对这些文献[1][7][8][9][10]的具体效应量作任何数字表述”，但正文（如block_3、8、15、16）已大量给出其摘要数值，构成自相矛盾；该句应改为说明数值均取自公开摘要。其余数值、因果限定、问答与长度均核对通过。\",\"replacements\":[{\"target_id\":\"review_block_23\",\"find\":\"末次denosumab后12及24个月的腰椎骨密度变化在各zoledronate时机组间相似\",\"replace\":\"zoledronate给药后12及24个月的腰椎骨密度变化在各时机组间相似\"},{\"target_id\":\"review_block_26\",\"find\":\"均待全文确认，本综述不对这些文献的具体效应量作任何数字表述。\",\"replace\":\"均待全文确认，本综述报告的相关数值均取自公开摘要，解读时应以此为限。\"}]}",
+  "usage": {
+    "promptTokens": 26421,
+    "completionTokens": 3437,
+    "reasoningTokens": 3014,
+    "totalTokens": 29858
+  },
+  "gatewayRequestId": "req-9e0933a2-03e4-41a7-bd96-25ff4a148039"
+}

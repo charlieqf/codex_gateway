@@ -412,9 +412,47 @@
       "fresh_case_acceptance_eligible": false,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay11",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 6,
+      "elapsed_ms": 221963,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      },
+      "archive_sha256": "0112f6d55fb9fec35a0dcb0923e9f2c81d24d5b5510b2fe6bd98381e89e844d4",
+      "evidence_archive_sha256": "e553bd630244814d25e9ec2e85a84f6e7c7c1149f0cbb491be02d0f313ac6049",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary7",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 16,
+      "elapsed_ms": 207429,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      },
+      "archive_sha256": "2109386f1f51ba754be0e2e39443f0d1756bca57f8e63777ab97734b31ded425",
+      "evidence_archive_sha256": "af4ffa632675b5051c6811cdafa6d5b59a38c56d44bf9839b30741d2a1a5d643",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 6,
+  "total_new_serpapi_requests": 7,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,
@@ -443,5 +481,14 @@
     "this_month_usage": 208,
     "search_requests": 0,
     "note": "Canary6 made one search HTTP request in 976 ms with the same provider search ID as canary5; account usage remained unchanged at 208."
+  },
+  "account_after_workflow_canary7": {
+    "checked_at_utc": "2026-09-10T22:50:29.116Z",
+    "http_status": 200,
+    "plan_searches_left": 42,
+    "total_searches_left": 42,
+    "this_month_usage": 208,
+    "search_requests": 0,
+    "note": "One search HTTP request returned the same cached provider search ID in 445 ms; shared account usage remained 208."
   }
 }

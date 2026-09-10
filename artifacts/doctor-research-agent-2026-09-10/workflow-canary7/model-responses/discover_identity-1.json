@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"沈嵘 南京市妇幼保健院 党委书记\",\"purpose\":\"find official profile of Shen Rong at Nanjing Maternity and Child Health Care Hospital\"}]}",
+  "usage": {
+    "promptTokens": 1138,
+    "completionTokens": 56,
+    "reasoningTokens": 10,
+    "totalTokens": 1194
+  },
+  "gatewayRequestId": "req-14e55a3c-126e-415d-8561-2d9270907bf7"
+}

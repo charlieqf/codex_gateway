@@ -1,0 +1,205 @@
+{
+  "original": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "model_contract_error"
+  },
+  "elapsed_ms": 221963,
+  "serpapi_requests": 0,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 221962,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      }
+    }
+  ],
+  "diagnostic_replay": true,
+  "fresh_case_acceptance_eligible": false,
+  "legacy_calls": 0,
+  "model_requests": 6,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "validate_outputs",
+      "attempt": 5,
+      "elapsed_ms": 30694,
+      "gateway_request_id": "req-c1920854-693b-4a59-bfb8-7895dfebff2b",
+      "response_sha256": "bd3c1ce4d4fce4f9ec99228136282e031025a5ded0b8e0c552ae94898d4dd9f8",
+      "usage": {
+        "promptTokens": 17907,
+        "completionTokens": 2422,
+        "reasoningTokens": 1954,
+        "totalTokens": 20329
+      },
+      "telemetry": {
+        "promptChars": 48154,
+        "maximumOutputTokens": 4000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:41:41.177Z",
+        "clientTotalMs": 30693,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "elapsed_ms": 36499,
+      "gateway_request_id": "req-ab833c8c-66e1-40ef-a700-15ad90312ae2",
+      "response_sha256": "80c1f4d5371c443d504a1c2d50d48e70aea016bafb767bf77009b37e37f1e8d0",
+      "usage": {
+        "promptTokens": 17111,
+        "completionTokens": 2787,
+        "reasoningTokens": 2293,
+        "totalTokens": 19898
+      },
+      "telemetry": {
+        "promptChars": 44425,
+        "maximumOutputTokens": 4000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:41:41.138Z",
+        "clientTotalMs": 36498,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "elapsed_ms": 115312,
+      "gateway_request_id": "req-edf0bee4-ac99-46b9-ab86-5edfebdfba61",
+      "response_sha256": "0565888825f21df0ad175946a92874af737ce9c2c1815bdcba7deaff7486f883",
+      "usage": {
+        "promptTokens": 26263,
+        "completionTokens": 5886,
+        "reasoningTokens": 3749,
+        "totalTokens": 32149
+      },
+      "telemetry": {
+        "promptChars": 79261,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:42:17.745Z",
+        "clientTotalMs": 115311,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 7,
+      "elapsed_ms": 43271,
+      "gateway_request_id": "req-9e0933a2-03e4-41a7-bd96-25ff4a148039",
+      "response_sha256": "03fe3e44475f1e508aa3ae5513334c4f1a41a2659b11521198c84782c671d342",
+      "usage": {
+        "promptTokens": 26421,
+        "completionTokens": 3437,
+        "reasoningTokens": 3014,
+        "totalTokens": 29858
+      },
+      "telemetry": {
+        "promptChars": 79374,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:44:13.147Z",
+        "clientTotalMs": 43270,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 8,
+      "elapsed_ms": 13339,
+      "gateway_request_id": "req-756d512c-ff30-469f-92ea-05cd55f439b5",
+      "response_sha256": "ca62c048e157d4fe5b3654532a041642a85425d493ccaf15ef2aef06ea78b282",
+      "usage": {
+        "promptTokens": 26699,
+        "completionTokens": 875,
+        "reasoningTokens": 506,
+        "totalTokens": 27574
+      },
+      "telemetry": {
+        "promptChars": 79918,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:44:56.500Z",
+        "clientTotalMs": 13339,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 9,
+      "elapsed_ms": 12973,
+      "gateway_request_id": "req-f485f301-7f71-48e4-9196-a3fb0da65f12",
+      "response_sha256": "a2c10a1024504411dbedc5fcc9fd717b8618eca758213d4614745e5833e87de1",
+      "usage": {
+        "promptTokens": 26703,
+        "completionTokens": 921,
+        "reasoningTokens": 551,
+        "totalTokens": 27624
+      },
+      "telemetry": {
+        "promptChars": 79922,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:45:09.919Z",
+        "clientTotalMs": 12973,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [
+    {
+      "runId": "drr_6c1794f783f641f98df89709ea562c06",
+      "stage": "validate_outputs",
+      "attempt": 8,
+      "errorCodes": [
+        "narrative_review_invalid_decision"
+      ],
+      "errorDetails": [
+        "narrative_decision_invalid_schema_or_hash"
+      ]
+    },
+    {
+      "runId": "drr_6c1794f783f641f98df89709ea562c06",
+      "stage": "validate_outputs",
+      "attempt": 9,
+      "errorCodes": [
+        "narrative_review_invalid_decision"
+      ],
+      "errorDetails": [
+        "narrative_decision_invalid_schema_or_hash"
+      ]
+    },
+    {
+      "runId": "drr_6c1794f783f641f98df89709ea562c06",
+      "stage": "validate_outputs",
+      "attempt": 9,
+      "errorCodes": [
+        "narrative_review_review_budget_exhausted"
+      ],
+      "errorDetails": []
+    }
+  ],
+  "external_calls": [],
+  "budget_failures": [],
+  "public_api_or_admission_tested": false
+}

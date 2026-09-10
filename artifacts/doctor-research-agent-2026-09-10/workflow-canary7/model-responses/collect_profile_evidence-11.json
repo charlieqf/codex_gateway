@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"24376a26b7237085c7adf258282c4a839010a68c97b44cb74b28717f0004e467\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Advanced maternal age as a risk factor for endometrial receptivity in repeated implantation failure: intersectional transcriptomic analysis and gene validation.\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Multivariate logistic regression further demonstrated maternal age as an independent risk factor for ER displacement (OR = 1.118, 95% CI: 1.013-1.234, p = 0.027).\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"Advanced maternal age as a risk factor for endometrial receptivity in repeated implantation failure: intersectional transcriptomic analysis and gene validation.\"}},{\"path\":\"/coreEvidence/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"quote\":\"This retrospective observational study included 254 women with RIF who underwent evaluation of ER between January 2020 and March 2024.\"}}]},\"workingNotes\":\"前两次修正失败：仅passageId的引文仍被判无效。本次改为对src_pubmed_42718970的四处置（facts[3]/facts[4]/topics第二引/coreEvidence[1]）使用从已读passage中逐字复制的英文原文quote（title、text_1、text_0原文片段），不再使用passageId，也不与passageId混用。其余提案内容不变，等待复核。\"}",
+  "usage": {
+    "promptTokens": 23139,
+    "completionTokens": 2081,
+    "reasoningTokens": 1680,
+    "totalTokens": 25220
+  },
+  "gatewayRequestId": "req-a3dfbb99-d3b9-45e9-ae20-735565c7e71a"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://m.ysyy.org.cn/123/202105/458.html\",\"purpose\":\"verify 沈嵘's role at 南京市妇幼保健院 from committee page listing her as 党委书记\"},{\"type\":\"read\",\"url\":\"https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html\",\"purpose\":\"government source confirming 沈嵘 as 南京市妇幼保健院党委书记\"}]}",
+  "usage": {
+    "promptTokens": 1733,
+    "completionTokens": 107,
+    "reasoningTokens": 0,
+    "totalTokens": 1840
+  },
+  "gatewayRequestId": "req-5286a26c-08cf-4294-b459-7942a6c25dea"
+}

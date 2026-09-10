@@ -3797,7 +3797,9 @@ describe("Research Worker controlled-beta workflow", () => {
       { actions: [{ type: "read_publications", pmids: ["1001"] }] },
       { evidence: {
         facts: [{ type: "expertise", text: "The verified clinical specialty is cardiology.",
-          citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] }],
+          citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] },
+          { type: "research_direction", text: "The author studies the retrieved clinical evidence.",
+            citations: [{ sourceId: "src_pubmed_1001", passageId: "title" }] }],
         topics: { terms: ["cardiology"], explanation: "The verified clinical specialty supports this field review.",
           citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] },
         doctorPublications: [{ pmid: "1001", author: "Example Doctor", affiliationQuote: "Cardiology, Example Hospital.",
@@ -3906,10 +3908,12 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(queryLog).toEqual(['("Example Doctor"[Author]) AND (2022:2026[Date - Publication])']);
     const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId);
     expect(result).toMatchObject({ result: { profile: {
-      expertise: ["The verified clinical specialty is cardiology."], research_directions: [],
+      expertise: ["The verified clinical specialty is cardiology."], research_directions: ["The author studies the retrieved clinical evidence."],
       representative_outputs: [expect.stringContaining("Retrieved Clinical Evidence")]
     }, review: { core_evidence: [expect.objectContaining({ study_type: "Design not specified in the brief source abstract" })] }, artifacts: expect.any(Array) } });
     expect((result!.result.artifacts as unknown[])).toHaveLength(4);
+    expect(result!.result.sources).toContainEqual(expect.objectContaining({ source_id: "src_pubmed_1001", source_type: "pubmed" }));
+    expect(result!.result).toMatchObject({ profile: { claims: expect.arrayContaining([expect.objectContaining({ claim_type: "research_direction", source_ids: ["src_pubmed_1001"] })]) } });
     expect(JSON.stringify(result!.result)).toContain("The additional administrative appointment remains unverified.");
     if (reviseCoreEvidence) {
       expect(narrativeReviews).toBe(2);

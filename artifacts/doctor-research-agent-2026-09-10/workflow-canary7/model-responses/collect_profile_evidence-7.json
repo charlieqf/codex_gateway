@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"1254f6a66a97a2107e0dc4229df78d3c418119044082038da49dfd2d3dbdb4d8\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_1\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/coreEvidence/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_2\"}}]},\"workingNotes\":\"修复引用不匹配：src_pubmed_42718970的引文改用passageId（title、text_1、text_2），其余提案内容保持不变。等待复核。\"}",
+  "usage": {
+    "promptTokens": 23108,
+    "completionTokens": 826,
+    "reasoningTokens": 596,
+    "totalTokens": 23934
+  },
+  "gatewayRequestId": "req-53c1c82a-3d99-4794-9cb5-a8c6732c1976"
+}

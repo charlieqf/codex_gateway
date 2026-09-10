@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"88114a8785cea4258f11451fe3c110760360af0b2b44367f15096343289e61d0\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_1\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/coreEvidence/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_2\"}}]},\"workingNotes\":\"修正补丁：将src_pubmed_42718970的四处引文改为仅passageId引用——facts[3]/facts[4]/topics第二引/coreEvidence[1]局限。其余提案内容不变，等待复核。\"}",
+  "usage": {
+    "promptTokens": 23200,
+    "completionTokens": 511,
+    "reasoningTokens": 274,
+    "totalTokens": 23711
+  },
+  "gatewayRequestId": "req-e668cdfa-23e2-4d0d-b418-023cd044b8d9"
+}

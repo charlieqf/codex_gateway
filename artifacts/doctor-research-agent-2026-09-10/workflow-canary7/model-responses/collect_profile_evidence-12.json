@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"d951d4405660e9710e9bf48369f77d539bf9d93d64b09fef8e17a7eb2ff4f05a\",\"replacements\":[{\"path\":\"/facts/3/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/facts/4/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_1\"}},{\"path\":\"/topics/citations/1\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"title\"}},{\"path\":\"/coreEvidence/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_42718970\",\"passageId\":\"text_0\"}}]},\"workingNotes\":\"前三次修正中，仅复制英文quote的方案仍被判'quote absent'（可能是不可见字符差异）。本次改用系统推荐的passageId形式（不再带quote、不混用），修正src_pubmed_42718970的四处置：facts[3]/facts[4]/topics第二引/coreEvidence[1]，分别指向已读passage title、text_1、title、text_0。其余内容不变，等待复核。\"}",
+  "usage": {
+    "promptTokens": 23398,
+    "completionTokens": 1430,
+    "reasoningTokens": 1143,
+    "totalTokens": 24828
+  },
+  "gatewayRequestId": "req-9e871074-a55a-4f23-9431-832b39429115"
+}
