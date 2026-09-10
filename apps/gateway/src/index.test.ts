@@ -7569,6 +7569,67 @@ describe("gateway phase 1 routes", () => {
     }
   });
 
+  it.each([
+    ["/v1/chat/completions", false],
+    ["/v1/chat/completions", true],
+    ["/v1/responses", false],
+    ["/v1/responses", true]
+  ] as const)("delivers actionable vision errors through %s (stream=%s)", async (url, stream) => {
+    for (const partial of [false, true]) {
+      let calls = 0;
+      const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
+        calls += 1;
+        if (!partial) {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end('{"error":"private-provider-detail"}');
+          return;
+        }
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write('data: {"choices":[{"delta":{"content":"partial text"}}]}\n\n');
+        response.end('data: {"error":{"status":500,"message":"private-provider-detail"}}\n\n');
+      });
+      const config = goldencodePoolConfig();
+      config.pool.requireAllMembers = false;
+      try {
+        await withTemporaryEnv({
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: {
+            ...config,
+            vision: { runtime: "xai", upstreamModel: "grok-4.5", contextWindow: 200000,
+              maxOutputTokens: 128000, enabled: true }
+          } }),
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-key",
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+          MEDCODE_VISION_XAI_API_KEY: "synthetic-key",
+          MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
+        }, async () => {
+          const app = buildGateway({ accessToken: "secret", provider: new FakeProvider(), logger: false });
+          try {
+            const response = await app.inject({ method: "POST", url,
+              headers: { authorization: "Bearer secret" },
+              payload: url === "/v1/responses"
+                ? { model: "goldencode", stream, input: [{ type: "message", role: "user", content: [
+                    { type: "input_text", text: "Describe this chart." },
+                    { type: "input_image", image_url: "data:image/png;base64,aGVsbG8=" }
+                  ] }] }
+                : { model: "goldencode", stream, messages: [{ role: "user", content: [
+                    { type: "text", text: "Describe this chart." },
+                    { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } }
+                  ] }] }
+            });
+            expect(response.body).toContain("图片分析时发生处理错误，本次请求未完成。");
+            expect(response.body).toContain("请稍后在当前对话中重试");
+            expect(response.body).toContain('"code":"upstream_unavailable"');
+            expect(response.body).toContain(expectRequestIdHeader(response));
+            expect(response.body).not.toContain("temporarily unavailable");
+            expect(response.body).not.toContain("private-provider-detail");
+            expect(response.body).not.toContain("synthetic-key");
+            expect(calls).toBe(1);
+          } finally { await app.close(); }
+        });
+      } finally { await upstream.close(); }
+    }
+  });
+
   it("routes GoldenCode images to xAI while pure text remains in the GLM-5.2 pool", async () => {
     const captured: CapturedOpenAICompatibleRequest[] = [];
     const upstream = await startOpenAICompatibleCaptureServer("vision-or-text-ok", captured);

@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . /app
 RUN npm ci --include=dev
 RUN npm run build
-RUN npx vitest run apps/gateway/src/billing-identity-coordination.test.ts apps/gateway/src/phone-auth-routes.test.ts apps/gateway/src/services/phone-auth-service.test.ts apps/gateway/src/index.test.ts packages/store-sqlite/src/phone-auth.test.ts packages/store-sqlite/src/index.test.ts
+RUN npx vitest run apps/gateway/src/billing-identity-coordination.test.ts apps/gateway/src/phone-auth-routes.test.ts apps/gateway/src/services/phone-auth-service.test.ts apps/gateway/src/services/openai-compatible-provider.test.ts apps/gateway/src/index.test.ts packages/store-sqlite/src/phone-auth.test.ts packages/store-sqlite/src/index.test.ts
 
 FROM ${BASE_GATEWAY_IMAGE} AS runtime
 ARG GATEWAY_REVISION

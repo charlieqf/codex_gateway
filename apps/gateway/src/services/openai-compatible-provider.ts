@@ -502,7 +502,13 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         : failure.kind === "body_timeout" || failure.kind === "headers_timeout"
           ? new GatewayError({ code: "upstream_timeout", message: "MedCode service timed out.", httpStatus: 504 })
           : this.normalize(err, input);
-    const normalized = withProviderFailure(normalizedBase, failure);
+    const normalized = withProviderFailure(
+      new GatewayError({
+        ...normalizedBase,
+        message: modelRequestErrorMessage(normalizedBase, failure, input)
+      }),
+      failure
+    );
     if (input.onProviderError) {
       try {
         input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
@@ -578,6 +584,33 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       httpStatus: 503
     });
   }
+}
+
+// Describe the failed operation, not the availability of the entire product.
+// Keep codes and recovery metadata unchanged for installed Desktop clients.
+function modelRequestErrorMessage(
+  error: GatewayError,
+  failure: ProviderFailureClassification,
+  input: MessageInput
+): string {
+  const operation = input.images?.length ? "图片分析" : "模型处理";
+  const retry = "请稍后在当前对话中重试；如持续失败，请联系支持并提供请求编号。";
+  if (error.code === "upstream_timeout") {
+    return `${operation}响应超时，本次请求未完成。${retry}`;
+  }
+  if (error.code !== "upstream_unavailable") {
+    return error.message;
+  }
+  if (failure.kind === "http_auth" || failure.kind === "provider_reauth") {
+    return `${operation}服务的接入配置异常，本次请求未完成。请联系支持并提供请求编号。`;
+  }
+  if (failure.origin === "network" || failure.origin === "proxy") {
+    return `${operation}连接异常，本次请求未完成。${retry}`;
+  }
+  if (failure.kind === "http_server") {
+    return `${operation}时发生处理错误，本次请求未完成。${retry}`;
+  }
+  return `${operation}未返回有效结果，本次请求未完成。${retry}`;
 }
 
 interface ParsedOpenAIChunk {
