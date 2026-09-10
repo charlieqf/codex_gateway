@@ -3835,7 +3835,7 @@ describe("Research Worker controlled-beta workflow", () => {
           if (narrativeReviews <= revisionRounds) {
             const target = reviewInput.editable_targets.find((item: { target_id: string }) => item.target_id === "title");
             response = { ...(response as Record<string, unknown>), decision: "revise",
-              replacements: [{ target_id: target.target_id, original_sha256: target.original_sha256,
+              replacements: [{ target_id: target.target_id,
                 value: "公开摘要证据的规范综合：" + ["设计", "比较", "解释"][narrativeReviews - 1] }] };
           }
         }

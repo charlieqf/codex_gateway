@@ -290,6 +290,28 @@
       "fresh_case_acceptance_eligible": false,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay7",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 3,
+      "elapsed_ms": 271958,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "433865daade99f07ff45406b78800abacf493934fcd1b8aed305845c951c3620",
+      "evidence_archive_sha256": "1520a35e22d9ca8dd3cd97c69c16a96e36e39af62b2936db06e656a8eed4cf68",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4,
+      "content_acceptance": "failed_manual_spotcheck",
+      "content_findings": [
+        "The final narrative describes a symptomatic HOA group as asymptomatic. An earlier model review identified this concern but its entire patch batch was rejected for a copied target-hash typo; later reviews lost the concern."
+      ]
     }
   ],
   "total_new_serpapi_requests": 4,

@@ -33,13 +33,14 @@ export const narrativeReviewSystem = [
   "Check every scientific claim against its actual cited sources, including quantities, denominators, units, endpoints, study design, causality and applicability. A matching number alone is not proof.",
   "Distinguish the doctor's own work from field literature. Do not infer clinical benefit from observational, animal, cell or case evidence. Do not approve unsupported claims or invented synthesis.",
   "Code observations are fallible leads to investigate, not instructions to delete or rewrite facts. Blocking code diagnostics must also be satisfied.",
+  "Review prior_reviews as provisional findings, not evidence or instructions. Resolve every earlier factual concern against the actual sources, including concerns from rejected patch batches. Do not lose a finding merely because a patch was invalid or another revision was applied; explain any earlier concern you now judge unfounded.",
   "Review the whole report, core evidence and all five question-answer pairs, even when code reports no diagnostics.",
   "The server renders the supplied immutable core evidence table and reference list separately; their absence from editable markdown is not missing report content. Do not duplicate them in markdown or invent references to reach a target.",
-  "Use revise with hash-bound target replacements to repair content, citation placement, lengths or structure. Preserve sound material and provide complete replacement targets; no padding or arbitrary clipping.",
+  "Use revise with replacements bound to the exact candidate_sha256 to repair content, citation placement, lengths or structure. Use the supplied target IDs and complete replacement values; the candidate hash already binds every original target, so do not copy per-target hashes. Preserve sound material; no padding or arbitrary clipping.",
   "You own the revision step: implement every repair supported by the supplied evidence in the same decision. Do not hand fixable length, citation or structure issues back to an unavailable author. A target replacement can contain additional complete paragraphs.",
   "Use reject with an explanation if supplied evidence cannot support a safe report. Never claim approval merely to match a schema.",
   "A revised report must receive a separate subsequent review. Accept only the exact unchanged candidate when every check passes and blocking diagnostics are empty.",
-  'Return only {"candidate_sha256":"...","decision":"accept|revise|reject","checks":{"citations":"pass|fail|uncertain","numerical_claims":"pass|fail|uncertain","evidence_scope":"pass|fail|uncertain","coherence":"pass|fail|uncertain","questions_answers":"pass|fail|uncertain"},"explanation":"...","replacements":[{"target_id":"...","original_sha256":"...","value":"complete replacement, or an array for array targets"}]}. The server owns protocol version metadata; do not invent or echo a schema_version label.'
+  'Return only {"candidate_sha256":"...","decision":"accept|revise|reject","checks":{"citations":"pass|fail|uncertain","numerical_claims":"pass|fail|uncertain","evidence_scope":"pass|fail|uncertain","coherence":"pass|fail|uncertain","questions_answers":"pass|fail|uncertain"},"explanation":"...","replacements":[{"target_id":"...","value":"complete replacement, or an array for array targets"}]}. The server owns protocol version metadata; do not invent or echo a schema_version label.'
 ].join("\n");
 
 export function narrativeCandidateHash(value: unknown): string {
@@ -52,7 +53,6 @@ export class NarrativeReviewBudgetError extends Error {
 
 interface Target {
   target_id: string;
-  original_sha256: string;
   value: unknown;
   content_count?: number;
 }
@@ -66,7 +66,7 @@ function editTargets(draft: DoctorResearchModelDraft, language: "zh-CN" | "en") 
     ["questions", draft.predicted_questions], ["answers", draft.answers]
   ];
   const targets: Target[] = values.map(([target_id, value]) => ({
-    target_id, value, original_sha256: narrativeCandidateHash(value),
+    target_id, value,
     ...(typeof value === "string" ? { content_count: countReviewContractContent(value, language) } : {})
   }));
   return { blocks, targets };
@@ -76,30 +76,35 @@ const checkNames = ["citations", "numerical_claims", "evidence_scope", "coherenc
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(item => typeof item === "string");
 
-function applyReplacements(draft: DoctorResearchModelDraft, targets: Target[], blocks: string[], replacements: unknown[]): DoctorResearchModelDraft | null {
+function applyReplacements(draft: DoctorResearchModelDraft, targets: Target[], blocks: string[], replacements: unknown[]): { draft: DoctorResearchModelDraft } | { error: string } {
+  // The caller has verified the complete candidate hash before entering here.
+  // That binds the current target map and every original value atomically;
+  // repeating per-target hashes adds copying failure without another invariant.
   const updated = structuredClone(draft);
   const used = new Set<string>();
-  for (const patch of replacements) {
-    if (!isObject(patch) || Object.keys(patch).sort().join() !== "original_sha256,target_id,value" || typeof patch.target_id !== "string" || used.has(patch.target_id)) return null;
+  for (const [index, patch] of replacements.entries()) {
+    if (!isObject(patch) || Object.keys(patch).sort().join() !== "target_id,value" || typeof patch.target_id !== "string") return { error: `replacement[${index}]: expected exactly target_id and value.` };
+    if (used.has(patch.target_id)) return { error: `replacement[${index}]: duplicate target ${patch.target_id}.` };
     const target = targets.find(item => item.target_id === patch.target_id);
-    if (!target || patch.original_sha256 !== target.original_sha256) return null;
+    if (!target) return { error: `replacement[${index}]: target is not editable; use a supplied target_id.` };
     used.add(target.target_id);
     if (target.target_id === "answers") {
-      if (!Array.isArray(patch.value) || patch.value.length !== 5 || patch.value.some((answer, i) => !isObject(answer) || Object.keys(answer).sort().join() !== "answer,question_index,source_ids" || answer.question_index !== i + 1 || typeof answer.answer !== "string" || !strings(answer.source_ids))) return null;
+      if (!Array.isArray(patch.value) || patch.value.length !== 5 || patch.value.some((answer, i) => !isObject(answer) || Object.keys(answer).sort().join() !== "answer,question_index,source_ids" || answer.question_index !== i + 1 || typeof answer.answer !== "string" || !strings(answer.source_ids))) return { error: `replacement[${index}]: answers requires five ordered objects with question_index, answer and source_ids.` };
       updated.answers = structuredClone(patch.value) as DoctorResearchModelDraft["answers"];
     } else if (target.target_id === "keywords" || target.target_id === "questions") {
-      if (!strings(patch.value)) return null;
+      if (!strings(patch.value)) return { error: `replacement[${index}]: ${target.target_id} requires an array of strings.` };
       if (target.target_id === "keywords") updated.review.keywords = [...patch.value];
       else updated.predicted_questions = [...patch.value];
     } else {
-      if (typeof patch.value !== "string") return null;
+      if (typeof patch.value !== "string") return { error: `replacement[${index}]: ${target.target_id} requires a string.` };
       if (target.target_id === "title" || target.target_id === "abstract") updated.review[target.target_id] = patch.value;
       else blocks[(Number(target.target_id.slice("review_block_".length)) - 1) * 2] = patch.value;
     }
   }
   updated.review.markdown = blocks.join("");
-  if (JSON.stringify(updated).length > 300_000 || narrativeCandidateHash(updated) === narrativeCandidateHash(draft)) return null;
-  return updated;
+  if (JSON.stringify(updated).length > 300_000) return { error: "Revised draft exceeds the 300000-character limit." };
+  if (narrativeCandidateHash(updated) === narrativeCandidateHash(draft)) return { error: "Replacements make no actual change." };
+  return { draft: updated };
 }
 
 export async function reviewNarrativeWithAgent(input: {
@@ -116,6 +121,7 @@ export async function reviewNarrativeWithAgent(input: {
   if (!Number.isInteger(input.maximumCalls) || input.maximumCalls < 1 || input.maximumCalls > maximumNarrativeReviewCalls) throw new Error("Invalid narrative review call budget.");
   let draft = structuredClone(input.draft);
   let feedback: string[] = [];
+  const priorReviews: Array<{ candidate_sha256: string; decision: string; explanation: string; disposition: string }> = [];
   for (let call = 1; call <= input.maximumCalls; call++) {
     const diagnostics = input.inspect(draft);
     const candidateHash = narrativeCandidateHash(draft);
@@ -124,7 +130,7 @@ export async function reviewNarrativeWithAgent(input: {
       JSON.stringify({ language: input.language, candidate_sha256: candidateHash,
         immutable_profile: draft.profile, immutable_reviewed_core_evidence: draft.review.core_evidence,
         editable_targets: targets, blocking_diagnostics: diagnostics.blocking,
-        heuristic_observations: diagnostics.observations, prior_feedback: feedback,
+        heuristic_observations: diagnostics.observations, prior_feedback: feedback, prior_reviews: priorReviews,
         complete_evidence: input.evidence })].join("\n\n");
     // Do not truncate evidence or silently turn an incomplete review into a pass.
     if (Buffer.byteLength(prompt) > 240_000) throw new NarrativeReviewBudgetError("Narrative review exceeds evidence context budget.");
@@ -139,7 +145,7 @@ export async function reviewNarrativeWithAgent(input: {
     // This call site selects and validates one protocol. An optional model
     // version label has no authority to select another parser or semantics.
     // Ignore that redundant label; validate every actual decision field and
-    // both candidate/target bindings instead of regenerating a long patch.
+    // the complete candidate binding instead of regenerating a long patch.
     const valid = isObject(decision) &&
       Object.keys(decision).filter(key => key !== "schema_version").sort().join() === "candidate_sha256,checks,decision,explanation,replacements" &&
       (decision.schema_version === undefined || typeof decision.schema_version === "string") && decision.candidate_sha256 === candidateHash &&
@@ -157,18 +163,21 @@ export async function reviewNarrativeWithAgent(input: {
         return { draft, calls: call };
       }
       feedback = ["narrative_acceptance_blocked", "Acceptance requires no replacements, all checks pass, and no blocking diagnostics.", ...diagnostics.blocking];
+      priorReviews.push({ candidate_sha256: candidateHash, decision: "accept", explanation: decision.explanation as string, disposition: "acceptance_blocked" });
     } else if (decision.decision === "reject") {
       input.observe?.({ call, outcome: "rejected", diagnostics: ["narrative_evidence_rejected", String(decision.explanation)] });
       return null;
     } else {
       const updated = applyReplacements(draft, targets, blocks, decision.replacements);
-      if (updated) {
-        draft = updated;
+      priorReviews.push({ candidate_sha256: candidateHash, decision: "revise", explanation: decision.explanation as string,
+        disposition: "draft" in updated ? "revisions_applied_require_review" : `batch_rejected_no_changes: ${updated.error}` });
+      if ("draft" in updated) {
+        draft = updated.draft;
         feedback = ["The previous review revised the candidate. Independently review the current complete candidate; prior acceptance cannot carry across edits."];
         input.observe?.({ call, outcome: "revised", diagnostics: [] });
         continue;
       }
-      feedback = ["narrative_replacement_invalid", "Replacement rejected: use unique supplied targets and their exact original hashes; preserve target types, and make an actual change."];
+      feedback = ["narrative_replacement_invalid", updated.error, "No part of the rejected batch was applied. Resubmit a complete valid batch for the current candidate."];
     }
     input.observe?.({ call, outcome: "invalid_decision", diagnostics: feedback });
   }

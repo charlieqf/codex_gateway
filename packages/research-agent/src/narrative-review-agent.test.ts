@@ -46,7 +46,8 @@ describe("narrative review Agent boundary", () => {
         const data = payload(prompt); hashes.push(data.candidate_sha256);
         if (call === 1) {
           const target = data.editable_targets.find((item: { target_id: string }) => item.target_id === "review_block_2");
-          return JSON.stringify(decision(prompt, { decision: "revise", replacements: [{ target_id: target.target_id, original_sha256: target.original_sha256, value: "Seven studies reported an association without causal inference.[1]" }] }));
+          expect(target).not.toHaveProperty("original_sha256");
+          return JSON.stringify(decision(prompt, { decision: "revise", replacements: [{ target_id: target.target_id, value: "Seven studies reported an association without causal inference.[1]" }] }));
         }
         expect(prompt).toContain("Seven studies reported an association without causal inference.");
         return JSON.stringify(decision(prompt));
@@ -59,26 +60,62 @@ describe("narrative review Agent boundary", () => {
     expect(initial).toEqual(draft());
   });
 
-  it.each(["stale_candidate", "edit_on_accept", "missing_checks", "uncertain_check", "immutable_target", "stale_target", "duplicate_target", "no_subsequent_review"])("fails closed for %s", async kind => {
+  it.each(["stale_candidate", "edit_on_accept", "missing_checks", "uncertain_check", "immutable_target", "wrong_target_type", "duplicate_target", "no_subsequent_review"])("fails closed for %s", async kind => {
     const result = await reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence, maximumCalls: 1, inspect,
       async generate({ prompt }) {
         const data = payload(prompt);
         const target = data.editable_targets[0];
-        const patch = { target_id: target.target_id, original_sha256: target.original_sha256, value: "Revised evidence review" };
+        const patch: { target_id: string; value: unknown } = { target_id: target.target_id, value: "Revised evidence review" };
         const base = decision(prompt);
         if (kind === "stale_candidate") base.candidate_sha256 = "0".repeat(64);
         if (kind === "missing_checks") base.checks = {} as typeof base.checks;
         if (kind === "uncertain_check") base.checks.numerical_claims = "uncertain";
-        if (["edit_on_accept", "immutable_target", "stale_target", "duplicate_target", "no_subsequent_review"].includes(kind)) {
+        if (["edit_on_accept", "immutable_target", "wrong_target_type", "duplicate_target", "no_subsequent_review"].includes(kind)) {
           base.decision = kind === "edit_on_accept" ? "accept" : "revise";
           if (kind === "immutable_target") patch.target_id = "immutable_profile";
-          if (kind === "stale_target") patch.original_sha256 = "0".repeat(64);
+          if (kind === "wrong_target_type") patch.value = [];
           base.replacements = (kind === "duplicate_target" ? [patch, patch] : [patch]) as never[];
         }
         return JSON.stringify(base);
       }
     });
     expect(result).toBeNull();
+  });
+
+  it("rejects a stale batch after block renumbering and reports invalid batches without partial edits", async () => {
+    const initial = draft();
+    let originalHash = "";
+    let revisedHash = "";
+    const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence, maximumCalls: 4, inspect,
+      async generate({ prompt, call }) {
+        const data = payload(prompt);
+        if (call === 1) {
+          originalHash = data.candidate_sha256;
+          return JSON.stringify(decision(prompt, { decision: "revise", replacements: [{ target_id: "review_block_1", value: "## Changed heading\n\nNew paragraph.[1]" }] }));
+        }
+        if (call === 2) {
+          revisedHash = data.candidate_sha256;
+          expect(revisedHash).not.toBe(originalHash);
+          expect(data.prior_reviews).toHaveLength(1);
+          expect(data.prior_reviews[0].disposition).toBe("revisions_applied_require_review");
+          return JSON.stringify(decision(prompt, { decision: "revise", candidate_sha256: originalHash, replacements: [{ target_id: "review_block_2", value: "Wrong stale target" }] }));
+        }
+        if (call === 3) {
+          expect(data.candidate_sha256).toBe(revisedHash);
+          expect(data.prior_feedback[0]).toBe("narrative_decision_invalid_schema_or_hash");
+          return JSON.stringify(decision(prompt, { decision: "revise", explanation: "Recheck whether the source reports symptomatic or asymptomatic participants.", replacements: [{ target_id: "title", value: "Must not partially apply" }, { target_id: "answers", value: [] }] }));
+        }
+        expect(data.candidate_sha256).toBe(revisedHash);
+        expect(data.prior_feedback.join(" ")).toContain("replacement[1]: answers requires five ordered objects");
+        expect(data.prior_reviews).toHaveLength(2);
+        expect(data.prior_reviews[1].explanation).toContain("symptomatic or asymptomatic");
+        expect(data.prior_reviews[1].disposition).toContain("batch_rejected_no_changes");
+        return JSON.stringify(decision(prompt));
+      }
+    });
+    expect(result?.draft.review.title).toBe(initial.review.title);
+    expect(result?.draft.review.markdown).toContain("New paragraph.[1]");
+    expect(result?.draft.review.markdown).not.toContain("Wrong stale target");
   });
 
   it("cannot override a structural failure with semantic approval", async () => {
