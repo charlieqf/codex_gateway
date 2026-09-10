@@ -3,6 +3,9 @@
 日期：2026-09-10。已于北京时间 20:10 部署 R760，并通过公网 Billing 与运行验收。
 证据见[发布验收记录](../operations/r760-free-paid-quota-release-2026-09-10.zh-CN.md)。
 
+2026-09-11 修订已于北京时间 06:21 上线：补充默认取消目标、重置冲突、Free 模板异常及缺失
+usage 的准确规则；见[修复验收记录](../operations/r760-quota-review-fixes-release-2026-09-11.zh-CN.md)。
+
 ## 产品规则
 
 - Free 是基础权益。新用户每天 10,000 token；存量 Free（包括每日 1,000,000 版本）保留原快照。
