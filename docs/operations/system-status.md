@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-10 (vision limits/recovery release, compiled image smoke, public health and Compose services).
+Last verified: 2026-09-10 12:11 UTC (independent Free/paid accounting, public Billing reads, databases and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -21,16 +21,16 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-10; local inference verification on 2026-09-06:
 
 - `current`:
-  `8dab89da424ce722df2c433d52132e19707536b9`
+  `9627d4f263a97b10a38bfcc12f52867b8f9df824`
 - `previous`:
-  `31946c97954af05399582010f5da7589204aac4b`
+  `8dab89da424ce722df2c433d52132e19707536b9`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `8dab89d`; Research Worker remains on the existing runtime with
+Gateway runs `9627d4f`, schema 29; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -47,7 +47,7 @@ directly enables account linking and atomic new-phone provisioning with a
 daily free entitlement and phone enrollment; the optional two-step
 flow remains supported. Legacy requests without phone or prior resolve retain
 original Billing behavior. Desktop reuses phone-auth v1 after external SMS login;
-external-token v2 is withdrawn. Configuration and schema 28 remain unchanged.
+external-token v2 is withdrawn. The current schema 29 also supports independent Free/paid accounting.
 The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
 temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
 Existing 1M/day and other grants retain their original Plans, keys and snapshots.
@@ -58,11 +58,17 @@ the existing monthly Plan's capabilities and technical request/rate limits.
 Annual purchases use Billing `one_off` with explicit one-year start/end dates;
 the monthly Plan remains at 5M/day and 50M/month. See the
 [monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
-including the outstanding credential-expiry coverage and paid-to-free lifecycle
-work before full annual-payment acceptance. Existing control rows are unchanged.
-The subsequent monthly requirement retains the user's Free daily allowance
-alongside paid quota. Separate accounting is not implemented; the existing
-`replace_current` upgrade replaces Free and does not satisfy that requirement.
+including outstanding credential-expiry coverage before full annual-payment acceptance.
+The [Free/paid accounting release](./r760-free-paid-quota-release-2026-09-10.zh-CN.md)
+retains the user's Free daily allowance alongside monthly/yearly paid quota,
+reserves and settles free tokens first, and keeps the base Free entitlement at
+paid expiry. Purchasing with `replace_current=true` preserves Free. Four existing
+paid-only accounts received a 10K/day base allowance; all pre-existing control
+rows, paid snapshots and historical usage are preserved. Public Billing reads
+verified all four. Client display fields are in the
+[Free/paid quota contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md).
+Do not roll back directly to a program that assumes one active entitlement;
+recovery must preserve and understand both ledgers.
 
 The [model error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
 describes failed vision/text operations in Chinese, with separate processing,
@@ -76,9 +82,9 @@ Only vision requests declaring `x-medcode-vision-recovery-contract: 1` use bound
 recovery: initial generation, tool repair and same-service retry share two calls
 and one deadline. Final failures carry the strict client stop contract. The image
 limit stays at eight; installed clients without the header retain their retry behavior.
-The actual image passed 16 isolated route cases, all 574 Linux tests passed, and
-control data/configuration/schema 28 remain unchanged. Gateway work did not modify
-Desktop source or packages. Its team separately reports image-budget fixes and 203
+Its isolated route acceptance is recorded in that release report. The current
+release retains these behaviors and passed 590 Linux tests. Gateway work did not
+modify Desktop source or packages. Its team separately reports image-budget fixes and 203
 passing tests; alignment with the new image-limit fields and opt-in header, followed
 by EXE/PPT acceptance, remains pending. See the joint contract's delivery review.
 
