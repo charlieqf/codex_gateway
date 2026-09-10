@@ -52,6 +52,18 @@ The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09
 temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
 Existing 1M/day and other grants retain their original Plans, keys and snapshots.
 
+`plan_paid_yearly_v1` was created on 2026-09-10 at 11:07 UTC and verified through
+the public Billing catalog. It has no daily/monthly token total cap and retains
+the existing monthly Plan's capabilities and technical request/rate limits.
+Annual purchases use Billing `one_off` with explicit one-year start/end dates;
+the monthly Plan remains at 5M/day and 50M/month. See the
+[monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
+including the outstanding credential-expiry coverage and paid-to-free lifecycle
+work before full annual-payment acceptance. Existing control rows are unchanged.
+The subsequent monthly requirement retains the user's Free daily allowance
+alongside paid quota. Separate accounting is not implemented; the existing
+`replace_current` upgrade replaces Free and does not satisfy that requirement.
+
 The [model error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
 describes failed vision/text operations in Chinese, with separate processing,
 connection, timeout and provider-access messages. Error codes, request IDs and
