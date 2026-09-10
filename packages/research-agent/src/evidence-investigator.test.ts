@@ -59,6 +59,66 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it("resolves read passage and selected-author affiliation IDs to original text, retaining semantic review", async () => {
+    const proposal = conclusion();
+    const selected = JSON.parse(JSON.stringify(proposal));
+    selected.evidence.facts[0].citations = [{ sourceId: page.sourceId, passageId: "text_0" }];
+    selected.evidence.coreEvidence[0].citations = [{ sourceId: "src_pubmed_101", passageId: "title" }];
+    delete selected.evidence.doctorPublications[0].affiliationQuote;
+    selected.evidence.doctorPublications[0].affiliationIndex = 0;
+    const f = fixture([read, selected, accept]);
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe("resolved");
+    expect(result.state.reviewedEvidence?.facts[0]?.citations[0]?.quote).toBe(page.untrustedText);
+    expect(result.state.reviewedEvidence?.coreEvidence[0]?.citations[0]?.quote).toBe(paper.title);
+    expect(result.state.reviewedEvidence?.doctorPublications[0]?.affiliationQuote).toBe("Endocrinology, Harbour University Hospital");
+    const review = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    expect(review.publications[0].abstractText).toBe(paper.abstractText);
+    expect(review.proposed.facts[0].citations[0]).not.toHaveProperty("passageId");
+  });
+
+  it("restores an invalid full proposal, applies a small correction, and independently reviews the complete result", async () => {
+    const invalid = conclusion(); invalid.evidence.coreEvidence[0]!.citations[0]!.quote = "This quotation was invented.";
+    const f = fixture([read, invalid, { unresolved: "insufficient_evidence" }]);
+    const first = await investigateDoctorEvidence(f.input);
+    expect(first.state.pendingEvidence).toEqual(invalid.evidence);
+    const resumed = fixture([], { state: first.state });
+    resumed.dependencies.generate.mockImplementation(async ({ role, prompt }) => {
+      const data = JSON.parse(prompt);
+      if (role === "evidence_reviewer") {
+        expect(data.proposed.coreEvidence[0].citations[0].quote).toBe(paper.title);
+        expect(data.proposed.fieldPublications).toEqual(invalid.evidence.fieldPublications);
+        return JSON.stringify(accept);
+      }
+      return JSON.stringify({ evidencePatch: { proposal_sha256: data.pending_proposal.proposal_sha256,
+        replacements: [{ path: "/coreEvidence/0/citations/0", value: { sourceId: "src_pubmed_101", passageId: "title" } }] } });
+    });
+    expect((await investigateDoctorEvidence(resumed.input)).outcome).toBe("resolved");
+    expect(resumed.dependencies.readPublication).not.toHaveBeenCalled();
+    expect(resumed.dependencies.searchPubMed).not.toHaveBeenCalled();
+    expect(resumed.dependencies.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["stale", "missing_path", "prototype", "overlap", "unknown_passage"])("refuses invalid proposal repairs without partial acceptance: %s", async kind => {
+    const invalid = conclusion(); invalid.evidence.coreEvidence[0]!.citations[0]!.quote = "This quotation was invented.";
+    const f = fixture([read, invalid]);
+    f.dependencies.generate.mockImplementation(async ({ prompt }) => {
+      const data = JSON.parse(prompt);
+      if (!data.read_publications.length) return JSON.stringify(read);
+      if (!data.pending_proposal) return JSON.stringify(invalid);
+      if (data.observations.some((o: { action: string }) => o.action === "invalid_evidence_patch") || data.remaining.model_calls_including_review < 3) return JSON.stringify({ unresolved: "insufficient_evidence" });
+      const replacement = { path: "/coreEvidence/0/citations/0", value: { sourceId: "src_pubmed_101", passageId: kind === "unknown_passage" ? "text_999" : "title" } };
+      if (kind === "missing_path") replacement.path = "/coreEvidence/999/citations/0";
+      if (kind === "prototype") replacement.path = "/__proto__/polluted";
+      return JSON.stringify({ evidencePatch: { proposal_sha256: kind === "stale" ? "0".repeat(64) : data.pending_proposal.proposal_sha256,
+        replacements: kind === "overlap" ? [replacement, { path: "/coreEvidence/0", value: invalid.evidence.coreEvidence[0] }] : [replacement] } });
+    });
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe("unresolved");
+    expect(result.state.reviewedEvidence).toBeNull();
+    expect(f.dependencies.generate.mock.calls.every(([c]) => c.role !== "evidence_reviewer")).toBe(true);
+    expect(Object.prototype).not.toHaveProperty("polluted");
+  });
   it.each([true, false])("allows reviewed field context only with a professional-remit anchor (%s)", async (hasAnchor) => {
     const proposal = conclusion();
     proposal.evidence.doctorPublications = [];

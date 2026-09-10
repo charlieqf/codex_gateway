@@ -1,0 +1,35 @@
+[
+  {
+    "stage": "validate_outputs",
+    "attempt": 4,
+    "duration_ms": 112445,
+    "error_code": null,
+    "prompt_tokens": 16982,
+    "completion_tokens": 3161,
+    "admission_wait_ms": 0,
+    "client_total_ms": 112443,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 5,
+    "duration_ms": 24018,
+    "error_code": null,
+    "prompt_tokens": 17778,
+    "completion_tokens": 2216,
+    "admission_wait_ms": 0,
+    "client_total_ms": 24017,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 6,
+    "duration_ms": 163951,
+    "error_code": "model_output_exhausted",
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "admission_wait_ms": 0,
+    "client_total_ms": 163949,
+    "terminal_source": "provider_response"
+  }
+]

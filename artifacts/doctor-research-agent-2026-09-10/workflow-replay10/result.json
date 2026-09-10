@@ -1,0 +1,105 @@
+{
+  "original": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "upstream_unavailable",
+    "retryable": false,
+    "dependencyScope": "request"
+  },
+  "elapsed_ms": 276593,
+  "serpapi_requests": 0,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 276592,
+      "result": {
+        "outcome": "failed",
+        "reason": "upstream_unavailable",
+        "retryable": false,
+        "dependencyScope": "request"
+      }
+    }
+  ],
+  "diagnostic_replay": true,
+  "fresh_case_acceptance_eligible": false,
+  "legacy_calls": 0,
+  "model_requests": 3,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "validate_outputs",
+      "attempt": 5,
+      "elapsed_ms": 24017,
+      "gateway_request_id": "req-7213af09-e6c3-4d52-907f-4d7b1e8c67d4",
+      "response_sha256": "8c957ab5802d8ddb4bc8edd8dae27c20f0fc9e57b795f42b41b287ee85984bb7",
+      "usage": {
+        "promptTokens": 17778,
+        "completionTokens": 2216,
+        "reasoningTokens": 1933,
+        "totalTokens": 19994
+      },
+      "telemetry": {
+        "promptChars": 47674,
+        "maximumOutputTokens": 4000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:21:37.010Z",
+        "clientTotalMs": 24017,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "elapsed_ms": 112444,
+      "gateway_request_id": "req-5e8ec3ae-2739-4700-9350-dc55a06238b0",
+      "response_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+      "usage": {
+        "promptTokens": 16982,
+        "completionTokens": 3161,
+        "reasoningTokens": 3139,
+        "totalTokens": 20143
+      },
+      "telemetry": {
+        "promptChars": 43945,
+        "maximumOutputTokens": 4000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:21:36.995Z",
+        "clientTotalMs": 112443,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "elapsed_ms": 163950,
+      "outcome": "failed",
+      "error_name": "ResearchModelClientError",
+      "error_code": "output_exhausted",
+      "http_status": 413,
+      "gateway_request_id": "req-63a53d5e-2ca3-4c7b-9ebe-571f8f49eeca",
+      "telemetry": {
+        "promptChars": 76697,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:23:29.546Z",
+        "clientTotalMs": 163949,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [],
+  "external_calls": [],
+  "budget_failures": [],
+  "public_api_or_admission_tested": false
+}

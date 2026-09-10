@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://i.ifeng.com/c/8XgFOwM4fHr\",\"find\":\"沈嵘\",\"purpose\":\"verify 沈嵘's roles including 党委书记 and possibly 南京医科大学第四临床医学院副院长 title\"}]}",
+  "usage": {
+    "promptTokens": 5370,
+    "completionTokens": 150,
+    "reasoningTokens": 88,
+    "totalTokens": 5520
+  },
+  "gatewayRequestId": "req-dca74c20-0b48-4c59-8d7d-21e854b6a240"
+}

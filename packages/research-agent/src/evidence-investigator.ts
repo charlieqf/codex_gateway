@@ -58,6 +58,8 @@ export interface EvidenceInvestigationState {
   reviewedEvidence: InvestigatedEvidence | null;
   /** Investigator-authored working memory; never a substitute for read source evidence. */
   workingNotes?: string;
+  /** Last submitted proposal, including an invalid one, for bounded local edits. */
+  pendingEvidence?: unknown;
   /** Optional deterministic DOI enrichment, persisted by the workflow after review. */
   crossrefEnrichment?: Array<ToolRecord<FrozenPublicationMetadata | null> & { doi: string }>;
 }
@@ -105,6 +107,8 @@ You have a bounded action loop. Return one JSON object with either:
 {"actions":[{"type":"read_source","sourceId":"already available page ID","find":"optional text","offset":0}]}
 Up to three actions per response; read_publications accepts up to ten PMIDs. Search observations contain exact queries and result IDs. Use cached reads freely. The service adds the requested publication date range. Prefer a selective author search, inspect metadata, then broaden or revise only when needed; avoid spending all searches before reading. Field searches should follow the supported research topic and can use alternatives rather than requiring every topic simultaneously.
 You may include "workingNotes":"..." alongside actions to preserve a concise evidence-bound plan, screened PMIDs, author relationships and important source quotations across later tool calls. Keep notes under 12000 characters and update them as evidence changes. Older verbose tool observations leave the working window; use these notes to avoid rereading the same papers just to reconstruct your plan. Notes are your provisional memory, never independent evidence; all final claims still need the actual read sources and independent review.
+Tool results provide citation_passages with stable passageId values. Prefer citations {"sourceId":"...","passageId":"..."} to copying a long quotation: the server inserts that exact read passage, and the independent reviewer still checks whether it supports the claim. A paper's title passage identifies the record; it is not proof of details absent from its actual abstract. For an own paper you may select affiliationIndex (zero-based in the chosen author's affiliations) instead of copying affiliationQuote. Select the correct author first; another author's index cannot be used.
+When pending_proposal is supplied, fix only the necessary existing fields with {"evidencePatch":{"proposal_sha256":"supplied hash","replacements":[{"path":"/facts/0/citations/0","value":{"sourceId":"...","passageId":"..."}}]}}. Paths are JSON pointers into that proposal; each replacement must name an existing value. Arrays or complete rows may be replaced to remove unsupported claims. Do not regenerate a long, otherwise sound proposal just to fix a quotation or one field. You may instead submit a complete evidence object when a broad revision is necessary. Every corrected proposal still requires independent review.
 Or finish with {"evidence":{"facts":[{"type":"position|expertise|education_and_career|research_direction|representative_output","text":"supported fact in output language","citations":[{"sourceId":"page ID","quote":"exact original passage"}]}],"topics":{"terms":["biomedical or professional topic"],"explanation":"why this review scope follows the evidence","citations":[{"sourceId":"page ID or src_pubmed_PMID","quote":"exact supporting text"}]},"doctorPublications":[{"pmid":"read PMID","author":"exact metadata author","affiliationQuote":"exact text from THAT author's affiliations, or null","corroboration":[{"sourceId":"page ID","quote":"explicit publication connection"}],"explanation":"evidence linking this author to the person"}],"fieldPublications":[{"pmid":"read PMID","rationale":"relevance to the evidenced scope"}],"limitations":["specific missing evidence, including unverified own publications"]}}.
 Also include evidence.coreEvidence: an array of rows {"pmid":"selected field PMID","study_type":"...","sample_and_source":"...","methods":"...","key_results":"...","limitations":"...","citations":[{"sourceId":"src_pubmed_PMID","quote":"exact supporting title or abstract passage"}]}.
 For a field review choose between the requested core row minimum and maximum of the most relevant selected field papers. Read each abstract and extract its actual study design, population and data source, methods, results and limitations into the output language. Distinguish proposed protocols from completed studies, simulation from patients, and nonrandomized designs from randomized trials; a keyword such as random or prospective is not a design verdict. Preserve denominators, units, associations, uncertainty and qualifiers. Do not copy a related paper's findings. Use original-language quotations from THIS record as support for the row. If a detail is not reported, explicitly say so. Distinguish limitations reported by authors from limitations you infer from abstract-only access; never present an inference as a reported finding. Be concise and specific. This reviewed table will be used directly in the report; the writer will not repair factual errors for you. For profileOnly=true coreEvidence may be empty.
@@ -162,6 +166,9 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
     const prompt = {
       requested: input.doctor, verified_identity: input.identity, language: input.language,
       working_notes: state.workingNotes ?? "",
+      ...(state.pendingEvidence === undefined ? {} : { pending_proposal: {
+        proposal_sha256: proposalHash(state.pendingEvidence), evidence: state.pendingEvidence
+      } }),
       ...(d.timing ? { service_timing: d.timing() } : {}),
       publication_years: [input.startYear, input.endYear], profileOnly: input.profileOnly,
       minimum_field_references: input.minimumReferences, maximum_field_references: input.maximumReferences,
@@ -175,11 +182,20 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
       pages: pages().map(p => ({ sourceId: p.sourceId, title: p.title, url: p.url,
         characters: p.untrustedText.length, initial_text: p.untrustedText.slice(0, 2500),
         identity_passages: citationPassages(p.untrustedText, input.identity.citations.filter(c => c.sourceId === p.sourceId)),
+        citation_passages: sourcePassages(p.untrustedText).filter(passage => passage.offset < 2500 ||
+          input.identity.citations.some(c => c.sourceId === p.sourceId && normalize(passage.quote).includes(normalize(c.quote)))),
         links: (p.navigationLinks ?? []).slice(0, 20) })),
       searched: state.searches.map(s => ({ purpose: s.purpose, query: s.query, status: s.status, pmids: s.value,
         queryTranslation: s.queryTranslation, identityFieldsRetained: s.identityFieldsRetained })),
-      read_publications: state.publications.map(p => ({ pmid: p.pmid, status: p.status, title: p.value?.title ?? null })),
-      observations: [...state.observations]
+      read_publications: state.publications.map(p => ({ pmid: p.pmid, status: p.status, title: p.value?.title ?? null,
+        ...(p.value ? { title_citation: { sourceId: `src_pubmed_${p.pmid}`, passageId: "title" } } : {}) })),
+      observations: state.observations.map(observation => {
+        if (state.pendingEvidence !== undefined && object(observation.result) && Object.hasOwn(observation.result, "previous_proposal")) {
+          const { previous_proposal: _previous, ...result } = observation.result;
+          return { action: observation.action, result };
+        }
+        return observation;
+      })
     };
     while (prompt.observations.length > 1 && bytes(prompt) > 90_000) prompt.observations.shift();
     const responseText = await generate("investigator", prompt) ?? "";
@@ -197,15 +213,25 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
         state.workingNotes = decision.workingNotes; await save();
       } else { observe("invalid_working_notes", "Use a string of at most 12000 characters for provisional working notes."); }
     }
+    if (decision.evidencePatch !== undefined) {
+      try {
+        if (decision.evidence !== undefined) throw new Error("Submit either evidence or evidencePatch, not both.");
+        decision.evidence = applyEvidencePatch(state.pendingEvidence, decision.evidencePatch);
+      } catch (error) {
+        observe("invalid_evidence_patch", { message: error instanceof Error ? error.message : "Invalid proposal patch." });
+        await save(); continue;
+      }
+    }
     if (decision.evidence !== undefined) {
       if (object(decision.evidence) && decision.evidence.limitations === undefined && Array.isArray(decision.limitations)) {
         decision.evidence = { ...decision.evidence, limitations: decision.limitations };
         observe("envelope_repaired", "Moved the supplied limitations array into evidence.limitations; no content was inferred or rewritten.");
       }
+      state.pendingEvidence = structuredClone(decision.evidence);
       let evidence: InvestigatedEvidence;
       try { evidence = conclude(decision.evidence); }
       catch (error) { observe("invalid_evidence", { message: error instanceof Error ? error.message : "Invalid evidence.",
-        previous_proposal: JSON.stringify(decision.evidence).slice(0, 12_000) }); await save(); continue; }
+        proposal_sha256: proposalHash(decision.evidence) }); await save(); continue; }
       const cited = [...evidence.facts.flatMap(f => f.citations), ...evidence.topics.citations,
         ...evidence.doctorPublications.flatMap(p => p.corroboration)];
       const response = await generate("evidence_reviewer", {
@@ -274,11 +300,11 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
             observe("pmid_not_discovered", { pmid, message: "Use a PMID returned by search, explicitly labeled PMID in a read page, or linked to PubMed from that page." }); continue;
           }
           const cached = state.publications.find(p => p.pmid === pmid && p.status === "succeeded");
-          if (cached) { observe("publication_cached", cached); continue; }
+          if (cached) { observe("publication_cached", publicationObservation(cached)); continue; }
           if (state.publications.length >= policy.maximumPublicationRequests) { observe("publication_budget_exhausted", pmid); break; }
           const record: EvidenceInvestigationState["publications"][number] = { pmid, status: "pending", value: null };
           state.publications.push(record); await save();
-          try { record.value = await d.readPublication(pmid); record.status = "succeeded"; observe("publication", record); }
+          try { record.value = await d.readPublication(pmid); record.status = "succeeded"; observe("publication", publicationObservation(record)); }
           catch (error) { fatal(error); record.status = "failed"; observe("publication_failed", { pmid, kind: failure(error) }); }
           await save();
         }
@@ -294,6 +320,7 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
         const found = typeof action.find === "string" && action.find ? page.untrustedText.toLowerCase().indexOf(action.find.toLowerCase()) : -1;
         const offset = found >= 0 ? Math.max(0, found - 1500) : typeof action.offset === "number" && Number.isSafeInteger(action.offset) && action.offset >= 0 ? action.offset : 0;
         observe("page", { sourceId: page.sourceId, title: page.title, url: page.url, text: page.untrustedText.slice(offset, offset + 14_000), offset,
+          citation_passages: sourcePassages(page.untrustedText).filter(passage => passage.offset < offset + 14_000 && passage.offset + passage.quote.length > offset),
           total_characters: page.untrustedText.length, find_matched: typeof action.find === "string" ? found >= 0 : null,
           links: (page.navigationLinks ?? []).slice(0, 60) });
         await save();
@@ -321,10 +348,14 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
   const citations = (raw: unknown, allowPapers = false): EvidenceCitation[] => {
     if (!Array.isArray(raw) || raw.length < 1 || raw.length > 6) throw new Error("Provide 1 to 6 source citations.");
     return raw.map(c => {
-      if (!object(c) || !string(c.sourceId, 1, 100) || !string(c.quote, 8, 1800)) throw new Error("A citation needs sourceId and an exact quote.");
+      if (!object(c) || !string(c.sourceId, 1, 100)) throw new Error("A citation needs sourceId and an exact quote or supplied passageId.");
+      const paper = allowPapers && c.sourceId.startsWith("src_pubmed_") ? publication(c.sourceId.slice(11)) : null;
       const text = pages.find(p => p.sourceId === c.sourceId)?.untrustedText ?? (allowPapers && c.sourceId.startsWith("src_pubmed_") ? publicationText(publication(c.sourceId.slice(11))) : null);
-      if (!text || !normalize(text).includes(normalize(c.quote))) throw new Error(`Citation quote is absent from read source ${c.sourceId}; copy an exact original passage without inserted ellipsis or translation.`);
-      return { sourceId: c.sourceId, quote: c.quote };
+      const quote = c.passageId === undefined ? c.quote : c.quote === undefined && typeof c.passageId === "string" && text ?
+        (c.passageId === "title" && paper ? paper.title : sourcePassages(text).find(p => p.passageId === c.passageId)?.quote) : null;
+      if (!string(quote, 8, 1800)) throw new Error(`Citation in ${c.sourceId} needs one exact quote or a supplied passageId; do not combine them.`);
+      if (!text || !normalize(text).includes(normalize(quote))) throw new Error(`Citation quote is absent from read source ${c.sourceId}; select a supplied passageId or copy an exact original passage without inserted ellipsis or translation.`);
+      return { sourceId: c.sourceId, quote };
     });
   };
   const facts = value.facts.map((f): InvestigatedProfileFact => {
@@ -337,11 +368,14 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
     if (![...p.authors, ...(p.authorAffiliations ?? []).map(a => a.author)].includes(a.author)) throw new Error("Chosen author is absent from the publication metadata.");
     const corroboration = a.corroboration.length ? citations(a.corroboration) : [];
     let affiliationQuote: string | null = null;
-    if (a.affiliationQuote !== null) {
-      if (!string(a.affiliationQuote, 8, 1800) || !p.authorAffiliations?.some(record => record.author === a.author && record.affiliations.some(text => normalize(text).includes(normalize(a.affiliationQuote as string))))) {
+    const selectedQuote = a.affiliationIndex === undefined ? a.affiliationQuote :
+      (a.affiliationQuote === undefined && Number.isSafeInteger(a.affiliationIndex) && Number(a.affiliationIndex) >= 0 ?
+        p.authorAffiliations?.find(record => record.author === a.author)?.affiliations[Number(a.affiliationIndex)] : undefined);
+    if (selectedQuote !== null) {
+      if (!string(selectedQuote, 8, 1800) || !p.authorAffiliations?.some(record => record.author === a.author && record.affiliations.some(text => normalize(text).includes(normalize(selectedQuote))))) {
         throw new Error("Affiliation quote must belong to the selected author, not another coauthor.");
       }
-      affiliationQuote = a.affiliationQuote;
+      affiliationQuote = selectedQuote;
     }
     if (!affiliationQuote && !corroboration.length) throw new Error("Missing author affiliations require explicit publication corroboration; a matching name is insufficient.");
     return { pmid: p.pmid!, author: a.author, affiliationQuote, corroboration, explanation: a.explanation };
@@ -382,6 +416,50 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
 }
 
 function publicationText(p: FrozenPublicationMetadata): string { return `${p.title}\n${p.abstractText ?? ""}`; }
+function sourcePassages(text: string) {
+  const result: Array<{ passageId: string; offset: number; quote: string }> = [];
+  for (let offset = 0; offset < text.length; offset += 1200) {
+    const quote = text.slice(offset, offset + 1200);
+    if (quote.trim().length >= 8) result.push({ passageId: `text_${offset / 1200}`, offset, quote });
+  }
+  return result;
+}
+function publicationObservation(record: EvidenceInvestigationState["publications"][number]) {
+  // The source passages contain the full abstract once, with stable IDs.
+  // Keep full original metadata in state, avoiding duplicate prompt copies.
+  const { abstractText: _abstract, ...metadata } = record.value ?? {};
+  return { ...record, ...(record.value ? { value: metadata, citation_passages: [
+    { passageId: "title", quote: record.value.title }, ...sourcePassages(publicationText(record.value))
+  ] } : {}) };
+}
+function proposalHash(value: unknown): string { return createHash("sha256").update(JSON.stringify(value)).digest("hex"); }
+function applyEvidencePatch(previous: unknown, patch: unknown): unknown {
+  if (previous === undefined || !object(patch) || Object.keys(patch).sort().join() !== "proposal_sha256,replacements" ||
+      patch.proposal_sha256 !== proposalHash(previous) || !Array.isArray(patch.replacements) || patch.replacements.length < 1 || patch.replacements.length > 80) {
+    throw new Error("Evidence patch needs the current proposal hash and 1 to 80 replacements.");
+  }
+  const updated = structuredClone(previous);
+  const paths: string[] = [];
+  for (const [index, replacement] of patch.replacements.entries()) {
+    if (!object(replacement) || Object.keys(replacement).sort().join() !== "path,value" || typeof replacement.path !== "string" ||
+        !replacement.path.startsWith("/") || /~(?![01])/u.test(replacement.path)) throw new Error(`replacement[${index}]: invalid JSON pointer.`);
+    const path = replacement.path;
+    if (paths.some(p => p === path || p.startsWith(`${path}/`) || path.startsWith(`${p}/`))) throw new Error(`replacement[${index}]: overlapping paths.`);
+    paths.push(path);
+    const parts = path.slice(1).split("/").map(p => p.replace(/~1/gu, "/").replace(/~0/gu, "~"));
+    let parent: unknown = updated;
+    for (const [position, key] of parts.entries()) {
+      if (["__proto__", "constructor", "prototype"].includes(key) || (!object(parent) && !Array.isArray(parent)) ||
+          !Object.hasOwn(parent, key) || (Array.isArray(parent) && !/^(?:0|[1-9][0-9]*)$/u.test(key))) throw new Error(`replacement[${index}]: path must identify an existing proposal value.`);
+      const record = parent as Record<string, unknown>;
+      if (position === parts.length - 1) record[key] = structuredClone(replacement.value);
+      else parent = record[key];
+    }
+  }
+  if (bytes(updated) > 100_000) throw new Error("Patched evidence exceeds the proposal size budget.");
+  if (proposalHash(updated) === proposalHash(previous)) throw new Error("Evidence patch makes no change.");
+  return updated;
+}
 function pageMentionsPmid(pages: readonly FrozenOfficialSource[], pmid: string): boolean {
   return pages.some(page => [...page.untrustedText.matchAll(/\bPMID[\s:：]*([0-9]{1,10})\b/giu)].some(m => m[1] === pmid) ||
     page.navigationLinks?.some(link => {

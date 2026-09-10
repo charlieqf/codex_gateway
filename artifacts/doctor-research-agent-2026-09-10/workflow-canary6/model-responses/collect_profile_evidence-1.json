@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"doctor\",\"query\":\"Shen R[Author] AND Nanjing Maternal\"},{\"type\":\"search_pubmed\",\"purpose\":\"doctor\",\"query\":\"Shen R[Author] AND (Obstet Gynecol Affiliated Hosp Nanjing Med Univ OR Women's Hosp Nanjing)\"}],\"workingNotes\":\"身份已验证：沈嵘，南京市妇幼保健院（南京医科大学附属妇产医院）党委书记、主任医师、教授、博士生导师。开始PubMed作者检索（Shen R + Nanjing机构），再据结果调整。\"}",
+  "usage": {
+    "promptTokens": 9099,
+    "completionTokens": 159,
+    "reasoningTokens": 39,
+    "totalTokens": 9258
+  },
+  "gatewayRequestId": "req-a46b148c-88fa-48d9-b202-6b93f8f90ce2"
+}

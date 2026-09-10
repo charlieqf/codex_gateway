@@ -4950,7 +4950,7 @@ describe("Research Worker controlled-beta workflow", () => {
         now: () => fixture.now
       });
 
-      expect(outcome).toEqual({
+      expect(outcome).toEqual(code === "output_exhausted" ? { outcome: "failed", reason: "resource_budget_exceeded" } : {
         outcome: "failed",
         reason: "upstream_unavailable",
         retryable: false,

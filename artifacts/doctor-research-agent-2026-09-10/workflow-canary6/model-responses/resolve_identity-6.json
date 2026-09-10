@@ -1,0 +1,10 @@
+{
+  "text": "{\"accepted\":true,\"issues\":[]}",
+  "usage": {
+    "promptTokens": 3885,
+    "completionTokens": 74,
+    "reasoningTokens": 60,
+    "totalTokens": 3959
+  },
+  "gatewayRequestId": "req-6eafa706-ef7e-4195-8f83-6caf4737325a"
+}

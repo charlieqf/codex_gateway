@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DoctorResearchModelDraft } from "./contracts.js";
 import { countReviewContractContent } from "./review-contract-policy.js";
+import { ResearchModelClientError } from "./model-client.js";
 
 export const maximumNarrativeReviewCalls = 6;
 
@@ -38,7 +39,8 @@ export const narrativeReviewSystem = [
   "The core table was drafted and reviewed earlier, but that does not make it a primary source. Actual abstracts take precedence over prior generated interpretations. Correct unsupported descriptive core-table fields through their editable targets; preserve the row's reference identity. Never dismiss a source-grounded concern merely because an earlier generated table disagrees.",
   "Review the whole report, core evidence and all five question-answer pairs, even when code reports no diagnostics.",
   "The server renders the core evidence table and reference list separately; their absence from editable markdown is not missing report content. Do not duplicate them in markdown or invent references to reach a target.",
-  "Use revise with replacements bound to the exact candidate_sha256 to repair content, citation placement, lengths or structure. Use the supplied target IDs and complete replacement values; the candidate hash already binds every original target, so do not copy per-target hashes. Preserve sound material; no padding or arbitrary clipping.",
+  "Use revise with replacements bound to the exact candidate_sha256 to repair content, citation placement, lengths or structure. For a small text correction prefer {target_id,find,replace}: find must be a verbatim substring occurring exactly once in that original string target. Multiple nonoverlapping edits to a string target are allowed. For broader revisions use {target_id,value} with the complete replacement. Never combine a whole-target replacement and substring edits to that same target. Preserve sound material; no padding or arbitrary clipping.",
+  "Keep the explanation concise (at most 1200 characters). Do not copy unchanged paragraphs, core fields or answers into replacements. Individual answer_N_text, answer_N_sources and question_N targets allow local corrections without reprinting all five answers. Spend output on actual repairs, not repeated analysis or lists of correct claims.",
   "You own the revision step: implement every repair supported by the supplied evidence in the same decision. Do not hand fixable length, citation or structure issues back to an unavailable author. A target replacement can contain additional complete paragraphs.",
   "Use reject with an explanation if supplied evidence cannot support a safe report. Never claim approval merely to match a schema.",
   "A revised report must receive a separate subsequent review. Accept only the exact unchanged candidate when every check passes and blocking diagnostics are empty.",
@@ -69,7 +71,11 @@ function editTargets(draft: DoctorResearchModelDraft, language: "zh-CN" | "en") 
     ["keywords", draft.review.keywords],
     ...blocks.flatMap((block, index): Array<[string, unknown]> => index % 2 === 0 ? [[`review_block_${index / 2 + 1}`, block]] : []),
     ...draft.review.core_evidence.flatMap((row, index) => coreFields.map((field): [string, unknown, string] => [`core_row_${index + 1}_${field}`, row[field], row.reference_id])),
-    ["questions", draft.predicted_questions], ["answers", draft.answers]
+    ["questions", draft.predicted_questions], ["answers", draft.answers],
+    ...draft.predicted_questions.map((question, index): [string, unknown] => [`question_${index + 1}`, question]),
+    ...draft.answers.flatMap((answer, index): Array<[string, unknown]> => [
+      [`answer_${index + 1}_text`, answer.answer], [`answer_${index + 1}_sources`, answer.source_ids]
+    ])
   ];
   const targets: Target[] = values.map(([target_id, value, reference_id]) => ({
     target_id, value,
@@ -77,6 +83,10 @@ function editTargets(draft: DoctorResearchModelDraft, language: "zh-CN" | "en") 
     ...(typeof value === "string" ? { content_count: countReviewContractContent(value, language) } : {})
   }));
   return { blocks, targets };
+}
+function displayedTargets(targets: Target[]): Target[] {
+  // Individual targets already include every question and answer exactly once.
+  return targets.filter(target => target.target_id !== "answers" && target.target_id !== "questions");
 }
 
 const checkNames = ["citations", "numerical_claims", "evidence_scope", "coherence", "questions_answers"] as const;
@@ -103,22 +113,42 @@ function applyReplacements(draft: DoctorResearchModelDraft, targets: Target[], b
   // repeating per-target hashes adds copying failure without another invariant.
   const updated = structuredClone(draft);
   const used = new Set<string>();
+  const edits = new Map<string, Array<{ start: number; end: number; replacement: string }>>();
   for (const [index, patch] of replacements.entries()) {
-    if (!isObject(patch) || Object.keys(patch).sort().join() !== "target_id,value" || typeof patch.target_id !== "string") return { error: `replacement[${index}]: expected exactly target_id and value.` };
-    if (used.has(patch.target_id)) return { error: `replacement[${index}]: duplicate target ${patch.target_id}.` };
+    if (!isObject(patch) || !["target_id,value", "find,replace,target_id"].includes(Object.keys(patch).sort().join()) || typeof patch.target_id !== "string") return { error: `replacement[${index}]: expected target_id/value or target_id/find/replace.` };
     const target = targets.find(item => item.target_id === patch.target_id);
     if (!target) return { error: `replacement[${index}]: target is not editable; use a supplied target_id.` };
+    const group = target.target_id === "answers" || target.target_id.startsWith("answer_") ? "answers" :
+      target.target_id === "questions" || target.target_id.startsWith("question_") ? "questions" : null;
+    const otherTargets = new Set([...used, ...edits.keys()]);
+    if (group && (target.target_id === group ? [...otherTargets].some(id => id.startsWith(group === "answers" ? "answer_" : "question_")) : otherTargets.has(group))) {
+      return { error: `replacement[${index}]: cannot combine an aggregate replacement with its individual targets.` };
+    }
+    if (Object.hasOwn(patch, "find")) {
+      if (used.has(target.target_id) || typeof target.value !== "string" || typeof patch.find !== "string" || !patch.find.length || typeof patch.replace !== "string") return { error: `replacement[${index}]: text edits require string targets and cannot share a whole-target replacement.` };
+      const start = target.value.indexOf(patch.find);
+      if (start < 0 || target.value.indexOf(patch.find, start + 1) >= 0) return { error: `replacement[${index}]: find must occur exactly once in the original target.` };
+      const end = start + patch.find.length;
+      const existing = edits.get(target.target_id) ?? [];
+      if (existing.some(edit => start < edit.end && end > edit.start)) return { error: `replacement[${index}]: overlapping text edits.` };
+      existing.push({ start, end, replacement: patch.replace }); edits.set(target.target_id, existing);
+      continue;
+    }
+    if (used.has(target.target_id) || edits.has(target.target_id)) return { error: `replacement[${index}]: duplicate target ${patch.target_id}.` };
     used.add(target.target_id);
     if (target.target_id === "answers") {
       if (!Array.isArray(patch.value) || patch.value.length !== 5 || patch.value.some((answer, i) => !isObject(answer) || Object.keys(answer).sort().join() !== "answer,question_index,source_ids" || answer.question_index !== i + 1 || typeof answer.answer !== "string" || !strings(answer.source_ids))) return { error: `replacement[${index}]: answers requires five ordered objects with question_index, answer and source_ids.` };
       updated.answers = structuredClone(patch.value) as DoctorResearchModelDraft["answers"];
-    } else if (target.target_id === "keywords" || target.target_id === "questions") {
+    } else if (target.target_id === "keywords" || target.target_id === "questions" || /^answer_\d+_sources$/u.test(target.target_id)) {
       if (!strings(patch.value)) return { error: `replacement[${index}]: ${target.target_id} requires an array of strings.` };
       if (target.target_id === "keywords") updated.review.keywords = [...patch.value];
-      else updated.predicted_questions = [...patch.value];
+      else if (target.target_id === "questions") updated.predicted_questions = [...patch.value];
+      else updated.answers[Number(target.target_id.split("_")[1]) - 1]!.source_ids = [...patch.value];
     } else {
       if (typeof patch.value !== "string") return { error: `replacement[${index}]: ${target.target_id} requires a string.` };
       if (target.target_id === "title" || target.target_id === "abstract") updated.review[target.target_id] = patch.value;
+      else if (/^question_\d+$/u.test(target.target_id)) updated.predicted_questions[Number(target.target_id.split("_")[1]) - 1] = patch.value;
+      else if (/^answer_\d+_text$/u.test(target.target_id)) updated.answers[Number(target.target_id.split("_")[1]) - 1]!.answer = patch.value;
       else if (target.target_id.startsWith("core_row_")) {
         const [, row, field] = /^core_row_(\d+)_(.+)$/u.exec(target.target_id)!;
         updated.review.core_evidence[Number(row) - 1]![field as typeof coreFields[number]] = patch.value;
@@ -127,6 +157,16 @@ function applyReplacements(draft: DoctorResearchModelDraft, targets: Target[], b
     }
   }
   updated.review.markdown = blocks.join("");
+  if (edits.size) {
+    const replacements = [...edits].map(([target_id, changes]) => {
+      let value = targets.find(target => target.target_id === target_id)!.value as string;
+      for (const edit of changes.sort((a, b) => b.start - a.start)) value = value.slice(0, edit.start) + edit.replacement + value.slice(edit.end);
+      return { target_id, value };
+    });
+    const merged = applyReplacements(updated, targets, blocks, replacements);
+    if ("error" in merged) return merged;
+    return { draft: merged.draft };
+  }
   if (JSON.stringify(updated).length > 300_000) return { error: "Revised draft exceeds the 300000-character limit." };
   if (narrativeCandidateHash(updated) === narrativeCandidateHash(draft)) return { error: "Replacements make no actual change." };
   return { draft: updated };
@@ -160,7 +200,7 @@ export async function reviewNarrativeWithAgent(input: {
     const outcomes = await Promise.allSettled(Array.from({ length: auditCalls }, async (_, index) => {
       const assigned = references.filter((_, position) => position % auditCalls === index) as Array<Record<string, unknown>>;
       const prompt = "INDEPENDENT SOURCE AUDIT\n\n" + JSON.stringify({ language: input.language,
-        candidate_sha256: narrativeCandidateHash(draft), editable_targets: targets, assigned_sources: assigned });
+        candidate_sha256: narrativeCandidateHash(draft), editable_targets: displayedTargets(targets), assigned_sources: assigned });
       if (Buffer.byteLength(prompt) > 240_000) throw new NarrativeReviewBudgetError("Source audit exceeds evidence context budget.");
       const decision = parseDecision(await input.generate({ system: sourceAuditSystem, prompt, call: index + 1, maximumOutputTokens: 4000 }));
       const sourceIds = assigned.map(reference => reference.source_id as string);
@@ -188,13 +228,21 @@ export async function reviewNarrativeWithAgent(input: {
     const prompt = [input.contract, "INDEPENDENT NARRATIVE REVIEW",
       JSON.stringify({ language: input.language, candidate_sha256: candidateHash,
         immutable_profile: draft.profile,
-        editable_targets: targets, blocking_diagnostics: diagnostics.blocking,
+        editable_targets: displayedTargets(targets), aggregate_replacement_targets: ["questions", "answers"], blocking_diagnostics: diagnostics.blocking,
         heuristic_observations: diagnostics.observations, prior_feedback: feedback, prior_reviews: priorReviews,
         source_audits: sourceAudits, complete_evidence: input.evidence })].join("\n\n");
     // Do not truncate evidence or silently turn an incomplete review into a pass.
     if (Buffer.byteLength(prompt) > 240_000) throw new NarrativeReviewBudgetError("Narrative review exceeds evidence context budget.");
     // Transport errors deliberately escape unchanged to durable workflow recovery.
-    const text = await input.generate({ system: narrativeReviewSystem, prompt, call });
+    let text: string;
+    try { text = await input.generate({ system: narrativeReviewSystem, prompt, call }); }
+    catch (error) {
+      if (!(error instanceof ResearchModelClientError) || error.code !== "output_exhausted") throw error;
+      feedback = ["The previous response exhausted its output capacity. No partial response or edits were applied. Use concise explanations and minimal exact find/replace edits; do not reprint sound content. A later independent review is still required after edits."];
+      input.observe?.({ call, outcome: "output_exhausted", diagnostics: feedback });
+      if (call === input.maximumCalls) throw new NarrativeReviewBudgetError("Narrative review exhausted output capacity within its call budget.");
+      continue;
+    }
     // A single surrounding JSON fence changes presentation only. Do not
     // salvage partial JSON, choose among multiple objects, or repair content.
     const decision = parseDecision(text);

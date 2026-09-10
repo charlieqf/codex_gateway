@@ -1,0 +1,10 @@
+{
+  "text": "{\"findings\":[]}",
+  "usage": {
+    "promptTokens": 16982,
+    "completionTokens": 3161,
+    "reasoningTokens": 3139,
+    "totalTokens": 20143
+  },
+  "gatewayRequestId": "req-5e8ec3ae-2739-4700-9350-dc55a06238b0"
+}

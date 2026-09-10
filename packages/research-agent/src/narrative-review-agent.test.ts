@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DoctorResearchModelDraft } from "./contracts.js";
 import { NarrativeReviewBudgetError, narrativeCandidateHash, reviewNarrativeWithAgent, splitNarrativeDiagnostics } from "./narrative-review-agent.js";
+import { ResearchModelClientError } from "./model-client.js";
 
 const draft = (): DoctorResearchModelDraft => ({
   schema_version: "doctor_research_model_draft.v1",
@@ -21,6 +22,60 @@ function decision(prompt: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe("narrative review Agent boundary", () => {
+  it("applies nonoverlapping text edits and individual answer corrections against the original targets, requiring another review", async () => {
+    const initial = draft();
+    const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence, maximumCalls: 3, inspect,
+      async generate({ prompt, call }) {
+        if (call === 1) return JSON.stringify(decision(prompt, { decision: "revise", replacements: [
+          { target_id: "review_block_1", value: "## Revised heading\n\nAdditional context." },
+          { target_id: "review_block_2", find: "The seven studies", replace: "Seven studies" },
+          { target_id: "review_block_2", find: "This study design", replace: "These observational designs" },
+          { target_id: "answer_1_text", find: "An association.", replace: "An association without causal inference." }
+        ] }));
+        expect(prompt).toContain("Seven studies reported an association. These observational designs");
+        expect(payload(prompt).editable_targets.filter((t: { target_id: string }) => t.target_id === "answers")).toHaveLength(0);
+        return JSON.stringify(decision(prompt));
+      }
+    });
+    expect(result?.calls).toBe(2);
+    expect(result?.draft.review.markdown).toBe("## Revised heading\n\nAdditional context.\n\nSeven studies reported an association. These observational designs does not establish causality.[1]");
+    expect(result?.draft.answers[0]?.answer).toBe("An association without causal inference.");
+    expect(result?.draft.answers[0]?.source_ids).toEqual(initial.answers[0]?.source_ids);
+  });
+
+  it.each(["ambiguous", "overlap", "whole_target", "aggregate"])("rejects invalid text-edit batches atomically: %s", async kind => {
+    const initial = draft();
+    const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence, maximumCalls: 2, inspect,
+      async generate({ prompt, call }) {
+        if (call === 2) { expect(payload(prompt).candidate_sha256).toBe(narrativeCandidateHash(initial)); return JSON.stringify(decision(prompt)); }
+        const edit = { target_id: "review_block_2", find: kind === "ambiguous" ? " " : "seven studies", replace: "a new phrase" };
+        const other = kind === "overlap" ? { target_id: "review_block_2", find: "seven", replace: "7" } :
+          kind === "whole_target" ? { target_id: "review_block_2", value: "Must not apply" } :
+          kind === "aggregate" ? { target_id: "questions", value: ["New question"] } : { target_id: "title", value: "Must not apply" };
+        return JSON.stringify(decision(prompt, { decision: "revise", replacements: [
+          ...(kind === "aggregate" ? [{ target_id: "question_1", find: "known", replace: "reported" }] : [edit]), other
+        ] }));
+      }
+    });
+    expect(result?.draft).toEqual(initial);
+  });
+
+  it("uses a remaining review slot after output exhaustion and never approves partial provider output", async () => {
+    const events: string[] = [];
+    const result = await reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence, maximumCalls: 3, inspect,
+      observe: event => events.push(event.outcome),
+      async generate({ prompt, call }) {
+        if (call === 1) throw new ResearchModelClientError("output_exhausted", 413, "req_synthetic_output");
+        if (call === 2) {
+          expect(payload(prompt).prior_feedback.join(" ")).toContain("No partial response or edits were applied");
+          return JSON.stringify(decision(prompt, { decision: "revise", replacements: [{ target_id: "title", find: "Evidence", replace: "Reviewed evidence" }] }));
+        }
+        return JSON.stringify(decision(prompt));
+      }
+    });
+    expect(events).toEqual(["output_exhausted", "revised", "accepted"]);
+    expect(result?.calls).toBe(3);
+  });
   it("audits every assigned source in parallel and carries specific findings into subsequent whole-report review", async () => {
     const references = [1, 2, 3].map(citation => ({ citation, source_id: `src_${citation}`, abstract: "Participants had the condition; the effect was observational. END_OF_SOURCE_" + citation }));
     const assigned: string[][] = [];

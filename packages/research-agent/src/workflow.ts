@@ -604,6 +604,10 @@ export async function executeDoctorResearchWorkflow(input: {
       };
     }
     if (error instanceof ResearchModelClientError) {
+      if (error.code === "output_exhausted") {
+        context.reportBudgetFailure("model_output_capacity");
+        return { outcome: "failed", reason: "resource_budget_exceeded" };
+      }
       return {
         outcome: "failed",
         reason: "upstream_unavailable",

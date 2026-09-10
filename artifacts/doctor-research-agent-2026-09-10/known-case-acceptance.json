@@ -28,14 +28,24 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary6/result.json",
+          "outcome": "failed",
+          "reported_reason": "resource_budget_exceeded",
+          "diagnosed_reason": "Independent identity review passed in six model calls. Evidence investigation read papers but never reached independent evidence review: long proposals repeatedly failed exact-quote and JSON checks, consuming all twelve evidence calls. No artifacts were produced.",
+          "elapsed_ms": 347924,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
       "full_worker_attempt": {
-        "evidence": "workflow-canary5/result.json",
+        "evidence": "workflow-canary6/result.json",
         "outcome": "failed",
         "reported_reason": "resource_budget_exceeded",
-        "diagnosed_reason": "Search succeeded in 17.905 seconds and sources established the name, hospital and party-secretary role. The reviewer unnecessarily required evidence for an additional administrative appointment; investigation reached its eight-call budget before another independent review.",
-        "elapsed_ms": 78602,
+        "diagnosed_reason": "Independent identity review passed in six model calls. Evidence investigation read papers but never reached independent evidence review: long proposals repeatedly failed exact-quote and JSON checks, consuming all twelve evidence calls. No artifacts were produced.",
+        "elapsed_ms": 347924,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false

@@ -1,0 +1,10 @@
+{
+  "text": "{\"findings\":[{\"target_id\":\"review_block_10\",\"source_id\":\"src_pubmed_42288187\",\"explanation\":\"草稿称1180名女性中除141例侵蚀性手骨关节炎外\\\"其余分别为无症状手骨关节炎与无手骨关节炎人群\\\"。摘要明确为340例（28.8%）症状性手骨关节炎（symptomatic HOA, SHOA），而非\\\"无症状\\\"；ACUSCAN问卷评估的正是症状表型，该表述与源人群定义相反。\"},{\"target_id\":\"review_block_6\",\"source_id\":\"src_pubmed_42466020\",\"explanation\":\"草稿描述入组标准为\\\"腰椎和/或股骨颈骨密度仍低于-2.5SD\\\"，而摘要原文为\\\"lumbar and femoral neck BMD below -2.5 SD\\\"（两个部位，无\\\"或\\\"的表述）。另外摘要基线值为腰椎0.77 g/cm²（T值-2.0）、股骨颈0.49 g/cm²（T值-2.8），腰椎T值并非低于-2.5，暗示入组可能仅要求任一部位低于-2.5；草稿的\\\"和/或\\\"属于对摘要的推断性改写，应核对原文并明确该纳入条件。\"}]}",
+  "usage": {
+    "promptTokens": 17778,
+    "completionTokens": 2216,
+    "reasoningTokens": 1933,
+    "totalTokens": 19994
+  },
+  "gatewayRequestId": "req-7213af09-e6c3-4d52-907f-4d7b1e8c67d4"
+}
