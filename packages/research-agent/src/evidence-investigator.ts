@@ -5,6 +5,7 @@ import type { FrozenOfficialSource, FrozenPublicationMetadata } from "./adapters
 import type { InvestigatedIdentity } from "./identity-investigator.js";
 import { reviewContractPolicy } from "./review-contract-policy.js";
 import { ResearchExternalServiceError, ResearchHttpError } from "./safe-http.js";
+import { sourcePassages } from "./source-passages.js";
 
 export interface EvidenceCitation { sourceId: string; quote: string }
 export interface InvestigatedProfileFact {
@@ -476,14 +477,6 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
 }
 
 function publicationText(p: FrozenPublicationMetadata): string { return `${p.title}\n${p.abstractText ?? ""}`; }
-function sourcePassages(text: string) {
-  const result: Array<{ passageId: string; offset: number; quote: string }> = [];
-  for (let offset = 0; offset < text.length; offset += 1200) {
-    const quote = text.slice(offset, offset + 1200);
-    if (quote.trim().length >= 8) result.push({ passageId: `text_${offset / 1200}`, offset, quote });
-  }
-  return result;
-}
 function publicationObservation(record: EvidenceInvestigationState["publications"][number], view: PublicationView = "complete") {
   // The source passages contain the full abstract once, with stable IDs.
   // Keep full original metadata in state, avoiding duplicate prompt copies.

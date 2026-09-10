@@ -1,6 +1,11 @@
 {
   "scope": "Original seven reported cases plus eight disclosed blind cases; does not replace the broader repository regression suite.",
   "requirements": {
+    "default_product_scope": "practical_doctor_profile_and_background",
+    "academic_review_required": false,
+    "publication_minimum_required": false,
+    "historical_probes_retain_original_contract": true,
+    "new_contract_live_verified": false,
     "runtime_case_presets": false,
     "only_original_three_fields": true,
     "full_service_success_required": true,
@@ -208,11 +213,11 @@
       "full_service_acceptance": "pending",
       "identity_only_evidence": "live-canary2/result.json",
       "full_worker_attempt": {
-        "evidence": "workflow-canary3/result.json",
+        "evidence": "workflow-canary10/result.json",
         "outcome": "failed",
-        "reported_reason": "upstream_unavailable",
-        "diagnosed_reason": "One 41.626-second SerpAPI call succeeded and independent identity review passed. A later evidence-model request returned HTTP 504 after its 50-second provider budget. No complete artifacts were produced.",
-        "elapsed_ms": 135284,
+        "reported_reason": "deadline_exceeded",
+        "diagnosed_reason": "Identity passed after four quotation-format corrections; evidence read 25 papers and independently passed in ten calls. Three report-generation calls and multiple academic output reviews then exceeded the active deadline. Revision included minimum paragraph length and numbered citations in questions. The user subsequently clarified that this service is practical doctor-profile research, not literature peer review; the old academic contract is no longer the default acceptance target.",
+        "elapsed_ms": 560134,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
@@ -234,6 +239,16 @@
           "reported_reason": "upstream_unavailable",
           "diagnosed_reason": "One 41.626-second SerpAPI call succeeded and independent identity review passed. A later evidence-model request returned HTTP 504 after its 50-second provider budget. No complete artifacts were produced.",
           "elapsed_ms": 135284,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary10/result.json",
+          "outcome": "failed",
+          "reported_reason": "deadline_exceeded",
+          "diagnosed_reason": "Identity passed after four quotation-format corrections; evidence read 25 papers and independently passed in ten calls. Three report-generation calls and multiple academic output reviews then exceeded the active deadline. Revision included minimum paragraph length and numbered citations in questions. The user subsequently clarified that this service is practical doctor-profile research, not literature peer review; the old academic contract is no longer the default acceptance target.",
+          "elapsed_ms": 560134,
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false

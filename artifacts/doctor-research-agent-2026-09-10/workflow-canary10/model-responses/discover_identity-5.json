@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Dr Shoshana Sztal-Mazer\",\"institution\":\"The Alfred (Alfred Health, Bayside Health)\",\"department\":\"Endocrinology\",\"limitations\":[\"无请求中的额外职称信息（title 为空，无需验证）\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"The Alfred Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among its clinic consultants in Endocrinology, confirming the named person practises endocrinology at The Alfred.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Endocrinology Clinic ... The Alfred ... 55 Commercial Rd, Melbourne VIC 3004\",\"explanation\":\"The clinic listing is published by Alfred Health (Bayside Health) for The Alfred hospital in Melbourne, establishing the institution.\"},{\"aspect\":\"department\",\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Dr Shoshana Sztal-Mazer | Endocrinology | Endocrinology Clinic - Gestational Diabetes & Endocrine Disease in Pregnancy , Osteoporosis and Metabolic Bone Clinic , Women's Endocrinology Health Clinic , Diabetes Clinic , Endocrinology Clinic\",\"explanation\":\"The Alfred 'Find a doctor' directory confirms Dr Shoshana Sztal-Mazer's specialty is Endocrinology and lists her endocrinology clinics at Alfred Health, corroborating the requested department.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Find a doctor ... Our doctors work across a range of services and clinics at our hospitals and community locations.\",\"explanation\":\"This is the hospital's own official doctor directory, an authoritative first-party source for its clinical staff and their specialties.\"}]}}",
+  "usage": {
+    "promptTokens": 9058,
+    "completionTokens": 456,
+    "reasoningTokens": 11,
+    "totalTokens": 9514
+  },
+  "gatewayRequestId": "req-2634df15-466a-41f3-b101-b0dcd8f1f1cb"
+}

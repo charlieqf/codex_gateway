@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer\",\"purpose\":\"verify name, role and institution from a profile page\"},{\"type\":\"read\",\"url\":\"https://www.alfredhealth.org.au/services/endocrinology-clinic\",\"purpose\":\"verify endocrinology department listing at Alfred Health\"},{\"type\":\"read\",\"url\":\"https://www.alfredhealth.org.au/find-a-doctor/P960\",\"purpose\":\"verify directory entry linking person to Alfred endocrinology clinic\"}]}",
+  "usage": {
+    "promptTokens": 1894,
+    "completionTokens": 142,
+    "reasoningTokens": 21,
+    "totalTokens": 2036
+  },
+  "gatewayRequestId": "req-7e41175e-24ea-47a0-8e01-1f95f990cb96"
+}

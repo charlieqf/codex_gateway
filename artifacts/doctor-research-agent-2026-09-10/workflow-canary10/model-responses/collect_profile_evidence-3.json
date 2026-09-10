@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"36434431\",\"35666588\",\"35398931\",\"35192205\",\"34986256\",\"34981521\",\"34697809\"]},{\"type\":\"read_publications\",\"pmids\":[\"42717332\",\"42712092\",\"42711707\",\"42706499\",\"42703955\",\"42693441\",\"42684490\",\"42684327\"],\"view\":\"abstract\"}],\"workingNotes\":\"Verified own papers so far (Sztal-Mazer S, all with Alfred Health Endocrinology & Diabetes affiliation, matching person): 42562434, 42562433 (menopause/osteoporosis AJGP reviews, aff 'Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health'), 41989128 (AFF TrAFFiC, aff_4 'Department of Endocrinology and Diabetes, Alfred Health'), 40608198 (PA screening hyperparathyroidism, aff_0 Alfred), 40144833 (lung transplant osteoporotic fracture, aff_0 Alfred), 39126371 (AFF genetics, aff_3 'The Alfred Hospital'), 39074569 (AFFnet AI, aff_6 Alfred+Monash SPHPM), 37264889 (CGRP mAb bone turnover, aff_3 Alfred), 36880383 (mixed insulin GIH, aff_1 Alfred), 37291814 (thyroxine/dairy pregnancy AJGP, aff_5 'Endocrinologist...Alfred Health'; no abstract). Research directions: metabolic bone disease/osteoporosis/AFF; women's endocrinology incl pregnancy; glucocorticoid-induced hyperglycaemia/diabetes. Now reading remaining 7 own PMIDs + 8 field candidates (abstract view) to select field core rows. After this: possibly 1 more field read batch, then proposal + review. Reserve 2 calls for proposal+review.\",\"focusPublications\":[{\"pmid\":\"41989128\",\"view\":\"authorship\"},{\"pmid\":\"42562434\",\"view\":\"authorship\"},{\"pmid\":\"37264889\",\"view\":\"authorship\"},{\"pmid\":\"36880383\",\"view\":\"authorship\"}]}",
+  "usage": {
+    "promptTokens": 25172,
+    "completionTokens": 732,
+    "reasoningTokens": 229,
+    "totalTokens": 25904
+  },
+  "gatewayRequestId": "req-e6e65ae7-956f-4430-8fac-2ad59da12684"
+}

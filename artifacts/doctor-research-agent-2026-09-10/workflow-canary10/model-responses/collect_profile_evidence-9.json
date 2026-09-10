@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"8472db20281ae331328be17ee327bdf92e3d42102ab29610a47b1d5e9350fe10\",\"replacements\":[{\"path\":\"/topics\",\"value\":{\"terms\":[\"妊娠期糖尿病\",\"妊娠期内分泌疾病\",\"骨质疏松与代谢性骨病\",\"女性内分泌健康\",\"糖尿病\"],\"explanation\":\"综述范围严格限定于 Alfred Health 官方 Find a doctor 目录中明确列出的 Sztal-Mazer 医生所任职的专科门诊:Gestational Diabetes & Endocrine Disease in Pregnancy Clinic、Osteoporosis and Metabolic Bone Clinic、Women's Endocrinology Health Clinic 与 Diabetes Clinic。所有主题术语均与该官方目录文字一一对应,反映其临床执业范围。\",\"citations\":[{\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Dr Shoshana Sztal-Mazer | Endocrinology | Endocrinology Clinic - Gestational Diabetes & Endocrine Disease in Pregnancy , Osteoporosis and Metabolic Bone Clinic , Women's Endocrinology Health Clinic , Diabetes Clinic , Endocrinology Clinic\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Dr Shoshana Sztal-Mazer: Endocrinology\"}]}}]},\"workingNotes\":\"Topics scope rejected twice. Narrowed topics to directory-anchored clinic terms only (removed own-paper-derived terms 非典型股骨骨折 and 糖皮质激素诱发高血糖, which remain in facts/research_direction and representative_output). All other fields unchanged and evidence-backed; own-paper authorship verified via authorship views (Alfred Health Endocrinology affiliations). Next: resubmit for independent review.\"}",
+  "usage": {
+    "promptTokens": 24845,
+    "completionTokens": 944,
+    "reasoningTokens": 546,
+    "totalTokens": 25789
+  },
+  "gatewayRequestId": "req-f766af98-6cc4-4d69-b8bd-787fc683985f"
+}

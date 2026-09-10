@@ -1,0 +1,10 @@
+{
+  "text": "```json\n{\n  \"actions\": [\n    {\n      \"type\": \"read_publications\",\n      \"pmids\": [\"42562434\", \"42562433\", \"41989128\", \"40608198\", \"40144833\", \"39126371\", \"39074569\", \"37291814\", \"37264889\", \"36880383\"]\n    }\n  ],\n  \"workingNotes\": \"Verified: Dr Shoshana Sztal-Mazer, endocrinologist, The Alfred Melbourne, Endocrinology Clinic; clinics incl Gestational Diabetes & Endocrine Disease in Pregnancy, Osteoporosis & Metabolic Bone, Women's Endocrinology Health, Diabetes (src_2493de44f6d829d4a438c889950665fe text_2; src_28b221b96811972dc4124aac3528fd4b text_3). Doctor search (2022-2026) found 17 PMIDs. Now reading first 10 complete to check authorship/affiliations and abstracts. Remaining later: 36434431, 35666588, 35398931, 35192205, 34986256, 34981521, 34697809. Field search (gestational diabetes/endocrine pregnancy review) returned many candidates, top 40 listed; will pick core rows after reading own papers. Plan: complete view now; abstract view for chosen field papers next; reserve review call. Budget: 11 model calls remain, 2 searches, 50 pub reads.\",\n  \"focusPublications\": []\n}\n```",
+  "usage": {
+    "promptTokens": 11654,
+    "completionTokens": 396,
+    "reasoningTokens": 22,
+    "totalTokens": 12050
+  },
+  "gatewayRequestId": "req-058267c0-d9de-4966-a598-2d901313c6da"
+}

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { sourcePassages } from "./source-passages.js";
 import { investigationTimingGuidance, type InvestigationTiming } from "./investigation-timing.js";
 import type { DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource, ResearchWebCandidate } from "./adapters.js";
@@ -87,6 +88,7 @@ Return one JSON object, no Markdown, with either:
 {"actions":[{"type":"links","url":"a page already read","contains":"optional label substring","offset":0,"purpose":"..."}]}.
 You may batch up to three independent actions. Each read returns a text window and navigation links; use find or offset to read a later portion of a long page. links paginates real links without another page request.
 To finish return {"identity":{"name":"name supported by pages","institution":"supported original-language institution","department":"supported specialty or role","limitations":["specific requested detail not verified, if any"],"citations":[{"aspect":"person|institution|department|authority","sourceId":"...","quote":"exact source passage","explanation":"relationship this passage supports"}]}}.
+Read observations provide citation_passages with stable passageId values. Prefer {"aspect":"...","sourceId":"...","passageId":"text_N","explanation":"..."} to copying a long quotation; omit quote when using passageId. The service inserts the exact stored original text, and the independent reviewer still checks whether it supports the identity relationship. A valid passage ID is not proof of identity. Direct exact quotations remain supported. Fix all reported citation problems together.
 Provide all four evidence aspects; the same complete passage can support multiple aspects. If identity depends on two sources, cite both; do not report conflicting relationships as confirmed.
 After an independent review rejects a relationship, obtain relevant new evidence or conclude unresolved. Rewording the same rejected proposal does not resolve the conflict. If no model call remains for independent review, finish with the specific unresolved gap instead of another unreviewable identity proposal.
 If the remaining budget cannot resolve the task return {"unresolved":"insufficient_evidence|conflicting_evidence|upstream_unavailable","explanation":"specific unresolved gap"}. An initial poor search is a reason to adapt, not to declare the person absent.`;
@@ -270,7 +272,8 @@ function pageWindow(page: FrozenOfficialSource, action: Record<string, unknown>)
     ? page.untrustedText.toLocaleLowerCase().indexOf(action.find.toLocaleLowerCase()) : -1;
   const offset = located >= 0 ? Math.max(0, located - 1_500) : safeOffset(action.offset);
   const text = page.untrustedText.slice(offset, offset + 14_000);
-  return { sourceId: page.sourceId, title: page.title, offset, total_characters: page.untrustedText.length, text,
+  return { sourceId: page.sourceId, title: page.title, offset, total_characters: page.untrustedText.length,
+    citation_passages: sourcePassages(page.untrustedText).filter(p => p.offset < offset + text.length && p.offset + p.quote.length > offset),
     more_text: offset + text.length < page.untrustedText.length,
     find_matched: typeof action.find === "string" ? located >= 0 : null,
     ...pageLinks(page, {}) };
@@ -297,12 +300,23 @@ export function validateConclusion(value: unknown, pages: readonly FrozenOfficia
     throw new Error("Identity needs name, institution, department and 4 to 12 source citations.");
   }
   const aspects = ["person", "institution", "department", "authority"];
-  const citations: IdentityCitation[] = value.citations.map(c => {
-    if (!isObject(c) || !aspects.includes(String(c.aspect)) || !boundedString(c.sourceId, 1, 100) || !boundedString(c.quote, 10, 1_600) || !boundedString(c.explanation, 5, 800)) throw new Error("Each identity citation needs an aspect, sourceId, exact quote and relationship explanation.");
-    const page = pages.find(p => p.sourceId === c.sourceId);
-    if (!page || !normalizeQuote(page.untrustedText).includes(normalizeQuote(c.quote))) throw new Error("An identity quotation is absent from a read source. Quote actual text without translation or ellipsis.");
-    return { aspect: c.aspect as IdentityCitation["aspect"], sourceId: c.sourceId, quote: c.quote, explanation: c.explanation };
+  const issues: string[] = [];
+  const citations: IdentityCitation[] = value.citations.flatMap((c, index) => {
+    try {
+      if (!isObject(c) || !aspects.includes(String(c.aspect)) || !boundedString(c.sourceId, 1, 100) || !boundedString(c.explanation, 5, 800)) throw new Error("Each identity citation needs an aspect, sourceId, exact quote or passageId, and relationship explanation.");
+      const page = pages.find(p => p.sourceId === c.sourceId);
+      if (!page) throw new Error(`Source ${c.sourceId} has not been read.`);
+      const quote = c.passageId === undefined ? c.quote : c.quote === undefined && typeof c.passageId === "string"
+        ? sourcePassages(page.untrustedText).find(p => p.passageId === c.passageId)?.quote : null;
+      if (!boundedString(quote, c.passageId === undefined ? 10 : 8, 1_600)) throw new Error(`Source ${c.sourceId} needs one exact quote or a supplied passageId; do not combine them.`);
+      if (!normalizeQuote(page.untrustedText).includes(normalizeQuote(quote))) throw new Error(`An identity quotation is absent from read source ${c.sourceId}. Select a supplied passageId or quote actual text without translation or ellipsis.`);
+      return [{ aspect: c.aspect as IdentityCitation["aspect"], sourceId: c.sourceId, quote, explanation: c.explanation }];
+    } catch (error) {
+      issues.push(`/citations/${index}: ${error instanceof Error ? error.message : "Invalid citation."}`);
+      return [];
+    }
   });
+  if (issues.length) throw new Error(`Correct these identity citations together:\n${issues.join("\n")}`);
   if (aspects.some(aspect => !citations.some(c => c.aspect === aspect))) throw new Error("Provide person, institution, department and source-authority evidence.");
   if (value.limitations !== undefined && (!Array.isArray(value.limitations) || value.limitations.length > 12 || value.limitations.some(item => !boundedString(item, 1, 800)))) throw new Error("Identity limitations must be at most 12 nonempty bounded statements.");
   return { name: value.name, institution: value.institution, department: value.department, citations,

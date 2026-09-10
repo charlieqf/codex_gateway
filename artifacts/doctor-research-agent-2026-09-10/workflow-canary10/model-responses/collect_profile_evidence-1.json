@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"doctor\",\"query\":\"Sztal-Mazer S[Author]\"},{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"gestational diabetes endocrine disease in pregnancy review\"}],\"workingNotes\":\"Verified: Dr Shoshana Sztal-Mazer, endocrinologist at The Alfred (Melbourne), Endocrinology Clinic; directory lists clinics incl. Gestational Diabetes & Endocrine Disease in Pregnancy, Osteoporosis and Metabolic Bone, Women's Endocrinology Health, Diabetes. Pages read: src_2493de44f6d829d4a438c889950665fe (Find a doctor P960), src_28b221b96811972dc4124aac3528fd4b (Endocrinology Clinic). Monash profile 403. Plan: search own publications by author name; field review anchored on pregnancy endocrinology/gestational diabetes + osteoporosis/women's endocrinology per clinic remit. Publication years filter 2022-2026 supplied by service.\"}",
+  "usage": {
+    "promptTokens": 10086,
+    "completionTokens": 234,
+    "reasoningTokens": 0,
+    "totalTokens": 10320
+  },
+  "gatewayRequestId": "req-4d418b1d-1536-413f-a555-01e5acc6d1e7"
+}

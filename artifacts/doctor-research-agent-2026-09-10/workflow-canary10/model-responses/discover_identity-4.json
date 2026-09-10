@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Dr Shoshana Sztal-Mazer\",\"institution\":\"Alfred Health (The Alfred, Melbourne)\",\"department\":\"Endocrinology\",\"limitations\":[],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Dr Shoshana Sztal-Mazer | Endocrinology | Endocrinology Clinic - Gestational Diabetes & Endocrine Disease in Pregnancy , Osteoporosis and Metabolic Bone Clinic , Women's Endocrinology Health Clinic , Diabetes Clinic , Endocrinology Clinic\",\"explanation\":\"The hospital's official 'Find a doctor' directory lists Dr Shoshana Sztal-Mazer with the specialty Endocrinology and her clinics at Alfred Health, confirming both the person and her specialty.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Endocrinology Clinic ... Clinic consultants ... Dr Shoshana Sztal-Mazer: Endocrinology ... Contact us The Alfred Area U (549 St Kilda Road) 549 St Kilda Road, Melbourne, 3004\",\"explanation\":\"The Alfred Health Endocrinology Clinic page names Dr Shoshana Sztal-Mazer among its clinic consultants and shows the clinic operates at The Alfred, Melbourne, confirming she practises endocrinology at the requested hospital.\"},{\"aspect\":\"department\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"The official clinic consultant listing explicitly assigns her to the Endocrinology specialty, matching the requested department.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Our doctors work across a range of services and clinics at our hospitals and community locations.\",\"explanation\":\"The page is the hospital's own doctor directory, an authoritative first-party source for the doctors it employs and their specialties.\"}]}}",
+  "usage": {
+    "promptTokens": 9029,
+    "completionTokens": 510,
+    "reasoningTokens": 53,
+    "totalTokens": 9539
+  },
+  "gatewayRequestId": "req-9dcb3a4d-dd52-4bd0-a037-a730c049c4b0"
+}

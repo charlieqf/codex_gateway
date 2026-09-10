@@ -36,6 +36,40 @@ const searchAction = { actions: [{ type: "search", query: "Alice Example Example
 const readAction = { actions: [{ type: "read", url: directory.url }] };
 
 describe("Evidence-driven identity investigator (offline tools and scripted model)", () => {
+  it.each([true, false])("resolves source passage IDs but still requires semantic identity review (accepted: %s)", async accepted => {
+    const proposal = { ...conclusion(directory), citations: conclusion(directory).citations.map(({ quote: _quote, ...citation }) => ({ ...citation, passageId: "text_0" })) };
+    const generate = scripted([searchAction, readAction, { identity: proposal },
+      accepted ? { accepted: true, issues: [] } : { accepted: false, issues: ["The department belongs to a different person."] },
+      { unresolved: "conflicting_evidence" }]);
+    const result = await investigateDoctorIdentity({ doctor, dependencies: {
+      search: async () => [{ url: directory.url, title: directory.title, snippet: "" }], read: async () => directory,
+      generate, save: async () => {}, signal: new AbortController().signal
+    } });
+    expect(result.outcome).toBe(accepted ? "resolved" : "unresolved");
+    const proposalCall = (generate.mock.calls[2] as unknown as [{ prompt: string }])[0];
+    const observation = JSON.parse(proposalCall.prompt).observations.find((o: { action: string }) => o.action === "read").result;
+    expect(observation.citation_passages).toEqual([{ passageId: "text_0", offset: 0, quote: directory.untrustedText }]);
+    expect(observation).not.toHaveProperty("text");
+    const review = JSON.parse((generate.mock.calls[3] as unknown as [{ prompt: string }])[0].prompt);
+    expect(review.proposed_identity.citations[0].quote).toBe(directory.untrustedText);
+    expect(review.proposed_identity.citations[0]).not.toHaveProperty("passageId");
+    expect(review.sources[0].passages.join(" ")).toContain("Bob Example");
+  });
+
+  it("reports every bad identity citation without accepting a quote combined with a passage ID", () => {
+    const proposal = conclusion(profile);
+    const citations: unknown[] = proposal.citations.map(c => ({ ...c }));
+    citations[0] = { ...proposal.citations[0], quote: "Invented quotation about this person." };
+    citations[1] = { ...proposal.citations[1], passageId: "text_0" };
+    citations[2] = { ...proposal.citations[2], quote: undefined, passageId: "text_999" };
+    let message = "";
+    try { validateConclusion({ ...proposal, citations }, [profile]); } catch (error) { message = (error as Error).message; }
+    expect(message).toContain("/citations/0:");
+    expect(message).toContain("/citations/1:");
+    expect(message).toContain("/citations/2:");
+    expect(message).not.toContain("/citations/3:");
+  });
+
   it("passes an unverified extra appointment as a limitation through independent identity review", async () => {
     const limitation = "The additional university administrative appointment has not been verified.";
     const proposal = { ...conclusion(profile), limitations: [limitation] };

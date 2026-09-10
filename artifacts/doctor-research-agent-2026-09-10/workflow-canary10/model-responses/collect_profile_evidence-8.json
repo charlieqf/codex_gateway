@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"f1bb189a97cb5844c571890905c12f375fa89102531a29dcbbb05a7e514aeb9b\",\"replacements\":[{\"path\":\"/topics\",\"value\":{\"terms\":[\"妊娠期糖尿病\",\"妊娠期内分泌疾病\",\"骨质疏松与代谢性骨病\",\"女性内分泌健康\",\"糖尿病\",\"非典型股骨骨折\",\"糖皮质激素诱发高血糖\"],\"explanation\":\"综述范围严格限定于两个证据来源:(1) Alfred Health 官方 Find a doctor 目录中明确列出的 Sztal-Mazer 医生所任职的专科门诊——Gestational Diabetes & Endocrine Disease in Pregnancy Clinic、Osteoporosis and Metabolic Bone Clinic、Women's Endocrinology Health Clinic 与 Diabetes Clinic;(2) 经作者归属核实的自著论文标题所显示的具体研究主题——非典型股骨骨折(TrAFFiC 队列研究)与泼尼松龙诱发高血糖的治疗。所有主题术语均与上述来源文字一一对应,不含仅由领域文献推导的术语。\",\"citations\":[{\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Dr Shoshana Sztal-Mazer | Endocrinology | Endocrinology Clinic - Gestational Diabetes & Endocrine Disease in Pregnancy , Osteoporosis and Metabolic Bone Clinic , Women's Endocrinology Health Clinic , Diabetes Clinic , Endocrinology Clinic\"},{\"sourceId\":\"src_pubmed_41989128\",\"passageId\":\"title\",\"quote\":\"Asian ethnicity is associated with shorter anti-resorptive exposure prior to atypical femur fracture (AFF): a Transcontinental Atypical Femoral Fracture Consortium (TrAFFiC) cohort study.\"},{\"sourceId\":\"src_pubmed_36880383\",\"passageId\":\"title\",\"quote\":\"Mixed insulin can improve control of prednisolone-induced hyperglycaemia.\"}]}}]}}",
+  "usage": {
+    "promptTokens": 24702,
+    "completionTokens": 989,
+    "reasoningTokens": 551,
+    "totalTokens": 25691
+  },
+  "gatewayRequestId": "req-852dcc27-e31e-449f-a0b2-c6473e2b1b9e"
+}

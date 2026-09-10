@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Dr Shoshana Sztal-Mazer\",\"institution\":\"The Alfred (Alfred Health / Bayside Health), Melbourne\",\"department\":\"Endocrinology\",\"limitations\":[],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_2493de44f6d829d4a438c889950665fe\",\"quote\":\"Dr Shoshana Sztal-Mazer | Endocrinology | Endocrinology Clinic - Gestational Diabetes & Endocrine Disease in Pregnancy , Osteoporosis and Metabolic Bone Clinic , Women's Endocrinology Health Clinic , Diabetes Clinic , Endocrinology Clinic\",\"explanation\":\"The Alfred Health 'Find a doctor' directory lists Dr Shoshana Sztal-Mazer as a doctor practising in Endocrinology across multiple endocrinology clinics at Alfred Health.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Clinic consultants ... Dr Shoshana Sztal-Mazer: Endocrinology ... The Alfred ... 549 St Kilda Road, Melbourne, 3004\",\"explanation\":\"The Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among the clinic consultants of The Alfred's Endocrinology Clinic, establishing her role at the requested hospital.\"},{\"aspect\":\"department\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"The official Alfred Health clinic page explicitly labels her specialty as Endocrinology, matching the requested department (内分泌科).\"},{\"aspect\":\"authority\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Clinic times Day | Campus | Time | Monday | The Alfred | Morning ... Clinic consultants ... Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"This is the hospital's own official website (alfredhealth.org.au), which is authoritative for the current staffing and clinic structure of its services.\"}]}}",
+  "usage": {
+    "promptTokens": 8998,
+    "completionTokens": 459,
+    "reasoningTokens": 0,
+    "totalTokens": 9457
+  },
+  "gatewayRequestId": "req-97e6bf95-14a2-4ed7-90a1-f38601dfb6ff"
+}

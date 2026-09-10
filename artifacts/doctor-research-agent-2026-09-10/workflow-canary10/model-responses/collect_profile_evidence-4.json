@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42562434\",\"42562433\",\"41989128\",\"40608198\",\"37264889\",\"36880383\",\"40144833\",\"39126371\"],\"view\":\"abstract\"},{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"(atypical femoral fracture OR osteoporosis treatment review) AND (2022:2026[Date - Publication])\"}],\"workingNotes\":\"Verified own papers (Sztal-Mazer S, Alfred Health Endocrinology & Diabetes aff, matching directory person): 42562434, 42562433 (menopause/osteoporosis AJGP), 41989128 (AFF TrAFFiC, aff_4 'Department of Endocrinology and Diabetes, Alfred Health'), 40608198 (PA screening), 40144833 (lung tx osteoporotic fracture, aff_0 Alfred), 39126371 (AFF genetics, aff_3 'The Alfred Hospital'), 39074569 (AFFnet AI), 37264889 (CGRP mAb bone turnover, aff_3 Alfred), 36880383 (mixed insulin GIH, aff_1 Alfred), 37291814 (thyroxine/dairy pregnancy AJGP). 34981521 (FHA, Alfred aff) and 34697809 (SGLT2i ketones colonoscopy, aff_6 Alfred) also authorship-verified in observations. Field abstracts already read: 42717332 (GLP-1 RA post-GDM), 42712092 (late-onset GDM review), 42711707 (CGM in GDM), 42706499 (IMH meta-analysis), 42703955 (remnant cholesterol GDM), 42693441 (cycle length GDM FET), 42684490 (maternal DM-MS meta), 42684327 (GooD4Mum protocol). Now reading own-paper abstracts for substantive research_direction quotes + one osteoporosis/AFF field search. Then propose evidence with 5 own papers (42562434, 41989128, 40608198, 37264889, 36880383), field refs from GDM set + osteoporosis set. Reserve calls for proposal + review.\",\"focusPublications\":[]}",
+  "usage": {
+    "promptTokens": 24234,
+    "completionTokens": 1576,
+    "reasoningTokens": 1037,
+    "totalTokens": 25810
+  },
+  "gatewayRequestId": "req-14716d9a-f92d-4a57-b18e-08c80bf6d40a"
+}

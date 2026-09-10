@@ -1,0 +1,10 @@
+{
+  "text": "{\"findings\":[{\"target_id\":\"review_block_3\",\"source_id\":\"src_pubmed_42717332\",\"explanation\":\"草稿将降糖、减重及心血管获益同时归于GLP-1 RA与SGLT-2抑制剂('因其降糖、减重及心血管获益而在理论上颇具吸引力')，并将'现有证据多来自小样本、短期研究'同时套用于两类药物。摘要中减重获益仅归于GLP-1 RA('promote weight loss'，在T2DM和/或肥胖人群中)，SGLT-2抑制剂的描述为心血管与肾脏获益且独立于血糖状态；'evidence...derived from small, short-term studies'仅针对GLP-1 RA在既往GDM女性中的证据，而SGLT-2的表述是安全性、哺乳期使用、时机与患者选择的不确定性，并非小样本短期研究证据不足。此表述存在效应归因的合并与过度概括。\"}]}",
+  "usage": {
+    "promptTokens": 10104,
+    "completionTokens": 751,
+    "reasoningTokens": 544,
+    "totalTokens": 10855
+  },
+  "gatewayRequestId": "req-cd60d830-1fd0-447e-8b14-d7f0e7b9df06"
+}
