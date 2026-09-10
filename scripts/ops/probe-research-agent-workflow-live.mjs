@@ -24,7 +24,7 @@ const config = loadResearchWorkerConfig({ ...process.env,
   RESEARCH_IDENTITY_MAX_PAGE_REQUESTS: "12", RESEARCH_IDENTITY_MAX_MODEL_CALLS: "8",
   RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS: "4", RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS: "50",
   RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS: "4", RESEARCH_EVIDENCE_MAX_MODEL_CALLS: "12",
-  RESEARCH_MAX_LLM_CALLS_PER_RUN: "29", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "34000",
+  RESEARCH_MAX_LLM_CALLS_PER_RUN: "29", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000",
   RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "17000",
   RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000",
   RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000", RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000",
@@ -65,7 +65,7 @@ const timer = setInterval(() => {
   } catch (error) { renewError = error?.name ?? "Error"; }
 }, 30_000);
 let serpRequests = 0, legacyCalls = 0, modelRequests = 0;
-const modelCalls = [], validationFailures = [], externalCalls = [];
+const modelCalls = [], validationFailures = [], externalCalls = [], budgetFailures = [];
 const client = new GatewayResearchModelClient({ ...config.llm,
   bearerToken: readFileSync(config.llm.bearerTokenFile, "utf8").trim(),
   readinessRequirements: { maximumPromptTokensPerCall: config.workflowPolicy.maximumInputTokensPerCall,
@@ -80,7 +80,8 @@ const adapters = new LiveResearchAdapters({ ...config.adapterOptions, orcid: { e
     if (url.hostname === "serpapi.com") {
       if (url.pathname !== "/search.json" || serpRequests >= maximumSerpRequests) throw new Error("Probe SerpAPI hard cap reached.");
       serpRequests++; save("search-ledger", { maximum: maximumSerpRequests, reserved_requests: serpRequests });
-      url.searchParams.set("no_cache", "true");
+      // Preserve the provider's normal cache behavior. A fresh service run has
+      // no seeded person data; forcing paid cache bypass adds no such guarantee.
     } else if (!["eutils.ncbi.nlm.nih.gov", "api.crossref.org"].includes(url.hostname)) throw new Error("Unexpected JSON adapter host.");
     return fetch(url, init);
   },
@@ -94,6 +95,7 @@ const { forbiddenOutputFragments: _privateOutputFilters, ...publicPolicy } = con
 save("execution-policy", { input, policy: publicPolicy, maximum_serpapi_requests: maximumSerpRequests,
   medical_skill_bundle_sha256: medicalSkillBundle.digest,
   diagnostic_replay: replay !== null, fresh_case_acceptance_eligible: replay === null,
+  provider_search_cache_bypassed: false,
   public_api_or_admission_tested: false, production_database_writable: false });
 console.log(JSON.stringify({ event: "workflow_probe_started", input: original, maximum_serpapi_requests: maximumSerpRequests }));
 if (process.argv.includes("--preflight")) {
@@ -126,7 +128,8 @@ try {
           telemetry: researchModelCallTelemetryFromError(error) ?? null }); throw error;
       }
     } },
-    onValidationFailure: event => { validationFailures.push(event); console.log(JSON.stringify({ event: "validation_failure", ...event })); }
+    onValidationFailure: event => { validationFailures.push(event); console.log(JSON.stringify({ event: "validation_failure", ...event })); },
+    onResourceBudgetFailure: event => { budgetFailures.push(event); console.log(JSON.stringify({ event: "resource_budget_failure", ...event })); }
   });
   let result = await execute();
   const attempts = [{ lease_generation: lease.token.generation, elapsed_ms: Date.now() - started, result }];
@@ -158,7 +161,7 @@ try {
   save("result", { original, result, elapsed_ms: Date.now() - started, serpapi_requests: serpRequests,
     attempts, diagnostic_replay: replay !== null, fresh_case_acceptance_eligible: replay === null,
     legacy_calls: legacyCalls, model_requests: modelRequests, renew_error: renewError, checked_artifacts: checkedArtifacts,
-    model_calls: modelCalls, validation_failures: validationFailures, external_calls: externalCalls,
+    model_calls: modelCalls, validation_failures: validationFailures, external_calls: externalCalls, budget_failures: budgetFailures,
     public_api_or_admission_tested: false });
   console.log(JSON.stringify({ event: "workflow_probe_completed", result, elapsed_ms: Date.now() - started,
     serpapi_requests: serpRequests, legacy_calls: legacyCalls, model_requests: modelRequests, artifacts: checkedArtifacts }));
@@ -166,7 +169,7 @@ try {
   save("result", { original, result: { outcome: "probe_error", error_name: error?.name, error_code: error?.code ?? null,
     error_message: String(error?.message ?? "").replace(/(?:Bearer\s+|(?:api_key|token)=)[^\s&]+/giu, "[redacted]").slice(0, 500) },
     elapsed_ms: Date.now() - started, serpapi_requests: serpRequests, legacy_calls: legacyCalls, model_requests: modelRequests,
-    model_calls: modelCalls, validation_failures: validationFailures });
+    model_calls: modelCalls, validation_failures: validationFailures, budget_failures: budgetFailures });
 } finally {
   clearInterval(timer);
   const checkpoints = store.database.prepare("SELECT stage, checkpoint_version, payload_json FROM research_checkpoints WHERE run_id=?").all(lease.run.runId);

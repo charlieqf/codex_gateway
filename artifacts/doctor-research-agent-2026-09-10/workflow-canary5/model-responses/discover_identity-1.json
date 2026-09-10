@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"沈嵘 南京市妇幼保健院 党委书记\",\"purpose\":\"确认沈嵘在南京市妇幼保健院的身份与职务\"}]}",
+  "usage": {
+    "promptTokens": 1038,
+    "completionTokens": 38,
+    "reasoningTokens": 0,
+    "totalTokens": 1076
+  },
+  "gatewayRequestId": "req-0246230c-94cf-4785-8f49-55852bb1a476"
+}

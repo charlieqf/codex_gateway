@@ -305,6 +305,11 @@ export async function runResearchWorker(input: {
               policy: config.workflowPolicy,
               medicalSkillBundle,
               signal,
+              onResourceBudgetFailure(event) {
+                logger.info("research_resource_budget_exceeded", { run_id: event.runId,
+                  lease_generation: currentToken.generation, limit: event.limit,
+                  observed: event.observed, maximum: event.maximum });
+              },
               onValidationFailure(event) {
                 logger.info("research_model_validation_failed", {
                   run_id: event.runId,

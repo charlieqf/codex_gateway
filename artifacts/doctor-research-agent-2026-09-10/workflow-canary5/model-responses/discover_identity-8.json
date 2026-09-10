@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"沈嵘\",\"institution\":\"南京市妇幼保健院（南京医科大学附属妇产医院）\",\"department\":\"党委书记\",\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"quote\":\"市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\",\"explanation\":\"The official Nanjing Municipal Health Commission website identifies 沈嵘 as 党委书记 of 南京市妇幼保健院, confirming the person and hospital administrative role.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"quote\":\"沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\",\"explanation\":\"The China Association for Healthy Birth and Child Development committee roster lists 沈嵘 (female) with her institution as 南京市妇幼保健院（南京医科大学附属妇产医院）, confirming the hospital–university affiliation in the original language.\"},{\"aspect\":\"department\",\"sourceId\":\"src_c28f7186a433ebd4ce26bda1d7d51edf\",\"quote\":\"近日，南京市妇幼保健院党委书记沈嵘接受了凤凰网江苏的专访，并就医院今年的工作重点、新院区的发展规划以及提升患者满服务水平等方面进行了深入交流。\",\"explanation\":\"A 2024 Phoenix News interview explicitly names 沈嵘 as 党委书记 of 南京市妇幼保健院, corroborating the requested 附属妇产医院党委书记 role; note that the additional requested title 第四临床医学院副院长 was not found in any read source and remains unverified.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"quote\":\"沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\",\"explanation\":\"A national professional association roster listing her as 副主任委员 with clinical and academic titles (主任医师、教授、博士生导师) establishes her professional standing; the page is published by 中国优生优育协会, an authoritative association body.\"}]}}",
+  "usage": {
+    "promptTokens": 8326,
+    "completionTokens": 725,
+    "reasoningTokens": 241,
+    "totalTokens": 9051
+  },
+  "gatewayRequestId": "req-9acff3d0-e1ca-4202-aaf2-4be49a797b92"
+}

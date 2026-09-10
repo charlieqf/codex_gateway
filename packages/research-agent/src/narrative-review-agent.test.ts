@@ -111,7 +111,25 @@ describe("narrative review Agent boundary", () => {
     expect(initial).toEqual(draft());
   });
 
-  it.each(["stale_candidate", "edit_on_accept", "missing_checks", "uncertain_check", "immutable_target", "wrong_target_type", "duplicate_target", "no_subsequent_review"])("fails closed for %s", async kind => {
+  it("allows source-grounded core descriptions to be corrected, while fixing source identity and requiring another review", async () => {
+    const initial = draft();
+    const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence, maximumCalls: 3, inspect,
+      async generate({ prompt, call }) {
+        const data = payload(prompt);
+        const target = data.editable_targets.find((item: { target_id: string }) => item.target_id === "core_row_1_methods");
+        expect(target.reference_id).toBe("ref_1");
+        expect(data.editable_targets.some((item: { target_id: string }) => item.target_id === "core_row_1_reference_id")).toBe(false);
+        if (call === 1) return JSON.stringify(decision(prompt, { decision: "revise", replacements: [{ target_id: target.target_id, value: "The abstract does not specify the method." }] }));
+        expect(target.value).toBe("The abstract does not specify the method.");
+        return JSON.stringify(decision(prompt));
+      }
+    });
+    expect(result?.calls).toBe(2);
+    expect(result?.draft.review.core_evidence[0]).toMatchObject({ reference_id: "ref_1", methods: "The abstract does not specify the method." });
+    expect(initial.review.core_evidence[0]!.methods).toBe("Synthesis");
+  });
+
+  it.each(["stale_candidate", "edit_on_accept", "missing_checks", "uncertain_check", "immutable_target", "immutable_core_reference", "wrong_target_type", "duplicate_target", "no_subsequent_review"])("fails closed for %s", async kind => {
     const result = await reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence, maximumCalls: 1, inspect,
       async generate({ prompt }) {
         const data = payload(prompt);
@@ -121,9 +139,10 @@ describe("narrative review Agent boundary", () => {
         if (kind === "stale_candidate") base.candidate_sha256 = "0".repeat(64);
         if (kind === "missing_checks") base.checks = {} as typeof base.checks;
         if (kind === "uncertain_check") base.checks.numerical_claims = "uncertain";
-        if (["edit_on_accept", "immutable_target", "wrong_target_type", "duplicate_target", "no_subsequent_review"].includes(kind)) {
+        if (["edit_on_accept", "immutable_target", "immutable_core_reference", "wrong_target_type", "duplicate_target", "no_subsequent_review"].includes(kind)) {
           base.decision = kind === "edit_on_accept" ? "accept" : "revise";
           if (kind === "immutable_target") patch.target_id = "immutable_profile";
+          if (kind === "immutable_core_reference") patch.target_id = "core_row_1_reference_id";
           if (kind === "wrong_target_type") patch.value = [];
           base.replacements = (kind === "duplicate_target" ? [patch, patch] : [patch]) as never[];
         }

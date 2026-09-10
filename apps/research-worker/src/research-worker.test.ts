@@ -3428,6 +3428,25 @@ describe("Research Worker controlled-beta workflow", () => {
     expect(adapterCalled).toBe(false);
   });
 
+  it("reports the specific input cap without issuing or charging the rejected Agent model request", async () => {
+    const fixture = createLeasedWorkflowFixture("agent_input_cap_diagnostic");
+    const failures: Array<{ limit: string; observed?: number; maximum?: number }> = [];
+    let calls = 0;
+    const result = await executeDoctorResearchWorkflow({ lease: fixture.lease, store: fixture.store,
+      adapters: { ...adapters(), async searchWeb() { throw new Error("Search must not run before the first model decision."); }, async readWebPage() { throw new Error("No page should be read."); } },
+      modelClient: { model: "test-model", async generate() { calls++; throw new Error("No model call should be sent."); } },
+      artifactRoot: fixture.artifactRoot, policy: { ...workflowPolicy(), identityAgentEnabled: true, maximumInputTokensPerCall: 64 },
+      signal: new AbortController().signal, now: () => fixture.now, onResourceBudgetFailure(event) { failures.push(event); }
+    });
+    expect(result).toMatchObject({ outcome: "failed", reason: "resource_budget_exceeded" });
+    expect(calls).toBe(0);
+    expect(failures).toEqual([expect.objectContaining({ limit: "per_call_input_tokens", maximum: 64 })]);
+    expect(failures[0]!.observed).toBeGreaterThan(64);
+    const budget = fixture.store.database.prepare("SELECT llm_calls FROM research_run_budgets WHERE run_id=?").get(fixture.lease.run.runId) as { llm_calls: number } | undefined;
+    expect(budget?.llm_calls ?? 0).toBe(0);
+    fixture.store.close();
+  });
+
   it("preflights the cleanup wall-clock reserve before charging a model call", async () => {
     const fixture = createLeasedWorkflowFixture("model_wall_preflight");
     let adapterCalls = 0;
@@ -3760,8 +3779,9 @@ describe("Research Worker controlled-beta workflow", () => {
     { requireLongerAnswers: false, resumeAfterTransientFailure: true, narrativeAgent: false, revisionRounds: 0 },
     { requireLongerAnswers: false, resumeAfterTransientFailure: true, narrativeAgent: true, revisionRounds: 0 },
     { requireLongerAnswers: true, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0 },
-    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 3 }
-  ])("carries reviewed Agent evidence through artifact storage (strict answer: $requireLongerAnswers; recovery: $resumeAfterTransientFailure; narrative Agent: $narrativeAgent; revisions: $revisionRounds)", async ({ requireLongerAnswers, resumeAfterTransientFailure, narrativeAgent, revisionRounds }) => {
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 3 },
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0, reviseCoreEvidence: true }
+  ])("carries reviewed Agent evidence through artifact storage (strict answer: $requireLongerAnswers; recovery: $resumeAfterTransientFailure; narrative Agent: $narrativeAgent; revisions: $revisionRounds)", async ({ requireLongerAnswers, resumeAfterTransientFailure, narrativeAgent, revisionRounds, reviseCoreEvidence }) => {
     const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring", { ...runInput(), ...(narrativeAgent ? { language: "zh-CN" as const } : {}) });
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
     const queryLog: string[] = [];
@@ -3808,7 +3828,7 @@ describe("Research Worker controlled-beta workflow", () => {
           discoveryCalls++;
           response = discoveryCalls === 1 ? { actions: [{ type: "search", query: "Example Doctor" }] }
             : discoveryCalls === 2 ? { actions: [{ type: "read", url: source.url }] }
-            : { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+            : { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology", limitations: ["The additional administrative appointment remains unverified."],
               citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId,
                 quote: source.untrustedText, explanation: "Scripted identity decision; semantic accuracy is evaluated separately." })) } };
         } else if (request.stage === "resolve_identity" || request.stage === "screen_and_extract_evidence") response = { accepted: true, issues: [] };
@@ -3842,6 +3862,8 @@ describe("Research Worker controlled-beta workflow", () => {
               replacements: [{ target_id: target.target_id,
                 value: "公开摘要证据的规范综合：" + ["设计", "比较", "解释"][narrativeReviews - 1] }] };
           }
+          if (reviseCoreEvidence && narrativeReviews === 1) response = { ...(response as Record<string, unknown>), decision: "revise",
+            replacements: [{ target_id: "core_row_1_methods", value: "公开摘要未详述具体研究方法。" }] };
         }
         else {
           expect(request.stage).not.toBe("infer_research_topics");
@@ -3888,6 +3910,11 @@ describe("Research Worker controlled-beta workflow", () => {
       representative_outputs: [expect.stringContaining("Retrieved Clinical Evidence")]
     }, review: { core_evidence: [expect.objectContaining({ study_type: "Design not specified in the brief source abstract" })] }, artifacts: expect.any(Array) } });
     expect((result!.result.artifacts as unknown[])).toHaveLength(4);
+    expect(JSON.stringify(result!.result)).toContain("The additional administrative appointment remains unverified.");
+    if (reviseCoreEvidence) {
+      expect(narrativeReviews).toBe(2);
+      expect(result!.result).toMatchObject({ review: { core_evidence: [expect.objectContaining({ methods: "公开摘要未详述具体研究方法。" })] } });
+    }
     fixture.store.close();
   });
 

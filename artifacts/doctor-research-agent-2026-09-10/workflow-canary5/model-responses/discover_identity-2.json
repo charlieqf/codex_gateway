@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://m.ysyy.org.cn/123/202105/458.html\",\"find\":\"沈嵘\",\"purpose\":\"confirm Shen Rong's name, hospital, title including party secretary and clinical role\"},{\"type\":\"read\",\"url\":\"https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html\",\"find\":\"沈嵘\",\"purpose\":\"corroborate Shen Rong as party committee secretary of Nanjing Maternity and Child Health Care Hospital from an authoritative government source\"}]}",
+  "usage": {
+    "promptTokens": 1630,
+    "completionTokens": 187,
+    "reasoningTokens": 63,
+    "totalTokens": 1817
+  },
+  "gatewayRequestId": "req-533d947f-dd2c-4cf3-9fcf-1c998b7ba154"
+}

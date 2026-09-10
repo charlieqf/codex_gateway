@@ -1,0 +1,10 @@
+{
+  "text": "{\"findings\":[{\"target_id\":\"review_block_10\",\"source_id\":\"src_pubmed_42288187\",\"explanation\":\"草稿称侵蚀性手骨关节炎组年龄标化骨折发生率'58.5/1000人年，显著高于无手骨关节炎组的30.2/1000人年'。摘要仅报告两组SIR及其95%CI（58.5/1000PY，95%CI 16.6-155.7 对 30.2/1000PY，95%CI 10.9-66.6），置信区间重叠极大且未报告任何组间显著性检验，'显著高于'是摘要未支持的推断。\"},{\"target_id\":\"review_block_19\",\"source_id\":\"src_pubmed_42513484\",\"explanation\":\"草稿表述为'ESCORT随机对照试验比较了地诺单抗与艾地骨化醇或普通维生素D在绝经后骨质疏松女性中的疗效和安全性'，读起来像地诺单抗对比艾地骨化醇/维生素D。摘要显示两组均接受地诺单抗，实际比较的是加用艾地骨化醇与加用天然维生素D加钙两种联合方案；且对照方案还含钙剂600 mg/日，草稿未提及。\"},{\"target_id\":\"review_block_4\",\"source_id\":\"src_pubmed_42513484\",\"explanation\":\"草稿称'纳入100名绝经后中国骨质疏松女性'并直接引述两组12个月疗效结果。摘要明确100例为随机人数，疗效分析仅纳入91例（艾地骨化醇组45例、对照46例）；未说明该差异可能使读者误以为全部100例进入疗效分析。\"},{\"target_id\":\"review_block_6\",\"source_id\":\"src_pubmed_42466020\",\"explanation\":\"草稿将入选标准表述为'腰椎和/或股骨颈骨密度仍低于-2.5SD'。摘要原文为'lumbar and femoral neck bone mineral density below -2.5 SD'，字面上是腰椎和股骨颈均低于-2.5 SD，'和/或'的表述与摘要字面不符，且摘要未提供可支持'或'解读的细节。\"},{\"target_id\":\"review_block_16\",\"source_id\":\"src_pubmed_42460309\",\"explanation\":\"草稿称'在临床疗效与腰背痛方面，中药联合针刺表现最佳'。摘要显示临床疗效最佳确为TCM_Acu，但腰背痛方面最佳的是TCM_Acu（不含双膦酸盐）与CT_VD_BP_双膦酸盐_中药_针刺_艾灸（含双膦酸盐）两个组合，将腰背痛最佳 solely 归于中药联合针刺不完整。\"}]}",
+  "usage": {
+    "promptTokens": 14783,
+    "completionTokens": 2586,
+    "reasoningTokens": 1983,
+    "totalTokens": 17369
+  },
+  "gatewayRequestId": "req-ff7b9e43-2e6a-44d0-a697-bb2274c81388"
+}

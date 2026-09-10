@@ -1,0 +1,10 @@
+{
+  "text": "{\"accepted\":false,\"issues\":[\"The sources support 沈嵘 as 党委书记 of 南京市妇幼保健院 (南京医科大学附属妇产医院), but there is no evidence for the requested title '第四临床医学院副院长'. No supplied source mentions Nanjing Medical University's Fourth Clinical College or any vice-dean appointment, so that part of the requested identity is unverified and needs a source from the university or hospital confirming the specific administrative appointment.\"]}",
+  "usage": {
+    "promptTokens": 2389,
+    "completionTokens": 131,
+    "reasoningTokens": 36,
+    "totalTokens": 2520
+  },
+  "gatewayRequestId": "req-da7e0d8d-3e4a-4764-b2f0-dda04bc09489"
+}

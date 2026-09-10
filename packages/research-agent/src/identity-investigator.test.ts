@@ -36,6 +36,25 @@ const searchAction = { actions: [{ type: "search", query: "Alice Example Example
 const readAction = { actions: [{ type: "read", url: directory.url }] };
 
 describe("Evidence-driven identity investigator (offline tools and scripted model)", () => {
+  it("passes an unverified extra appointment as a limitation through independent identity review", async () => {
+    const limitation = "The additional university administrative appointment has not been verified.";
+    const proposal = { ...conclusion(profile), limitations: [limitation] };
+    const generate = scripted([
+      { actions: [{ type: "search", query: "Alice Example" }] },
+      { actions: [{ type: "read", url: profile.url }] },
+      { identity: proposal }, { accepted: true, issues: [] }
+    ]);
+    const result = await investigateDoctorIdentity({ doctor: { ...doctor, department: "Cardiology; university deputy dean" }, dependencies: {
+      search: async () => [{ url: profile.url, title: profile.title, snippet: "" }], read: async () => profile,
+      generate, save: async () => {}, signal: new AbortController().signal
+    } });
+    expect(result).toMatchObject({ outcome: "resolved", identity: { department: "Cardiology", limitations: [limitation] } });
+    const review = (generate.mock.calls[3] as unknown as [{ prompt: string; system: string }])[0];
+    expect(JSON.parse(review.prompt).proposed_identity.limitations).toEqual([limitation]);
+    expect(review.system).toContain("identity disambiguation, not exhaustive biography verification");
+    expect(() => validateConclusion({ ...proposal, limitations: [123] }, [profile])).toThrow("Identity limitations");
+  });
+
   it("lets a rejected relationship lead to actual-link navigation and new evidence", async () => {
     const generate = scripted([
       searchAction, readAction, { identity: conclusion(directory) },

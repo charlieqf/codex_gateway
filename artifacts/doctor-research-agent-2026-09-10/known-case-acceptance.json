@@ -17,7 +17,29 @@
         "hospital": "南京市妇幼保健院",
         "department": "第四临床医学院副院长、附属妇产医院党委书记"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary5/result.json",
+          "outcome": "failed",
+          "reported_reason": "resource_budget_exceeded",
+          "diagnosed_reason": "Search succeeded in 17.905 seconds and sources established the name, hospital and party-secretary role. The reviewer unnecessarily required evidence for an additional administrative appointment; investigation reached its eight-call budget before another independent review.",
+          "elapsed_ms": 78602,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary5/result.json",
+        "outcome": "failed",
+        "reported_reason": "resource_budget_exceeded",
+        "diagnosed_reason": "Search succeeded in 17.905 seconds and sources established the name, hospital and party-secretary role. The reviewer unnecessarily required evidence for an additional administrative appointment; investigation reached its eight-call budget before another independent review.",
+        "elapsed_ms": 78602,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_02",

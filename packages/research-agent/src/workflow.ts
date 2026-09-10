@@ -174,6 +174,7 @@ export async function executeDoctorResearchWorkflow(input: {
     errorCodes: readonly string[];
     errorDetails?: readonly string[];
   }) => void;
+  onResourceBudgetFailure?: (event: { runId: string; limit: string; observed?: number; maximum?: number }) => void;
   now?: () => Date;
 }): Promise<DoctorResearchWorkflowResult> {
   const now = input.now ?? (() => new Date());
@@ -230,6 +231,7 @@ export async function executeDoctorResearchWorkflow(input: {
       : resolveIdentity(context.run, identityEvidence);
     if (!identity) {
       if ("agentFailureReason" in identityEvidence && identityEvidence.agentFailureReason) {
+        if (identityEvidence.agentFailureReason === "resource_budget_exceeded") context.reportBudgetFailure("identity_investigation");
         return { outcome: "failed", reason: identityEvidence.agentFailureReason,
           ...(identityEvidence.agentFailureReason === "upstream_unavailable" ? { retryable: true, dependencyScope: "request" as const } : {}) };
       }
@@ -246,6 +248,7 @@ export async function executeDoctorResearchWorkflow(input: {
       ? await collectAgentResearchEvidence(context, identity, doctorLookupBrief)
       : null;
     if (investigated?.outcome === "unresolved") {
+      if (investigated.reason === "budget_exhausted") context.reportBudgetFailure("evidence_investigation");
       return { outcome: "failed", reason: investigated.reason === "budget_exhausted" ? "resource_budget_exceeded" :
         investigated.reason === "upstream_unavailable" ? "upstream_unavailable" : "insufficient_research_evidence",
         ...(investigated.reason === "upstream_unavailable" ? { retryable: true, dependencyScope: "request" as const } : {}) };
@@ -561,9 +564,11 @@ export async function executeDoctorResearchWorkflow(input: {
       return { outcome: "fenced_or_cancelled" };
     }
     if (error instanceof IdentityInvestigationBudgetError || error instanceof EvidenceInvestigationBudgetError || error instanceof NarrativeReviewBudgetError) {
+      context.reportBudgetFailure(error instanceof NarrativeReviewBudgetError ? "narrative_prompt_bytes" : error.limit);
       return { outcome: "failed", reason: "resource_budget_exceeded" };
     }
     if (error instanceof WorkflowBudgetError) {
+      context.reportBudgetFailure(error.limit, error.observed, error.maximum);
       return {
         outcome: "failed",
         reason:
@@ -961,6 +966,12 @@ class WorkflowContext {
     }
   }
 
+  reportBudgetFailure(limit: string, observed?: number, maximum?: number): void {
+    try { this.input.onResourceBudgetFailure?.({ runId: this.run.runId, limit,
+      ...(observed === undefined ? {} : { observed }), ...(maximum === undefined ? {} : { maximum }) });
+    } catch { /* Diagnostic sinks must not change task outcomes. */ }
+  }
+
   private reserveModel(
     system: string,
     prompt: string,
@@ -973,7 +984,7 @@ class WorkflowContext {
       reservedInputTokens >
       this.input.policy.maximumInputTokensPerCall
     ) {
-      throw new WorkflowBudgetError("per_call_input_tokens");
+      throw new WorkflowBudgetError("per_call_input_tokens", reservedInputTokens, this.input.policy.maximumInputTokensPerCall);
     }
     const reservedOutputTokens =
       maximumOutputTokens ??
@@ -984,7 +995,7 @@ class WorkflowContext {
       reservedOutputTokens >
         this.input.policy.maximumOutputTokensPerCall
     ) {
-      throw new WorkflowBudgetError("per_call_output_tokens");
+      throw new WorkflowBudgetError("per_call_output_tokens", reservedOutputTokens, this.input.policy.maximumOutputTokensPerCall);
     }
     this.charge({
       externalRequests: 0,
@@ -2066,7 +2077,7 @@ async function collectAgentResearchEvidence(
   identity.sources = identity.sourceEvidence.map(({ untrusted_text: _text, ...source }) => source);
   identity.profileSourceIds = uniqueBy([...identity.profileSourceIds, ...facts.flatMap(f => f.citations.map(c => c.sourceId))], x => x);
   identity.reviewedProfile = profileFromInvestigatedFacts(facts, identity.profileSourceIds);
-  identity.researchLimitations = result.evidence.limitations;
+  identity.researchLimitations = [...(identity.investigatedIdentity.limitations ?? []), ...result.evidence.limitations];
   const selectedDoctor = result.evidence.doctorPublications.map(p => p.pmid);
   const selectedField = profileOnly ? selectedDoctor : uniqueBy([
     ...result.evidence.coreEvidence.map(p => p.pmid), ...result.evidence.fieldPublications.map(p => p.pmid)
@@ -5690,7 +5701,7 @@ async function reviewShardedNarrativeWithAgent(
       // The legacy detectors supply fallible observations. The Agent, not
       // substring equality, decides whether their semantic concerns are real.
       const result = validateGeneratedOutput(JSON.stringify(candidate), context.run, identity, evidence,
-        { ...context.input.policy, identityAgentEnabled: false });
+        { ...context.input.policy, identityAgentEnabled: false }, { preserveCandidateCoreEvidence: true });
       return splitNarrativeDiagnostics(result.ok ? [] : result.errors);
     },
     async generate(request) {
@@ -5713,7 +5724,8 @@ async function reviewShardedNarrativeWithAgent(
     }
   });
   if (!reviewed) return null;
-  const result = validateGeneratedOutput(JSON.stringify(reviewed.draft), context.run, identity, evidence, context.input.policy);
+  const result = validateGeneratedOutput(JSON.stringify(reviewed.draft), context.run, identity, evidence, context.input.policy,
+    { preserveCandidateCoreEvidence: true });
   if (!result.ok) {
     context.reportValidationFailure("validate_outputs", firstAttempt + reviewed.calls - 1, result.errorCodes, result.errors);
     return null;
@@ -8006,7 +8018,7 @@ function validateGeneratedOutput(
   identity: NonNullable<ReturnType<typeof resolveIdentity>>,
   evidence: WorkflowEvidence,
   policy: DoctorResearchWorkflowPolicy,
-  options: { presentationRepair?: boolean } = {}
+  options: { presentationRepair?: boolean; preserveCandidateCoreEvidence?: boolean } = {}
 ):
   | {
       ok: true;
@@ -8056,7 +8068,7 @@ function validateGeneratedOutput(
   } else {
     throw new Error("Unreachable Research model draft validation state.");
   }
-  if (evidence.reviewedCoreEvidence) {
+  if (evidence.reviewedCoreEvidence && !options.preserveCandidateCoreEvidence) {
     // Study interpretation was already performed and independently reviewed with actual abstracts.
     // Writing and presentation repair cannot replace it with unreviewed classifications or findings.
     draft.review.core_evidence = structuredClone(evidence.reviewedCoreEvidence);
@@ -11602,7 +11614,7 @@ class WorkflowModelContractError extends Error {
   }
 }
 class WorkflowBudgetError extends Error {
-  constructor(readonly limit: string) {
+  constructor(readonly limit: string, readonly observed?: number, readonly maximum?: number) {
     super(`Research workflow budget exceeded: ${limit}`);
     this.name = "WorkflowBudgetError";
   }

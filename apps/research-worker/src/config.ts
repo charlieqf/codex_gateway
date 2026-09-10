@@ -536,8 +536,13 @@ export function loadResearchWorkerConfig(
     topicModelCalls * researchTopicInferenceModelBudget.maximumOutputTokens + identityModelCalls * Math.min(3_000, maximumOutputTokensPerCall) +
     evidenceModelCalls * Math.min(10_000, maximumOutputTokensPerCall);
   const requiredInputTokenBudget =
-    maximumInputTokensPerCall * fullSynthesisCallCount +
-    topicModelCalls * researchTopicInferenceModelBudget.maximumInputTokens + (identityModelCalls + evidenceModelCalls) * maximumInputTokensPerCall;
+    // Agent prompt sizes depend on the evidence and working state. The input
+    // cap is a shared, durably charged pool, not 29 reservations of the largest
+    // possible prompt. Require room for a permitted call; the Workflow checks
+    // every actual reservation and still enforces the aggregate hard limit.
+    identityAgentEnabled ? maximumInputTokensPerCall :
+      maximumInputTokensPerCall * fullSynthesisCallCount +
+      topicModelCalls * researchTopicInferenceModelBudget.maximumInputTokens;
   if (
     budgets.llmCalls !== fullSynthesisCallCount + topicModelCalls + identityModelCalls + evidenceModelCalls ||
     maximumOutputTokensPerCall <

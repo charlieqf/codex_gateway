@@ -1,0 +1,1292 @@
+[
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "10db9fd3dcc56cb56bd6dac2b30548a92fb4bbe6b052ef12fff5b08ba0425952",
+      "searches": [
+        {
+          "query": "沈嵘 南京市妇幼保健院 党委书记",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "title": "生育健康与出生缺陷防控专业委员会",
+              "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+            },
+            {
+              "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+              "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+              "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+              "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+            },
+            {
+              "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+              "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+              "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+            },
+            {
+              "url": "https://www.sohu.com/a/1068747293_132627",
+              "title": "新闻集锦｜南京市妇幼保健院2026年第二批援疆医疗队启程",
+              "snippet": "医院党委书记沈嵘带队前往机场为医疗队员送行。 图片. 沈嵘书记对两位队员主动担当、援疆奉献的精神予以肯定。送别现场，她指出，对口援疆是服务国家 ..."
+            },
+            {
+              "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+              "title": "南京市妇幼：迎接“一院两区”新格局全力守护女性全生命周期健康",
+              "snippet": "专访南京市妇幼保健院党委书记沈嵘： ; 迎接“一院两区”新格局，全力守护女性全生命周期健康 ; 布局“一院两区”，扩容优质医疗资源 ; 服务水平精细化，医疗关怀深入人心."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "url": "https://m.ysyy.org.cn/123/202105/458.html",
+          "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+          "accessedAt": "2026-09-10T22:02:17.776Z",
+          "contentSha256": "82da16e47cd94d134db47b294f98383427967383e55c162123ccdd1fa9a0a0ce",
+          "untrustedText": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://m.ysyy.org.cn/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会概况"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/11/202104/58.html",
+              "text": "章程规制"
+            },
+            {
+              "url": "https://www.ysyy.org.cn/62/202107/798.html",
+              "text": "办事机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/59/index.html",
+              "text": "协会领导"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/15/index.html",
+              "text": "协会历史"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/378/index.html",
+              "text": "杰出专家"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/377/index.html",
+              "text": "先进典型"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/16/index.html",
+              "text": "协会文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/355/index.html",
+              "text": "协会年鉴"
+            },
+            {
+              "url": "https://www.mysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/357/index.html",
+              "text": "品牌大会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/358/index.html",
+              "text": "协会刊物"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "新闻资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "协会资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/19/index.html",
+              "text": "通知公告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/18/index.html",
+              "text": "社会要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/21/index.html",
+              "text": "法律/法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/389/index.html",
+              "text": "政策/解读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "党建政工"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "学习必读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/23/index.html",
+              "text": "上级文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/24/index.html",
+              "text": "支部建设"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/353/index.html",
+              "text": "思想园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/354/index.html",
+              "text": "阅读推荐"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/26/index.html",
+              "text": "会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/27/index.html",
+              "text": "单位会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/28/index.html",
+              "text": "会员园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/29/index.html",
+              "text": "表格下载"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "分支机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "专业委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/31/index.html",
+              "text": "工作委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/374/index.html",
+              "text": "管理规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/375/index.html",
+              "text": "行业动态"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/376/index.html",
+              "text": "年度考评"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "教育培训"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "培训计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/33/index.html",
+              "text": "培训规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/34/index.html",
+              "text": "证书查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/359/index.html",
+              "text": "培训要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/360/index.html",
+              "text": "基层活动"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/361/index.html",
+              "text": "政策法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/362/index.html",
+              "text": "中优大讲堂"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "科研科普"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "研究报告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/36/index.html",
+              "text": "行业标准"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/37/index.html",
+              "text": "十大课题"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/38/index.html",
+              "text": "千天计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/39/index.html",
+              "text": "童真中国"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/363/index.html",
+              "text": "乡村服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "地方协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "省市优生优育类协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/42/index.html",
+              "text": "省市妇幼保健协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "社会服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "宏观数据"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/371/index.html",
+              "text": "乡村振兴"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/372/index.html",
+              "text": "家庭服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "text": "分会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/125/index.html",
+              "text": "分会动态"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+          "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+          "accessedAt": "2026-09-10T22:02:18.859Z",
+          "contentSha256": "141bd01b85cf6fca8ec93bcd1574019868b7e92c7633ed08562d41a5cb9522cf",
+          "untrustedText": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://wjw.nanjing.gov.cn/jgxx/",
+              "text": "机构信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/",
+              "text": "政府信息公开"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/",
+              "text": "互动交流"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/",
+              "text": "办事服务"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/",
+              "text": "专题专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+              "text": "概况信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+              "text": "财政信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+              "text": "人事信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+              "text": "部门文件"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+              "text": "统计信息及解读"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+              "text": "信息公开指南"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+              "text": "来信办理统计"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+              "text": "主任信箱"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+              "text": "调查征集"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+              "text": "权力清单"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+              "text": "下载服务"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/doctor",
+              "text": "医生执业注册信息查询"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/nurse",
+              "text": "护士执业注册信息查询"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+              "text": "“双随机、一公开”监管专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+              "text": "双公示专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/",
+              "text": "首页"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/",
+              "text": "工作动态"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "text": "【我要纠错】"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/wzdh/",
+              "text": "网站地图"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/lxwm/",
+              "text": "联系我们"
+            },
+            {
+              "url": "https://beian.miit.gov.cn/",
+              "text": "苏ICP备05004952号-7"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_c28f7186a433ebd4ce26bda1d7d51edf",
+          "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+          "title": "南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康_凤凰网",
+          "accessedAt": "2026-09-10T22:03:02.333Z",
+          "contentSha256": "b9221577edfdb860c1901ad2ba3d26272662e613701ee9d433f479f7fecf4f6b",
+          "untrustedText": "南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康_凤凰网\n首页\n资讯\n视频\n直播\n凤凰卫视\n财经\n娱乐\n体育\n时尚\n汽车\n房产\n科技\n军事\n文化\n旅游\n佛教\n国学\n数码\n更多\n健康\n公益\n教育\n酒业\n美食\n江苏 > 南京 > 正文\n南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康\n凤凰网江苏\n下载客户端\n独家抢先看\n2024年03月04日 18:20:44 来自江苏\n专访南京市妇幼保健院党委书记沈嵘：\n迎接“一院两区”新格局，全力守护女性全生命周期健康\n妇幼健康，作为全民健康的基础，是关系到千家万户的民生大事。\n南京市妇幼保健院，自1936年创建以来，始终坚持“以保健为中心、以保障生殖健康为目的，保健与临床相结合，面向群体、面向基层和预防为主”的妇幼卫生工作方针，常年为南京及周边地区妇女儿童提供多层次、全方位健康保健和疾病预防诊疗服务，稳居全国妇产专科医院第一方阵。\n如今，在公立医院高质量发展的新时代背景下，妇幼健康已处于维护全生命周期健康优先发展地位，南京市妇幼保健院也必然肩负重任。\n南京市妇幼保健院党委书记 沈嵘\n“2024年，南京市妇幼保健院将迎来前所未有的机遇，随着今年丁家庄院区的建成并试运行，我们将正式迈入‘一院两区’的全新格局，围绕女性全生命周期提供更加优质的健康服务。”近日，南京市妇幼保健院党委书记沈嵘接受了凤凰网江苏的专访，并就医院今年的工作重点、新院区的发展规划以及提升患者满服务水平等方面进行了深入交流。\n布局“一院两区”，扩容优质医疗资源\n南京市妇幼保健院丁家庄院区项目是南京市政府2019年重点打造的民生工作，2019年12月16日正式启动，2021年12月16日，门诊楼、病房楼、综合楼三幢主楼主体封顶，项目整体预计2024年6月竣工交付。\n沈嵘介绍，建设南京市妇幼保健院丁家庄院区，是市委、市政府坚持民生为本、着力改善民生、提升医疗保健水平的重大民生工程，也是提升省会城市功能和中心城市首位度的重要支撑。新院区建设以“大专科、小综合”原则，设置1200张床位，其中1000张用于妇产科、儿科，200张用于内外科。\n医院提出的更高的“强专科、精综合”的自我要求，沈嵘表示，市妇幼将重点强化传统的妇产科、儿科、妇科、产科、生殖医学和产前诊断等专科，同时精心打造综合内外科，以更好地满足女性群体的特殊需求。例如，针对甲状腺、乳腺等这类女性发病率比较高的疾病，增设普外科，不断提升综合急救能力和产科妊娠合并症的处置能力，设立综合内科、重症医学科、血液净化中心、等相关科室。此外，医院还将开设消化内镜中心、健康体检中心，发展疼痛科等为女性服务的特色科室，聚焦女性全生命周期提供更加精细化的医疗服务。\n儿科方面，沈嵘表示，虽然南京已有强大的儿童医院，但丁家庄新院区刚好跟儿童医院，一个在城市的西南角，一个在东北角，地理位置的优化分布，将进一步提升南京地区妇女儿童就医的便捷性。为此，丁家庄院区将发展一部分综合儿科，包括呼吸消化、内分泌、儿外科等，以满足更多患儿的需求。特别是新生儿外科的开设，将为出生缺陷的干预提供更为全面的支持。\n守护妇女儿童全生命周期，尤其是女性全生命周期健康，既是南京市妇幼保健院的优势和根本职责，也是医院向医疗高地迈进的动力和前行方向。沈嵘表示，“强专科、精综合”也将更好地满足女性对健康的多元化需求。\n以全生命周期健康管理服务为主线，以护佑妇女儿童健康为己任，南京市妇幼保健院正全力打造国内一流、特色鲜明的创新型、研究型、智慧型、舒适化的妇幼保健院，用心用情用力托起广大妇女健康梦。\n服务水平精细化，医疗关怀深入人心\n打造全生命周期健康体系，根本取决于就诊群体对医院的信赖与认可。而如何让患者满意，赢得患者信任？沈嵘在采访中说道，患者就医感受至关重要，主要是两方面，一方面是服务，另一方面是技术。\n一直以来，南京市妇幼保健院在医疗技术提升和创新上不遗余力。沈嵘介绍，十三五期间，医院提出了打造无痛医院的目标，尤其是在分娩镇痛、无痛生育力保护、无痛取卵等方面实现了全国领先。到了十四五期间，提出了打造舒适化医院的目标，除了无痛，还涵盖了多个方面。例如，丁家庄院区获得了WELL金级健康建筑体系认证，从温度、湿度、光照等多个方面，甚至包括座椅的舒适度都是有详细的要求。优质的硬件基础，让新院区能为患者提供更加舒适的就诊体验。\n另一方面，便捷的服务也至关重要。针对医院的运行管理，沈嵘介绍，南京市妇幼保健院利用信息化技术升级全新就诊体验，推出“院内精准转诊转介”服务，搭建了保健科室与临床科室的转介以及临床各专业科室之间的转诊网络，成功“破壁”了科室与专业的条框，直接为就诊者预约其所需进一步诊疗的科室门诊号，高效且便捷。\n市妇幼深谙医疗服务不仅仅是治疗疾病，也是关怀生命、尊重人性的过程。对此，沈嵘介绍了市妇幼的“家文化”，主要包含两层含义：一是以病人家庭为中心的服务文化，二是员工之间的家人文化。这一文化不仅在医院内部深入人心，更在全国妇幼系统中产生了深远的影响。\n为了实现以病人家庭为中心的服务，市妇幼在硬件环境上进行了大胆的尝试。沈嵘表示，我们打破了传统医院白墙白单白大褂的刻板印象，通过丰富的色彩和温馨的布局，让患者和家属感受到家一般的舒适和温馨。同时，医院的服务对象也不仅仅是孕产妇，还包括她们的家属，如丈夫、父母甚至公公婆婆，因此，健康宣教也是以团队形式进行，毕竟回家坐月子、带孩子都不是一个人的事，需要全家人的共同参与和支持。\n在员工的家人文化方面，则是强调的全院一盘棋。在这个大家庭里，大家都是兄弟姐妹，共同面对繁重的工作任务。机关后勤服务临床一线，临床一线服务患者，全院上下一条心、一盘棋。有了这样的一种意念和共同的价值取向，任何困难都能够被克服。\n“硬件”筑基石，“软件”赋灵魂。只有两者相辅相成，才能为患者提供安全又温馨的医疗服务。\n正是这样孜孜不倦的追求卓越，在最新公布的2022年度全国三级妇幼保健院绩效考核中，南京市妇幼保健院位列第2位（等级A++），综合实力稳居全国妇幼健康领域“第一方阵”。\n拔尖筑峰、不断突破，“医”心为民、高质飞跃。“一院两区”也将成为南京妇幼保健院服务广大女性全生命周期健康的新起点，为南京妇幼健康事业高质量发展做出贡献。\n频道推荐\n道源仙韵 万象潮生\n0 条评论 2026-07-30 10:53:52\n兰州新区\n31省份上半年财政支出榜出炉 湖北情况如何？\n“好客山东”再添三张国家名片\n从无人问津到游客不断 修水县千年古村蝶变\n从网点等客到市集拉客：多家银行抢滩文旅“流量”\n小孩碰坏一酒店纸巾盒被要求赔偿924元 市监部门回应\n多省发文落实职工带薪休假 多地要求领导干部带头休假\n河北馆陶拆机关大院围墙，当地回应：方便群众停车\n高校手写版通知书引热议 有新生称对字体有些失望\n图片新闻\n消费场景多点焕新 暑期市场释放“热”动能\n湿地鹤影绘生态画卷\n“新”意盎然 外资机构持续看好中国经济\n2026全球人文论坛12月澳门启幕 共探“和而不同”文明共生路径",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.ifeng.com/",
+              "text": "首页"
+            },
+            {
+              "url": "https://news.ifeng.com/",
+              "text": "资讯"
+            },
+            {
+              "url": "https://v.ifeng.com/",
+              "text": "视频"
+            },
+            {
+              "url": "https://flive.ifeng.com/",
+              "text": "直播"
+            },
+            {
+              "url": "https://www.phoenixtv.com/",
+              "text": "凤凰卫视"
+            },
+            {
+              "url": "https://finance.ifeng.com/",
+              "text": "财经"
+            },
+            {
+              "url": "https://ent.ifeng.com/",
+              "text": "娱乐"
+            },
+            {
+              "url": "https://sports.ifeng.com/",
+              "text": "体育"
+            },
+            {
+              "url": "https://fashion.ifeng.com/",
+              "text": "时尚"
+            },
+            {
+              "url": "https://auto.ifeng.com/",
+              "text": "汽车"
+            },
+            {
+              "url": "https://house.ifeng.com/",
+              "text": "房产"
+            },
+            {
+              "url": "https://tech.ifeng.com/",
+              "text": "科技"
+            },
+            {
+              "url": "https://mil.ifeng.com/",
+              "text": "军事"
+            },
+            {
+              "url": "https://culture.ifeng.com/",
+              "text": "文化"
+            },
+            {
+              "url": "https://travel.ifeng.com/",
+              "text": "旅游"
+            },
+            {
+              "url": "https://fo.ifeng.com/",
+              "text": "佛教"
+            },
+            {
+              "url": "https://guoxue.ifeng.com/",
+              "text": "国学"
+            },
+            {
+              "url": "https://tech.ifeng.com/digi/",
+              "text": "数码"
+            },
+            {
+              "url": "https://health.ifeng.com/",
+              "text": "健康"
+            },
+            {
+              "url": "https://gongyi.ifeng.com/",
+              "text": "公益"
+            },
+            {
+              "url": "https://edu.ifeng.com/",
+              "text": "教育"
+            },
+            {
+              "url": "https://jiu.ifeng.com/",
+              "text": "酒业"
+            },
+            {
+              "url": "https://foodnwine.ifeng.com/",
+              "text": "美食"
+            },
+            {
+              "url": "https://js.ifeng.com/shanklist/200-212-305392-/",
+              "text": "南京"
+            },
+            {
+              "url": "https://ishare.ifeng.com/mediaShare/home/1598008/media",
+              "text": "凤凰网江苏"
+            },
+            {
+              "url": "https://ishare.ifeng.com/mediaShare/home/1598008/media",
+              "text": "2024年03月04日 18:20:44 来自江苏"
+            },
+            {
+              "url": "https://gs.ifeng.com/c/special/8vB4VlvDg9Y",
+              "text": "道源仙韵 万象潮生"
+            },
+            {
+              "url": "https://gentie.ifeng.com/c/comment/8vB4VlvDg9Y",
+              "text": "0 条评论"
+            },
+            {
+              "url": "https://gs.ifeng.com/s/lzxq",
+              "text": "兰州新区"
+            },
+            {
+              "url": "https://hb.ifeng.com/c/8vdvldaw2cZ",
+              "text": "31省份上半年财政支出榜出炉 湖北情况如何？"
+            },
+            {
+              "url": "https://sd.ifeng.com/c/8vc40DEHVWP",
+              "text": "“好客山东”再添三张国家名片"
+            },
+            {
+              "url": "https://jx.ifeng.com/c/8vYiWAHLCwl",
+              "text": "从无人问津到游客不断 修水县千年古村蝶变"
+            },
+            {
+              "url": "https://gs.ifeng.com/c/8vY2nk7Z3Pg",
+              "text": "从网点等客到市集拉客：多家银行抢滩文旅“流量”"
+            },
+            {
+              "url": "https://hb.ifeng.com/c/8vNCf7jZyM0",
+              "text": "小孩碰坏一酒店纸巾盒被要求赔偿924元 市监部门回应"
+            },
+            {
+              "url": "https://hb.ifeng.com/c/8vLg4zXZ0Fq",
+              "text": "多省发文落实职工带薪休假 多地要求领导干部带头休假"
+            },
+            {
+              "url": "https://hebei.ifeng.com/c/8vLg4zXZ0Fg",
+              "text": "河北馆陶拆机关大院围墙，当地回应：方便群众停车"
+            },
+            {
+              "url": "https://gs.ifeng.com/c/8vEIhln1H5N",
+              "text": "高校手写版通知书引热议 有新生称对字体有些失望"
+            },
+            {
+              "url": "https://sd.ifeng.com/c/8viuevt0lxu",
+              "text": "消费场景多点焕新 暑期市场释放“热”动能"
+            },
+            {
+              "url": "https://na.ifeng.com/c/8vZkjojuDPF",
+              "text": "湿地鹤影绘生态画卷"
+            },
+            {
+              "url": "https://hb.ifeng.com/c/8vN9R9smzFI",
+              "text": "“新”意盎然 外资机构持续看好中国经济"
+            },
+            {
+              "url": "https://gongyi.ifeng.com/c/8vVh5bMqFlc",
+              "text": "2026全球人文论坛12月澳门启幕 共探“和而不同”文明共生路径"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://m.ysyy.org.cn/123/202105/458.html": "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "https://i.ifeng.com/c/8XgFOwM4fHr": "https://i.ifeng.com/c/8XgFOwM4fHr"
+      },
+      "pageRequests": 3,
+      "modelCalls": 8,
+      "allowedUrls": [
+        "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.bozhou.gov.cn/News/show/606568.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+        "https://www.sohu.com/a/1068747293_132627",
+        "https://i.ifeng.com/c/8XgFOwM4fHr"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "沈嵘 南京市妇幼保健院 党委书记",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "title": "生育健康与出生缺陷防控专业委员会",
+                "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+              },
+              {
+                "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+                "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+                "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+                "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+              },
+              {
+                "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+                "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+                "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+              },
+              {
+                "url": "https://www.sohu.com/a/1068747293_132627",
+                "title": "新闻集锦｜南京市妇幼保健院2026年第二批援疆医疗队启程",
+                "snippet": "医院党委书记沈嵘带队前往机场为医疗队员送行。 图片. 沈嵘书记对两位队员主动担当、援疆奉献的精神予以肯定。送别现场，她指出，对口援疆是服务国家 ..."
+              },
+              {
+                "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+                "title": "南京市妇幼：迎接“一院两区”新格局全力守护女性全生命周期健康",
+                "snippet": "专访南京市妇幼保健院党委书记沈嵘： ; 迎接“一院两区”新格局，全力守护女性全生命周期健康 ; 布局“一院两区”，扩容优质医疗资源 ; 服务水平精细化，医疗关怀深入人心."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+            "offset": 0,
+            "total_characters": 1702,
+            "text": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080",
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://m.ysyy.org.cn/123/202105/458.html",
+            "links": [
+              {
+                "url": "https://m.ysyy.org.cn/index.html",
+                "text": "首页"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会概况"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会简介"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/11/202104/58.html",
+                "text": "章程规制"
+              },
+              {
+                "url": "https://www.ysyy.org.cn/62/202107/798.html",
+                "text": "办事机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/59/index.html",
+                "text": "协会领导"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/15/index.html",
+                "text": "协会历史"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/378/index.html",
+                "text": "杰出专家"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/377/index.html",
+                "text": "先进典型"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/16/index.html",
+                "text": "协会文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/355/index.html",
+                "text": "协会年鉴"
+              },
+              {
+                "url": "https://www.mysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/357/index.html",
+                "text": "品牌大会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/358/index.html",
+                "text": "协会刊物"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "新闻资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "协会资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/19/index.html",
+                "text": "通知公告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/18/index.html",
+                "text": "社会要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/21/index.html",
+                "text": "法律/法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/389/index.html",
+                "text": "政策/解读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "党建政工"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "学习必读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/23/index.html",
+                "text": "上级文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/24/index.html",
+                "text": "支部建设"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/353/index.html",
+                "text": "思想园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/354/index.html",
+                "text": "阅读推荐"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/26/index.html",
+                "text": "会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/27/index.html",
+                "text": "单位会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/28/index.html",
+                "text": "会员园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/29/index.html",
+                "text": "表格下载"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "分支机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "专业委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/31/index.html",
+                "text": "工作委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/374/index.html",
+                "text": "管理规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/375/index.html",
+                "text": "行业动态"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/376/index.html",
+                "text": "年度考评"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "教育培训"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "培训计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/33/index.html",
+                "text": "培训规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/34/index.html",
+                "text": "证书查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/359/index.html",
+                "text": "培训要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/360/index.html",
+                "text": "基层活动"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/361/index.html",
+                "text": "政策法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/362/index.html",
+                "text": "中优大讲堂"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "科研科普"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "研究报告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/36/index.html",
+                "text": "行业标准"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/37/index.html",
+                "text": "十大课题"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/38/index.html",
+                "text": "千天计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/39/index.html",
+                "text": "童真中国"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/363/index.html",
+                "text": "乡村服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "地方协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "省市优生优育类协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/42/index.html",
+                "text": "省市妇幼保健协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "社会服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "宏观数据"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/371/index.html",
+                "text": "乡村振兴"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/372/index.html",
+                "text": "家庭服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "text": "分会简介"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 61
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+            "offset": 0,
+            "total_characters": 639,
+            "text": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+            "links": [
+              {
+                "url": "https://wjw.nanjing.gov.cn/jgxx/",
+                "text": "机构信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/",
+                "text": "政府信息公开"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/",
+                "text": "互动交流"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/",
+                "text": "办事服务"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/",
+                "text": "专题专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+                "text": "概况信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+                "text": "财政信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+                "text": "人事信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+                "text": "部门文件"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+                "text": "统计信息及解读"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+                "text": "信息公开指南"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+                "text": "来信办理统计"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+                "text": "主任信箱"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+                "text": "调查征集"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+                "text": "权力清单"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+                "text": "下载服务"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/doctor",
+                "text": "医生执业注册信息查询"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/nurse",
+                "text": "护士执业注册信息查询"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+                "text": "“双随机、一公开”监管专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+                "text": "双公示专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/",
+                "text": "首页"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/",
+                "text": "工作动态"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "text": "【我要纠错】"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/wzdh/",
+                "text": "网站地图"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/lxwm/",
+                "text": "联系我们"
+              },
+              {
+                "url": "https://beian.miit.gov.cn/",
+                "text": "苏ICP备05004952号-7"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 26
+          }
+        },
+        {
+          "action": "invalid_identity_evidence",
+          "result": "An identity quotation is absent from a read source. Quote actual text without translation or ellipsis."
+        },
+        {
+          "action": "identity_review_requires_more_evidence",
+          "result": [
+            "The sources support 沈嵘 as 党委书记 of 南京市妇幼保健院 (南京医科大学附属妇产医院), but there is no evidence for the requested title '第四临床医学院副院长'. No supplied source mentions Nanjing Medical University's Fourth Clinical College or any vice-dean appointment, so that part of the requested identity is unverified and needs a source from the university or hospital confirming the specific administrative appointment."
+          ]
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_c28f7186a433ebd4ce26bda1d7d51edf",
+            "title": "南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康_凤凰网",
+            "offset": 0,
+            "total_characters": 2899,
+            "text": "南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康_凤凰网\n首页\n资讯\n视频\n直播\n凤凰卫视\n财经\n娱乐\n体育\n时尚\n汽车\n房产\n科技\n军事\n文化\n旅游\n佛教\n国学\n数码\n更多\n健康\n公益\n教育\n酒业\n美食\n江苏 > 南京 > 正文\n南京市妇幼：迎接“一院两区”新格局 全力守护女性全生命周期健康\n凤凰网江苏\n下载客户端\n独家抢先看\n2024年03月04日 18:20:44 来自江苏\n专访南京市妇幼保健院党委书记沈嵘：\n迎接“一院两区”新格局，全力守护女性全生命周期健康\n妇幼健康，作为全民健康的基础，是关系到千家万户的民生大事。\n南京市妇幼保健院，自1936年创建以来，始终坚持“以保健为中心、以保障生殖健康为目的，保健与临床相结合，面向群体、面向基层和预防为主”的妇幼卫生工作方针，常年为南京及周边地区妇女儿童提供多层次、全方位健康保健和疾病预防诊疗服务，稳居全国妇产专科医院第一方阵。\n如今，在公立医院高质量发展的新时代背景下，妇幼健康已处于维护全生命周期健康优先发展地位，南京市妇幼保健院也必然肩负重任。\n南京市妇幼保健院党委书记 沈嵘\n“2024年，南京市妇幼保健院将迎来前所未有的机遇，随着今年丁家庄院区的建成并试运行，我们将正式迈入‘一院两区’的全新格局，围绕女性全生命周期提供更加优质的健康服务。”近日，南京市妇幼保健院党委书记沈嵘接受了凤凰网江苏的专访，并就医院今年的工作重点、新院区的发展规划以及提升患者满服务水平等方面进行了深入交流。\n布局“一院两区”，扩容优质医疗资源\n南京市妇幼保健院丁家庄院区项目是南京市政府2019年重点打造的民生工作，2019年12月16日正式启动，2021年12月16日，门诊楼、病房楼、综合楼三幢主楼主体封顶，项目整体预计2024年6月竣工交付。\n沈嵘介绍，建设南京市妇幼保健院丁家庄院区，是市委、市政府坚持民生为本、着力改善民生、提升医疗保健水平的重大民生工程，也是提升省会城市功能和中心城市首位度的重要支撑。新院区建设以“大专科、小综合”原则，设置1200张床位，其中1000张用于妇产科、儿科，200张用于内外科。\n医院提出的更高的“强专科、精综合”的自我要求，沈嵘表示，市妇幼将重点强化传统的妇产科、儿科、妇科、产科、生殖医学和产前诊断等专科，同时精心打造综合内外科，以更好地满足女性群体的特殊需求。例如，针对甲状腺、乳腺等这类女性发病率比较高的疾病，增设普外科，不断提升综合急救能力和产科妊娠合并症的处置能力，设立综合内科、重症医学科、血液净化中心、等相关科室。此外，医院还将开设消化内镜中心、健康体检中心，发展疼痛科等为女性服务的特色科室，聚焦女性全生命周期提供更加精细化的医疗服务。\n儿科方面，沈嵘表示，虽然南京已有强大的儿童医院，但丁家庄新院区刚好跟儿童医院，一个在城市的西南角，一个在东北角，地理位置的优化分布，将进一步提升南京地区妇女儿童就医的便捷性。为此，丁家庄院区将发展一部分综合儿科，包括呼吸消化、内分泌、儿外科等，以满足更多患儿的需求。特别是新生儿外科的开设，将为出生缺陷的干预提供更为全面的支持。\n守护妇女儿童全生命周期，尤其是女性全生命周期健康，既是南京市妇幼保健院的优势和根本职责，也是医院向医疗高地迈进的动力和前行方向。沈嵘表示，“强专科、精综合”也将更好地满足女性对健康的多元化需求。\n以全生命周期健康管理服务为主线，以护佑妇女儿童健康为己任，南京市妇幼保健院正全力打造国内一流、特色鲜明的创新型、研究型、智慧型、舒适化的妇幼保健院，用心用情用力托起广大妇女健康梦。\n服务水平精细化，医疗关怀深入人心\n打造全生命周期健康体系，根本取决于就诊群体对医院的信赖与认可。而如何让患者满意，赢得患者信任？沈嵘在采访中说道，患者就医感受至关重要，主要是两方面，一方面是服务，另一方面是技术。\n一直以来，南京市妇幼保健院在医疗技术提升和创新上不遗余力。沈嵘介绍，十三五期间，医院提出了打造无痛医院的目标，尤其是在分娩镇痛、无痛生育力保护、无痛取卵等方面实现了全国领先。到了十四五期间，提出了打造舒适化医院的目标，除了无痛，还涵盖了多个方面。例如，丁家庄院区获得了WELL金级健康建筑体系认证，从温度、湿度、光照等多个方面，甚至包括座椅的舒适度都是有详细的要求。优质的硬件基础，让新院区能为患者提供更加舒适的就诊体验。\n另一方面，便捷的服务也至关重要。针对医院的运行管理，沈嵘介绍，南京市妇幼保健院利用信息化技术升级全新就诊体验，推出“院内精准转诊转介”服务，搭建了保健科室与临床科室的转介以及临床各专业科室之间的转诊网络，成功“破壁”了科室与专业的条框，直接为就诊者预约其所需进一步诊疗的科室门诊号，高效且便捷。\n市妇幼深谙医疗服务不仅仅是治疗疾病，也是关怀生命、尊重人性的过程。对此，沈嵘介绍了市妇幼的“家文化”，主要包含两层含义：一是以病人家庭为中心的服务文化，二是员工之间的家人文化。这一文化不仅在医院内部深入人心，更在全国妇幼系统中产生了深远的影响。\n为了实现以病人家庭为中心的服务，市妇幼在硬件环境上进行了大胆的尝试。沈嵘表示，我们打破了传统医院白墙白单白大褂的刻板印象，通过丰富的色彩和温馨的布局，让患者和家属感受到家一般的舒适和温馨。同时，医院的服务对象也不仅仅是孕产妇，还包括她们的家属，如丈夫、父母甚至公公婆婆，因此，健康宣教也是以团队形式进行，毕竟回家坐月子、带孩子都不是一个人的事，需要全家人的共同参与和支持。\n在员工的家人文化方面，则是强调的全院一盘棋。在这个大家庭里，大家都是兄弟姐妹，共同面对繁重的工作任务。机关后勤服务临床一线，临床一线服务患者，全院上下一条心、一盘棋。有了这样的一种意念和共同的价值取向，任何困难都能够被克服。\n“硬件”筑基石，“软件”赋灵魂。只有两者相辅相成，才能为患者提供安全又温馨的医疗服务。\n正是这样孜孜不倦的追求卓越，在最新公布的2022年度全国三级妇幼保健院绩效考核中，南京市妇幼保健院位列第2位（等级A++），综合实力稳居全国妇幼健康领域“第一方阵”。\n拔尖筑峰、不断突破，“医”心为民、高质飞跃。“一院两区”也将成为南京妇幼保健院服务广大女性全生命周期健康的新起点，为南京妇幼健康事业高质量发展做出贡献。\n频道推荐\n道源仙韵 万象潮生\n0 条评论 2026-07-30 10:53:52\n兰州新区\n31省份上半年财政支出榜出炉 湖北情况如何？\n“好客山东”再添三张国家名片\n从无人问津到游客不断 修水县千年古村蝶变\n从网点等客到市集拉客：多家银行抢滩文旅“流量”\n小孩碰坏一酒店纸巾盒被要求赔偿924元 市监部门回应\n多省发文落实职工带薪休假 多地要求领导干部带头休假\n河北馆陶拆机关大院围墙，当地回应：方便群众停车\n高校手写版通知书引热议 有新生称对字体有些失望\n图片新闻\n消费场景多点焕新 暑期市场释放“热”动能\n湿地鹤影绘生态画卷\n“新”意盎然 外资机构持续看好中国经济\n2026全球人文论坛12月澳门启幕 共探“和而不同”文明共生路径",
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+            "links": [
+              {
+                "url": "https://www.ifeng.com/",
+                "text": "首页"
+              },
+              {
+                "url": "https://news.ifeng.com/",
+                "text": "资讯"
+              },
+              {
+                "url": "https://v.ifeng.com/",
+                "text": "视频"
+              },
+              {
+                "url": "https://flive.ifeng.com/",
+                "text": "直播"
+              },
+              {
+                "url": "https://www.phoenixtv.com/",
+                "text": "凤凰卫视"
+              },
+              {
+                "url": "https://finance.ifeng.com/",
+                "text": "财经"
+              },
+              {
+                "url": "https://ent.ifeng.com/",
+                "text": "娱乐"
+              },
+              {
+                "url": "https://sports.ifeng.com/",
+                "text": "体育"
+              },
+              {
+                "url": "https://fashion.ifeng.com/",
+                "text": "时尚"
+              },
+              {
+                "url": "https://auto.ifeng.com/",
+                "text": "汽车"
+              },
+              {
+                "url": "https://house.ifeng.com/",
+                "text": "房产"
+              },
+              {
+                "url": "https://tech.ifeng.com/",
+                "text": "科技"
+              },
+              {
+                "url": "https://mil.ifeng.com/",
+                "text": "军事"
+              },
+              {
+                "url": "https://culture.ifeng.com/",
+                "text": "文化"
+              },
+              {
+                "url": "https://travel.ifeng.com/",
+                "text": "旅游"
+              },
+              {
+                "url": "https://fo.ifeng.com/",
+                "text": "佛教"
+              },
+              {
+                "url": "https://guoxue.ifeng.com/",
+                "text": "国学"
+              },
+              {
+                "url": "https://tech.ifeng.com/digi/",
+                "text": "数码"
+              },
+              {
+                "url": "https://health.ifeng.com/",
+                "text": "健康"
+              },
+              {
+                "url": "https://gongyi.ifeng.com/",
+                "text": "公益"
+              },
+              {
+                "url": "https://edu.ifeng.com/",
+                "text": "教育"
+              },
+              {
+                "url": "https://jiu.ifeng.com/",
+                "text": "酒业"
+              },
+              {
+                "url": "https://foodnwine.ifeng.com/",
+                "text": "美食"
+              },
+              {
+                "url": "https://js.ifeng.com/shanklist/200-212-305392-/",
+                "text": "南京"
+              },
+              {
+                "url": "https://ishare.ifeng.com/mediaShare/home/1598008/media",
+                "text": "凤凰网江苏"
+              },
+              {
+                "url": "https://ishare.ifeng.com/mediaShare/home/1598008/media",
+                "text": "2024年03月04日 18:20:44 来自江苏"
+              },
+              {
+                "url": "https://gs.ifeng.com/c/special/8vB4VlvDg9Y",
+                "text": "道源仙韵 万象潮生"
+              },
+              {
+                "url": "https://gentie.ifeng.com/c/comment/8vB4VlvDg9Y",
+                "text": "0 条评论"
+              },
+              {
+                "url": "https://gs.ifeng.com/s/lzxq",
+                "text": "兰州新区"
+              },
+              {
+                "url": "https://hb.ifeng.com/c/8vdvldaw2cZ",
+                "text": "31省份上半年财政支出榜出炉 湖北情况如何？"
+              },
+              {
+                "url": "https://sd.ifeng.com/c/8vc40DEHVWP",
+                "text": "“好客山东”再添三张国家名片"
+              },
+              {
+                "url": "https://jx.ifeng.com/c/8vYiWAHLCwl",
+                "text": "从无人问津到游客不断 修水县千年古村蝶变"
+              },
+              {
+                "url": "https://gs.ifeng.com/c/8vY2nk7Z3Pg",
+                "text": "从网点等客到市集拉客：多家银行抢滩文旅“流量”"
+              },
+              {
+                "url": "https://hb.ifeng.com/c/8vNCf7jZyM0",
+                "text": "小孩碰坏一酒店纸巾盒被要求赔偿924元 市监部门回应"
+              },
+              {
+                "url": "https://hb.ifeng.com/c/8vLg4zXZ0Fq",
+                "text": "多省发文落实职工带薪休假 多地要求领导干部带头休假"
+              },
+              {
+                "url": "https://hebei.ifeng.com/c/8vLg4zXZ0Fg",
+                "text": "河北馆陶拆机关大院围墙，当地回应：方便群众停车"
+              },
+              {
+                "url": "https://gs.ifeng.com/c/8vEIhln1H5N",
+                "text": "高校手写版通知书引热议 有新生称对字体有些失望"
+              },
+              {
+                "url": "https://sd.ifeng.com/c/8viuevt0lxu",
+                "text": "消费场景多点焕新 暑期市场释放“热”动能"
+              },
+              {
+                "url": "https://na.ifeng.com/c/8vZkjojuDPF",
+                "text": "湿地鹤影绘生态画卷"
+              },
+              {
+                "url": "https://hb.ifeng.com/c/8vN9R9smzFI",
+                "text": "“新”意盎然 外资机构持续看好中国经济"
+              },
+              {
+                "url": "https://gongyi.ifeng.com/c/8vVh5bMqFlc",
+                "text": "2026全球人文论坛12月澳门启幕 共探“和而不同”文明共生路径"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 41
+          }
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        }
+      ],
+      "reviewedIdentity": null
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 0,
+      "discovered_source_count": 6,
+      "fetched_source_count": 3,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_c28f7186a433ebd4ce26bda1d7d51edf",
+          "reason": "not_used_for_identity"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "unresolved",
+        "reason": "budget_exhausted",
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 3,
+        "model_calls_reserved": 8,
+        "evidence_citations": []
+      }
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "ec5d7ed8506f285011e30f93490e9f4062161792cc2396bbe723d5f07c24e0a3",
+      "medical_skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351"
+    }
+  }
+]

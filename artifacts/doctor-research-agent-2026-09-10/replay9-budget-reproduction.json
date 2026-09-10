@@ -1,0 +1,36 @@
+{
+  "diagnostic_only": true,
+  "live_search_requests": 0,
+  "live_model_requests": 0,
+  "result": {
+    "outcome": "failed",
+    "reason": "resource_budget_exceeded"
+  },
+  "budget_failures": [
+    {
+      "runId": "drr_98ee3a610bf84eb4b587bd3238f05f68",
+      "limit": "per_call_input_tokens",
+      "observed": 34728,
+      "maximum": 34000
+    }
+  ],
+  "requested": [
+    {
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "characters": 35532
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 5,
+      "characters": 39261
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "characters": 71588
+    }
+  ],
+  "source_evidence": "workflow-replay9",
+  "note": "Local reproduction of saved raw responses, no new provider requests. This ran after budget telemetry was added and before the later core-table edit protocol change."
+}

@@ -67,6 +67,10 @@ describe("Research Worker fail-closed configuration", () => {
       RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
       RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000" };
     expect(loadResearchWorkerConfig(env)?.workflowPolicy.budgets.llmCalls).toBe(29);
+    const sharedPool = loadResearchWorkerConfig({ ...env, RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000" })!;
+    expect(sharedPool.workflowPolicy.maximumInputTokensPerCall).toBe(40000);
+    expect(sharedPool.workflowPolicy.budgets.inputTokens).toBe(1000000);
+    expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "30000" })).toThrow("Research LLM budgets");
     expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })).toThrow("9 bounded synthesis or review calls");
     expect(loadResearchWorkerConfig({ ...env, RESEARCH_SYNTHESIS_SHARD_COUNT: "1", RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })?.workflowPolicy.budgets.llmCalls).toBe(26);
   });

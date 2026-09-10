@@ -334,9 +334,47 @@
       "content_findings": [
         "The same symptomatic/asymptomatic group-definition error remains. All four whole-report reviews missed it; source-focused independent audits have not yet been tested."
       ]
+    },
+    {
+      "id": "workflow-replay9",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 3,
+      "elapsed_ms": 128462,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      },
+      "archive_sha256": "84f6caccd2e07672ef7fd9d98028d12279f0300656f5eea6fc94e4797128253e",
+      "evidence_archive_sha256": "f2bbc76c3b48f13b25c76c65b3552bda28f00c3f1c49b8b856ffbec480333dee",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary5",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 78602,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      },
+      "archive_sha256": "dc0e5b1b79c2a371cca541b3dd5f14c9365a8ececbb05812b6e71bc1a969fc5b",
+      "evidence_archive_sha256": "51ec17bf7b7361f68e21fb3aabffca85e71c2eb0dbac8a582a4b3496dc1e1d55",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 4,
+  "total_new_serpapi_requests": 5,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,

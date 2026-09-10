@@ -1,0 +1,22 @@
+{
+  "checked_at_utc": "2026-09-10T22:18:29.331009+00:00",
+  "scope": "Completed replay9 and canary5 only.",
+  "probes": [
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-replay9",
+      "evidence_archive_sha256": "f2bbc76c3b48f13b25c76c65b3552bda28f00c3f1c49b8b856ffbec480333dee",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    },
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-canary5",
+      "evidence_archive_sha256": "51ec17bf7b7361f68e21fb3aabffca85e71c2eb0dbac8a582a4b3496dc1e1d55",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    }
+  ]
+}
