@@ -271,6 +271,28 @@ describe("Doctor Research production contracts", () => {
     ).toMatchObject({ ok: false, kind: "parse_error" });
   });
 
+  it("preserves Markdown backslashes while repairing invalid JSON string escapes", () => {
+    const output = validModelOutput();
+    output.review.markdown += String.raw`\- escaped bullet \* emphasis`;
+    const valid = JSON.stringify(output);
+    const malformed = valid.replaceAll(String.raw`\\-`, String.raw`\-`)
+      .replaceAll(String.raw`\\*`, String.raw`\*`);
+    expect(parseAndValidateDoctorResearchModelOutput(malformed))
+      .toEqual({ ok: true, value: output });
+    expect(parseAndValidateDoctorResearchModelOutput(valid))
+      .toEqual({ ok: true, value: output });
+    for (const rejected of [
+      malformed.slice(0, -1),
+      `Result: ${malformed}`,
+      malformed + "{}",
+      malformed.replace(String.raw`\-`, String.raw`\uQQQQ`),
+      malformed.replace(String.raw`\-`, String.raw`\x`)
+    ]) {
+      expect(parseAndValidateDoctorResearchModelOutput(rejected))
+        .toMatchObject({ ok: false, kind: "parse_error" });
+    }
+  });
+
   it("assembles server-owned identifiers and artifact manifests after validation", () => {
     const publicResult = validResult();
     expect(
@@ -480,8 +502,20 @@ describe("Doctor Research artifact renderer and crash harness", () => {
       "personal research directions were not confirmed by verified public sources"
     );
     expect(profile?.content).toContain(
-      "does not represent the doctor's own research output or views"
+      "does not represent the person's own research output or views"
     );
+  });
+
+  it("labels supplied administrative roles as search input and distinguishes source access dates", () => {
+    const result = validResult();
+    result.doctor.department = "副院长（妇产、母胎医学方向）";
+    result.profile.positions = [];
+    result.profile.expertise = [];
+    const profile = renderDoctorResearchArtifacts(result, "zh-CN").find(artifact => artifact.kind === "profile")!;
+    expect(profile.content).toContain("## 检索信息");
+    expect(profile.content).toContain("输入的职务仅作为检索信息");
+    expect(profile.content).toContain("以上日期为来源访问日期");
+    expect(profile.content).not.toContain("## 专业与任职");
   });
 
   it("escapes untrusted inline metadata while preserving only the verified source link", () => {

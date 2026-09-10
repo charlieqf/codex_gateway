@@ -111,7 +111,7 @@ export async function runResearchWorker(input: {
     }
     const dependencies =
       input.dependencies ??
-      (await createLiveDependencies(config, input.fetchImpl));
+      (await createLiveDependencies(config, input.fetchImpl, logger));
     const { adapters, modelClient } = dependencies;
     const medicalSkillBundle =
       dependencies.medicalSkillBundle ??
@@ -338,7 +338,7 @@ export async function runResearchWorker(input: {
               lease_generation: currentToken.generation,
               retryable: workflow.retryable === true,
               dependency_scope:
-                workflow.dependencyScope ?? "service",
+                workflow.dependencyScope ?? "request",
               upstream_http_status:
                 workflow.upstreamStatusCode ?? null,
               upstream_error_kind: workflow.upstreamErrorKind ?? null
@@ -362,7 +362,7 @@ export async function runResearchWorker(input: {
               convergeCancellation(store, currentToken, config.leaseSeconds);
             } else if (
               workflow.reason === "upstream_unavailable" &&
-              workflow.dependencyScope !== "request"
+              workflow.dependencyScope === "service"
             ) {
               stopForDependencyFailure();
             }
@@ -606,13 +606,15 @@ async function assertCanonicalRuntimeStorage(
 
 async function createLiveDependencies(
   config: ResearchWorkerConfig,
-  fetchImpl?: typeof fetch
+  fetchImpl?: typeof fetch,
+  logger?: ResearchWorkerLogger
 ): Promise<ResearchWorkerDependencies> {
   const secrets = await loadRuntimeSecrets(config, fetchImpl);
   return {
     medicalSkillBundle: getDefaultMedicalSkillBundle(),
     adapters: new LiveResearchAdapters({
       ...config.adapterOptions,
+      onExternalRequest: (event) => logger?.info("research_external_request", event),
       ncbi: {
         ...config.adapterOptions.ncbi,
         apiKey: secrets.ncbiApiKey

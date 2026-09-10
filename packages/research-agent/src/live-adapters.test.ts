@@ -345,8 +345,9 @@ describe("Doctor Research live first-party adapters", () => {
       }
     });
 
-    expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 6
+    expect(adapters.budgetHints).toMatchObject({
+      officialSearchRequestUnits: 4,
+      supplementalSearchRequestUnits: 2
     });
     await expect(
       adapters.searchOfficialSources(
@@ -506,10 +507,13 @@ describe("Doctor Research live first-party adapters", () => {
         hospitalHomepage: reviewedHomepage ? "https://www.tum.de/en/" : undefined
       }
     );
+    expect(queries).toHaveLength(reviewedHomepage ? 1 : 2);
+    const supplementalIds = await adapters.searchSupplementalOfficialSources("Markus Schwaiger", new AbortController().signal);
     expect(queries).toHaveLength(reviewedHomepage ? 2 : 3);
-    expect(queries.at(-1)).toBe('"Markus Schwaiger" site:tum.de');
-    expect(ids).toHaveLength(3);
-    expect(await adapters.fetchApprovedSource(ids[0]!, new AbortController().signal)).toMatchObject({
+    expect(queries.at(-1)).toBe('Markus Schwaiger (site:tum.de OR site:europeancancer.org OR site:rsna.org)');
+    expect(ids).toHaveLength(2);
+    expect(supplementalIds).toHaveLength(1);
+    expect(await adapters.fetchApprovedSource(supplementalIds[0]!, new AbortController().signal)).toMatchObject({
       url: "https://www.professoren.tum.de/en/schwaiger-markus", discoveryKinds: ["doctor_identity"]
     });
   });
@@ -531,7 +535,8 @@ describe("Doctor Research live first-party adapters", () => {
     });
     const signal = new AbortController().signal;
     const ids = await adapters.searchOfficialSources('"Example Doctor" Example Hospital', signal, { doctorName: "Example Doctor", hospital: "Example Hospital" });
-    expect(ids).toHaveLength(2);
+    expect(ids).toHaveLength(1);
+    expect(await adapters.searchSupplementalOfficialSources("Example Doctor", signal)).toHaveLength(2);
     expect((await adapters.fetchApprovedSource(ids[0]!, signal))?.url).toBe("https://hospital.example/profile");
   });
 
@@ -569,7 +574,7 @@ describe("Doctor Research live first-party adapters", () => {
     });
     const result = adapters.searchOfficialSources('"Example Doctor"', new AbortController().signal);
     if (empty) await expect(result).resolves.toEqual([]);
-    else await expect(result).rejects.toThrow("provider returned an error");
+    else await expect(result).rejects.toMatchObject({name: "ResearchExternalServiceError", kind: "provider_error"});
   });
 
   it("keeps exact identity candidates when the optional hospital search is unavailable", async () => {
@@ -864,11 +869,12 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 6
+    expect(adapters.budgetHints).toMatchObject({
+      officialSearchRequestUnits: 4,
+      supplementalSearchRequestUnits: 2
     });
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v5+pinned-source-fetch.v2"
     );
   });
 
@@ -919,7 +925,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-google-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
+      "serpapi-google-bounded-hospital-identity-search-v5+pinned-source-fetch.v2"
     );
   });
 
@@ -970,7 +976,7 @@ describe("Doctor Research live first-party adapters", () => {
     ).resolves.toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v5+pinned-source-fetch.v2"
     );
   });
 
@@ -1020,11 +1026,11 @@ describe("Doctor Research live first-party adapters", () => {
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe(
-      "Official web search provider returned an error."
+      "External service provider error."
     );
     expect((error as Error).message).not.toContain("serpapi-test-key");
     expect(adapters.versions.official_web).toBe(
-      "serpapi-baidu-bounded-hospital-identity-search-v4+pinned-source-fetch.v2"
+      "serpapi-baidu-bounded-hospital-identity-search-v5+pinned-source-fetch.v2"
     );
   });
 
@@ -1079,8 +1085,9 @@ describe("Doctor Research live first-party adapters", () => {
         }
       )
     ).resolves.toHaveLength(1);
-    expect(adapters.budgetHints).toEqual({
-      officialSearchRequestUnits: 0
+    expect(adapters.budgetHints).toMatchObject({
+      officialSearchRequestUnits: 0,
+      supplementalSearchRequestUnits: 0
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 

@@ -808,16 +808,41 @@ function parseStrictModelJson(
   text: string
 ): { ok: true; value: unknown } | { ok: false } {
   const trimmed = text.trim();
+  const fenced =
+    /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
+  const candidate = fenced ? fenced[1]!.trim() : trimmed;
   try {
-    return { ok: true, value: JSON.parse(trimmed) };
+    return { ok: true, value: JSON.parse(candidate) };
   } catch {
-    const fenced =
-      /^```(?:json)?[ \t]*\r?\n([\s\S]*)\r?\n```$/iu.exec(trimmed);
-    if (!fenced) {
+    // Models sometimes emit Markdown's \- or \* escapes inside a JSON
+    // string. Preserve that literal Markdown by encoding the backslash.
+    // Do not infer missing quotes, fields, delimiters, or truncated content.
+    let repaired = "";
+    let inString = false;
+    for (let index = 0; index < candidate.length; index += 1) {
+      const character = candidate[index]!;
+      if (inString && character === "\\") {
+        const next = candidate[index + 1];
+        if (next !== undefined && /[-_*`\[\]().!#>+={}~|]/u.test(next)) {
+          repaired += "\\\\" + next;
+          index += 1;
+          continue;
+        }
+        repaired += character;
+        if (next !== undefined) {
+          repaired += next;
+          index += 1;
+        }
+        continue;
+      }
+      if (character === '"') inString = !inString;
+      repaired += character;
+    }
+    if (repaired === candidate) {
       return { ok: false };
     }
     try {
-      return { ok: true, value: JSON.parse(fenced[1]!.trim()) };
+      return { ok: true, value: JSON.parse(repaired) };
     } catch {
       return { ok: false };
     }

@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import {
   reviewedDepartmentNames,
   reviewedInstitutionHomepage,
-  reviewedInstitutionNames
+  reviewedInstitutionNames,
+  reviewedInstitutionHostMatches,
+  reviewedProfessionalPublisher,
+  requestedDepartmentEvidenceGroups
 } from "./institution-names.js";
 import type {
   AcquiredResearchLease,
@@ -186,6 +189,7 @@ export async function executeDoctorResearchWorkflow(input: {
       discovered_source_count: identityEvidence.discoveredSourceCount,
       fetched_source_count: identityEvidence.fetchedSourceCount,
       source_failures: input.adapters.officialSourceFailures ?? [],
+      source_decisions: identityEvidence.sourceDecisions,
       hospital_official_domain_count:
         identityEvidence.hospitalOfficialDomainCount,
       hospital_domain_matched_source_count:
@@ -539,8 +543,9 @@ export async function executeDoctorResearchWorkflow(input: {
       return {
         outcome: "failed",
         reason: "upstream_unavailable",
-        retryable: context.modelCallsStarted === 1,
-        dependencyScope: "request"
+        retryable: context.modelCallsStarted <= 1,
+        dependencyScope: "request",
+        upstreamErrorKind: "timeout"
       };
     }
     if (error instanceof ResearchModelClientError) {
@@ -565,10 +570,10 @@ export async function executeDoctorResearchWorkflow(input: {
         outcome: "failed",
         reason: "upstream_unavailable",
         retryable: transient && context.modelCallsStarted <= 1,
-        dependencyScope:
+        dependencyScope: error.dependencyScope ?? (
           error.statusCode === 401 || error.statusCode === 403
             ? "service"
-            : "request",
+            : "request"),
         upstreamStatusCode: error.statusCode
       };
     }
@@ -584,7 +589,8 @@ export async function executeDoctorResearchWorkflow(input: {
     return {
       outcome: "failed",
       reason: "upstream_unavailable",
-      retryable: false
+      retryable: false,
+      dependencyScope: "request"
     };
   }
 }
@@ -1071,11 +1077,24 @@ class WorkflowContext {
 interface VerifiedOfficialIdentitySource extends FrozenOfficialSource {
   identityMatchBasis:
     | "exact_hospital_text"
+    | "reviewed_institution_domain"
+    | "reviewed_professional_publisher"
     | "verified_hospital_domain"
     | "verified_hospital_alias";
   verifiedHospitalHostname?: string;
   verifiedHospitalPhrase?: string;
   verificationSourceIds?: readonly string[];
+}
+
+interface IdentitySourceDecision {
+  source_id: string;
+  reason:
+    | "accepted"
+    | "insufficient_text"
+    | "name_not_found"
+    | "source_not_verified"
+    | "affiliation_or_specialty_missing"
+    | "source_budget_exhausted";
 }
 
 async function discoverIdentityEvidence(
@@ -1091,7 +1110,9 @@ async function discoverIdentityEvidence(
   hospitalAliasAmbiguous: boolean;
   discoveredSourceCount: number;
   fetchedSourceCount: number;
+  sourceDecisions: IdentitySourceDecision[];
 }> {
+  context["input"].adapters.setRunContext?.(context.run.runId);
   let orcidIdentity: FrozenIdentityRecord | null = null;
   if (context.run.input.doctor.orcid) {
     context.chargeExternal(3);
@@ -1110,50 +1131,76 @@ async function discoverIdentityEvidence(
   ]
     .filter((value): value is string => Boolean(value))
     .join(" ");
-  const officialSearchRequestUnits =
-    context["input"].adapters.budgetHints
-      ?.officialSearchRequestUnits ?? 3;
-  if (officialSearchRequestUnits > 0) {
-    context.chargeExternal(officialSearchRequestUnits);
-  }
-  const sourceIds = await context["input"].adapters.searchOfficialSources(
-    officialQuery,
-    context.callSignal(),
-    {
-      seedUrls: doctor.officialProfileUrls ?? [],
-      doctorName: doctor.name,
-      hospitalHomepage: doctor.hospital ? reviewedInstitutionHomepage(doctor.hospital) : undefined,
-      ...(searchHospital ? { hospital: searchHospital } : {})
-    }
-  );
+  const adapters = context["input"].adapters;
+  const discoveredSourceIds = new Set<string>();
+  const attemptedSourceIds = new Set<string>();
   const fetchedSources: FrozenOfficialSource[] = [];
-  for (let offset = 0; offset < sourceIds.length; offset += 3) {
-    const sourceIdBatch = sourceIds.slice(offset, offset + 3);
-    for (const _sourceId of sourceIdBatch) {
-      // Two bounded attempts can each consume the initial response plus
-      // three allowlisted redirects.
-      context.chargeExternal(8);
-    }
-    const settledSources = await Promise.allSettled(
-      sourceIdBatch.map((sourceId) =>
-        context["input"].adapters.fetchApprovedSource(
-          sourceId,
-          context.callSignal()
-        )
-      )
+  const evidence = () => selectIdentityEvidence(context, orcidIdentity, fetchedSources, discoveredSourceIds.size);
+  const enoughEvidence = () => resolveIdentity(context.run, evidence()) !== null;
+  const fetchSources = async (ids: readonly string[]) => {
+    ids.forEach((id) => discoveredSourceIds.add(id));
+    const pending = [...new Set(ids)].filter((id) => !attemptedSourceIds.has(id)).slice(
+      0, Math.max(0, (adapters.budgetHints?.maximumOfficialSources ?? Number.MAX_SAFE_INTEGER) - attemptedSourceIds.size)
     );
-    const rejectedSource = settledSources.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected"
-    );
-    if (rejectedSource) {
-      throw rejectedSource.reason;
-    }
-    for (const result of settledSources) {
-      if (result.status === "fulfilled" && result.value) {
-        fetchedSources.push(result.value);
+    const complete = new AbortController();
+    let next = 0;
+    let failed = false;
+    const settled = await Promise.allSettled(Array.from({ length: Math.min(3, pending.length) }, async () => {
+      while (!failed && !complete.signal.aborted && next < pending.length) {
+        const id = pending[next++]!;
+        attemptedSourceIds.add(id);
+        try {
+          context.chargeExternal(8);
+          const parentSignal = context.callSignal();
+          const source = await adapters.fetchApprovedSource(id, AbortSignal.any([parentSignal, complete.signal]));
+          parentSignal.throwIfAborted();
+          if (source) fetchedSources.push(source);
+          if (enoughEvidence()) complete.abort(new DOMException("Identity evidence complete.", "AbortError"));
+        } catch (error) {
+          if (complete.signal.aborted && !context["input"].signal.aborted && enoughEvidence()) return;
+          failed = true;
+          throw error;
+        }
       }
+    }));
+    const rejected = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
+    if (rejected) throw rejected.reason;
+    context.callSignal().throwIfAborted();
+  };
+  if (adapters.searchOfficialSeedSources && (doctor.officialProfileUrls?.length ?? 0) > 0) {
+    await fetchSources(await adapters.searchOfficialSeedSources(doctor.officialProfileUrls!, context.callSignal()));
+    if (enoughEvidence()) return evidence();
+  }
+  const primaryUnits = adapters.budgetHints?.officialSearchRequestUnits ?? 3;
+  if (primaryUnits > 0) context.chargeExternal(primaryUnits);
+  await fetchSources(await adapters.searchOfficialSources(officialQuery, context.callSignal(), {
+    seedUrls: doctor.officialProfileUrls ?? [],
+    doctorName: doctor.name,
+    hospitalHomepage: doctor.hospital ? reviewedInstitutionHomepage(doctor.hospital) : undefined,
+    ...(searchHospital ? { hospital: searchHospital } : {})
+  }));
+  if (!enoughEvidence() && adapters.searchSupplementalOfficialSources) {
+    const supplementalUnits = adapters.budgetHints?.supplementalSearchRequestUnits ?? 2;
+    if (supplementalUnits > 0) context.chargeExternal(supplementalUnits);
+    await fetchSources(await adapters.searchSupplementalOfficialSources(doctor.name, context.callSignal()));
+    if (!enoughEvidence() && adapters.budgetHints?.maximumOfficialSources !== undefined &&
+        attemptedSourceIds.size < adapters.budgetHints.maximumOfficialSources) {
+      if (supplementalUnits > 0) context.chargeExternal(supplementalUnits);
+      await fetchSources(await adapters.searchSupplementalOfficialSources(doctor.name, context.callSignal(), {
+        hospital: searchHospital ?? "", department: doctor.department ?? ""
+      }));
     }
   }
+  return evidence();
+}
+
+function selectIdentityEvidence(
+  context: WorkflowContext,
+  orcidIdentity: FrozenIdentityRecord | null,
+  fetchedSources: readonly FrozenOfficialSource[],
+  discoveredSourceCount: number
+) {
+  const doctor = context.run.input.doctor;
   const hospitalOfficialDomains = new Map<string, Set<string>>();
   const hospitalAliases = new Map<
     string,
@@ -1186,6 +1233,7 @@ async function discoverIdentityEvidence(
     }
   }
   const officialSources: VerifiedOfficialIdentitySource[] = [];
+  const sourceDecisions: IdentitySourceDecision[] = [];
   const usedHospitalVerificationSourceIds = new Set<string>();
   const hospitalAliasAmbiguous = hospitalAliasSetIsAmbiguous(
     [...hospitalAliases.keys()]
@@ -1199,11 +1247,18 @@ async function discoverIdentityEvidence(
     )
   );
   for (const source of fetchedSources) {
+    const sourceHostname = officialSourceHostname(source.url);
+    const reviewedDomain = sourceHostname !== null && reviewedInstitutionHostMatches(doctor.hospital ?? "", sourceHostname);
+    const reviewedPublisher = sourceHostname !== null && reviewedProfessionalPublisher(sourceHostname);
+    const verifiedDomain = sourceHostname !== null && [...hospitalOfficialDomains.keys()].some(
+      (hostname) => sourceHostname === hostname || sourceHostname.endsWith(`.${hostname}`)
+    );
+    const trustedExactSource = source.discoveryKinds === undefined || source.discoveryKinds.includes("seed") || reviewedDomain || reviewedPublisher || verifiedDomain;
     const exactIdentityWindow = officialIdentityEvidenceWindow(
       source.untrustedText,
       doctor
     );
-    const sourceHostname = officialSourceHostname(source.url);
+    const reviewedDomainWindow = reviewedDomain ? officialDoctorDepartmentEvidenceWindow(source.untrustedText, doctor) : null;
     const domainVerificationSourceIds =
       sourceHostname === null
         ? []
@@ -1250,15 +1305,22 @@ async function discoverIdentityEvidence(
       }
     }
     const identityWindow =
-      exactIdentityWindow ?? domainIdentityWindow ?? aliasIdentityWindow;
+      (trustedExactSource ? exactIdentityWindow : null) ?? reviewedDomainWindow ?? domainIdentityWindow ?? aliasIdentityWindow;
+    sourceDecisions.push({ source_id: source.sourceId, reason: identityWindow
+      ? remainingOfficialCharacters > 0 ? "accepted" : "source_budget_exhausted"
+      : source.untrustedText.trim().length < 40 ? "insufficient_text"
+      : evidencePhraseIndexOf(normalizeEvidenceText(source.untrustedText), normalizeEvidenceText(doctor.name)) < 0 ? "name_not_found"
+      : !trustedExactSource ? "source_not_verified" : "affiliation_or_specialty_missing" });
     if (identityWindow && remainingOfficialCharacters > 0) {
       const untrustedText = Array.from(identityWindow)
         .slice(0, remainingOfficialCharacters)
         .join("");
       remainingOfficialCharacters -= Array.from(untrustedText).length;
       const identityMatchBasis =
-        exactIdentityWindow !== null
-          ? "exact_hospital_text"
+        trustedExactSource && exactIdentityWindow !== null
+          ? reviewedPublisher ? "reviewed_professional_publisher" : "exact_hospital_text"
+          : reviewedDomainWindow !== null
+            ? "reviewed_institution_domain"
           : domainIdentityWindow !== null
             ? "verified_hospital_domain"
             : "verified_hospital_alias";
@@ -1312,8 +1374,9 @@ async function discoverIdentityEvidence(
     hospitalAliasCandidateCount: hospitalAliases.size,
     hospitalAliasMatchedSourceCount,
     hospitalAliasAmbiguous,
-    discoveredSourceCount: sourceIds.length,
-    fetchedSourceCount: fetchedSources.length
+    discoveredSourceCount,
+    fetchedSourceCount: fetchedSources.length,
+    sourceDecisions
   };
 }
 
@@ -9142,6 +9205,16 @@ function verifiedOfficialSourceMatchesIdentity(
   source: VerifiedOfficialIdentitySource,
   doctor: ResearchRunRecord["input"]["doctor"]
 ): boolean {
+  if (source.identityMatchBasis === "reviewed_institution_domain") {
+    const hostname = officialSourceHostname(source.url);
+    return hostname !== null && reviewedInstitutionHostMatches(doctor.hospital ?? "", hostname) &&
+      officialDoctorDepartmentEvidenceWindow(source.untrustedText, doctor) !== null;
+  }
+  if (source.identityMatchBasis === "reviewed_professional_publisher") {
+    const hostname = officialSourceHostname(source.url);
+    return hostname !== null && reviewedProfessionalPublisher(hostname) &&
+      officialSourceMatchesIdentity(source.untrustedText, doctor);
+  }
   if (source.identityMatchBasis === "exact_hospital_text") {
     return officialSourceMatchesIdentity(source.untrustedText, doctor);
   }
@@ -9226,13 +9299,13 @@ function officialIdentityEvidenceWindowForHospitalPhrases(
   }
   const source = normalizeEvidenceText(sourceText);
   const name = normalizeEvidenceText(doctor.name);
-  const departments = reviewedDepartmentNames(doctor.department).map(normalizeEvidenceText);
+  const departmentGroups = requestedDepartmentEvidenceGroups(doctor.department).map((group) => group.map(normalizeEvidenceText));
   const hospitalPhrases = rawHospitalPhrases
     .map(normalizeEvidenceText)
     .filter((phrase) => phrase.length >= 2);
   if (
     name.length < 2 ||
-    departments.every((department) => department.length < 2) ||
+    departmentGroups.some((group) => group.every((department) => department.length < 2)) ||
     hospitalPhrases.length === 0
   ) {
     return null;
@@ -9246,7 +9319,10 @@ function officialIdentityEvidenceWindowForHospitalPhrases(
       hospitalPhrases.some((hospital) =>
         evidencePhraseContains(local, hospital)
       ) &&
-      departments.some((department) => evidencePhraseContains(local, department))
+      departmentGroups.every((group) => group.some((department) => evidencePhraseContains(
+        /党委|院长/u.test(doctor.department!) ? source.slice(Math.max(0, nameAt - 40), nameAt + name.length + 350) : local,
+        department
+      )))
     ) {
       return local;
     }
@@ -9373,8 +9449,8 @@ function officialDoctorDepartmentEvidenceWindow(
   }
   const source = normalizeEvidenceText(sourceText);
   const name = normalizeEvidenceText(doctor.name);
-  const departments = reviewedDepartmentNames(doctor.department).map(normalizeEvidenceText);
-  if (name.length < 2 || departments.every((department) => department.length < 2)) {
+  const departmentGroups = requestedDepartmentEvidenceGroups(doctor.department).map((group) => group.map(normalizeEvidenceText));
+  if (name.length < 2 || departmentGroups.some((group) => group.every((department) => department.length < 2))) {
     return null;
   }
   let nameAt = evidencePhraseIndexOf(source, name);
@@ -9382,7 +9458,8 @@ function officialDoctorDepartmentEvidenceWindow(
     const windowStart = Math.max(0, nameAt - 5_000);
     const windowEnd = Math.min(source.length, nameAt + name.length + 5_000);
     const local = source.slice(windowStart, windowEnd);
-    if (departments.some((department) => evidencePhraseContains(local, department))) {
+    const departmentWindow = /党委|院长/u.test(doctor.department) ? source.slice(Math.max(0, nameAt - 40), nameAt + name.length + 350) : local;
+    if (departmentGroups.every((group) => group.some((department) => evidencePhraseContains(departmentWindow, department)))) {
       return local;
     }
     nameAt = evidencePhraseIndexOf(source, name, nameAt + name.length);
@@ -9570,6 +9647,8 @@ function buildModelPrompt(
       "Leave representative_outputs empty; the Worker adds only publications attributed to this doctor by verified author and affiliation evidence.",
       "Use review.title, review.abstract, and review.markdown as a short doctor-profile report covering identity, current public appointment or affiliation, specialty, supported career facts, and any verified representative publications. Do not grade or critique publications.",
       "The requested institution is an identity-search anchor and may be a former affiliation. Preserve dates and past/present qualifiers from the evidence, distinguish current appointments from historical employment, and never present the requested institution as a current appointment without supporting source text.",
+      "The department input may combine an administrative title and a clinical specialty. Identity matching does not verify every supplied title. Only report appointments explicitly supported by the cited source. Qualify dated appointments as of the source publication; an access date does not make an old appointment current.",
+      "A requested person may be an industry or association professional. Do not call them a physician or doctor without explicit evidence of clinical credentials. An empty bounded publication search means no publication was verified in this search, not that the person has no publications.",
       "Keep core_evidence limited to verified publications when present; describe bibliographic facts neutrally and do not infer clinical effectiveness. It may be empty when no verified publication is available.",
       "Provide exactly five short practical follow-up questions and concise answers grounded only in supplied source IDs. It is acceptable to state that a detail is not available in the retrieved public sources.",
       "Do not invent affiliations, titles, credentials, awards, projects, dates, identifiers, publications, source IDs, or medical advice.",

@@ -441,8 +441,8 @@ export function loadResearchWorkerConfig(
   }
   const singleAttemptExternalRequestUnits =
     6 +
-    (webProvider === "direct" ? 0 : 4) +
-    (maximumOfficialResults + (webProvider === "direct" ? 0 : 3)) * 8 +
+    (webProvider === "direct" ? 0 : 8) +
+    (maximumOfficialResults + (webProvider === "direct" ? 0 : 4)) * 8 +
     3 +
     Math.min(maximumPublications, 5) * 9 +
     maximumPublications * 9;

@@ -54,11 +54,23 @@ export interface OfficialSourceFailure {
 }
 
 export interface ResearchAdapterBundle {
+  setRunContext?(runId: string): void;
   readonly officialSourceFailures?: readonly OfficialSourceFailure[];
   readonly versions?: Readonly<Record<string, string>>;
   readonly budgetHints?: {
     officialSearchRequestUnits: number;
+    supplementalSearchRequestUnits?: number;
+    maximumOfficialSources?: number;
   };
+  searchOfficialSeedSources?(
+    seedUrls: readonly string[],
+    signal: AbortSignal
+  ): Promise<readonly string[]>;
+  searchSupplementalOfficialSources?(
+    doctorName: string,
+    signal: AbortSignal,
+    recovery?: { hospital: string; department: string }
+  ): Promise<readonly string[]>;
   searchPubMed(
     query: string,
     signal: AbortSignal

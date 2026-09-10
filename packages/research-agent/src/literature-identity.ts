@@ -1,5 +1,6 @@
 import type { ResearchDoctorInput } from "@codex-gateway/core";
 import { pinyin } from "pinyin-pro";
+import { reviewedInstitutionNames, requestedDepartmentEvidenceGroups } from "./institution-names.js";
 
 export interface DoctorLiteratureIdentity {
   runtimeGenerated: boolean;
@@ -106,13 +107,15 @@ export function resolveDoctorLiteratureIdentity(
 
   const authorNames = chineseAuthorVariants(doctor.name);
   if (authorNames.length === 0) {
+    const hospitals = doctor.hospital ? reviewedInstitutionNames(doctor.hospital) : [];
+    const departments = doctor.department ? requestedDepartmentEvidenceGroups(doctor.department) : [];
     return {
       runtimeGenerated: false,
       authorNames: latinAuthorVariants(doctor.name),
-      hospitalQueryTerms: doctor.hospital ? [doctor.hospital] : [],
-      departmentQueryTerms: doctor.department ? [doctor.department] : [],
-      hospitalMatchGroups: doctor.hospital ? [[doctor.hospital]] : [],
-      departmentMatchGroups: doctor.department ? [[doctor.department]] : []
+      hospitalQueryTerms: hospitals,
+      departmentQueryTerms: departments.flatMap(group => group),
+      hospitalMatchGroups: hospitals.length > 0 ? [hospitals] : [],
+      departmentMatchGroups: departments
     };
   }
 

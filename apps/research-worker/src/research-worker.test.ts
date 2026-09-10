@@ -61,6 +61,93 @@ afterEach(() => {
 });
 
 describe("Research Worker controlled-beta workflow", () => {
+  it.each([
+    { name: "沈嵘", hospital: "南京市妇幼保健院", department: "第四临床医学院副院长、附属妇产医院党委书记", url: "https://www.njfybjy.com/about/about3.aspx", text: "南京市妇幼保健院领导班子。沈嵘 党委书记。" },
+    { name: "漆洪波", hospital: "重庆医科大学附属第一医院", department: "副院长（妇产、母胎医学方向）", url: "https://www.fahcqmu.cn/gw_ksjs_ck_ysjs/020027900004870.html", text: "漆洪波，重医附一院副院长，母胎医学重庆市重点实验室主任。产科 医学遗传科。" },
+    { name: "Leonhard Schaetz", hospital: "诺华", department: "放射配体治疗部门", url: "https://www.europeancancer.org/content/leonhard-schaetz.html", text: "Leonhard Schaetz. Novartis. International Head Health System Readiness and Partnership, Radioligand Therapies." },
+    { name: "Axel Rominger", hospital: "瑞士伯尔尼大学小岛医院", department: "核医学科", url: "https://nukmed.insel.ch/de/ueber-uns/unser-team/details/person/detail/axel-rominger-1", text: "Axel Rominger. Inselspital Bern. Universitätsklinik für Nuklearmedizin." },
+    { name: "Riemer Slart", hospital: "荷兰格罗宁根大学医学中心", department: "核医学与分子影像科", url: "https://www.umcg.nl/-/behandelteam-thoracale-oncologie", text: "UMCG. Nucleaire Geneeskunde en Moleculaire Beeldvorming. Riemer Slart." },
+    { name: "Iva Hristova", hospital: "欧洲核医学协会", department: "认证项目", url: "https://www.rsna.org/news/2021/september/QIBA-EARL", text: "European Association of Nuclear Medicine (EANM). EARL accreditation program. Iva Hristova, EARL program director." }
+  ])("recognizes screenshot input with evidenced multilingual or role context: $name", async (doctor) => {
+    const result = await identityRegression(doctor, {
+      async searchOfficialSources() { return ["src_identity"]; },
+      async fetchApprovedSource() { return identityRegressionSource(doctor); }
+    });
+    expect(result.checkpoint.official_source_count).toBe(1);
+    expect(result.outcome).toEqual({ outcome: "failed", reason: "insufficient_research_evidence" });
+    expect(result.inputDoctor).toMatchObject({ name: doctor.name, hospital: doctor.hospital, department: doctor.department });
+  });
+
+  it.each([
+    { department: "副院长（妇产、母胎医学方向）", text: "漆洪波，副院长，眼科。", url: "https://www.fahcqmu.cn/doctor/qi" },
+    { department: "产科", text: "漆洪波，重庆医科大学附属第一医院，产科。", url: "https://third-party.example/doctor/qi" },
+    { department: "产科", text: "另一位医生，重庆医科大学附属第一医院，产科。", url: "https://www.fahcqmu.cn/doctor/another" }
+  ])("rejects insufficient context or unverified third-party identity: $url / $department", async (details) => {
+    const doctor = { name: "漆洪波", hospital: "重庆医科大学附属第一医院", ...details };
+    const result = await identityRegression(doctor, {
+      async searchOfficialSources() { return ["src_identity"]; },
+      async fetchApprovedSource() { return identityRegressionSource(doctor); }
+    });
+    expect(result.outcome).toEqual({ outcome: "failed", reason: "identity_not_resolved" });
+  });
+
+  it("supplements after a fetched hospital news page fails identity verification", async () => {
+    const doctor = { name: "王永生", hospital: "四川大学华西医院", department: "肿瘤", url: "https://www.wchscu.cn/expertlist/detail/68892.html", text: "王永生 主任医师 胸部肿瘤科 四川大学华西医院" };
+    let supplements = 0;
+    const result = await identityRegression(doctor, {
+      async searchOfficialSources() { return ["src_news"]; },
+      async searchSupplementalOfficialSources() { supplements += 1; return ["src_identity"]; },
+      async fetchApprovedSource(id) { return id === "src_news" ? { ...identityRegressionSource(doctor), sourceId: id, untrustedText: "王永生参加实验室会议。四川大学华西医院。" } : identityRegressionSource(doctor); }
+    });
+    expect(supplements).toBe(1);
+    expect(result.checkpoint.official_source_count).toBe(1);
+  });
+
+  it("uses an evidenced clinical specialty when an input combines it with an administrative title", async () => {
+    const doctor = { name: "漆洪波", hospital: "重庆医科大学附属第一医院", department: "副院长（妇产、母胎医学方向）",
+      url: "https://www.cq93.gov.cn/profile/qi", text: "漆洪波，重庆医科大学附属第一医院妇产科主任，母胎医学实验室主任。" };
+    const result = await identityRegression(doctor, {
+      async searchOfficialSources() { return ["src_identity"]; },
+      async fetchApprovedSource() { return identityRegressionSource(doctor); }
+    });
+    expect(result.checkpoint.official_source_count).toBe(1);
+    expect(result.inputDoctor.department).toBe(doctor.department);
+  });
+
+  it("uses approved seed evidence before starting search", async () => {
+    const doctor = { name: "王永生", hospital: "四川大学华西医院", department: "肿瘤", url: "https://www.wchscu.cn/expertlist/detail/68892.html", text: "王永生 主任医师 胸部肿瘤科 四川大学华西医院" };
+    const result = await identityRegression(doctor, {
+      async searchOfficialSeedSources() { return ["src_identity"]; },
+      async searchOfficialSources() { throw new Error("Search should be skipped after verified seed evidence"); },
+      async fetchApprovedSource() { return { ...identityRegressionSource(doctor), discoveryKinds: ["seed"] }; }
+    }, [doctor.url]);
+    expect(result.checkpoint.official_source_count).toBe(1);
+  });
+
+  it("continues the fetch queue past a slow candidate and cancels optional fetches after identity resolution", async () => {
+    const doctor = { name: "王永生", hospital: "四川大学华西医院", department: "肿瘤", url: "https://www.wchscu.cn/expertlist/detail/68892.html", text: "王永生 主任医师 胸部肿瘤科 四川大学华西医院" };
+    let cancelled = 0;
+    const result = await identityRegression(doctor, {
+      async searchOfficialSources() { return ["slow1", "empty", "slow2", "src_identity"]; },
+      async fetchApprovedSource(id, signal) {
+        if (id === "empty") return null;
+        if (id === "src_identity") return identityRegressionSource(doctor);
+        return await new Promise((_, reject) => {
+          const cancel = () => { cancelled += 1; reject(signal.reason); };
+          if (signal.aborted) cancel(); else signal.addEventListener("abort", cancel, { once: true });
+        });
+      }
+    });
+    expect(result.checkpoint.official_source_count).toBe(1);
+    expect(cancelled).toBe(2);
+  });
+
+  it("allows one bounded replay when discovery times out before any model call", async () => {
+    const result = await identityRegression({ name: "Example Doctor", hospital: "Example Hospital", department: "Cardiology" }, {
+      async searchOfficialSources() { throw new DOMException("Timed out", "TimeoutError"); }
+    });
+    expect(result.outcome).toEqual({ outcome: "failed", reason: "upstream_unavailable", retryable: true, dependencyScope: "request", upstreamErrorKind: "timeout" });
+  });
   it("uses an independent maintenance lifecycle to create the backup required for Worker readiness", async () => {
     const root = temporaryDirectory();
     const config = {
@@ -2310,7 +2397,8 @@ describe("Research Worker controlled-beta workflow", () => {
             ? {
                 outcome: "failed",
                 reason: "upstream_unavailable",
-                retryable: false
+                retryable: false,
+                dependencyScope: "request"
               }
             : {
                 outcome: "failed",
@@ -6426,6 +6514,53 @@ describe("Research Worker controlled-beta workflow", () => {
     observer.close();
   });
 
+  it("processes the next task after discovery times out twice before any model call", async () => {
+    const config = workerConfig(temporaryDirectory());
+    const observer = createResearchSqliteStore({ path: config.databasePath, limits: config.admissionLimits, ...config.store });
+    cleanupStores.push(observer);
+    const create = (suffix: string) => {
+      const result = observer.createRun({ subjectId: "subj_search_recovery", credentialId: "cred_search_recovery",
+        requestId: `req_${suffix}`, idempotencyKey: `research:${suffix}`, requestHash: suffix,
+        identityFingerprint: suffix, input: runInput() });
+      if (result.outcome !== "created") throw new Error("Recovery fixture was not created");
+      return result.run;
+    };
+    const failed = create("search_timeout");
+    const sources = adapters();
+    const search = sources.searchOfficialSources.bind(sources);
+    let searches = 0;
+    let modelCalls = 0;
+    const controller = new AbortController();
+    const runtime = runResearchWorker({ config, signal: controller.signal, logger: { info() {}, error() {} },
+      dependencies: {
+        adapters: { ...sources, async assertAvailable() {}, async searchOfficialSources(...args) {
+          if (++searches <= 2) throw new DOMException("Search timed out", "TimeoutError");
+          return search(...args);
+        } },
+        modelClient: { model: "test-model", async assertModelAvailable() {}, async generate() {
+          modelCalls += 1;
+          return { text: JSON.stringify(modelOutput()), gatewayRequestId: "req_search_recovery_model",
+            usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };
+        } }
+      }
+    });
+    try {
+      await waitFor(() => observer.getRunForSubject(failed.runId, "subj_search_recovery")?.status === "failed", 5_000);
+      expect(observer.getRunForSubject(failed.runId, "subj_search_recovery"))
+        .toMatchObject({ terminalReason: "upstream_unavailable", attemptCount: 2 });
+      expect(modelCalls).toBe(0);
+      const next = create("search_recovered");
+      await waitFor(() => observer.getRunForSubject(next.runId, "subj_search_recovery")?.status === "succeeded", 5_000);
+      expect(modelCalls).toBeGreaterThan(0);
+      expect(observer.listWorkerHeartbeats({ staleAfterSeconds: 45 })
+        .find(heartbeat => heartbeat.workerId === config.workerId)?.state).toBe("ready");
+    } finally {
+      controller.abort(new Error("Recovery fixture complete"));
+      await runtime;
+      observer.close();
+    }
+  });
+
   it("keeps its ready heartbeat after a request-scoped provider failure exhausts both run attempts", async () => {
     const root = temporaryDirectory();
     const config = workerConfig(root);
@@ -6833,6 +6968,37 @@ describe("Research Worker controlled-beta workflow", () => {
     observer.close();
   });
 });
+
+function identityRegressionSource(doctor: { name: string; url: string; text: string }) {
+  return { sourceId: "src_identity", url: doctor.url, title: doctor.name,
+    accessedAt: "2026-09-10T10:00:00.000Z", contentSha256: "a".repeat(64),
+    untrustedText: doctor.text, discoveryKinds: ["doctor_identity"] as const };
+}
+
+async function identityRegression(
+  doctor: { name: string; hospital: string; department: string },
+  overrides: Partial<ResearchAdapterBundle>,
+  officialProfileUrls: string[] = []
+) {
+  const input = runInput();
+  input.doctor = { ...input.doctor, name: doctor.name, hospital: doctor.hospital, department: doctor.department, officialProfileUrls };
+  const fixture = createLeasedWorkflowFixture("identity_regression", input);
+  const outcome = await executeDoctorResearchWorkflow({
+    lease: fixture.lease, store: fixture.store,
+    adapters: { ...adapters(0), async searchPubMed() { return []; }, ...overrides },
+    modelClient: { model: "test-model", async generate() { return {
+      text: '{"terms":["healthcare"]}', gatewayRequestId: "req_identity_regression",
+      usage: { promptTokens: 100, completionTokens: 10, totalTokens: 110 }
+    }; } },
+    artifactRoot: fixture.artifactRoot,
+    policy: { ...workflowPolicy(), budgets: { ...workflowPolicy().budgets, externalRequests: 160, externalResponseBytes: 320_000_000 } },
+    signal: AbortSignal.timeout(2_000), now: () => fixture.now
+  });
+  const row = fixture.store.database.prepare("SELECT payload_json FROM research_checkpoints WHERE run_id=? AND stage='resolve_identity'").get(fixture.lease.run.runId) as { payload_json: string } | undefined;
+  const checkpoint = row ? JSON.parse(row.payload_json) : {};
+  fixture.store.close();
+  return { outcome, checkpoint, inputDoctor: input.doctor };
+}
 
 function adapters(
   officialSearchRequestUnits?: number

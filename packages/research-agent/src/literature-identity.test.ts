@@ -107,6 +107,15 @@ const fixtures: ReadonlyArray<{
 ];
 
 describe("runtime Chinese doctor literature identity", () => {
+  it("uses reviewed institution and department translations for a Latin-name request", () => {
+    const identity = resolveDoctorLiteratureIdentity({ ...doctor(fixtures[0]!),
+      name: "Axel Rominger", hospital: "瑞士伯尔尼大学小岛医院", department: "核医学科" });
+    expect(identity.hospitalQueryTerms).toContain("Inselspital");
+    expect(identity.departmentQueryTerms).toContain("Nuclear Medicine");
+    expect(literatureAffiliationMatches(identity, "Department of Nuclear Medicine, Inselspital, Bern, Switzerland.")).toBe(true);
+    expect(literatureAffiliationMatches(identity, "Department of Cardiology, Inselspital, Bern, Switzerland.")).toBe(false);
+    expect(literatureAffiliationMatches(identity, "Department of Nuclear Medicine, Example University, Germany.")).toBe(false);
+  });
   it.each(fixtures)(
     "generates bounded author candidates and strictly matches $name",
     (fixture) => {

@@ -273,13 +273,16 @@ export function renderDoctorResearchArtifacts(
     `# ${markdownInline(result.doctor.name)} ${language === "zh-CN" ? "基础信息与研究方向" : "Profile and Research Directions"}`,
     "",
     section(
-      language === "zh-CN" ? "基础档案" : "Profile",
+      language === "zh-CN" ? "检索信息" : "Search Input",
       [
         `${language === "zh-CN" ? "姓名" : "Name"}: ${result.doctor.name}`,
-        `${language === "zh-CN" ? "医院" : "Hospital"}: ${result.doctor.hospital ?? "—"}`,
-        `${language === "zh-CN" ? "科室" : "Department"}: ${result.doctor.department ?? "—"}`
+        `${language === "zh-CN" ? "医院/机构" : "Hospital/Institution"}: ${result.doctor.hospital ?? "—"}`,
+        `${language === "zh-CN" ? "科室/职务" : "Department/Role"}: ${result.doctor.department ?? "—"}`
       ]
     ),
+    /党委|院长/u.test(result.doctor.department ?? "")
+      ? (language === "zh-CN" ? "输入的职务仅作为检索信息；已核实的任职见下方公开资料。\n" : "The supplied role is search input; verified appointments are listed below.\n")
+      : "",
     section(
       language === "zh-CN" ? "专业与任职" : "Expertise and Positions",
       [...result.profile.positions, ...result.profile.expertise]
@@ -299,6 +302,10 @@ export function renderDoctorResearchArtifacts(
     `## ${language === "zh-CN" ? "主要公开来源" : "Main Public Sources"}`,
     "",
     ...primarySources,
+    "",
+    language === "zh-CN"
+      ? "以上日期为来源访问日期。任职及履历描述应结合原文发布时间理解。"
+      : "Dates above are access dates. Interpret appointments and career details at the time of the source publication.",
     ""
   ].join("\n");
 
@@ -697,8 +704,8 @@ function profileResearchDirectionsSection(
     `## ${language === "zh-CN" ? "核心研究方向" : "Research Directions"}`,
     "",
     language === "zh-CN"
-      ? "未从已核实的公开来源确认该医生的个人研究方向。以下综述依据已核实的身份与科室信息及相关领域文献生成，不代表该医生本人的研究成果或观点。"
-      : "The doctor's personal research directions were not confirmed by verified public sources. The related-field review is based on the verified identity, department, and field literature; it does not represent the doctor's own research output or views.",
+      ? "未从已核实的公开来源确认本人的研究方向。以下内容依据已核实的身份、专业及相关公开资料生成，不代表本人的研究成果或观点。"
+      : "The person's personal research directions were not confirmed by verified public sources. The content is based on the verified identity, specialty, and public evidence; it does not represent the person's own research output or views.",
     ""
   ].join("\n");
 }

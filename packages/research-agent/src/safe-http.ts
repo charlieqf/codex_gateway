@@ -4,6 +4,7 @@ import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
 
 export interface BoundedJsonResponse<T> {
+  statusCode: number;
   value: T;
   bytes: Buffer;
   contentSha256: string;
@@ -23,6 +24,7 @@ export interface ApprovedWebDocument {
   text: string;
   contentSha256: string;
   sizeBytes: number;
+  navigationLinks?: readonly { url: string; text: string }[];
 }
 
 export class ResearchSourceFormatError extends Error {
@@ -99,6 +101,7 @@ export async function fetchBoundedJson<T>(input: {
     throw new ResearchExternalServiceError("invalid_payload");
   }
   return {
+    statusCode: response.status,
     value,
     bytes,
     contentSha256: createHash("sha256").update(bytes).digest("hex"),
@@ -246,7 +249,8 @@ export async function fetchApprovedWebDocument(input: {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new ResearchHttpError(
         response.statusCode,
-        parseRetryAfter(response.headers["retry-after"])
+        parseRetryAfter(response.headers["retry-after"]),
+        "request"
       );
     }
     const contentType = String(response.headers["content-type"] ?? "")
@@ -280,6 +284,7 @@ export async function fetchApprovedWebDocument(input: {
       url: current.toString(),
       title,
       text,
+      navigationLinks: contentType === "text/plain" ? [] : extractNavigationLinks(html, current),
       contentSha256: createHash("sha256").update(response.bytes).digest("hex"),
       sizeBytes: response.bytes.length
     };
@@ -290,7 +295,8 @@ export async function fetchApprovedWebDocument(input: {
 export class ResearchHttpError extends Error {
   constructor(
     readonly statusCode: number,
-    readonly retryAfterSeconds: number | null
+    readonly retryAfterSeconds: number | null,
+    readonly dependencyScope?: "request" | "service"
   ) {
     super(`External service returned HTTP ${statusCode}.`);
     this.name = "ResearchHttpError";
@@ -299,6 +305,9 @@ export class ResearchHttpError extends Error {
 
 export type ResearchExternalServiceErrorKind =
   | "invalid_payload"
+  | "incomplete_response"
+  | "provider_error"
+  | "timeout"
   | "transport";
 
 export class ResearchExternalServiceError extends Error {
@@ -550,6 +559,22 @@ function parseRetryAfter(value: string | string[] | null | undefined): number | 
 function extractHtmlTitle(html: string): string {
   const match = /<title\b[^>]*>([\s\S]*?)<\/title>/iu.exec(html);
   return match ? normalizeText(decodeHtmlEntities(match[1]!)).slice(0, 300) : "";
+}
+
+function extractNavigationLinks(html: string, base: URL): { url: string; text: string }[] {
+  const links: { url: string; text: string }[] = [];
+  for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*(["'])([^"']{1,2048})\1[^>]*>([\s\S]*?)<\/a>/giu)) {
+    const label = htmlToText(match[3]!).slice(0, 200);
+    if (!label) continue;
+    try {
+      const url = new URL(decodeHtmlEntities(match[2]!), base);
+      if (url.protocol !== "https:" || url.hostname !== base.hostname || url.username || url.password) continue;
+      url.hash = "";
+      links.push({ url: url.toString(), text: label });
+      if (links.length >= 250) break;
+    } catch { /* Invalid links are not discovery candidates. */ }
+  }
+  return links;
 }
 
 function htmlToText(html: string): string {
