@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"沈嵘 南京市妇幼保健院 党委书记\",\"purpose\":\"locate the person at the requested hospital with her administrative role\"}]}",
+  "usage": {
+    "promptTokens": 1138,
+    "completionTokens": 48,
+    "reasoningTokens": 10,
+    "totalTokens": 1186
+  },
+  "gatewayRequestId": "req-68f172b1-3ac2-4c34-ae93-1fa3e487c256"
+}

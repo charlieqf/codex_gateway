@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42720906\",\"42720890\",\"42719217\",\"42718687\",\"42717810\",\"42716407\",\"42715212\",\"42714190\",\"42712436\",\"42712389\"]}],\"workingNotes\":\"状态：检索配额已用尽（searches:0），剩余读取额度充足（publication_reads:40）。已核实本人5篇论文（42718970、41553083、41508781、41329546、39217358，作者Rong Shen均署名南京妇幼/南京医科大学附属妇产医院，39217358含rongshen163@163.com）。现在读取出生缺陷防控领域检索结果（42720906等），选取3-8篇最相关者作为fieldPublications/coreEvidence，然后产出最终evidence对象。领域范围：生殖医学/生育健康/出生缺陷防控（依据专委会副主任委员身份+凤凰网专访中产前诊断、出生缺陷干预内容）。\"}",
+  "usage": {
+    "promptTokens": 23676,
+    "completionTokens": 254,
+    "reasoningTokens": 26,
+    "totalTokens": 23930
+  },
+  "gatewayRequestId": "req-ede72b7b-c58d-4f0e-9b1a-591193a2b7e3"
+}

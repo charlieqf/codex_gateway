@@ -1,0 +1,774 @@
+{
+  "original": {
+    "name": "沈嵘",
+    "hospital": "南京市妇幼保健院",
+    "department": "第四临床医学院副院长、附属妇产医院党委书记"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "resource_budget_exceeded"
+  },
+  "elapsed_ms": 174792,
+  "serpapi_requests": 1,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 174792,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      }
+    }
+  ],
+  "diagnostic_replay": false,
+  "fresh_case_acceptance_eligible": true,
+  "legacy_calls": 0,
+  "model_requests": 18,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "discover_identity",
+      "attempt": 1,
+      "elapsed_ms": 1655,
+      "gateway_request_id": "req-68f172b1-3ac2-4c34-ae93-1fa3e487c256",
+      "response_sha256": "2722fcc4731681b797c58abedd3ce133eb6e0294519973eb0c71eda8022d31d9",
+      "usage": {
+        "promptTokens": 1138,
+        "completionTokens": 48,
+        "reasoningTokens": 10,
+        "totalTokens": 1186
+      },
+      "telemetry": {
+        "promptChars": 5348,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:55:49.927Z",
+        "clientTotalMs": 1654,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 2,
+      "elapsed_ms": 1869,
+      "gateway_request_id": "req-efc1a737-b3cc-421d-b669-a7bfa36edf15",
+      "response_sha256": "c2edd38f02daf33799daf1561ec0740b4a344fc2ef8689a61f00a3e5ebb4c4a7",
+      "usage": {
+        "promptTokens": 1733,
+        "completionTokens": 115,
+        "reasoningTokens": 0,
+        "totalTokens": 1848
+      },
+      "telemetry": {
+        "promptChars": 6583,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:55:52.426Z",
+        "clientTotalMs": 1869,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 3,
+      "elapsed_ms": 3850,
+      "gateway_request_id": "req-ec933aa5-0701-4f59-b4b7-ff84f157de72",
+      "response_sha256": "b69c3349768684c7e42f3d785bd526c7cbbafceeaae1df6d2faed00ecfadb073",
+      "usage": {
+        "promptTokens": 5370,
+        "completionTokens": 194,
+        "reasoningTokens": 130,
+        "totalTokens": 5564
+      },
+      "telemetry": {
+        "promptChars": 15314,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:55:54.836Z",
+        "clientTotalMs": 3849,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 4,
+      "elapsed_ms": 6302,
+      "gateway_request_id": "req-36831614-2718-41b7-a0b6-006069a965c4",
+      "response_sha256": "6fc96bb50f2fced8db8db25092921f9fd2459b0733c916561465129467e84bec",
+      "usage": {
+        "promptTokens": 8239,
+        "completionTokens": 468,
+        "reasoningTokens": 103,
+        "totalTokens": 8707
+      },
+      "telemetry": {
+        "promptChars": 21188,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:55:59.009Z",
+        "clientTotalMs": 6301,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 5,
+      "elapsed_ms": 6422,
+      "gateway_request_id": "req-91386a99-5dae-4e98-ae15-498a04462c69",
+      "response_sha256": "3f72add7e515828828a04f56001c4ca861950bc0b4972a8cc7b29c4c72c2034e",
+      "usage": {
+        "promptTokens": 8265,
+        "completionTokens": 484,
+        "reasoningTokens": 53,
+        "totalTokens": 8749
+      },
+      "telemetry": {
+        "promptChars": 21314,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:05.327Z",
+        "clientTotalMs": 6422,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "resolve_identity",
+      "attempt": 6,
+      "elapsed_ms": 1862,
+      "gateway_request_id": "req-39f04cc6-f1e4-42f9-ab6f-0d458b318d87",
+      "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+      "usage": {
+        "promptTokens": 4098,
+        "completionTokens": 63,
+        "reasoningTokens": 51,
+        "totalTokens": 4161
+      },
+      "telemetry": {
+        "promptChars": 8328,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:11.762Z",
+        "clientTotalMs": 1861,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 1,
+      "elapsed_ms": 4281,
+      "gateway_request_id": "req-4b0ff464-0c5a-4488-8856-02db2d3c1913",
+      "response_sha256": "288f2bf2575eceee8b149d7d1d6738414058cd0a9961ea0524cd279bf0e10b20",
+      "usage": {
+        "promptTokens": 12837,
+        "completionTokens": 216,
+        "reasoningTokens": 0,
+        "totalTokens": 13053
+      },
+      "telemetry": {
+        "promptChars": 31487,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:13.646Z",
+        "clientTotalMs": 4281,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 2,
+      "elapsed_ms": 8164,
+      "gateway_request_id": "req-62efcc26-8ea5-41bd-ada6-d09da43dd7ab",
+      "response_sha256": "4b4b79694bda3acd25e1cbeeb416fd9c8b874fd697236f44d80025ca95f803d1",
+      "usage": {
+        "promptTokens": 15926,
+        "completionTokens": 495,
+        "reasoningTokens": 231,
+        "totalTokens": 16421
+      },
+      "telemetry": {
+        "promptChars": 39863,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:19.360Z",
+        "clientTotalMs": 8164,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 3,
+      "elapsed_ms": 11997,
+      "gateway_request_id": "req-e9f9130a-324c-4de9-982d-e0402aa9e3db",
+      "response_sha256": "b7e691a4ecabbbdf433e32d3738ee74a01cb1b5c0c61837c4bea90cfe265d013",
+      "usage": {
+        "promptTokens": 21777,
+        "completionTokens": 681,
+        "reasoningTokens": 373,
+        "totalTokens": 22458
+      },
+      "telemetry": {
+        "promptChars": 66290,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:38.805Z",
+        "clientTotalMs": 11996,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 4,
+      "elapsed_ms": 5561,
+      "gateway_request_id": "req-a71d264f-5151-4d9e-9811-b0d44d6a9b09",
+      "response_sha256": "b4a5d8c385466c8fd8a87e4ed7ef5e2950cc4871662eed2c708648deeb3384b6",
+      "usage": {
+        "promptTokens": 23083,
+        "completionTokens": 409,
+        "reasoningTokens": 33,
+        "totalTokens": 23492
+      },
+      "telemetry": {
+        "promptChars": 71803,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:50.832Z",
+        "clientTotalMs": 5560,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 5,
+      "elapsed_ms": 4932,
+      "gateway_request_id": "req-ede72b7b-c58d-4f0e-9b1a-591193a2b7e3",
+      "response_sha256": "1b9b6e56af2fb8e60ce92835ee9a2ae3b176e7f1d5e0c641c6ac9383a3cfdfc0",
+      "usage": {
+        "promptTokens": 23676,
+        "completionTokens": 254,
+        "reasoningTokens": 26,
+        "totalTokens": 23930
+      },
+      "telemetry": {
+        "promptChars": 72415,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:56:57.284Z",
+        "clientTotalMs": 4932,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 6,
+      "elapsed_ms": 18665,
+      "gateway_request_id": "req-79ca9b91-09ed-45c3-b492-7ee0a1440699",
+      "response_sha256": "ce332b91cc87c070f21d9f6336c5e70fd1957557c650eb03dca9b49ed27f09f3",
+      "usage": {
+        "promptTokens": 23356,
+        "completionTokens": 653,
+        "reasoningTokens": 404,
+        "totalTokens": 24009
+      },
+      "telemetry": {
+        "promptChars": 71567,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:57:12.096Z",
+        "clientTotalMs": 18664,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 7,
+      "elapsed_ms": 8737,
+      "gateway_request_id": "req-5d05eb23-f9fe-4f60-9d8b-4c86f0e5cbe3",
+      "response_sha256": "7b3fb828f0531b374aeef5cece8b48469c28e7c1e79f5af570c4a39cc9e45894",
+      "usage": {
+        "promptTokens": 22347,
+        "completionTokens": 843,
+        "reasoningTokens": 476,
+        "totalTokens": 23190
+      },
+      "telemetry": {
+        "promptChars": 66498,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:57:35.234Z",
+        "clientTotalMs": 8736,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 8,
+      "elapsed_ms": 7078,
+      "gateway_request_id": "req-916eed73-8807-4f8e-a044-bd8ef095eff9",
+      "response_sha256": "bd230485ad6cc100670d7cd071fd54296e17cebbb0b2a08c0d2452705f6befe0",
+      "usage": {
+        "promptTokens": 22907,
+        "completionTokens": 457,
+        "reasoningTokens": 70,
+        "totalTokens": 23364
+      },
+      "telemetry": {
+        "promptChars": 70193,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:57:44.015Z",
+        "clientTotalMs": 7078,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 9,
+      "elapsed_ms": 5067,
+      "gateway_request_id": "req-b94d40cb-593a-4e65-8fb3-df307951100a",
+      "response_sha256": "2633ea4bdd27c00cea7080b8d1934d4ef5a396ce6ebf4f9d3606a3f1174748e7",
+      "usage": {
+        "promptTokens": 22389,
+        "completionTokens": 279,
+        "reasoningTokens": 0,
+        "totalTokens": 22668
+      },
+      "telemetry": {
+        "promptChars": 67210,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:57:51.136Z",
+        "clientTotalMs": 5067,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 10,
+      "elapsed_ms": 27425,
+      "gateway_request_id": "req-b90ac358-391c-4b7e-9c38-9383c2497973",
+      "response_sha256": "d8f08c54a3daf648f6e844f889b1c2139d6223f74afd85cd9675f3358f242d14",
+      "usage": {
+        "promptTokens": 23410,
+        "completionTokens": 738,
+        "reasoningTokens": 355,
+        "totalTokens": 24148
+      },
+      "telemetry": {
+        "promptChars": 72022,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:57:56.246Z",
+        "clientTotalMs": 27424,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 11,
+      "elapsed_ms": 14882,
+      "gateway_request_id": "req-31ebca70-5b64-42b1-a263-12d21ba13356",
+      "response_sha256": "ddb8d4661d5235c00ce1221cacea1f808ceb118e7008c2e8a53c0711b99752b8",
+      "usage": {
+        "promptTokens": 23212,
+        "completionTokens": 855,
+        "reasoningTokens": 505,
+        "totalTokens": 24067
+      },
+      "telemetry": {
+        "promptChars": 72013,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:58:23.713Z",
+        "clientTotalMs": 14882,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 12,
+      "elapsed_ms": 6031,
+      "gateway_request_id": "req-a7c0d4a7-78d3-4c46-9254-4734af5a4bab",
+      "response_sha256": "33cc57db9483c3922781a9e2421e3cac3dd3de5f0336b53237d1299eea5389dd",
+      "usage": {
+        "promptTokens": 22731,
+        "completionTokens": 403,
+        "reasoningTokens": 217,
+        "totalTokens": 23134
+      },
+      "telemetry": {
+        "promptChars": 69206,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T22:58:38.637Z",
+        "clientTotalMs": 6030,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [],
+  "external_calls": [
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "serpapi.com",
+      "query_sha256": "1962486aa4183f60c391164a6fef2a438493af5ec7ecfc82d64f65a0bde83886",
+      "attempt": 1,
+      "duration_ms": 826,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": "6aa328d5a688558f2f7469fe"
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 479,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 467,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 450,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 426,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 315,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 303,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 309,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 312,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 313,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 303,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 303,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 729,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 407,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 842,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 415,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 301,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 311,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 330,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 317,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 302,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 300,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 310,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 304,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 308,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 615,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 301,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 745,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 304,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    }
+  ],
+  "budget_failures": [
+    {
+      "runId": "drr_ad37c764114847e6b000dfe88d6700b1",
+      "limit": "evidence_investigation"
+    }
+  ],
+  "public_api_or_admission_tested": false
+}

@@ -2134,7 +2134,10 @@ async function collectAgentResearchEvidence(
       const attributedAuthor = result.evidence.doctorPublications.find(a => a.pmid === pmid)?.author;
       publicationEvidence.push({ reference_id: referenceId, title: p.title,
         authors: uniqueBy([...(attributedAuthor ? [attributedAuthor] : []), ...p.authors], normalizeEvidenceText).slice(0, 20),
-        abstract: p.abstractText ? compactPublicationAbstract(p.abstractText, Math.max(1, Math.floor(policy.maximumSourceTextCharacters / 2 / Math.max(1, pmids.length)))) : null });
+        // Final Agent audits must receive every selected abstract in full.
+        // Narrative context budgets fail explicitly rather than silently
+        // omitting the middle of a source while claiming complete review.
+        abstract: p.abstractText ?? null });
       if (p.sourceUrl && p.accessedAt && p.contentSha256) sources.push({ source_id: `src_pubmed_${pmid}`, source_type: "pubmed",
         title: p.title, url: p.sourceUrl, accessed_at: p.accessedAt, content_sha256: p.contentSha256 });
       if (doi && doiMetadata?.sourceUrl && doiMetadata.accessedAt && doiMetadata.contentSha256) sources.push({

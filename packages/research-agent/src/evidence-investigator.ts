@@ -42,6 +42,8 @@ export interface EvidenceInvestigationPolicy {
   maximumPageRequests: number;
   maximumModelCalls: number;
 }
+type PublicationView = "complete" | "abstract" | "authorship";
+interface FocusedPublication { pmid: string; view: PublicationView }
 export const defaultEvidenceInvestigationPolicy: Readonly<EvidenceInvestigationPolicy> = Object.freeze({
   maximumSearchRequests: 4, maximumPublicationRequests: 50, maximumPageRequests: 4, maximumModelCalls: 12
 });
@@ -60,6 +62,8 @@ export interface EvidenceInvestigationState {
   workingNotes?: string;
   /** Last submitted proposal, including an invalid one, for bounded local edits. */
   pendingEvidence?: unknown;
+  /** Agent-selected source views kept across the rolling tool window. */
+  focusedPublications?: FocusedPublication[];
   /** Optional deterministic DOI enrichment, persisted by the workflow after review. */
   crossrefEnrichment?: Array<ToolRecord<FrozenPublicationMetadata | null> & { doi: string }>;
 }
@@ -109,6 +113,8 @@ You have a bounded action loop. Return one JSON object with either:
 Up to three actions per response; read_publications accepts up to ten PMIDs. Search observations contain exact queries and result IDs. Use cached reads freely. The service adds the requested publication date range. Prefer a selective author search, inspect metadata, then broaden or revise only when needed; avoid spending all searches before reading. Field searches should follow the supported research topic and can use alternatives rather than requiring every topic simultaneously.
 You may include "workingNotes":"..." alongside actions to preserve a concise evidence-bound plan, screened PMIDs, author relationships and important source quotations across later tool calls. Keep notes under 12000 characters and update them as evidence changes. Older verbose tool observations leave the working window; use these notes to avoid rereading the same papers just to reconstruct your plan. Notes are your provisional memory, never independent evidence; all final claims still need the actual read sources and independent review.
 Tool results provide citation_passages with stable passageId values. Prefer citations {"sourceId":"...","passageId":"..."} to copying a long quotation: the server inserts that exact read passage, and the independent reviewer still checks whether it supports the claim. A paper's title passage identifies the record; it is not proof of details absent from its actual abstract. For an own paper you may select affiliationIndex (zero-based in the chosen author's affiliations) instead of copying affiliationQuote. Select the correct author first; another author's index cannot be used.
+read_publications accepts an optional view: "abstract" for a field paper's complete abstract, "authorship" for author/affiliation metadata, or "complete" (default). Repeated affiliation text is stored once in affiliationTexts; each author's affiliations list retains its original local affiliationIndex and points to that text. This is lossless metadata compaction, not evidence of person identity.
+You may include "focusPublications":[{"pmid":"read PMID","view":"abstract|authorship|complete"}] alongside actions to retain up to 16 source views in later prompts. The entire list replaces the prior focus; [] clears it. Sources read by those actions may be focused in the same response. Keep selected own-paper authorship and core-paper abstracts in focus together when useful, instead of alternating repeated cached reads that evict each other. This memory contains the actual original sources, not your notes. If a focus exceeds the context budget, select fewer papers or narrower views. You still decide what the evidence means. Use remaining.model_calls_including_review accurately; reading again on the final call cannot leave a call for a proposal and its independent review.
 When pending_proposal is supplied, fix only the necessary existing fields with {"evidencePatch":{"proposal_sha256":"supplied hash","replacements":[{"path":"/facts/0/citations/0","value":{"sourceId":"...","passageId":"..."}}]}}. Paths are JSON pointers into that proposal; each replacement must name an existing value. Arrays or complete rows may be replaced to remove unsupported claims. Do not regenerate a long, otherwise sound proposal just to fix a quotation or one field. You may instead submit a complete evidence object when a broad revision is necessary. Every corrected proposal still requires independent review.
 Or finish with {"evidence":{"facts":[{"type":"position|expertise|education_and_career|research_direction|representative_output","text":"supported fact in output language","citations":[{"sourceId":"page ID","quote":"exact original passage"}]}],"topics":{"terms":["biomedical or professional topic"],"explanation":"why this review scope follows the evidence","citations":[{"sourceId":"page ID or src_pubmed_PMID","quote":"exact supporting text"}]},"doctorPublications":[{"pmid":"read PMID","author":"exact metadata author","affiliationQuote":"exact text from THAT author's affiliations, or null","corroboration":[{"sourceId":"page ID","quote":"explicit publication connection"}],"explanation":"evidence linking this author to the person"}],"fieldPublications":[{"pmid":"read PMID","rationale":"relevance to the evidenced scope"}],"limitations":["specific missing evidence, including unverified own publications"]}}.
 Also include evidence.coreEvidence: an array of rows {"pmid":"selected field PMID","study_type":"...","sample_and_source":"...","methods":"...","key_results":"...","limitations":"...","citations":[{"sourceId":"src_pubmed_PMID","quote":"exact supporting title or abstract passage"}]}.
@@ -162,14 +168,17 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
   };
   const conclude = (value: unknown) => validateEvidence(value, pages(), state, input);
   if (state.reviewedEvidence) return { outcome: "resolved", evidence: conclude(state.reviewedEvidence), state };
-  while (state.modelCalls < policy.maximumModelCalls) {
-    d.signal.throwIfAborted();
-    const prompt = {
+  const buildPrompt = () => ({
       requested: input.doctor, verified_identity: input.identity, language: input.language,
       working_notes: state.workingNotes ?? "",
       ...(state.pendingEvidence === undefined ? {} : { pending_proposal: {
         proposal_sha256: proposalHash(state.pendingEvidence), evidence: state.pendingEvidence
       } }),
+      focused_publications: (state.focusedPublications ?? []).map(focus => {
+        const record = state.publications.find(p => p.pmid === focus.pmid && p.status === "succeeded" && p.value);
+        if (!record || !["complete", "abstract", "authorship"].includes(focus.view)) throw new Error("Invalid focused source in evidence checkpoint.");
+        return publicationObservation(record, focus.view);
+      }),
       ...(d.timing ? { service_timing: d.timing() } : {}),
       publication_years: [input.startYear, input.endYear], profileOnly: input.profileOnly,
       minimum_field_references: input.minimumReferences, maximum_field_references: input.maximumReferences,
@@ -180,6 +189,8 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
       remaining: { searches: policy.maximumSearchRequests - state.searches.length,
         publication_reads: policy.maximumPublicationRequests - state.publications.length,
         page_reads: policy.maximumPageRequests - state.pageRequests, model_calls_including_review: policy.maximumModelCalls - state.modelCalls },
+      ...(policy.maximumModelCalls - state.modelCalls <= 2 ? { closing_requirement:
+        "The current call and independent review need separate slots. Submit the supported proposal or a local correction now; do not plan future reads after the remaining calls are spent." } : {}),
       pages: pages().map(p => ({ sourceId: p.sourceId, title: p.title, url: p.url,
         characters: p.untrustedText.length, initial_text: p.untrustedText.slice(0, 2500),
         identity_passages: citationPassages(p.untrustedText, input.identity.citations.filter(c => c.sourceId === p.sourceId)),
@@ -191,13 +202,37 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
       read_publications: state.publications.map(p => ({ pmid: p.pmid, status: p.status, title: p.value?.title ?? null,
         ...(p.value ? { title_citation: { sourceId: `src_pubmed_${p.pmid}`, passageId: "title" } } : {}) })),
       observations: state.observations.map(observation => {
+        const observed = observation.result;
+        if (["publication", "publication_cached"].includes(observation.action) && object(observed) &&
+            state.focusedPublications?.some(focus => focus.pmid === observed.pmid && (focus.view === "complete" || focus.view === observed.view))) {
+          return { action: observation.action, result: { pmid: observed.pmid, retained_in_focus: true } };
+        }
         if (state.pendingEvidence !== undefined && object(observation.result) && Object.hasOwn(observation.result, "previous_proposal")) {
           const { previous_proposal: _previous, ...result } = observation.result;
           return { action: observation.action, result };
         }
         return observation;
       })
-    };
+    });
+  const updateFocus = (value: unknown) => {
+    if (value === undefined) return;
+    if (!Array.isArray(value) || value.length > 16 || value.some(focus => !object(focus) ||
+        Object.keys(focus).sort().join() !== "pmid,view" || !string(focus.pmid, 1, 10) || !["complete", "abstract", "authorship"].includes(String(focus.view)) ||
+        !state.publications.some(p => p.pmid === focus.pmid && p.status === "succeeded" && p.value)) ||
+        new Set(value.map(focus => focus.pmid)).size !== value.length) {
+      observe("invalid_focus", "Use at most 16 distinct successfully read PMIDs, each with view complete, abstract or authorship. The existing focus was retained."); return;
+    }
+    const previous = state.focusedPublications;
+    state.focusedPublications = structuredClone(value) as FocusedPublication[];
+    if (bytes({ ...buildPrompt(), observations: [] }) > 90_000) {
+      state.focusedPublications = previous;
+      observe("invalid_focus", "The selected source views exceed the prompt budget. Choose fewer sources or use abstract/authorship views. The existing focus was retained.");
+    }
+  };
+  if (state.focusedPublications !== undefined && (!Array.isArray(state.focusedPublications) || state.focusedPublications.length > 16)) throw new Error("Invalid focused source checkpoint.");
+  while (state.modelCalls < policy.maximumModelCalls) {
+    d.signal.throwIfAborted();
+    const prompt = buildPrompt();
     while (prompt.observations.length > 1 && bytes(prompt) > 90_000) prompt.observations.shift();
     const responseText = await generate("investigator", prompt) ?? "";
     let decision: Record<string, unknown>;
@@ -224,6 +259,7 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
       }
     }
     if (decision.evidence !== undefined) {
+      updateFocus(decision.focusPublications);
       if (object(decision.evidence) && decision.evidence.limitations === undefined && Array.isArray(decision.limitations)) {
         decision.evidence = { ...decision.evidence, limitations: decision.limitations };
         observe("envelope_repaired", "Moved the supplied limitations array into evidence.limitations; no content was inferred or rewritten.");
@@ -299,16 +335,18 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
         if (!Array.isArray(action.pmids) || action.pmids.length < 1 || action.pmids.length > 10 || !action.pmids.every(p => string(p, 1, 10) && /^[0-9]+$/u.test(p))) {
           observe("invalid_pmids", "Read 1 to 10 discovered PMIDs."); continue;
         }
+        const view = action.view ?? "complete";
+        if (!["complete", "abstract", "authorship"].includes(String(view))) { observe("invalid_publication_view", "Use complete, abstract or authorship."); continue; }
         for (const pmid of [...new Set(action.pmids)] as string[]) {
           if (!state.searches.some(s => s.status === "succeeded" && s.value.includes(pmid)) && !pageMentionsPmid(pages(), pmid)) {
             observe("pmid_not_discovered", { pmid, message: "Use a PMID returned by search, explicitly labeled PMID in a read page, or linked to PubMed from that page." }); continue;
           }
           const cached = state.publications.find(p => p.pmid === pmid && p.status === "succeeded");
-          if (cached) { observe("publication_cached", publicationObservation(cached)); continue; }
+          if (cached) { observe("publication_cached", publicationObservation(cached, view as PublicationView)); continue; }
           if (state.publications.length >= policy.maximumPublicationRequests) { observe("publication_budget_exhausted", pmid); break; }
           const record: EvidenceInvestigationState["publications"][number] = { pmid, status: "pending", value: null };
           state.publications.push(record); await save();
-          try { record.value = await d.readPublication(pmid); record.status = "succeeded"; observe("publication", publicationObservation(record)); }
+          try { record.value = await d.readPublication(pmid); record.status = "succeeded"; observe("publication", publicationObservation(record, view as PublicationView)); }
           catch (error) { fatal(error); record.status = "failed"; observe("publication_failed", { pmid, kind: failure(error) }); }
           await save();
         }
@@ -330,6 +368,7 @@ export async function investigateDoctorEvidence(input: EvidenceInvestigationInpu
         await save();
       } else observe("unknown_tool", "Use search_pubmed, read_publications, read_source or read_page.");
     }
+    updateFocus(decision.focusPublications);
     await save();
   }
   return { outcome: "unresolved", reason: "budget_exhausted", state };
@@ -429,13 +468,27 @@ function sourcePassages(text: string) {
   }
   return result;
 }
-function publicationObservation(record: EvidenceInvestigationState["publications"][number]) {
+function publicationObservation(record: EvidenceInvestigationState["publications"][number], view: PublicationView = "complete") {
   // The source passages contain the full abstract once, with stable IDs.
   // Keep full original metadata in state, avoiding duplicate prompt copies.
-  const { abstractText: _abstract, ...metadata } = record.value ?? {};
-  return { ...record, ...(record.value ? { value: metadata, citation_passages: [
-    { passageId: "title", quote: record.value.title }, ...sourcePassages(publicationText(record.value))
-  ] } : {}) };
+  if (!record.value) return { ...record, view };
+  const { abstractText: _abstract, authorAffiliations, affiliations, ...metadata } = record.value;
+  const affiliationTexts: Array<{ id: string; text: string }> = [];
+  const affiliationId = (text: string) => {
+    let entry = affiliationTexts.find(item => item.text === text);
+    if (!entry) { entry = { id: `affiliation_${affiliationTexts.length}`, text }; affiliationTexts.push(entry); }
+    return entry.id;
+  };
+  const authorship = (authorAffiliations ?? []).map(author => ({ author: author.author,
+    affiliations: author.affiliations.map((text, affiliationIndex) => ({ affiliationIndex, text_id: affiliationId(text) })) }));
+  // Aggregate affiliations have no author mapping; retain them without inventing one.
+  const aggregate = affiliations?.map(text => ({ text_id: affiliationId(text) }));
+  return { pmid: record.pmid, status: record.status, view, value: { ...metadata,
+    abstract_available: Boolean(record.value.abstractText),
+    ...(view === "abstract" ? {} : { authorAffiliations: authorship, affiliationTexts,
+      ...(aggregate ? { affiliations: aggregate } : {}) }) },
+    citation_passages: [{ passageId: "title", quote: record.value.title },
+      ...(view === "authorship" ? [] : sourcePassages(publicationText(record.value)))] };
 }
 function proposalHash(value: unknown): string { return createHash("sha256").update(JSON.stringify(value)).digest("hex"); }
 function applyEvidencePatch(previous: unknown, patch: unknown): unknown {

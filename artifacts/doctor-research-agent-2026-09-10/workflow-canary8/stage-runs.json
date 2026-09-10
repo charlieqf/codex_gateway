@@ -1,0 +1,200 @@
+[
+  {
+    "stage": "discover_identity",
+    "attempt": 1,
+    "duration_ms": 1656,
+    "error_code": null,
+    "prompt_tokens": 1138,
+    "completion_tokens": 48,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1654,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 2,
+    "duration_ms": 1871,
+    "error_code": null,
+    "prompt_tokens": 1733,
+    "completion_tokens": 115,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1869,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 3,
+    "duration_ms": 3852,
+    "error_code": null,
+    "prompt_tokens": 5370,
+    "completion_tokens": 194,
+    "admission_wait_ms": 0,
+    "client_total_ms": 3849,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 4,
+    "duration_ms": 6303,
+    "error_code": null,
+    "prompt_tokens": 8239,
+    "completion_tokens": 468,
+    "admission_wait_ms": 0,
+    "client_total_ms": 6301,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 5,
+    "duration_ms": 6425,
+    "error_code": null,
+    "prompt_tokens": 8265,
+    "completion_tokens": 484,
+    "admission_wait_ms": 0,
+    "client_total_ms": 6422,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "resolve_identity",
+    "attempt": 6,
+    "duration_ms": 1863,
+    "error_code": null,
+    "prompt_tokens": 4098,
+    "completion_tokens": 63,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1861,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 1,
+    "duration_ms": 4283,
+    "error_code": null,
+    "prompt_tokens": 12837,
+    "completion_tokens": 216,
+    "admission_wait_ms": 0,
+    "client_total_ms": 4281,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 2,
+    "duration_ms": 8166,
+    "error_code": null,
+    "prompt_tokens": 15926,
+    "completion_tokens": 495,
+    "admission_wait_ms": 0,
+    "client_total_ms": 8164,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 3,
+    "duration_ms": 11998,
+    "error_code": null,
+    "prompt_tokens": 21777,
+    "completion_tokens": 681,
+    "admission_wait_ms": 0,
+    "client_total_ms": 11996,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 4,
+    "duration_ms": 5562,
+    "error_code": null,
+    "prompt_tokens": 23083,
+    "completion_tokens": 409,
+    "admission_wait_ms": 0,
+    "client_total_ms": 5560,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 5,
+    "duration_ms": 4933,
+    "error_code": null,
+    "prompt_tokens": 23676,
+    "completion_tokens": 254,
+    "admission_wait_ms": 0,
+    "client_total_ms": 4932,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 6,
+    "duration_ms": 18666,
+    "error_code": null,
+    "prompt_tokens": 23356,
+    "completion_tokens": 653,
+    "admission_wait_ms": 0,
+    "client_total_ms": 18664,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 7,
+    "duration_ms": 8738,
+    "error_code": null,
+    "prompt_tokens": 22347,
+    "completion_tokens": 843,
+    "admission_wait_ms": 0,
+    "client_total_ms": 8736,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 8,
+    "duration_ms": 7079,
+    "error_code": null,
+    "prompt_tokens": 22907,
+    "completion_tokens": 457,
+    "admission_wait_ms": 0,
+    "client_total_ms": 7078,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 9,
+    "duration_ms": 5069,
+    "error_code": null,
+    "prompt_tokens": 22389,
+    "completion_tokens": 279,
+    "admission_wait_ms": 0,
+    "client_total_ms": 5067,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 10,
+    "duration_ms": 27426,
+    "error_code": null,
+    "prompt_tokens": 23410,
+    "completion_tokens": 738,
+    "admission_wait_ms": 0,
+    "client_total_ms": 27424,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 11,
+    "duration_ms": 14883,
+    "error_code": null,
+    "prompt_tokens": 23212,
+    "completion_tokens": 855,
+    "admission_wait_ms": 0,
+    "client_total_ms": 14882,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 12,
+    "duration_ms": 6031,
+    "error_code": null,
+    "prompt_tokens": 22731,
+    "completion_tokens": 403,
+    "admission_wait_ms": 0,
+    "client_total_ms": 6030,
+    "terminal_source": "provider_response"
+  }
+]

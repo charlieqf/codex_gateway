@@ -48,14 +48,24 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary8/result.json",
+          "outcome": "failed",
+          "reported_reason": "resource_budget_exceeded",
+          "diagnosed_reason": "Identity independently passed in six calls. Evidence Agent read 24 papers but repeatedly alternated cached author affiliations and core abstracts as the rolling observation window evicted earlier material. No evidence proposal or independent evidence review was reached in twelve calls.",
+          "elapsed_ms": 174792,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
       "full_worker_attempt": {
-        "evidence": "workflow-canary7/result.json",
+        "evidence": "workflow-canary8/result.json",
         "outcome": "failed",
         "reported_reason": "resource_budget_exceeded",
-        "diagnosed_reason": "Identity independently passed in four calls. Local proposal patches were used, but profile-fact citations were incorrectly limited to web pages. Read PubMed quotations and passage IDs were rejected as missing quotes; no independent evidence review was reached.",
-        "elapsed_ms": 207430,
+        "diagnosed_reason": "Identity independently passed in six calls. Evidence Agent read 24 papers but repeatedly alternated cached author affiliations and core abstracts as the rolling observation window evicted earlier material. No evidence proposal or independent evidence review was reached in twelve calls.",
+        "elapsed_ms": 174792,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://i.ifeng.com/c/8XgFOwM4fHr\",\"find\":\"沈嵘\",\"purpose\":\"look for an interview page describing Shen Rong's roles, possibly including Nanjing Medical University Fourth Clinical College vice dean\"}]}",
+  "usage": {
+    "promptTokens": 5370,
+    "completionTokens": 194,
+    "reasoningTokens": 130,
+    "totalTokens": 5564
+  },
+  "gatewayRequestId": "req-ec933aa5-0701-4f59-b4b7-ff84f157de72"
+}

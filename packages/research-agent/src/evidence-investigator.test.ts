@@ -59,6 +59,83 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it("retains selected source views across observation eviction and checkpoint recovery without rereading", async () => {
+    const pmids = Array.from({ length: 15 }, (_, index) => String(101 + index));
+    const focus = [{ pmid: "101", view: "authorship" }, { pmid: "102", view: "abstract" }];
+    const f = fixture([search,
+      { actions: [{ type: "read_publications", pmids: pmids.slice(0, 10) }], focusPublications: focus },
+      { actions: [{ type: "read_publications", pmids: pmids.slice(10) }] },
+      { unresolved: "insufficient_evidence" }]);
+    f.dependencies.searchPubMed.mockResolvedValue(pmids);
+    f.dependencies.readPublication.mockImplementation(async pmid => ({ ...paper, pmid }));
+    const first = await investigateDoctorEvidence(f.input);
+    expect(first.state.focusedPublications).toEqual(focus);
+    expect(first.state.observations.some(o => o.action === "publication" && (o.result as { pmid: string }).pmid === "101")).toBe(false);
+    const resumed = fixture([conclusion(), accept], { state: first.state });
+    expect((await investigateDoctorEvidence(resumed.input)).outcome).toBe("resolved");
+    const prompt = JSON.parse(resumed.dependencies.generate.mock.calls[0]![0].prompt);
+    const own = prompt.focused_publications[0];
+    const field = prompt.focused_publications[1];
+    expect(own).toMatchObject({ pmid: "101", view: "authorship" });
+    expect(own.citation_passages).toEqual([{ passageId: "title", quote: paper.title }]);
+    const affiliation = own.value.authorAffiliations[0].affiliations[0];
+    expect(affiliation.affiliationIndex).toBe(0);
+    expect(own.value.affiliationTexts.find((item: { id: string }) => item.id === affiliation.text_id).text)
+      .toBe(paper.authorAffiliations![0]!.affiliations[0]);
+    expect(field.value).not.toHaveProperty("authorAffiliations");
+    expect(field.citation_passages.map((p: { quote: string }) => p.quote).join("")).toContain(paper.abstractText);
+    expect(resumed.dependencies.readPublication).not.toHaveBeenCalled();
+    expect(resumed.dependencies.searchPubMed).not.toHaveBeenCalled();
+  });
+
+  it("compacts repeated affiliation text while preserving each author's order and unassigned affiliations", async () => {
+    const texts = ["Department One, Example University", "Department Two, Other University"];
+    const authors = Array.from({ length: 20 }, (_, i) => ({ author: `Synthetic ${i}`,
+      affiliations: i % 2 ? [...texts].reverse() : [...texts] }));
+    const source = { ...paper, authorAffiliations: authors, affiliations: [...texts, "Unassigned Institute"] };
+    const f = fixture([{ actions: [{ type: "read_publications", pmids: ["101"], view: "authorship" }],
+      focusPublications: [{ pmid: "101", view: "authorship" }] }, { unresolved: "insufficient_evidence" }], { publication: source });
+    const result = await investigateDoctorEvidence(f.input);
+    const prompt = JSON.parse(f.dependencies.generate.mock.calls[1]![0].prompt);
+    const compact = prompt.focused_publications[0].value;
+    expect(compact.affiliationTexts).toHaveLength(3);
+    const originalText = (id: string) => compact.affiliationTexts.find((item: { id: string }) => item.id === id).text;
+    expect(compact.authorAffiliations.map((author: { author: string; affiliations: Array<{ affiliationIndex: number; text_id: string }> }) => {
+      expect(author.affiliations.map(a => a.affiliationIndex)).toEqual([0, 1]);
+      return { author: author.author, affiliations: author.affiliations.map(a => originalText(a.text_id)) };
+    })).toEqual(authors);
+    expect(compact.affiliations.map((a: { text_id: string }) => originalText(a.text_id))).toEqual(source.affiliations);
+    expect(result.state.publications[0]!.value).toEqual(source);
+    expect(prompt.observations).toContainEqual({ action: "publication", result: { pmid: "101", retained_in_focus: true } });
+  });
+
+  it("rejects oversized source focus atomically and keeps the prior narrow view usable", async () => {
+    const f = fixture([search,
+      { ...read, focusPublications: [{ pmid: "101", view: "authorship" }] },
+      { actions: [{ type: "read_publications", pmids: ["102"] }],
+        focusPublications: [{ pmid: "101", view: "complete" }, { pmid: "102", view: "complete" }] },
+      { unresolved: "insufficient_evidence" }]);
+    f.dependencies.searchPubMed.mockResolvedValue(["101", "102"]);
+    f.dependencies.readPublication.mockImplementation(async pmid => ({ ...paper, pmid, abstractText: "A".repeat(60_000) }));
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.state.focusedPublications).toEqual([{ pmid: "101", view: "authorship" }]);
+    expect(result.state.observations).toContainEqual(expect.objectContaining({ action: "invalid_focus" }));
+    expect(f.dependencies.generate).toHaveBeenCalledTimes(4);
+    expect(f.dependencies.generate.mock.calls.every(([call]) => Buffer.byteLength(call.prompt) <= 120_000)).toBe(true);
+  });
+
+  it("rejects unknown read views and unread focus without making extra external calls", async () => {
+    const f = fixture([{ ...read, focusPublications: [{ pmid: "101", view: "authorship" }] },
+      { actions: [{ type: "read_publications", pmids: ["101"], view: "guessed" }],
+        focusPublications: [{ pmid: "999", view: "complete" }] },
+      { unresolved: "insufficient_evidence" }]);
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.state.focusedPublications).toEqual([{ pmid: "101", view: "authorship" }]);
+    expect(result.state.observations.map(o => o.action)).toEqual(expect.arrayContaining(["invalid_publication_view", "invalid_focus"]));
+    expect(f.dependencies.readPublication).toHaveBeenCalledTimes(1);
+    expect(f.dependencies.searchPubMed).not.toHaveBeenCalled();
+  });
+
   it.each(["quote", "passageId"])("lets the reviewer assess a personal research fact cited to a read paper (%s)", async mode => {
     const proposal = JSON.parse(JSON.stringify(conclusion()));
     proposal.evidence.facts.push({ type: "research_direction", text: "Alice studies hormone monitoring in adults.",

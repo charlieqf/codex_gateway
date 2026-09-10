@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42718970\",\"42720906\",\"42710565\",\"42714190\",\"42712436\",\"42705456\",\"42715212\"]}],\"workingNotes\":\"已读缓存：41553083（Rong Shen，南京生育保存重点实验室/早孕保健中心，颗粒细胞Rab14脂自噬小鼠模型）、41508781（Rong Shen，生殖医学科，EMAb 47阳性vs166阴性PSM回顾性，着床率低10.3个百分点p=0.047）、41329546（Rong Shen，7554例FET，阿托西班临床妊娠58.6vs53.3% p=0.049，卵裂期获益50.2vs41.4%）、39217358（Rong Shen，POSEIDON 3/4组，DFP>40%结局更差）。待读：42718970本人+领域核心论文摘要。之后生成evidence并留一次独立审校。目标coreEvidence 5-6行：AI生殖教育综述、绿地ASD、NIPS母源CNV、子痫前期eccDNA、羊水EV蛋白组、RIF高龄转录组。\"}",
+  "usage": {
+    "promptTokens": 22389,
+    "completionTokens": 279,
+    "reasoningTokens": 0,
+    "totalTokens": 22668
+  },
+  "gatewayRequestId": "req-b94d40cb-593a-4e65-8fb3-df307951100a"
+}

@@ -3780,8 +3780,9 @@ describe("Research Worker controlled-beta workflow", () => {
     { requireLongerAnswers: false, resumeAfterTransientFailure: true, narrativeAgent: true, revisionRounds: 0 },
     { requireLongerAnswers: true, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0 },
     { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 3 },
-    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0, reviseCoreEvidence: true }
-  ])("carries reviewed Agent evidence through artifact storage (strict answer: $requireLongerAnswers; recovery: $resumeAfterTransientFailure; narrative Agent: $narrativeAgent; revisions: $revisionRounds)", async ({ requireLongerAnswers, resumeAfterTransientFailure, narrativeAgent, revisionRounds, reviseCoreEvidence }) => {
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0, reviseCoreEvidence: true },
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0, longAbstract: true }
+  ])("carries reviewed Agent evidence through artifact storage (strict answer: $requireLongerAnswers; recovery: $resumeAfterTransientFailure; narrative Agent: $narrativeAgent; revisions: $revisionRounds)", async ({ requireLongerAnswers, resumeAfterTransientFailure, narrativeAgent, revisionRounds, reviseCoreEvidence, longAbstract }) => {
     const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring", { ...runInput(), ...(narrativeAgent ? { language: "zh-CN" as const } : {}) });
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
     const queryLog: string[] = [];
@@ -3790,7 +3791,11 @@ describe("Research Worker controlled-beta workflow", () => {
       async fetchApprovedSource() { throw new Error("Legacy identity fetch must not run."); },
       async searchWeb() { return [{ url: source.url, title: source.title, snippet: "Profile" }]; },
       async readWebPage() { return source; },
-      async searchPubMed(query) { queryLog.push(query); return ["1001"]; }
+      async searchPubMed(query) { queryLog.push(query); return ["1001"]; },
+      async getPubMedMetadata(pmid, signal) {
+        const paper = await adapters().getPubMedMetadata(pmid, signal);
+        return paper && longAbstract ? { ...paper, abstractText: paper.abstractText + " Additional source context.".repeat(350) + " SOURCE_MIDDLE_CAUTION " + " Remaining source context.".repeat(350) } : paper;
+      }
     };
     const proposals: unknown[] = [
       { actions: [{ type: "search_pubmed", purpose: "doctor", query: '"Example Doctor"[Author]' }] },
@@ -3849,11 +3854,16 @@ describe("Research Worker controlled-beta workflow", () => {
         } else if (narrativeAgent && request.stage === "validate_outputs" && request.prompt.startsWith("INDEPENDENT SOURCE AUDIT")) {
           const auditInput = JSON.parse(request.prompt.split("INDEPENDENT SOURCE AUDIT\n\n")[1]!);
           expect(auditInput.assigned_sources[0].abstract).toContain("Randomized evidence");
+          if (longAbstract) expect(auditInput.assigned_sources[0].abstract).toContain("SOURCE_MIDDLE_CAUTION");
           response = { findings: [] };
         } else if (narrativeAgent && request.stage === "validate_outputs") {
           narrativeReviews++;
           const reviewInput = JSON.parse(request.prompt.split("INDEPENDENT NARRATIVE REVIEW\n\n")[1]!);
           expect(reviewInput.complete_evidence.references[0].abstract).toContain("Randomized evidence");
+          if (longAbstract) {
+            expect(reviewInput.complete_evidence.references[0].abstract).toContain("SOURCE_MIDDLE_CAUTION");
+            expect(reviewInput.complete_evidence.references[0].abstract).not.toContain("middle omitted");
+          }
           codes.push(reviewInput.blocking_diagnostics);
           response = { schema_version: "doctor_narrative_review.v1", candidate_sha256: reviewInput.candidate_sha256,
             decision: "accept", checks: { citations: "pass", numerical_claims: "pass", evidence_scope: "pass", coherence: "pass", questions_answers: "pass" },

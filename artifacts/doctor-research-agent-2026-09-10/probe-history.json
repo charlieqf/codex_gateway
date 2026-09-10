@@ -450,9 +450,28 @@
       "fresh_case_acceptance_eligible": true,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary8",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 18,
+      "elapsed_ms": 174792,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      },
+      "archive_sha256": "723402b6fd3da171afc5d72b15d81174fe275e2620ee79fa110d2943960cfb94",
+      "evidence_archive_sha256": "88cd6bbec501bad26972effb02ad016c487280e99aaa2034ab5c7eb0ddbc205b",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 7,
+  "total_new_serpapi_requests": 8,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,
@@ -490,5 +509,13 @@
     "this_month_usage": 208,
     "search_requests": 0,
     "note": "One search HTTP request returned the same cached provider search ID in 445 ms; shared account usage remained 208."
+  },
+  "account_after_workflow_canary8": {
+    "checked_at_utc": "2026-09-10T23:11:33.079Z",
+    "http_status": 200,
+    "plan_searches_left": 42,
+    "total_searches_left": 42,
+    "this_month_usage": 208,
+    "search_requests": 0
   }
 }

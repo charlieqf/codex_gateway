@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"(birth defects prevention OR preconception care OR prenatal screening) AND China AND (2022:2026[Date - Publication])\"}],\"workingNotes\":\"身份确认：沈嵘（女），南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，主任医师/教授/博士生导师；中国优生优育协会生育健康与出生缺陷防控专委会副主任委员。已核实本人论文（Rong Shen，南京妇幼，含rongshen163@163.com）：42718970（AMA与RIF子宫内膜容受性，末位作者，南京女性生育力保存重点实验室）、41553083（Rab14脂噬与颗粒细胞，小鼠模型）、41508781（抗子宫内膜抗体与IVF结局，回顾性PSM研究）、41329546（FET异常子宫内膜蠕动波与阿托西班，7554例回顾性）、39217358（优势卵泡比例与IVF/ICSI结局，POSEIDON 3/4组回顾性队列）、38470398、38444028、37690219、37382170。38901472为苏州神经科Rong Shen，排除。领域方向为生殖医学/生育健康/出生缺陷防控（专委会页面+党委书记专访支持），非宫颈癌筛查。已用最后1次检索获取领域文献，下一步读取检索结果中的领域论文（目标≥3篇，尽量多），随后产出证据对象：facts（职务、专长、研究方向、代表论文）、topics、doctorPublications（≤5）、fieldPublications、coreEvidence（3-8行）、limitations（副院长职务未验证、中文医学期刊文献未检索等）。\"}",
+  "usage": {
+    "promptTokens": 23083,
+    "completionTokens": 409,
+    "reasoningTokens": 33,
+    "totalTokens": 23492
+  },
+  "gatewayRequestId": "req-a71d264f-5151-4d9e-9811-b0d44d6a9b09"
+}

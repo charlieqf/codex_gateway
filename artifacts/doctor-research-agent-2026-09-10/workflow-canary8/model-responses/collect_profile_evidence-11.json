@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42710565\",\"42714190\",\"42712436\",\"42705456\"]}],\"workingNotes\":\"状态：身份已验证（沈嵘，南京市妇幼保健院党委书记，主任医师/教授/博导，中国优生优育协会生育健康与出生缺陷防控专委会副主任委员）。本人论文（Rong Shen，末位作者，隶属Nanjing Women and Children's Healthcare Hospital/Women's Hospital of Nanjing Medical University=南京市妇幼保健院）：42718970（AMA-RIF子宫内膜容受性转录组，254例，年龄OR=1.118）、41553083（Rab14脂噬-颗粒细胞-生育力，小鼠模型）、41508781（抗子宫内膜抗体EMAb与IVF结局，47 vs 166 PSM回顾）、41329546（FET子宫内膜蠕动波+阿托西班，7554例回顾，PSM 505 vs 993）。领域论文：42720906（AI生殖医学教育综述，非本人）。正在补读4篇已缓存领域论文摘要（42710565绿地ASD、42714190 NIPS母源CNV、42712436 GNA12 eccDNA早发子痫前期、42705456羊水EV蛋白组）以获取可引用原文段落，随后生成最终evidence（coreEvidence 6行）。搜索配额已用尽。注意：本人论文无公开个人主页明确列出出版物，归属依据为PubMed作者隶属（本人医院）+已验证身份；此点写入limitations。\"}",
+  "usage": {
+    "promptTokens": 23212,
+    "completionTokens": 855,
+    "reasoningTokens": 505,
+    "totalTokens": 24067
+  },
+  "gatewayRequestId": "req-31ebca70-5b64-42b1-a263-12d21ba13356"
+}
