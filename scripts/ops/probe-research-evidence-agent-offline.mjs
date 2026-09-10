@@ -9,8 +9,8 @@ const { loadResearchWorkerConfig } = await import("/app/apps/research-worker/dis
 const config = loadResearchWorkerConfig(process.env);
 const client = new GatewayResearchModelClient({ ...config.llm,
   bearerToken: readFileSync(config.llm.bearerTokenFile, "utf8").trim(),
-  readinessRequirements: { maximumPromptTokensPerCall: 30_000, maximumOutputTokensPerCall: 6_000,
-    callsPerRun: 8, maximumTokensPerRun: 280_000 }
+  readinessRequirements: { maximumPromptTokensPerCall: 30_000, maximumOutputTokensPerCall: 10_000,
+    callsPerRun: 8, maximumTokensPerRun: 320_000 }
 });
 const targets = [
   { id: "missing_affiliation_with_explicit_publication", corroborated: true },
@@ -57,7 +57,7 @@ for (const target of targets) {
         const start = Date.now();
         const response = await client.generate({ runId, stage: request.role === "evidence_reviewer" ? "screen_and_extract_evidence" : "collect_profile_evidence",
           attempt: request.attempt, system: request.system, prompt: request.prompt, signal,
-          maximumOutputTokens: 6_000, reasoningEffort: "low", providerTimeoutMs: 60_000 });
+          maximumOutputTokens: 10_000, reasoningEffort: "low", providerTimeoutMs: 60_000 });
         const trace = { role: request.role, attempt: request.attempt, elapsed_ms: Date.now() - start,
           request_id: response.gatewayRequestId, response_sha256: createHash("sha256").update(response.text).digest("hex"), usage: response.usage };
         modelCalls.push(trace);
@@ -68,7 +68,8 @@ for (const target of targets) {
     const papers = result.outcome === "resolved" ? result.evidence.doctorPublications : [];
     const matched = result.outcome === "resolved" && (target.corroborated ? papers.length === 1 && papers[0].author === "Example A" && papers[0].corroboration.length > 0 : papers.length === 0);
     outcome = { outcome: result.outcome, ...(result.outcome === "resolved" ? { evidence: result.evidence } : { reason: result.reason }),
-      expected_own_papers: target.corroborated ? 1 : 0, matched_authorship_expectation: matched };
+      expected_own_papers: target.corroborated ? 1 : 0, matched_authorship_expectation: matched,
+      core_evidence_present: result.outcome === "resolved" && result.evidence.coreEvidence.length === 1 };
   } catch (error) { outcome = { outcome: "probe_error", error_name: error?.name, error_code: error?.code ?? null, matched_authorship_expectation: false }; }
   const record = { case_id: target.id, ...outcome, elapsed_ms: Date.now() - started, serpapi_requests: 0, tool_calls: toolCalls, model_calls: modelCalls };
   results.push(record);

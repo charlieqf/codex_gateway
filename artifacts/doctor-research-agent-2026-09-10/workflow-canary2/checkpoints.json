@@ -1,0 +1,96 @@
+[
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "35a108b36bf9c95231a4d4c54ed63764ba162832d1b5ff16ffc183df6d6fd7af",
+      "searches": [
+        {
+          "query": "Shoshana Sztal-Mazer endocrinology",
+          "status": "failed",
+          "results": []
+        },
+        {
+          "query": "Shoshana Sztal-Mazer",
+          "status": "failed",
+          "results": []
+        }
+      ],
+      "pages": [],
+      "pageAliases": {},
+      "pageRequests": 0,
+      "modelCalls": 4,
+      "allowedUrls": [],
+      "observations": [
+        {
+          "action": "search_failed",
+          "result": {
+            "query": "Shoshana Sztal-Mazer endocrinology",
+            "kind": "timeout"
+          }
+        },
+        {
+          "action": "search_failed",
+          "result": {
+            "query": "Shoshana Sztal-Mazer",
+            "kind": "timeout"
+          }
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        },
+        {
+          "action": "unresolved",
+          "result": "All search attempts timed out, no search requests remain, and no URLs were supplied or discovered, so no authoritative page could be read to verify Shoshana Sztal-Mazer's affiliation with Alfred Hospital (阿尔弗雷德医院) or its endocrinology department."
+        }
+      ],
+      "reviewedIdentity": null
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 0,
+      "discovered_source_count": 0,
+      "fetched_source_count": 0,
+      "source_failures": [],
+      "source_decisions": [],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "unresolved",
+        "reason": "insufficient_evidence",
+        "search_requests_reserved": 2,
+        "search_responses_recorded": 2,
+        "page_requests_reserved": 0,
+        "model_calls_reserved": 4,
+        "evidence_citations": []
+      }
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "70979d8b95bb0b7e94386b375bb72a616a8e4821d61c8bfbbb09551e73d4a625",
+      "medical_skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351"
+    }
+  }
+]

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { investigationTimingGuidance, type InvestigationTiming } from "./investigation-timing.js";
 import type { DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource, ResearchWebCandidate } from "./adapters.js";
 import { ResearchExternalServiceError, ResearchHttpError, ResearchSourceFormatError } from "./safe-http.js";
@@ -51,6 +52,7 @@ export type IdentityInvestigationResult =
   | { outcome: "unresolved"; reason: "insufficient_evidence" | "conflicting_evidence" | "budget_exhausted" | "upstream_unavailable"; state: IdentityInvestigationState };
 
 export interface IdentityInvestigationDependencies {
+  timing?(): InvestigationTiming;
   search(query: string): Promise<readonly ResearchWebCandidate[]>;
   read(url: string): Promise<FrozenOfficialSource>;
   generate(input: { system: string; prompt: string; role: "investigator" | "identity_reviewer"; attempt: number }): Promise<string>;
@@ -136,13 +138,19 @@ export async function investigateDoctorIdentity(input: {
     await save();
     return dependencies.generate({
       role, attempt: state.modelCalls,
-      system: role === "investigator" ? investigatorSystem : reviewerSystem, prompt
+      system: role === "investigator" ? `${investigatorSystem}\n${investigationTimingGuidance}` : reviewerSystem, prompt
     });
   };
   while (state.modelCalls < policy.maximumModelCalls) {
     dependencies.signal.throwIfAborted();
+    if (searchUnavailableWithoutEvidence(state) && state.searches.length >= policy.maximumSearchRequests && state.allowedUrls.length === 0) {
+      observe("upstream_unavailable", "Every search attempt failed; no readable source or discovered URL is available. This is not a zero-result search.");
+      await save();
+      return { outcome: "unresolved", reason: "upstream_unavailable", state };
+    }
     const promptData = {
       requested: input.doctor,
+      ...(dependencies.timing ? { service_timing: dependencies.timing() } : {}),
       remaining: {
         search_requests: policy.maximumSearchRequests - state.searches.length,
         page_requests: policy.maximumPageRequests - state.pageRequests,
@@ -188,7 +196,8 @@ export async function investigateDoctorIdentity(input: {
     if (["insufficient_evidence", "conflicting_evidence", "upstream_unavailable"].includes(String(decision.unresolved))) {
       observe("unresolved", typeof decision.explanation === "string" ? decision.explanation.slice(0, 600) : "Evidence gap remains.");
       await save();
-      return { outcome: "unresolved", reason: decision.unresolved as "insufficient_evidence" | "conflicting_evidence" | "upstream_unavailable", state };
+      return { outcome: "unresolved", reason: searchUnavailableWithoutEvidence(state) ? "upstream_unavailable" :
+        decision.unresolved as "insufficient_evidence" | "conflicting_evidence" | "upstream_unavailable", state };
     }
     if (!Array.isArray(decision.actions) || decision.actions.length < 1 || decision.actions.length > 3) {
       observe("invalid_actions", "Specify one to three bounded search, read or links actions."); await save(); continue;
@@ -247,7 +256,11 @@ export async function investigateDoctorIdentity(input: {
     }
     await save();
   }
-  return { outcome: "unresolved", reason: "budget_exhausted", state };
+  return { outcome: "unresolved", reason: searchUnavailableWithoutEvidence(state) ? "upstream_unavailable" : "budget_exhausted", state };
+}
+
+function searchUnavailableWithoutEvidence(state: IdentityInvestigationState): boolean {
+  return state.pages.length === 0 && state.searches.length > 0 && state.searches.every(s => s.status !== "succeeded");
 }
 
 function pageWindow(page: FrozenOfficialSource, action: Record<string, unknown>) {

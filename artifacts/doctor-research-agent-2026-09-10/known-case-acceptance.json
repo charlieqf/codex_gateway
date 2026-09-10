@@ -144,7 +144,17 @@
         "department": "内分泌科"
       },
       "full_service_acceptance": "pending",
-      "identity_only_evidence": "live-canary2/result.json"
+      "identity_only_evidence": "live-canary2/result.json",
+      "full_worker_attempt": {
+        "evidence": "workflow-canary2/result.json",
+        "outcome": "failed",
+        "reported_reason": "identity_not_resolved",
+        "diagnosed_reason": "Both SerpAPI requests timed out at 20 seconds. No successful search result or readable page was available.",
+        "elapsed_ms": 49169,
+        "serpapi_requests": 2,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     }
   ],
   "additional_regression_cases": [

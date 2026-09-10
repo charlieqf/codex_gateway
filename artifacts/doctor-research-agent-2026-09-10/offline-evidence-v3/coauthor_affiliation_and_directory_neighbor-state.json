@@ -1,0 +1,229 @@
+{
+  "version": "doctor_evidence_investigation.v2",
+  "inputSha256": "4afbac3602f72949f2a3017e383e1a2b2718a46dea27a5192c8d5ff46d0016ec",
+  "searches": [
+    {
+      "query": "(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])",
+      "purpose": "doctor",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    },
+    {
+      "query": "(endocrine disorders treatment 2022:2026[dp] review) AND (2022:2026[Date - Publication])",
+      "purpose": "field",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    },
+    {
+      "query": "((endocrine OR hormone) AND (treatment OR therapy OR management) AND (adults)) AND (2022:2026[Date - Publication])",
+      "purpose": "field",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "pmid": "101",
+      "status": "succeeded",
+      "value": {
+        "referenceId": "ref_101",
+        "pmid": "101",
+        "doi": null,
+        "title": "Hormone monitoring in adults",
+        "journal": "Example Journal",
+        "publicationYear": 2025,
+        "authors": [
+          "Example A",
+          "Example B"
+        ],
+        "authorAffiliations": [
+          {
+            "author": "Example A",
+            "affiliations": [
+              "Nephrology, Different University Hospital"
+            ]
+          },
+          {
+            "author": "Example B",
+            "affiliations": [
+              "Endocrinology, Harbour University Hospital"
+            ]
+          }
+        ],
+        "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+        "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+        "accessedAt": "2026-09-10T14:44:08.418Z",
+        "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  ],
+  "pages": [],
+  "pageRequests": 0,
+  "modelCalls": 8,
+  "observations": [
+    {
+      "action": "search",
+      "result": {
+        "query": "(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])",
+        "purpose": "doctor",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "search",
+      "result": {
+        "query": "(endocrine disorders treatment 2022:2026[dp] review) AND (2022:2026[Date - Publication])",
+        "purpose": "field",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "publication",
+      "result": {
+        "pmid": "101",
+        "status": "succeeded",
+        "value": {
+          "referenceId": "ref_101",
+          "pmid": "101",
+          "doi": null,
+          "title": "Hormone monitoring in adults",
+          "journal": "Example Journal",
+          "publicationYear": 2025,
+          "authors": [
+            "Example A",
+            "Example B"
+          ],
+          "authorAffiliations": [
+            {
+              "author": "Example A",
+              "affiliations": [
+                "Nephrology, Different University Hospital"
+              ]
+            },
+            {
+              "author": "Example B",
+              "affiliations": [
+                "Endocrinology, Harbour University Hospital"
+              ]
+            }
+          ],
+          "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+          "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+          "accessedAt": "2026-09-10T14:44:08.418Z",
+          "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    {
+      "action": "search",
+      "result": {
+        "query": "((endocrine OR hormone) AND (treatment OR therapy OR management) AND (adults)) AND (2022:2026[Date - Publication])",
+        "purpose": "field",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "invalid_evidence",
+      "result": {
+        "message": "Provide 1 to 6 source citations.",
+        "previous_proposal": "{\"facts\":[{\"type\":\"position\",\"text\":\"Alice Example 是港湾大学医院(Harbour University Hospital)内分泌科的顾问医师(Consultant)。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]},{\"type\":\"expertise\",\"text\":\"其所属科室为内分泌科,支持以内分泌相关临床领域作为综述范围;但目录页面未提供任何个人研究方向或著作信息。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]}],\"topics\":{\"terms\":[\"endocrinology\",\"hormone monitoring in adults\"],\"explanation\":\"已验证的职务证据仅为内分泌科顾问医师,且检索到的唯一相关文献(未确认为其本人著作)主题为成人激素监测,因此综述范围限定为成人内分泌与激素监测,而非治疗疗效。\",\"citations\":{\"0\":{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"},\"1\":{\"sourceId\":\"src_pubmed_101\",\"quote\":\"Hormone monitoring in adults\"},\"2\":{\"sourceId\":\"src_pubmed_101\",\"quote\":\"An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.\"}}},\"doctorPublications\":[],\"fieldPublications\":[{\"pmid\":\"101\",\"rationale\":\"这是检索到的唯一与已证实范围(成人内分泌/激素监测)相关的文献;注意该文研究激素监测而非治疗效果,故综述范围相应调整。\"}],\"limitations\":[\"未能在 PubMed 中验证任何属于 Alice Example 本人的著作:检索 '(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])' 仅返回 PMID 101,但该记录中作者 'Example A' 的隶属机构为 'Nephrology, Different University Hospital'(肾脏科,另一所大学医院),与已验证身份(港湾大学医院内分泌科)不符。\",\"PMID 101 的另一位作者 'Example B' 隶属 'Endocrinology, Harbour University Hospital',但同单位共同作者不构成著作归属证据。\",\"目录页面明确声明不含著作列表('No publication list is supplied on this directory page.'),且未提供 ORCID 或其他可核验的公开学术档案,无法通过个人主页佐证著作归属。\",\"搜索次数已用尽(remaining.searches = 0),无法进一步扩展或修改检索;本结论并非对 PubMed 的穷尽式检索。\",\"字段文献仅有一篇(PMID 101),少于要求的最少 3 条核心行;依据规则,使用全部已选字段文献。该文献为观察性研究,不评估治疗疗效,综述范围据此限定为激素监测。\"],\"coreEvidence\":[{\"pmid\":\"101\",\"study_type\":\"观察性研究(observational study),非随机、非干预性研究;摘要未报告具体观察设计(如队列或横断面)。\",\"sample_and_source\":\"成人(adults);摘要未报告样本量、来源人群或具体数据来源。\",\"methods\":\"比较多次就诊之间的激素测量值('The study compares hormone measurements across visits')。\",\"key_results\":\"摘要仅描述研究目的与设计,未报告具体结果数值、效应量或不确定性指标。\",\"limitations\":\"作者在摘要中明确指出本研究不评估治疗疗效('it does not assess treatment efficacy')。此外(本人推断,非作者报告):仅有摘要可读,样本量、人群特征与具体结果均未报告;该文是否与目标人物相关尚未确认。\",\"citations\":[{\"sourceId\":\"src_pubmed_101\",\"quote\":\"An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.\"}]}]}"
+      }
+    },
+    {
+      "action": "invalid_evidence",
+      "result": {
+        "message": "Do not infer the person's topic from papers not verified as their own.",
+        "previous_proposal": "{\"facts\":[{\"type\":\"position\",\"text\":\"Alice Example 是港湾大学医院(Harbour University Hospital)内分泌科的顾问医师(Consultant)。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]},{\"type\":\"expertise\",\"text\":\"其所属科室为内分泌科,支持以内分泌相关临床领域作为综述范围;但目录页面未提供任何个人研究方向或著作信息。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]}],\"topics\":{\"terms\":[\"endocrinology\",\"hormone monitoring in adults\"],\"explanation\":\"已验证的职务证据仅为内分泌科顾问医师;目录页面未提供个人研究方向或著作列表,故综述范围依据其科室设定为成人内分泌临床领域。检索到的唯一相关文献主题为成人激素监测,且该文明确不评估治疗疗效,因此综述范围进一步限定为激素监测而非治疗疗效。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"},{\"sourceId\":\"src_pubmed_101\",\"quote\":\"Hormone monitoring in adults\"},{\"sourceId\":\"src_pubmed_101\",\"quote\":\"An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.\"}]},\"doctorPublications\":[],\"fieldPublications\":[{\"pmid\":\"101\",\"rationale\":\"这是检索到的唯一与已证实范围(成人内分泌/激素监测)相关的文献;该文研究激素监测而非治疗效果,故综述范围相应限定。\"}],\"coreEvidence\":[{\"pmid\":\"101\",\"study_type\":\"观察性研究(observational study),非随机、非干预性;摘要未报告具体观察设计(如队列或横断面)。\",\"sample_and_source\":\"成人(adults);摘要未报告样本量、来源人群或具体数据来源。\",\"methods\":\"比较多次就诊之间的激素测量值('The study compares hormone measurements across visits')。\",\"key_results\":\"摘要仅描述研究目的与设计,未报告具体结果数值、效应量或不确定性指标。\",\"limitations\":\"作者在摘要中明确指出本研究不评估治疗疗效('it does not assess treatment efficacy')。此外(本人推断,非作者报告):仅有摘要可读,样本量、人群特征与具体结果均未报告;该文与目标人物的关联尚未确认。\",\"citations\":[{\"sourceId\":\"src_pubmed_101\",\"quote\":\"An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.\"}]}],\"limitations\":[\"未能在 PubMed 中验证任何属于 Alice Example 本人的著作:检索 '(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])' 仅返回 PMID 101,但该记录中作者 'Example A' 的隶属机构为 'Nephrology, Different University Hospital'(肾脏科,另一所大学医院),与已验证身份(港湾大学医院内分泌科)不符。\",\"PMID 101 的另一位作者 'Example B' 隶属 'Endocrinology, Harbour University Hospital',但共同作者的同单位隶属不构成本人著作归属证据。\",\"目录页面明确声明不含著作列表('No publication list is supplied on this directory page.'),且未提供 ORCID 或其他可核验的公开学术档案,无法通过个人主页佐证著作归属。\",\"搜索次数已用尽(remaining.searches = 0),无法进一步扩展或修改检索;本结论并非对 PubMed 的穷尽式检索。\",\"字段文献仅有一篇(PMID 101),少于要求的最少 3 条核心行;依据规则使用全部已选字段文献。该文献为观察性研究,不评估治疗疗效,综述范围据此限定为激素监测。\"]}"
+      }
+    },
+    {
+      "action": "invalid_response",
+      "result": {
+        "message": "Return one valid JSON object. Unexpected non-whitespace character after JSON at position 2131 (line 1 column 2132)",
+        "previous_response": "{\"evidence\":{\"facts\":[{\"type\":\"position\",\"text\":\"Alice Example 是港湾大学医院(Harbour University Hospital)内分泌科的顾问医师(Consultant)。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]},{\"type\":\"expertise\",\"text\":\"其所属科室为内分泌科，支持以内分泌相关临床领域作为综述范围；但目录页面未提供任何个人研究方向、专著长或著作信息。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]}],\"topics\":{\"terms\":[\"endocrinology\",\"endocrine clinical care in adults\"],\"explanation\":\"已验证的证据仅为 Alice Example 在港湾大学医院内分泌科担任顾问医师，故综述范围依据其科室限定为成人内分泌临床领域。由于未能验证任何属于她本人的著作，检索到的文献(如 PMID 101)不得用于推断其个人研究方向。\",\"citations\":[{\"sourceId\":\"src_directory\",\"quote\":\"Alice Example | Endocrinology | Consultant\"}]},\"doctorPublications\":[],\"fieldPublications\":[{\"pmid\":\"101\",\"rationale\":\"这是检索到的与已证实范围(成人内分泌临床领域)相关的文献；该文研究成人激素监测而非治疗效果，与内分泌临床范围相关，但与目标人物的关联未经证实，仅作为领域文献引用。\"}],\"limitations\":[\"未能在 PubMed 中验证任何属于 Alice Example 本人的著作：检索 '(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])' 仅返回 PMID 101，但该记录中作者 'Example A' 的隶属机构为 'Nephrology, Different University Hospital'(肾脏科，另一所大学医院)，与已验证身份(港湾大学医院内分泌科)不符。\",\"PMID 101 的另一位作者 'Example B' 隶属 'Endocrinology, Harbour University Hospital'，但共同作者的同单位隶属不构成本人著作归属证据。\",\"目录页面明确声明不含著作列表('No publication list is supplied on this directory page.')，且未提供 ORCID 或其他可核验的公开学术档案，无法通过个人主页佐证著作归属。\",\"搜索次数已用尽(remaining.searches = 0)，无法进一步扩展或修改检索；本结论并非对 PubMed 的穷尽式检索。\",\"字段文献仅有一篇(PMID 101)，少于要求的最少 3 条核心行；依据规则，使用全部已选字段文献。该文献为观察性研究，不评估治疗疗效。\"]},\"coreEvidence\":[{\"pmid\":\"101\",\"study_type\":\"观察性研究(observational study)，非随机、非干预性研究；摘要未报告具体观察设计(如队列或横断面)。\",\"sample_and_source\":\"成人(adults)；摘要未报告样本量、来源人群或具体数据来源。\",\"methods\":\"比较多次就诊之间的激素测量值('The study compares hormone measurements across visits')。\",\"key_results\":\"摘要仅描述研究目的与设计，未报告具体结果数值、效应量或不确定性指标。\",\"limitations\":\"作者在摘要中明确指出本研究不评估治疗疗效('it does not assess treatment efficacy')。此外(本人推断，非作者报告)：仅有摘要可读，样本量、人群特征与具体结果均未报告；该文是否与目标人物相关尚未确认。\",\"citations\":[{\"sourceId\":\"src_pubmed_101\",\"quote\":\"An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.\"}]}]}}"
+      }
+    }
+  ],
+  "reviewedEvidence": {
+    "facts": [
+      {
+        "type": "position",
+        "text": "Alice Example 是港湾大学医院(Harbour University Hospital)内分泌科的顾问医师(Consultant)。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      },
+      {
+        "type": "expertise",
+        "text": "其所属科室为内分泌科，支持以内分泌相关临床领域作为综述范围；目录页面未提供任何个人研究方向或著作信息。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      }
+    ],
+    "topics": {
+      "terms": [
+        "endocrinology",
+        "成人内分泌临床领域"
+      ],
+      "explanation": "已验证的职务证据仅为港湾大学医院内分泌科顾问医师；目录页面未提供个人研究方向或著作列表，也未能验证任何属于本人的著作，故综述范围依据其科室限定为成人内分泌临床领域。",
+      "citations": [
+        {
+          "sourceId": "src_directory",
+          "quote": "Alice Example | Endocrinology | Consultant"
+        }
+      ]
+    },
+    "doctorPublications": [],
+    "fieldPublications": [
+      {
+        "pmid": "101",
+        "rationale": "这是检索到的唯一与已证实范围(成人内分泌临床领域)相关的文献；该文研究成人激素监测而非治疗效果。该文与目标人物的关联未经证实，仅作为领域文献引用。"
+      }
+    ],
+    "coreEvidence": [
+      {
+        "pmid": "101",
+        "study_type": "观察性研究(observational study)，非随机、非干预性；摘要未报告具体观察设计(如队列或横断面)。",
+        "sample_and_source": "成人(adults)；摘要未报告样本量、来源人群或具体数据来源。",
+        "methods": "比较多次就诊之间的激素测量值('The study compares hormone measurements across visits')。",
+        "key_results": "摘要仅描述研究目的与设计，未报告具体结果数值、效应量或不确定性指标。",
+        "limitations": "作者在摘要中明确指出本研究不评估治疗疗效('it does not assess treatment efficacy')。此外(本人推断，非作者报告)：仅有摘要可读，样本量、人群特征与具体结果均未报告；该文与目标人物的关联尚未确认。",
+        "citations": [
+          {
+            "sourceId": "src_pubmed_101",
+            "quote": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy."
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "未能在 PubMed 中验证任何属于 Alice Example 本人的著作：检索 '(Alice Example[Author] AND (endocrinology OR endocrine)) AND (2022:2026[Date - Publication])' 仅返回 PMID 101，但该记录中作者 'Example A' 的隶属机构为 'Nephrology, Different University Hospital'，与已验证身份(港湾大学医院内分泌科)不符。",
+      "PMID 101 的另一位作者 'Example B' 隶属 'Endocrinology, Harbour University Hospital'，但共同作者的同单位隶属不构成本人著作归属证据。",
+      "目录页面明确声明不含著作列表('No publication list is supplied on this directory page.')，且未提供 ORCID 或其他可核验的公开学术档案，无法通过个人主页佐证著作归属。",
+      "搜索次数已用尽(remaining.searches = 0)，无法进一步扩展或修改检索；本结论并非对 PubMed 的穷尽式检索。",
+      "字段文献仅有一篇(PMID 101)，少于要求的最少 3 条核心行；依据规则，使用全部已选字段文献。该文献为观察性研究，不评估治疗疗效，综述范围据此限定为激素监测而非治疗疗效。"
+    ]
+  }
+}

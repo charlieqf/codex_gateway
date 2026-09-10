@@ -3754,7 +3754,7 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it("carries reviewed Agent facts and author attribution into stored artifacts without legacy discovery or query preparation", async () => {
+  it.each([false, true])("carries reviewed Agent evidence through artifact storage and enforces research answer lengths (short answer rejected: %s)", async (requireLongerAnswers) => {
     const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring");
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
     const queryLog: string[] = [];
@@ -3775,7 +3775,10 @@ describe("Research Worker controlled-beta workflow", () => {
           citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] },
         doctorPublications: [{ pmid: "1001", author: "Example Doctor", affiliationQuote: "Cardiology, Example Hospital.",
           corroboration: [], explanation: "This author's own affiliation matches the verified identity." }],
-        fieldPublications: [{ pmid: "1001", rationale: "The retrieved clinical evidence concerns the verified field." }], limitations: []
+        fieldPublications: [{ pmid: "1001", rationale: "The retrieved clinical evidence concerns the verified field." }], limitations: [],
+        coreEvidence: [{ pmid: "1001", study_type: "Design not specified in the brief source abstract", sample_and_source: "The abstract does not report the sample or population.",
+          methods: "Methods were not reported in the supplied abstract.", key_results: "The abstract supports cautious synthesis of clinical evidence.",
+          limitations: "Only the supplied public abstract was available.", citations: [{ sourceId: "src_pubmed_1001", quote: "Randomized evidence from the retrieved abstract supports cautious synthesis." }] }]
       } }
     ];
     let discoveryCalls = 0;
@@ -3805,17 +3808,24 @@ describe("Research Worker controlled-beta workflow", () => {
       } },
       artifactRoot: fixture.artifactRoot,
       policy: { ...workflowPolicy(), identityAgentEnabled: true,
+        ...(requireLongerAnswers ? { minimumAnswerContent: 50 } : {}),
         budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60_000 } },
       signal: new AbortController().signal, now: () => fixture.now,
       onValidationFailure(event) { codes.push([...event.errorCodes]); }
     });
+    if (requireLongerAnswers) {
+      expect(outcome.outcome).toBe("failed");
+      expect(fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId)).toBeNull();
+      fixture.store.close();
+      return;
+    }
     expect(outcome, JSON.stringify(codes)).toEqual({ outcome: "succeeded" });
     expect(queryLog).toEqual(['("Example Doctor"[Author]) AND (2022:2026[Date - Publication])']);
     const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId);
     expect(result).toMatchObject({ result: { profile: {
       expertise: ["The verified clinical specialty is cardiology."], research_directions: [],
       representative_outputs: [expect.stringContaining("Retrieved Clinical Evidence")]
-    }, artifacts: expect.any(Array) } });
+    }, review: { core_evidence: [expect.objectContaining({ study_type: "Design not specified in the brief source abstract" })] }, artifacts: expect.any(Array) } });
     expect((result!.result.artifacts as unknown[])).toHaveLength(4);
     fixture.store.close();
   });

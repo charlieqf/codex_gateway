@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { investigationTiming } from "./investigation-timing.js";
 import {
   investigateDoctorIdentity,
   IdentityInvestigationBudgetError,
@@ -361,6 +362,7 @@ export async function executeDoctorResearchWorkflow(input: {
       publicationEvidence: literature.publicationEvidence,
       literatureDatabases: literature.databases,
       doctorLiterature,
+      ...(investigated ? { reviewedCoreEvidence: investigated.coreEvidence } : {}),
       searchQueries: investigated ? [...investigated.doctorQueries, ...investigated.fieldQueries] : doctorLookupBrief
         ? [doctorSearchQuery]
         : [doctorSearchQuery, searchQuery]
@@ -377,6 +379,13 @@ export async function executeDoctorResearchWorkflow(input: {
     );
     if (!generatedResult) {
       return { outcome: "failed", reason: "model_contract_error" };
+    }
+    if (input.policy.identityAgentEnabled && !doctorLookupBrief &&
+        !generatedResult.warnings.includes("peer_review_model_completed")) {
+      // This marker is set by the workflow only after a validated model review.
+      // Legacy deterministic fallback must not silently satisfy the full Agent research contract.
+      context.reportValidationFailure("validate_outputs", 7, ["required_model_peer_review_missing"]);
+      return { outcome: "failed", reason: "quality_gate_failed" };
     }
     const generated = generatedResult.output;
     await context.checkpoint("synthesize_review", 67, {
@@ -403,7 +412,8 @@ export async function executeDoctorResearchWorkflow(input: {
         context.run.language
       ),
       context.run.mode,
-      doctorLookupBrief
+      doctorLookupBrief,
+      input.policy.identityAgentEnabled === true && !doctorLookupBrief
     );
     if (qualityErrors.length > 0) {
       context.reportValidationFailure(
@@ -1095,6 +1105,10 @@ class WorkflowContext {
     }
   }
 
+  investigationTiming() {
+    return investigationTiming(this.run.createdAt, this.now(), this.input.policy.hardDeadlineMs);
+  }
+
   private remainingActiveMs(): number {
     const wallElapsed = Math.max(
       0,
@@ -1133,6 +1147,7 @@ async function discoverAgentIdentityEvidence(context: WorkflowContext) {
     policy: policy.identityInvestigation ?? defaultIdentityInvestigationPolicy,
     ...(loaded.payload ? { restoredState: loaded.payload as IdentityInvestigationState } : {}),
     dependencies: {
+      timing: () => context.investigationTiming(),
       signal,
       isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
       save: async state => {
@@ -1670,6 +1685,7 @@ export interface WorkflowEvidence {
   literatureDatabases: Array<"pubmed" | "crossref">;
   doctorLiterature: CollectedLiterature;
   searchQueries: string[];
+  reviewedCoreEvidence?: DoctorResearchModelDraft["review"]["core_evidence"];
 }
 
 export interface ResolvedDoctorResearchIdentity {
@@ -1984,6 +2000,7 @@ async function collectAgentResearchEvidence(
       signal,
       isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
       save: saveEvidenceState,
+      timing: () => context.investigationTiming(),
       searchPubMed: query => { context.chargeExternal(3); return adapters.searchPubMedCandidates
         ? adapters.searchPubMedCandidates(query, context.callSignal()) : adapters.searchPubMed(query, context.callSignal()); },
       readPublication: pmid => { context.chargeExternal(6); return adapters.getPubMedMetadata(pmid, context.callSignal()); },
@@ -1991,7 +2008,7 @@ async function collectAgentResearchEvidence(
       generate: async request => (await context.generateModel({
         stage: request.role === "investigator" ? "collect_profile_evidence" : "screen_and_extract_evidence",
         attempt: request.attempt, system: request.system, prompt: request.prompt,
-        maximumOutputTokens: Math.min(6_000, policy.maximumOutputTokensPerCall), maximumDurationMs: 60_000, reasoningEffort: "low"
+        maximumOutputTokens: Math.min(10_000, policy.maximumOutputTokensPerCall), maximumDurationMs: 60_000, reasoningEffort: "low"
       })).text
     }
   });
@@ -2010,7 +2027,9 @@ async function collectAgentResearchEvidence(
   identity.reviewedProfile = profileFromInvestigatedFacts(facts, identity.profileSourceIds);
   identity.researchLimitations = result.evidence.limitations;
   const selectedDoctor = result.evidence.doctorPublications.map(p => p.pmid);
-  const selectedField = profileOnly ? selectedDoctor : result.evidence.fieldPublications.map(p => p.pmid);
+  const selectedField = profileOnly ? selectedDoctor : uniqueBy([
+    ...result.evidence.coreEvidence.map(p => p.pmid), ...result.evidence.fieldPublications.map(p => p.pmid)
+  ], p => p);
   const byPmid = new Map(result.state.publications.filter(p => p.status === "succeeded" && p.value).map(p => [p.pmid, p.value!]));
   // Crossref checks are transport/metadata verification. Reuse each result across both collections.
   const enrichment = result.state.crossrefEnrichment ??= [];
@@ -2063,7 +2082,8 @@ async function collectAgentResearchEvidence(
   };
   return { outcome: "resolved" as const, doctorLiterature: collect(selectedDoctor), literature: collect(selectedField),
     doctorQueries: result.state.searches.filter(s => s.purpose === "doctor").map(s => s.query),
-    fieldQueries: result.state.searches.filter(s => s.purpose === "field").map(s => s.query), topics: result.evidence.topics.terms };
+    fieldQueries: result.state.searches.filter(s => s.purpose === "field").map(s => s.query), topics: result.evidence.topics.terms,
+    coreEvidence: result.evidence.coreEvidence.map(({ pmid, citations: _citations, ...row }) => ({ reference_id: `ref_pmid_${pmid}`, ...row })) };
 }
 
 function profileFromInvestigatedFacts(facts: InvestigatedProfileFact[], sourceIds: string[]): DoctorResearchModelDraft["profile"] {
@@ -2242,6 +2262,7 @@ function buildDeterministicCoreEvidence(
   language: ResearchRunRecord["language"],
   reviewMarkdown = ""
 ): DoctorResearchModelDraft["review"]["core_evidence"] {
+  if (evidence.reviewedCoreEvidence) return structuredClone(evidence.reviewedCoreEvidence);
   const publicationByReferenceId = new Map(
     evidence.publicationEvidence.map((publication) => [
       publication.reference_id,
@@ -4093,9 +4114,11 @@ async function generateAndValidateShardedModelOutput(
   const initialBriefValidation = promoteBriefValidationWarnings(
     deterministicSafetyPreview,
     assembledDraft,
-    context.run.mode
+    context.run.mode,
+    false,
+    context.input.policy.identityAgentEnabled === true
   );
-  if (context.run.mode === "brief" && initialBriefValidation.ok) {
+  if (!context.input.policy.identityAgentEnabled && context.run.mode === "brief" && initialBriefValidation.ok) {
     return {
       output: initialBriefValidation.value,
       warnings: [
@@ -4287,7 +4310,7 @@ async function generateAndValidateShardedModelOutput(
       shardSkillContractRetryCompleted &&
       shardSkillContractRetryAttempt === 5
     );
-  if (peerReviewCallBudgetConsumedByShardRepair) {
+  if (peerReviewCallBudgetConsumedByShardRepair && !context.input.policy.identityAgentEnabled) {
     const deterministicSelfReview = validation.ok
       ? validation
       : deterministicSafetyPreview;
@@ -4871,10 +4894,12 @@ async function generateAndValidateShardedModelOutput(
     promoteBriefValidationWarnings(
       postCorrectionSafetyValidation,
       assembledDraft,
-      context.run.mode
+      context.run.mode,
+      false,
+      context.input.policy.identityAgentEnabled === true
     );
   if (
-    context.run.mode === "brief" &&
+    !context.input.policy.identityAgentEnabled && context.run.mode === "brief" &&
     acceptedPostCorrectionValidation.ok
   ) {
     return {
@@ -4922,7 +4947,9 @@ async function generateAndValidateShardedModelOutput(
       ? []
       : hardBriefValidationErrors(
           postCorrectionSafetyValidation.errors,
-          context.run.mode
+          context.run.mode,
+          false,
+          context.input.policy.identityAgentEnabled === true
         );
   const [peerReviewResult] = await Promise.allSettled([
     context.generateModel({
@@ -5097,7 +5124,9 @@ async function generateAndValidateShardedModelOutput(
     validation = promoteBriefValidationWarnings(
       validation,
       assembledDraft,
-      context.run.mode
+      context.run.mode,
+      false,
+      context.input.policy.identityAgentEnabled === true
     );
     const fallbackErrorCodes = validation.ok
       ? []
@@ -5336,7 +5365,9 @@ async function generateAndValidateShardedModelOutput(
   validation = promoteBriefValidationWarnings(
     validation,
     patchedDraft,
-    context.run.mode
+    context.run.mode,
+    false,
+    context.input.policy.identityAgentEnabled === true
   );
   let peerReviewConvergenceCompleted = false;
   const convergenceSectionCandidate = !validation.ok
@@ -5482,7 +5513,9 @@ async function generateAndValidateShardedModelOutput(
     validation = promoteBriefValidationWarnings(
       validation,
       convergedDraft,
-      context.run.mode
+      context.run.mode,
+      false,
+      context.input.policy.identityAgentEnabled === true
     );
     peerReviewConvergenceCompleted = true;
   }
@@ -5644,7 +5677,10 @@ function buildFoundationFragmentPrompt(input: {
     compactMedicalSkillExecutionContract(input.medicalSkillBundle),
     "SHARDED SYNTHESIS ASSIGNMENT 1 OF 3",
     "Return exactly this object and no other fields: {\"schema_version\":\"doctor_research_foundation_fragment.v3\",\"review\":{\"title\":\"...\",\"abstract\":\"...\",\"keywords\":[\"...\"],\"markdown\":\"...\"}}.",
-    `This call owns only the academic title, ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract, keywords, and introduction. The Worker constructs the verified doctor profile and ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-row core evidence table deterministically from closed evidence. Do not return profile fields, core evidence, questions, or answers.`,
+    input.allEvidence.reviewedCoreEvidence
+      ? `This call owns only the academic title, abstract, keywords and introduction. The investigator has already extracted and independently reviewed the profile and core evidence table. Use the supplied reviewed core rows consistently with the abstracts; do not invent or reclassify their study designs, methods or results. Do not return profile fields, core evidence, questions or answers.`
+      : `This call owns only the academic title, ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum}-character abstract, keywords, and introduction. The Worker constructs the verified doctor profile and ${reviewContractPolicy.coreEvidence.minimumCount}-${reviewContractPolicy.coreEvidence.maximumCount}-row core evidence table deterministically from closed evidence. Do not return profile fields, core evidence, questions, or answers.`,
+    ...(input.allEvidence.reviewedCoreEvidence ? [`Independently reviewed core evidence: ${JSON.stringify(input.allEvidence.reviewedCoreEvidence)}`] : []),
     reviewLanguageInstruction(input.run.language),
     input.run.language === "zh-CN"
       ? `The final abstract contract remains ${reviewContractPolicy.abstract.zhCN.minimum}-${reviewContractPolicy.abstract.zhCN.maximum} Han characters; aim for ${reviewContractPolicy.abstract.zhCN.targetMinimum}-${reviewContractPolicy.abstract.zhCN.targetMaximum} Han characters so deterministic counting does not fall just below the medical Skill minimum.`
@@ -7786,9 +7822,10 @@ const doctorLookupWarningOnlyValidationCodes = new Set([
 function hardBriefValidationErrors(
   errors: readonly string[],
   mode: ResearchRunRecord["mode"],
-  doctorLookupBrief = false
+  doctorLookupBrief = false,
+  strictResearch = false
 ): string[] {
-  if (mode !== "brief") {
+  if (strictResearch || mode !== "brief") {
     return [...errors];
   }
   const warningOnlyCodes = doctorLookupBrief
@@ -7812,9 +7849,10 @@ function promoteBriefValidationWarnings(
   validation: ReturnType<typeof validateGeneratedOutput>,
   draft: DoctorResearchModelDraft,
   mode: ResearchRunRecord["mode"],
-  doctorLookupBrief = false
+  doctorLookupBrief = false,
+  strictResearch = false
 ): ReturnType<typeof validateGeneratedOutput> {
-  if (mode !== "brief" || validation.ok || !validation.candidate) {
+  if (strictResearch || mode !== "brief" || validation.ok || !validation.candidate) {
     return validation;
   }
   const warningOnlyCodes = doctorLookupBrief
@@ -7895,6 +7933,11 @@ function validateGeneratedOutput(
       };
   } else {
     throw new Error("Unreachable Research model draft validation state.");
+  }
+  if (evidence.reviewedCoreEvidence) {
+    // Study interpretation was already performed and independently reviewed with actual abstracts.
+    // Writing and presentation repair cannot replace it with unreviewed classifications or findings.
+    draft.review.core_evidence = structuredClone(evidence.reviewedCoreEvidence);
   }
   const closedProfile = closeProfileToOfficialEvidence(
     draft.profile,

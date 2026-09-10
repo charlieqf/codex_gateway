@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { investigateDoctorEvidence, type EvidenceInvestigationInput, type EvidenceInvestigationState } from "./evidence-investigator.js";
 import type { FrozenOfficialSource, FrozenPublicationMetadata } from "./adapters.js";
+import { investigationTiming } from "./investigation-timing.js";
 
 // Entirely synthetic fixtures. These tests verify orchestration and evidence closure,
 // not a language model's accuracy on a real doctor.
@@ -25,7 +26,11 @@ function conclusion() {
     topics: { terms: ["endocrinology"], explanation: "The directory establishes the person's specialty.", citations: [citation] },
     doctorPublications: [{ pmid: "101", author: "Example A", affiliationQuote: "Endocrinology, Harbour University Hospital" as string | null,
       corroboration: [] as Array<{ sourceId: string; quote: string }>, explanation: "The author's own affiliation matches the verified institution and specialty." }],
-    fieldPublications: [{ pmid: "101", rationale: "Hormone monitoring is within the established endocrine specialty." }], limitations: [] as string[]
+    fieldPublications: [{ pmid: "101", rationale: "Hormone monitoring is within the established endocrine specialty." }], limitations: [] as string[],
+    coreEvidence: [{ pmid: "101", study_type: "Observational study", sample_and_source: "Adults; the abstract does not give a sample size.",
+      methods: "Hormone monitoring was studied in adults.", key_results: "The supplied abstract does not report an effect estimate.",
+      limitations: "Only an abstract was supplied for this investigation.",
+      citations: [{ sourceId: "src_pubmed_101", quote: "An observational study of hormone monitoring in adults." }] }]
   } };
 }
 function fixture(responses: unknown[], options: { publication?: FrozenPublicationMetadata; state?: EvidenceInvestigationState } = {}) {
@@ -53,6 +58,22 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it("reads an explicitly cited PMID from an already read profile without an unnecessary search", async () => {
+    const f = fixture([read, conclusion(), accept]);
+    let elapsedMs = 350_000;
+    f.input.dependencies.timing = () => {
+      const result = investigationTiming(new Date(0), new Date(elapsedMs), 900_000);
+      elapsedMs += 10_000;
+      return result;
+    };
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe("resolved");
+    expect(f.dependencies.readPublication).toHaveBeenCalledWith("101");
+    expect(f.dependencies.searchPubMed).not.toHaveBeenCalled();
+    expect(JSON.parse(f.dependencies.generate.mock.calls[0]![0].prompt).service_timing.elapsed_ms).toBe(350_000);
+    expect(JSON.parse(f.dependencies.generate.mock.calls[1]![0].prompt).service_timing.elapsed_ms).toBe(360_000);
+  });
+
   it("hands already read page text to the next phase and provides the malformed response for correction", async () => {
     const f = fixture([search, read, conclusion(), accept]);
     const malformed = '{"evidence": invalid JSON}';
@@ -152,5 +173,17 @@ describe("evidence investigation with Agent decisions and mechanical provenance"
     expect(result.outcome).toBe("unresolved");
     expect(f.dependencies.readPage).not.toHaveBeenCalled();
     expect(f.dependencies.readPublication).not.toHaveBeenCalled();
+  });
+
+  it("requires core quotations to belong to the same paper and preserves reviewed semantic extraction", async () => {
+    const wrong = conclusion();
+    wrong.evidence.coreEvidence[0]!.citations = [citation];
+    const corrected = conclusion();
+    corrected.evidence.coreEvidence[0]!.study_type = "Observational cohort; random sampling does not imply randomized treatment.";
+    const f = fixture([search, read, wrong, corrected, accept]);
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe("resolved");
+    expect(result.state.observations).toContainEqual(expect.objectContaining({ action: "invalid_evidence", result: expect.objectContaining({ message: expect.stringContaining("that row's own publication") }) }));
+    expect(result.state.reviewedEvidence?.coreEvidence[0]?.study_type).toBe(corrected.evidence.coreEvidence[0]!.study_type);
   });
 });

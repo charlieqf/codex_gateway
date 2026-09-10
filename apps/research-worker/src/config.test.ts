@@ -23,6 +23,7 @@ describe("Research Worker fail-closed configuration", () => {
       heartbeatSeconds: 15,
       embeddedMaintenanceEnabled: false,
       ncbiApiKeyFile: null,
+      adapterOptions: { timeoutMs: 20_000, agentSearchTimeoutMs: 60_000 },
       webSearchApiKeyFile: path.resolve("secrets/web-search"),
       llm: {
         model: "goldencode",
@@ -57,7 +58,7 @@ describe("Research Worker fail-closed configuration", () => {
     });
     expect(config?.workflowPolicy).toMatchObject({ identityAgentEnabled: true,
       identityInvestigation: { maximumSearchRequests: 4, maximumPageRequests: 12, maximumModelCalls: 8 },
-      evidenceInvestigation: { maximumSearchRequests: 4, maximumPublicationRequests: 30, maximumPageRequests: 4, maximumModelCalls: 10 } });
+      evidenceInvestigation: { maximumSearchRequests: 4, maximumPublicationRequests: 50, maximumPageRequests: 4, maximumModelCalls: 10 } });
   });
 
   it("allows the run budget to account for provider-reported hidden reasoning", () => {

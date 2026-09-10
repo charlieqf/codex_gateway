@@ -41,6 +41,8 @@ export interface LiveResearchAdapterOptions {
     maximumResults?: number;
   };
   timeoutMs?: number;
+  /** A paid synchronous search needs more time than an ordinary metadata read. */
+  agentSearchTimeoutMs?: number;
   maximumJsonBytes?: number;
   maximumSourceBytes?: number;
   userAgent: string;
@@ -70,6 +72,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     maximumOfficialSources: number;
   };
   private readonly timeoutMs: number;
+  private readonly agentSearchTimeoutMs: number;
   private readonly maximumJsonBytes: number;
   private readonly maximumSourceBytes: number;
   private readonly maximumPubMedResults: number;
@@ -105,6 +108,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
 
   constructor(private readonly options: LiveResearchAdapterOptions) {
     this.timeoutMs = positiveInteger(options.timeoutMs ?? 20_000, "timeoutMs");
+    this.agentSearchTimeoutMs = positiveInteger(options.agentSearchTimeoutMs ?? 60_000, "agentSearchTimeoutMs");
+    if (this.agentSearchTimeoutMs > 120_000) throw new Error("agentSearchTimeoutMs exceeds the supported limit.");
     this.maximumJsonBytes = positiveInteger(
       options.maximumJsonBytes ?? 2_000_000,
       "maximumJsonBytes"
@@ -808,7 +813,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     // No implicit hospital query, language rewrite, institution dictionary or name filter.
     const results = this.options.officialWeb.provider === "brave"
       ? await this.searchBrave(requestedQuery, signal, 10, 1)
-      : await this.searchSerpApi(requestedQuery, signal, 10, 1, false);
+      : await this.searchSerpApi(requestedQuery, signal, 10, 1, false, this.agentSearchTimeoutMs);
     const candidates = new Map<string, ResearchWebCandidate>();
     for (const result of results) {
       if (typeof result.url !== "string") continue;
@@ -883,7 +888,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     signal: AbortSignal,
     maximumResults: number,
     maximumAttempts = 2,
-    localize = true
+    localize = true,
+    timeoutMs = this.timeoutMs
   ): Promise<readonly OfficialSearchResult[]> {
     const engine = this.options.officialWeb.serpApiEngine!;
     const providerQuery = localize ? localizeSerpApiIdentityQuery(query, engine) : query;
@@ -907,7 +913,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       url,
       signal,
       {},
-      maximumAttempts
+      maximumAttempts,
+      undefined,
+      timeoutMs
     );
     // SerpAPI documents this successful, empty Google response with an error
     // field. It is not a provider outage or an authentication failure.
@@ -1028,7 +1036,8 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     signal: AbortSignal,
     headers: Readonly<Record<string, string>>,
     maximumAttempts = 3,
-    validateValue?: (value: T) => boolean
+    validateValue?: (value: T) => boolean,
+    timeoutMs = this.timeoutMs
   ) {
     if (
       !Number.isSafeInteger(maximumAttempts) ||
@@ -1047,7 +1056,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
         const response = await fetchBoundedJson<T>({
           url,
           signal,
-          timeoutMs: this.timeoutMs,
+          timeoutMs,
           maximumBytes: this.maximumJsonBytes,
           headers: {
             "user-agent": this.options.userAgent,

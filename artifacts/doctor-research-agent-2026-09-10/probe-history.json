@@ -80,7 +80,88 @@
           "elapsed_ms": 51551
         }
       ]
+    },
+    {
+      "id": "offline-evidence-v3",
+      "kind": "real_model_synthetic_tools",
+      "serpapi_requests": 0,
+      "model_calls": 16,
+      "archive_sha256": "ff98b3788441a28b58f2389b446add1c239cac07f3e0972be2d0a92a2c6114d2",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "cases": [
+        {
+          "case_id": "missing_affiliation_with_explicit_publication",
+          "outcome": "resolved",
+          "matched_authorship_expectation": true,
+          "core_evidence_present": true,
+          "elapsed_ms": 26196
+        },
+        {
+          "case_id": "coauthor_affiliation_and_directory_neighbor",
+          "outcome": "resolved",
+          "matched_authorship_expectation": true,
+          "core_evidence_present": true,
+          "elapsed_ms": 64049
+        }
+      ]
+    },
+    {
+      "id": "workflow-preflight1",
+      "kind": "configuration_preflight",
+      "serpapi_requests": 0,
+      "model_calls": 0,
+      "elapsed_ms": null,
+      "result": {
+        "outcome": "preflight_passed"
+      },
+      "archive_sha256": "41c230942f19012740c10e1790544d9c99af16b3d90ffb7709a1384ebd206df3",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "public_api_or_admission_tested": false
+    },
+    {
+      "id": "workflow-canary1",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 0,
+      "elapsed_ms": 10,
+      "result": {
+        "outcome": "probe_error",
+        "error_name": "Error",
+        "error_code": "ENOENT",
+        "error_message": "ENOENT: no such file or directory, lstat '/tmp/doctor-research-agent-workflow-live-20260911-canary1/docs/research/采访skill'"
+      },
+      "archive_sha256": "ebfb67b9c6ac8451c2afcfb939db8b3fe4d4f4cf299a12ec815b83b34c22f8ed",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "public_api_or_admission_tested": false
+    },
+    {
+      "id": "workflow-canary2",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 2,
+      "model_calls": 4,
+      "elapsed_ms": 49168,
+      "result": {
+        "outcome": "failed",
+        "reason": "identity_not_resolved"
+      },
+      "archive_sha256": "0058ec4187e706aa31ba76e2119de42d2e8d11927aa29a5bcd22c5f70d7ca130",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "public_api_or_admission_tested": false
     }
   ],
-  "total_new_serpapi_requests": 1
+  "total_new_serpapi_requests": 3,
+  "account_after_workflow_canary": {
+    "checked_at_utc": "2026-09-10T15:08:09.023Z",
+    "http_status": 200,
+    "elapsed_ms": 927,
+    "plan_searches_left": 44,
+    "total_searches_left": 44,
+    "this_month_usage": 206,
+    "search_requests": 0,
+    "note": "Shared account; balance changes alone do not attribute individual requests."
+  }
 }

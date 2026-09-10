@@ -153,7 +153,7 @@ export function loadResearchWorkerConfig(
   };
   const evidenceInvestigation = {
     maximumSearchRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS", 10),
-    maximumPublicationRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS ?? "30", "RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS", 60),
+    maximumPublicationRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS ?? "50", "RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS", 60),
     maximumPageRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS", 12),
     maximumModelCalls: boundedInteger(env.RESEARCH_EVIDENCE_MAX_MODEL_CALLS ?? "10", "RESEARCH_EVIDENCE_MAX_MODEL_CALLS", 16)
   };
@@ -469,8 +469,11 @@ export function loadResearchWorkerConfig(
     3 +
     Math.min(maximumPublications, 5) * 9 +
     maximumPublications * 9;
-  const reservedExternalRequestUnits =
-    singleAttemptExternalRequestUnits * 2;
+  // Agent search/page/metadata reservations survive requeue and bound BOTH attempts.
+  // Only interrupted optional DOI enrichment can be dispatched again after takeover.
+  const reservedExternalRequestUnits = identityAgentEnabled
+    ? singleAttemptExternalRequestUnits + Math.min(maximumPublications + 5, evidenceInvestigation.maximumPublicationRequests) * 3
+    : singleAttemptExternalRequestUnits * 2;
   if (
     budgets.externalRequests < reservedExternalRequestUnits ||
     !Number.isSafeInteger(
@@ -480,7 +483,9 @@ export function loadResearchWorkerConfig(
       reservedExternalRequestUnits * maximumExternalResponseBytesPerCall
   ) {
     throw new Error(
-      "Research external budgets must reserve two full workflow attempts at the configured worst-case adapter limits."
+      identityAgentEnabled
+        ? "Research external budgets must cover the durable Agent tool ledger and one interrupted DOI-enrichment replay."
+        : "Research external budgets must reserve two full workflow attempts at the configured worst-case adapter limits."
     );
   }
   const minimumAnswerContent = requiredPositiveInteger(
@@ -528,7 +533,7 @@ export function loadResearchWorkerConfig(
   const requiredOutputTokenBudget =
     maximumOutputTokensPerCall * fullSynthesisCallCount +
     topicModelCalls * researchTopicInferenceModelBudget.maximumOutputTokens + identityModelCalls * Math.min(3_000, maximumOutputTokensPerCall) +
-    evidenceModelCalls * Math.min(6_000, maximumOutputTokensPerCall);
+    evidenceModelCalls * Math.min(10_000, maximumOutputTokensPerCall);
   const requiredInputTokenBudget =
     maximumInputTokensPerCall * fullSynthesisCallCount +
     topicModelCalls * researchTopicInferenceModelBudget.maximumInputTokens + (identityModelCalls + evidenceModelCalls) * maximumInputTokensPerCall;
@@ -678,6 +683,7 @@ export function loadResearchWorkerConfig(
         env.RESEARCH_ADAPTER_TIMEOUT_MS,
         "RESEARCH_ADAPTER_TIMEOUT_MS"
       ),
+      agentSearchTimeoutMs: boundedInteger(env.RESEARCH_AGENT_SEARCH_TIMEOUT_MS ?? "60000", "RESEARCH_AGENT_SEARCH_TIMEOUT_MS", 120_000),
       maximumJsonBytes: maximumAdapterJsonBytes,
       maximumSourceBytes,
       userAgent: externalUserAgent

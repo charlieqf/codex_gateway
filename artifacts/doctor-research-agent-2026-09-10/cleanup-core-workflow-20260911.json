@@ -1,0 +1,25 @@
+{
+  "checked_at_utc": "2026-09-10T15:13:29.078152+00:00",
+  "verified_local_evidence_archives": {
+    "/tmp/doctor-research-agent-offline-evidence-20260911-v3-evidence.tgz": "57c1172dc82a5cfbce2fe573a4093d0ae7fa11e06346b35947e0193b0747ee20",
+    "/tmp/doctor-research-agent-workflow-20260911-evidence.tgz": "ba94c068e3677c0b02bdd2f27c716546e4115f54ad4bb51557a5b56f928baea6"
+  },
+  "deleted_paths": [
+    "/tmp/doctor-research-agent-offline-evidence-20260911-v3",
+    "/tmp/doctor-research-agent-workflow-live-20260911-preflight1",
+    "/tmp/doctor-research-agent-workflow-live-20260911-canary1",
+    "/tmp/doctor-research-agent-workflow-live-20260911-canary2",
+    "/tmp/doctor-research-agent-offline-evidence-20260911-v3.tgz",
+    "/tmp/doctor-research-agent-workflow-live-20260911-preflight1.tgz",
+    "/tmp/doctor-research-agent-workflow-live-20260911-canary1.tgz",
+    "/tmp/doctor-research-agent-workflow-live-20260911-canary2.tgz",
+    "/tmp/doctor-research-agent-offline-evidence-20260911-v3-evidence.tgz",
+    "/tmp/doctor-research-agent-workflow-20260911-evidence.tgz"
+  ],
+  "all_absent": true,
+  "probe_containers_running": false,
+  "private_env_files_present": false,
+  "production_services_restarted": false,
+  "temporary_production_users_or_credentials_created": false,
+  "remaining_older_identity_probe_roots": "Old identity offline/live probes from 20260910 remain for separate cleanup."
+}

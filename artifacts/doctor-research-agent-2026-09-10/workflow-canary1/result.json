@@ -1,0 +1,19 @@
+{
+  "original": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "probe_error",
+    "error_name": "Error",
+    "error_code": "ENOENT",
+    "error_message": "ENOENT: no such file or directory, lstat '/tmp/doctor-research-agent-workflow-live-20260911-canary1/docs/research/采访skill'"
+  },
+  "elapsed_ms": 10,
+  "serpapi_requests": 0,
+  "legacy_calls": 0,
+  "model_requests": 0,
+  "model_calls": [],
+  "validation_failures": []
+}

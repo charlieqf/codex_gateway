@@ -9,6 +9,35 @@ import {
 } from "./index.js";
 
 describe("Doctor Research live first-party adapters", () => {
+  it("waits for a slow paid search once and still observes caller cancellation", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(AbortSignal, "timeout").mockImplementation(ms => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("Synthetic timeout", "TimeoutError")), ms);
+      return controller.signal;
+    });
+    try {
+      const fetchImpl = vi.fn((_value: URL | RequestInfo, init?: RequestInit) => new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => resolve(jsonResponse({ search_metadata: { status: "Success" }, organic_results: [] })), 25_000);
+        init!.signal!.addEventListener("abort", () => { clearTimeout(timer); reject(init!.signal!.reason); }, { once: true });
+      }));
+      const adapters = new LiveResearchAdapters({ ncbi: {}, crossref: {}, orcid: { enabled: false }, timeoutMs: 20_000,
+        officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["legacy.example"] },
+        userAgent: "codex-gateway-research-test/1.0", fetchImpl });
+      const first = adapters.searchWeb("synthetic delayed search", new AbortController().signal);
+      await vi.advanceTimersByTimeAsync(25_000);
+      expect(await first).toEqual([]);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      const caller = new AbortController();
+      const second = adapters.searchWeb("synthetic cancellation", caller.signal);
+      const rejected = expect(second).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(100);
+      caller.abort(new DOMException("Cancelled", "AbortError"));
+      await rejected;
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    } finally { vi.restoreAllMocks(); vi.useRealTimers(); }
+  });
+
   it("executes an Agent search verbatim with one provider attempt and no candidate name filter", async () => {
     const queries: string[] = [];
     const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {

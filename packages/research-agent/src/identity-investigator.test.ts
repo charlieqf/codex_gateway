@@ -87,7 +87,19 @@ describe("Evidence-driven identity investigator (offline tools and scripted mode
     });
     expect(search).toHaveBeenCalledTimes(1);
     expect(result.state.searches[0]?.status).toBe("failed");
-    expect(result.state.observations.some(o => o.action === "search_budget_exhausted")).toBe(true);
+    expect(result).toMatchObject({ outcome: "unresolved", reason: "upstream_unavailable" });
+    expect(result.state.modelCalls).toBe(1);
+  });
+
+  it("does not let a model call two failed transports an identity mismatch, while preserving actual empty results", async () => {
+    for (const transportFails of [true, false]) {
+      const result = await investigateDoctorIdentity({ doctor, dependencies: {
+        search: async () => { if (transportFails) throw new DOMException("Synthetic timeout", "TimeoutError"); return []; },
+        read: vi.fn(), generate: scripted([searchAction, { unresolved: "insufficient_evidence", explanation: "No source is available." }]),
+        save: async () => {}, signal: new AbortController().signal
+      } });
+      expect(result).toMatchObject({ outcome: "unresolved", reason: transportFails ? "upstream_unavailable" : "insufficient_evidence" });
+    }
   });
 
   it("restores the same task without repeating a successful search and reuses completed verification", async () => {
