@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"f71cfde0f500b46b03dea40a87c88a9334b3d7aab699e31ec117e8302a7d2ca3\",\"replacements\":[{\"path\":\"/evidence/doctorPublications/0\",\"value\":{\"pmid\":\"39068427\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"corroboration\":[],\"explanation\":\"作者元数据显示Rong Shen（末位作者）隶属南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科，并附电子邮箱rongshen163@163.com，与其余系列论文中该作者的单位与邮箱完全一致，作者归属可靠。\"}},{\"path\":\"/evidence/doctorPublications/1\",\"value\":{\"pmid\":\"37382170\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"corroboration\":[],\"explanation\":\"作者元数据显示Rong Shen（末位作者）隶属南京医科大学附属妇产医院（南京市妇幼保健院）生殖医学科，与同一团队（Su Y、Zhao C、Ling X等）系列论文的单位归属一致，作者归属可靠。\"}}]},\"workingNotes\":\"已读取39068427与37382170的authorship视图：两篇中Rong Shen均为唯一作者单位affiliation_0=南京市妇幼保健院生殖医学科（39068427还含rongshen163@163.com），通过evidencePatch补齐affiliationIndex=0。其余字段维持原proposal不变。\"}",
+  "usage": {
+    "promptTokens": 25388,
+    "completionTokens": 413,
+    "reasoningTokens": 80,
+    "totalTokens": 25801
+  },
+  "gatewayRequestId": "req-de3ead93-0659-4954-829a-9ba5411b24b0"
+}

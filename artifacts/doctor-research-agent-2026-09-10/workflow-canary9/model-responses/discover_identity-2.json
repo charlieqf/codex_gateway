@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://m.ysyy.org.cn/123/202105/458.html\",\"find\":\"沈嵘\",\"purpose\":\"confirm 沈嵘's role at 南京市妇幼保健院 with title details\"},{\"type\":\"read\",\"url\":\"https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html\",\"find\":\"沈嵘\",\"purpose\":\"authoritative government confirmation of 沈嵘 as hospital party committee secretary\"}]}",
+  "usage": {
+    "promptTokens": 1733,
+    "completionTokens": 155,
+    "reasoningTokens": 42,
+    "totalTokens": 1888
+  },
+  "gatewayRequestId": "req-07756675-8180-4cc5-96fb-4d702edb5bc0"
+}

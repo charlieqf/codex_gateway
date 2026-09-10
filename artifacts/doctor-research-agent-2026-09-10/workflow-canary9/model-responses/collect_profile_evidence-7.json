@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"1a9322acf1088d7f7d1786f3e4156fbac747ccef2a8e4eb6073258a236a6a082\",\"replacements\":[{\"path\":\"/facts/1/citations/0\",\"value\":{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}}]},\"workingNotes\":\"前一提案仅有一处引用错误：expertise事实中src_pubmed_35574002的隶属引文不在该记录的citation_passages中（隶属存于affiliationTexts而非引文段落）。已将该引用替换为协会名录passageId text_0（佐证医院与主任医师身份）；该事实的另一引用（36243240的隶属引文）此前已通过校验。其余字段（含doctorPublications中35574002使用affiliationIndex=0）均无需改动。\"}",
+  "usage": {
+    "promptTokens": 24180,
+    "completionTokens": 2172,
+    "reasoningTokens": 1944,
+    "totalTokens": 26352
+  },
+  "gatewayRequestId": "req-bf648b6a-b2d6-4de2-9843-6731b4c6e4f1"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "```json\n{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"doctor\",\"query\":\"Shen Rong[Author] AND (Nanjing Maternity and Child Health)\"}],\"workingNotes\":\"验证身份：沈嵘，南京市妇幼保健院（南京医科大学附属妇产医院）党委书记、主任医师、教授、博士生导师（src_33df4f690f07b48e4a2a29c2cc909839；src_eb3bb36653f9276bfd21789066ebbecf）。第四临床医学院副院长未验证。下一步：PubMed作者检索，尝试Shen Rong等变体与Nanjing妇幼保健院英文机构名。\"}\n```",
+  "usage": {
+    "promptTokens": 8254,
+    "completionTokens": 199,
+    "reasoningTokens": 50,
+    "totalTokens": 8453
+  },
+  "gatewayRequestId": "req-7ff7b276-767a-4fe2-9f43-1aede1dadf57"
+}

@@ -1,0 +1,15 @@
+{
+  "checked_at_utc": "2026-09-10T23:25:01.883498+00:00",
+  "scope": "Added runtime source lines in this working-tree change; full contents of the new narrative review module.",
+  "exact_known_name_or_institution_matches": [],
+  "source_sha256": {
+    "apps/research-worker/src/config.ts": "2d170654015c1e0c04f80dd26080f738543dfc9206dfd7da91290f785e18d137",
+    "apps/research-worker/src/runtime.ts": "a506204712081c0f6ab52bb0169d4fbeb930a33d539993c9dbe2c3951f2a736c",
+    "packages/research-agent/src/identity-investigator.ts": "583ae11d430b7b633371cd357bde57305ef26e1c0cf366f99622942b2a571b76",
+    "packages/research-agent/src/workflow.ts": "986b07aec57560a4ee0f034517a528a81e9b45529dd8e3e013732bbc272167de",
+    "packages/research-agent/src/model-client.ts": "5feda4bdd4733b09a249f89eaf7b32e36375b6f7df687ae5d9ff867b75b11a96",
+    "packages/research-agent/src/evidence-investigator.ts": "f9932c2285e72deb49ccf6216ac665aaae00f6d6ce1cb3dc41e956062786013a",
+    "packages/research-agent/src/narrative-review-agent.ts": "ccf22610e232296a8c2b47d7a158238b0f4367d5bdbba5170ea54deb4908b0be"
+  },
+  "qualification": "This limited source audit is not a generalization proof. Saved-evidence replays are diagnostic only; all 15 original-input full-service acceptances remain pending."
+}

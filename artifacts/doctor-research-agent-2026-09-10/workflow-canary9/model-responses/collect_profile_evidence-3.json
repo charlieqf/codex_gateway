@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"41553083\",\"39068427\",\"37690219\",\"37382170\"],\"view\":\"abstract\"}],\"workingNotes\":\"身份已验证（src_33df4f690f07b48e4a2a29c2cc909839：沈嵘，南京市妇幼保健院（南医大附属妇产医院）主任医师、教授、博士生导师/党委书记；src_eb3bb36653f9276bfd21789066ebbecf 卫健委新闻确认党委书记）。已确认9篇Rong Shen作者论文，其作者本人隶属南京市妇幼保健院/南京医科大学附属妇产医院生殖医学科（或妇科，PMID 37057923为妇科，41553083为早孕中心/女育保重点实验室），邮箱rongshen163@163.com一致。35574002中Rong Shen另有'The Fourth School of Clinical Medicine, Nanjing Medical University'第二隶属，与请求的第四临床医学院一致（但副院长职务仍未验证）。已读全文摘要：37057923(卵巢癌circRNA)、36695944(PCOS卵泡液外泌体)、36243240(三氯生小鼠胚胎)、35724775(PM2.5神经发育队列)、35574002(AC-FET功能性卵巢囊肿，3375周期回顾队列)。现在读剩余4篇摘要：41553083(Rab14脂噬/颗粒细胞)、39068427(慢性子宫内膜炎抗生素+FET)、37690219(母体重金属暴露代谢物出生结局前瞻队列)、37382170(羟氯喹+FET自身抗体)。之后产出最终evidence（own papers选5篇：39068427,37382170,35574002,36695944,35724775或41553083），fieldPublications含9篇，coreEvidence 5-6行，保留一次审查调用。\",\"focusPublications\":[{\"pmid\":\"41553083\",\"view\":\"abstract\"},{\"pmid\":\"39068427\",\"view\":\"abstract\"},{\"pmid\":\"37690219\",\"view\":\"abstract\"},{\"pmid\":\"37382170\",\"view\":\"abstract\"},{\"pmid\":\"35574002\",\"view\":\"abstract\"}]}",
+  "usage": {
+    "promptTokens": 25463,
+    "completionTokens": 705,
+    "reasoningTokens": 191,
+    "totalTokens": 26168
+  },
+  "gatewayRequestId": "req-1dd43807-d28e-4621-a29f-c39592c48530"
+}

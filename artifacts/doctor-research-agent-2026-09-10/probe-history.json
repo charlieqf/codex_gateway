@@ -469,9 +469,28 @@
       "fresh_case_acceptance_eligible": true,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary9",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 16,
+      "elapsed_ms": 300138,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      },
+      "archive_sha256": "dc108b9cce98c4e38e8bb010cb1d0478b7505ca73aa2162e98e31f105fc2acc1",
+      "evidence_archive_sha256": "8693642bbdf3a89786d469d5130a1bc124ade3581fe309bcd7d062de78528a55",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 8,
+  "total_new_serpapi_requests": 9,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,
@@ -512,6 +531,14 @@
   },
   "account_after_workflow_canary8": {
     "checked_at_utc": "2026-09-10T23:11:33.079Z",
+    "http_status": 200,
+    "plan_searches_left": 42,
+    "total_searches_left": 42,
+    "this_month_usage": 208,
+    "search_requests": 0
+  },
+  "account_after_workflow_canary9": {
+    "checked_at_utc": "2026-09-10T23:25:00.472Z",
     "http_status": 200,
     "plan_searches_left": 42,
     "total_searches_left": 42,

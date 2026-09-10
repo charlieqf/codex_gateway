@@ -115,7 +115,7 @@ You may include "workingNotes":"..." alongside actions to preserve a concise evi
 Tool results provide citation_passages with stable passageId values. Prefer citations {"sourceId":"...","passageId":"..."} to copying a long quotation: the server inserts that exact read passage, and the independent reviewer still checks whether it supports the claim. A paper's title passage identifies the record; it is not proof of details absent from its actual abstract. For an own paper you may select affiliationIndex (zero-based in the chosen author's affiliations) instead of copying affiliationQuote. Select the correct author first; another author's index cannot be used.
 read_publications accepts an optional view: "abstract" for a field paper's complete abstract, "authorship" for author/affiliation metadata, or "complete" (default). Repeated affiliation text is stored once in affiliationTexts; each author's affiliations list retains its original local affiliationIndex and points to that text. This is lossless metadata compaction, not evidence of person identity.
 You may include "focusPublications":[{"pmid":"read PMID","view":"abstract|authorship|complete"}] alongside actions to retain up to 16 source views in later prompts. The entire list replaces the prior focus; [] clears it. Sources read by those actions may be focused in the same response. Keep selected own-paper authorship and core-paper abstracts in focus together when useful, instead of alternating repeated cached reads that evict each other. This memory contains the actual original sources, not your notes. If a focus exceeds the context budget, select fewer papers or narrower views. You still decide what the evidence means. Use remaining.model_calls_including_review accurately; reading again on the final call cannot leave a call for a proposal and its independent review.
-When pending_proposal is supplied, fix only the necessary existing fields with {"evidencePatch":{"proposal_sha256":"supplied hash","replacements":[{"path":"/facts/0/citations/0","value":{"sourceId":"...","passageId":"..."}}]}}. Paths are JSON pointers into that proposal; each replacement must name an existing value. Arrays or complete rows may be replaced to remove unsupported claims. Do not regenerate a long, otherwise sound proposal just to fix a quotation or one field. You may instead submit a complete evidence object when a broad revision is necessary. Every corrected proposal still requires independent review.
+When pending_proposal is supplied, fix only the necessary existing fields with {"evidencePatch":{"proposal_sha256":"supplied hash","replacements":[{"path":"/facts/0/citations/0","value":{"sourceId":"...","passageId":"..."}}]}}. Paths are JSON pointers relative to pending_proposal.evidence; an optional /evidence prefix is also accepted. Each replacement must name an existing value. Arrays or complete rows may be replaced to remove unsupported claims. Do not regenerate a long, otherwise sound proposal just to fix a quotation or one field. You may instead submit a complete evidence object when a broad revision is necessary. Every corrected proposal still requires independent review.
 Or finish with {"evidence":{"facts":[{"type":"position|expertise|education_and_career|research_direction|representative_output","text":"supported fact in output language","citations":[{"sourceId":"page ID","quote":"exact original passage"}]}],"topics":{"terms":["biomedical or professional topic"],"explanation":"why this review scope follows the evidence","citations":[{"sourceId":"page ID or src_pubmed_PMID","quote":"exact supporting text"}]},"doctorPublications":[{"pmid":"read PMID","author":"exact metadata author","affiliationQuote":"exact text from THAT author's affiliations, or null","corroboration":[{"sourceId":"page ID","quote":"explicit publication connection"}],"explanation":"evidence linking this author to the person"}],"fieldPublications":[{"pmid":"read PMID","rationale":"relevance to the evidenced scope"}],"limitations":["specific missing evidence, including unverified own publications"]}}.
 Also include evidence.coreEvidence: an array of rows {"pmid":"selected field PMID","study_type":"...","sample_and_source":"...","methods":"...","key_results":"...","limitations":"...","citations":[{"sourceId":"src_pubmed_PMID","quote":"exact supporting title or abstract passage"}]}.
 For a field review choose between the requested core row minimum and maximum of the most relevant selected field papers. Read each abstract and extract its actual study design, population and data source, methods, results and limitations into the output language. Distinguish proposed protocols from completed studies, simulation from patients, and nonrandomized designs from randomized trials; a keyword such as random or prospective is not a design verdict. Preserve denominators, units, associations, uncertainty and qualifiers. Do not copy a related paper's findings. Use original-language quotations from THIS record as support for the row. If a detail is not reported, explicitly say so. Distinguish limitations reported by authors from limitations you infer from abstract-only access; never present an inference as a reported finding. Be concise and specific. This reviewed table will be used directly in the report; the writer will not repair factual errors for you. For profileOnly=true coreEvidence may be empty.
@@ -402,11 +402,19 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
       return { sourceId: c.sourceId, quote };
     });
   };
-  const facts = value.facts.map((f): InvestigatedProfileFact => {
+  const issues: string[] = [];
+  const records = <T>(items: unknown[], path: string, parseItem: (item: unknown) => T, indexed = true): T[] => items.flatMap((item, index) => {
+    try { return [parseItem(item)]; }
+    catch (error) {
+      issues.push(`${path}${indexed ? `/${index}` : ""}: ${error instanceof Error ? error.message : "Invalid record."}`);
+      return [];
+    }
+  });
+  const facts = records(value.facts, "/facts", (f): InvestigatedProfileFact => {
     if (!object(f) || !["position", "expertise", "education_and_career", "research_direction", "representative_output"].includes(String(f.type)) || !string(f.text, 3, 1800)) throw new Error("Invalid profile fact.");
     return { type: f.type as InvestigatedProfileFact["type"], text: f.text, citations: citations(f.citations, true) };
   });
-  const doctorPublications = value.doctorPublications.map((a): InvestigatedAuthorship => {
+  const doctorPublications = records(value.doctorPublications, "/doctorPublications", (a): InvestigatedAuthorship => {
     if (!object(a) || !string(a.author, 1, 300) || !string(a.explanation, 10, 1200) || !Array.isArray(a.corroboration)) throw new Error("Own papers need an author and supported attribution.");
     const p = publication(a.pmid);
     if (![...p.authors, ...(p.authorAffiliations ?? []).map(a => a.author)].includes(a.author)) throw new Error("Chosen author is absent from the publication metadata.");
@@ -424,15 +432,15 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
     if (!affiliationQuote && !corroboration.length) throw new Error("Missing author affiliations require explicit publication corroboration; a matching name is insufficient.");
     return { pmid: p.pmid!, author: a.author, affiliationQuote, corroboration, explanation: a.explanation };
   });
-  const fieldPublications = value.fieldPublications.map(a => {
+  const fieldPublications = records(value.fieldPublications, "/fieldPublications", a => {
     if (!object(a) || !string(a.rationale, 10, 1200)) throw new Error("Field publications need a relevance rationale.");
     return { pmid: publication(a.pmid).pmid!, rationale: a.rationale };
   });
-  if (!Array.isArray(value.coreEvidence) || value.coreEvidence.length > Math.min(reviewContractPolicy.coreEvidence.maximumCount, fieldPublications.length) ||
-      (!input.profileOnly && value.coreEvidence.length < Math.min(reviewContractPolicy.coreEvidence.minimumCount, fieldPublications.length))) {
-    throw new Error("Provide the required core evidence rows from selected field publications.");
+  if (!Array.isArray(value.coreEvidence) || value.coreEvidence.length > Math.min(reviewContractPolicy.coreEvidence.maximumCount, value.fieldPublications.length) ||
+      (!input.profileOnly && value.coreEvidence.length < Math.min(reviewContractPolicy.coreEvidence.minimumCount, value.fieldPublications.length))) {
+    issues.push("/coreEvidence: Provide the required core evidence rows from selected field publications.");
   }
-  const coreEvidence = value.coreEvidence.map((row): InvestigatedCoreEvidence => {
+  const coreEvidence = records(Array.isArray(value.coreEvidence) ? value.coreEvidence.slice(0, reviewContractPolicy.coreEvidence.maximumCount) : [], "/coreEvidence", (row): InvestigatedCoreEvidence => {
     if (!object(row) || !fieldPublications.some(p => p.pmid === row.pmid)) throw new Error("Core evidence must use a selected field publication.");
     const pmid = publication(row.pmid).pmid!;
     const fields = ["study_type", "sample_and_source", "methods", "key_results", "limitations"] as const;
@@ -442,21 +450,29 @@ function validateEvidence(value: unknown, pages: readonly FrozenOfficialSource[]
     return { pmid, study_type: row.study_type as string, sample_and_source: row.sample_and_source as string,
       methods: row.methods as string, key_results: row.key_results as string, limitations: row.limitations as string, citations: support };
   });
+  const topicRecords = records([value.topics], "/topics", (scope) => {
+    if (!object(scope) || !Array.isArray(scope.terms) || scope.terms.length > 5 || !scope.terms.every(t => string(t, 2, 150)) || !string(scope.explanation, 5, 1800)) throw new Error("Invalid supported topic scope.");
+    return { terms: scope.terms, explanation: scope.explanation,
+      citations: input.profileOnly && scope.terms.length === 0 ? [] : citations(scope.citations, true) };
+  }, false);
+  // Every independent record is checked before returning feedback. No partial
+  // evidence reaches the reviewer or caller when any record is invalid.
+  if (issues.length) throw new Error(`Correct these proposal records together:\n${issues.slice(0, 24).join("\n")}${issues.length > 24 ? `\n${issues.length - 24} additional invalid records remain.` : ""}`);
+  const topics = topicRecords[0]!;
   if (new Set(coreEvidence.map(row => row.pmid)).size !== coreEvidence.length) throw new Error("Duplicate core evidence rows are not allowed.");
   if (new Set(doctorPublications.map(p => p.pmid)).size !== doctorPublications.length || new Set(fieldPublications.map(p => p.pmid)).size !== fieldPublications.length) throw new Error("Duplicate publication selections are not allowed.");
   if (!input.profileOnly && fieldPublications.length < input.minimumReferences) throw new Error("The requested field review has insufficient read references; continue investigating or return insufficient_evidence.");
   if (!input.profileOnly && fieldPublications.length < Math.min(input.maximumReferences, reviewContractPolicy.coreEvidence.targetReferenceCount) && value.limitations.length === 0) {
     throw new Error("A review below the target reference count must disclose its actual evidence or resource limitation; the safety minimum is not the target.");
   }
-  if (!Array.isArray(value.topics.terms) || value.topics.terms.length > 5 || !value.topics.terms.every(t => string(t, 2, 150)) || !string(value.topics.explanation, 5, 1800)) throw new Error("Invalid supported topic scope.");
-  const topicCitations = input.profileOnly && value.topics.terms.length === 0 ? [] : citations(value.topics.citations, true);
-  if (!input.profileOnly && !value.topics.terms.length) throw new Error("A field review needs an evidenced scope.");
+  const topicCitations = topics.citations;
+  if (!input.profileOnly && !topics.terms.length) throw new Error("A field review needs an evidenced scope.");
   if (topicCitations.length && !topicCitations.some(c => pages.some(p => p.sourceId === c.sourceId) ||
       doctorPublications.some(p => c.sourceId === `src_pubmed_${p.pmid}`))) {
     throw new Error("Anchor the review scope in a read professional page or verified own paper; field papers alone do not establish the person's remit.");
   }
   if (!doctorPublications.length && !value.limitations.length) throw new Error("Disclose that no own publication was verified; do not imply absence of a publication record.");
-  return { facts, topics: { terms: value.topics.terms, explanation: value.topics.explanation, citations: topicCitations }, doctorPublications, fieldPublications, coreEvidence, limitations: value.limitations };
+  return { facts, topics, doctorPublications, fieldPublications, coreEvidence, limitations: value.limitations };
 }
 
 function publicationText(p: FrozenPublicationMetadata): string { return `${p.title}\n${p.abstractText ?? ""}`; }
@@ -501,14 +517,17 @@ function applyEvidencePatch(previous: unknown, patch: unknown): unknown {
   for (const [index, replacement] of patch.replacements.entries()) {
     if (!object(replacement) || Object.keys(replacement).sort().join() !== "path,value" || typeof replacement.path !== "string" ||
         !replacement.path.startsWith("/") || /~(?![01])/u.test(replacement.path)) throw new Error(`replacement[${index}]: invalid JSON pointer.`);
-    const path = replacement.path;
+    // Both spellings identify the same evidence root. Normalize only the
+    // documented envelope alias, before checking overlap and existing paths.
+    const path = replacement.path.startsWith("/evidence/") && object(previous) && !Object.hasOwn(previous, "evidence")
+      ? replacement.path.slice("/evidence".length) : replacement.path;
     if (paths.some(p => p === path || p.startsWith(`${path}/`) || path.startsWith(`${p}/`))) throw new Error(`replacement[${index}]: overlapping paths.`);
     paths.push(path);
     const parts = path.slice(1).split("/").map(p => p.replace(/~1/gu, "/").replace(/~0/gu, "~"));
     let parent: unknown = updated;
     for (const [position, key] of parts.entries()) {
       if (["__proto__", "constructor", "prototype"].includes(key) || (!object(parent) && !Array.isArray(parent)) ||
-          !Object.hasOwn(parent, key) || (Array.isArray(parent) && !/^(?:0|[1-9][0-9]*)$/u.test(key))) throw new Error(`replacement[${index}]: path must identify an existing proposal value.`);
+          !Object.hasOwn(parent, key) || (Array.isArray(parent) && !/^(?:0|[1-9][0-9]*)$/u.test(key))) throw new Error(`replacement[${index}]: path ${path.slice(0, 180)} must identify an existing proposal value inside pending_proposal.evidence.`);
       const record = parent as Record<string, unknown>;
       if (position === parts.length - 1) record[key] = structuredClone(replacement.value);
       else parent = record[key];

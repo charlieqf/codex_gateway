@@ -1,0 +1,530 @@
+{
+  "original": {
+    "name": "沈嵘",
+    "hospital": "南京市妇幼保健院",
+    "department": "第四临床医学院副院长、附属妇产医院党委书记"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "resource_budget_exceeded"
+  },
+  "elapsed_ms": 300138,
+  "serpapi_requests": 1,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 300138,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      }
+    }
+  ],
+  "diagnostic_replay": false,
+  "fresh_case_acceptance_eligible": true,
+  "legacy_calls": 0,
+  "model_requests": 16,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "discover_identity",
+      "attempt": 1,
+      "elapsed_ms": 2120,
+      "gateway_request_id": "req-8fa12d2e-d8ed-471f-96dd-65aa44350c1f",
+      "response_sha256": "e0e978126296b34dc60487c2f32fe189d47bc6abbb34aa2ad2e02b90770d8a90",
+      "usage": {
+        "promptTokens": 1138,
+        "completionTokens": 55,
+        "reasoningTokens": 10,
+        "totalTokens": 1193
+      },
+      "telemetry": {
+        "promptChars": 5348,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:33.827Z",
+        "clientTotalMs": 2119,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 2,
+      "elapsed_ms": 2325,
+      "gateway_request_id": "req-07756675-8180-4cc5-96fb-4d702edb5bc0",
+      "response_sha256": "926a9b40128dd953f61e730cb327b7d1679b22c19dd8a6e1c6fdcd2afb0ed3f2",
+      "usage": {
+        "promptTokens": 1733,
+        "completionTokens": 155,
+        "reasoningTokens": 42,
+        "totalTokens": 1888
+      },
+      "telemetry": {
+        "promptChars": 6583,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:36.123Z",
+        "clientTotalMs": 2324,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 3,
+      "elapsed_ms": 9013,
+      "gateway_request_id": "req-951dbeca-3b20-4baf-b6cc-27531ab618da",
+      "response_sha256": "5a83c266ab70400ce901a861aaf01ca33ca344d8fdf503a2c5ee39aab1c8dea1",
+      "usage": {
+        "promptTokens": 5370,
+        "completionTokens": 699,
+        "reasoningTokens": 233,
+        "totalTokens": 6069
+      },
+      "telemetry": {
+        "promptChars": 15314,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:39.057Z",
+        "clientTotalMs": 9013,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "resolve_identity",
+      "attempt": 4,
+      "elapsed_ms": 1023,
+      "gateway_request_id": "req-3f654a30-7c9a-4e93-aa72-7e644113aaeb",
+      "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+      "usage": {
+        "promptTokens": 2506,
+        "completionTokens": 10,
+        "reasoningTokens": 0,
+        "totalTokens": 2516
+      },
+      "telemetry": {
+        "promptChars": 5999,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:48.082Z",
+        "clientTotalMs": 1022,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 1,
+      "elapsed_ms": 3491,
+      "gateway_request_id": "req-7ff7b276-767a-4fe2-9f43-1aede1dadf57",
+      "response_sha256": "7e4d6d7cf4f932caa86e37a4867b82e3eb4c9368dd3134f1cdb68b29d0e78f4a",
+      "usage": {
+        "promptTokens": 8254,
+        "completionTokens": 199,
+        "reasoningTokens": 50,
+        "totalTokens": 8453
+      },
+      "telemetry": {
+        "promptChars": 24182,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:49.125Z",
+        "clientTotalMs": 3491,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 2,
+      "elapsed_ms": 6635,
+      "gateway_request_id": "req-7ebaa423-84a6-4fe3-a5d0-36270f61f295",
+      "response_sha256": "ef7bbba93ef38616efea997448dbcfb185cbb4c8e27d04938a1f141d8cf72d87",
+      "usage": {
+        "promptTokens": 8886,
+        "completionTokens": 436,
+        "reasoningTokens": 30,
+        "totalTokens": 9322
+      },
+      "telemetry": {
+        "promptChars": 25889,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:15:53.096Z",
+        "clientTotalMs": 6634,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 3,
+      "elapsed_ms": 12382,
+      "gateway_request_id": "req-1dd43807-d28e-4621-a29f-c39592c48530",
+      "response_sha256": "4de70c49a7c64aa44981842cc8ad4ced2768e0e82c6f0aca8c89ead4bc7955c1",
+      "usage": {
+        "promptTokens": 25463,
+        "completionTokens": 705,
+        "reasoningTokens": 191,
+        "totalTokens": 26168
+      },
+      "telemetry": {
+        "promptChars": 87201,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:16:10.313Z",
+        "clientTotalMs": 12381,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 4,
+      "elapsed_ms": 31501,
+      "gateway_request_id": "req-117884ca-594f-4f01-9e09-02457d0c59da",
+      "response_sha256": "36d758e783ed45f8d156b8faef647e8b63b369920c9c52ab50fc86a902c61fa7",
+      "usage": {
+        "promptTokens": 25002,
+        "completionTokens": 3579,
+        "reasoningTokens": 278,
+        "totalTokens": 28581
+      },
+      "telemetry": {
+        "promptChars": 88150,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:16:22.726Z",
+        "clientTotalMs": 31500,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 5,
+      "elapsed_ms": 83147,
+      "gateway_request_id": "req-7bc12f81-e30d-403d-b3c1-e7dbfdab0a6b",
+      "response_sha256": "fa51fa14ee89c03aea02e07cd1a6b8ab769af66a2f457d53deaa589f195e903e",
+      "usage": {
+        "promptTokens": 24547,
+        "completionTokens": 4236,
+        "reasoningTokens": 768,
+        "totalTokens": 28783
+      },
+      "telemetry": {
+        "promptChars": 81057,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:16:54.254Z",
+        "clientTotalMs": 83145,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 6,
+      "elapsed_ms": 16376,
+      "gateway_request_id": "req-0ac95322-a6ec-452a-b98e-c8806d57bca5",
+      "response_sha256": "692e4adfdf4d0e1f47d7aa62c7ddf1b19bd02f5e762782c7f166092965ac7883",
+      "usage": {
+        "promptTokens": 24138,
+        "completionTokens": 1169,
+        "reasoningTokens": 1036,
+        "totalTokens": 25307
+      },
+      "telemetry": {
+        "promptChars": 73747,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:18:17.429Z",
+        "clientTotalMs": 16376,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 7,
+      "elapsed_ms": 27780,
+      "gateway_request_id": "req-bf648b6a-b2d6-4de2-9843-6731b4c6e4f1",
+      "response_sha256": "b060d1186402c4c9681a69676e0c1e42012a0fa3487726ff3fd8be5699c23ab9",
+      "usage": {
+        "promptTokens": 24180,
+        "completionTokens": 2172,
+        "reasoningTokens": 1944,
+        "totalTokens": 26352
+      },
+      "telemetry": {
+        "promptChars": 73808,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:18:33.834Z",
+        "clientTotalMs": 27780,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 8,
+      "elapsed_ms": 22458,
+      "gateway_request_id": "req-a90ad629-9a85-4340-a060-cb2414958c5d",
+      "response_sha256": "771c801604e2581dc93fd3f3f24b1a7f0229bfe09572ce89f929759118b7c286",
+      "usage": {
+        "promptTokens": 23976,
+        "completionTokens": 695,
+        "reasoningTokens": 458,
+        "totalTokens": 24671
+      },
+      "telemetry": {
+        "promptChars": 73485,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:19:01.648Z",
+        "clientTotalMs": 22458,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 9,
+      "elapsed_ms": 21432,
+      "gateway_request_id": "req-ebc92db4-56f8-4ae1-96fa-e8e152664988",
+      "response_sha256": "062abb89e17c87d2594e8459f3988ed381047e45962a3455da09f6b636c3d410",
+      "usage": {
+        "promptTokens": 24042,
+        "completionTokens": 741,
+        "reasoningTokens": 510,
+        "totalTokens": 24783
+      },
+      "telemetry": {
+        "promptChars": 73594,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:19:24.139Z",
+        "clientTotalMs": 21431,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 10,
+      "elapsed_ms": 7435,
+      "gateway_request_id": "req-2b7d1e87-e73d-4c28-90c9-d7805513b6f0",
+      "response_sha256": "197f455f5c475358f8274c3e175bf1d5b2ef97cc856a79a15cbaf69c8cd85918",
+      "usage": {
+        "promptTokens": 25302,
+        "completionTokens": 508,
+        "reasoningTokens": 120,
+        "totalTokens": 25810
+      },
+      "telemetry": {
+        "promptChars": 77598,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:19:45.605Z",
+        "clientTotalMs": 7434,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 11,
+      "elapsed_ms": 9806,
+      "gateway_request_id": "req-41b86b77-af18-4b26-9628-860f5a6633d4",
+      "response_sha256": "00fa2c717909e2b8f1686610585d9d7f827527b20aa2cb725380d77658d742e9",
+      "usage": {
+        "promptTokens": 25361,
+        "completionTokens": 431,
+        "reasoningTokens": 116,
+        "totalTokens": 25792
+      },
+      "telemetry": {
+        "promptChars": 77924,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:19:53.065Z",
+        "clientTotalMs": 9805,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 12,
+      "elapsed_ms": 31028,
+      "gateway_request_id": "req-de3ead93-0659-4954-829a-9ba5411b24b0",
+      "response_sha256": "7011cb6716d3574dfbd5e9a0dd92663fccd7430631e2f53d611c398269762623",
+      "usage": {
+        "promptTokens": 25388,
+        "completionTokens": 413,
+        "reasoningTokens": 80,
+        "totalTokens": 25801
+      },
+      "telemetry": {
+        "promptChars": 78046,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T23:20:02.895Z",
+        "clientTotalMs": 31027,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [],
+  "external_calls": [
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "serpapi.com",
+      "query_sha256": "1962486aa4183f60c391164a6fef2a438493af5ec7ecfc82d64f65a0bde83886",
+      "attempt": 1,
+      "duration_ms": 163,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": "6aa328d5a688558f2f7469fe"
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 462,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 413,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 358,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 371,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 433,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 490,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 301,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 779,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 752,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_f0be75683ca14d74b5080952c9370b00",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 760,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    }
+  ],
+  "budget_failures": [
+    {
+      "runId": "drr_f0be75683ca14d74b5080952c9370b00",
+      "limit": "evidence_investigation"
+    }
+  ],
+  "public_api_or_admission_tested": false
+}

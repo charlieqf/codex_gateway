@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"59d563bff1b77332672e303bebd6d503ea585e8402b42ef87a547cfa4d966a2b\",\"replacements\":[{\"path\":\"/facts/1/citations/1\",\"value\":{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}}]},\"workingNotes\":\"前一提案被拒原因：expertise事实中第二处引用使用了src_pubmed_36243240的隶属文本作为quote，但该隶属存于affiliationTexts而非citation_passages，校验失败。已将该引用替换为协会名录passageId text_0（佐证其为南京市妇幼保健院主任医师，生殖/妇幼保健领域）。其生殖医学科具体隶属证据仍由doctorPublications各条目的affiliationIndex（35574002、36695944、35724775）承载，这些此前已通过校验。其余字段不变。\"}",
+  "usage": {
+    "promptTokens": 23976,
+    "completionTokens": 695,
+    "reasoningTokens": 458,
+    "totalTokens": 24671
+  },
+  "gatewayRequestId": "req-a90ad629-9a85-4340-a060-cb2414958c5d"
+}

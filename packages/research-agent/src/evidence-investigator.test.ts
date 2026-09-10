@@ -59,6 +59,48 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it("reports independent record errors together, then reviews only the completely repaired proposal", async () => {
+    const bad = structuredClone(conclusion());
+    bad.evidence.facts[0]!.citations[0]!.quote = "Invented directory statement.";
+    bad.evidence.doctorPublications[0]!.affiliationQuote = null;
+    bad.evidence.coreEvidence[0]!.citations[0]!.quote = "Invented publication statement.";
+    const f = fixture([read, bad, conclusion(), accept]);
+    expect((await investigateDoctorEvidence(f.input)).outcome).toBe("resolved");
+    const correction = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    const feedback = correction.observations.find((o: { action: string }) => o.action === "invalid_evidence").result.message;
+    expect(feedback).toContain("/facts/0:");
+    expect(feedback).toContain("/doctorPublications/0:");
+    expect(feedback).toContain("/coreEvidence/0:");
+    expect(feedback).toContain("src_directory");
+    expect(feedback).toContain("src_pubmed_101");
+    expect(f.dependencies.generate.mock.calls.map(([call]) => call.role))
+      .toEqual(["investigator", "investigator", "investigator", "evidence_reviewer"]);
+    const review = JSON.parse(f.dependencies.generate.mock.calls[3]![0].prompt);
+    expect(review.proposed).toEqual(conclusion().evidence);
+  });
+
+  it.each([false, true])("normalizes the evidence envelope alias before patch overlap checks (overlap: %s)", async overlap => {
+    const invalid = conclusion(); invalid.evidence.coreEvidence[0]!.citations[0]!.quote = "Invented citation from nowhere.";
+    const f = fixture([read, invalid, { unresolved: "insufficient_evidence" }]);
+    const first = await investigateDoctorEvidence(f.input);
+    const resumed = fixture([], { state: first.state });
+    resumed.dependencies.generate.mockImplementation(async ({ role, prompt }) => {
+      if (role === "evidence_reviewer") return JSON.stringify(accept);
+      const data = JSON.parse(prompt);
+      if (data.observations.some((o: { action: string }) => o.action === "invalid_evidence_patch")) return JSON.stringify({ unresolved: "insufficient_evidence" });
+      const replacement = { path: "/evidence/coreEvidence/0/citations/0", value: { sourceId: "src_pubmed_101", passageId: "title" } };
+      return JSON.stringify({ evidencePatch: { proposal_sha256: data.pending_proposal.proposal_sha256,
+        replacements: overlap ? [replacement, { ...replacement, path: "/coreEvidence/0/citations/0" }] : [replacement] } });
+    });
+    const result = await investigateDoctorEvidence(resumed.input);
+    expect(result.outcome).toBe(overlap ? "unresolved" : "resolved");
+    if (overlap) {
+      expect(result.state.pendingEvidence).toEqual(invalid.evidence);
+      expect(resumed.dependencies.generate.mock.calls.every(([c]) => c.role !== "evidence_reviewer")).toBe(true);
+    } else expect(result.state.reviewedEvidence?.coreEvidence[0]?.citations[0]?.quote).toBe(paper.title);
+    expect(resumed.dependencies.readPublication).not.toHaveBeenCalled();
+  });
+
   it("retains selected source views across observation eviction and checkpoint recovery without rereading", async () => {
     const pmids = Array.from({ length: 15 }, (_, index) => String(101 + index));
     const focus = [{ pmid: "101", view: "authorship" }, { pmid: "102", view: "abstract" }];

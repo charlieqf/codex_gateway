@@ -1,0 +1,2689 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_33df4f690f07b48e4a2a29c2cc909839",
+        "src_eb3bb36653f9276bfd21789066ebbecf"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_evidence_investigation.v2",
+      "inputSha256": "50d5acc36eb68af06e92782c4e00e8e8c2addca2fb3b983ce5bcf17b229895d3",
+      "searches": [
+        {
+          "query": "(Shen Rong[Author] AND (Nanjing Maternity and Child Health)) AND (2022:2026[Date - Publication])",
+          "purpose": "doctor",
+          "status": "succeeded",
+          "value": [
+            "41553083",
+            "39068427",
+            "37690219",
+            "37382170",
+            "37057923",
+            "36695944",
+            "36243240",
+            "35724775",
+            "35574002"
+          ],
+          "queryTranslation": "((shen, rong[Author] OR rong, shen[Author]) OR shen rong[Author]) AND (\"Nanjing\"[All Fields] AND (\"maternally\"[All Fields] OR \"maternities\"[All Fields] OR \"maternity\"[All Fields] OR \"mothers\"[MeSH Terms] OR \"mothers\"[All Fields] OR \"maternal\"[All Fields]) AND (\"child health\"[MeSH Terms] OR (\"child\"[All Fields] AND \"health\"[All Fields]) OR \"child health\"[All Fields])) AND 2022/01/01:2026/12/31[Date - Publication]",
+          "identityFieldsRetained": true
+        }
+      ],
+      "publications": [
+        {
+          "pmid": "41553083",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_41553083",
+            "pmid": "41553083",
+            "doi": "10.1096/fj.202504165r",
+            "title": "Rab14-Mediated Lipophagy Disrupts Lipid Homeostasis in Granulosa Cells and Impairs Female Fertility.",
+            "journal": "FASEB journal : official publication of the Federation of American Societies for Experimental Biology",
+            "publicationYear": 2026,
+            "authors": [
+              "Zhong D",
+              "Li L",
+              "Zhang J",
+              "Guo Y",
+              "Su Y",
+              "Zhao S",
+              "An H",
+              "Hou X",
+              "Ji C",
+              "Shen R"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Dan Zhong",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Liangting Li",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Juan Zhang",
+                "affiliations": [
+                  "Early Pregnancy Care Center, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China.",
+                  "Nanjing Medical Key Laboratory of Female Fertility Preservation and Restoration, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Yaping Guo",
+                "affiliations": [
+                  "Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Yan Su",
+                "affiliations": [
+                  "Early Pregnancy Care Center, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China.",
+                  "Nanjing Medical Key Laboratory of Female Fertility Preservation and Restoration, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Shuangshuang Zhao",
+                "affiliations": [
+                  "Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Huiqing An",
+                "affiliations": [
+                  "Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiaojing Hou",
+                "affiliations": [
+                  "Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Chenbo Ji",
+                "affiliations": [
+                  "Nanjing Women and Children's HealthCare Institute, Nanjing Women and Children's HealthCare Hospital, Women's Hospital of Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Nanjing Medical Key Laboratory of Female Fertility Preservation and Restoration, Nanjing, China.",
+                  "Early Pregnancy Care Center, Nanjing Women and Children's HealthCare Hospital, Women's Hospital of Nanjing Medical University, Nanjing, China."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China.",
+              "Early Pregnancy Care Center, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China.",
+              "Nanjing Medical Key Laboratory of Female Fertility Preservation and Restoration, Nanjing, China.",
+              "Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Institute, Nanjing, China.",
+              "Nanjing Women and Children's HealthCare Institute, Nanjing Women and Children's HealthCare Hospital, Women's Hospital of Nanjing Medical University, Nanjing, China.",
+              "Early Pregnancy Care Center, Nanjing Women and Children's HealthCare Hospital, Women's Hospital of Nanjing Medical University, Nanjing, China."
+            ],
+            "abstractText": "As health awareness grows, more people are turning to weight loss-yet excessive slimming or dietary imbalance is quietly triggering a wave of fertility problems. Researches show that low BMI or excessive exercise can negatively impact fertility, but its specific cellular mechanism remain unclear. In this study, we investigated how adipose tissue influences ovarian function under energy-restricted conditions by establishing a peri-ovarian adipose tissue (POAT) removal mouse model. We showed that POAT removal resulted in a significant decrease in litter size, impaired follicle development, and an increased apoptosis rate in granulosa cells (GCs). Additionally, the lipid droplets (LDs) content in the ovaries and GCs was significantly reduced. We also observed that Rab14 expression was upregulated in GCs after POAT removal. Functional experiments further showed that Rab14 overexpression significantly enhanced lipophagy activity, reduced the number and volume of LDs, and inhibited the expression of lipid droplet protein PLIN2. Meanwhile, Rab14 overexpression inhibited the phosphorylation level of AKT and induced the apoptosis of granulosa cells, suggesting that Rab14 may activate the cell death pathway mediated by lipophagy. Taken together, POAT may support ovarian function by maintaining lipid homeostasis within GCs. The role of Rab14 in the regulation of lipophagy may link local adipose-derived signaling with GCs survival and female fertility.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/41553083/",
+            "accessedAt": "2026-09-10T23:16:01.050Z",
+            "contentSha256": "358fc70e9995271b2e1aacd79ce11c54ce20c9d28cdb20bb196e3c2af126c94f"
+          }
+        },
+        {
+          "pmid": "39068427",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_39068427",
+            "pmid": "39068427",
+            "doi": "10.1186/s12905-024-03274-x",
+            "title": "Antibiotics improve reproductive outcomes after frozen-thaw embryo transfer for chronic endometritis treatment, especially in those with repeated implantation failure.",
+            "journal": "BMC women's health",
+            "publicationYear": 2024,
+            "authors": [
+              "Xie Q",
+              "Zhao C",
+              "Jiang W",
+              "Li X",
+              "Ni D",
+              "Chen Y",
+              "Li X",
+              "Hua X",
+              "Shen R",
+              "Ling X"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Qijun Xie",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Chun Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Wei Jiang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Xin Li",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Danyu Ni",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Yuting Chen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Xiuling Li",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                ]
+              },
+              {
+                "author": "Xiangdong Hua",
+                "affiliations": [
+                  "Department of Obstetrics and Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. hxd_82@126.com."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. rongshen163@163.com."
+                ]
+              },
+              {
+                "author": "Xiufeng Ling",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. lingxiufeng_njfy@163.com."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China.",
+              "Department of Obstetrics and Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. hxd_82@126.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. rongshen163@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. lingxiufeng_njfy@163.com."
+            ],
+            "abstractText": "To investigate the impact of antibiotic treatment for chronic endometritis (CE) on the pregnancy outcome of frozen-thawed embryo transfer (FET) cycles and the relevant clinical risk factors associated with CE. A retrospective cohort analysis was conducted on 1352 patients who underwent hysteroscopy and diagnostic curettage at Nanjing Maternal and Child Health Hospital from July 2020 to December 2021. All patients underwent CD138 immunohistochemical (IHC) testing to diagnose CE, and a subset of them underwent FET after hysteroscopy. Patient histories were collected, and reproductive prognosis was followed up. Out of 1088 patients, 443 (40.7%) were diagnosed with CE. Univariate and multivariate binary logistic regression analyses revealed that parity ≥ 2, a history of ectopic pregnancy, moderate-to-severe dysmenorrhea, hydrosalpinx, endometrial polyps, a history of ≥ 2 uterine operations, and RIF were significantly associated with an elevated risk of CE (P < 0.05). Analysis of the effect of CE on pregnancy outcomes in FET cycles after antibiotic treatment indicated that treated CE patients exhibited a significantly lower miscarriage rate (8.7%) and early miscarriage rate (2.9%) than untreated non-CE patients (20.2%, 16.8%). Moreover, the singleton live birth rate (45.5%) was significantly higher in treated CE patients than in untreated non-CE patients (32.7%). Survival analysis revealed a statistically significant difference in the first clinical pregnancy time between treated CE and untreated non-CE patients after hysteroscopy (P = 0.0019). Stratified analysis based on the presence of recurrent implantation failure (RIF) demonstrated that in the RIF group, treated CE patients were more likely to achieve clinical pregnancy than untreated non-CE patients (P = 0.0021). Among hysteroscopy-positive patients, no significant difference was noted in pregnancy outcomes between the treatment and control groups (P > 0.05). Infertile patients with a history of parity ≥ 2, hydrosalpinx, a history of ectopic pregnancy, moderate-to-severe dysmenorrhea, endometrial polyps, a history of ≥ 2 uterine operations, and RIF are at an increased risk of CE; these patients should be recommended to undergo hysteroscopy combined with CD138 examination before embryo transfer. Antibiotic treatment can improve the reproductive outcomes of FET in patients with CE, especially those with RIF.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/39068427/",
+            "accessedAt": "2026-09-10T23:16:02.191Z",
+            "contentSha256": "1a9ccf0fb9df9db78d399db234302bdef47ed0ac81bba3ad5d85724a9b7b792d"
+          }
+        },
+        {
+          "pmid": "37690219",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_37690219",
+            "pmid": "37690219",
+            "doi": "10.1016/j.envint.2023.108183",
+            "title": "Association of maternal metals exposure, metabolites and birth outcomes in newborns: A prospective cohort study.",
+            "journal": "Environment international",
+            "publicationYear": 2023,
+            "authors": [
+              "Zhao S",
+              "Yang X",
+              "Xu Q",
+              "Li H",
+              "Su Y",
+              "Xu Q",
+              "X Li Q",
+              "Xia Y",
+              "Shen R"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Shuangshuang Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China; State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xu Yang",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Qing Xu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China; Department of Obstetrics and Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Hang Li",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Yan Su",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Qiaoqiao Xu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Qing X Li",
+                "affiliations": [
+                  "Department of Molecular Biosciences and Bioengineering, University of Hawaii at Manoa, 1955 East-West Road, Honolulu, HI 96822, USA."
+                ]
+              },
+              {
+                "author": "Yankai Xia",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China. Electronic address: yankaixia@njmu.edu.cn."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: rongshen163@163.com."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China; State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China.",
+              "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China.",
+              "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China; Department of Obstetrics and Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+              "Department of Molecular Biosciences and Bioengineering, University of Hawaii at Manoa, 1955 East-West Road, Honolulu, HI 96822, USA.",
+              "State Key Laboratory of Reproductive Medicine, School of Public Health, Nanjing Medical University, Nanjing, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing, China. Electronic address: yankaixia@njmu.edu.cn.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: rongshen163@163.com."
+            ],
+            "abstractText": "Maternal exposure to metals may pose a risk to the health of newborns, however, the underlying mechanisms remain ambiguous. Herein, we aimed to investigate the influence of metals exposure on birth outcomes and reveal the importance of metabolites in the exposure-outcomes association by using metabolomics methods. In our study, 292 mother-pairs were included who were recruited from the affiliated hospitals of Nanjing Medical University between 2006 and 2011. We measured fifteen metals (mercury, lead, vanadium, arsenic, zinc, cadmium, rubidium, copper, cobalt, iron, molybdenum, strontium, thallium, magnesium and calcium) and metabolites in maternal second trimester serums by using inductively coupled plasma mass spectrometry and ultra-high performance liquid chromatography high resolution accurate mass spectrometry, respectively. A multi-step statistical analysis strategy including exposome-wide association study (ExWAS) model, variable selection models and multiple-exposure models were performed to systematically appraise the associations of individual and mixed metals exposure with birth outcomes. Furthermore, differential metabolites that associated with metals exposure and birth outcomes were identified using linear regression models. Metal's levels in maternal serums ranged from 0.05 μg/L to 1864.76 μg/L. In the ExWAS model, maternal exposure to arsenic was negatively associated with birth weight (β = 188.83; 95% CI: -368.27, -9.39), while maternal mercury exposure showed a positive association (β = 533.65; 95%CI: 179.40, 887.90) with birth weight. Moreover, each unit increase in mercury (1 ng/mL-log transformed) was associated with a 1.82 week-increase (95%CI: 0.85, 2.79) in gestational age. These findings were subsequently validated by variable selection models and multiple exposure models. Metabolomic analysis further revealed the significant role of 3-methyladenine in the relationship between arsenic exposure and birth weight. This study provides new epidemiological evidence indicating the associations of metals exposure and neonatal birth outcomes, and emphasizes the potential role of metabolite biomarkers and their importance in monitoring adverse birth outcomes.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37690219/",
+            "accessedAt": "2026-09-10T23:16:03.115Z",
+            "contentSha256": "2c2f4f4cc6231eb4a526b252a2270adf8cd7beaf778ea3f4757035e89f3cd876"
+          }
+        },
+        {
+          "pmid": "37382170",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_37382170",
+            "pmid": "37382170",
+            "doi": "10.1111/aji.13732",
+            "title": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies.",
+            "journal": "American journal of reproductive immunology (New York, N.Y. : 1989)",
+            "publicationYear": 2023,
+            "authors": [
+              "Guo Y",
+              "Su Y",
+              "Zhang M",
+              "Ji H",
+              "Zhao C",
+              "Ling X",
+              "Shen R"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Yaping Guo",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Yan Su",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Mianqiu Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Hui Ji",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Chun Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiufeng Ling",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+            ],
+            "abstractText": "Does hydroxychloroquine (HCQ) improve pregnancy outcomes after frozen embryo transfer (FET) cycles in patients who are positive for autoantibodies？ METHOD OF STUDY: This was a retrospective clinical study involving 128 patients who were positive for autoantibodies undergoing FET cycles between October 2017 and December 2022. Subjects were divided into two groups: a study group of 65 cycles with HCQ (HCQ was administered orally over 2 months before transplantation and continued during the first trimester) and a control group consisting of 63 cycles without HCQ (no HCQ was used throughout the FET cycle). Each patient was enrolled in the cohort only once. Then, we analyzed the clinical pregnancy outcomes between the two groups. Analysis showed that HCQ was a factor that independently associated with clinical pregnancy rate (CPR) OR (Odds Ratio): 3.106; 95% confidence interval (CI): 1.458-6.616; p = .003. Furthermore, the implantation rate (IR), CPR and ongoing pregnancy rate (OPR) of the treatment group were significantly higher than those in the control group. The biochemical pregnancy rate (BPR) and early miscarriage rate (EMR) were significantly lower than that in the control group (p = .029, p < .001). We found that HCQ improved clinical pregnancy outcomes and reduced the rate of first-trimester abortion in patients who were positive for autoantibodies during FET cycles.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37382170/",
+            "accessedAt": "2026-09-10T23:16:04.118Z",
+            "contentSha256": "91dd2ca162cc3d4e22b41893695caf69e7f8e0b82673880445bcdf69314135e2"
+          }
+        },
+        {
+          "pmid": "37057923",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_37057923",
+            "pmid": "37057923",
+            "doi": "10.3724/abbs.2023052",
+            "title": "Circular RNA hsa_circ_0007444 inhibits ovarian cancer progression through miR-23a-3p/DICER1 axis.",
+            "journal": "Acta biochimica et biophysica Sinica",
+            "publicationYear": 2023,
+            "authors": [
+              "Zhang M",
+              "Sun Y",
+              "Xu H",
+              "Shi Y",
+              "Shen R",
+              "Teng F",
+              "Xu J",
+              "Jia X"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Min Zhang",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China.",
+                  "Department of Gynecology, Gannan Medical University, Ganzhou 341000, China."
+                ]
+              },
+              {
+                "author": "Yu Sun",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              },
+              {
+                "author": "Hanzi Xu",
+                "affiliations": [
+                  "Jiangsu Institute of Cancer Research, the Affiliated Cancer Hospital of Nanjing Medical University, Nanjing 210009, China."
+                ]
+              },
+              {
+                "author": "Yaqian Shi",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              },
+              {
+                "author": "Fang Teng",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              },
+              {
+                "author": "Juan Xu",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              },
+              {
+                "author": "Xuemei Jia",
+                "affiliations": [
+                  "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China.",
+              "Department of Gynecology, Gannan Medical University, Ganzhou 341000, China.",
+              "Jiangsu Institute of Cancer Research, the Affiliated Cancer Hospital of Nanjing Medical University, Nanjing 210009, China."
+            ],
+            "abstractText": "Ovarian cancer is the second leading cause of death in women with gynecological malignancy in China. Circular RNAs are a class of noncoding regulatory RNAs reported to be involved in cancer development and progression. Previous studies, including our own, have indicated that hsa_circ_0007444 is downregulated in ovarian cancer tissues. This study aims to elucidate the function and mechanism of hsa_circ_0007444 in ovarian cancer progression. The expression of hsa_circ_0007444 is determined by quantitative real-time PCR (qRT-PCR). Cell proliferation, invasion, migration and apoptosis are examined by cell counting-kit 8 (CCK-8), transwell and flow cytometry assays. Tumor growth and metastasis are assessed in vivo using Balb/c nude mouse xenograft model and tail vein injection model. And the mechanism of action of hsa_circ_0007444 is analysed by RNA-binding protein immunoprecipitation (RIP), luciferase reporter and rescue assays. hsa_circ_0007444 is downregulated in ovarian cancer tissues and cell lines compared with that in normal ovarian tissues and normal epithelial cell line. Gain- and loss-of-function results indicate that hsa_circ_0007444 inhibits cell proliferation, invasion, migration and increases cell apoptosis of ovarian cancer cells in vitro , and inhibits tumor growth and lung metastasis in vivo . Mechanistically, hsa_circ_0007444 can interact with AGO2 and sponge miR-23a-3p, thereby upregulating DICER1 expression, which is an important tumor suppressor in ovarian cancer. And miR-23a-3p mimics can rescue the inhibitory effect of hsa_circ_0007444 on ovarian cancer cell proliferation, invasion and migration. Therefore, hsa_circ_0007444 can inhibit ovarian cancer progression through the hsa_circ_0007444/miR-23a-3p/DICER1 axis.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37057923/",
+            "accessedAt": "2026-09-10T23:16:05.183Z",
+            "contentSha256": "b3efa9cb87c3fefbf40a245ddbded31d41aee6e7486bdb17ee2a1de2bace3280"
+          }
+        },
+        {
+          "pmid": "36695944",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_36695944",
+            "pmid": "36695944",
+            "doi": "10.1007/s10815-023-02724-z",
+            "title": "Molecular characterization of extracellular vesicles derived from follicular fluid of women with and without PCOS: integrating analysis of differential miRNAs and proteins reveals vital molecules involving in PCOS.",
+            "journal": "Journal of assisted reproduction and genetics",
+            "publicationYear": 2023,
+            "authors": [
+              "Yang Y",
+              "Lang P",
+              "Zhang X",
+              "Wu X",
+              "Cao S",
+              "Zhao C",
+              "Shen R",
+              "Ling X",
+              "Yang Y",
+              "Zhang J"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Yuqin Yang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Peng Lang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiaolan Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xun Wu",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Shanren Cao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Chun Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiufeng Ling",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Ye Yang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. yeyang89@hotmail.com."
+                ]
+              },
+              {
+                "author": "Junqiang Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. zhangjunqiang_njfy@163.com."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. yeyang89@hotmail.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. zhangjunqiang_njfy@163.com."
+            ],
+            "abstractText": "To elucidate the characterization of extracellular vesicles (EVs) in the follicular fluid-derived extracellular vesicles (FF-EVs) and discover critical molecules and signaling pathways associating with the etiology and pathobiology of PCOS, the differentially expressed miRNAs (DEmiRNAs) and differentially expressed proteins profiles (DEPs) were initially explored and combinedly analyzed. First, the miRNA and protein expression profiles of FF-EVs in PCOS patients and control patients were compared by RNA-sequencing and tandem mass tagging (TMT) proteomic methods. Subsequently, Gene Ontology and the Kyoto Encyclopedia of Genes and Genomes were used to analyze the biological function of target genes of DEmiRNAs and DEPs. Finally, to discover the functional miRNA-target gene-protein interaction pairs involved in PCOS, DEmiRs target gene datasets and DEPs datasets were used integratedly. A total of 6 DEmiRNAs and 32 DEPs were identified in FF-EVs in patients with PCOS. Bioinformatics analysis revealed that DEmiRNAs target genes are mainly involved in thiamine metabolism, insulin secretion, GnRH, and Apelin signaling pathway, which are closely related to the occurrence of PCOS. DEPs also closely related to hormone metabolism processes such as steroid hormone biosynthesis. In the analysis integrating DEmiRNAs target genes and DEPs, two molecules, GRAMD1B and STPLC2, attracted our attention that are closely associated with cholesterol transport and ceramide biosynthesis, respectively. Dysregulated miRNAs and proteins in FF-EVs, mainly involving in hormone metabolism, insulin secretion, neurotransmitters regulation, adipokine expression, and secretion, may be closely related to PCOS. The effects of GRAMD1B and STPLC2 on PCOS deserve further study.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/36695944/",
+            "accessedAt": "2026-09-10T23:16:06.303Z",
+            "contentSha256": "ccb330d024d102a4941d0da74a96d74bf256e970e9d7de9db196bd6b844a5e78"
+          }
+        },
+        {
+          "pmid": "36243240",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_36243240",
+            "pmid": "36243240",
+            "doi": "10.1016/j.tox.2022.153349",
+            "title": "Triclosan has a strong influence on the development of mouse preimplantation embryo via activating miR-134/Nanog axis.",
+            "journal": "Toxicology",
+            "publicationYear": 2022,
+            "authors": [
+              "Yang Y",
+              "Ni D",
+              "Wang L",
+              "Shi X",
+              "Zhang X",
+              "Zhou L",
+              "Ji J",
+              "Zhao C",
+              "Shen R",
+              "Ling X",
+              "Chen X"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Ye Yang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: yeyang89@hotmail.com."
+                ]
+              },
+              {
+                "author": "Danyu Ni",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: nidanyuni@163.com."
+                ]
+              },
+              {
+                "author": "Li Wang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: wangli0702@163.com."
+                ]
+              },
+              {
+                "author": "Xiaodan Shi",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: 1107130917@qq.com."
+                ]
+              },
+              {
+                "author": "Xiaolan Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zxl15951723568@163.com."
+                ]
+              },
+              {
+                "author": "Lin Zhou",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zlmail_610127@163.com."
+                ]
+              },
+              {
+                "author": "Juan Ji",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: 494184854@qq.com."
+                ]
+              },
+              {
+                "author": "Chun Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zhaochun2008@yeah.net."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: Rongshen163@163.com."
+                ]
+              },
+              {
+                "author": "Xiufeng Ling",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: lingxiufeng_njfy@163.com."
+                ]
+              },
+              {
+                "author": "Xiaojiao Chen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: chenxiaojiao_njfy@163.com."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: yeyang89@hotmail.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: nidanyuni@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: wangli0702@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: 1107130917@qq.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zxl15951723568@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zlmail_610127@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: 494184854@qq.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: zhaochun2008@yeah.net.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: Rongshen163@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: lingxiufeng_njfy@163.com.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China. Electronic address: chenxiaojiao_njfy@163.com."
+            ],
+            "abstractText": "Antimicrobial triclosan (TCS), one of the popular ingredients added to sanitizing products, has widespread use in personal care. However, it poses potential risks to reproduction and development. Unfortunately, the underlying mechanisms remain largely unclear. This study aimed to investigate effects of TCS on the development of preimplantation mouse embryo and explore related mechanisms Mouse zygotes were collected and cultured to blastocysts in KSOM medium supplemented with four different concentrations of TCS. The development rates, pluripotency or stem cells markers, and microRNA (miR)- 134 were compared between control and experimental groups across each specific developmental stage. Prolonged exposure to TCS remarkably impaired early embryo development in vitro by hampering morula and blastocyst formations (P < 0.05, P < 0.001). The arrest of embryo development was linked with decreased expressions of pluripotency or stem cells markers, especially Nanog and Notch1. Moreover, based on miRWalk database and in vitro luciferase assays, we confirmed that miR-134 induced by TCS was a negative regulator of Nanog. Crucially, impaired TCS-treated embryos could be rescued by inhibiting miR-134 or forced overexpressing Nanog mRNA. Altogether, our results highlight that pathologically relevant level of TCS compromises preimplantation mouse embryo development by inducing miR-134 and triggering miR-134/Nanog axis. Considering high conservative of miR-134 between human and mouse, it should be the most promising potential target to regulate development of preimplantation embryo.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/36243240/",
+            "accessedAt": "2026-09-10T23:16:07.653Z",
+            "contentSha256": "6951114e970b083c1984382cae754ca1d6302da11c39608e81291ce044cb3121"
+          }
+        },
+        {
+          "pmid": "35724775",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_35724775",
+            "pmid": "35724775",
+            "doi": "10.1016/j.scitotenv.2022.156778",
+            "title": "Maternal PM(2.5) exposure during gestation and offspring neurodevelopment: Findings from a prospective birth cohort study.",
+            "journal": "The Science of the total environment",
+            "publicationYear": 2022,
+            "authors": [
+              "Xu X",
+              "Tao S",
+              "Huang L",
+              "Du J",
+              "Liu C",
+              "Jiang Y",
+              "Jiang T",
+              "Lv H",
+              "Lu Q",
+              "Meng Q",
+              "Wang X",
+              "Qin R",
+              "Liu C",
+              "Ma H",
+              "Jin G",
+              "Xia Y",
+              "Kan H",
+              "Lin Y",
+              "Shen R",
+              "Hu Z",
+              "CNBC Study Group"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Xin Xu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Shiyao Tao",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Lei Huang",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Jiangbo Du",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Cong Liu",
+                "affiliations": [
+                  "School of Public Health, Key Lab of Public Health Safety of the Ministry of Education and Key Lab of Health Technology Assessment of the Ministry of Health, Fudan University, Shanghai 200032, China."
+                ]
+              },
+              {
+                "author": "Yangqian Jiang",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Tao Jiang",
+                "affiliations": [
+                  "Department of Biostatistics, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Hong Lv",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Qun Lu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Qingxia Meng",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China; Reproductive Genetic Center, The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Xiaoyan Wang",
+                "affiliations": [
+                  "Department of Obstetrics, The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Rui Qin",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Cong Liu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Hongxia Ma",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Guangfu Jin",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China."
+                ]
+              },
+              {
+                "author": "Yankai Xia",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing 211166, China."
+                ]
+              },
+              {
+                "author": "Haidong Kan",
+                "affiliations": [
+                  "School of Public Health, Key Lab of Public Health Safety of the Ministry of Education and Key Lab of Health Technology Assessment of the Ministry of Health, Fudan University, Shanghai 200032, China."
+                ]
+              },
+              {
+                "author": "Yuan Lin",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China. Electronic address: yuanlin@njmu.edu.cn."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China. Electronic address: rongshen163@163.com."
+                ]
+              },
+              {
+                "author": "Zhibin Hu",
+                "affiliations": [
+                  "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China. Electronic address: zhibin_hu@njmu.edu.cn."
+                ]
+              }
+            ],
+            "affiliations": [
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China.",
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China.",
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China.",
+              "School of Public Health, Key Lab of Public Health Safety of the Ministry of Education and Key Lab of Health Technology Assessment of the Ministry of Health, Fudan University, Shanghai 200032, China.",
+              "Department of Biostatistics, School of Public Health, Nanjing Medical University, Nanjing 211166, China.",
+              "State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China; Reproductive Genetic Center, The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China.",
+              "Department of Obstetrics, The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China.",
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Key Laboratory of Modern Toxicology of Ministry of Education, School of Public Health, Nanjing Medical University, Nanjing 211166, China.",
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Maternal, Child and Adolescent Health, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China. Electronic address: yuanlin@njmu.edu.cn.",
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China. Electronic address: rongshen163@163.com.",
+              "State Key Laboratory of Reproductive Medicine, Nanjing Medical University, Nanjing 211166, Jiangsu, China; Department of Epidemiology, Center for Global Health, School of Public Health, Nanjing Medical University, Nanjing 211166, China; State Key Laboratory of Reproductive Medicine (Suzhou Centre), The Affiliated Suzhou Hospital of Nanjing Medical University, Suzhou Municipal Hospital, Gusu School, Nanjing Medical University, Suzhou 215002, China. Electronic address: zhibin_hu@njmu.edu.cn."
+            ],
+            "abstractText": "Emerging data have suggested the potential role of prenatal PM 2.5 exposure as a neurotoxin for offspring. However, the existing results are equivocal, and no study has examined the effects of complex chemical constituents of the particular matter on offspring neurodevelopment. Therefore, in a prospective birth cohort study conducted in Jiangsu, China, we aimed to investigate the association between prenatal exposure to PM 2.5 and the neurodevelopment in infants, and further assess the effects of specific chemical constituents of PM 2.5 . A total of 1531 children who had available data on daily prenatal PM 2.5 exposure and completed assessment on neurodevelopment at 1 year old were enrolled. We used the high-performance machine-learning model to estimate daily PM 2.5 exposure concentrations at 1 km × 1 km spatial resolution. The combined geospatial-statistical model was applied to evaluate average concentrations of six chemical constituents [organic matter (OM), black carbon (BC), sulfate (SO 4 2- ), nitrate (NO 3 - ), ammonium (NH 4 + ), and soil dust (Dust)]. The neurodevelopment of children was assessed using Bayley-III Screening Test. After adjusting for confounding factors, the risk of non-optimal gross motor development increased by 31 % for every 10 μg/m 3 increase in average PM 2.5 exposure during gestation (aRR: 1.31; 95 % CI: 1.04, 1.64). Further analysis of PM 2.5 constituents showed that prenatally exposed to high SO 4 2- was associated with the risk of non-optimal gross motor development (aRR: 1.40; 95 % CI: 1.08, 1.81). Null associations were observed for the rest four neurodevelopment domains. Collectively, our study suggested that prenatal exposure to PM 2.5 , particularly with high SO 4 2- concentration, was associated with children's non-optimal gross motor development at 1 year old. The short- and long-term influences of perinatal PM 2.5 exposure on children's neurodevelopment warrant further investigation.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/35724775/",
+            "accessedAt": "2026-09-10T23:16:08.947Z",
+            "contentSha256": "9d84f3be6aa5277051ede3ff37038e8277ca8c1c78404d37281bc5cccc780bca"
+          }
+        },
+        {
+          "pmid": "35574002",
+          "status": "succeeded",
+          "value": {
+            "referenceId": "ref_pmid_35574002",
+            "pmid": "35574002",
+            "doi": "10.3389/fendo.2022.828993",
+            "title": "Functional Ovarian Cysts in Artificial Frozen-Thawed Embryo Transfer Cycles With Depot Gonadotropin-Releasing Hormone Agonist.",
+            "journal": "Frontiers in endocrinology",
+            "publicationYear": 2022,
+            "authors": [
+              "Ji H",
+              "Su Y",
+              "Zhang M",
+              "Li X",
+              "Li X",
+              "Ding H",
+              "Dong L",
+              "Cao S",
+              "Zhao C",
+              "Zhang J",
+              "Shen R",
+              "Ling X"
+            ],
+            "authorAffiliations": [
+              {
+                "author": "Hui Ji",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Yan Su",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+                  "The Fourth School of Clinical Medicine, Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Mianqiu Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xin Li",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiuling Li",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Hui Ding",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Li Dong",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Shanren Cao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Chun Zhao",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Junqiang Zhang",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Rong Shen",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+                  "The Fourth School of Clinical Medicine, Nanjing Medical University, Nanjing, China."
+                ]
+              },
+              {
+                "author": "Xiufeng Ling",
+                "affiliations": [
+                  "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                ]
+              }
+            ],
+            "affiliations": [
+              "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.",
+              "The Fourth School of Clinical Medicine, Nanjing Medical University, Nanjing, China."
+            ],
+            "abstractText": "To investigate the incidence of functional ovarian cysts, its influence on clinical rates, and proper management after depot gonadotropin-releasing hormone (GnRH) agonist pretreatment in artificial frozen-thawed embryo transfer cycles (AC-FET). This retrospective cohort study involved 3375 AC-FET cycles with follicular-phase depot GnRH agonist administration between January 2017 and December 2020. Subjects were divided into a study group (cycles with cyst formation) and a control group (cycles without cyst formation). The study group was matched by propensity scoring matching with the control group at a ratio of 1:2. For patients with ovarian cyst formation, two major managements were used: a conservative approach (i.e., expectant treatment) and a drug approach (i.e., continued agonist administration). The primary outcome was live birth rate (LBR). The incidence of functional ovarian cysts following pituitary downregulation is 10.1% (341/3375). The study group exhibited a LBR similar to the control group (54.5% vs . 50.1%, adjusted odds ratio [aOR] 1.17, 95% confidence interval [CI] 0.88-1.56, P = 0.274). Patients with a lower body mass index and anti-Müllerian hormone, and a higher basal estradiol level were more susceptible to developing functional ovarian cysts. The LBR decreased after the drug approach compared with the conservative approach, but not significantly (aOR 0.63, 95% CI 0.35-1.14, P = 0.125). Following the conservative approach, cycles arrived at live births had a significantly shorter duration from the detection of functional cysts to the start of endometrium preparation (15.7 ± 5.1 days vs . 17.4 ± 5.3 days, P = 0.009) and a significantly higher proportion of ovarian cysts on the initial day of exogenous hormone supplementation (51.4% vs . 30.3%, P = 0.001). After controlling for all confounders, the differences remained statistically significant. It is unnecessary to cancel cycles that experience functional ovarian cyst formation. Conservative management and further agonist suppression protocol had similar pregnancy rates. However, a conservative approach was recommended due to its lower cost and fewer side effects. Our findings support a shorter waiting period when choosing the conservative protocol.",
+            "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/35574002/",
+            "accessedAt": "2026-09-10T23:16:10.282Z",
+            "contentSha256": "c151bbbb92528f6c1322d75169ff47b94832366248bb63c429001e6b950e8210"
+          }
+        }
+      ],
+      "pages": [],
+      "pageRequests": 0,
+      "modelCalls": 12,
+      "observations": [
+        {
+          "action": "publication_cached",
+          "result": {
+            "pmid": "37690219",
+            "status": "succeeded",
+            "view": "abstract",
+            "value": {
+              "referenceId": "ref_pmid_37690219",
+              "pmid": "37690219",
+              "doi": "10.1016/j.envint.2023.108183",
+              "title": "Association of maternal metals exposure, metabolites and birth outcomes in newborns: A prospective cohort study.",
+              "journal": "Environment international",
+              "publicationYear": 2023,
+              "authors": [
+                "Zhao S",
+                "Yang X",
+                "Xu Q",
+                "Li H",
+                "Su Y",
+                "Xu Q",
+                "X Li Q",
+                "Xia Y",
+                "Shen R"
+              ],
+              "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37690219/",
+              "accessedAt": "2026-09-10T23:16:03.115Z",
+              "contentSha256": "2c2f4f4cc6231eb4a526b252a2270adf8cd7beaf778ea3f4757035e89f3cd876",
+              "abstract_available": true
+            },
+            "citation_passages": [
+              {
+                "passageId": "title",
+                "quote": "Association of maternal metals exposure, metabolites and birth outcomes in newborns: A prospective cohort study."
+              },
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Association of maternal metals exposure, metabolites and birth outcomes in newborns: A prospective cohort study.\nMaternal exposure to metals may pose a risk to the health of newborns, however, the underlying mechanisms remain ambiguous. Herein, we aimed to investigate the influence of metals exposure on birth outcomes and reveal the importance of metabolites in the exposure-outcomes association by using metabolomics methods. In our study, 292 mother-pairs were included who were recruited from the affiliated hospitals of Nanjing Medical University between 2006 and 2011. We measured fifteen metals (mercury, lead, vanadium, arsenic, zinc, cadmium, rubidium, copper, cobalt, iron, molybdenum, strontium, thallium, magnesium and calcium) and metabolites in maternal second trimester serums by using inductively coupled plasma mass spectrometry and ultra-high performance liquid chromatography high resolution accurate mass spectrometry, respectively. A multi-step statistical analysis strategy including exposome-wide association study (ExWAS) model, variable selection models and multiple-exposure models were performed to systematically appraise the associations of individual and mixed metals e"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "xposure with birth outcomes. Furthermore, differential metabolites that associated with metals exposure and birth outcomes were identified using linear regression models. Metal's levels in maternal serums ranged from 0.05 μg/L to 1864.76 μg/L. In the ExWAS model, maternal exposure to arsenic was negatively associated with birth weight (β = 188.83; 95% CI: -368.27, -9.39), while maternal mercury exposure showed a positive association (β = 533.65; 95%CI: 179.40, 887.90) with birth weight. Moreover, each unit increase in mercury (1 ng/mL-log transformed) was associated with a 1.82 week-increase (95%CI: 0.85, 2.79) in gestational age. These findings were subsequently validated by variable selection models and multiple exposure models. Metabolomic analysis further revealed the significant role of 3-methyladenine in the relationship between arsenic exposure and birth weight. This study provides new epidemiological evidence indicating the associations of metals exposure and neonatal birth outcomes, and emphasizes the potential role of metabolite biomarkers and their importance in monitoring adverse birth outcomes."
+              }
+            ]
+          }
+        },
+        {
+          "action": "publication_cached",
+          "result": {
+            "pmid": "37382170",
+            "status": "succeeded",
+            "view": "abstract",
+            "value": {
+              "referenceId": "ref_pmid_37382170",
+              "pmid": "37382170",
+              "doi": "10.1111/aji.13732",
+              "title": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies.",
+              "journal": "American journal of reproductive immunology (New York, N.Y. : 1989)",
+              "publicationYear": 2023,
+              "authors": [
+                "Guo Y",
+                "Su Y",
+                "Zhang M",
+                "Ji H",
+                "Zhao C",
+                "Ling X",
+                "Shen R"
+              ],
+              "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37382170/",
+              "accessedAt": "2026-09-10T23:16:04.118Z",
+              "contentSha256": "91dd2ca162cc3d4e22b41893695caf69e7f8e0b82673880445bcdf69314135e2",
+              "abstract_available": true
+            },
+            "citation_passages": [
+              {
+                "passageId": "title",
+                "quote": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies."
+              },
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies.\nDoes hydroxychloroquine (HCQ) improve pregnancy outcomes after frozen embryo transfer (FET) cycles in patients who are positive for autoantibodies？ METHOD OF STUDY: This was a retrospective clinical study involving 128 patients who were positive for autoantibodies undergoing FET cycles between October 2017 and December 2022. Subjects were divided into two groups: a study group of 65 cycles with HCQ (HCQ was administered orally over 2 months before transplantation and continued during the first trimester) and a control group consisting of 63 cycles without HCQ (no HCQ was used throughout the FET cycle). Each patient was enrolled in the cohort only once. Then, we analyzed the clinical pregnancy outcomes between the two groups. Analysis showed that HCQ was a factor that independently associated with clinical pregnancy rate (CPR) OR (Odds Ratio): 3.106; 95% confidence interval (CI): 1.458-6.616; p = .003. Furthermore, the implantation rate (IR), CPR and ongoing pregnancy rate (OPR) of the treatment group were significantly higher than those in the control gro"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "up. The biochemical pregnancy rate (BPR) and early miscarriage rate (EMR) were significantly lower than that in the control group (p = .029, p < .001). We found that HCQ improved clinical pregnancy outcomes and reduced the rate of first-trimester abortion in patients who were positive for autoantibodies during FET cycles."
+              }
+            ]
+          }
+        },
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Return one valid JSON object. Expected ',' or '}' after property value in JSON at position 7569 (line 1 column 7570)",
+            "previous_response": "{\"evidence\":{\"facts\":[{\"type\":\"position\",\"text\":\"沈嵘，女，南京市妇幼保健院（南京医科大学附属妇产医院）主任医师、教授、博士生导师，现任该院党委书记；另任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"其专业领域为生殖医学：多篇以本人署名（Rong Shen，通讯/末位作者）的论文显示其在南京医科大学附属妇产医院（南京市妇幼保健院）生殖医学科从事临床与研究工作。\",\"citations\":[{\"sourceId\":\"src_pubmed_39068427\",\"quote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. rongshen163@163.com.\"}]},{\"type\":\"research_direction\",\"text\":\"研究方向涵盖辅助生殖临床（冻融胚胎移植结局、慢性子宫内膜炎、自身抗体阳性患者羟氯喹干预、功能性卵巢囊肿管理）、生殖基础研究（PCOS卵泡液外泌体、颗粒细胞脂噬、卵巢癌circRNA机制）以及孕期环境暴露（重金属、PM2.5、三氯生）对出生结局与子代发育的影响。\",\"citations\":[{\"sourceId\":\"src_pubmed_39068427\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_37382170\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_35574002\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_36695944\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_35724775\",\"passageId\":\"title\"}]},{\"type\":\"representative_output\",\"text\":\"代表成果：抗生素治疗慢性子宫内膜炎改善FET妊娠结局（BMC Women's Health 2024）；羟氯喹改善自身抗体阳性者FET结局（Am J Reprod Immunol 2023）；AC-FET周期功能性卵巢囊肿管理的前瞻性证据（Front Endocrinol 2022）；母体重金属暴露与出生结局的前瞻性队列（Environ Int 2023）。\",\"citations\":[{\"sourceId\":\"src_pubmed_39068427\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_37382170\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_35574002\",\"passageId\":\"title\"},{\"sourceId\":\"src_pubmed_37690219\",\"passageId\":\"title\"}]}],\"topics\":{\"terms\":[\"冻融胚胎移植（FET）妊娠结局\",\"慢性子宫内膜炎与反复种植失败\",\"自身免疫抗体与生殖预后\",\"多囊卵巢综合征（PCOS）\",\"环境暴露（重金属、PM2.5、三氯生）与出生结局\",\"生殖医学\"],\"...\":\"\"},\"doctorPublications\":[{\"pmid\":\"39068427\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"affiliationQuote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. rongshen163@163.com.\",\"corroboration\":[],\"explanation\":\"该作者隶属南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科，与已验证的沈嵘主任医师（该医院、妇产科/生殖领域、教授）一致；且多篇论文中该作者使用同一邮箱rongshen163@163.com，作者归属高度一致。\"},{\"pmid\":\"37382170\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"affiliationQuote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.\",\"corroboration\":[],\"explanation\":\"同上：作者隶属与邮箱一致性支持归属。\"},{\"pmid\":\"35574002\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"affiliationQuote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.\",\"corroboration\":[],\"explanation\":\"同上；该作者另有第二隶属'南京医科大学第四临床医学院'，与请求单位一致。\"},{\"pmid\":\"36695944\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"affiliationQuote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.\",\"corroboration\":[],\"explanation\":\"同上：作者隶属一致性支持归属。\"},{\"pmid\":\"35724775\",\"author\":\"Rong Shen\",\"affiliationIndex\":0,\"affiliationQuote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing 210004, China. Electronic address: rongshen163@163.com.\",\"corroboration\":[],\"explanation\":\"同上：作者隶属与同一邮箱rongshen163@163.com支持归属。\"}],\"fieldPublications\":[{\"pmid\":\"39068427\",\"rationale\":\"本人署名研究，评估慢性子宫内膜炎抗生素治疗对FET结局的影响\"},{\"pmid\":\"37382170\",\"rationale\":\"本人署名研究，羟氯喹改善自身抗体阳性患者FET结局\"},{\"pmid\":\"35574002\",\"rationale\":\"本人署名研究，AC-FET周期功能性卵巢囊肿的发生与管理\"},{\"pmid\":\"36695944\",\"rationale\":\"本人署名研究，PCOS卵泡液外泌体miRNA与蛋白质组学特征\"},{\"pmid\":\"37690219\",\"rationale\":\"本人署名研究，母体重金属暴露、代谢物与新生儿出生结局\"},{\"pmid\":\"35724775\",\"rationale\":\"本人署名研究，孕期PM2.5暴露与子代神经发育\"},{\"pmid\":\"36243240\",\"rationale\":\"本人署名研究，三氯生经miR-134/Nanog轴影响小鼠着床前胚胎发育\"},{\"pmid\":\"41553083\",\"rationale\":\"本人署名研究，Rab14介导的脂噬与颗粒细胞脂质稳态及雌性生育力\"},{\"pmid\":\"37057923\",\"rationale\":\"本人署名研究，hsa_circ_0007444经miR-23a-3p/DICER1轴抑制卵巢癌进展\"}],\"coreEvidence\":[{\"pmid\":\"39068427\",\"study_type\":\"回顾性队列分析（单中心）\",\"sample_and_source\":\"2020年7月至2021年12月在南京市妇幼保健院行宫腔镜及诊断性刮宫的1352例患者，均行CD138免疫组化诊断慢性子宫内膜炎（CE），其中1088例完成诊断评估，部分随后行FET\",\"methods\":\"CD138免疫组化诊断CE；单因素与多因素二元logistic回归分析CE相关危险因素；比较抗生素治疗后CE患者与未治疗非CE患者的FET妊娠结局；生存分析比较首次临床妊娠时间；按RIF分层分析\",\"key_results\":\"1088例中443例（40.7%）诊断为CE。产次≥2、异位妊娠史、中重度痛经、输卵管积水、子宫内膜息肉、≥2次宫腔操作史及RIF与CE风险升高显著相关（P<0.05）。抗生素治疗后CE患者流产率（8.7%）与早期流产率（2.9%）显著低于未治疗非CE患者（20.2%、16.8%）；单胎活产率45.5%显著高于对照组32.7%；首次临床妊娠时间存在显著差异（P=0.0019）；RIF亚组中治疗CE患者更易获得临床妊娠（P=0.0021）。宫腔镜阳性患者中两组结局无显著差异（P>0.05）\",\"limitations\":\"作者报告：回顾性设计。本综述仅基于摘要，无法评估混杂控制细节、失访及抗生素方案异质性\",\"citations\":[{\"sourceId\":\"src_pubmed_39068427\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_pubmed_39068427\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_pubmed_39068427\",\"passageId\":\"text_2\"}]},{\"pmid\":\"37382170\",\"study_type\":\"回顾性临床研究（非随机）\",\"sample_and_source\":\"2017年10月至2022年12月间128例自身抗体阳性并接受FET的患者：HCQ组65个周期（移植前口服2个月并持续至早孕期）与对照组63个周期（全程未用HCQ），每例患者仅入组一次\",\"methods\":\"回顾性比较两组临床妊娠结局；logistic分析HCQ与临床妊娠率的独立关联\",\"key_results\":\"HCQ为临床妊娠率的独立相关因素（OR 3.106；95%CI 1.458–6.616；p=0.003）。治疗组着床率、临床妊娠率与持续妊娠率显著高于对照组；生化妊娠率与早期流产率显著更低（p=0.029、p<0.001）\",\"limitations\":\"作者报告：回顾性设计。本综述仅基于摘要；样本量较小（128例），未报告混杂因素调整细节\",\"citations\":[{\"sourceId\":\"src_pubmed_37382170\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_pubmed_37382170\",\"passageId\":\"text_1\"}]},{\"pmid\":\"35574002\",\"study_type\":\"回顾性队列研究（含倾向性评分匹配1:2）\",\"sample_and_source\":\"2017年1月至2020年12月共3375个使用卵泡期长效GnRH激动剂预处理的人工冻融胚胎移植（AC-FET）周期，分为囊肿形成组与对照组\",\"methods\":\"倾向性评分匹配（1:2）比较活产率；比较囊肿两种管理策略（保守期待 vs 持续激动剂抑制）；主要结局为活产率\",\"key_results\":\"垂体降调节后功能性卵巢囊肿发生率为10.1%（341/3375）。研究组活产率与对照组相近（54.5% vs 50.1%，aOR 1.17，95%CI 0.88–1.56，P=0.274）。较低BMI与AMH、较高基础雌二醇者更易发生囊肿。药物法较保守法活产率降低但不显著（aOR 0.63，95%CI 0.35–1.14，P=0.125）。保守方案下获得活产的周期囊肿检出至内膜准备开始时间更短（15.7±5.1 vs 17.4±5.3天，P=0.009）。结论：囊肿形成无需取消周期，保守与药物抑制妊娠率相近，推荐成本更低、副作用更少的保守方案\",\"limitations\":\"作者报告：回顾性设计。本综述仅基于摘要，无法评估匹配变量完整性与长期结局\",\"citations\":[{\"sourceId\":\"src_pubmed_35574002\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_pubmed_35574002\",\"passageId\":\"text_1\"}]},{\"pmid\":\"37690219\",\"study_type\":\"前瞻性队列研究\",\"sample_and_source\":\"2006–2011年自南京医科大学附属医院招募的292对母婴\",\"methods\":\"电感耦合等离子体质谱测定母孕中期血清15种金属，超高效液相色谱高分辨质谱测定代谢物；ExWAS模型、变量选择模型与多暴露模型评估单一及混合金属暴露与出生结局的关联；线性回归识别差异代谢物\",\"key_results\":\"母体砷暴露与出生体重呈负相关（β=188.83；95%CI -368.27~-9.39），汞暴露与出生体重呈正相关（β=533.65；95%CI 179.40~887.90）；汞每增加1个对数单位与孕周增加1.82周相关（95%CI 0.85~2.79）。代谢组学提示3-甲基腺嘌呤在砷暴露与出生体重关系中发挥作用。结果经变量选择与多暴露模型验证\",\"limitations\":\"作者报告：样本量292对，为关联性证据。本综述仅基于摘要，无法评估暴露测量的时效性与混杂控制细节\",\"citations\":[{\"sourceId\":\"src_pubmed_37690219\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_pubmed_37690219\",\"passageId\":\"text_1\"}]},{\"pmid\":\"35724775\",\"study_type\":\"前瞻性出生队列研究\",\"sample_and_source\":\"中国江苏出生队列中1531名儿童，具备完整孕期每日PM2.5暴露数据并在1岁时完成神经发育评估\",\"methods\":\"机器学习模型估算1km×1km分辨率的每日PM2.5浓度；地理-统计联合模型评估6种化学组分（OM、BC、SO4²⁻、NO3⁻、NH4⁺、粉尘）浓度；Bayley-III筛查量表评估神经发育；调整混杂因素\",\"key_results\":\"孕期PM2.5平均暴露每增加10 μg/m³，大运动发育非最优风险增加31%（aRR 1.31；95%CI 1.04~1.64）。组分分析显示产前高SO4²⁻暴露与非最优大运动发育相关（aRR 1.40；95%CI 1.08~1.81）。其余四个神经发育域未见关联\",\"limitations\":\"作者报告：围产期PM2.5暴露的短期与长期影响尚需进一步研究。本综述仅基于摘要，随访仅至1岁\",\"citations\":[{\"sourceId\":\"src_pubmed_35724775\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_pubmed_35724775\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"请求中的'第四临床医学院副院长'职务未被任何已读页面验证；仅验证了其南京市妇幼保健院党委书记职务，以及一篇论文中作者的第二隶属为'南京医科大学第四临床医学院'（不能据此推定行政职务）。\",\"论文作者归属基于Rong Shen在多篇论文中一致的南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科/妇科隶属及一致邮箱rongshen163@163.com；未找到明确列出其发表论文的公开个人主页作直接佐证。\",\"本综述仅基于PubMed摘要，未获取全文；核心证据表中的方法与统计细节以摘要报告为限。\",\"检索限于PubMed并以'Shen Rong + Nanjing Maternity and Child Health'（2022–2026）进行，未穷尽所有数据库及更早年份文献；PubMed隶属缺失的论文未被纳入。\"]}"
+          }
+        },
+        {
+          "action": "invalid_evidence",
+          "result": {
+            "message": "Citation quote is absent from read source src_pubmed_35724775; select a supplied passageId or copy an exact original passage without inserted ellipsis or translation.",
+            "proposal_sha256": "8153fd37ec7ffa8a4d73aa74a09d23fdf94a699b9c53b3a14be2468ac966db02"
+          }
+        },
+        {
+          "action": "invalid_evidence",
+          "result": {
+            "message": "Citation quote is absent from read source src_pubmed_35574002; select a supplied passageId or copy an exact original passage without inserted ellipsis or translation.",
+            "proposal_sha256": "1a9322acf1088d7f7d1786f3e4156fbac747ccef2a8e4eb6073258a236a6a082"
+          }
+        },
+        {
+          "action": "invalid_evidence",
+          "result": {
+            "message": "Citation quote is absent from read source src_pubmed_36243240; select a supplied passageId or copy an exact original passage without inserted ellipsis or translation.",
+            "proposal_sha256": "59d563bff1b77332672e303bebd6d503ea585e8402b42ef87a547cfa4d966a2b"
+          }
+        },
+        {
+          "action": "invalid_evidence",
+          "result": {
+            "message": "Missing author affiliations require explicit publication corroboration; a matching name is insufficient.",
+            "proposal_sha256": "f71cfde0f500b46b03dea40a87c88a9334b3d7aab699e31ec117e8302a7d2ca3"
+          }
+        },
+        {
+          "action": "publication_cached",
+          "result": {
+            "pmid": "39068427",
+            "status": "succeeded",
+            "view": "complete",
+            "value": {
+              "referenceId": "ref_pmid_39068427",
+              "pmid": "39068427",
+              "doi": "10.1186/s12905-024-03274-x",
+              "title": "Antibiotics improve reproductive outcomes after frozen-thaw embryo transfer for chronic endometritis treatment, especially in those with repeated implantation failure.",
+              "journal": "BMC women's health",
+              "publicationYear": 2024,
+              "authors": [
+                "Xie Q",
+                "Zhao C",
+                "Jiang W",
+                "Li X",
+                "Ni D",
+                "Chen Y",
+                "Li X",
+                "Hua X",
+                "Shen R",
+                "Ling X"
+              ],
+              "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/39068427/",
+              "accessedAt": "2026-09-10T23:16:02.191Z",
+              "contentSha256": "1a9ccf0fb9df9db78d399db234302bdef47ed0ac81bba3ad5d85724a9b7b792d",
+              "abstract_available": true,
+              "authorAffiliations": [
+                {
+                  "author": "Qijun Xie",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Chun Zhao",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Wei Jiang",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Xin Li",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Danyu Ni",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Yuting Chen",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Xiuling Li",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Xiangdong Hua",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_1"
+                    }
+                  ]
+                },
+                {
+                  "author": "Rong Shen",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_2"
+                    }
+                  ]
+                },
+                {
+                  "author": "Xiufeng Ling",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_3"
+                    }
+                  ]
+                }
+              ],
+              "affiliationTexts": [
+                {
+                  "id": "affiliation_0",
+                  "text": "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China."
+                },
+                {
+                  "id": "affiliation_1",
+                  "text": "Department of Obstetrics and Gynecology, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. hxd_82@126.com."
+                },
+                {
+                  "id": "affiliation_2",
+                  "text": "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. rongshen163@163.com."
+                },
+                {
+                  "id": "affiliation_3",
+                  "text": "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Women and Children's Healthcare Hospital, 123 Tianfeixiang, Mochou Road, Nanjing, 210004, China. lingxiufeng_njfy@163.com."
+                }
+              ],
+              "affiliations": [
+                {
+                  "text_id": "affiliation_0"
+                },
+                {
+                  "text_id": "affiliation_1"
+                },
+                {
+                  "text_id": "affiliation_2"
+                },
+                {
+                  "text_id": "affiliation_3"
+                }
+              ]
+            },
+            "citation_passages": [
+              {
+                "passageId": "title",
+                "quote": "Antibiotics improve reproductive outcomes after frozen-thaw embryo transfer for chronic endometritis treatment, especially in those with repeated implantation failure."
+              },
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Antibiotics improve reproductive outcomes after frozen-thaw embryo transfer for chronic endometritis treatment, especially in those with repeated implantation failure.\nTo investigate the impact of antibiotic treatment for chronic endometritis (CE) on the pregnancy outcome of frozen-thawed embryo transfer (FET) cycles and the relevant clinical risk factors associated with CE. A retrospective cohort analysis was conducted on 1352 patients who underwent hysteroscopy and diagnostic curettage at Nanjing Maternal and Child Health Hospital from July 2020 to December 2021. All patients underwent CD138 immunohistochemical (IHC) testing to diagnose CE, and a subset of them underwent FET after hysteroscopy. Patient histories were collected, and reproductive prognosis was followed up. Out of 1088 patients, 443 (40.7%) were diagnosed with CE. Univariate and multivariate binary logistic regression analyses revealed that parity ≥ 2, a history of ectopic pregnancy, moderate-to-severe dysmenorrhea, hydrosalpinx, endometrial polyps, a history of ≥ 2 uterine operations, and RIF were significantly associated with an elevated risk of CE (P < 0.05). Analysis of the effect of CE on pregnancy outcomes in "
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "FET cycles after antibiotic treatment indicated that treated CE patients exhibited a significantly lower miscarriage rate (8.7%) and early miscarriage rate (2.9%) than untreated non-CE patients (20.2%, 16.8%). Moreover, the singleton live birth rate (45.5%) was significantly higher in treated CE patients than in untreated non-CE patients (32.7%). Survival analysis revealed a statistically significant difference in the first clinical pregnancy time between treated CE and untreated non-CE patients after hysteroscopy (P = 0.0019). Stratified analysis based on the presence of recurrent implantation failure (RIF) demonstrated that in the RIF group, treated CE patients were more likely to achieve clinical pregnancy than untreated non-CE patients (P = 0.0021). Among hysteroscopy-positive patients, no significant difference was noted in pregnancy outcomes between the treatment and control groups (P > 0.05). Infertile patients with a history of parity ≥ 2, hydrosalpinx, a history of ectopic pregnancy, moderate-to-severe dysmenorrhea, endometrial polyps, a history of ≥ 2 uterine operations, and RIF are at an increased risk of CE; these patients should be recommended to undergo hysteroscopy c"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "ombined with CD138 examination before embryo transfer. Antibiotic treatment can improve the reproductive outcomes of FET in patients with CE, especially those with RIF."
+              }
+            ]
+          }
+        },
+        {
+          "action": "publication_cached",
+          "result": {
+            "pmid": "37382170",
+            "status": "succeeded",
+            "view": "complete",
+            "value": {
+              "referenceId": "ref_pmid_37382170",
+              "pmid": "37382170",
+              "doi": "10.1111/aji.13732",
+              "title": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies.",
+              "journal": "American journal of reproductive immunology (New York, N.Y. : 1989)",
+              "publicationYear": 2023,
+              "authors": [
+                "Guo Y",
+                "Su Y",
+                "Zhang M",
+                "Ji H",
+                "Zhao C",
+                "Ling X",
+                "Shen R"
+              ],
+              "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/37382170/",
+              "accessedAt": "2026-09-10T23:16:04.118Z",
+              "contentSha256": "91dd2ca162cc3d4e22b41893695caf69e7f8e0b82673880445bcdf69314135e2",
+              "abstract_available": true,
+              "authorAffiliations": [
+                {
+                  "author": "Yaping Guo",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Yan Su",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Mianqiu Zhang",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Hui Ji",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Chun Zhao",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Xiufeng Ling",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                },
+                {
+                  "author": "Rong Shen",
+                  "affiliations": [
+                    {
+                      "affiliationIndex": 0,
+                      "text_id": "affiliation_0"
+                    }
+                  ]
+                }
+              ],
+              "affiliationTexts": [
+                {
+                  "id": "affiliation_0",
+                  "text": "Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China."
+                }
+              ],
+              "affiliations": [
+                {
+                  "text_id": "affiliation_0"
+                }
+              ]
+            },
+            "citation_passages": [
+              {
+                "passageId": "title",
+                "quote": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies."
+              },
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Hydroxychloroquine improves pregnancy outcomes in patients undergoing frozen embryo transfer with positive serum autoantibodies.\nDoes hydroxychloroquine (HCQ) improve pregnancy outcomes after frozen embryo transfer (FET) cycles in patients who are positive for autoantibodies？ METHOD OF STUDY: This was a retrospective clinical study involving 128 patients who were positive for autoantibodies undergoing FET cycles between October 2017 and December 2022. Subjects were divided into two groups: a study group of 65 cycles with HCQ (HCQ was administered orally over 2 months before transplantation and continued during the first trimester) and a control group consisting of 63 cycles without HCQ (no HCQ was used throughout the FET cycle). Each patient was enrolled in the cohort only once. Then, we analyzed the clinical pregnancy outcomes between the two groups. Analysis showed that HCQ was a factor that independently associated with clinical pregnancy rate (CPR) OR (Odds Ratio): 3.106; 95% confidence interval (CI): 1.458-6.616; p = .003. Furthermore, the implantation rate (IR), CPR and ongoing pregnancy rate (OPR) of the treatment group were significantly higher than those in the control gro"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "up. The biochemical pregnancy rate (BPR) and early miscarriage rate (EMR) were significantly lower than that in the control group (p = .029, p < .001). We found that HCQ improved clinical pregnancy outcomes and reduced the rate of first-trimester abortion in patients who were positive for autoantibodies during FET cycles."
+              }
+            ]
+          }
+        },
+        {
+          "action": "invalid_evidence_patch",
+          "result": {
+            "message": "replacement[0]: path must identify an existing proposal value."
+          }
+        },
+        {
+          "action": "invalid_evidence_patch",
+          "result": {
+            "message": "replacement[0]: path must identify an existing proposal value."
+          }
+        },
+        {
+          "action": "invalid_evidence_patch",
+          "result": {
+            "message": "replacement[0]: path must identify an existing proposal value."
+          }
+        }
+      ],
+      "reviewedEvidence": null,
+      "workingNotes": "已读取39068427与37382170的authorship视图：两篇中Rong Shen均为唯一作者单位affiliation_0=南京市妇幼保健院生殖医学科（39068427还含rongshen163@163.com），通过evidencePatch补齐affiliationIndex=0。其余字段维持原proposal不变。",
+      "focusedPublications": [
+        {
+          "pmid": "39068427",
+          "view": "authorship"
+        },
+        {
+          "pmid": "37382170",
+          "view": "authorship"
+        },
+        {
+          "pmid": "35574002",
+          "view": "complete"
+        },
+        {
+          "pmid": "35724775",
+          "view": "complete"
+        }
+      ],
+      "pendingEvidence": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "沈嵘，女，南京市妇幼保健院（南京医科大学附属妇产医院）主任医师、教授、博士生导师，现任该院党委书记；另任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "其专业领域为生殖医学：多篇以Rong Shen署名的论文显示其在南京医科大学附属妇产医院（南京市妇幼保健院）生殖医学科（部分为妇科）从事临床与研究工作，并使用同一邮箱rongshen163@163.com。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "研究方向涵盖辅助生殖临床（冻融胚胎移植结局、慢性子宫内膜炎、自身抗体阳性患者羟氯喹干预、功能性卵巢囊肿管理）、生殖基础研究（PCOS卵泡液外泌体、颗粒细胞脂噬、卵巢癌circRNA机制、胚胎发育毒性）以及孕期环境暴露（重金属、PM2.5、三氯生）对出生结局与子代发育的影响。",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_39068427",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_37382170",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_35574002",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_36695944",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_35724775",
+                "passageId": "title"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "代表成果：抗生素治疗慢性子宫内膜炎改善FET妊娠结局（BMC Women's Health 2024）；羟氯喹改善自身抗体阳性者FET结局（Am J Reprod Immunol 2023）；AC-FET周期功能性卵巢囊肿管理研究（Front Endocrinol 2022）；母体重金属暴露与出生结局的前瞻性队列（Environ Int 2023）。",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_39068427",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_37382170",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_35574002",
+                "passageId": "title"
+              },
+              {
+                "sourceId": "src_pubmed_37690219",
+                "passageId": "title"
+              }
+            ]
+          }
+        ],
+        "topics": {
+          "terms": [
+            "冻融胚胎移植（FET）妊娠结局",
+            "慢性子宫内膜炎与反复种植失败",
+            "自身免疫抗体与生殖预后",
+            "多囊卵巢综合征（PCOS）",
+            "环境暴露（重金属、PM2.5、三氯生）与出生结局",
+            "生殖医学"
+          ],
+          "explanation": "综述范围基于其已验证的妇幼保健机构生殖医学专业身份（协会名录确认其为主任医师、教授、博士生导师，任职于南京市妇幼保健院）及其本人署名论文所涵盖的辅助生殖临床、生殖基础与环境暴露研究方向。",
+          "citations": [
+            {
+              "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+              "passageId": "text_0"
+            },
+            {
+              "sourceId": "src_pubmed_39068427",
+              "passageId": "title"
+            }
+          ]
+        },
+        "doctorPublications": [
+          {
+            "pmid": "39068427",
+            "author": "Rong Shen",
+            "affiliationQuote": null,
+            "corroboration": [],
+            "explanation": "该论文（Abstract视图）作者列表含Rong Shen（末位作者），与同一检索系列中其他论文里Rong Shen隶属南京市妇幼保健院生殖医学科、邮箱rongshen163@163.com的记录一致，且研究在其所在医院（Nanjing Maternal and Child Health Hospital）开展，作者归属高度一致。"
+          },
+          {
+            "pmid": "37382170",
+            "author": "Rong Shen",
+            "affiliationQuote": null,
+            "corroboration": [],
+            "explanation": "作者列表含Rong Shen（末位作者），与同一团队（Su Y、Zhao C、Ling X等）及隶属一致，归属基于系列论文中一致的机构与邮箱证据。"
+          },
+          {
+            "pmid": "35574002",
+            "author": "Rong Shen",
+            "affiliationIndex": 0,
+            "corroboration": [],
+            "explanation": "作者隶属南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科；该作者另有第二隶属‘南京医科大学第四临床医学院’，与请求单位一致；系列论文中邮箱rongshen163@163.com一致。"
+          },
+          {
+            "pmid": "36695944",
+            "author": "Rong Shen",
+            "affiliationIndex": 0,
+            "corroboration": [],
+            "explanation": "作者隶属南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科，与已验证的沈嵘及其系列论文归属一致。"
+          },
+          {
+            "pmid": "35724775",
+            "author": "Rong Shen",
+            "affiliationIndex": 0,
+            "affiliationQuote": null,
+            "corroboration": [],
+            "explanation": "作者本人隶属含电子邮箱rongshen163@163.com，与36243240中Rong Shen的同一邮箱完全一致，且机构与已验证身份吻合。"
+          }
+        ],
+        "fieldPublications": [
+          {
+            "pmid": "39068427",
+            "rationale": "评估慢性子宫内膜炎抗生素治疗对FET结局的影响（本人署名研究）"
+          },
+          {
+            "pmid": "37382170",
+            "rationale": "羟氯喹改善自身抗体阳性患者FET结局（本人署名研究）"
+          },
+          {
+            "pmid": "35574002",
+            "rationale": "AC-FET周期功能性卵巢囊肿的发生与管理（本人署名研究）"
+          },
+          {
+            "pmid": "36695944",
+            "rationale": "PCOS卵泡液外泌体miRNA与蛋白质组学特征（本人署名研究）"
+          },
+          {
+            "pmid": "37690219",
+            "rationale": "母体重金属暴露、代谢物与新生儿出生结局（本人署名研究）"
+          },
+          {
+            "pmid": "35724775",
+            "rationale": "孕期PM2.5暴露与子代神经发育（本人署名研究）"
+          },
+          {
+            "pmid": "36243240",
+            "rationale": "三氯生经miR-134/Nanog轴影响小鼠着床前胚胎发育（本人署名研究）"
+          },
+          {
+            "pmid": "41553083",
+            "rationale": "Rab14介导的脂噬与颗粒细胞脂质稳态及雌性生育力（本人署名研究）"
+          },
+          {
+            "pmid": "37057923",
+            "rationale": "hsa_circ_0007444经miR-23a-3p/DICER1轴抑制卵巢癌进展（本人署名研究）"
+          }
+        ],
+        "coreEvidence": [
+          {
+            "pmid": "39068427",
+            "study_type": "回顾性队列分析（单中心）",
+            "sample_and_source": "2020年7月至2021年12月在南京市妇幼保健院行宫腔镜及诊断性刮宫的1352例患者；均行CD138免疫组化检测，1088例完成CE诊断评估，部分随后行FET",
+            "methods": "CD138免疫组化诊断慢性子宫内膜炎（CE）；单因素与多因素二元logistic回归分析CE相关危险因素；比较抗生素治疗后CE患者与未治疗非CE患者的FET妊娠结局；生存分析比较首次临床妊娠时间；按RIF分层分析",
+            "key_results": "1088例中443例（40.7%）诊断为CE。产次≥2、异位妊娠史、中重度痛经、输卵管积水、子宫内膜息肉、≥2次宫腔操作史及RIF与CE风险升高显著相关（P<0.05）。抗生素治疗后CE患者流产率（8.7%）与早期流产率（2.9%）显著低于未治疗非CE患者（20.2%、16.8%）；单胎活产率45.5%显著高于对照组32.7%；首次临床妊娠时间存在显著差异（P=0.0019）；RIF亚组中治疗CE患者更易获得临床妊娠（P=0.0021）。宫腔镜阳性患者中两组结局无显著差异（P>0.05）",
+            "limitations": "作者报告：回顾性设计。本综述仅基于摘要，无法评估混杂控制细节、失访及抗生素方案异质性",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_39068427",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_pubmed_39068427",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_pubmed_39068427",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "pmid": "37382170",
+            "study_type": "回顾性临床研究（非随机）",
+            "sample_and_source": "2017年10月至2022年12月间128例自身抗体阳性并接受FET周期的患者：HCQ组65个周期（移植前口服2个月并持续至孕早期）与对照组63个周期（全程未用HCQ），每例患者仅入组一次",
+            "methods": "回顾性比较两组临床妊娠结局；logistic分析HCQ与临床妊娠率的独立关联",
+            "key_results": "HCQ为临床妊娠率的独立相关因素（OR 3.106；95%CI 1.458–6.616；p=0.003）。治疗组着床率、临床妊娠率与持续妊娠率显著高于对照组；生化妊娠率与早期流产率显著更低（p=0.029、p<0.001）",
+            "limitations": "作者报告：回顾性设计。本综述仅基于摘要；样本量较小（128例），摘要未报告混杂因素调整细节",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_37382170",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_pubmed_37382170",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "pmid": "35574002",
+            "study_type": "回顾性队列研究（含倾向性评分匹配1:2）",
+            "sample_and_source": "2017年1月至2020年12月共3375个使用卵泡期长效GnRH激动剂预处理的AC-FET周期，分为囊肿形成组与对照组",
+            "methods": "倾向性评分匹配（1:2）比较活产率；比较囊肿两种管理策略（保守期待 vs 持续激动剂抑制）；主要结局为活产率",
+            "key_results": "垂体降调节后功能性卵巢囊肿发生率为10.1%（341/3375）。研究组活产率与对照组相近（54.5% vs 50.1%，aOR 1.17，95%CI 0.88–1.56，P=0.274）。较低BMI与AMH、较高基础雌二醇者更易发生囊肿。药物法较保守法活产率降低但不显著（aOR 0.63，95%CI 0.35–1.14，P=0.125）。保守方案下获得活产的周期囊肿检出至内膜准备开始时间更短（15.7±5.1 vs 17.4±5.3天，P=0.009）。结论：囊肿形成无需取消周期，两种管理妊娠率相近，推荐成本更低、副作用更少的保守方案",
+            "limitations": "作者报告：回顾性设计。本综述仅基于摘要，无法评估匹配变量完整性与长期结局",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_35574002",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_pubmed_35574002",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "pmid": "37690219",
+            "study_type": "前瞻性队列研究",
+            "sample_and_source": "2006–2011年自南京医科大学附属医院招募的292对母婴",
+            "methods": "电感耦合等离子体质谱测定母孕中期血清15种金属，超高效液相色谱高分辨质谱测定代谢物；ExWAS模型、变量选择模型与多暴露模型评估单一及混合金属暴露与出生结局的关联；线性回归识别差异代谢物",
+            "key_results": "母体砷暴露与出生体重呈负相关（β=188.83；95%CI -368.27~-9.39），汞暴露与出生体重呈正相关（β=533.65；95%CI 179.40~887.90）；汞每增加1个对数单位与孕周增加1.82周相关（95%CI 0.85~2.79）。代谢组学提示3-甲基腺嘌呤在砷暴露与出生体重关系中发挥作用。结果经变量选择与多暴露模型验证",
+            "limitations": "作者报告：样本量292对，为关联性证据。本综述仅基于摘要，无法评估暴露测量的时效性与混杂控制细节",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_37690219",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_pubmed_37690219",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "pmid": "35724775",
+            "study_type": "前瞻性出生队列研究",
+            "sample_and_source": "中国江苏出生队列中1531名儿童，具备完整孕期每日PM2.5暴露数据并在1岁时完成神经发育评估",
+            "methods": "高性能机器学习模型估算1km×1km分辨率每日PM2.5浓度；地理-统计联合模型评估6种化学组分（OM、BC、SO4²⁻、NO3⁻、NH4⁺、粉尘）浓度；Bayley-III筛查量表评估神经发育；调整混杂因素",
+            "key_results": "孕期PM2.5平均暴露每增加10 μg/m³，大运动发育非最优风险增加31%（aRR 1.31；95%CI 1.04~1.64）。组分分析显示产前高SO4²⁻暴露与非最优大运动发育相关（aRR 1.40；95%CI 1.08~1.81）。其余四个神经发育域未见关联",
+            "limitations": "作者报告：围产期PM2.5暴露的短期与长期影响尚需进一步研究。本综述仅基于摘要，随访仅至1岁",
+            "citations": [
+              {
+                "sourceId": "src_pubmed_35724775",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_pubmed_35724775",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "请求中的‘第四临床医学院副院长’职务未被任何已读页面验证；仅验证了其南京市妇幼保健院党委书记职务。一篇论文（PMID 35574002）中Rong Shen的第二隶属为‘南京医科大学第四临床医学院’，但论文隶属不能据此推定其行政职务。",
+          "论文作者归属基于Rong Shen在多篇论文中一致的南京市妇幼保健院（南京医科大学附属妇产医院）生殖医学科/妇科隶属及一致邮箱rongshen163@163.com；未找到明确列出其发表论文的公开个人主页作直接佐证；39068427与37382170两篇仅读取了摘要视图（作者列表确认含Rong Shen，未逐条核对其单位字段）。",
+          "本综述仅基于PubMed摘要，未获取全文；核心证据表中的方法与统计细节以摘要报告为限。",
+          "检索限于PubMed并以‘Shen Rong + Nanjing（Nanjing Maternity and Child Health）’（2022–2026）进行，未穷尽所有数据库及更早年份文献；PubMed隶属缺失的论文未被纳入。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "10db9fd3dcc56cb56bd6dac2b30548a92fb4bbe6b052ef12fff5b08ba0425952",
+      "searches": [
+        {
+          "query": "沈嵘 南京市妇幼保健院 党委书记",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "title": "生育健康与出生缺陷防控专业委员会",
+              "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+            },
+            {
+              "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+              "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+              "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+              "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+            },
+            {
+              "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+              "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+              "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+            },
+            {
+              "url": "https://www.sohu.com/a/1068747293_132627",
+              "title": "新闻集锦｜南京市妇幼保健院2026年第二批援疆医疗队启程",
+              "snippet": "医院党委书记沈嵘带队前往机场为医疗队员送行。 图片. 沈嵘书记对两位队员主动担当、援疆奉献的精神予以肯定。送别现场，她指出，对口援疆是服务国家 ..."
+            },
+            {
+              "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+              "title": "南京市妇幼：迎接“一院两区”新格局全力守护女性全生命周期健康",
+              "snippet": "专访南京市妇幼保健院党委书记沈嵘： ; 迎接“一院两区”新格局，全力守护女性全生命周期健康 ; 布局“一院两区”，扩容优质医疗资源 ; 服务水平精细化，医疗关怀深入人心."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "url": "https://m.ysyy.org.cn/123/202105/458.html",
+          "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+          "accessedAt": "2026-09-10T23:15:38.751Z",
+          "contentSha256": "82da16e47cd94d134db47b294f98383427967383e55c162123ccdd1fa9a0a0ce",
+          "untrustedText": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://m.ysyy.org.cn/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会概况"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/11/202104/58.html",
+              "text": "章程规制"
+            },
+            {
+              "url": "https://www.ysyy.org.cn/62/202107/798.html",
+              "text": "办事机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/59/index.html",
+              "text": "协会领导"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/15/index.html",
+              "text": "协会历史"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/378/index.html",
+              "text": "杰出专家"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/377/index.html",
+              "text": "先进典型"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/16/index.html",
+              "text": "协会文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/355/index.html",
+              "text": "协会年鉴"
+            },
+            {
+              "url": "https://www.mysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/357/index.html",
+              "text": "品牌大会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/358/index.html",
+              "text": "协会刊物"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "新闻资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "协会资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/19/index.html",
+              "text": "通知公告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/18/index.html",
+              "text": "社会要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/21/index.html",
+              "text": "法律/法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/389/index.html",
+              "text": "政策/解读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "党建政工"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "学习必读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/23/index.html",
+              "text": "上级文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/24/index.html",
+              "text": "支部建设"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/353/index.html",
+              "text": "思想园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/354/index.html",
+              "text": "阅读推荐"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/26/index.html",
+              "text": "会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/27/index.html",
+              "text": "单位会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/28/index.html",
+              "text": "会员园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/29/index.html",
+              "text": "表格下载"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "分支机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "专业委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/31/index.html",
+              "text": "工作委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/374/index.html",
+              "text": "管理规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/375/index.html",
+              "text": "行业动态"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/376/index.html",
+              "text": "年度考评"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "教育培训"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "培训计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/33/index.html",
+              "text": "培训规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/34/index.html",
+              "text": "证书查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/359/index.html",
+              "text": "培训要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/360/index.html",
+              "text": "基层活动"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/361/index.html",
+              "text": "政策法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/362/index.html",
+              "text": "中优大讲堂"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "科研科普"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "研究报告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/36/index.html",
+              "text": "行业标准"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/37/index.html",
+              "text": "十大课题"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/38/index.html",
+              "text": "千天计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/39/index.html",
+              "text": "童真中国"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/363/index.html",
+              "text": "乡村服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "地方协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "省市优生优育类协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/42/index.html",
+              "text": "省市妇幼保健协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "社会服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "宏观数据"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/371/index.html",
+              "text": "乡村振兴"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/372/index.html",
+              "text": "家庭服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "text": "分会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/125/index.html",
+              "text": "分会动态"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+          "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+          "accessedAt": "2026-09-10T23:15:39.043Z",
+          "contentSha256": "141bd01b85cf6fca8ec93bcd1574019868b7e92c7633ed08562d41a5cb9522cf",
+          "untrustedText": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://wjw.nanjing.gov.cn/jgxx/",
+              "text": "机构信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/",
+              "text": "政府信息公开"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/",
+              "text": "互动交流"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/",
+              "text": "办事服务"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/",
+              "text": "专题专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+              "text": "概况信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+              "text": "财政信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+              "text": "人事信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+              "text": "部门文件"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+              "text": "统计信息及解读"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+              "text": "信息公开指南"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+              "text": "来信办理统计"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+              "text": "主任信箱"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+              "text": "调查征集"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+              "text": "权力清单"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+              "text": "下载服务"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/doctor",
+              "text": "医生执业注册信息查询"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/nurse",
+              "text": "护士执业注册信息查询"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+              "text": "“双随机、一公开”监管专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+              "text": "双公示专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/",
+              "text": "首页"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/",
+              "text": "工作动态"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "text": "【我要纠错】"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/wzdh/",
+              "text": "网站地图"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/lxwm/",
+              "text": "联系我们"
+            },
+            {
+              "url": "https://beian.miit.gov.cn/",
+              "text": "苏ICP备05004952号-7"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://m.ysyy.org.cn/123/202105/458.html": "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html"
+      },
+      "pageRequests": 2,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.bozhou.gov.cn/News/show/606568.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+        "https://www.sohu.com/a/1068747293_132627",
+        "https://i.ifeng.com/c/8XgFOwM4fHr"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "沈嵘 南京市妇幼保健院 党委书记",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "title": "生育健康与出生缺陷防控专业委员会",
+                "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+              },
+              {
+                "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+                "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+                "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+                "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+              },
+              {
+                "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+                "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+                "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+              },
+              {
+                "url": "https://www.sohu.com/a/1068747293_132627",
+                "title": "新闻集锦｜南京市妇幼保健院2026年第二批援疆医疗队启程",
+                "snippet": "医院党委书记沈嵘带队前往机场为医疗队员送行。 图片. 沈嵘书记对两位队员主动担当、援疆奉献的精神予以肯定。送别现场，她指出，对口援疆是服务国家 ..."
+              },
+              {
+                "url": "https://i.ifeng.com/c/8XgFOwM4fHr",
+                "title": "南京市妇幼：迎接“一院两区”新格局全力守护女性全生命周期健康",
+                "snippet": "专访南京市妇幼保健院党委书记沈嵘： ; 迎接“一院两区”新格局，全力守护女性全生命周期健康 ; 布局“一院两区”，扩容优质医疗资源 ; 服务水平精细化，医疗关怀深入人心."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+            "offset": 0,
+            "total_characters": 1702,
+            "text": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080",
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://m.ysyy.org.cn/123/202105/458.html",
+            "links": [
+              {
+                "url": "https://m.ysyy.org.cn/index.html",
+                "text": "首页"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会概况"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会简介"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/11/202104/58.html",
+                "text": "章程规制"
+              },
+              {
+                "url": "https://www.ysyy.org.cn/62/202107/798.html",
+                "text": "办事机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/59/index.html",
+                "text": "协会领导"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/15/index.html",
+                "text": "协会历史"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/378/index.html",
+                "text": "杰出专家"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/377/index.html",
+                "text": "先进典型"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/16/index.html",
+                "text": "协会文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/355/index.html",
+                "text": "协会年鉴"
+              },
+              {
+                "url": "https://www.mysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/357/index.html",
+                "text": "品牌大会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/358/index.html",
+                "text": "协会刊物"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "新闻资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "协会资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/19/index.html",
+                "text": "通知公告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/18/index.html",
+                "text": "社会要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/21/index.html",
+                "text": "法律/法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/389/index.html",
+                "text": "政策/解读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "党建政工"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "学习必读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/23/index.html",
+                "text": "上级文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/24/index.html",
+                "text": "支部建设"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/353/index.html",
+                "text": "思想园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/354/index.html",
+                "text": "阅读推荐"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/26/index.html",
+                "text": "会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/27/index.html",
+                "text": "单位会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/28/index.html",
+                "text": "会员园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/29/index.html",
+                "text": "表格下载"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "分支机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "专业委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/31/index.html",
+                "text": "工作委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/374/index.html",
+                "text": "管理规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/375/index.html",
+                "text": "行业动态"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/376/index.html",
+                "text": "年度考评"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "教育培训"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "培训计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/33/index.html",
+                "text": "培训规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/34/index.html",
+                "text": "证书查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/359/index.html",
+                "text": "培训要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/360/index.html",
+                "text": "基层活动"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/361/index.html",
+                "text": "政策法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/362/index.html",
+                "text": "中优大讲堂"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "科研科普"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "研究报告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/36/index.html",
+                "text": "行业标准"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/37/index.html",
+                "text": "十大课题"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/38/index.html",
+                "text": "千天计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/39/index.html",
+                "text": "童真中国"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/363/index.html",
+                "text": "乡村服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "地方协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "省市优生优育类协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/42/index.html",
+                "text": "省市妇幼保健协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "社会服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "宏观数据"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/371/index.html",
+                "text": "乡村振兴"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/372/index.html",
+                "text": "家庭服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "text": "分会简介"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 61
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+            "offset": 0,
+            "total_characters": 639,
+            "text": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+            "links": [
+              {
+                "url": "https://wjw.nanjing.gov.cn/jgxx/",
+                "text": "机构信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/",
+                "text": "政府信息公开"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/",
+                "text": "互动交流"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/",
+                "text": "办事服务"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/",
+                "text": "专题专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+                "text": "概况信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+                "text": "财政信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+                "text": "人事信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+                "text": "部门文件"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+                "text": "统计信息及解读"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+                "text": "信息公开指南"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+                "text": "来信办理统计"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+                "text": "主任信箱"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+                "text": "调查征集"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+                "text": "权力清单"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+                "text": "下载服务"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/doctor",
+                "text": "医生执业注册信息查询"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/nurse",
+                "text": "护士执业注册信息查询"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+                "text": "“双随机、一公开”监管专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+                "text": "双公示专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/",
+                "text": "首页"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/",
+                "text": "工作动态"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "text": "【我要纠错】"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/wzdh/",
+                "text": "网站地图"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/lxwm/",
+                "text": "联系我们"
+              },
+              {
+                "url": "https://beian.miit.gov.cn/",
+                "text": "苏ICP备05004952号-7"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 26
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "沈嵘",
+        "institution": "南京市妇幼保健院（南京医科大学附属妇产医院）",
+        "department": "党委书记、主任医师、教授、博士生导师",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记",
+            "explanation": "中国优生优育协会（national association for birth health）committee roster explicitly lists 沈嵘, female, as 主任医师、教授、博士生导师 and 党委书记 of 南京市妇幼保健院, which is also named as 南京医科大学附属妇产医院, matching the requested person, institution and administrative role."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记",
+            "explanation": "The passage identifies her institution as 南京市妇幼保健院, noting its affiliation as 南京医科大学附属妇产医院, consistent with the requested hospital."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市妇幼保健院党委书记沈嵘参加调研",
+            "explanation": "Official news from the Nanjing Municipal Health Commission (government authority over the hospital) confirms 沈嵘 holds the post of 党委书记 of 南京市妇幼保健院, corroborating the requested administrative role."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "文章来源：南京市妇幼保健院 发布时间：2024-08-15",
+            "explanation": "The page is published by the Nanjing Municipal Health Commission with the article sourced from the hospital itself, making it an authoritative government source for her current leadership role."
+          }
+        ],
+        "limitations": [
+          "_requested role '第四临床医学院副院长' was not verified by any page read; only her position as 党委书记 of the hospital was confirmed"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 2,
+      "discovered_source_count": 6,
+      "fetched_source_count": 2,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 2,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记",
+            "explanation": "中国优生优育协会（national association for birth health）committee roster explicitly lists 沈嵘, female, as 主任医师、教授、博士生导师 and 党委书记 of 南京市妇幼保健院, which is also named as 南京医科大学附属妇产医院, matching the requested person, institution and administrative role."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记",
+            "explanation": "The passage identifies her institution as 南京市妇幼保健院, noting its affiliation as 南京医科大学附属妇产医院, consistent with the requested hospital."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市妇幼保健院党委书记沈嵘参加调研",
+            "explanation": "Official news from the Nanjing Municipal Health Commission (government authority over the hospital) confirms 沈嵘 holds the post of 党委书记 of 南京市妇幼保健院, corroborating the requested administrative role."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "文章来源：南京市妇幼保健院 发布时间：2024-08-15",
+            "explanation": "The page is published by the Nanjing Municipal Health Commission with the article sourced from the hospital itself, making it an authoritative government source for her current leadership role."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "ec5d7ed8506f285011e30f93490e9f4062161792cc2396bbe723d5f07c24e0a3",
+      "medical_skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351"
+    }
+  }
+]

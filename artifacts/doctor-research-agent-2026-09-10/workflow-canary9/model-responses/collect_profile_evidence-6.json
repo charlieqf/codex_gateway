@@ -1,0 +1,10 @@
+{
+  "text": "{\"evidencePatch\":{\"proposal_sha256\":\"8153fd37ec7ffa8a4d73aa74a09d23fdf94a699b9c53b3a14be2468ac966db02\",\"replacements\":[{\"path\":\"/facts/1/citations/0\",\"value\":{\"sourceId\":\"src_pubmed_35574002\",\"quote\":\"Department of Reproductive Medicine, Women's Hospital of Nanjing Medical University, Nanjing Maternity and Child Health Care Hospital, Nanjing, China.\"}},{\"path\":\"/doctorPublications/4/affiliationQuote\",\"value\":null}]}}",
+  "usage": {
+    "promptTokens": 24138,
+    "completionTokens": 1169,
+    "reasoningTokens": 1036,
+    "totalTokens": 25307
+  },
+  "gatewayRequestId": "req-0ac95322-a6ec-452a-b98e-c8806d57bca5"
+}

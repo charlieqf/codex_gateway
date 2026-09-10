@@ -58,14 +58,24 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary9/result.json",
+          "outcome": "failed",
+          "reported_reason": "resource_budget_exceeded",
+          "diagnosed_reason": "Identity passed in four calls. Source focus was used and a proposal was submitted on evidence call four, but invalid JSON, one-error-at-a-time citation feedback, and repeated /evidence-prefixed patch paths consumed the twelve evidence calls. No independent evidence review or artifact delivery occurred.",
+          "elapsed_ms": 300138,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
       "full_worker_attempt": {
-        "evidence": "workflow-canary8/result.json",
+        "evidence": "workflow-canary9/result.json",
         "outcome": "failed",
         "reported_reason": "resource_budget_exceeded",
-        "diagnosed_reason": "Identity independently passed in six calls. Evidence Agent read 24 papers but repeatedly alternated cached author affiliations and core abstracts as the rolling observation window evicted earlier material. No evidence proposal or independent evidence review was reached in twelve calls.",
-        "elapsed_ms": 174792,
+        "diagnosed_reason": "Identity passed in four calls. Source focus was used and a proposal was submitted on evidence call four, but invalid JSON, one-error-at-a-time citation feedback, and repeated /evidence-prefixed patch paths consumed the twelve evidence calls. No independent evidence review or artifact delivery occurred.",
+        "elapsed_ms": 300138,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
