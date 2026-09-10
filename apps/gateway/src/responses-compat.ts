@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { validateVisionInputLimits } from "./services/vision-input-policy.js";
 import {
   GatewayError,
   isRecord,
@@ -94,6 +95,8 @@ export function parseResponsesRequest(
   if (inputError) {
     return inputError;
   }
+  const imageLimitError = validateVisionInputLimits(images);
+  if (imageLimitError) return imageLimitError;
   if (messages.length === 0) {
     return invalidRequest("input must contain at least one supported message or tool item.");
   }

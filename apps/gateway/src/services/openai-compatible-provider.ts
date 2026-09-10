@@ -466,12 +466,21 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     }
     const candidate = upstreamRequestId(response.headers) ?? bodyRequestId;
     const requestId = this.safeRequestId(candidate);
-    const error = this.normalizeAndReport(
+    const normalized = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
       input,
       { stage, upstreamStatus: response.status }
     );
+    const retryAfter = response.headers.get("retry-after")?.trim();
+    const parsedDelay = retryAfter && /^\d+$/.test(retryAfter)
+      ? Math.ceil(Number(retryAfter))
+      : retryAfter && /^[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(retryAfter)
+        ? Math.max(0, Math.ceil((Date.parse(retryAfter) - Date.now()) / 1000)) : NaN;
+    const error = response.status === 429 && Number.isSafeInteger(parsedDelay) && parsedDelay <= 86400
+      ? new GatewayError({ ...normalized, message: normalized.message,
+          retryAfterSeconds: parsedDelay, upstreamRetryAfterSeconds: parsedDelay })
+      : normalized;
     return { error, responseSummary: {
       finishReason: null, upstreamRequestId: requestId, upstreamHttpStatus: response.status,
       semanticOutputChars: 0, visibleOutputChars: 0,
@@ -1142,6 +1151,7 @@ function withProviderFailure(
     message: error.message,
     httpStatus: error.httpStatus,
     retryAfterSeconds: error.retryAfterSeconds,
+    upstreamRetryAfterSeconds: error.upstreamRetryAfterSeconds,
     upstreamStatus: error.upstreamStatus,
     contractVersion: error.contractVersion,
     failureKind: error.failureKind,
@@ -1152,6 +1162,7 @@ function withProviderFailure(
     requestedValue: error.requestedValue,
     supportedValues: error.supportedValues,
     contextWindowDetails: error.contextWindowDetails,
+    imageLimitDetails: error.imageLimitDetails,
     providerFailure
   }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
 }

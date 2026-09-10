@@ -18,6 +18,7 @@ import type {
   ToolLoopGuardDiagnostic
 } from "@codex-gateway/core";
 import type { ClientDisconnectHandle } from "./client-disconnect.js";
+import type { VisionRequestRecovery } from "../services/vision-request-recovery.js";
 
 export type GatewayResponseDialect = "gateway" | "openai" | "research";
 
@@ -59,6 +60,7 @@ declare module "fastify" {
     gatewayObservationRecorded?: boolean;
     gatewayErrorCode?: GatewayErrorCode | string;
     gatewayProviderFailoverEnabled?: boolean;
+    gatewayVisionRecovery?: VisionRequestRecovery;
     gatewayRateLimited?: boolean;
     gatewayLimitKind?: LimitKind;
     gatewayLimitDetails?: LimitDetails;

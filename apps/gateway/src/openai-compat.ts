@@ -1,6 +1,7 @@
 import { Ajv } from "ajv";
 import { Ajv2019 } from "ajv/dist/2019.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { validateVisionInputLimits, visionInputLimitError, visionMaximumImageBytes } from "./services/vision-input-policy.js";
 import {
   GatewayError,
   isRecord,
@@ -168,6 +169,9 @@ export function parseChatCompletionRequest(
       tool_calls: toolCalls
     });
   }
+
+  const imageLimitError = validateVisionInputLimits(images);
+  if (imageLimitError) return imageLimitError;
 
   const stream = body.stream === true;
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
@@ -789,8 +793,6 @@ function contentToText(content: unknown): string {
   return safeJson(content);
 }
 
-const maximumImageInputs = 8;
-const maximumInlineImageBytes = 20 * 1_024 * 1_024;
 const maximumRemoteImageUrlChars = 16_384;
 
 function collectChatMessageImages(
@@ -854,10 +856,6 @@ export function appendMessageImageInput(
   ) {
     return invalidRequest(`${path}.detail must be auto, low, or high when provided.`);
   }
-  if (images.length >= maximumImageInputs) {
-    return imageRequestTooLarge(`A request may contain at most ${maximumImageInputs} images.`);
-  }
-
   const imageUrl = rawImageUrl.trim();
   const inlineBytes = inlineImageByteLength(imageUrl, path);
   if (inlineBytes instanceof GatewayError) {
@@ -881,17 +879,8 @@ export function appendMessageImageInput(
       );
     }
   } else {
-    const currentInlineBytes = images.reduce(
-      (total, image) => total + (inlineImageByteLengthUnchecked(image.imageUrl) ?? 0),
-      0
-    );
-    if (inlineBytes > maximumInlineImageBytes) {
-      return imageRequestTooLarge("An inline image may not exceed 20 MiB.");
-    }
-    if (currentInlineBytes + inlineBytes > maximumInlineImageBytes) {
-      return imageRequestTooLarge(
-        "The combined inline image data in one request may not exceed 20 MiB."
-      );
+    if (inlineBytes > visionMaximumImageBytes) {
+      return visionInputLimitError({ kind: "image_bytes", actual: inlineBytes, maximum: visionMaximumImageBytes });
     }
   }
 
@@ -917,25 +906,9 @@ function inlineImageByteLength(imageUrl: string, path: string): number | null | 
   return decodedBase64ByteLength(match[2]);
 }
 
-function inlineImageByteLengthUnchecked(imageUrl: string): number | null {
-  const separator = imageUrl.indexOf(",");
-  if (separator < 0 || !imageUrl.toLowerCase().startsWith("data:image/")) {
-    return null;
-  }
-  return decodedBase64ByteLength(imageUrl.slice(separator + 1));
-}
-
 function decodedBase64ByteLength(value: string): number {
   const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
   return Math.floor((value.length * 3) / 4) - padding;
-}
-
-function imageRequestTooLarge(message: string): GatewayError {
-  return new GatewayError({
-    code: "invalid_request",
-    message,
-    httpStatus: 413
-  });
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | GatewayError {

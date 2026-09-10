@@ -6,6 +6,7 @@ import type {
 import { GatewayError } from "@codex-gateway/core";
 import { getGatewayContext } from "./http/context.js";
 import { markGatewayError } from "./http/observation.js";
+import { visionDefaultRequestBodyBytes, visionMaximumInlineBytes } from "./services/vision-input-policy.js";
 import {
   visionAssetMaximumBytes,
   visionAssetMaximumImagesPerRequest,
@@ -16,6 +17,7 @@ import {
 } from "./services/vision-asset-service.js";
 
 export interface VisionAssetRouteOptions {
+  maximumRequestBodyBytes?: number;
   service: VisionAssetService | null;
   authorize?: (
     request: FastifyRequest
@@ -28,6 +30,21 @@ export function registerVisionAssetRoutes(
   app: FastifyInstance,
   options: VisionAssetRouteOptions
 ): void {
+  app.get("/gateway/vision/capabilities", async (request, reply) => {
+    applyPrivateResponseHeaders(reply);
+    const error = await authorize(request, options.authorize);
+    if (error) return sendVisionAssetError(request, reply, error);
+    return {
+      image_limit_contract_version: 1,
+      vision_recovery_contract_version: 1,
+      limits: {
+        maximum_bytes: visionAssetMaximumBytes,
+        maximum_images_per_model_request: visionAssetMaximumImagesPerRequest,
+        maximum_inline_bytes_per_model_request: visionMaximumInlineBytes,
+        maximum_request_body_bytes: options.maximumRequestBodyBytes ?? visionDefaultRequestBodyBytes
+      }
+    };
+  });
   app.post<{ Body: unknown }>(
     "/gateway/vision/assets",
     { bodyLimit: routeBodyLimitBytes },

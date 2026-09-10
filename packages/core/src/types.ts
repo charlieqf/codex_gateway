@@ -270,6 +270,10 @@ export interface RequestEventRecord {
 export type RequestTokenUsageSource = "provider" | "estimate" | "reserve" | "none";
 
 export interface UpstreamAttemptSummary {
+  visionRecovery?: {
+    imageCount: number; callsUsed: number; maximumCalls: number;
+    contentDelivered: boolean; stopReason: string | null;
+  };
   index: number;
   kind: string | null;
   purpose?: import("./provider-failure.js").UpstreamAttemptPurpose | null;
