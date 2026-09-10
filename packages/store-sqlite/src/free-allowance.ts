@@ -1,21 +1,23 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { Entitlement } from "@codex-gateway/core";
+import { GatewayError, phoneSignupFreePlan, phoneSignupFreePlanId, type Entitlement } from "@codex-gateway/core";
 import { entitlementColumns } from "./columns.js";
 import { rowToEntitlement } from "./row-mappers.js";
 import { insertTransitionAudit } from "./entitlement-audit.js";
 import * as plans from "./plans.js";
 
 // These are the public product IDs, not all internal or historical Plan templates.
-export const freePlanSql = "plan_id IN ('plan_free_daily_10k_v1', 'plan_free_daily_1m_v1') AND period_kind = 'unlimited' AND period_end IS NULL";
-export const paidPlanSql = "plan_id IN ('plan_paid_monthly_v1', 'plan_paid_yearly_v1')";
+const freePlanIds = ["plan_free_daily_10k_v1", "plan_free_daily_1m_v1"];
+const paidPlanIds = ["plan_paid_monthly_v1", "plan_paid_yearly_v1"];
+export const freePlanSql = `plan_id IN ('${freePlanIds.join("', '")}') AND period_kind = 'unlimited' AND period_end IS NULL`;
+export const paidPlanSql = `plan_id IN ('${paidPlanIds.join("', '")}')`;
 
 export function isRetailPaidPlan(planId: string): boolean {
-  return planId === "plan_paid_monthly_v1" || planId === "plan_paid_yearly_v1";
+  return paidPlanIds.includes(planId);
 }
 
 export function isFreeAllowance(entitlement: Entitlement): boolean {
-  return ["plan_free_daily_10k_v1", "plan_free_daily_1m_v1"].includes(entitlement.planId) &&
+  return freePlanIds.includes(entitlement.planId) &&
     entitlement.periodKind === "unlimited" && entitlement.periodEnd === null;
 }
 
@@ -45,10 +47,13 @@ export function ensureFreeAllowance(db: DatabaseSync, subjectId: string, now: Da
     }
     return;
   }
-  // Older billing-only accounts have no Free snapshot. New paid purchases use
-  // the current public Free product if it is installed; unrelated plans do not.
-  const plan = plans.get(db, "plan_free_daily_10k_v1");
-  if (!plan || plan.state !== "active") return;
+  // Use the same default as phone signup, atomically with the paid grant.
+  // A deliberately deprecated template must not silently produce partial rights.
+  const plan = plans.get(db, phoneSignupFreePlanId) ?? plans.create(db, phoneSignupFreePlan(now));
+  if (plan.state !== "active") {
+    throw new GatewayError({ code: "plan_inactive", httpStatus: 409,
+      message: "The default Free plan is inactive; the paid entitlement was not granted." });
+  }
   const id = `ent_${randomUUID().replaceAll("-", "")}`;
   db.prepare(`INSERT INTO entitlements (
     id, subject_id, plan_id, policy_snapshot_json, feature_policy_snapshot_json,

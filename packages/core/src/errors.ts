@@ -35,6 +35,7 @@ export const gatewayErrorCodes = [
   "credential_not_found",
   "entitlement_already_active",
   "invalid_entitlement_transition",
+  "quota_reset_conflict",
   "model_not_found",
   "model_not_allowed_for_credential",
   "rate_limited",

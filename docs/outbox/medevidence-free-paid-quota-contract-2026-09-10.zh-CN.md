@@ -43,6 +43,14 @@
 上述省略其他既有字段。`GET /subjects/{subject_id}` 查询的是账户和凭据，权益请使用上面的
 `/users/{subject_id}/entitlements`，不要把两个路径的用途混淆。
 
+状态变更省略 `entitlement_id` 时，取消目标为当前付费权益（包括当前周期的 paused 权益）；
+未来 scheduled 续费需显式指定 ID，不按创建时间推断目标。只有未来续费时，默认取消返回
+`404 entitlement_not_found`，不会取消基础 Free。
+
+`POST /gateway/admin/billing/v1/users/{subject_id}/quota-reset` 如果选定窗口还关联未结算的
+双额度请求，返回 `409 quota_reset_conflict`。等待这些请求完成后再重试；冲突时 token 窗口、
+请求次数和预留均保持不变。已完成请求的另一账本用量不受重置影响。
+
 ## 客户端用量展示
 
 已有 `GET /gateway/credentials/current` 的 `token_usage` 新增字段；完整请求用量仍只记一次：
@@ -70,12 +78,16 @@ minute 仍按该请求完整 token 用量执行技术限速。累计不限量仍
 
 请求在 SQLite 同一写事务中预留两部分余额，最终按模型实际用量结算；并发请求不能重复
 预留免费余额。结算保护其他尚未结束的请求预留，释放的余额可供后续请求使用。重复结算
-不重复扣量，失败缺失用量沿用该请求的 missing-usage 策略；当前公开 Free／付费模板为 none。
+不重复扣量，失败缺失用量沿用该请求的 missing-usage 策略。Free 开户模板为 `estimate`，
+缺失模型用量时按预估输入用量记账；月付、年付模板为 `none`，缺失用量时不扣 token。
+已有权益以发放时的快照为准，不能保证所有失败请求都不扣额度。本次修正文档，不改变既有快照。
 预留估算和单次最终用量超出估算的既有语义仍适用，真实使用量不会因为达到余额而被抹去。
 
 Migration 29 增加每请求的免费 entitlement、预留快照以及最终免费／付费 token 字段。
 已有有效公开月／年付账户若从未有过 Free，将补充当前每日 10,000 的基础免费权益；
 若原 Free 被旧版 replaced 流程取消，则恢复其原记录和账本。明确行政取消／暂停不恢复。
+公共 Free 模板缺失时，零售付费开户复用手机开户工厂在同一事务中初始化；需要补发 Free 而模板被明确停用时，
+返回 `409 plan_inactive`，整笔权益事件回滚，不再成功返回缺少基础 Free 的部分结果。
 现存 Subject、Key、Plan 和付费额度快照不改；切换前的历史用量不重算、不退回付费额度。
 内部及测试 Plan 不自动获得额外 Free。
 

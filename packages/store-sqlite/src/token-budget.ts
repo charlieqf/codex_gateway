@@ -421,6 +421,20 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       let expired = 0;
       for (const kind of kinds) {
         const windowStart = tokenWindowStart(kind, windows);
+        // A shared request cannot be finalized by resetting just one of its
+        // ledgers. Reject atomically and let its actual usage settle first.
+        if (input.entitlementId) {
+          const pending = this.db.prepare(`SELECT 1 FROM token_reservations
+            WHERE subject_id = ? AND free_entitlement_id IS NOT NULL AND finalized_at IS NULL
+              AND ((entitlement_id = ? AND ${kind}_window_start = ?)
+                OR (free_entitlement_id = ? AND ${kind === "month" ? "free_month_window_start" : `${kind}_window_start`} = ?))
+            LIMIT 1`).get(input.subjectId, input.entitlementId, windowStart.toISOString(),
+              input.entitlementId, windowStart.toISOString());
+          if (pending) {
+            throw new GatewayError({ code: "quota_reset_conflict", httpStatus: 409,
+              message: "免费与付费额度有关联请求尚未结算，请等待请求结束后重试额度重置。" });
+          }
+        }
         this.deleteUsageWindow(input.subjectId, input.entitlementId ?? null, kind, windowStart);
         expired += this.finalizeActiveReservationsForReset(
           input.subjectId,
@@ -968,8 +982,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
                  final_reasoning_tokens = 0,
                  final_usage_source = 'none',
                  over_request_limit = 0
-             WHERE ((entitlement_id = ? AND ${column} = ?)
-               OR (free_entitlement_id = ? AND ${kind === "month" ? "free_month_window_start" : column} = ?))
+             WHERE entitlement_id = ? AND ${column} = ?
                AND kind = 'reservation'
                AND finalized_at IS NULL
                AND expires_at IS NOT NULL
@@ -978,8 +991,6 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
           .run(
             now.toISOString(),
             now.toISOString(),
-            entitlementId,
-            windowStart.toISOString(),
             entitlementId,
             windowStart.toISOString(),
             now.toISOString()

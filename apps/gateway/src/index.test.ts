@@ -2682,6 +2682,41 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("rejects a conflicting Free reset through Billing without resetting request counters or losing late paid usage", async () => {
+    const { store, issued, headers } = createCredentialBackedStore({ requestsPerMinute: 100, requestsPerDay: 1, concurrentRequests: 2 });
+    const now = new Date("2026-09-11T01:00:00Z");
+    store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(), now });
+    const paid = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_paid_monthly_v1", periodKind: "one_off",
+      periodStart: now, periodEnd: new Date("2026-10-11T01:00:00Z"), now });
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const app = buildGateway({ authMode: "credential", sessionStore: store, now: () => now, logger: false,
+      billingAdminToken: "billing-admin-token-1234567890",
+      provider: new FakeProvider([{ type: "message_delta", text: "ok" }, { type: "completed",
+        providerSessionRef: "review", usage: { promptTokens: 10_000, completionTokens: 0, totalTokens: 10_000 } }]) });
+    try {
+      const payload = { model: "medcode", messages: [{ role: "user", content: "ok" }] };
+      expect((await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload })).statusCode).toBe(200);
+      const pending = await limiter.acquire({ requestId: "billing-reset-pending", credentialId: issued.record.id, subjectId: "subj_dev",
+        entitlementId: paid.id, entitlementPeriodStart: paid.periodStart, entitlementPeriodEnd: paid.periodEnd,
+        policy: paid.policySnapshot, estimatedPromptTokens: 5_000, scope: "code", upstreamAccountId: null, provider: null, now });
+      if (!pending.ok) throw pending.error;
+      store.pauseEntitlement({ id: paid.id, now });
+      const resetRequest = { method: "POST" as const, url: "/gateway/admin/billing/v1/users/subj_dev/quota-reset",
+        headers: { authorization: "Bearer billing-admin-token-1234567890" },
+        payload: { request_windows: ["day"], token_windows: ["day"], reason: "review" } };
+      const blocked = await app.inject(resetRequest);
+      expect(blocked.statusCode).toBe(409);
+      expect(blocked.json().error.code).toBe("quota_reset_conflict");
+      expect((await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload })).statusCode).toBe(429);
+      expect((await limiter.finalize({ reservationId: pending.reservationId,
+        usage: { promptTokens: 5_000, completionTokens: 0, totalTokens: 5_000 }, now })).finalTotalTokens).toBe(5_000);
+      expect((await app.inject(resetRequest)).statusCode).toBe(200);
+      expect((await limiter.getCurrentUsage({ subjectId: "subj_dev", entitlementId: paid.id,
+        entitlementPeriodStart: paid.periodStart, entitlementPeriodEnd: paid.periodEnd, policy: paid.policySnapshot, now })).month.used).toBe(5_000);
+    } finally { await app.close(); }
+  });
+
   it("authenticates billing admin routes with a DB token without an env token", async () => {
     const { store } = createCredentialBackedStore();
     store.createPlan({

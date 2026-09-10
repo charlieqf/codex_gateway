@@ -88,6 +88,7 @@ interface DashboardUser {
   plan_token: PublicTokenPolicy | null;
   effective_token: PublicTokenPolicy | null;
   token_usage: PublicTokenUsage | null;
+  quota_exhausted: boolean;
   usage_today: UsageSummary;
   usage_7d: UsageSummary;
   daily_token_usage: DailyTokenUsage[];
@@ -205,6 +206,7 @@ export async function buildQuotaDashboardData(
       plan_token: resolved.planPolicy ? publicTokenPolicy(resolved.planPolicy) : null,
       effective_token: resolved.policy ? publicTokenPolicy(resolved.policy) : null,
       token_usage: tokenUsage,
+      quota_exhausted: hasExhaustedWindow(tokenUsage),
       usage_today: todayUsage,
       usage_7d: sevenDayUsage,
       daily_token_usage: dailyTokenUsage,
@@ -224,7 +226,7 @@ export async function buildQuotaDashboardData(
       (user) => user.access_status === "expired" || user.access_status === "inactive"
     ).length,
     users_without_quota: users.filter((user) => !user.effective_token).length,
-    exhausted_users: users.filter((user) => hasExhaustedWindow(user.token_usage)).length,
+    exhausted_users: users.filter((user) => user.quota_exhausted).length,
     today: sumUsage(users.map((user) => user.usage_today)),
     seven_day: sumUsage(users.map((user) => user.usage_7d)),
     daily_token_usage: sumDailyTokenUsage(
@@ -370,7 +372,10 @@ function hasExhaustedWindow(usage: PublicTokenUsage | null): boolean {
   if (!usage) {
     return false;
   }
-  return [usage.minute, usage.day, usage.month].some((window) => window.remaining === 0);
+  if (usage.minute.remaining === 0) return true;
+  const primaryExhausted = [usage.day, usage.month].some((window) => window.remaining === 0);
+  const free = usage.free_allowance;
+  return primaryExhausted && (!free || [free.day, free.month].some((window) => window.remaining === 0));
 }
 
 function summarizeUsageRows(rows: RequestUsageReportRow[]): UsageSummary {
@@ -949,7 +954,7 @@ function renderQuotaDashboardDocument(input: {
     .quota-stack { display: grid; gap: 7px; min-width: 330px; }
     .quota-line {
       display: grid;
-      grid-template-columns: 44px 1fr 158px;
+      grid-template-columns: 64px 1fr 180px;
       gap: 8px;
       align-items: center;
       min-height: 24px;
@@ -1250,7 +1255,7 @@ function renderQuotaDashboardDocument(input: {
       if (currentFilter === "legacy") return user.access_status === "legacy";
       if (currentFilter === "warning") return user.warnings.length > 0;
       if (currentFilter === "limited") return user.usage_7d.rate_limited > 0;
-      if (currentFilter === "exhausted") return hasExhaustedWindow(user.token_usage);
+      if (currentFilter === "exhausted") return user.quota_exhausted;
       return true;
     }
 
@@ -1281,7 +1286,7 @@ function renderQuotaDashboardDocument(input: {
     }
 
     function renderUserRow(user) {
-      const severity = user.usage_7d.rate_limited > 0 || hasExhaustedWindow(user.token_usage) || user.access_status === "expired"
+      const severity = user.usage_7d.rate_limited > 0 || user.quota_exhausted || user.access_status === "expired"
         ? "bad"
         : user.warnings.length ? "warn" : "ok";
       return '<tr data-severity="' + severity + '">' +
@@ -1333,10 +1338,12 @@ function renderQuotaDashboardDocument(input: {
       if (!user.effective_token || !user.token_usage) {
         return '<span class="badge warn">无 token quota</span>';
       }
+      const free = user.token_usage.free_allowance;
       return '<div class="quota-stack">' +
         renderWindow("分钟", user.token_usage.minute) +
-        renderWindow("日", user.token_usage.day) +
-        renderWindow("月", user.token_usage.month) +
+        (free ? renderWindow("免费日", free.day) : '') +
+        renderWindow(free ? "付费日" : "日", user.token_usage.day) +
+        renderWindow(free ? "付费周期" : "周期", user.token_usage.month) +
         '</div>' +
         '<div class="subtle">单请求预留：' + formatNumber(user.internal_reserve_tokens_per_request) +
         '；缺失 usage：' + escapeHtml(user.internal_missing_usage_charge || "n/a") + '</div>';
@@ -1344,7 +1351,7 @@ function renderQuotaDashboardDocument(input: {
 
     function renderWindow(label, window) {
       if (window.limit === null) {
-        return '<div class="quota-line"><span>' + label + '</span><div class="bar"><div class="fill" style="width:0%"></div></div><span class="subtle">不限</span></div>';
+        return '<div class="quota-line"><span>' + label + '</span><div class="bar"><div class="fill" style="width:0%"></div></div><span class="subtle">不限；已用 ' + formatNumber(window.used) + '；预留 ' + formatNumber(window.reserved) + '</span></div>';
       }
       const consumed = window.used + window.reserved;
       const pct = Math.max(0, Math.min(100, Math.round(consumed / window.limit * 100)));
@@ -1422,10 +1429,6 @@ function renderQuotaDashboardDocument(input: {
       if (!entitlement) return "";
       const end = entitlement.period_end ? formatDateTime(entitlement.period_end) : "无结束时间";
       return entitlement.period_kind + "；" + formatDateTime(entitlement.period_start) + " - " + end;
-    }
-
-    function hasExhaustedWindow(usage) {
-      return Boolean(usage && [usage.minute, usage.day, usage.month].some((window) => window.remaining === 0));
     }
 
     function formatNumber(value) {

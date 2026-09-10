@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { issueAccessCredential, publicTokenUsage, type ApplyBillingEntitlementEventInput, type Entitlement } from "@codex-gateway/core";
-import { createSqliteStore, createSqliteTokenBudgetLimiter, type SqliteGatewayStore } from "./index.js";
+import { issueAccessCredential, phoneSignupFreePlan, publicTokenUsage, type ApplyBillingEntitlementEventInput, type Entitlement } from "@codex-gateway/core";
+import { buildQuotaDashboardData, createSqliteStore, createSqliteTokenBudgetLimiter, type SqliteGatewayStore } from "./index.js";
 import { migrateGatewaySchema } from "./migrations.js";
 
 const stores: SqliteGatewayStore[] = [];
@@ -19,7 +19,7 @@ function fixture(freeLimit = 10_000, oldFree = false) {
   store.insertAccessCredential(credential.record);
   const policy = { tokensPerMinute: 300_000, tokensPerDay: freeLimit, tokensPerMonth: null,
     maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" as const };
-  store.createPlan({ id: freePlan, displayName: "Free", policy: { ...policy, tokensPerDay: 10_000 }, scopeAllowlist: ["code"] });
+  store.createPlan(phoneSignupFreePlan(start));
   const freeId = oldFree ? "plan_free_daily_1m_v1" : freePlan;
   if (oldFree) store.createPlan({ id: freeId, displayName: "Old Free", policy, scopeAllowlist: ["code"] });
   store.createPlan({ id: paidPlan, displayName: "Monthly", policy: { ...policy, tokensPerDay: 50_000, tokensPerMonth: 100_000 }, scopeAllowlist: ["code"] });
@@ -177,15 +177,105 @@ describe("independent daily Free and paid balances", () => {
     expect(f.store.getEntitlement(f.free.id)?.state).toBe("active");
   });
 
-  it("resets the selected free window and releases linked reservations without erasing paid usage", async () => {
+  it.each(["day", "month"] as const)("rejects a Free %s reset while paid-only usage is pending, then preserves the late settlement", async (window) => {
     const f = fixture();
     const paid = f.event().entitlement!;
     await f.consume(paid, "settled-before-reset", 20_000);
-    await f.acquire(paid, "pending-reset", 2_000);
-    const reset = await f.limiter.resetUsage({ subjectId: "subj_quota", entitlementId: f.free.id,
-      policy: f.free.policySnapshot, windows: ["month"], now: start });
-    expect(reset.expiredReservations).toBe(1);
-    expect((await f.usage(paid)).month.used).toBe(10_000);
+    const pending = await f.acquire(paid, "pending-reset", 5_000);
+    if (!pending.ok) throw pending.error;
+    expect(f.limiter.listReservations()[0].freeReservedTokens).toBe(0);
+    const before = await f.usage(paid);
+    const resetInput = { subjectId: "subj_quota", entitlementId: f.free.id,
+      policy: f.free.policySnapshot, windows: [window], now: start };
+    await expect(f.limiter.resetUsage(resetInput)).rejects.toMatchObject({ code: "quota_reset_conflict", httpStatus: 409 });
+    expect(await f.usage(paid)).toEqual(before);
+    const settled = await f.limiter.finalize({ reservationId: pending.reservationId,
+      usage: { promptTokens: 5_000, completionTokens: 0, totalTokens: 5_000 }, now: start });
+    expect(settled.finalTotalTokens).toBe(5_000);
+    expect((await f.usage(paid)).month.used).toBe(15_000);
+    const reset = await f.limiter.resetUsage(resetInput);
+    expect(reset.expiredReservations).toBe(0);
+    expect((await f.usage(paid)).month.used).toBe(15_000);
+    expect((await f.usage(f.free))[window].used).toBe(0);
+  });
+
+  it("rejects a paid reset while a shared request is pending without losing either allocation", async () => {
+    const f = fixture();
+    const paid = f.event().entitlement!;
+    const pending = await f.acquire(paid, "shared-reset", 20_000);
+    if (!pending.ok) throw pending.error;
+    const before = await f.usage(paid);
+    await expect(f.limiter.resetUsage({ subjectId: "subj_quota", entitlementId: paid.id,
+      entitlementPeriodStart: paid.periodStart, entitlementPeriodEnd: paid.periodEnd,
+      policy: paid.policySnapshot, windows: ["minute", "day", "month"], now: start }))
+      .rejects.toMatchObject({ code: "quota_reset_conflict" });
+    expect(await f.usage(paid)).toEqual(before);
+    await f.limiter.finalize({ reservationId: pending.reservationId,
+      usage: { promptTokens: 20_000, completionTokens: 0, totalTokens: 20_000 }, now: start });
+    expect(await f.usage(paid)).toMatchObject({ month: { used: 10_000 }, freeAllowance: { day: { used: 10_000 } } });
+  });
+
+  it("cancels the paused current subscription while preserving a newer future renewal", () => {
+    const f = fixture();
+    const paid = f.event().entitlement!;
+    const renewal = f.event({ idempotencyKey: "quota:future", payloadHash: "future", eventType: "renew",
+      periodStart: end, periodEnd: new Date("2026-11-10T10:00:00Z"), now: new Date(start.getTime() + 1000) }).entitlement!;
+    f.event({ idempotencyKey: "quota:pause", payloadHash: "pause", eventType: "pause" });
+    const cancelled = f.event({ idempotencyKey: "quota:cancel", payloadHash: "cancel", eventType: "cancel" });
+    expect(cancelled.entitlement?.id).toBe(paid.id);
+    expect(f.store.getEntitlement(renewal.id)?.state).toBe("scheduled");
+    expect(f.store.getEntitlement(f.free.id)?.state).toBe("active");
+    expect(() => f.event({ idempotencyKey: "quota:cancel-again", payloadHash: "cancel-again", eventType: "cancel" }))
+      .toThrow("Entitlement does not exist");
+    f.event({ idempotencyKey: "quota:cancel-future", payloadHash: "cancel-future", eventType: "cancel", entitlementId: renewal.id });
+    expect(f.store.getEntitlement(renewal.id)?.state).toBe("cancelled");
+  });
+
+  it.each([false, true])("initializes a missing Free template or rejects a deprecated one atomically (deprecated=%s)", (deprecated) => {
+    const store = createSqliteStore({ path: ":memory:" });
+    stores.push(store);
+    store.upsertSubject({ id: "subj_billing_only", label: "Billing only", state: "active", createdAt: start });
+    store.createPlan({ ...phoneSignupFreePlan(start), id: paidPlan, displayName: "Monthly" });
+    if (deprecated) {
+      store.createPlan(phoneSignupFreePlan(start));
+      store.deprecatePlan(freePlan);
+    }
+    const purchase = () => store.applyBillingEntitlementEvent({ idempotencyKey: "quota:billing-only", payloadHash: "billing-only",
+      provider: "medevidence_billing", externalOrderId: "BILLING_ONLY", eventType: "purchase", applyMode: "apply",
+      subjectId: "subj_billing_only", planId: paidPlan, periodKind: "monthly", periodStart: start, periodEnd: end, now: start });
+    if (deprecated) {
+      expect(purchase).toThrow("default Free plan is inactive");
+      expect(store.listEntitlements({ subjectId: "subj_billing_only" })).toEqual([]);
+      expect(store.database.prepare("SELECT COUNT(*) AS count FROM billing_events").get()).toMatchObject({ count: 0 });
+    } else {
+      expect(purchase().applied).toBe(true);
+      expect(store.getPlan(freePlan)?.policy).toEqual(phoneSignupFreePlan(start).policy);
+      expect(store.listEntitlements({ subjectId: "subj_billing_only", state: "active" })).toHaveLength(2);
+    }
+  });
+
+  it("uses the actual signup Free missing-usage policy instead of a hand-written test substitute", async () => {
+    const f = fixture();
+    const pending = await f.acquire(f.free, "free-without-usage", 7_000);
+    if (!pending.ok) throw pending.error;
+    expect(f.free.policySnapshot.missingUsageCharge).toBe("estimate");
+    const result = await f.limiter.finalize({ reservationId: pending.reservationId, now: start });
+    expect(result).toMatchObject({ finalTotalTokens: 7_000, finalUsageSource: "estimate" });
+    expect((await f.usage(f.free)).day).toMatchObject({ used: 7_000, remaining: 3_000 });
+  });
+
+  it("keeps users with available daily Free out of the exhausted dashboard filter", async () => {
+    const f = fixture();
+    const paid = f.event().entitlement!;
+    await f.consume(paid, "dashboard-day1", 60_000);
+    await f.consume(paid, "dashboard-day2", 60_000, nextDay);
+    const thirdDay = new Date("2026-09-12T10:00:00Z");
+    const dashboard = await buildQuotaDashboardData(f.store, { now: thirdDay });
+    expect(dashboard.summary.exhausted_users).toBe(0);
+    expect(dashboard.users[0]).toMatchObject({ quota_exhausted: false,
+      token_usage: { month: { remaining: 0 }, free_allowance: { day: { remaining: 10_000 } } } });
+    await f.consume(paid, "dashboard-free", 10_000, thirdDay);
+    expect((await buildQuotaDashboardData(f.store, { now: thirdDay })).summary.exhausted_users).toBe(1);
   });
 
   it("does not copy already-used Free quota into the paid ledger through an operator carry-usage grant", async () => {

@@ -774,14 +774,16 @@ function resolveTransitionTarget(
     : input.eventType === "resume"
       ? latestEntitlementByState(db, input.subjectId, "paused")
       : activeEntitlement(db, input.subjectId, now);
-  if (!input.entitlementId && target && isFreeAllowance(target)) {
+  if (!input.entitlementId && (!target || isFreeAllowance(target))) {
     const retail = entitlementQueries.list(db, { subjectId: input.subjectId })
       .filter((entitlement) => isRetailPaidPlan(entitlement.planId));
     if (retail.length > 0) {
       // A payment cancellation must never accidentally cancel the base Free
       // allowance after the paid entitlement has been paused or expired.
-      target = retail.find((entitlement) => ["active", "paused", "scheduled"].includes(entitlement.state) &&
-        (!entitlement.periodEnd || entitlement.periodEnd > now)) ?? null;
+      // Future renewals require an explicit entitlement_id. Creation order
+      // does not identify the subscription being paused or cancelled today.
+      target = retail.find((entitlement) => entitlement.state === "paused" &&
+        entitlement.periodStart <= now && (!entitlement.periodEnd || entitlement.periodEnd > now)) ?? null;
     }
   }
   if (!target || target.subjectId !== input.subjectId) {

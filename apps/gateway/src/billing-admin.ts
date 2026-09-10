@@ -40,7 +40,6 @@ import {
   type Scope,
   type TokenBudgetLimiter,
   type TokenLimitPolicy,
-  type TokenUsageSnapshot,
   type TokenWindowKind,
   verifyBillingAdminToken
 } from "@codex-gateway/core";
@@ -765,8 +764,8 @@ export function registerBillingAdminRoutes(
       }
 
       try {
-        const requestReset = resetRequestQuota(options, credentials, parsed.requestWindows);
         const tokenReset = await resetTokenQuota(options, credentials[0], parsed.tokenWindows, now);
+        const requestReset = resetRequestQuota(options, credentials, parsed.requestWindows);
         recordBillingQuotaResetAudit(options, parsed, "ok", null, {
           credential_prefixes: credentials.map((credential) => credential.prefix),
           request_windows: parsed.requestWindows,
@@ -781,7 +780,9 @@ export function registerBillingAdminRoutes(
         });
       } catch (err) {
         const message = sanitizeBillingAdminLogMessage(errorMessage(err));
-        request.log.error({ error: message }, "Billing quota reset failed.");
+        if (!(err instanceof GatewayError && err.httpStatus < 500)) {
+          request.log.error({ error: message }, "Billing quota reset failed.");
+        }
         recordBillingQuotaResetAudit(options, parsed, "error", message);
         return sendBillingError(request, reply, toBillingGatewayError(err));
       }
@@ -2382,8 +2383,8 @@ async function resetTokenQuota(
     entitlement_id: context.entitlementId,
     windows: result.windows,
     expired_reservations: result.expiredReservations,
-    usage_before: publicTokenUsageSnapshot(result.before),
-    usage_after: publicTokenUsageSnapshot(result.after)
+    usage_before: publicTokenUsage(result.before),
+    usage_after: publicTokenUsage(result.after)
   };
 }
 
@@ -2420,10 +2421,6 @@ function tokenResetContext(
   return null;
 }
 
-function publicTokenUsageSnapshot(snapshot: TokenUsageSnapshot) {
-  return publicTokenUsage(snapshot);
-}
-
 function publicRateLimitResetResult(result: RateLimitResetResult) {
   return {
     found: result.found,
@@ -2443,17 +2440,6 @@ function publicRateLimitResetSnapshot(snapshot: RateLimitResetResult["before"]) 
     day_window: snapshot.dayWindow,
     day_count: snapshot.dayCount,
     active: snapshot.active
-  };
-}
-
-function publicWindowSnapshot(snapshot: TokenUsageSnapshot["minute"]) {
-  return {
-    limit: snapshot.limit,
-    used: snapshot.used,
-    reserved: snapshot.reserved,
-    remaining: snapshot.remaining,
-    window_start: snapshot.windowStart,
-    window_end: snapshot.windowEnd
   };
 }
 
