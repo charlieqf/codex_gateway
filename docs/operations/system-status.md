@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-10 (new-phone daily 10k free quota release, public acceptance and Compose services).
+Last verified: 2026-09-10 (model error copy release, runtime smoke, public health and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -21,16 +21,16 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-10; local inference verification on 2026-09-06:
 
 - `current`:
-  `532774dca5e1c5ddc5f719d29e22015c6fc2388e`
+  `31946c97954af05399582010f5da7589204aac4b`
 - `previous`:
-  `27f10d95c13476ac8bd9c609985071882e37eb9e`
+  `532774dca5e1c5ddc5f719d29e22015c6fc2388e`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `532774d`; Research Worker remains on the existing runtime with
+Gateway runs `31946c9`; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -51,9 +51,12 @@ external-token v2 is withdrawn. Configuration and schema 28 remain unchanged.
 The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
 temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
 Existing 1M/day and other grants retain their original Plans, keys and snapshots.
-345 tests and public legacy/direct-phone/two-step/key/model checks passed.
-All 583 pre-existing entitlement rows and the other checked control rows remain unchanged,
-as do the other service containers.
+
+The [model error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
+describes failed vision/text operations in Chinese, with separate processing,
+connection, timeout and provider-access messages. Error codes, request IDs and
+retry contracts remain compatible with installed clients. Runtime fault injection
+and public health checks passed; existing control data and other services are unchanged.
 
 The public text surface contains:
 

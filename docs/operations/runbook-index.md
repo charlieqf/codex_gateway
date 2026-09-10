@@ -10,6 +10,7 @@ Choose one path for the task. Do not read every operations document.
 | --- | --- |
 | Named user's Desktop messages | [Desktop User Message Query](./client-message-query-support.zh-CN.md) |
 | Generic MedCode unavailable/error | [MedCode Service Unavailable](./medcode-service-unavailable-runbook.md) |
+| Model/vision operation-specific error messages | [2026-09-10 Error Copy Release](./r760-model-error-copy-release-2026-09-10.zh-CN.md) |
 | Desktop turn/support-code diagnostics | [Desktop Client Turn Diagnostics](./desktop-client-turn-diagnostics-runbook.md) |
 | Current production state | [System Status](./system-status.md) |
 | R760 access/deployment boundary | [Environment Access](./environment-access.md) |
