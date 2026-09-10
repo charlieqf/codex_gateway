@@ -146,15 +146,38 @@
       "full_service_acceptance": "pending",
       "identity_only_evidence": "live-canary2/result.json",
       "full_worker_attempt": {
-        "evidence": "workflow-canary2/result.json",
+        "evidence": "workflow-canary3/result.json",
         "outcome": "failed",
-        "reported_reason": "identity_not_resolved",
-        "diagnosed_reason": "Both SerpAPI requests timed out at 20 seconds. No successful search result or readable page was available.",
-        "elapsed_ms": 49169,
-        "serpapi_requests": 2,
+        "reported_reason": "upstream_unavailable",
+        "diagnosed_reason": "One 41.626-second SerpAPI call succeeded and independent identity review passed. A later evidence-model request returned HTTP 504 after its 50-second provider budget. No complete artifacts were produced.",
+        "elapsed_ms": 135284,
+        "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
-      }
+      },
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary2/result.json",
+          "outcome": "failed",
+          "reported_reason": "identity_not_resolved",
+          "diagnosed_reason": "Both SerpAPI requests timed out at 20 seconds. No successful search result or readable page was available.",
+          "elapsed_ms": 49169,
+          "serpapi_requests": 2,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary3/result.json",
+          "outcome": "failed",
+          "reported_reason": "upstream_unavailable",
+          "diagnosed_reason": "One 41.626-second SerpAPI call succeeded and independent identity review passed. A later evidence-model request returned HTTP 504 after its 50-second provider budget. No complete artifacts were produced.",
+          "elapsed_ms": 135284,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "diagnostic_replay_note": "Saved-evidence replays test recovery and generation changes; none count as fresh original-input acceptance."
     }
   ],
   "additional_regression_cases": [

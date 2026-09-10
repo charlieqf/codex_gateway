@@ -1,0 +1,143 @@
+{
+  "original": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "model_contract_error"
+  },
+  "elapsed_ms": 209081,
+  "serpapi_requests": 0,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 209081,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      }
+    }
+  ],
+  "diagnostic_replay": true,
+  "fresh_case_acceptance_eligible": false,
+  "legacy_calls": 0,
+  "model_requests": 3,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "elapsed_ms": 31283,
+      "gateway_request_id": "req-620ad5a8-60b8-4883-8d32-4520f9b5a8b3",
+      "response_sha256": "4ec7ad9ee05c5ef7b7bdbdb7a4536422922e6923156c372adbf954ab4de5cb66",
+      "usage": {
+        "promptTokens": 25547,
+        "completionTokens": 1206,
+        "reasoningTokens": 455,
+        "totalTokens": 26753
+      },
+      "telemetry": {
+        "promptChars": 74272,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T16:09:20.147Z",
+        "clientTotalMs": 31282,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 5,
+      "elapsed_ms": 75972,
+      "gateway_request_id": "req-e5350645-87bb-4c1e-80bd-dcfe7c58ce8f",
+      "response_sha256": "5f83d0458f1cde6b7b53bdfc388f60d0d4baa548f04524929a2ab102c0855ed6",
+      "usage": {
+        "promptTokens": 25564,
+        "completionTokens": 3767,
+        "reasoningTokens": 1411,
+        "totalTokens": 29331
+      },
+      "telemetry": {
+        "promptChars": 74373,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T16:09:51.504Z",
+        "clientTotalMs": 75971,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "elapsed_ms": 101430,
+      "gateway_request_id": "req-f7e15942-1e75-47f5-8bd1-0ea85b57549b",
+      "response_sha256": "8aaa7a0237f9bca180746ca6a563c0d90b22776e10c56dfa63824a11c4ffbacb",
+      "usage": {
+        "promptTokens": 25564,
+        "completionTokens": 4967,
+        "reasoningTokens": 2520,
+        "totalTokens": 30531
+      },
+      "telemetry": {
+        "promptChars": 74373,
+        "maximumOutputTokens": 16000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T16:11:07.559Z",
+        "clientTotalMs": 101429,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [
+    {
+      "runId": "drr_402e1c9b96914be8aca77b72b689a42d",
+      "stage": "validate_outputs",
+      "attempt": 4,
+      "errorCodes": [
+        "narrative_review_invalid_decision"
+      ],
+      "errorDetails": []
+    },
+    {
+      "runId": "drr_402e1c9b96914be8aca77b72b689a42d",
+      "stage": "validate_outputs",
+      "attempt": 5,
+      "errorCodes": [
+        "narrative_review_invalid_decision"
+      ],
+      "errorDetails": []
+    },
+    {
+      "runId": "drr_402e1c9b96914be8aca77b72b689a42d",
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "errorCodes": [
+        "narrative_review_invalid_decision"
+      ],
+      "errorDetails": []
+    },
+    {
+      "runId": "drr_402e1c9b96914be8aca77b72b689a42d",
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "errorCodes": [
+        "narrative_review_review_budget_exhausted"
+      ],
+      "errorDetails": [
+        "review_topic_section_minimum:431/450",
+        "review_embedded_auxiliary_output"
+      ]
+    }
+  ],
+  "external_calls": [],
+  "public_api_or_admission_tested": false
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"doctor\",\"query\":\"Sztal-Mazer S[Author]\"},{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"Sztal[Author] AND (menopause OR osteoporosis OR thyroid)\"}]}",
+  "usage": {
+    "promptTokens": 6344,
+    "completionTokens": 64,
+    "reasoningTokens": 6,
+    "totalTokens": 6408
+  },
+  "gatewayRequestId": "req-2c34fcf1-d8b6-49d2-b778-7c9fa3ec3d18"
+}

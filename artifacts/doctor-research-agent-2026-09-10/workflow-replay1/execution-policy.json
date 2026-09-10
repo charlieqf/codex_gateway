@@ -1,0 +1,64 @@
+{
+  "input": {
+    "doctor": {
+      "name": "Shoshana Sztal-Mazer",
+      "hospital": "阿尔弗雷德医院",
+      "department": "内分泌科",
+      "title": null,
+      "city": null,
+      "orcid": null,
+      "officialProfileUrls": []
+    },
+    "mode": "brief",
+    "language": "zh-CN",
+    "options": {
+      "publicationYears": 5,
+      "citationStyle": "vancouver"
+    },
+    "clientReference": null
+  },
+  "policy": {
+    "resultTtlSeconds": 2592000,
+    "maximumArtifactBytes": 1048576,
+    "maximumRunArtifactBytes": 4194304,
+    "maximumExternalResponseBytesPerCall": 2000000,
+    "maximumSourceTextCharacters": 200000,
+    "maximumPublications": 40,
+    "minimumReferences": 3,
+    "minimumReviewContent": 5000,
+    "maximumQuestionContent": 30,
+    "minimumAnswerContent": 100,
+    "maximumAnswerContent": 300,
+    "maximumInputTokensPerCall": 40000,
+    "maximumOutputTokensPerCall": 18000,
+    "hardDeadlineMs": 570000,
+    "synthesisShardCount": 1,
+    "doctorLookupBriefEnabled": false,
+    "identityAgentEnabled": true,
+    "identityInvestigation": {
+      "maximumSearchRequests": 1,
+      "maximumPageRequests": 12,
+      "maximumModelCalls": 8,
+      "maximumStoredCharacters": 180000
+    },
+    "evidenceInvestigation": {
+      "maximumSearchRequests": 4,
+      "maximumPublicationRequests": 50,
+      "maximumPageRequests": 4,
+      "maximumModelCalls": 10
+    },
+    "budgets": {
+      "externalRequests": 1000,
+      "externalResponseBytes": 2000000000,
+      "llmCalls": 24,
+      "inputTokens": 1000000,
+      "outputTokens": 300000
+    }
+  },
+  "maximum_serpapi_requests": 0,
+  "medical_skill_bundle_sha256": "6d5e839f942f87f1064a6d855c37b54302300aacd700360aa5fef8907a2fa351",
+  "diagnostic_replay": true,
+  "fresh_case_acceptance_eligible": false,
+  "public_api_or_admission_tested": false,
+  "production_database_writable": false
+}

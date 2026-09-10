@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Shoshana Sztal-Mazer Alfred Health endocrinology\",\"purpose\":\"find her profile at Alfred Hospital endocrinology department\"}]}",
+  "usage": {
+    "promptTokens": 1036,
+    "completionTokens": 39,
+    "reasoningTokens": 0,
+    "totalTokens": 1075
+  },
+  "gatewayRequestId": "req-063c6724-fb2e-4692-a89b-cb19298cbb4e"
+}

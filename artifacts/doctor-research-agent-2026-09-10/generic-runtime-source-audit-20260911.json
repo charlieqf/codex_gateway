@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-09-10T21:33:15.470073+00:00",
+  "scope": "Added runtime source lines in this working-tree change; full contents of the new narrative review module.",
+  "exact_known_name_or_institution_matches": [],
+  "source_sha256": {
+    "apps/research-worker/src/config.ts": "3ee33941b8dfe635bd73b384fcb301bb9401d4de5f3de3f7bc6725bda0e27a94",
+    "packages/research-agent/src/workflow.ts": "23303acfb817ddfd615f9eb7ef4822aa14de48f0da6b49b110b614660d2163b3",
+    "packages/research-agent/src/model-client.ts": "5feda4bdd4733b09a249f89eaf7b32e36375b6f7df687ae5d9ff867b75b11a96",
+    "packages/research-agent/src/evidence-investigator.ts": "b9866d3ec76cd1c17be2bdca0298dc56847d80ecdf4baa9c8736e259625b106c",
+    "packages/research-agent/src/narrative-review-agent.ts": "b86c2c9d7870828ea573d3c5c1e7aa43be1028413840a0b445da4bffe04ca26f"
+  },
+  "qualification": "This limited source audit is not a generalization proof. Saved-evidence replays are diagnostic only; all 15 original-input full-service acceptances remain pending."
+}

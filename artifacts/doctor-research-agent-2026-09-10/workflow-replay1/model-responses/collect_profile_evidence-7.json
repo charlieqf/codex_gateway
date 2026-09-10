@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read_publications\",\"pmids\":[\"42562434\",\"42562433\",\"41989128\",\"40608198\",\"40144833\",\"39126371\",\"39074569\",\"37291814\"]}]}",
+  "usage": {
+    "promptTokens": 20443,
+    "completionTokens": 410,
+    "reasoningTokens": 347,
+    "totalTokens": 20853
+  },
+  "gatewayRequestId": "req-e3fef15f-0f68-4722-89df-6c84aa5677c2"
+}

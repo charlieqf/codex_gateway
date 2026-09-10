@@ -127,6 +127,12 @@ describe("Doctor Research structured Gateway model client", () => {
         `drr_${"a".repeat(32)}:synthesize_review:1`,
       "x-medcode-client-turn-code": "research:synthesize_review:1"
     });
+    await client.generate({ runId: `drr_${"a".repeat(32)}`, stage: "collect_profile_evidence", attempt: 10,
+      system: "Return structured evidence.", prompt: "Continue the bounded Agent investigation.", signal, maximumOutputTokens: 8000 });
+    expect(requests[2]?.init?.headers).toMatchObject({ "x-medcode-client-turn-code": "research:collect_profile_evidence:10" });
+    await expect(client.generate({ runId: `drr_${"a".repeat(32)}`, stage: "collect_profile_evidence", attempt: 101,
+      system: "Return structured evidence.", prompt: "Invalid ordinal.", signal, maximumOutputTokens: 8000 })).rejects.toThrow("attempt is invalid");
+    expect(requests).toHaveLength(3);
   });
 
   it("classifies hidden-reasoning exhaustion and honors a bounded reasoning override", async () => {

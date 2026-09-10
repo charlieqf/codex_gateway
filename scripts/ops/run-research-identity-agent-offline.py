@@ -24,10 +24,16 @@ config = json.loads(subprocess.check_output(['docker', 'inspect', worker]))[0]
 uid = int(subprocess.check_output(['docker', 'exec', worker, 'id', '-u']))
 gid = int(subprocess.check_output(['docker', 'exec', worker, 'id', '-g']))
 subprocess.run(['chown', '-R', f'{uid}:{gid}', str(root)], check=True)
+search_limit = 2
+if kind == 'workflow-live' and (root / 'probe-limits.json').is_file():
+    limits = json.loads((root / 'probe-limits.json').read_text())
+    assert set(limits) == {'maximum_serpapi_requests'} and type(limits['maximum_serpapi_requests']) is int and limits['maximum_serpapi_requests'] in (0, 1, 2)
+    search_limit = limits['maximum_serpapi_requests']
+    assert (root / 'diagnostic-replay.json').is_file() == (search_limit == 0)
 manifest = {'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest(), 'worker_image': config['Image'],
             'preflight_only': preflight,
-            'maximum_serpapi_requests': 2 if kind in ('live', 'workflow-live') and not preflight else 0,
-            'model_call_batch_limit': 24 if kind == 'workflow-live' else 16 if kind == 'offline-evidence' else 12 if kind == 'offline' else 7,
+            'maximum_serpapi_requests': search_limit if kind in ('live', 'workflow-live') and not preflight else 0,
+            'model_call_batch_limit': 29 if kind == 'workflow-live' else 16 if kind == 'offline-evidence' else 12 if kind == 'offline' else 7,
             'files': {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}}
 private = root.with_suffix('.env')
 fd = os.open(private, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

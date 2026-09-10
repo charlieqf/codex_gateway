@@ -52,13 +52,23 @@ describe("Research Worker fail-closed configuration", () => {
       RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000", RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000" }))
       .toThrow("every enabled identity Agent call");
     const config = loadResearchWorkerConfig({ ...validEnvironment(),
-      RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_MAX_LLM_CALLS_PER_RUN: "24",
-      RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000", RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
-      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "200000"
+      RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_MAX_LLM_CALLS_PER_RUN: "29",
+      RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "34000", RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
+      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000"
     });
     expect(config?.workflowPolicy).toMatchObject({ identityAgentEnabled: true,
       identityInvestigation: { maximumSearchRequests: 4, maximumPageRequests: 12, maximumModelCalls: 8 },
-      evidenceInvestigation: { maximumSearchRequests: 4, maximumPublicationRequests: 50, maximumPageRequests: 4, maximumModelCalls: 10 } });
+      evidenceInvestigation: { maximumSearchRequests: 4, maximumPublicationRequests: 50, maximumPageRequests: 4, maximumModelCalls: 12 } });
+  });
+
+  it("reserves independent narrative review calls in the sharded Agent budget", () => {
+    const env = { ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
+      RESEARCH_MAX_LLM_CALLS_PER_RUN: "29", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "34000",
+      RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
+      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000" };
+    expect(loadResearchWorkerConfig(env)?.workflowPolicy.budgets.llmCalls).toBe(29);
+    expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })).toThrow("9 bounded synthesis or review calls");
+    expect(loadResearchWorkerConfig({ ...env, RESEARCH_SYNTHESIS_SHARD_COUNT: "1", RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })?.workflowPolicy.budgets.llmCalls).toBe(26);
   });
 
   it("allows the run budget to account for provider-reported hidden reasoning", () => {

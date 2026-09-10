@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { investigationTiming } from "./investigation-timing.js";
+import { maximumNarrativeReviewCalls, NarrativeReviewBudgetError, reviewNarrativeWithAgent, splitNarrativeDiagnostics } from "./narrative-review-agent.js";
 import {
   investigateDoctorIdentity,
   IdentityInvestigationBudgetError,
@@ -169,7 +170,7 @@ export async function executeDoctorResearchWorkflow(input: {
   onValidationFailure?: (input: {
     runId: string;
     stage: "synthesize_review" | "validate_outputs";
-    attempt: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+    attempt: number;
     errorCodes: readonly string[];
     errorDetails?: readonly string[];
   }) => void;
@@ -367,8 +368,7 @@ export async function executeDoctorResearchWorkflow(input: {
         ? [doctorSearchQuery]
         : [doctorSearchQuery, searchQuery]
     };
-    // Research tool state is resumable. Synthesis recovery is a separate contract.
-    context.agentEvidenceRecoveryAvailable = false;
+    // Both investigation state and completed generation calls can resume under a new lease.
     const generatedResult = await generateAndValidateModelOutput(
       context,
       identity,
@@ -560,7 +560,7 @@ export async function executeDoctorResearchWorkflow(input: {
     if (error instanceof WorkflowFencedError) {
       return { outcome: "fenced_or_cancelled" };
     }
-    if (error instanceof IdentityInvestigationBudgetError || error instanceof EvidenceInvestigationBudgetError) {
+    if (error instanceof IdentityInvestigationBudgetError || error instanceof EvidenceInvestigationBudgetError || error instanceof NarrativeReviewBudgetError) {
       return { outcome: "failed", reason: "resource_budget_exceeded" };
     }
     if (error instanceof WorkflowBudgetError) {
@@ -663,6 +663,10 @@ class WorkflowContext {
   token: ResearchLeaseToken;
   modelCallsStarted = 0;
   agentEvidenceRecoveryAvailable: boolean;
+  private readonly generationStates = new Map<string, {
+    version: "doctor_generation_responses.v1";
+    entries: Array<{ inputSha256: string; response: ResearchModelResponse }>;
+  }>();
 
   constructor(
     readonly input: Parameters<
@@ -736,6 +740,22 @@ class WorkflowContext {
     reasoningEffort?: "none" | "low" | "medium" | "high";
   }): Promise<ResearchModelResponse> {
     const system = input.system ?? doctorResearchSystemPolicy;
+    const inputSha256 = sha256(JSON.stringify({
+      model: this.input.modelClient.model,
+      stage: input.stage, attempt: input.attempt,
+      system, prompt: input.prompt,
+      maximumOutputTokens: input.maximumOutputTokens ?? this.input.policy.maximumOutputTokensPerCall,
+      reasoningEffort: input.reasoningEffort ?? null
+    }));
+    const generationState = this.input.policy.identityAgentEnabled &&
+      (input.stage === "synthesize_review" || input.stage === "validate_outputs")
+      ? this.generationState(input.stage) : null;
+    const cached = generationState?.entries.find(entry => entry.inputSha256 === inputSha256);
+    if (cached) {
+      this.checkActiveDeadline();
+      this.input.signal.throwIfAborted();
+      return structuredClone(cached.response);
+    }
     // Preflight wall-clock capacity before charging tokens or writing a stage
     // run. The retained tail is for structured failure persistence, lease
     // cleanup, and provider cancellation observation.
@@ -757,16 +777,7 @@ class WorkflowContext {
       token: this.token,
       stage: input.stage,
       attempt: input.attempt,
-      inputSha256: sha256(
-        JSON.stringify({
-          system,
-          prompt: input.prompt,
-          maximumOutputTokens:
-            input.maximumOutputTokens ??
-            this.input.policy.maximumOutputTokensPerCall,
-          reasoningEffort: input.reasoningEffort ?? null
-        })
-      ),
+      inputSha256,
       now: startedAt
     });
     if (started.outcome !== "written") {
@@ -833,6 +844,17 @@ class WorkflowContext {
           this.input.policy.maximumOutputTokensPerCall,
         response.usage
       );
+      if (generationState) {
+        generationState.entries.push({ inputSha256, response: {
+          text: response.text, gatewayRequestId: response.gatewayRequestId, usage: structuredClone(response.usage)
+        } });
+        const serialized = JSON.stringify(generationState);
+        if (Buffer.byteLength(serialized, "utf8") > 900_000) throw new WorkflowBudgetError("generation_state_bytes");
+        const saved = this.input.store.writeAgentState!({ token: this.token, stage: input.stage,
+          progressPercent: input.stage === "synthesize_review" ? 60 : 85,
+          payload: generationState, payloadSha256: sha256(serialized), now: this.now() });
+        if (saved.outcome !== "written") throw new WorkflowFencedError();
+      }
       return response;
     } catch (error) {
       if (!completionRecorded && !(error instanceof WorkflowFencedError)) {
@@ -889,9 +911,28 @@ class WorkflowContext {
     }
   }
 
+  private generationState(stage: "synthesize_review" | "validate_outputs") {
+    const existing = this.generationStates.get(stage);
+    if (existing) return existing;
+    if (!this.input.store.readAgentState || !this.input.store.writeAgentState) throw new WorkflowModelContractError(new Error("Generation recovery requires durable state."));
+    const loaded = this.input.store.readAgentState({ token: this.token, stage, now: this.now() });
+    if (loaded.outcome !== "read") throw new WorkflowFencedError();
+    const state = (loaded.payload ?? { version: "doctor_generation_responses.v1", entries: [] }) as {
+      version: "doctor_generation_responses.v1";
+      entries: Array<{ inputSha256: string; response: ResearchModelResponse }>;
+    };
+    if (state.version !== "doctor_generation_responses.v1" || !Array.isArray(state.entries) || state.entries.length > 32 ||
+      state.entries.some(entry => !entry || !/^[a-f0-9]{64}$/u.test(entry.inputSha256) ||
+        !entry.response || typeof entry.response.text !== "string" || !entry.response.usage)) {
+      throw new WorkflowModelContractError(new Error("Invalid generation recovery state."));
+    }
+    this.generationStates.set(stage, state);
+    return state;
+  }
+
   reportValidationFailure(
     stage: "synthesize_review" | "validate_outputs",
-    attempt: 1 | 2 | 3 | 4 | 5 | 6 | 7,
+    attempt: number,
     errorCodes: readonly string[],
     errorDetails: readonly string[] = []
   ): void {
@@ -2008,7 +2049,7 @@ async function collectAgentResearchEvidence(
       generate: async request => (await context.generateModel({
         stage: request.role === "investigator" ? "collect_profile_evidence" : "screen_and_extract_evidence",
         attempt: request.attempt, system: request.system, prompt: request.prompt,
-        maximumOutputTokens: Math.min(10_000, policy.maximumOutputTokensPerCall), maximumDurationMs: 60_000, reasoningEffort: "low"
+        maximumOutputTokens: Math.min(10_000, policy.maximumOutputTokensPerCall), maximumDurationMs: 120_000, reasoningEffort: "low"
       })).text
     }
   });
@@ -3696,6 +3737,23 @@ async function generateAndValidateShardedModelOutput(
     throw new Error(
       "Research fragment contract state is inconsistent after validation."
     );
+  }
+  if (usesAgentNarrativeReview(context.input.policy)) {
+    // All remaining generation slots belong to an evidence-reading reviewer.
+    // Do not consume them on the legacy sequence of rule-specific rewrites.
+    return reviewShardedNarrativeWithAgent(context, identity, evidence, {
+      schema_version: "doctor_research_model_draft.v1",
+      profile: deterministicProfile,
+      review: {
+        title: foundationFragment.review.title,
+        abstract: foundationFragment.review.abstract,
+        keywords: foundationFragment.review.keywords,
+        markdown: [foundationFragment.review.markdown, middleFragment.markdown, closingFragment.markdown].join("\n\n"),
+        core_evidence: structuredClone(evidence.reviewedCoreEvidence ?? buildDeterministicCoreEvidence(foundationEvidence, context.run.language, foundationFragment.review.markdown))
+      },
+      predicted_questions: middleFragment.predicted_questions,
+      answers: middleFragment.answers
+    }, medicalSkillBundle, nextAttempt);
   }
   const shardSkillNormalizationWarnings: string[] = [
     ...(foundationFragment.normalizationWarnings ?? []),
@@ -5598,6 +5656,69 @@ async function generateAndValidateShardedModelOutput(
       )
     ]
   };
+}
+
+function usesAgentNarrativeReview(policy: DoctorResearchWorkflowPolicy): boolean {
+  return policy.identityAgentEnabled === true && policy.synthesisShardCount === 3;
+}
+
+async function reviewShardedNarrativeWithAgent(
+  context: WorkflowContext,
+  identity: NonNullable<ReturnType<typeof resolveIdentity>>,
+  evidence: WorkflowEvidence,
+  draft: DoctorResearchModelDraft,
+  medicalSkillBundle: MedicalSkillBundle,
+  firstAttempt: number
+): Promise<{ output: DoctorResearchModelOutput; warnings: string[] } | null> {
+  const remainingReviewCalls = 3 + maximumNarrativeReviewCalls - firstAttempt + 1;
+  if (remainingReviewCalls < 1) return null;
+  const reviewed = await reviewNarrativeWithAgent({
+    draft, language: context.run.language,
+    contract: compactMedicalSkillExecutionContract(medicalSkillBundle),
+    evidence: {
+      search_queries: evidence.searchQueries,
+      doctor_publications: evidence.doctorLiterature.references,
+      references: evidence.references.map((reference, index) => ({
+        citation: index + 1, ...reference,
+        source_id: reference.pmid ? `src_pubmed_${reference.pmid}` : null,
+        abstract: evidence.publicationEvidence.find(item => item.reference_id === reference.reference_id)?.abstract ?? null
+      }))
+    },
+    maximumCalls: Math.min(maximumNarrativeReviewCalls, remainingReviewCalls),
+    inspect(candidate) {
+      // The legacy detectors supply fallible observations. The Agent, not
+      // substring equality, decides whether their semantic concerns are real.
+      const result = validateGeneratedOutput(JSON.stringify(candidate), context.run, identity, evidence,
+        { ...context.input.policy, identityAgentEnabled: false });
+      return splitNarrativeDiagnostics(result.ok ? [] : result.errors);
+    },
+    async generate(request) {
+      const response = await context.generateModel({
+        stage: "validate_outputs", attempt: firstAttempt + request.call - 1,
+        system: request.system, prompt: request.prompt, reasoningEffort: "none",
+        maximumOutputTokens: Math.min(16_000, context.input.policy.maximumOutputTokensPerCall),
+        // Full-evidence revision can legitimately exceed the former 110-second
+        // provider slice. Keep the run deadline authoritative and avoid paying
+        // for the same interrupted long response on every lease recovery.
+        maximumDurationMs: 180_000
+      });
+      return response.text;
+    },
+    observe(event) {
+      if (event.outcome !== "accepted" && event.outcome !== "revised") {
+        context.reportValidationFailure("validate_outputs", firstAttempt + event.call - 1,
+          [`narrative_review_${event.outcome}`], event.diagnostics);
+      }
+    }
+  });
+  if (!reviewed) return null;
+  const result = validateGeneratedOutput(JSON.stringify(reviewed.draft), context.run, identity, evidence, context.input.policy);
+  if (!result.ok) {
+    context.reportValidationFailure("validate_outputs", firstAttempt + reviewed.calls - 1, result.errorCodes, result.errors);
+    return null;
+  }
+  return { output: result.value, warnings: [...result.warnings, "sharded_synthesis_completed",
+    "peer_review_model_completed", "narrative_semantics_reviewed_with_complete_evidence"] };
 }
 
 function referenceIndexes(start: number, end: number): number[] {
@@ -8039,7 +8160,7 @@ function validateGeneratedOutput(
     answers: draft.answers.map((answer) => ({
       ...answer,
       answer:
-        run.language === "zh-CN"
+        run.language === "zh-CN" && !usesAgentNarrativeReview(policy)
           ? normalizeChineseQuantitiesToArabic(answer.answer)
           : answer.answer
     })),
@@ -8368,7 +8489,7 @@ function collectCompleteRuntimeQualityErrors(
       language
     )
   );
-  return [...new Set(errors)];
+  return [...new Set(usesAgentNarrativeReview(policy) ? splitNarrativeDiagnostics(errors).blocking : errors)];
 }
 
 function validateRuntimeQuality(
@@ -8546,7 +8667,7 @@ function validateRuntimeQuality(
   ) {
     errors.push("forbidden_output_fragment");
   }
-  return [...new Set(errors)];
+  return [...new Set(usesAgentNarrativeReview(policy) ? splitNarrativeDiagnostics(errors).blocking : errors)];
 }
 
 function validateCompleteReviewSkillContract(

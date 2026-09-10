@@ -1,0 +1,38 @@
+{
+  "checked_at_utc": "2026-09-10T16:18:42.070450+00:00",
+  "scope": "Completed canary3 and replays1-3; replay4 is excluded while active.",
+  "probes": [
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-canary3",
+      "evidence_archive_sha256": "b629b0c23264c355031f07c3eba6ed99913d1a38f0d188590e007625af4530bd",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    },
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-replay1",
+      "evidence_archive_sha256": "9fbef00ff898ea4e91a02a3b814a7eec6edaedf5408d67d18f7eca6dbe2fee15",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    },
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-replay2",
+      "evidence_archive_sha256": "3f6f1f0c5c287f3d5b9636a639036d6aa2363457ca30d518acd44a171a26e7e2",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    },
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-replay3",
+      "evidence_archive_sha256": "c9693b338b3d84b2069ff77675ab7b7e31bf55842e83e0e32bb4b9c6eed0cff1",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    }
+  ]
+}

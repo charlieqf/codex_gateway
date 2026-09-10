@@ -1,0 +1,90 @@
+[
+  {
+    "stage": "discover_identity",
+    "attempt": 1,
+    "duration_ms": 1444,
+    "error_code": null,
+    "prompt_tokens": 1036,
+    "completion_tokens": 39,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1441,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 2,
+    "duration_ms": 3266,
+    "error_code": null,
+    "prompt_tokens": 1875,
+    "completion_tokens": 139,
+    "admission_wait_ms": 0,
+    "client_total_ms": 3262,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 3,
+    "duration_ms": 5307,
+    "error_code": null,
+    "prompt_tokens": 7495,
+    "completion_tokens": 489,
+    "admission_wait_ms": 0,
+    "client_total_ms": 5305,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 4,
+    "duration_ms": 8527,
+    "error_code": null,
+    "prompt_tokens": 7525,
+    "completion_tokens": 632,
+    "admission_wait_ms": 0,
+    "client_total_ms": 8524,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "resolve_identity",
+    "attempt": 5,
+    "duration_ms": 1459,
+    "error_code": null,
+    "prompt_tokens": 3154,
+    "completion_tokens": 10,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1456,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 1,
+    "duration_ms": 1832,
+    "error_code": null,
+    "prompt_tokens": 6344,
+    "completion_tokens": 64,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1829,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 2,
+    "duration_ms": 2010,
+    "error_code": null,
+    "prompt_tokens": 7514,
+    "completion_tokens": 94,
+    "admission_wait_ms": 0,
+    "client_total_ms": 2007,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "attempt": 3,
+    "duration_ms": 50028,
+    "error_code": "model_upstream_error",
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "admission_wait_ms": 0,
+    "client_total_ms": 50025,
+    "terminal_source": "provider_response"
+  }
+]

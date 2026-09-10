@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Shoshana Sztal-Mazer\",\"institution\":\"Alfred Health (The Alfred, Melbourne)\",\"department\":\"Endocrinology (Department of Endocrinology and Diabetes), Consultant Endocrinologist\",\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"The Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among its clinic consultants, confirming the person and her endocrinology role at the hospital.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Clinic consultants ... Dr Shoshana Sztal-Mazer: Endocrinology ... The Alfred, Area U (549 St Kilda Road), 549 St Kilda Road, Melbourne, 3004\",\"explanation\":\"This is the official Alfred Health (Bayside Health) website for the Endocrinology Clinic at The Alfred, the hospital matching the requested 阿尔弗雷德医院.\"},{\"aspect\":\"department\",\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"quote\":\"Shoshana Sztal-Mazer MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\",\"explanation\":\"The RACGP Australian Journal of General Practice author page gives her full credentials and her departmental affiliation, confirming the endocrinology specialty (内分泌科) at Alfred Health.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"quote\":\"Home > Services & clinics > Endocrinology Clinic ... Clinic consultants ... Dr Shoshana Sztal-Mazer: Endocrinology\",\"explanation\":\"Alfred Health's own service directory is the authoritative source for the hospital's clinical staff listing, corroborated independently by the RACGP journal author profile.\"}]}}",
+  "usage": {
+    "promptTokens": 7495,
+    "completionTokens": 489,
+    "reasoningTokens": 34,
+    "totalTokens": 7984
+  },
+  "gatewayRequestId": "req-0c3a7e81-c725-4495-9923-d9beed3b6fae"
+}

@@ -151,9 +151,148 @@
       "exit_code": 0,
       "code_unchanged": true,
       "public_api_or_admission_tested": false
+    },
+    {
+      "id": "workflow-canary3",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 135284,
+      "result": {
+        "outcome": "failed",
+        "reason": "upstream_unavailable",
+        "retryable": true,
+        "dependencyScope": "request"
+      },
+      "archive_sha256": "da51b70cc66cb944fad57ffc746f473c269ffa31b5df90d135c397968bfc77c9",
+      "evidence_archive_sha256": "b629b0c23264c355031f07c3eba6ed99913d1a38f0d188590e007625af4530bd",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay1",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 7,
+      "elapsed_ms": 192274,
+      "result": {
+        "outcome": "failed",
+        "reason": "upstream_unavailable",
+        "retryable": false,
+        "dependencyScope": "request"
+      },
+      "archive_sha256": "3c62cedd5a192718de04503487a4bc483d3f09448b7b30630fd59195619882d7",
+      "evidence_archive_sha256": "9fbef00ff898ea4e91a02a3b814a7eec6edaedf5408d67d18f7eca6dbe2fee15",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay2",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 13,
+      "elapsed_ms": 550097,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      },
+      "archive_sha256": "c574fccc81bce7c0aea44ac9da7ffbc6af449982088128da6e8d0f20a1a61271",
+      "evidence_archive_sha256": "3f6f1f0c5c287f3d5b9636a639036d6aa2363457ca30d518acd44a171a26e7e2",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay3",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 3,
+      "elapsed_ms": 209081,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      },
+      "archive_sha256": "b833bf542a7384e8aa306de7f25251126f6d48e20a289a22186c4ea8281c551b",
+      "evidence_archive_sha256": "c9693b338b3d84b2069ff77675ab7b7e31bf55842e83e0e32bb4b9c6eed0cff1",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay4",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 4,
+      "elapsed_ms": 389161,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      },
+      "archive_sha256": "e092c46241693bdda6e089ee6bb5ec8cc94329f66a9a01d630b8a07cf0bd1637",
+      "evidence_archive_sha256": "eadd407ca6410cbd1ec345ee0042a3133b09a22ff8f31ba7c600906d17bc5c22",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay5",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 3,
+      "elapsed_ms": 308567,
+      "result": {
+        "outcome": "failed",
+        "reason": "upstream_unavailable",
+        "retryable": true,
+        "dependencyScope": "request"
+      },
+      "archive_sha256": "b2a21cf3de82881ef4b0959f7767a9967e737d8f76af027f18dd8f309550dad6",
+      "evidence_archive_sha256": "2dc26e864b9bd49bc22f19db4b71bcc882cf79a7f6b10daac41adb53b2655e4e",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
+    },
+    {
+      "id": "workflow-replay6",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 3,
+      "elapsed_ms": 212430,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      },
+      "archive_sha256": "6a0e9cc1a3912d12c828725c6315d4c749cf8ba88ad1254d2df26fa28df8ba8c",
+      "evidence_archive_sha256": "11015bfdb5ff6ec770e3ce6d36ddaca7b294d477956cc92df7aa8e78468f387e",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 3,
+  "total_new_serpapi_requests": 4,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,
@@ -161,6 +300,16 @@
     "plan_searches_left": 44,
     "total_searches_left": 44,
     "this_month_usage": 206,
+    "search_requests": 0,
+    "note": "Shared account; balance changes alone do not attribute individual requests."
+  },
+  "account_after_workflow_canary3": {
+    "checked_at_utc": "2026-09-10T15:46:45.839Z",
+    "http_status": 200,
+    "elapsed_ms": 516,
+    "plan_searches_left": 43,
+    "total_searches_left": 43,
+    "this_month_usage": 207,
     "search_requests": 0,
     "note": "Shared account; balance changes alone do not attribute individual requests."
   }

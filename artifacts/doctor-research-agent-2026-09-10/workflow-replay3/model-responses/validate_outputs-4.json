@@ -1,0 +1,10 @@
+{
+  "text": "```json\n{\"schema_version\":\"doctor_narrative_review.v1\",\"candidate_sha256\":\"5c0d956e0218f5d5e860277e506072f45ec918bc36156bd3ecc4f9d1063e0927\",\"decision\":\"revise\",\"checks\":{\"citations\":\"pass\",\"numerical_claims\":\"pass\",\"evidence_scope\":\"pass\",\"coherence\":\"uncertain\",\"questions_answers\":\"pass\"},\"explanation\":\"数值与引文核查基本通过：核心证据中的效应量（MD=0.02、ESCORT 1.75%、IPTW 1.27%、QUALYOR HR 1.9、Cochrane RR 0.73/1.33/1.78、法国SNDS HR 1.12/1.92、依从性aOR 3.91等）均与所供摘要一致，观察性证据普遍未被表述为因果结论，全文性核验的局限已在局限部分声明。但存在阻断性问题：(1) blocking diagnostic review_embedded_auxiliary_output——review_block_30至34将问答内容嵌入综述正文，与独立的 questions/answers 目标重复，必须从综述文档中移除（建议以空值或并入结论后的独立附录处理，由作者层重新绑定结构）；(2) paragraph_citation_coverage 段落1、8存在整段或大部分句群缺少数值引文覆盖，需在该两段补齐内文引文编号；(3) review_topic_section_minimum 431/450 未达服务器发布下限，且按创作目标各主题节应≥600内容单位，需扩写各节（不靠填充重复）；(4) 结构上缺少3-8篇核心证据表目标与参考文献列表目标（至少40条为创作目标、真实性优先），需作者层补齐结构目标。因果性观察（第22、33段）经核对均已限定为关联表述，无需改写。以下替换仅处理可由现有目标直接修复的嵌入问答问题；其余结构性修复需作者修订后另行提交后续评审。\",\"replacements\":[{\"target_id\":\"review_block_30\",\"original_sha256\":\"18100f0ef7c69128e1eb8827c7ef95acd1ec5d405a90f623074b267c792e0f6a\",\"value\":\"\"},{\"target_id\":\"review_block_31\",\"original_sha256\":\"9f663e00406b3cb12d4ff9a33cb42cd6d0825f5cf2e196674bd0dc792639db95\",\"value\":\"\"},{\"target_id\":\"review_block_32\",\"original_sha256\":\"a7e2c91cfdb7d9ddd5a3326daadd6ba53c07af12dde691c737dbbeb881cff454\",\"value\":\"\"},{\"target_id\":\"review_block_33\",\"original_sha256\":\"ef49655157741e4d9658c515a8017845cfd8fdb1381dfd6ae564d3495859b1a6\",\"value\":\"\"},{\"target_id\":\"review_block_34\",\"original_sha256\":\"d5926998d13e36242eb0aa8111f38922aeb40f2067ad04975eef6b11556bdb20\",\"value\":\"\"}]}\n```",
+  "usage": {
+    "promptTokens": 25547,
+    "completionTokens": 1206,
+    "reasoningTokens": 455,
+    "totalTokens": 26753
+  },
+  "gatewayRequestId": "req-620ad5a8-60b8-4883-8d32-4520f9b5a8b3"
+}

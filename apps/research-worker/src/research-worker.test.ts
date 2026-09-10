@@ -3754,8 +3754,15 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
-  it.each([false, true])("carries reviewed Agent evidence through artifact storage and enforces research answer lengths (short answer rejected: %s)", async (requireLongerAnswers) => {
-    const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring");
+  it.each([
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: false, revisionRounds: 0 },
+    { requireLongerAnswers: true, resumeAfterTransientFailure: false, narrativeAgent: false, revisionRounds: 0 },
+    { requireLongerAnswers: false, resumeAfterTransientFailure: true, narrativeAgent: false, revisionRounds: 0 },
+    { requireLongerAnswers: false, resumeAfterTransientFailure: true, narrativeAgent: true, revisionRounds: 0 },
+    { requireLongerAnswers: true, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 0 },
+    { requireLongerAnswers: false, resumeAfterTransientFailure: false, narrativeAgent: true, revisionRounds: 3 }
+  ])("carries reviewed Agent evidence through artifact storage (strict answer: $requireLongerAnswers; recovery: $resumeAfterTransientFailure; narrative Agent: $narrativeAgent; revisions: $revisionRounds)", async ({ requireLongerAnswers, resumeAfterTransientFailure, narrativeAgent, revisionRounds }) => {
+    const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring", { ...runInput(), ...(narrativeAgent ? { language: "zh-CN" as const } : {}) });
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
     const queryLog: string[] = [];
     const sourceAdapters: ResearchAdapterBundle = { ...adapters(),
@@ -3775,17 +3782,27 @@ describe("Research Worker controlled-beta workflow", () => {
           citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] },
         doctorPublications: [{ pmid: "1001", author: "Example Doctor", affiliationQuote: "Cardiology, Example Hospital.",
           corroboration: [], explanation: "This author's own affiliation matches the verified identity." }],
-        fieldPublications: [{ pmid: "1001", rationale: "The retrieved clinical evidence concerns the verified field." }], limitations: [],
+        fieldPublications: [{ pmid: "1001", rationale: "The retrieved clinical evidence concerns the verified field." }],
+        limitations: ["The synthetic source returns one publication; this fixture does not establish exhaustive field coverage."],
         coreEvidence: [{ pmid: "1001", study_type: "Design not specified in the brief source abstract", sample_and_source: "The abstract does not report the sample or population.",
           methods: "Methods were not reported in the supplied abstract.", key_results: "The abstract supports cautious synthesis of clinical evidence.",
           limitations: "Only the supplied public abstract was available.", citations: [{ sourceId: "src_pubmed_1001", quote: "Randomized evidence from the retrieved abstract supports cautious synthesis." }] }]
       } }
     ];
     let discoveryCalls = 0;
+    let generationCalls = 0;
+    let narrativeReviews = 0;
+    let injectedFailure = false;
+    let clock = fixture.now;
     const codes: string[][] = [];
-    const outcome = await executeDoctorResearchWorkflow({
-      lease: fixture.lease, store: fixture.store, adapters: sourceAdapters,
+    const execute = (lease = fixture.lease) => executeDoctorResearchWorkflow({
+      lease, store: fixture.store, adapters: sourceAdapters,
       modelClient: { model: "test-model", async generate(request) {
+        if (request.stage === "synthesize_review") generationCalls++;
+        if (request.stage === "validate_outputs" && resumeAfterTransientFailure && !injectedFailure) {
+          injectedFailure = true;
+          throw new ResearchModelClientError("upstream_error", 503, null);
+        }
         let response: unknown;
         if (request.stage === "discover_identity") {
           discoveryCalls++;
@@ -3796,6 +3813,32 @@ describe("Research Worker controlled-beta workflow", () => {
                 quote: source.untrustedText, explanation: "Scripted identity decision; semantic accuracy is evaluated separately." })) } };
         } else if (request.stage === "resolve_identity" || request.stage === "screen_and_extract_evidence") response = { accepted: true, issues: [] };
         else if (request.stage === "collect_profile_evidence") response = proposals.shift();
+        else if (narrativeAgent && request.stage === "synthesize_review") {
+          response = request.attempt === 1 ? {
+            schema_version: "doctor_research_foundation_fragment.v3", review: {
+              title: "公开摘要证据的规范综合", abstract: "本综述严格限定于公开元数据与摘要层面的证据，围绕研究设计、方法差异、结果解释和适用边界展开综合，并明确现有资料不能替代全文评价与临床因果验证。".repeat(5),
+              unsolicited_metadata: "The server must project only the requested narrative fields.",
+              keywords: ["证据综合", "研究设计", "方法学"], markdown: skillFoundationFragment(30) }
+          } : request.attempt === 2 ? {
+            schema_version: "doctor_research_body_fragment.v1", markdown: skillBodyFragment(25),
+            predicted_questions: ["现有证据说明什么？", "研究设计有何差异？", "证据存在哪些局限？", "结果是否一致？", "下一步研究方向是什么？"],
+            answers: Array.from({ length: 5 }, (_, i) => ({ question_index: i + 1, answer: "现有证据支持谨慎解释。", source_ids: ["src_pubmed_1001"] }))
+          } : { schema_version: "doctor_research_review_fragment.v1", markdown: skillClosingFragment(30, 25, 12, false) };
+        } else if (narrativeAgent && request.stage === "validate_outputs") {
+          narrativeReviews++;
+          const reviewInput = JSON.parse(request.prompt.split("INDEPENDENT NARRATIVE REVIEW\n\n")[1]!);
+          expect(reviewInput.complete_evidence.references[0].abstract).toContain("Randomized evidence");
+          codes.push(reviewInput.blocking_diagnostics);
+          response = { schema_version: "doctor_narrative_review.v1", candidate_sha256: reviewInput.candidate_sha256,
+            decision: "accept", checks: { citations: "pass", numerical_claims: "pass", evidence_scope: "pass", coherence: "pass", questions_answers: "pass" },
+            explanation: "Scripted approval tests the orchestration only; this synthetic fixture is not a real report quality evaluation.", replacements: [] };
+          if (narrativeReviews <= revisionRounds) {
+            const target = reviewInput.editable_targets.find((item: { target_id: string }) => item.target_id === "title");
+            response = { ...(response as Record<string, unknown>), decision: "revise",
+              replacements: [{ target_id: target.target_id, original_sha256: target.original_sha256,
+                value: "公开摘要证据的规范综合：" + ["设计", "比较", "解释"][narrativeReviews - 1] }] };
+          }
+        }
         else {
           expect(request.stage).not.toBe("infer_research_topics");
           const draft = modelOutput();
@@ -3808,11 +3851,24 @@ describe("Research Worker controlled-beta workflow", () => {
       } },
       artifactRoot: fixture.artifactRoot,
       policy: { ...workflowPolicy(), identityAgentEnabled: true,
+        ...(narrativeAgent ? { synthesisShardCount: 3 as const } : {}),
         ...(requireLongerAnswers ? { minimumAnswerContent: 50 } : {}),
         budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60_000 } },
-      signal: new AbortController().signal, now: () => fixture.now,
+      signal: new AbortController().signal, now: () => clock,
       onValidationFailure(event) { codes.push([...event.errorCodes]); }
     });
+    let outcome = await execute();
+    if (resumeAfterTransientFailure) {
+      expect(outcome).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
+      expect(generationCalls).toBe(narrativeAgent ? 3 : 1);
+      clock = new Date(fixture.now.getTime() + 1000);
+      expect(fixture.store.requeueRun({ token: fixture.lease.token, reason: "retriable_upstream_failure", now: clock }).outcome).toBe("queued");
+      const resumedLease = fixture.store.acquireLease({ workerId: "resumed-generation-worker", leaseSeconds: 120, now: clock });
+      expect(resumedLease).not.toBeNull();
+      outcome = await execute(resumedLease!);
+      expect(generationCalls).toBe(narrativeAgent ? 3 : 1);
+      expect(discoveryCalls).toBe(3);
+    }
     if (requireLongerAnswers) {
       expect(outcome.outcome).toBe("failed");
       expect(fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId)).toBeNull();
@@ -3820,6 +3876,7 @@ describe("Research Worker controlled-beta workflow", () => {
       return;
     }
     expect(outcome, JSON.stringify(codes)).toEqual({ outcome: "succeeded" });
+    if (revisionRounds > 0) expect(narrativeReviews).toBe(revisionRounds + 1);
     expect(queryLog).toEqual(['("Example Doctor"[Author]) AND (2022:2026[Date - Publication])']);
     const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId);
     expect(result).toMatchObject({ result: { profile: {

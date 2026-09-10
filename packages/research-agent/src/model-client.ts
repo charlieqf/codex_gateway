@@ -248,7 +248,9 @@ export class GatewayResearchModelClient implements ResearchModelClient {
       throw new Error("Research LLM run ID is invalid.");
     }
     const stage = requiredIdentifier(input.stage, "stage");
-    if (!Number.isSafeInteger(input.attempt) || input.attempt < 1 || input.attempt > 9) {
+    // This is a persisted stage-call ordinal, including Agent tool-loop calls.
+    // Actual request consumption is governed by the Worker's durable run budget.
+    if (!Number.isSafeInteger(input.attempt) || input.attempt < 1 || input.attempt > 100) {
       throw new Error("Research LLM attempt is invalid.");
     }
     if (

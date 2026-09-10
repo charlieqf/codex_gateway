@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-09-10T16:46:56.994344+00:00",
+  "scope": "Completed replay6 only.",
+  "probes": [
+    {
+      "probe": "doctor-research-agent-workflow-live-20260911-replay6",
+      "evidence_archive_sha256": "11015bfdb5ff6ec770e3ce6d36ddaca7b294d477956cc92df7aa8e78468f387e",
+      "code_verified_unchanged": true,
+      "active_container": false,
+      "private_env_absent": true,
+      "root_and_archives_removed": true
+    }
+  ]
+}

@@ -26,7 +26,8 @@ function conclusion() {
     topics: { terms: ["endocrinology"], explanation: "The directory establishes the person's specialty.", citations: [citation] },
     doctorPublications: [{ pmid: "101", author: "Example A", affiliationQuote: "Endocrinology, Harbour University Hospital" as string | null,
       corroboration: [] as Array<{ sourceId: string; quote: string }>, explanation: "The author's own affiliation matches the verified institution and specialty." }],
-    fieldPublications: [{ pmid: "101", rationale: "Hormone monitoring is within the established endocrine specialty." }], limitations: [] as string[],
+    fieldPublications: [{ pmid: "101", rationale: "Hormone monitoring is within the established endocrine specialty." }],
+    limitations: ["The synthetic source provides only this one read publication; no claim of exhaustive coverage is made."] as string[],
     coreEvidence: [{ pmid: "101", study_type: "Observational study", sample_and_source: "Adults; the abstract does not give a sample size.",
       methods: "Hormone monitoring was studied in adults.", key_results: "The supplied abstract does not report an effect estimate.",
       limitations: "Only an abstract was supplied for this investigation.",
@@ -58,8 +59,40 @@ const read = { actions: [{ type: "read_publications", pmids: ["101"] }] };
 const accept = { accepted: true, issues: [] };
 
 describe("evidence investigation with Agent decisions and mechanical provenance", () => {
+  it.each([true, false])("allows reviewed field context only with a professional-remit anchor (%s)", async (hasAnchor) => {
+    const proposal = conclusion();
+    proposal.evidence.doctorPublications = [];
+    proposal.evidence.limitations = ["No own publication was verified; this synthetic field review is not exhaustive."];
+    proposal.evidence.topics.citations = [
+      ...(hasAnchor ? [citation] : []), { sourceId: "src_pubmed_101", quote: paper.abstractText! }
+    ];
+    const f = fixture([read, proposal, hasAnchor ? accept : { unresolved: "insufficient_evidence" }]);
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe(hasAnchor ? "resolved" : "unresolved");
+    expect(f.dependencies.generate.mock.calls.some(([call]) => call.role === "evidence_reviewer")).toBe(hasAnchor);
+  });
+  it("repairs an unambiguous misplaced limitations field without rewriting its content or skipping review", async () => {
+    const { limitations, ...evidence } = conclusion().evidence;
+    const f = fixture([read, { evidence, limitations }, accept]);
+    const result = await investigateDoctorEvidence(f.input);
+    expect(result.outcome).toBe("resolved");
+    expect(result.state.reviewedEvidence?.limitations).toEqual(limitations);
+    expect(f.dependencies.generate.mock.calls[2]![0].role).toBe("evidence_reviewer");
+  });
+  it("carries the medical reference target and requires a below-target disclosure before semantic review", async () => {
+    const missing = conclusion(); missing.evidence.limitations = [];
+    const f = fixture([read, missing, conclusion(), accept]);
+    expect((await investigateDoctorEvidence(f.input)).outcome).toBe("resolved");
+    const initial = JSON.parse(f.dependencies.generate.mock.calls[0]![0].prompt);
+    expect(initial).toMatchObject({ minimum_field_references: 1, target_field_references: 5 });
+    const correction = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    expect(correction.observations).toContainEqual(expect.objectContaining({ action: "invalid_evidence",
+      result: expect.objectContaining({ message: expect.stringContaining("safety minimum is not the target") }) }));
+    const review = JSON.parse(f.dependencies.generate.mock.calls[3]![0].prompt);
+    expect(review.reference_coverage).toMatchObject({ target: 5, selected: 1 });
+  });
   it("reads an explicitly cited PMID from an already read profile without an unnecessary search", async () => {
-    const f = fixture([read, conclusion(), accept]);
+    const f = fixture([{ ...read, workingNotes: "PMID 101 is explicitly linked in the profile; verify its author affiliation before claiming ownership." }, conclusion(), accept]);
     let elapsedMs = 350_000;
     f.input.dependencies.timing = () => {
       const result = investigationTiming(new Date(0), new Date(elapsedMs), 900_000);
@@ -72,6 +105,11 @@ describe("evidence investigation with Agent decisions and mechanical provenance"
     expect(f.dependencies.searchPubMed).not.toHaveBeenCalled();
     expect(JSON.parse(f.dependencies.generate.mock.calls[0]![0].prompt).service_timing.elapsed_ms).toBe(350_000);
     expect(JSON.parse(f.dependencies.generate.mock.calls[1]![0].prompt).service_timing.elapsed_ms).toBe(360_000);
+    expect(JSON.parse(f.dependencies.generate.mock.calls[1]![0].prompt).working_notes).toContain("verify its author affiliation");
+    const reviewer = JSON.parse(f.dependencies.generate.mock.calls[2]![0].prompt);
+    expect(reviewer.publications[0]).toMatchObject({ abstractText: paper.abstractText,
+      selectedAuthorAffiliations: [{ author: "Example A", affiliations: ["Endocrinology, Harbour University Hospital"] }] });
+    expect(reviewer.publications[0].selectedAuthorAffiliations).toHaveLength(1);
   });
 
   it("hands already read page text to the next phase and provides the malformed response for correction", async () => {

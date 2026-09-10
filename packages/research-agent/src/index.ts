@@ -8,6 +8,7 @@ export * from "./live-adapters.js";
 export * from "./maintenance.js";
 export * from "./medical-skill-bundle.js";
 export * from "./model-client.js";
+export { maximumNarrativeReviewCalls } from "./narrative-review-agent.js";
 export * from "./replay.js";
 export * from "./research-prompt-projection.js";
 export * from "./review-contract-policy.js";

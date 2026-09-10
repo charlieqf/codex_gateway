@@ -6,7 +6,7 @@ import type {
   DoctorResearchWorkflowPolicy,
   LiveResearchAdapterOptions
 } from "@codex-gateway/research-agent";
-import { researchTopicInferenceModelBudget } from "@codex-gateway/research-agent";
+import { maximumNarrativeReviewCalls, researchTopicInferenceModelBudget } from "@codex-gateway/research-agent";
 
 export interface ResearchWorkerConfig {
   databasePath: string;
@@ -155,7 +155,7 @@ export function loadResearchWorkerConfig(
     maximumSearchRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS", 10),
     maximumPublicationRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS ?? "50", "RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS", 60),
     maximumPageRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS", 12),
-    maximumModelCalls: boundedInteger(env.RESEARCH_EVIDENCE_MAX_MODEL_CALLS ?? "10", "RESEARCH_EVIDENCE_MAX_MODEL_CALLS", 16)
+    maximumModelCalls: boundedInteger(env.RESEARCH_EVIDENCE_MAX_MODEL_CALLS ?? "12", "RESEARCH_EVIDENCE_MAX_MODEL_CALLS", 16)
   };
   const budgets: ResearchRunBudgetLimits = {
     externalRequests: boundedInteger(
@@ -526,7 +526,8 @@ export function loadResearchWorkerConfig(
     false,
     "RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED"
   );
-  const fullSynthesisCallCount = 6;
+  const fullSynthesisCallCount = identityAgentEnabled && synthesisShardCount === 3
+    ? 3 + maximumNarrativeReviewCalls : 6;
   const identityModelCalls = identityAgentEnabled ? identityInvestigation.maximumModelCalls : 0;
   const evidenceModelCalls = identityAgentEnabled ? evidenceInvestigation.maximumModelCalls : 0;
   const topicModelCalls = identityAgentEnabled ? 0 : 1;
@@ -549,7 +550,7 @@ export function loadResearchWorkerConfig(
     requiredInputTokenBudget > budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover six bounded synthesis or review calls, the legacy topic call when used, and every enabled identity Agent call and evidence Agent call."
+      `Research LLM budgets must cover ${fullSynthesisCallCount === 6 ? "six" : fullSynthesisCallCount} bounded synthesis or review calls, the legacy topic call when used, and every enabled identity Agent call and evidence Agent call.`
     );
   }
   const llmTimeoutMs = requiredTimerMilliseconds(

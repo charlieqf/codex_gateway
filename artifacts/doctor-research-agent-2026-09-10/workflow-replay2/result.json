@@ -1,0 +1,931 @@
+{
+  "original": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "model_contract_error"
+  },
+  "elapsed_ms": 550097,
+  "serpapi_requests": 0,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 550097,
+      "result": {
+        "outcome": "failed",
+        "reason": "model_contract_error"
+      }
+    }
+  ],
+  "diagnostic_replay": true,
+  "fresh_case_acceptance_eligible": false,
+  "legacy_calls": 0,
+  "model_requests": 13,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 4,
+      "elapsed_ms": 6633,
+      "gateway_request_id": "req-c6d09450-9f1c-4fcd-92d0-22c5ef70b62d",
+      "response_sha256": "e427ed3bcf4f54522b194cfd077e78ccd2707003115d71fd5a1aa1ad9541957b",
+      "usage": {
+        "promptTokens": 19275,
+        "completionTokens": 378,
+        "reasoningTokens": 91,
+        "totalTokens": 19653
+      },
+      "telemetry": {
+        "promptChars": 81372,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:45:37.700Z",
+        "clientTotalMs": 6632,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 5,
+      "elapsed_ms": 6123,
+      "gateway_request_id": "req-089e9197-7551-4e61-81ac-044d88f89c93",
+      "response_sha256": "60345ce25e2fdb248a715d20ebaf1445873db0df278857066cb0a3769aec79c1",
+      "usage": {
+        "promptTokens": 21538,
+        "completionTokens": 440,
+        "reasoningTokens": 77,
+        "totalTokens": 21978
+      },
+      "telemetry": {
+        "promptChars": 87939,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:45:45.304Z",
+        "clientTotalMs": 6122,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 6,
+      "elapsed_ms": 18241,
+      "gateway_request_id": "req-c80a6544-b910-46c3-a58f-ce70d486165a",
+      "response_sha256": "93b5da7497e1f607dc8431a3211172d622213ac0e2b06bf15542eda4dc7af45e",
+      "usage": {
+        "promptTokens": 23858,
+        "completionTokens": 478,
+        "reasoningTokens": 199,
+        "totalTokens": 24336
+      },
+      "telemetry": {
+        "promptChars": 95009,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:46:03.011Z",
+        "clientTotalMs": 18241,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 7,
+      "elapsed_ms": 10441,
+      "gateway_request_id": "req-45db55ec-0f92-4727-afab-033cf112b29e",
+      "response_sha256": "b2af2f019eba323693b3285d3dd3a32b57da7773194d1141c6a0d06a6a25734f",
+      "usage": {
+        "promptTokens": 23609,
+        "completionTokens": 750,
+        "reasoningTokens": 361,
+        "totalTokens": 24359
+      },
+      "telemetry": {
+        "promptChars": 94929,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:46:30.623Z",
+        "clientTotalMs": 10440,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 8,
+      "elapsed_ms": 103441,
+      "gateway_request_id": "req-ddeafe02-0fd2-4185-91f6-8a142d4a59f2",
+      "response_sha256": "e76e6264af23306cc9c756d4a781d0e652858558f969f8a07b5c3e64627e1c57",
+      "usage": {
+        "promptTokens": 23734,
+        "completionTokens": 6279,
+        "reasoningTokens": 1469,
+        "totalTokens": 30013
+      },
+      "telemetry": {
+        "promptChars": 93545,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:46:51.390Z",
+        "clientTotalMs": 103439,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "collect_profile_evidence",
+      "attempt": 9,
+      "elapsed_ms": 64578,
+      "gateway_request_id": "req-d6db6bee-77da-488e-a22f-e47879d0f05b",
+      "response_sha256": "1c79263f4c305fd76688d0bf24bc4c99d175e47d8be2a0191a0d478f7523ed9f",
+      "usage": {
+        "promptTokens": 24320,
+        "completionTokens": 5027,
+        "reasoningTokens": 373,
+        "totalTokens": 29347
+      },
+      "telemetry": {
+        "promptChars": 89352,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:48:34.887Z",
+        "clientTotalMs": 64577,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "screen_and_extract_evidence",
+      "attempt": 10,
+      "elapsed_ms": 2257,
+      "gateway_request_id": "req-de5608f6-2acb-43b0-9a98-71706b19890e",
+      "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+      "usage": {
+        "promptTokens": 19806,
+        "completionTokens": 10,
+        "reasoningTokens": 0,
+        "totalTokens": 19816
+      },
+      "telemetry": {
+        "promptChars": 77161,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:49:39.492Z",
+        "clientTotalMs": 2257,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 2,
+      "elapsed_ms": 70488,
+      "gateway_request_id": "req-e3719325-2fe1-4c1d-b845-0845538639f0",
+      "response_sha256": "a733f06c18c1b06b16a192614c78bc8f153fec3ce13f18f6821a097bea505fe9",
+      "usage": {
+        "promptTokens": 6405,
+        "completionTokens": 3694,
+        "reasoningTokens": 293,
+        "totalTokens": 10099
+      },
+      "telemetry": {
+        "promptChars": 25202,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:49:49.385Z",
+        "clientTotalMs": 70487,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "elapsed_ms": 70695,
+      "gateway_request_id": "req-5bf683bf-5361-4ba4-8301-e6d6bc262ca4",
+      "response_sha256": "6f123ee499aa387e4f3d49a2a5496a89c6e2d62047513f545228a8b53401cc49",
+      "usage": {
+        "promptTokens": 7360,
+        "completionTokens": 2265,
+        "reasoningTokens": 31,
+        "totalTokens": 9625
+      },
+      "telemetry": {
+        "promptChars": 24350,
+        "maximumOutputTokens": 8000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:49:49.382Z",
+        "clientTotalMs": 70694,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 3,
+      "elapsed_ms": 119758,
+      "gateway_request_id": "req-86a70076-d5cf-47ae-ae81-1c6413c0eb60",
+      "response_sha256": "85a3bad4254a858f9beadb0bc9cc7557df902ce4ed11d0e683676228a6dc134d",
+      "usage": {
+        "promptTokens": 6711,
+        "completionTokens": 3336,
+        "reasoningTokens": 707,
+        "totalTokens": 10047
+      },
+      "telemetry": {
+        "promptChars": 26786,
+        "maximumOutputTokens": 8000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:50:03.639Z",
+        "clientTotalMs": 119757,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 4,
+      "elapsed_ms": 35038,
+      "gateway_request_id": "req-9f1cfcd1-03e9-490c-84b1-0bd5d3c56e33",
+      "response_sha256": "2345fc1224b9aba573a31389df5ffd17bc60a5560c1cabed486e3acb18944166",
+      "usage": {
+        "promptTokens": 6478,
+        "completionTokens": 2631,
+        "reasoningTokens": 59,
+        "totalTokens": 9109
+      },
+      "telemetry": {
+        "promptChars": 25569,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:52:03.417Z",
+        "clientTotalMs": 35037,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 5,
+      "elapsed_ms": 47279,
+      "gateway_request_id": "req-9e35c2ae-7650-4343-bb51-a39e773cc110",
+      "response_sha256": "50307d99c10748dc35fef2b66ff7b714a117ffe960f0e67455db53a312f8f21b",
+      "usage": {
+        "promptTokens": 6487,
+        "completionTokens": 3180,
+        "reasoningTokens": 60,
+        "totalTokens": 9667
+      },
+      "telemetry": {
+        "promptChars": 25629,
+        "maximumOutputTokens": 10000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:52:38.469Z",
+        "clientTotalMs": 47278,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "elapsed_ms": 81606,
+      "outcome": "failed",
+      "error_name": "ResearchModelClientError",
+      "error_code": "upstream_error",
+      "http_status": 504,
+      "gateway_request_id": "req-a2397126-8739-42f4-bc7b-203a8232cbe8",
+      "telemetry": {
+        "promptChars": 43539,
+        "maximumOutputTokens": 8000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-10T15:53:26.015Z",
+        "clientTotalMs": 81606,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [
+    {
+      "runId": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "stage": "synthesize_review",
+      "attempt": 3,
+      "errorCodes": [
+        "paragraph_citation_coverage",
+        "review_embedded_auxiliary_output",
+        "review_orphaned_demonstrative_start",
+        "answer_length_contract",
+        "numeric_evidence_closure",
+        "causal_claim_evidence_grade"
+      ],
+      "errorDetails": []
+    },
+    {
+      "runId": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "stage": "validate_outputs",
+      "attempt": 6,
+      "errorCodes": [
+        "paragraph_citation_coverage",
+        "review_embedded_auxiliary_output",
+        "review_orphaned_demonstrative_start",
+        "answer_length_contract",
+        "numeric_evidence_closure",
+        "causal_claim_evidence_grade"
+      ],
+      "errorDetails": [
+        "review_embedded_auxiliary_output",
+        "review_orphaned_demonstrative_start:paragraph=6",
+        "review_orphaned_demonstrative_start:paragraph=7",
+        "review_orphaned_demonstrative_start:paragraph=20",
+        "answer_length_contract",
+        "numeric_evidence_closure:review_3:7|review_6:21|review_7:25|review_8:11|review_12:2026|review_14:11|review_14:26708|review_18:4|review_21:9908|review_23:23|review_23:780|review_34:23|core_ref_pmid_42521873:7|core_ref_pmid_42513484:7|core_ref_pmid_42513484:5|core_ref_pmid_42466020:21|core_ref_pmid_42398845:25|core_ref_pmid_42287137:11|answer_2:11|answer_2:26708|answer_4:4.4%|answer_5:9908|answer_5:1|uncited_2:2022",
+        "causal_claim_evidence_grade:paragraph=20",
+        "causal_claim_evidence_grade:paragraph=24",
+        "causal_claim_evidence_grade:paragraph=35"
+      ]
+    }
+  ],
+  "external_calls": [
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 931,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 565,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 310,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 305,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 571,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 311,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 315,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 725,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 719,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 300,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 312,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 458,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 303,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 302,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 312,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 362,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 318,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 313,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 300,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 340,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 308,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 431,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 310,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 302,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 312,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 312,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 325,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 304,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 395,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 326,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "eutils.ncbi.nlm.nih.gov",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 306,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 751,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 765,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 260,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 510,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 495,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 265,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 266,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 268,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 287,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 264,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 262,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 266,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 269,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 263,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 543,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 283,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 284,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 268,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 254,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    },
+    {
+      "run_id": "drr_17a2fc2ec4694fb4af218566d0e4566f",
+      "host": "api.crossref.org",
+      "query_sha256": null,
+      "attempt": 1,
+      "duration_ms": 266,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": null
+    }
+  ],
+  "public_api_or_admission_tested": false
+}

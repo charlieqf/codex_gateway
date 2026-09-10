@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"(postmenopausal osteoporosis AND (bisphosphonate OR denosumab OR teriparatide) AND (fracture OR treatment)) AND (2022:2026[Date - Publication]) AND (review[pt] OR randomized controlled trial[pt])\"},{\"type\":\"search_pubmed\",\"purpose\":\"field\",\"query\":\"(atypical femur fracture AND bisphosphonate) AND (2022:2026[Date - Publication])\"}]}",
+  "usage": {
+    "promptTokens": 19176,
+    "completionTokens": 327,
+    "reasoningTokens": 211,
+    "totalTokens": 19503
+  },
+  "gatewayRequestId": "req-7f69037e-da02-4bbe-81be-df12fdcc1125"
+}
