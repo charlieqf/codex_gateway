@@ -21,6 +21,57 @@ function decision(prompt: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe("narrative review Agent boundary", () => {
+  it("audits every assigned source in parallel and carries specific findings into subsequent whole-report review", async () => {
+    const references = [1, 2, 3].map(citation => ({ citation, source_id: `src_${citation}`, abstract: "Participants had the condition; the effect was observational. END_OF_SOURCE_" + citation }));
+    const assigned: string[][] = [];
+    const initial = draft();
+    let calls = 0;
+    const result = await reviewNarrativeWithAgent({ draft: initial, language: "en", contract: "Medical contract", evidence: { references }, maximumCalls: 6, sourceAudits: true, inspect,
+      async generate(request) {
+        calls++;
+        if (request.prompt.startsWith("INDEPENDENT SOURCE AUDIT")) {
+          expect(request.maximumOutputTokens).toBe(4000);
+          const data = JSON.parse(request.prompt.split("\n\n")[1]!);
+          assigned.push(data.assigned_sources.map((source: { source_id: string }) => source.source_id));
+          expect(request.prompt).toContain("END_OF_SOURCE_");
+          return JSON.stringify({ findings: [{ target_id: "review_block_2", source_id: data.assigned_sources[0].source_id, explanation: "Recheck group definition and causal interpretation against the original source." }] });
+        }
+        const data = payload(request.prompt);
+        expect(assigned).toHaveLength(2);
+        expect(data.source_audits.flatMap((audit: { findings: unknown[] }) => audit.findings)).toHaveLength(2);
+        if (request.call === 3) return JSON.stringify(decision(request.prompt, { decision: "revise", replacements: [{ target_id: "review_block_2", value: "The participants had the condition; the observed association is not causal.[1]" }] }));
+        return JSON.stringify(decision(request.prompt));
+      }
+    });
+    expect(assigned.flat().sort()).toEqual(["src_1", "src_2", "src_3"]);
+    expect(calls).toBe(4);
+    expect(result?.calls).toBe(4);
+    expect(result?.draft.review.markdown).toContain("not causal");
+  });
+
+  it.each(["wrong_source", "provider_failure"])("does not silently skip an invalid or failed source audit: %s", async kind => {
+    const failure = new Error("Temporary provider failure");
+    let reviewCalls = 0;
+    let siblingCompleted = false;
+    const sources = { references: [evidence.references[0], { ...evidence.references[0], citation: 2, source_id: "src_2" }] };
+    const execute = reviewNarrativeWithAgent({ draft: draft(), language: "en", contract: "Medical contract", evidence: sources, maximumCalls: 4, sourceAudits: true, inspect,
+      async generate(request) {
+        if (!request.prompt.startsWith("INDEPENDENT SOURCE AUDIT")) reviewCalls++;
+        if (request.call === 2) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+          siblingCompleted = true;
+          return JSON.stringify({ findings: [] });
+        }
+        if (kind === "provider_failure") throw failure;
+        return JSON.stringify({ findings: [{ target_id: "review_block_2", source_id: "unassigned_source", explanation: "Unsupported diagnostic" }] });
+      }
+    });
+    if (kind === "provider_failure") await expect(execute).rejects.toBe(failure);
+    else expect(await execute).toBeNull();
+    expect(reviewCalls).toBe(0);
+    expect(siblingCompleted).toBe(true);
+  });
+
   it("separates semantic observations from hard identifier, markup and length checks", () => {
     expect(splitNarrativeDiagnostics(["numeric_evidence_closure:p1:7", "causal_claim_evidence_grade:paragraph=2", "review_orphaned_demonstrative_start:paragraph=2", "citation_reference_closure", "review_content_minimum:10/5000", "unsafe_model_markup:raw_url"])).toEqual({
       blocking: ["citation_reference_closure", "review_content_minimum:10/5000", "unsafe_model_markup:raw_url"],

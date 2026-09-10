@@ -3824,6 +3824,10 @@ describe("Research Worker controlled-beta workflow", () => {
             predicted_questions: ["现有证据说明什么？", "研究设计有何差异？", "证据存在哪些局限？", "结果是否一致？", "下一步研究方向是什么？"],
             answers: Array.from({ length: 5 }, (_, i) => ({ question_index: i + 1, answer: "现有证据支持谨慎解释。", source_ids: ["src_pubmed_1001"] }))
           } : { schema_version: "doctor_research_review_fragment.v1", markdown: skillClosingFragment(30, 25, 12, false) };
+        } else if (narrativeAgent && request.stage === "validate_outputs" && request.prompt.startsWith("INDEPENDENT SOURCE AUDIT")) {
+          const auditInput = JSON.parse(request.prompt.split("INDEPENDENT SOURCE AUDIT\n\n")[1]!);
+          expect(auditInput.assigned_sources[0].abstract).toContain("Randomized evidence");
+          response = { findings: [] };
         } else if (narrativeAgent && request.stage === "validate_outputs") {
           narrativeReviews++;
           const reviewInput = JSON.parse(request.prompt.split("INDEPENDENT NARRATIVE REVIEW\n\n")[1]!);

@@ -312,6 +312,28 @@
       "content_findings": [
         "The final narrative describes a symptomatic HOA group as asymptomatic. An earlier model review identified this concern but its entire patch batch was rejected for a copied target-hash typo; later reviews lost the concern."
       ]
+    },
+    {
+      "id": "workflow-replay8",
+      "kind": "diagnostic_saved_evidence_workflow",
+      "serpapi_requests": 0,
+      "model_calls": 4,
+      "elapsed_ms": 211170,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "248e938ccf8547210f797763fbff3399e1e260ef8fe38326a3d0c2d70b6a7c28",
+      "evidence_archive_sha256": "1d700e66069a2bba5f1cb7df3d815643035a02a605b1fd86d6e7a806fa5dffd0",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": true,
+      "fresh_case_acceptance_eligible": false,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4,
+      "content_acceptance": "failed_manual_spotcheck",
+      "content_findings": [
+        "The same symptomatic/asymptomatic group-definition error remains. All four whole-report reviews missed it; source-focused independent audits have not yet been tested."
+      ]
     }
   ],
   "total_new_serpapi_requests": 4,

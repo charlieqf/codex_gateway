@@ -5674,6 +5674,7 @@ async function reviewShardedNarrativeWithAgent(
   if (remainingReviewCalls < 1) return null;
   const reviewed = await reviewNarrativeWithAgent({
     draft, language: context.run.language,
+    sourceAudits: true,
     contract: compactMedicalSkillExecutionContract(medicalSkillBundle),
     evidence: {
       search_queries: evidence.searchQueries,
@@ -5696,7 +5697,7 @@ async function reviewShardedNarrativeWithAgent(
       const response = await context.generateModel({
         stage: "validate_outputs", attempt: firstAttempt + request.call - 1,
         system: request.system, prompt: request.prompt, reasoningEffort: "none",
-        maximumOutputTokens: Math.min(16_000, context.input.policy.maximumOutputTokensPerCall),
+        maximumOutputTokens: Math.min(request.maximumOutputTokens ?? 16_000, context.input.policy.maximumOutputTokensPerCall),
         // Full-evidence revision can legitimately exceed the former 110-second
         // provider slice. Keep the run deadline authoritative and avoid paying
         // for the same interrupted long response on every lease recovery.
