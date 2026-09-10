@@ -42,6 +42,24 @@ describe("Research Worker fail-closed configuration", () => {
     });
   });
 
+  it("requires an explicit budget for the evidence-driven identity Agent", () => {
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+      RESEARCH_MAX_CHECKPOINT_BYTES: "100000" })).toThrow("900000-byte Agent state");
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+      RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS: "1" })).toThrow("publication reads must cover");
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+      RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000", RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000" }))
+      .toThrow("every enabled identity Agent call");
+    const config = loadResearchWorkerConfig({ ...validEnvironment(),
+      RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_MAX_LLM_CALLS_PER_RUN: "24",
+      RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000", RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
+      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "200000"
+    });
+    expect(config?.workflowPolicy).toMatchObject({ identityAgentEnabled: true,
+      identityInvestigation: { maximumSearchRequests: 4, maximumPageRequests: 12, maximumModelCalls: 8 },
+      evidenceInvestigation: { maximumSearchRequests: 4, maximumPublicationRequests: 30, maximumPageRequests: 4, maximumModelCalls: 10 } });
+  });
+
   it("allows the run budget to account for provider-reported hidden reasoning", () => {
     const config = loadResearchWorkerConfig({
       ...validEnvironment(),
@@ -121,7 +139,7 @@ describe("Research Worker fail-closed configuration", () => {
         ...validEnvironment(),
         RESEARCH_MAX_LLM_CALLS_PER_RUN: "2"
       })
-    ).toThrow("must cover one bounded topic-inference call");
+    ).toThrow("must cover six bounded synthesis or review calls");
 
     expect(() =>
       loadResearchWorkerConfig({

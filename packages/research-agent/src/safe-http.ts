@@ -25,6 +25,8 @@ export interface ApprovedWebDocument {
   contentSha256: string;
   sizeBytes: number;
   navigationLinks?: readonly { url: string; text: string }[];
+  structuredText?: string;
+  researchLinks?: readonly { url: string; text: string }[];
 }
 
 export class ResearchSourceFormatError extends Error {
@@ -285,6 +287,8 @@ export async function fetchApprovedWebDocument(input: {
       title,
       text,
       navigationLinks: contentType === "text/plain" ? [] : extractNavigationLinks(html, current),
+      structuredText: contentType === "text/plain" ? html : htmlToStructuredText(html),
+      researchLinks: contentType === "text/plain" ? [] : extractNavigationLinks(html, current, true),
       contentSha256: createHash("sha256").update(response.bytes).digest("hex"),
       sizeBytes: response.bytes.length
     };
@@ -561,17 +565,17 @@ function extractHtmlTitle(html: string): string {
   return match ? normalizeText(decodeHtmlEntities(match[1]!)).slice(0, 300) : "";
 }
 
-function extractNavigationLinks(html: string, base: URL): { url: string; text: string }[] {
+function extractNavigationLinks(html: string, base: URL, includeExternal = false): { url: string; text: string }[] {
   const links: { url: string; text: string }[] = [];
   for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*(["'])([^"']{1,2048})\1[^>]*>([\s\S]*?)<\/a>/giu)) {
     const label = htmlToText(match[3]!).slice(0, 200);
     if (!label) continue;
     try {
       const url = new URL(decodeHtmlEntities(match[2]!), base);
-      if (url.protocol !== "https:" || url.hostname !== base.hostname || url.username || url.password) continue;
+      if (url.protocol !== "https:" || (!includeExternal && url.hostname !== base.hostname) || url.username || url.password) continue;
       url.hash = "";
       links.push({ url: url.toString(), text: label });
-      if (links.length >= 250) break;
+      if (links.length >= (includeExternal ? 1_000 : 250)) break;
     } catch { /* Invalid links are not discovery candidates. */ }
   }
   return links;
@@ -584,6 +588,19 @@ function htmlToText(html: string): string {
   return normalizeText(
     decodeHtmlEntities(withoutUnsafeBlocks.replace(/<[^>]+>/gu, " "))
   ).slice(0, 200_000);
+}
+
+/** Retain row/card/heading boundaries for semantic person attribution. */
+export function htmlToStructuredText(html: string): string {
+  const text = html
+    .replace(/<(script|style|noscript|template|svg|canvas)\b[\s\S]*?<\/\1>/giu, " ")
+    .replace(/<!--[\s\S]*?-->/gu, " ")
+    .replace(/<\/(td|th)\s*>/giu, " | ")
+    .replace(/<\/?(?:h[1-6]|p|div|section|article|li|tr|table|dl|dt|dd|br|header|footer|main)\b[^>]*>/giu, "\n")
+    .replace(/<[^>]+>/gu, " ");
+  return decodeHtmlEntities(text).normalize("NFC").split(/\r?\n/u)
+    .map(line => line.replace(/\s+/gu, " ").trim()).filter(Boolean)
+    .join("\n").slice(0, 200_000);
 }
 
 function decodeHtmlEntities(value: string): string {

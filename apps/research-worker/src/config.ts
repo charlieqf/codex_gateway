@@ -140,6 +140,23 @@ export function loadResearchWorkerConfig(
       "RESEARCH_ARTIFACT_TTL_SECONDS must equal RESEARCH_RESULT_TTL_SECONDS."
     );
   }
+  const identityAgentEnabled = parseBoolean(env.RESEARCH_IDENTITY_AGENT_ENABLED, false, "RESEARCH_IDENTITY_AGENT_ENABLED");
+  const maximumCheckpointBytes = boundedInteger(env.RESEARCH_MAX_CHECKPOINT_BYTES, "RESEARCH_MAX_CHECKPOINT_BYTES", 10 * 1_024 * 1_024);
+  if (identityAgentEnabled && maximumCheckpointBytes < 900_000) {
+    throw new Error("RESEARCH_MAX_CHECKPOINT_BYTES must cover the 900000-byte Agent state bound.");
+  }
+  const identityInvestigation = {
+    maximumSearchRequests: boundedInteger(env.RESEARCH_IDENTITY_MAX_SEARCH_REQUESTS ?? "4", "RESEARCH_IDENTITY_MAX_SEARCH_REQUESTS", 20),
+    maximumPageRequests: boundedInteger(env.RESEARCH_IDENTITY_MAX_PAGE_REQUESTS ?? "12", "RESEARCH_IDENTITY_MAX_PAGE_REQUESTS", 40),
+    maximumModelCalls: boundedInteger(env.RESEARCH_IDENTITY_MAX_MODEL_CALLS ?? "8", "RESEARCH_IDENTITY_MAX_MODEL_CALLS", 20),
+    maximumStoredCharacters: 180_000
+  };
+  const evidenceInvestigation = {
+    maximumSearchRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS", 10),
+    maximumPublicationRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS ?? "30", "RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS", 60),
+    maximumPageRequests: boundedInteger(env.RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS ?? "4", "RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS", 12),
+    maximumModelCalls: boundedInteger(env.RESEARCH_EVIDENCE_MAX_MODEL_CALLS ?? "10", "RESEARCH_EVIDENCE_MAX_MODEL_CALLS", 16)
+  };
   const budgets: ResearchRunBudgetLimits = {
     externalRequests: boundedInteger(
       env.RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN,
@@ -154,7 +171,7 @@ export function loadResearchWorkerConfig(
     llmCalls: boundedInteger(
       env.RESEARCH_MAX_LLM_CALLS_PER_RUN,
       "RESEARCH_MAX_LLM_CALLS_PER_RUN",
-      7
+      32
     ),
     inputTokens: boundedInteger(
       env.RESEARCH_MAX_INPUT_TOKENS_PER_RUN,
@@ -411,6 +428,9 @@ export function loadResearchWorkerConfig(
       "RESEARCH_MIN_REFERENCES must not exceed RESEARCH_MAX_PUBLICATIONS."
     );
   }
+  if (identityAgentEnabled && minimumReferences > evidenceInvestigation.maximumPublicationRequests) {
+    throw new Error("Evidence Agent publication reads must cover the required reference minimum.");
+  }
   const maximumOfficialResults = boundedInteger(
     env.RESEARCH_MAX_OFFICIAL_RESULTS,
     "RESEARCH_MAX_OFFICIAL_RESULTS",
@@ -439,8 +459,11 @@ export function loadResearchWorkerConfig(
       "RESEARCH_MAX_EXTERNAL_RESPONSE_BYTES_PER_CALL must cover every adapter response byte limit."
     );
   }
-  const singleAttemptExternalRequestUnits =
-    6 +
+  const singleAttemptExternalRequestUnits = identityAgentEnabled
+    ? identityInvestigation.maximumSearchRequests + identityInvestigation.maximumPageRequests * 8 +
+      evidenceInvestigation.maximumSearchRequests * 3 + evidenceInvestigation.maximumPublicationRequests * 6 +
+      evidenceInvestigation.maximumPageRequests * 8 + Math.min(maximumPublications + 5, evidenceInvestigation.maximumPublicationRequests) * 3
+    : 6 +
     (webProvider === "direct" ? 0 : 8) +
     (maximumOfficialResults + (webProvider === "direct" ? 0 : 4)) * 8 +
     3 +
@@ -499,14 +522,18 @@ export function loadResearchWorkerConfig(
     "RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED"
   );
   const fullSynthesisCallCount = 6;
+  const identityModelCalls = identityAgentEnabled ? identityInvestigation.maximumModelCalls : 0;
+  const evidenceModelCalls = identityAgentEnabled ? evidenceInvestigation.maximumModelCalls : 0;
+  const topicModelCalls = identityAgentEnabled ? 0 : 1;
   const requiredOutputTokenBudget =
     maximumOutputTokensPerCall * fullSynthesisCallCount +
-    researchTopicInferenceModelBudget.maximumOutputTokens;
+    topicModelCalls * researchTopicInferenceModelBudget.maximumOutputTokens + identityModelCalls * Math.min(3_000, maximumOutputTokensPerCall) +
+    evidenceModelCalls * Math.min(6_000, maximumOutputTokensPerCall);
   const requiredInputTokenBudget =
     maximumInputTokensPerCall * fullSynthesisCallCount +
-    researchTopicInferenceModelBudget.maximumInputTokens;
+    topicModelCalls * researchTopicInferenceModelBudget.maximumInputTokens + (identityModelCalls + evidenceModelCalls) * maximumInputTokensPerCall;
   if (
-    budgets.llmCalls !== fullSynthesisCallCount + 1 ||
+    budgets.llmCalls !== fullSynthesisCallCount + topicModelCalls + identityModelCalls + evidenceModelCalls ||
     maximumOutputTokensPerCall <
       researchTopicInferenceModelBudget.maximumOutputTokens ||
     maximumInputTokensPerCall <
@@ -517,7 +544,7 @@ export function loadResearchWorkerConfig(
     requiredInputTokenBudget > budgets.inputTokens
   ) {
     throw new Error(
-      "Research LLM budgets must cover one bounded topic-inference call and six bounded synthesis or review calls, including the reserved retry/correction slot."
+      "Research LLM budgets must cover six bounded synthesis or review calls, the legacy topic call when used, and every enabled identity Agent call and evidence Agent call."
     );
   }
   const llmTimeoutMs = requiredTimerMilliseconds(
@@ -710,6 +737,8 @@ export function loadResearchWorkerConfig(
       hardDeadlineMs,
       synthesisShardCount,
       doctorLookupBriefEnabled,
+      identityAgentEnabled,
+      ...(identityAgentEnabled ? { identityInvestigation, evidenceInvestigation } : {}),
       budgets,
       forbiddenOutputFragments
     },
@@ -740,11 +769,7 @@ export function loadResearchWorkerConfig(
         env.RESEARCH_NEEDS_INPUT_TTL_SECONDS,
         "RESEARCH_NEEDS_INPUT_TTL_SECONDS"
       ),
-      maximumCheckpointBytes: boundedInteger(
-        env.RESEARCH_MAX_CHECKPOINT_BYTES,
-        "RESEARCH_MAX_CHECKPOINT_BYTES",
-        10 * 1_024 * 1_024
-      ),
+      maximumCheckpointBytes,
       maximumResultBytes: boundedInteger(
         env.RESEARCH_MAX_RESULT_BYTES,
         "RESEARCH_MAX_RESULT_BYTES",

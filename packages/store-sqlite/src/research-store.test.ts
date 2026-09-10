@@ -20,6 +20,30 @@ afterEach(() => {
 });
 
 describe("ResearchSqliteStore", () => {
+  it("replaces Agent state under the active lease and resumes it without letting stale workers overwrite it", () => {
+    const store = createStore(":memory:");
+    const now = new Date("2026-09-10T00:00:00Z");
+    store.createRun(command("subj_agent", "agent-state", "agent-state-hash", "agent-person", now));
+    const first = store.acquireLease({ workerId: "agent-old", leaseSeconds: 120, now })!;
+    for (const requests of [1, 2]) {
+      const payload = { searches: [{ query: "generic query", status: "succeeded" }], requests };
+      expect(store.writeAgentState({ token: first.token, stage: "discover_identity", payload,
+        payloadSha256: checkpointHash(payload), progressPercent: 7, now })).toEqual({ outcome: "written" });
+    }
+    const afterExpiry = new Date(now.getTime() + 121_000);
+    const second = store.acquireLease({ workerId: "agent-new", leaseSeconds: 120, now: afterExpiry })!;
+    expect(store.readAgentState({ token: second.token, stage: "discover_identity", now: afterExpiry }))
+      .toMatchObject({ outcome: "read", payload: { requests: 2 } });
+    expect(store.readAgentState({ token: first.token, stage: "discover_identity", now: afterExpiry }))
+      .toEqual({ outcome: "fenced_or_cancelled" });
+    expect(store.writeAgentState({ token: first.token, stage: "discover_identity", payload: {},
+      payloadSha256: checkpointHash({}), progressPercent: 7, now: afterExpiry }))
+      .toEqual({ outcome: "fenced_or_cancelled" });
+    expect(store.database.prepare("SELECT COUNT(*) AS n FROM research_checkpoints WHERE checkpoint_version = 1000").get()).toMatchObject({ n: 1 });
+    expect(store.database.prepare("PRAGMA quick_check").get()).toMatchObject({ quick_check: "ok" });
+    store.close();
+  });
+
   it("creates an independent WAL schema with the Phase 0 invariant tables", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-research-store-"));
     cleanupDirs.push(dir);

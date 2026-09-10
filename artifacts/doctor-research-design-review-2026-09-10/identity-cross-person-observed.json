@@ -1,0 +1,22 @@
+{
+  "kind": "synthetic_offline_counterexample",
+  "network_requests": 0,
+  "requested": {
+    "name": "Alice Example",
+    "hospital": "Example University Hospital",
+    "department": "Cardiology",
+    "orcid": null
+  },
+  "source_text": "Example University Hospital staff directory. Alice Example: Department of Nephrology. Bob Example: Department of Cardiology.",
+  "expected_identity_resolved": false,
+  "actual_identity_resolved": true,
+  "decisions": [
+    {
+      "source_id": "src_synthetic_directory",
+      "reason": "accepted"
+    }
+  ],
+  "match_basis": [
+    "reviewed_professional_publisher"
+  ]
+}

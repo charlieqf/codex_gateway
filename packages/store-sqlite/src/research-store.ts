@@ -1346,6 +1346,35 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
   writeCheckpoint(
     input: WriteResearchCheckpointInput
   ): WriteResearchCheckpointResult {
+    return this.writeCheckpointRecord(input, false);
+  }
+
+  writeAgentState(input: Omit<WriteResearchCheckpointInput, "checkpointVersion">): WriteResearchCheckpointResult {
+    // Reserved state slot; legacy immutable checkpoint writes remain unchanged.
+    return this.writeCheckpointRecord({ ...input, checkpointVersion: 1_000 }, true);
+  }
+
+  readAgentState(input: { token: ResearchLeaseToken; stage: ResearchRunStage; now?: Date }):
+    | { outcome: "read"; payload: unknown | null }
+    | { outcome: "fenced_or_cancelled" } {
+    validateLeaseToken(input.token);
+    const now = (input.now ?? new Date()).toISOString();
+    return inImmediateTransaction(this.db, () => {
+      const active = this.db.prepare(`SELECT run_id FROM research_runs
+        WHERE run_id = ? AND status = 'running' AND lease_owner = ?
+          AND lease_generation = ? AND lease_until > ? AND cancel_requested_at IS NULL`)
+        .get(input.token.runId, input.token.owner, input.token.generation, now);
+      if (!active) return { outcome: "fenced_or_cancelled" };
+      const row = this.db.prepare(`SELECT payload_json, payload_sha256 FROM research_checkpoints
+        WHERE run_id = ? AND stage = ? AND checkpoint_version = 1000`)
+        .get(input.token.runId, input.stage) as { payload_json: string; payload_sha256: string } | undefined;
+      if (!row) return { outcome: "read", payload: null };
+      if (createHash("sha256").update(row.payload_json).digest("hex") !== row.payload_sha256) throw new Error("Research Agent state checksum mismatch.");
+      return { outcome: "read", payload: JSON.parse(row.payload_json) as unknown };
+    });
+  }
+
+  private writeCheckpointRecord(input: WriteResearchCheckpointInput, replaceAgentState: boolean): WriteResearchCheckpointResult {
     const now = input.now ?? new Date();
     validateLeaseToken(input.token);
     positiveInteger(input.checkpointVersion, "checkpointVersion");
@@ -1406,7 +1435,7 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
             lease_generation = excluded.lease_generation,
             created_at = excluded.created_at
           WHERE research_checkpoints.lease_generation <
-            excluded.lease_generation`
+            excluded.lease_generation OR (? = 1 AND research_checkpoints.lease_generation = excluded.lease_generation)`
         )
         .run(
           input.token.runId,
@@ -1415,7 +1444,8 @@ export class ResearchSqliteStore implements ResearchStore, ResearchWorkerStore {
           payloadJson,
           payloadSha256,
           input.token.generation,
-          now.toISOString()
+          now.toISOString(),
+          replaceAgentState ? 1 : 0
         );
       if (inserted.changes === 0) {
         const existing = this.db
@@ -3187,6 +3217,8 @@ function failurePublicDetail(
   > = {
     identity_not_resolved:
       "The public search did not verify the requested name, hospital, and department as one doctor. This does not mean the doctor does not exist.",
+    resource_budget_exceeded:
+      "The research task exhausted its search, reading, or model budget before completing verification. This does not mean the requested person could not be found.",
     insufficient_research_evidence:
       "There was not enough verified public evidence to produce the result.",
     upstream_unavailable:

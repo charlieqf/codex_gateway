@@ -1,0 +1,110 @@
+{
+  "input": {
+    "name": "Shoshana Sztal-Mazer",
+    "hospital": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  },
+  "outcome": "resolved",
+  "identity": {
+    "name": "Shoshana Sztal-Mazer",
+    "institution": "Alfred Health, The Alfred (Melbourne)",
+    "department": "Endocrinology (Consultant Endocrinologist, Endocrinology Clinic)",
+    "citations": [
+      {
+        "aspect": "person",
+        "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+        "quote": "Dr Shoshana Sztal-Mazer: Endocrinology",
+        "explanation": "The official Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among the clinic consultants, confirming the person and her endocrinology specialty."
+      },
+      {
+        "aspect": "department",
+        "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+        "quote": "Endocrinology Clinic",
+        "explanation": "The page title and service listing confirm the department is Endocrinology at Alfred Health, matching the requested 内分泌科."
+      },
+      {
+        "aspect": "institution",
+        "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+        "quote": "The Alfred\n55 Commercial Rd,\nMelbourne VIC 3004",
+        "explanation": "The clinic contact details on the official Alfred Health website confirm the institution is The Alfred (Alfred Health), Melbourne, matching the requested 阿尔弗雷德医院."
+      },
+      {
+        "aspect": "authority",
+        "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+        "quote": "Clinic consultants\nProf Anthony Russell: Endocrinology",
+        "explanation": "The listing appears in an official directory of clinic consultants published by Alfred Health itself, making it an authoritative primary source for staffing at this hospital."
+      }
+    ]
+  },
+  "elapsed_ms": 43978,
+  "serpapi_requests": 1,
+  "legacy_calls": 0,
+  "model_calls": [
+    {
+      "role": "investigator",
+      "attempt": 1,
+      "elapsed_ms": 2577,
+      "gateway_request_id": "req-09637ed9-7132-446f-a43d-28426b67e9f7",
+      "response_sha256": "44a3a082902d1be9f5f9a12bf28c80db08d9d7a9c091d89a664cea57ea4ad66a",
+      "usage": {
+        "promptTokens": 897,
+        "completionTokens": 37,
+        "reasoningTokens": 0,
+        "totalTokens": 934
+      }
+    },
+    {
+      "role": "investigator",
+      "attempt": 2,
+      "elapsed_ms": 3201,
+      "gateway_request_id": "req-23eb72e3-03d6-4a0c-89cb-e7adb120584e",
+      "response_sha256": "4f8fed629955912bb5cd4b84e65df2964193c238721c7eec5601c0af4c36cfb5",
+      "usage": {
+        "promptTokens": 1590,
+        "completionTokens": 105,
+        "reasoningTokens": 23,
+        "totalTokens": 1695
+      }
+    },
+    {
+      "role": "investigator",
+      "attempt": 3,
+      "elapsed_ms": 7661,
+      "gateway_request_id": "req-99564f91-aff4-4fd1-98e6-8868f3bfdd31",
+      "response_sha256": "b75670a53b842f5039ee1e29017515aa5ef88e4fb8e7938939faa8893b7badd5",
+      "usage": {
+        "promptTokens": 5031,
+        "completionTokens": 435,
+        "reasoningTokens": 20,
+        "totalTokens": 5466
+      }
+    },
+    {
+      "role": "investigator",
+      "attempt": 4,
+      "elapsed_ms": 9169,
+      "gateway_request_id": "req-d31da909-34cb-4a87-b4a8-0d0c95a6ba2d",
+      "response_sha256": "4d2d65f098c732bf9bf113ec51743011b9b96fa18080d23d6d8cdde661cf76e2",
+      "usage": {
+        "promptTokens": 5061,
+        "completionTokens": 595,
+        "reasoningTokens": 236,
+        "totalTokens": 5656
+      }
+    },
+    {
+      "role": "identity_reviewer",
+      "attempt": 5,
+      "elapsed_ms": 1305,
+      "gateway_request_id": "req-83f6c765-8585-43fa-a239-00b4ecaead41",
+      "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+      "usage": {
+        "promptTokens": 3264,
+        "completionTokens": 10,
+        "reasoningTokens": 0,
+        "totalTokens": 3274
+      }
+    }
+  ],
+  "source_count": 1
+}

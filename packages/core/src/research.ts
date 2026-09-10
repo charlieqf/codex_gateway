@@ -399,6 +399,7 @@ export type ResearchFailureReason =
   | "upstream_unavailable"
   | "quality_gate_failed"
   | "model_contract_error"
+  | "resource_budget_exceeded"
   | "deadline_exceeded";
 
 export interface FailResearchRunInput {
@@ -661,6 +662,11 @@ export interface ResearchWorkerStore {
   writeCheckpoint(
     input: WriteResearchCheckpointInput
   ): WriteResearchCheckpointResult;
+  /** Mutable, lease-fenced Agent state; separate from immutable stage checkpoints. */
+  writeAgentState?(input: Omit<WriteResearchCheckpointInput, "checkpointVersion">): WriteResearchCheckpointResult;
+  readAgentState?(input: { token: ResearchLeaseToken; stage: ResearchRunStage; now?: Date }):
+    | { outcome: "read"; payload: unknown | null }
+    | { outcome: "fenced_or_cancelled" };
   completeSuccessfulRun(
     input: CompleteSuccessfulResearchRunInput
   ): CompleteSuccessfulResearchRunResult;

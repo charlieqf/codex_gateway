@@ -1,0 +1,20 @@
+{
+  "scope": "Only the two isolated evidence probe roots created 2026-09-11; earlier identity probe roots remain pending separate cleanup.",
+  "local_archives_verified_before_remote_removal": true,
+  "new_test_users_or_credentials": 0,
+  "production_services_changed": false,
+  "probes": [
+    {
+      "name": "doctor-research-agent-offline-evidence-20260911-v1",
+      "container_absent": true,
+      "private_env_absent": true,
+      "remote_directory_and_archives_removed": true
+    },
+    {
+      "name": "doctor-research-agent-offline-evidence-20260911-v2",
+      "container_absent": true,
+      "private_env_absent": true,
+      "remote_directory_and_archives_removed": true
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "version": "doctor_evidence_investigation.v1",
+  "inputSha256": "4afbac3602f72949f2a3017e383e1a2b2718a46dea27a5192c8d5ff46d0016ec",
+  "searches": [
+    {
+      "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])",
+      "purpose": "doctor",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    },
+    {
+      "query": "(hormone monitoring adults endocrine) AND (2022:2026[Date - Publication])",
+      "purpose": "field",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "pmid": "101",
+      "status": "succeeded",
+      "value": {
+        "referenceId": "ref_101",
+        "pmid": "101",
+        "doi": null,
+        "title": "Hormone monitoring in adults",
+        "journal": "Example Journal",
+        "publicationYear": 2025,
+        "authors": [
+          "Example A",
+          "Example B"
+        ],
+        "authorAffiliations": [
+          {
+            "author": "Example A",
+            "affiliations": [
+              "Nephrology, Different University Hospital"
+            ]
+          },
+          {
+            "author": "Example B",
+            "affiliations": [
+              "Endocrinology, Harbour University Hospital"
+            ]
+          }
+        ],
+        "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+        "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+        "accessedAt": "2026-09-10T14:15:48.609Z",
+        "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  ],
+  "pages": [],
+  "pageRequests": 0,
+  "modelCalls": 8,
+  "observations": [
+    {
+      "action": "search",
+      "result": {
+        "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])",
+        "purpose": "doctor",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "publication",
+      "result": {
+        "pmid": "101",
+        "status": "succeeded",
+        "value": {
+          "referenceId": "ref_101",
+          "pmid": "101",
+          "doi": null,
+          "title": "Hormone monitoring in adults",
+          "journal": "Example Journal",
+          "publicationYear": 2025,
+          "authors": [
+            "Example A",
+            "Example B"
+          ],
+          "authorAffiliations": [
+            {
+              "author": "Example A",
+              "affiliations": [
+                "Nephrology, Different University Hospital"
+              ]
+            },
+            {
+              "author": "Example B",
+              "affiliations": [
+                "Endocrinology, Harbour University Hospital"
+              ]
+            }
+          ],
+          "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+          "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+          "accessedAt": "2026-09-10T14:15:48.609Z",
+          "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    {
+      "action": "invalid_response",
+      "result": "Return one JSON object."
+    },
+    {
+      "action": "search",
+      "result": {
+        "query": "(hormone monitoring adults endocrine) AND (2022:2026[Date - Publication])",
+        "purpose": "field",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "invalid_response",
+      "result": "Return one JSON object."
+    },
+    {
+      "action": "invalid_response",
+      "result": "Return one JSON object."
+    },
+    {
+      "action": "invalid_response",
+      "result": "Return one JSON object."
+    },
+    {
+      "action": "invalid_response",
+      "result": "Return one JSON object."
+    }
+  ],
+  "reviewedEvidence": null
+}

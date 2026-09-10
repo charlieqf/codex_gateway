@@ -9,6 +9,25 @@ import {
 } from "./index.js";
 
 describe("Doctor Research live first-party adapters", () => {
+  it("executes an Agent search verbatim with one provider attempt and no candidate name filter", async () => {
+    const queries: string[] = [];
+    const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {
+      queries.push(new URL(String(input)).searchParams.get("q")!);
+      return jsonResponse({ search_metadata: { status: "Success" }, organic_results: [
+        { title: "Faculty directory", link: "https://unseen.example/staff", snippet: "Department staff and contact details" }
+      ] });
+    });
+    const adapters = new LiveResearchAdapters({ ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["legacy.example"] },
+      userAgent: "codex-gateway-research-test/1.0", fetchImpl });
+    const result = await adapters.searchWeb('"unseen name" department original-language', new AbortController().signal);
+    expect(queries).toEqual(['"unseen name" department original-language']);
+    expect(result[0]?.url).toBe("https://unseen.example/staff");
+    fetchImpl.mockImplementation(async () => { throw new DOMException("Synthetic timeout", "TimeoutError"); });
+    await expect(adapters.searchWeb("retry requires another agent action", new AbortController().signal)).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("distinguishes public IPv4/IPv6 from special-purpose ranges", () => {
     expect(isPublicResearchAddress("202.120.143.40")).toBe(true);
     expect(isPublicResearchAddress("2606:4700:4700::1111")).toBe(true);
@@ -510,7 +529,8 @@ describe("Doctor Research live first-party adapters", () => {
     expect(queries).toHaveLength(reviewedHomepage ? 1 : 2);
     const supplementalIds = await adapters.searchSupplementalOfficialSources("Markus Schwaiger", new AbortController().signal);
     expect(queries).toHaveLength(reviewedHomepage ? 2 : 3);
-    expect(queries.at(-1)).toBe('Markus Schwaiger (site:tum.de OR site:europeancancer.org OR site:rsna.org)');
+    // Discovery must not silently add a cohort-specific publisher allowlist.
+    expect(queries.at(-1)).toBe('Markus Schwaiger (site:tum.de)');
     expect(ids).toHaveLength(2);
     expect(supplementalIds).toHaveLength(1);
     expect(await adapters.fetchApprovedSource(supplementalIds[0]!, new AbortController().signal)).toMatchObject({
@@ -683,7 +703,7 @@ describe("Doctor Research live first-party adapters", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
-  it("rejects a PubMed identity search when NCBI drops every identity field", async () => {
+  it("preserves legacy filtering but exposes candidates and NCBI's rewrite to the Agent", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({
         esearchresult: {
@@ -711,6 +731,9 @@ describe("Doctor Research live first-party adapters", () => {
       )
     ).resolves.toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await expect(adapters.searchPubMedCandidates('"Example A"[Author]', new AbortController().signal))
+      .resolves.toEqual({ pmids: ["1001", "1002"], queryTranslation: "2022:2026[Date - Publication]", identityFieldsRetained: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("classifies an exhausted malformed PubMed response as a request-scoped upstream payload error", async () => {

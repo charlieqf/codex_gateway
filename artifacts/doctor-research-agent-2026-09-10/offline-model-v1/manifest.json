@@ -1,0 +1,13 @@
+{
+  "archive_sha256": "9f899e6f3edf3e215c02d57fe1070e678f69be3294c249627bdd6fb6bffb8135",
+  "worker_image": "sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be",
+  "serpapi_requests": 0,
+  "model_call_batch_limit": 12,
+  "files": {
+    "probe.mjs": "12e84c03d5b8bc1258e6ea434baa7f9491d2340720715cc48522286247d8038c",
+    "safe-http.js": "d5127fa2f6743382750c733407ec14b407a743758d5f0c99636275d8931c5dbf",
+    "identity-investigator.js": "5a59e6ed5451930f5c3ac1d38997b678e3495694c47df1d64ff9ea285d74d0d5"
+  },
+  "exit_code": 0,
+  "code_unchanged": true
+}

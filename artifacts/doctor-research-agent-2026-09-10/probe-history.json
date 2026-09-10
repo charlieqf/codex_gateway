@@ -1,0 +1,86 @@
+{
+  "account_before_live_probe": {
+    "checked_at_utc": "2026-09-10T13:34:58.583Z",
+    "plan_searches_left": 47,
+    "total_searches_left": 47,
+    "this_month_usage": 203,
+    "searches_per_month": 250,
+    "plan_renewal_date": "2026-10-07",
+    "search_requests": 0
+  },
+  "probes": [
+    {
+      "id": "offline-model-v1",
+      "kind": "real_model_synthetic_tools",
+      "serpapi_requests": 0,
+      "model_calls": 10,
+      "result": "Cross-language positive confirmed; cross-person negative rejected by reviewer but ended by budget exhaustion."
+    },
+    {
+      "id": "live-canary1",
+      "kind": "identity_only",
+      "archive_sha256": "85cc95c6dd2b47bd6f0e442a8ddb42583e0660d1ddcae884a0c7180bee953657",
+      "exit_code": 1,
+      "serpapi_requests": 0,
+      "model_calls": 0,
+      "result": "Probe bootstrap failed: missing orcid options in LiveResearchAdapters constructor."
+    },
+    {
+      "id": "live-canary2",
+      "kind": "identity_only",
+      "archive_sha256": "5bbd3753a47608855ef9e7dead936d7f752ea1468efa2655f5a6c316bef39617",
+      "exit_code": 0,
+      "serpapi_requests": 1,
+      "model_calls": 5,
+      "elapsed_ms": 43978,
+      "result": "Shoshana Sztal-Mazer identity resolved from three original fields; full research not executed."
+    },
+    {
+      "id": "offline-evidence-v1",
+      "kind": "real_model_synthetic_tools",
+      "serpapi_requests": 0,
+      "model_calls": 15,
+      "archive_sha256": "dd5e5d5858bfed3d686aa44a726d912ba5662530f565144ef068d4dc4ce3367e",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "cases": [
+        {
+          "id": "missing_affiliation_with_explicit_publication",
+          "outcome": "resolved",
+          "matched_authorship_expectation": false,
+          "elapsed_ms": 82512
+        },
+        {
+          "id": "coauthor_affiliation_and_directory_neighbor",
+          "outcome": "unresolved",
+          "matched_authorship_expectation": false,
+          "elapsed_ms": 96493
+        }
+      ]
+    },
+    {
+      "id": "offline-evidence-v2",
+      "kind": "real_model_synthetic_tools",
+      "serpapi_requests": 0,
+      "model_calls": 14,
+      "archive_sha256": "09932ab6cdaed56d6ef01e0fcce05f4a2d097a07c5b16bcbb864929f942df83a",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "cases": [
+        {
+          "id": "missing_affiliation_with_explicit_publication",
+          "outcome": "resolved",
+          "matched_authorship_expectation": true,
+          "elapsed_ms": 42069
+        },
+        {
+          "id": "coauthor_affiliation_and_directory_neighbor",
+          "outcome": "resolved",
+          "matched_authorship_expectation": true,
+          "elapsed_ms": 51551
+        }
+      ]
+    }
+  ],
+  "total_new_serpapi_requests": 1
+}

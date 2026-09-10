@@ -1,0 +1,352 @@
+[
+  {
+    "case_id": "missing_affiliation_with_explicit_publication",
+    "outcome": "resolved",
+    "evidence": {
+      "facts": [
+        {
+          "type": "position",
+          "text": "Alice Example 是港湾大学医院（Harbour University Hospital）内分泌科的顾问医师（Consultant）。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        },
+        {
+          "type": "expertise",
+          "text": "其专业领域为内分泌科（Endocrinology）。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        }
+      ],
+      "topics": {
+        "terms": [
+          "hormone monitoring in adults",
+          "成人激素监测"
+        ],
+        "explanation": "医院官方目录明确列出 Alice Example 的著作《Hormone monitoring in adults》（PMID 101），且该论文本身即关于成人激素监测的观察性研究，因此以成人激素监测作为综述范围符合证据支持。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example publications: Hormone monitoring in adults, PMID 101."
+          },
+          {
+            "sourceId": "src_pubmed_101",
+            "quote": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy."
+          }
+        ]
+      },
+      "doctorPublications": [
+        {
+          "pmid": "101",
+          "author": "Example A",
+          "affiliationQuote": null,
+          "corroboration": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example publications: Hormone monitoring in adults, PMID 101."
+            }
+          ],
+          "explanation": "医院官方目录明确将 PMID 101《Hormone monitoring in adults》列为 Alice Example 的著作，且 PubMed 作者名 'Example A' 与其姓名一致；尽管该作者在 PubMed 记录中无机构信息（authorAffiliations 为空），目录中的明确出版关联足以佐证此论文属于她本人。"
+        }
+      ],
+      "fieldPublications": [
+        {
+          "pmid": "101",
+          "rationale": "该论文是一项关于成人激素监测的观察性研究，直接对应已证实的专业范围与目录列出的研究方向，适合作为该领域的参考文献。"
+        }
+      ],
+      "limitations": [
+        "PubMed 记录（PMID 101）中作者 'Example A' 没有机构信息（authorAffiliations 为空），其本人隶属关系只能通过医院官方目录的明确出版关联间接佐证，而非 PubMed 元数据直接确认。",
+        "在设定的检索范围内（2022–2026 年，Alice Example[Author] AND Harbour University[Affiliation]）仅检索到一篇论文；未进行更广泛的姓名变体检索，不能声称已穷尽 PubMed 检索。",
+        "缺乏研究方向的直接自述来源；研究主题仅由目录所列著作及该论文摘要推断，而非个人档案中的明确研究方向声明。"
+      ]
+    },
+    "expected_own_papers": 1,
+    "matched_authorship_expectation": true,
+    "elapsed_ms": 42069,
+    "serpapi_requests": 0,
+    "tool_calls": [
+      {
+        "tool": "search_pubmed",
+        "query": "(Alice Example[Author] AND Harbour University[Affiliation]) AND (2022:2026[Date - Publication])"
+      },
+      {
+        "tool": "read_publication",
+        "pmid": "101"
+      },
+      {
+        "tool": "search_pubmed",
+        "query": "(hormone monitoring in adults AND (2022:2026[Date - Publication])) AND (2022:2026[Date - Publication])"
+      }
+    ],
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 2166,
+        "request_id": "req-05ca34a1-5ba7-4002-972a-ffe0e30981df",
+        "response_sha256": "48fcf9e0e5c06b46e8bfacb22da8ad2c449e4686b83b147f29eb7c58e997c80c",
+        "usage": {
+          "promptTokens": 1508,
+          "completionTokens": 53,
+          "reasoningTokens": 10,
+          "totalTokens": 1561
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 5025,
+        "request_id": "req-c0002460-f11e-4f9e-84a8-06ce4dcb6c86",
+        "response_sha256": "ccdda44e1f2824d8e08a7e78afe15159205d6cd4106177f13ff39a7b9e8c733c",
+        "usage": {
+          "promptTokens": 1609,
+          "completionTokens": 127,
+          "reasoningTokens": 110,
+          "totalTokens": 1736
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 3424,
+        "request_id": "req-a358b7c7-d2a8-444f-a6a5-c2fb74dfcf9c",
+        "response_sha256": "ccdda44e1f2824d8e08a7e78afe15159205d6cd4106177f13ff39a7b9e8c733c",
+        "usage": {
+          "promptTokens": 1781,
+          "completionTokens": 136,
+          "reasoningTokens": 119,
+          "totalTokens": 1917
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 4,
+        "elapsed_ms": 3672,
+        "request_id": "req-d0223dc0-1674-4e20-b513-02f1ef8ae030",
+        "response_sha256": "84cbdea190191fcba3881c459d8f99eb7119bf307e570d416e7849f769a4cb33",
+        "usage": {
+          "promptTokens": 1935,
+          "completionTokens": 89,
+          "reasoningTokens": 52,
+          "totalTokens": 2024
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 5,
+        "elapsed_ms": 15525,
+        "request_id": "req-54717aa7-11b2-4ce6-8f40-a5b5df3affb1",
+        "response_sha256": "44a6e06976c2042684cac45119504415fe2f09ab780c116b5cf31198f8a255a2",
+        "usage": {
+          "promptTokens": 2038,
+          "completionTokens": 645,
+          "reasoningTokens": 108,
+          "totalTokens": 2683
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 6,
+        "elapsed_ms": 9116,
+        "request_id": "req-d1767ba7-3fd3-4c03-b9cc-fd40ab303d76",
+        "response_sha256": "3cd3940e6115e8dbaed7f1dc1f10a068ee8ef48141d411d09c883dc247d4be28",
+        "usage": {
+          "promptTokens": 2642,
+          "completionTokens": 615,
+          "reasoningTokens": 78,
+          "totalTokens": 3257
+        }
+      },
+      {
+        "role": "evidence_reviewer",
+        "attempt": 7,
+        "elapsed_ms": 3122,
+        "request_id": "req-7409ea56-8684-43c5-8880-8156e84f18af",
+        "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+        "usage": {
+          "promptTokens": 1512,
+          "completionTokens": 83,
+          "reasoningTokens": 73,
+          "totalTokens": 1595
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "coauthor_affiliation_and_directory_neighbor",
+    "outcome": "resolved",
+    "evidence": {
+      "facts": [
+        {
+          "type": "position",
+          "text": "Alice Example 是港湾大学医院(Harbour University Hospital)内分泌科(Endocrinology)的顾问医师(Consultant)。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        },
+        {
+          "type": "expertise",
+          "text": "其已验证的专业领域为内分泌学(Endocrinology)。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        }
+      ],
+      "topics": {
+        "terms": [
+          "内分泌学",
+          "激素监测"
+        ],
+        "explanation": "该人员的已验证身份为港湾大学医院内分泌科顾问医师,因此本领域综述范围限定为内分泌学,尤其是激素监测方面的观察性研究。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      },
+      "doctorPublications": [],
+      "fieldPublications": [
+        {
+          "pmid": "101",
+          "rationale": "PMID 101《Hormone monitoring in adults》是一项关于成人激素监测的观察性研究(2025年,Example Journal),直接契合由该人员已验证的内分泌科专业职责所支持的综述范围(内分泌学 / 激素监测)。"
+        }
+      ],
+      "limitations": [
+        "无法验证 Alice Example 的任何本人论文:作者检索命中的 PMID 101,其作者列表为 \"Example A\" 与 \"Example B\"。虽然 \"Example A\"(姓 Example,名首字母 A)与 \"Alice Example\" 的 PubMed 作者格式表面一致,但该作者的单位为 \"Nephrology, Different University Hospital\",与港湾大学医院内分泌科不符,且没有任何外部资料(如包含出版物列表的公开主页)能确认该作者即 Alice Example 本人。",
+        "作者 \"Example B\" 的单位虽为 \"Endocrinology, Harbour University Hospital\",但其姓名格式与 Alice Example 不符,不能仅凭单位一致就将其归于该人员(单位匹配不等于作者归属)。",
+        "职位目录页面明确声明 \"No publication list is supplied on this directory page\",因此无法通过官方页面核实其发表记录。",
+        "剩余检索次数为 0,无法进一步通过 PubMed 检索确认或排除其作者身份;本结论仅基于已完成的检索与已读取的记录,不构成对 PubMed 的穷尽式检索。"
+      ]
+    },
+    "expected_own_papers": 0,
+    "matched_authorship_expectation": true,
+    "elapsed_ms": 51551,
+    "serpapi_requests": 0,
+    "tool_calls": [
+      {
+        "tool": "search_pubmed",
+        "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])"
+      },
+      {
+        "tool": "read_publication",
+        "pmid": "101"
+      },
+      {
+        "tool": "search_pubmed",
+        "query": "((Alice Example[Author]) AND (Harbour University[Affiliation] OR Endocrinology[Affiliation])) AND (2022:2026[Date - Publication])"
+      },
+      {
+        "tool": "search_pubmed",
+        "query": "(hormone monitoring[Title/Abstract] AND endocrinology[Title/Abstract] AND (observational OR measurement)) AND (2022:2026[Date - Publication])"
+      }
+    ],
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 11353,
+        "request_id": "req-a922aa94-c1ae-494e-99c8-1de517643bbc",
+        "response_sha256": "67d2018239f0f60bc5585d73733c25f632c72e9be5ab351363be4251106fafe0",
+        "usage": {
+          "promptTokens": 1501,
+          "completionTokens": 98,
+          "reasoningTokens": 74,
+          "totalTokens": 1599
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 1016,
+        "request_id": "req-d5141cae-995e-47d5-a5ba-ee49e0167ed4",
+        "response_sha256": "ccdda44e1f2824d8e08a7e78afe15159205d6cd4106177f13ff39a7b9e8c733c",
+        "usage": {
+          "promptTokens": 1576,
+          "completionTokens": 17,
+          "reasoningTokens": 0,
+          "totalTokens": 1593
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 5311,
+        "request_id": "req-4bbb3db5-c9ca-45e3-8093-211e4e416595",
+        "response_sha256": "188c80c25f608b2134ad1ab83bb35e84c72128093298a7c4e71eca34fcfba802",
+        "usage": {
+          "promptTokens": 1784,
+          "completionTokens": 168,
+          "reasoningTokens": 126,
+          "totalTokens": 1952
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 4,
+        "elapsed_ms": 3650,
+        "request_id": "req-e49c9540-3fa6-40e6-92b7-a7729b281e76",
+        "response_sha256": "46abe7e6e823a300a66dc1f0f572f8e1da6c3e8a3f2d59e036432619ee19a568",
+        "usage": {
+          "promptTokens": 1895,
+          "completionTokens": 171,
+          "reasoningTokens": 127,
+          "totalTokens": 2066
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 5,
+        "elapsed_ms": 12531,
+        "request_id": "req-483223b1-8a33-4337-baad-82659703e6e1",
+        "response_sha256": "15ce7cc5a1bcaff8107bf0f6c86e37b3ebed29ab2ee25c7542dc3bbfb6dcd8a0",
+        "usage": {
+          "promptTokens": 2012,
+          "completionTokens": 651,
+          "reasoningTokens": 267,
+          "totalTokens": 2663
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 6,
+        "elapsed_ms": 16543,
+        "request_id": "req-f9fa7603-c15d-4850-87f2-c015f9676b92",
+        "response_sha256": "bb91f955588b29978e889ca91fe53b0cd96fe9fa49fe9d649b8f12bac1564e70",
+        "usage": {
+          "promptTokens": 2472,
+          "completionTokens": 1041,
+          "reasoningTokens": 568,
+          "totalTokens": 3513
+        }
+      },
+      {
+        "role": "evidence_reviewer",
+        "attempt": 7,
+        "elapsed_ms": 1132,
+        "request_id": "req-4883cd04-18e5-4484-97ec-0eea0efbb120",
+        "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+        "usage": {
+          "promptTokens": 1528,
+          "completionTokens": 10,
+          "reasoningTokens": 0,
+          "totalTokens": 1538
+        }
+      }
+    ]
+  }
+]

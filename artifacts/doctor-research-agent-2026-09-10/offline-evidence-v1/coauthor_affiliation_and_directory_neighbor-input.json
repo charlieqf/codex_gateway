@@ -1,0 +1,65 @@
+{
+  "doctor": {
+    "name": "Alice Example",
+    "hospital": "港湾大学医院",
+    "department": "内分泌科",
+    "title": null,
+    "city": null,
+    "orcid": null,
+    "officialProfileUrls": []
+  },
+  "identity": {
+    "name": "Alice Example",
+    "institution": "Harbour University Hospital",
+    "department": "Endocrinology",
+    "citations": [
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "person",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "institution",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "department",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "authority",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      }
+    ]
+  },
+  "identityPages": [
+    {
+      "sourceId": "src_directory",
+      "url": "https://hospital.example/current-staff",
+      "title": "Current staff directory",
+      "accessedAt": "2026-09-10T14:15:48.609Z",
+      "contentSha256": "d604ed8668b5c69f568f4c4dd666b994ce0ad35948da14a90fe321b2a832e419",
+      "untrustedText": "Harbour University Hospital\nOfficial current staff directory\nAlice Example | Endocrinology | Consultant\nBob Example | Cardiology | Professor\nNo publication list is supplied on this directory page.\n",
+      "navigationLinks": []
+    }
+  ],
+  "language": "zh-CN",
+  "startYear": 2022,
+  "endYear": 2026,
+  "minimumReferences": 1,
+  "maximumReferences": 5,
+  "profileOnly": false,
+  "policy": {
+    "maximumSearchRequests": 3,
+    "maximumPublicationRequests": 3,
+    "maximumPageRequests": 1,
+    "maximumModelCalls": 8
+  }
+}

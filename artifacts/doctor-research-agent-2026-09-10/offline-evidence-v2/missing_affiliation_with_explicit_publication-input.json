@@ -1,0 +1,65 @@
+{
+  "doctor": {
+    "name": "Alice Example",
+    "hospital": "港湾大学医院",
+    "department": "内分泌科",
+    "title": null,
+    "city": null,
+    "orcid": null,
+    "officialProfileUrls": []
+  },
+  "identity": {
+    "name": "Alice Example",
+    "institution": "Harbour University Hospital",
+    "department": "Endocrinology",
+    "citations": [
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "person",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "institution",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "department",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      },
+      {
+        "sourceId": "src_directory",
+        "quote": "Alice Example | Endocrinology | Consultant",
+        "aspect": "authority",
+        "explanation": "Synthetic identity supplied for an isolated downstream evidence test."
+      }
+    ]
+  },
+  "identityPages": [
+    {
+      "sourceId": "src_directory",
+      "url": "https://hospital.example/current-staff",
+      "title": "Current staff directory",
+      "accessedAt": "2026-09-10T14:21:11.916Z",
+      "contentSha256": "0152496668395e8484d30b05dc4f030bae12ae9f8738da62c14fb7f1229b7dab",
+      "untrustedText": "Harbour University Hospital\nOfficial current staff directory\nAlice Example | Endocrinology | Consultant\nBob Example | Cardiology | Professor\nAlice Example publications: Hormone monitoring in adults, PMID 101.\n",
+      "navigationLinks": []
+    }
+  ],
+  "language": "zh-CN",
+  "startYear": 2022,
+  "endYear": 2026,
+  "minimumReferences": 1,
+  "maximumReferences": 5,
+  "profileOnly": false,
+  "policy": {
+    "maximumSearchRequests": 3,
+    "maximumPublicationRequests": 3,
+    "maximumPageRequests": 1,
+    "maximumModelCalls": 8
+  }
+}

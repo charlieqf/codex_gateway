@@ -1,0 +1,162 @@
+{
+  "scope": "Original seven reported cases plus eight disclosed blind cases; does not replace the broader repository regression suite.",
+  "requirements": {
+    "runtime_case_presets": false,
+    "only_original_three_fields": true,
+    "full_service_success_required": true,
+    "identity_only_is_not_full_success": true,
+    "excellent_total_seconds": 300,
+    "acceptable_total_seconds": 480,
+    "over_480_seconds_requires_investigation": true
+  },
+  "cases": [
+    {
+      "case_id": "user_01",
+      "input": {
+        "name": "沈嵘",
+        "hospital": "南京市妇幼保健院",
+        "department": "第四临床医学院副院长、附属妇产医院党委书记"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_02",
+      "input": {
+        "name": "漆洪波",
+        "hospital": "重庆医科大学附属第一医院",
+        "department": "副院长（妇产、母胎医学方向）"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_03",
+      "input": {
+        "name": "Leonhard Schaetz",
+        "hospital": "诺华",
+        "department": "放射配体治疗部门"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_04",
+      "input": {
+        "name": "Axel Rominger",
+        "hospital": "瑞士伯尔尼大学小岛医院",
+        "department": "核医学科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_05",
+      "input": {
+        "name": "Riemer Slart",
+        "hospital": "荷兰格罗宁根大学医学中心",
+        "department": "核医学与分子影像科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_06",
+      "input": {
+        "name": "Iva Hristova",
+        "hospital": "欧洲核医学协会",
+        "department": "认证项目"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "user_07",
+      "input": {
+        "name": "王永生",
+        "hospital": "四川大学华西医院",
+        "department": "肿瘤"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "CN01",
+      "input": {
+        "name": "钟历勇",
+        "hospital": "首都医科大学附属北京天坛医院",
+        "department": "内分泌科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "CN02",
+      "input": {
+        "name": "杨祖立",
+        "hospital": "中山大学附属第六医院",
+        "department": "普通外科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "CN03",
+      "input": {
+        "name": "王惠平",
+        "hospital": "天津医科大学总医院",
+        "department": "皮肤性病科（含医学美容科）"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "OS01",
+      "input": {
+        "name": "Jason Dunn",
+        "hospital": "盖伊和圣托马斯医院国民保健署基金会信托",
+        "department": "消化内科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "OS02",
+      "input": {
+        "name": "Tim Kerruish",
+        "hospital": "奥塔哥大学",
+        "department": "但尼丁内科学系急诊医学组"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "OS03",
+      "input": {
+        "name": "Alexander Tsoukas",
+        "hospital": "麦吉尔大学",
+        "department": "风湿病学部"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "OS04",
+      "input": {
+        "name": "飯田 円",
+        "hospital": "名古屋大学医学部附属医院",
+        "department": "神经内科"
+      },
+      "full_service_acceptance": "pending"
+    },
+    {
+      "case_id": "OS05",
+      "input": {
+        "name": "Shoshana Sztal-Mazer",
+        "hospital": "阿尔弗雷德医院",
+        "department": "内分泌科"
+      },
+      "full_service_acceptance": "pending",
+      "identity_only_evidence": "live-canary2/result.json"
+    }
+  ],
+  "additional_regression_cases": [
+    {
+      "case_id": "legacy_professional_publisher_paola",
+      "input": {
+        "name": "Paola Anna Erba",
+        "hospital": "比萨大学医院",
+        "department": "区域核医学中心"
+      },
+      "full_service_acceptance": "pending",
+      "note": "Legacy publisher-table identity test migrated to scripted Agent wiring; not real-case acceptance."
+    }
+  ]
+}

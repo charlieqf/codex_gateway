@@ -1,0 +1,99 @@
+{
+  "version": "doctor_identity_investigation.v1",
+  "inputSha256": "93780a63bc9a5419e402c5935a30f9b11a74633ed5f41fcc83f88544c2f8a32f",
+  "searches": [
+    {
+      "query": "Simone Example 港湾大学医院 内分泌科",
+      "status": "succeeded",
+      "results": [
+        {
+          "url": "https://hospital.example/current-staff",
+          "title": "Current staff directory",
+          "snippet": "Current staff directory"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "sourceId": "src_synthetic_official",
+      "url": "https://hospital.example/current-staff",
+      "title": "Current staff directory",
+      "accessedAt": "2026-09-10T13:28:21.356Z",
+      "contentSha256": "86aeb6a96f9d02c5188e1ebc3916055ec9d61c74fa5671b965e30c0e6689e530",
+      "untrustedText": "Harbour University Hospital\nOfficial staff directory\nDepartment of Endocrinology\nSimone Example\nConsultant endocrinologist\nSimone Example is a consultant in Endocrinology at Harbour University Hospital. This is the hospital's current staff profile.",
+      "navigationLinks": []
+    }
+  ],
+  "pageAliases": {
+    "https://hospital.example/current-staff": "https://hospital.example/current-staff"
+  },
+  "pageRequests": 1,
+  "modelCalls": 4,
+  "allowedUrls": [
+    "https://hospital.example/current-staff"
+  ],
+  "observations": [
+    {
+      "action": "search",
+      "result": {
+        "query": "Simone Example 港湾大学医院 内分泌科",
+        "status": "succeeded",
+        "results": [
+          {
+            "url": "https://hospital.example/current-staff",
+            "title": "Current staff directory",
+            "snippet": "Current staff directory"
+          }
+        ]
+      }
+    },
+    {
+      "action": "read",
+      "result": {
+        "sourceId": "src_synthetic_official",
+        "title": "Current staff directory",
+        "offset": 0,
+        "total_characters": 248,
+        "text": "Harbour University Hospital\nOfficial staff directory\nDepartment of Endocrinology\nSimone Example\nConsultant endocrinologist\nSimone Example is a consultant in Endocrinology at Harbour University Hospital. This is the hospital's current staff profile.",
+        "more_text": false,
+        "find_matched": true,
+        "url": "https://hospital.example/current-staff",
+        "links": [],
+        "links_offset": 0,
+        "total_links": 0
+      }
+    }
+  ],
+  "reviewedIdentity": {
+    "name": "Simone Example",
+    "institution": "Harbour University Hospital",
+    "department": "Department of Endocrinology – Consultant endocrinologist",
+    "citations": [
+      {
+        "aspect": "person",
+        "sourceId": "src_synthetic_official",
+        "quote": "Simone Example is a consultant in Endocrinology at Harbour University Hospital.",
+        "explanation": "The hospital's current staff directory names Simone Example, confirming the person's identity."
+      },
+      {
+        "aspect": "institution",
+        "sourceId": "src_synthetic_official",
+        "quote": "Simone Example is a consultant in Endocrinology at Harbour University Hospital. This is the hospital's current staff profile.",
+        "explanation": "The official hospital directory states her affiliation is Harbour University Hospital, matching the requested hospital 港湾大学医院."
+      },
+      {
+        "aspect": "department",
+        "sourceId": "src_synthetic_official",
+        "quote": "Department of Endocrinology\nSimone Example\nConsultant endocrinologist",
+        "explanation": "The directory lists her under the Department of Endocrinology with the role of consultant endocrinologist, matching the requested department 内分泌科."
+      },
+      {
+        "aspect": "authority",
+        "sourceId": "src_synthetic_official",
+        "quote": "Harbour University Hospital\nOfficial staff directory",
+        "explanation": "The page is explicitly labelled as the hospital's official staff directory, making it an authoritative first-party source for the person, institution and role."
+      }
+    ]
+  }
+}

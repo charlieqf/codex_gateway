@@ -1,0 +1,16 @@
+{
+  "archive_sha256": "5bbd3753a47608855ef9e7dead936d7f752ea1468efa2655f5a6c316bef39617",
+  "worker_image": "sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be",
+  "maximum_serpapi_requests": 2,
+  "model_call_batch_limit": 7,
+  "files": {
+    "institution-names.js": "438690dd3ec14ce72d27ec28bfc8ab27299d68e6d0cd1f37cb453e1e48f69a8b",
+    "probe.mjs": "5895e672f2e0125bf2a4b47d2f169205554e29b3cfb1e97ebdf7c8d0cf9a1da0",
+    "safe-http.js": "d5127fa2f6743382750c733407ec14b407a743758d5f0c99636275d8931c5dbf",
+    "input.json": "639fe67778759df68f765ee2fabf926347707bc03af03c9eb05cc9754551b65a",
+    "identity-investigator.js": "3b707a48366fcb43f0ec5c7d7fb3ede66f913fc40de7800223cb23b858c4fefd",
+    "live-adapters.js": "b2ff165415bf7d492531346fe64460bf9afec908b08658d21dd54e4eef9f56fd"
+  },
+  "exit_code": 0,
+  "code_unchanged": true
+}

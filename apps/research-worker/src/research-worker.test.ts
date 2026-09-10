@@ -67,12 +67,15 @@ describe("Research Worker controlled-beta workflow", () => {
     { name: "Leonhard Schaetz", hospital: "诺华", department: "放射配体治疗部门", url: "https://www.europeancancer.org/content/leonhard-schaetz.html", text: "Leonhard Schaetz. Novartis. International Head Health System Readiness and Partnership, Radioligand Therapies." },
     { name: "Axel Rominger", hospital: "瑞士伯尔尼大学小岛医院", department: "核医学科", url: "https://nukmed.insel.ch/de/ueber-uns/unser-team/details/person/detail/axel-rominger-1", text: "Axel Rominger. Inselspital Bern. Universitätsklinik für Nuklearmedizin." },
     { name: "Riemer Slart", hospital: "荷兰格罗宁根大学医学中心", department: "核医学与分子影像科", url: "https://www.umcg.nl/-/behandelteam-thoracale-oncologie", text: "UMCG. Nucleaire Geneeskunde en Moleculaire Beeldvorming. Riemer Slart." },
-    { name: "Iva Hristova", hospital: "欧洲核医学协会", department: "认证项目", url: "https://www.rsna.org/news/2021/september/QIBA-EARL", text: "European Association of Nuclear Medicine (EANM). EARL accreditation program. Iva Hristova, EARL program director." }
-  ])("recognizes screenshot input with evidenced multilingual or role context: $name", async (doctor) => {
+    { name: "Iva Hristova", hospital: "欧洲核医学协会", department: "认证项目", url: "https://www.rsna.org/news/2021/september/QIBA-EARL", text: "European Association of Nuclear Medicine (EANM). EARL accreditation program. Iva Hristova, EARL program director." },
+    { name: "Paola Anna Erba", hospital: "比萨大学医院", department: "区域核医学中心", url: "https://www.europeancancer.org/content/paola-anna-erba.html", text: "Paola Anna Erba. Regional Center of Nuclear Medicine at the University Hospital in Pisa." }
+  ])("passes a scripted Agent's evidence-backed identity into the remaining workflow: $name", async (doctor) => {
+    const source = identityRegressionSource(doctor);
     const result = await identityRegression(doctor, {
-      async searchOfficialSources() { return ["src_identity"]; },
-      async fetchApprovedSource() { return identityRegressionSource(doctor); }
-    });
+      async searchOfficialSources() { throw new Error("Legacy identity discovery must not run"); },
+      async searchWeb() { return [{ url: source.url, title: source.title, snippet: "Public professional profile" }]; },
+      async readWebPage() { return source; }
+    }, [], source);
     expect(result.checkpoint.official_source_count).toBe(1);
     expect(result.outcome).toEqual({ outcome: "failed", reason: "insufficient_research_evidence" });
     expect(result.inputDoctor).toMatchObject({ name: doctor.name, hospital: doctor.hospital, department: doctor.department });
@@ -92,12 +95,13 @@ describe("Research Worker controlled-beta workflow", () => {
   });
 
   it("supplements after a fetched hospital news page fails identity verification", async () => {
-    const doctor = { name: "王永生", hospital: "四川大学华西医院", department: "肿瘤", url: "https://www.wchscu.cn/expertlist/detail/68892.html", text: "王永生 主任医师 胸部肿瘤科 四川大学华西医院" };
+    // Test legacy queue behavior independently of the removed real-doctor host presets.
+    const doctor = { name: "张示例", hospital: "示例大学附属医院", department: "肿瘤", url: "https://hospital.example.gov.cn/doctor/example", text: "张示例 主任医师 胸部肿瘤科 示例大学附属医院" };
     let supplements = 0;
     const result = await identityRegression(doctor, {
       async searchOfficialSources() { return ["src_news"]; },
       async searchSupplementalOfficialSources() { supplements += 1; return ["src_identity"]; },
-      async fetchApprovedSource(id) { return id === "src_news" ? { ...identityRegressionSource(doctor), sourceId: id, untrustedText: "王永生参加实验室会议。四川大学华西医院。" } : identityRegressionSource(doctor); }
+      async fetchApprovedSource(id) { return id === "src_news" ? { ...identityRegressionSource(doctor), sourceId: id, untrustedText: "张示例参加实验室会议。示例大学附属医院。" } : identityRegressionSource(doctor); }
     });
     expect(supplements).toBe(1);
     expect(result.checkpoint.official_source_count).toBe(1);
@@ -125,7 +129,7 @@ describe("Research Worker controlled-beta workflow", () => {
   });
 
   it("continues the fetch queue past a slow candidate and cancels optional fetches after identity resolution", async () => {
-    const doctor = { name: "王永生", hospital: "四川大学华西医院", department: "肿瘤", url: "https://www.wchscu.cn/expertlist/detail/68892.html", text: "王永生 主任医师 胸部肿瘤科 四川大学华西医院" };
+    const doctor = { name: "张示例", hospital: "示例大学附属医院", department: "肿瘤", url: "https://hospital.example.gov.cn/doctor/example", text: "张示例 主任医师 胸部肿瘤科 示例大学附属医院" };
     let cancelled = 0;
     const result = await identityRegression(doctor, {
       async searchOfficialSources() { return ["slow1", "empty", "slow2", "src_identity"]; },
@@ -3715,6 +3719,107 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it("resumes a transient second Agent model call without replaying its successful web search", async () => {
+    const fixture = createLeasedWorkflowFixture("agent_model_resume");
+    const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    let searches = 0;
+    let firstAttempt = true;
+    const execute = () => executeDoctorResearchWorkflow({
+      lease: fixture.lease, store: fixture.store, artifactRoot: fixture.artifactRoot,
+      adapters: { ...adapters(),
+        async searchOfficialSources() { throw new Error("Legacy discovery must not run."); },
+        async searchWeb() { searches++; return [{ url: source.url, title: source.title, snippet: "Profile" }]; },
+        async readWebPage() { return source; }
+      },
+      modelClient: { model: "test-model", async generate(request) {
+        let value: unknown;
+        if (request.stage === "discover_identity" && request.attempt === 1) value = { actions: [{ type: "search", query: "Example Doctor" }] };
+        else if (firstAttempt) throw new ResearchModelClientError("upstream_error", 503, null);
+        else if (request.stage === "discover_identity" && request.attempt === 3) value = { actions: [{ type: "read", url: source.url }] };
+        else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+          citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId,
+            quote: source.untrustedText, explanation: "Scripted identity for recovery integration test." })) } };
+        else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
+        else value = { unresolved: "insufficient_evidence", explanation: "The fixture stops after resumed identity." };
+        return { text: JSON.stringify(value), gatewayRequestId: `req_resume_${request.stage}_${request.attempt}`,
+          usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } };
+      } },
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60000 } },
+      signal: new AbortController().signal, now: () => fixture.now
+    });
+    expect(await execute()).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
+    firstAttempt = false;
+    expect(await execute()).toEqual({ outcome: "failed", reason: "insufficient_research_evidence" });
+    expect(searches).toBe(1);
+    fixture.store.close();
+  });
+
+  it("carries reviewed Agent facts and author attribution into stored artifacts without legacy discovery or query preparation", async () => {
+    const fixture = createLeasedWorkflowFixture("agent_evidence_artifact_wiring");
+    const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    const queryLog: string[] = [];
+    const sourceAdapters: ResearchAdapterBundle = { ...adapters(),
+      async searchOfficialSources() { throw new Error("Legacy discovery must not run."); },
+      async fetchApprovedSource() { throw new Error("Legacy identity fetch must not run."); },
+      async searchWeb() { return [{ url: source.url, title: source.title, snippet: "Profile" }]; },
+      async readWebPage() { return source; },
+      async searchPubMed(query) { queryLog.push(query); return ["1001"]; }
+    };
+    const proposals: unknown[] = [
+      { actions: [{ type: "search_pubmed", purpose: "doctor", query: '"Example Doctor"[Author]' }] },
+      { actions: [{ type: "read_publications", pmids: ["1001"] }] },
+      { evidence: {
+        facts: [{ type: "expertise", text: "The verified clinical specialty is cardiology.",
+          citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] }],
+        topics: { terms: ["cardiology"], explanation: "The verified clinical specialty supports this field review.",
+          citations: [{ sourceId: source.sourceId, quote: "Example Doctor works in Cardiology at Example Hospital." }] },
+        doctorPublications: [{ pmid: "1001", author: "Example Doctor", affiliationQuote: "Cardiology, Example Hospital.",
+          corroboration: [], explanation: "This author's own affiliation matches the verified identity." }],
+        fieldPublications: [{ pmid: "1001", rationale: "The retrieved clinical evidence concerns the verified field." }], limitations: []
+      } }
+    ];
+    let discoveryCalls = 0;
+    const codes: string[][] = [];
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease, store: fixture.store, adapters: sourceAdapters,
+      modelClient: { model: "test-model", async generate(request) {
+        let response: unknown;
+        if (request.stage === "discover_identity") {
+          discoveryCalls++;
+          response = discoveryCalls === 1 ? { actions: [{ type: "search", query: "Example Doctor" }] }
+            : discoveryCalls === 2 ? { actions: [{ type: "read", url: source.url }] }
+            : { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+              citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId,
+                quote: source.untrustedText, explanation: "Scripted identity decision; semantic accuracy is evaluated separately." })) } };
+        } else if (request.stage === "resolve_identity" || request.stage === "screen_and_extract_evidence") response = { accepted: true, issues: [] };
+        else if (request.stage === "collect_profile_evidence") response = proposals.shift();
+        else {
+          expect(request.stage).not.toBe("infer_research_topics");
+          const draft = modelOutput();
+          // The synthesizer attempts an unsupported personal fact; only reviewed facts may reach artifacts.
+          draft.profile.expertise = ["Unreviewed surgery expertise"];
+          response = draft;
+        }
+        return { text: JSON.stringify(response), gatewayRequestId: `req_agent_${request.stage}_${request.attempt}`,
+          usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };
+      } },
+      artifactRoot: fixture.artifactRoot,
+      policy: { ...workflowPolicy(), identityAgentEnabled: true,
+        budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60_000 } },
+      signal: new AbortController().signal, now: () => fixture.now,
+      onValidationFailure(event) { codes.push([...event.errorCodes]); }
+    });
+    expect(outcome, JSON.stringify(codes)).toEqual({ outcome: "succeeded" });
+    expect(queryLog).toEqual(['("Example Doctor"[Author]) AND (2022:2026[Date - Publication])']);
+    const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId);
+    expect(result).toMatchObject({ result: { profile: {
+      expertise: ["The verified clinical specialty is cardiology."], research_directions: [],
+      representative_outputs: [expect.stringContaining("Retrieved Clinical Evidence")]
+    }, artifacts: expect.any(Array) } });
+    expect((result!.result.artifacts as unknown[])).toHaveLength(4);
+    fixture.store.close();
+  });
+
   it("uses one bounded third correction when peer review still fails quality gates", async () => {
     const fixture = createLeasedWorkflowFixture(
       "bounded_third_model_correction"
@@ -5837,7 +5942,6 @@ describe("Research Worker controlled-beta workflow", () => {
     { name: "Paola Anna Erba", hospital: "Università degli Studi di Milano-Bicocca", department: "DIPARTIMENTO DI MEDICINA E CHIRURGIA", home: "https://www.unimib.it/it/", profile: "https://www.unimib.it/paola-anna-erba", accepted: true },
     { name: "Felix Mottaghy", hospital: "德国亚琛工业大学医院", department: "核医学科", evidenceHospital: "Uniklinik RWTH Aachen", evidenceDepartment: "Nuklearmedizin", home: "https://www.ukaachen.de/en/", profile: "https://www.ukaachen.de/klinik/team", accepted: true },
     { name: "Markus Schwaiger", hospital: "德国慕尼黑工业大学（TUM）", department: "核医学诊所", evidenceHospital: "Technical University of Munich", evidenceDepartment: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://www.professoren.tum.de/en/schwaiger-markus", accepted: true },
-    { name: "Paola Anna Erba", hospital: "比萨大学医院", department: "区域核医学中心", evidenceHospital: "University Hospital in Pisa", evidenceDepartment: "Regional Center of Nuclear Medicine at the University Hospital in Pisa", home: "https://pisa.example/en/", profile: "https://www.europeancancer.org/content/paola-anna-erba.html", accepted: true },
     { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Cardiology", home: "https://www.tum.de/en/", profile: "https://www.professoren.tum.de/en/schwaiger-markus", accepted: false },
     { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://tum.de.attacker.example/profile", accepted: false },
     { name: "Markus Schwaiger", hospital: "Technical University of Munich", department: "Nuclear Medical Clinic and Policlinic", home: "https://www.tum.de/en/", profile: "https://nottum.de/profile", accepted: false }
@@ -6978,20 +7082,36 @@ function identityRegressionSource(doctor: { name: string; url: string; text: str
 async function identityRegression(
   doctor: { name: string; hospital: string; department: string },
   overrides: Partial<ResearchAdapterBundle>,
-  officialProfileUrls: string[] = []
+  officialProfileUrls: string[] = [],
+  agentSource?: ReturnType<typeof identityRegressionSource>
 ) {
   const input = runInput();
   input.doctor = { ...input.doctor, name: doctor.name, hospital: doctor.hospital, department: doctor.department, officialProfileUrls };
   const fixture = createLeasedWorkflowFixture("identity_regression", input);
+  let decisions = 0;
   const outcome = await executeDoctorResearchWorkflow({
     lease: fixture.lease, store: fixture.store,
     adapters: { ...adapters(0), async searchPubMed() { return []; }, ...overrides },
-    modelClient: { model: "test-model", async generate() { return {
-      text: '{"terms":["healthcare"]}', gatewayRequestId: "req_identity_regression",
+    modelClient: { model: "test-model", async generate(request) {
+      let response: unknown = { terms: ["healthcare"] };
+      if (agentSource && request.stage === "discover_identity") {
+        decisions++;
+        if (decisions === 1) response = { actions: [{ type: "search", query: doctor.name }] };
+        else if (decisions === 2) response = { actions: [{ type: "read", url: agentSource.url }] };
+        else response = { identity: { name: doctor.name, institution: doctor.hospital, department: doctor.department,
+          citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect,
+            sourceId: agentSource.sourceId, quote: agentSource.untrustedText,
+            explanation: "Scripted evidence decision for the workflow boundary test; not a live semantic evaluation." })) } };
+      } else if (agentSource && request.stage === "resolve_identity") response = { accepted: true, issues: [] };
+      else if (agentSource && request.stage === "collect_profile_evidence") response = {
+        unresolved: "insufficient_evidence", explanation: "This wiring fixture intentionally supplies no literature." };
+      return {
+      text: JSON.stringify(response), gatewayRequestId: "req_identity_regression",
       usage: { promptTokens: 100, completionTokens: 10, totalTokens: 110 }
     }; } },
     artifactRoot: fixture.artifactRoot,
-    policy: { ...workflowPolicy(), budgets: { ...workflowPolicy().budgets, externalRequests: 160, externalResponseBytes: 320_000_000 } },
+    policy: { ...workflowPolicy(), ...(agentSource ? { identityAgentEnabled: true } : {}),
+      budgets: { ...workflowPolicy().budgets, ...(agentSource ? { llmCalls: 15, outputTokens: 40_000 } : {}), externalRequests: 160, externalResponseBytes: 320_000_000 } },
     signal: AbortSignal.timeout(2_000), now: () => fixture.now
   });
   const row = fixture.store.database.prepare("SELECT payload_json FROM research_checkpoints WHERE run_id=? AND stage='resolve_identity'").get(fixture.lease.run.runId) as { payload_json: string } | undefined;

@@ -1,0 +1,188 @@
+[
+  {
+    "case_id": "different_people_on_same_page",
+    "outcome": "unresolved",
+    "reason": "budget_exhausted",
+    "expected": "unresolved",
+    "matched_expectation": true,
+    "elapsed_ms": 23971,
+    "offline_searches": 2,
+    "offline_reads": 1,
+    "serpapi_requests": 0,
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 1614,
+        "request_id": "req-1d530a31-cab7-47b4-ad35-c1ee170b6fa7",
+        "response_sha256": "fc232bf1b5e32c0d5571ab49e223501728c6a36a131239f26b42a04209e50506",
+        "usage": {
+          "promptTokens": 757,
+          "completionTokens": 39,
+          "reasoningTokens": 0,
+          "totalTokens": 796
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 1539,
+        "request_id": "req-85f93b03-a338-4742-a4c0-9f7978401e91",
+        "response_sha256": "a1858a52bae95ced782a502157b6489c1445c5d798a1b1745358af694eccb7c7",
+        "usage": {
+          "promptTokens": 807,
+          "completionTokens": 42,
+          "reasoningTokens": 0,
+          "totalTokens": 849
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 2220,
+        "request_id": "req-d9c140a7-1d2c-4e83-9f5a-64db7d058e8d",
+        "response_sha256": "0f710bce2625de6f99a505426f709ef1404430a598a362f20b3bf2982e6f6b7b",
+        "usage": {
+          "promptTokens": 929,
+          "completionTokens": 102,
+          "reasoningTokens": 59,
+          "totalTokens": 1031
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 4,
+        "elapsed_ms": 11710,
+        "request_id": "req-26b92fbc-4a79-4f10-8788-72c358df2b41",
+        "response_sha256": "ca28683ae5b5b7dfa24a0c2575b66a05a9fe3595a49f52830ef047696cd96b52",
+        "usage": {
+          "promptTokens": 982,
+          "completionTokens": 298,
+          "reasoningTokens": 46,
+          "totalTokens": 1280
+        }
+      },
+      {
+        "role": "identity_reviewer",
+        "attempt": 5,
+        "elapsed_ms": 2507,
+        "request_id": "req-11820bd6-6ea2-4d83-a41a-5fd92a997f3a",
+        "response_sha256": "6628b16aa5595a164fe7571f0eff655c747d3d855c158b9f6e5c647836e1267d",
+        "usage": {
+          "promptTokens": 674,
+          "completionTokens": 106,
+          "reasoningTokens": 0,
+          "totalTokens": 780
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 6,
+        "elapsed_ms": 4365,
+        "request_id": "req-34db9214-735b-4fc2-b21f-ecb92833c796",
+        "response_sha256": "713167743dc01b9e33507da78f1a907a0623633d0e1d2d822684bde5c129b7d2",
+        "usage": {
+          "promptTokens": 1090,
+          "completionTokens": 292,
+          "reasoningTokens": 23,
+          "totalTokens": 1382
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "cross_language_identity",
+    "outcome": "resolved",
+    "identity": {
+      "name": "Simone Example",
+      "institution": "Harbour University Hospital",
+      "department": "Department of Endocrinology – Consultant endocrinologist",
+      "citations": [
+        {
+          "aspect": "person",
+          "sourceId": "src_synthetic_official",
+          "quote": "Simone Example is a consultant in Endocrinology at Harbour University Hospital.",
+          "explanation": "The hospital's current staff directory names Simone Example, confirming the person's identity."
+        },
+        {
+          "aspect": "institution",
+          "sourceId": "src_synthetic_official",
+          "quote": "Simone Example is a consultant in Endocrinology at Harbour University Hospital. This is the hospital's current staff profile.",
+          "explanation": "The official hospital directory states her affiliation is Harbour University Hospital, matching the requested hospital 港湾大学医院."
+        },
+        {
+          "aspect": "department",
+          "sourceId": "src_synthetic_official",
+          "quote": "Department of Endocrinology\nSimone Example\nConsultant endocrinologist",
+          "explanation": "The directory lists her under the Department of Endocrinology with the role of consultant endocrinologist, matching the requested department 内分泌科."
+        },
+        {
+          "aspect": "authority",
+          "sourceId": "src_synthetic_official",
+          "quote": "Harbour University Hospital\nOfficial staff directory",
+          "explanation": "The page is explicitly labelled as the hospital's official staff directory, making it an authoritative first-party source for the person, institution and role."
+        }
+      ]
+    },
+    "expected": "resolved",
+    "matched_expectation": true,
+    "elapsed_ms": 40798,
+    "offline_searches": 1,
+    "offline_reads": 1,
+    "serpapi_requests": 0,
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 4603,
+        "request_id": "req-fa763ac0-dd10-4a57-8d2a-340400feb2db",
+        "response_sha256": "8b6a18da5afb288f6381dbd7b092c2de36f109862a501b909fee74773e0aab46",
+        "usage": {
+          "promptTokens": 758,
+          "completionTokens": 42,
+          "reasoningTokens": 0,
+          "totalTokens": 800
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 1807,
+        "request_id": "req-4d0a06f8-2f46-415c-b1d1-00929c5e1342",
+        "response_sha256": "c5ce236061cc03467afc1672e6224a4002f864ceba07e067fefc2ef4edaa4e18",
+        "usage": {
+          "promptTokens": 808,
+          "completionTokens": 43,
+          "reasoningTokens": 0,
+          "totalTokens": 851
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 5330,
+        "request_id": "req-1be1033d-39ba-4a87-93ab-f6fc0bddca00",
+        "response_sha256": "231071c13caa7365eddcc051c203a48eec8d9b39a0fe9a128c4e3efe4743be4e",
+        "usage": {
+          "promptTokens": 954,
+          "completionTokens": 269,
+          "reasoningTokens": 0,
+          "totalTokens": 1223
+        }
+      },
+      {
+        "role": "identity_reviewer",
+        "attempt": 4,
+        "elapsed_ms": 29053,
+        "request_id": "req-60a96a5a-7bee-4a57-a0e7-2933f184a742",
+        "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+        "usage": {
+          "promptTokens": 707,
+          "completionTokens": 10,
+          "reasoningTokens": 0,
+          "totalTokens": 717
+        }
+      }
+    ]
+  }
+]

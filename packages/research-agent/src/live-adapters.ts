@@ -7,6 +7,7 @@ import {
   type FrozenPublicationMetadata,
   type OfficialSourceDiscoveryKind,
   type OfficialSourceFailure,
+  type ResearchWebCandidate,
   type ResearchAdapterBundle
 } from "./adapters.js";
 import {
@@ -213,6 +214,13 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     query: string,
     signal: AbortSignal
   ): Promise<readonly string[]> {
+    const result = await this.searchPubMedCandidates(query, signal);
+    return result.identityFieldsRetained ? result.pmids : [];
+  }
+
+  async searchPubMedCandidates(query: string, signal: AbortSignal): Promise<{
+    pmids: readonly string[]; queryTranslation: string | null; identityFieldsRetained: boolean
+  }> {
     const normalizedQuery = boundedQuery(query, 1_000);
     const url = new URL(
       "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -238,10 +246,11 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     if (values === null) {
       throw new ResearchExternalServiceError("invalid_payload");
     }
-    if (!pubMedIdentityFieldsWereRetained(normalizedQuery, response.value)) {
-      return [];
-    }
-    return [...new Set(values)].slice(0, this.maximumPubMedResults);
+    const esearchResult = Reflect.get(response.value as object, "esearchresult");
+    const queryTranslation = Reflect.get(esearchResult as object, "querytranslation");
+    return { pmids: [...new Set(values)].slice(0, this.maximumPubMedResults),
+      queryTranslation: typeof queryTranslation === "string" ? queryTranslation.slice(0, 4000) : null,
+      identityFieldsRetained: pubMedIdentityFieldsWereRetained(normalizedQuery, response.value) };
   }
 
   async getPubMedMetadata(
@@ -791,10 +800,57 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       : this.searchSerpApi(query, signal, maximumResults);
   }
 
+  async searchWeb(query: string, signal: AbortSignal): Promise<readonly ResearchWebCandidate[]> {
+    if (this.options.officialWeb.provider === "direct") {
+      throw new ResearchExternalServiceError("provider_error");
+    }
+    const requestedQuery = boundedQuery(query, 1_000);
+    // No implicit hospital query, language rewrite, institution dictionary or name filter.
+    const results = this.options.officialWeb.provider === "brave"
+      ? await this.searchBrave(requestedQuery, signal, 10, 1)
+      : await this.searchSerpApi(requestedQuery, signal, 10, 1, false);
+    const candidates = new Map<string, ResearchWebCandidate>();
+    for (const result of results) {
+      if (typeof result.url !== "string") continue;
+      const url = approvedDiscoveredUrl(result.url);
+      if (!url) continue;
+      candidates.set(url.toString(), {
+        url: url.toString(),
+        title: typeof result.title === "string" ? result.title.slice(0, 500) : "",
+        snippet: typeof result.description === "string" ? result.description.slice(0, 2_000) : ""
+      });
+    }
+    return [...candidates.values()].slice(0, 10);
+  }
+
+  async readWebPage(value: string, signal: AbortSignal): Promise<FrozenOfficialSource> {
+    const url = approvedDiscoveredUrl(value);
+    if (!url) throw new Error("Research page URL is not public HTTPS.");
+    const document = await this.approvedDocumentFetch({
+      url,
+      allowedDomains: discoveredFetchDomains(url),
+      signal,
+      timeoutMs: this.timeoutMs,
+      maximumBytes: this.maximumSourceBytes,
+      userAgent: this.options.userAgent
+    });
+    return {
+      sourceId: `src_${sha256(document.url).slice(0, 32)}`,
+      url: document.url,
+      title: document.title,
+      accessedAt: new Date().toISOString(),
+      contentSha256: document.contentSha256,
+      untrustedText: document.structuredText ?? document.text,
+      discoveryKinds: ["doctor_identity"],
+      navigationLinks: document.researchLinks ?? document.navigationLinks ?? []
+    };
+  }
+
   private async searchBrave(
     query: string,
     signal: AbortSignal,
-    maximumResults: number
+    maximumResults: number,
+    maximumAttempts = 2
   ): Promise<readonly OfficialSearchResult[]> {
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     setSearchParams(url, {
@@ -809,7 +865,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       {
         "x-subscription-token": this.options.officialWeb.apiKey!
       },
-      2
+      maximumAttempts
     );
     const results = response.value.web?.results;
     if (!Array.isArray(results)) {
@@ -825,10 +881,12 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   private async searchSerpApi(
     query: string,
     signal: AbortSignal,
-    maximumResults: number
+    maximumResults: number,
+    maximumAttempts = 2,
+    localize = true
   ): Promise<readonly OfficialSearchResult[]> {
     const engine = this.options.officialWeb.serpApiEngine!;
-    const providerQuery = localizeSerpApiIdentityQuery(query, engine);
+    const providerQuery = localize ? localizeSerpApiIdentityQuery(query, engine) : query;
     const url = new URL("https://serpapi.com/search.json");
     setSearchParams(url, {
       engine,
@@ -849,7 +907,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       url,
       signal,
       {},
-      2
+      maximumAttempts
     );
     // SerpAPI documents this successful, empty Google response with an error
     // field. It is not a provider outage or an authentication failure.

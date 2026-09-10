@@ -1,0 +1,14 @@
+{
+  "archive_sha256": "09932ab6cdaed56d6ef01e0fcce05f4a2d097a07c5b16bcbb864929f942df83a",
+  "worker_image": "sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be",
+  "maximum_serpapi_requests": 0,
+  "model_call_batch_limit": 16,
+  "files": {
+    "model-client.js": "4118e7262bf8a67ccac9bb44b1a41194be655e61c2a96d0117cfa96a5bd7089c",
+    "probe.mjs": "603eef78599b466d100c2c27943b76490660780ba43415b2f776604619e1e2af",
+    "safe-http.js": "d5127fa2f6743382750c733407ec14b407a743758d5f0c99636275d8931c5dbf",
+    "evidence-investigator.js": "c4d28e24eb81fe3988223a3c6fc72855b07ddb0150f804ff3bceaeeeaeea4762"
+  },
+  "exit_code": 0,
+  "code_unchanged": true
+}

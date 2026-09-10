@@ -450,7 +450,7 @@ describe("Doctor Research control-plane routes", () => {
         "/gateway/research/v1/worker/llm-readiness/medcode" +
         "?maximum_prompt_tokens_per_call=180000" +
         "&maximum_output_tokens_per_call=12000" +
-        "&calls_per_run=8" +
+        "&calls_per_run=33" +
         "&maximum_tokens_per_run=576000",
       headers: { authorization: `Bearer ${fixture.token}` }
     });
@@ -1926,6 +1926,14 @@ describe("Doctor Research control-plane routes", () => {
         ]
       }
     );
+    const investigated = parseDoctorResearchRunRequest({ doctor: {
+      name: "陆清声", hospital: "海军军医大学第一附属医院", department: "血管外科"
+    } }, {
+      identityAgentEnabled: true, officialSourceMode: "serpapi",
+      officialIdentityRegistry: [{ identityFingerprint: minimal.identityFingerprint, officialProfileUrls, literatureIdentity }]
+    });
+    expect(investigated.input.doctor.officialProfileUrls).toEqual([]);
+    expect(investigated.input.doctor.literatureIdentity).toBeUndefined();
     expect(enriched.input.doctor).toMatchObject({
       title: null,
       city: null,

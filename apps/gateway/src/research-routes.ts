@@ -53,6 +53,7 @@ export interface ResearchRouteOptions {
   officialSourceMode?: "brave" | "serpapi" | "direct";
   officialWebAllowedDomains?: readonly string[];
   officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
+  identityAgentEnabled?: boolean;
   now?: () => Date;
 }
 
@@ -103,7 +104,8 @@ export function registerResearchRoutes(
           officialWebAllowedDomains:
             options.officialWebAllowedDomains ?? [],
           officialIdentityRegistry:
-            options.officialIdentityRegistry ?? []
+            options.officialIdentityRegistry ?? [],
+          identityAgentEnabled: options.identityAgentEnabled
         });
         idempotencyKey = parseIdempotencyKey(
           request.headers["idempotency-key"]
@@ -761,6 +763,7 @@ export function parseDoctorResearchRunRequest(
     officialSourceMode?: "brave" | "serpapi" | "direct";
     officialWebAllowedDomains?: readonly string[];
     officialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
+    identityAgentEnabled?: boolean;
   } = {}
 ): ParsedResearchRunRequest {
   if (!isRecord(body)) {
@@ -825,7 +828,7 @@ export function parseDoctorResearchRunRequest(
     hospital,
     department
   );
-  const registeredIdentity = policy.officialIdentityRegistry?.find(
+  const registeredIdentity = policy.identityAgentEnabled ? undefined : policy.officialIdentityRegistry?.find(
     (entry) => entry.identityFingerprint === identityFingerprint
   );
   const suppliedProfileUrls = parseOfficialProfileUrls(
@@ -859,8 +862,8 @@ export function parseDoctorResearchRunRequest(
     "doctor profile"
   ].join(" ");
   if (
-    officialSearchQuery.length > 280 ||
-    officialSearchQuery.split(/\s+/u).length > 40
+    !policy.identityAgentEnabled && (officialSearchQuery.length > 280 ||
+    officialSearchQuery.split(/\s+/u).length > 40)
   ) {
     throw new GatewayError({
       code: "invalid_request",

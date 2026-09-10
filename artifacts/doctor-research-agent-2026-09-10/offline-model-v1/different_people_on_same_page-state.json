@@ -1,0 +1,100 @@
+{
+  "version": "doctor_identity_investigation.v1",
+  "inputSha256": "ce75e8b56aa8d2435aea7caeb3f6156beb3c6adc6753616e34759ea2a72282c7",
+  "searches": [
+    {
+      "query": "\"Alice Example\" \"Example University Hospital\" cardiology",
+      "status": "succeeded",
+      "results": [
+        {
+          "url": "https://hospital.example/current-staff",
+          "title": "Current staff directory",
+          "snippet": "Current staff directory"
+        }
+      ]
+    },
+    {
+      "query": "\"Alice Example\" nephrology \"Example University Hospital\"",
+      "status": "succeeded",
+      "results": [
+        {
+          "url": "https://hospital.example/current-staff",
+          "title": "Current staff directory",
+          "snippet": "Current staff directory"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "sourceId": "src_synthetic_official",
+      "url": "https://hospital.example/current-staff",
+      "title": "Current staff directory",
+      "accessedAt": "2026-09-10T13:27:57.384Z",
+      "contentSha256": "c69756f3c4b75de5cac931dadc62c42d49c3072ff7f920ad00ba3af45c735fa0",
+      "untrustedText": "Example University Hospital official current staff directory.\nAlice Example: Department of Nephrology.\nBob Example: Department of Cardiology.",
+      "navigationLinks": []
+    }
+  ],
+  "pageAliases": {
+    "https://hospital.example/current-staff": "https://hospital.example/current-staff"
+  },
+  "pageRequests": 1,
+  "modelCalls": 6,
+  "allowedUrls": [
+    "https://hospital.example/current-staff"
+  ],
+  "observations": [
+    {
+      "action": "search",
+      "result": {
+        "query": "\"Alice Example\" \"Example University Hospital\" cardiology",
+        "status": "succeeded",
+        "results": [
+          {
+            "url": "https://hospital.example/current-staff",
+            "title": "Current staff directory",
+            "snippet": "Current staff directory"
+          }
+        ]
+      }
+    },
+    {
+      "action": "read",
+      "result": {
+        "sourceId": "src_synthetic_official",
+        "title": "Current staff directory",
+        "offset": 0,
+        "total_characters": 141,
+        "text": "Example University Hospital official current staff directory.\nAlice Example: Department of Nephrology.\nBob Example: Department of Cardiology.",
+        "more_text": false,
+        "find_matched": true,
+        "url": "https://hospital.example/current-staff",
+        "links": [],
+        "links_offset": 0,
+        "total_links": 0
+      }
+    },
+    {
+      "action": "search",
+      "result": {
+        "query": "\"Alice Example\" nephrology \"Example University Hospital\"",
+        "status": "succeeded",
+        "results": [
+          {
+            "url": "https://hospital.example/current-staff",
+            "title": "Current staff directory",
+            "snippet": "Current staff directory"
+          }
+        ]
+      }
+    },
+    {
+      "action": "identity_review_requires_more_evidence",
+      "result": [
+        "The requested department is Cardiology, but the official staff directory assigns Alice Example to the Department of Nephrology. The only Cardiology entry belongs to Bob Example, a different person. Directory co-occurrence does not transfer Bob's department to Alice. No source supports Alice Example in Cardiology; either correct the requested department to Nephrology or provide evidence of a Cardiology appointment (e.g., a Cardiology staff page, appointment letter, or publication affiliation)."
+      ]
+    }
+  ],
+  "reviewedIdentity": null
+}

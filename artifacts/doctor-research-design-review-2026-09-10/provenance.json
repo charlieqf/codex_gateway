@@ -1,0 +1,31 @@
+{
+  "archived_at_utc": "2026-09-10T13:01:33.087415+00:00",
+  "runtime_source_commit": "a67d2d3a4415d3aceed360d2a394e6f4933964da",
+  "observed_result_provenance": "JSON transcribed from the already-observed offline console result, not a second run.",
+  "files": [
+    {
+      "path": "artifacts/doctor-research-design-review-2026-09-10/identity-cross-person-repro.mjs",
+      "sha256": "e88de0e84d3b41a8022d874b6a1e8f9ae2ca60ce2392ae8c10d3aa77d8fa828d"
+    },
+    {
+      "path": "artifacts/doctor-research-design-review-2026-09-10/identity-cross-person-observed.json",
+      "sha256": "2bc264b861a5a2a5c81267b332fb4bc822c103943147fafddc26481a2194cc4c"
+    },
+    {
+      "path": "packages/research-agent/src/workflow.ts",
+      "sha256": "e5bc5c2d972bc657469459ea65b95db89a1c9f660c88753a82298bbfa81b4c74"
+    },
+    {
+      "path": "packages/research-agent/src/institution-names.ts",
+      "sha256": "c474bcddfa587e0890ce57f476e1929a89157e816dc921bb11cc7e380442cf0c"
+    },
+    {
+      "path": "packages/research-agent/dist/workflow.js",
+      "sha256": "ca7c81a87d36c27393992b0ba5fcf0d2848fab13e103fa2414d2aef1ccc2d394"
+    },
+    {
+      "path": "packages/research-agent/dist/institution-names.js",
+      "sha256": "438690dd3ec14ce72d27ec28bfc8ab27299d68e6d0cd1f37cb453e1e48f69a8b"
+    }
+  ]
+}

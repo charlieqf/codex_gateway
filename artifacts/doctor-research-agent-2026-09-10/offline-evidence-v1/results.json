@@ -1,0 +1,297 @@
+[
+  {
+    "case_id": "missing_affiliation_with_explicit_publication",
+    "outcome": "resolved",
+    "evidence": {
+      "facts": [
+        {
+          "type": "position",
+          "text": "Alice Example 是港湾大学医院（Harbour University Hospital）内分泌科的顾问医生（Consultant）。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        },
+        {
+          "type": "research_direction",
+          "text": "其专业范围为内分泌学（Endocrinology）。除科室归属外，目前未发现可验证的个人研究方向描述。",
+          "citations": [
+            {
+              "sourceId": "src_directory",
+              "quote": "Alice Example | Endocrinology | Consultant"
+            }
+          ]
+        }
+      ],
+      "topics": {
+        "terms": [
+          "内分泌学",
+          "激素监测"
+        ],
+        "explanation": "综述范围基于已验证的职业身份（内分泌科顾问医生），因此以内分泌学及相关临床主题（如激素监测）为合理范围。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      },
+      "doctorPublications": [],
+      "fieldPublications": [
+        {
+          "pmid": "101",
+          "rationale": "PMID 101《Hormone monitoring in adults》是一项关于成人激素监测的观察性研究，与已验证的内分泌学专业范围直接相关，可用作该领域的参考文献。"
+        }
+      ],
+      "limitations": [
+        "PubMed 作者检索（Alice Example[Author]，2022–2026）仅返回 PMID 101，但该记录的作者元数据为 \"Example A\" 和 \"Example B\"，与 \"Alice Example\" 的姓名匹配存在歧义。",
+        "PMID 101 的作者单位信息（authorAffiliations）为空，无法通过该作者本人的所属机构确认其与港湾大学医院的关联；其他共同作者的单位也不能作为归属依据。",
+        "未发现任何公开资料明确将 PMID 101 与 Alice Example 本人关联（无 ORCID、无官方个人主页、无外部档案引用该文献）。因此该文不能计入其本人已验证论文。",
+        "未找到 Alice Example 本人可验证的论文；本报告仅基于其已验证的职业身份（内分泌科顾问医生）构建领域综述范围。",
+        "本次检索为有限的 PubMed 查询，不代表穷尽式检索；未验证她是否具有其他年份或以其他姓名形式发表的论文。"
+      ]
+    },
+    "expected_own_papers": 1,
+    "matched_authorship_expectation": false,
+    "elapsed_ms": 82512,
+    "serpapi_requests": 0,
+    "tool_calls": [
+      {
+        "tool": "search_pubmed",
+        "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])"
+      },
+      {
+        "tool": "read_publication",
+        "pmid": "101"
+      },
+      {
+        "tool": "search_pubmed",
+        "query": "((hormone monitoring) AND (endocrinology[MeSH Terms])) AND (2022:2026[Date - Publication])"
+      }
+    ],
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 1475,
+        "request_id": "req-722af9ca-b1c4-4d70-b1d5-8720d53a3d15",
+        "response_sha256": "67d2018239f0f60bc5585d73733c25f632c72e9be5ab351363be4251106fafe0",
+        "usage": {
+          "promptTokens": 1319,
+          "completionTokens": 24,
+          "reasoningTokens": 0,
+          "totalTokens": 1343
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 1614,
+        "request_id": "req-884bc889-6b89-4a8e-8482-e7b8c8ce143c",
+        "response_sha256": "ccdda44e1f2824d8e08a7e78afe15159205d6cd4106177f13ff39a7b9e8c733c",
+        "usage": {
+          "promptTokens": 1394,
+          "completionTokens": 22,
+          "reasoningTokens": 5,
+          "totalTokens": 1416
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 4758,
+        "request_id": "req-e31ac7f3-d994-4cb9-8581-a973932cc34d",
+        "response_sha256": "85aeca766f249bb21de9ec9c4fd1cab7481d70ea7462e561beeb56ed936eba00",
+        "usage": {
+          "promptTokens": 1566,
+          "completionTokens": 155,
+          "reasoningTokens": 120,
+          "totalTokens": 1721
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 4,
+        "elapsed_ms": 32476,
+        "request_id": "req-c310d99d-c81f-4d18-8309-403b4a56a0df",
+        "response_sha256": "3959c1852a4b7d3512f75f883134bc93bc0217e0379826f867e9835325722992",
+        "usage": {
+          "promptTokens": 1663,
+          "completionTokens": 775,
+          "reasoningTokens": 238,
+          "totalTokens": 2438
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 5,
+        "elapsed_ms": 18204,
+        "request_id": "req-bbafd5e1-4c15-4919-9889-14d78b3ea378",
+        "response_sha256": "d865be6d85585cfda138f5db045705db7eb260686ce631a6c95f235a4b26e453",
+        "usage": {
+          "promptTokens": 1683,
+          "completionTokens": 658,
+          "reasoningTokens": 270,
+          "totalTokens": 2341
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 6,
+        "elapsed_ms": 16017,
+        "request_id": "req-65b2bb01-174e-47ff-8e55-5566d8fe9640",
+        "response_sha256": "6955139c352bc13ae2982dc68b276f875a96ba082c8a25b38c1a0db8b521bf2c",
+        "usage": {
+          "promptTokens": 1701,
+          "completionTokens": 655,
+          "reasoningTokens": 219,
+          "totalTokens": 2356
+        }
+      },
+      {
+        "role": "evidence_reviewer",
+        "attempt": 7,
+        "elapsed_ms": 7949,
+        "request_id": "req-f488ce5c-f001-4d97-ac83-d1e8e233889d",
+        "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+        "usage": {
+          "promptTokens": 1360,
+          "completionTokens": 232,
+          "reasoningTokens": 222,
+          "totalTokens": 1592
+        }
+      }
+    ]
+  },
+  {
+    "case_id": "coauthor_affiliation_and_directory_neighbor",
+    "outcome": "unresolved",
+    "reason": "budget_exhausted",
+    "expected_own_papers": 0,
+    "matched_authorship_expectation": false,
+    "elapsed_ms": 96493,
+    "serpapi_requests": 0,
+    "tool_calls": [
+      {
+        "tool": "search_pubmed",
+        "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])"
+      },
+      {
+        "tool": "read_publication",
+        "pmid": "101"
+      },
+      {
+        "tool": "search_pubmed",
+        "query": "(hormone monitoring adults endocrine) AND (2022:2026[Date - Publication])"
+      }
+    ],
+    "model_calls": [
+      {
+        "role": "investigator",
+        "attempt": 1,
+        "elapsed_ms": 2422,
+        "request_id": "req-9eef2aef-8762-4432-96c7-c3c59c9ed3ba",
+        "response_sha256": "67d2018239f0f60bc5585d73733c25f632c72e9be5ab351363be4251106fafe0",
+        "usage": {
+          "promptTokens": 1320,
+          "completionTokens": 58,
+          "reasoningTokens": 34,
+          "totalTokens": 1378
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 2,
+        "elapsed_ms": 961,
+        "request_id": "req-fc67daf7-d545-4b57-85c4-5fb8bba4db45",
+        "response_sha256": "ccdda44e1f2824d8e08a7e78afe15159205d6cd4106177f13ff39a7b9e8c733c",
+        "usage": {
+          "promptTokens": 1395,
+          "completionTokens": 17,
+          "reasoningTokens": 0,
+          "totalTokens": 1412
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 3,
+        "elapsed_ms": 16986,
+        "request_id": "req-e5744bea-31c8-45f1-918b-60498781e9db",
+        "response_sha256": "9c7a10f2b50d4c7d30537809c6bf98afe685cc10c99e0035582104350067655b",
+        "usage": {
+          "promptTokens": 1603,
+          "completionTokens": 789,
+          "reasoningTokens": 389,
+          "totalTokens": 2392
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 4,
+        "elapsed_ms": 9832,
+        "request_id": "req-a82443cd-5482-403f-b7dd-76134eb4c4db",
+        "response_sha256": "e80dd54ed701ca889fffa4b4399b3d0ed8837fb061d604b79e5d883350833b9f",
+        "usage": {
+          "promptTokens": 1616,
+          "completionTokens": 367,
+          "reasoningTokens": 341,
+          "totalTokens": 1983
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 5,
+        "elapsed_ms": 12086,
+        "request_id": "req-66ec9130-4ee6-4fe1-82f9-de2935d521c8",
+        "response_sha256": "a5fbe9d5d324eddd7b26b906d947e35384a6813b0a3795047c1505b14b873dc1",
+        "usage": {
+          "promptTokens": 1699,
+          "completionTokens": 669,
+          "reasoningTokens": 287,
+          "totalTokens": 2368
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 6,
+        "elapsed_ms": 11733,
+        "request_id": "req-21e0107d-6d2f-4a71-8172-0e68f74e3713",
+        "response_sha256": "41f1dc9d0d3ca654eef8bcb67f9926871e4a2350c9634aaecd6e8d24141fae18",
+        "usage": {
+          "promptTokens": 1712,
+          "completionTokens": 530,
+          "reasoningTokens": 156,
+          "totalTokens": 2242
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 7,
+        "elapsed_ms": 16709,
+        "request_id": "req-25b8d6bf-090c-4142-89c5-8c66b74e5766",
+        "response_sha256": "2a114ff0894f27b41bd4b2b53dd19a03865513ce1473dd4a9e0f2c59a199c1e7",
+        "usage": {
+          "promptTokens": 1725,
+          "completionTokens": 672,
+          "reasoningTokens": 312,
+          "totalTokens": 2397
+        }
+      },
+      {
+        "role": "investigator",
+        "attempt": 8,
+        "elapsed_ms": 25750,
+        "request_id": "req-3a784911-87b4-4b8a-b006-6d027cf1f2aa",
+        "response_sha256": "039314436875a8694cf88e149f8aefe52cec81ab5915b426027bc0a4885ed406",
+        "usage": {
+          "promptTokens": 1738,
+          "completionTokens": 591,
+          "reasoningTokens": 246,
+          "totalTokens": 2329
+        }
+      }
+    ]
+  }
+]

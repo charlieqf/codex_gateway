@@ -45,6 +45,14 @@ export interface FrozenOfficialSource {
   contentSha256: string;
   untrustedText: string;
   discoveryKinds?: readonly OfficialSourceDiscoveryKind[];
+  navigationLinks?: readonly { url: string; text: string }[];
+}
+
+/** Search candidates are unverified leads. Neither ranking nor snippets establish identity. */
+export interface ResearchWebCandidate {
+  url: string;
+  title: string;
+  snippet: string;
 }
 
 export interface OfficialSourceFailure {
@@ -57,6 +65,10 @@ export interface ResearchAdapterBundle {
   setRunContext?(runId: string): void;
   readonly officialSourceFailures?: readonly OfficialSourceFailure[];
   readonly versions?: Readonly<Record<string, string>>;
+  /** Exactly one provider request; the investigator owns retries and the search ledger. */
+  searchWeb?(query: string, signal: AbortSignal): Promise<readonly ResearchWebCandidate[]>;
+  /** One bounded page fetch, using the same pinned public-HTTPS protections as legacy reads. */
+  readWebPage?(url: string, signal: AbortSignal): Promise<FrozenOfficialSource>;
   readonly budgetHints?: {
     officialSearchRequestUnits: number;
     supplementalSearchRequestUnits?: number;
@@ -75,6 +87,10 @@ export interface ResearchAdapterBundle {
     query: string,
     signal: AbortSignal
   ): Promise<readonly string[]>;
+  /** Candidate discovery for Agent review; provider rewrites are observations, not identity verdicts. */
+  searchPubMedCandidates?(
+    query: string, signal: AbortSignal
+  ): Promise<{ pmids: readonly string[]; queryTranslation: string | null; identityFieldsRetained: boolean }>;
   getPubMedMetadata(
     pmid: string,
     signal: AbortSignal

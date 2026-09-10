@@ -1,0 +1,155 @@
+{
+  "version": "doctor_evidence_investigation.v1",
+  "inputSha256": "96c5b1be96f7f962b690608f95c6e184e84d93350dd6edfd95bd00e610411c06",
+  "searches": [
+    {
+      "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])",
+      "purpose": "doctor",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    },
+    {
+      "query": "((hormone monitoring) AND (endocrinology[MeSH Terms])) AND (2022:2026[Date - Publication])",
+      "purpose": "field",
+      "status": "succeeded",
+      "value": [
+        "101"
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "pmid": "101",
+      "status": "succeeded",
+      "value": {
+        "referenceId": "ref_101",
+        "pmid": "101",
+        "doi": null,
+        "title": "Hormone monitoring in adults",
+        "journal": "Example Journal",
+        "publicationYear": 2025,
+        "authors": [
+          "Example A",
+          "Example B"
+        ],
+        "authorAffiliations": [],
+        "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+        "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+        "accessedAt": "2026-09-10T14:14:26.096Z",
+        "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  ],
+  "pages": [],
+  "pageRequests": 0,
+  "modelCalls": 7,
+  "observations": [
+    {
+      "action": "search",
+      "result": {
+        "query": "(Alice Example[Author]) AND (2022:2026[Date - Publication])",
+        "purpose": "doctor",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "publication",
+      "result": {
+        "pmid": "101",
+        "status": "succeeded",
+        "value": {
+          "referenceId": "ref_101",
+          "pmid": "101",
+          "doi": null,
+          "title": "Hormone monitoring in adults",
+          "journal": "Example Journal",
+          "publicationYear": 2025,
+          "authors": [
+            "Example A",
+            "Example B"
+          ],
+          "authorAffiliations": [],
+          "abstractText": "An observational study of hormone monitoring in adults. The study compares hormone measurements across visits; it does not assess treatment efficacy.",
+          "sourceUrl": "https://pubmed.ncbi.nlm.nih.gov/101/",
+          "accessedAt": "2026-09-10T14:14:26.096Z",
+          "contentSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    {
+      "action": "search",
+      "result": {
+        "query": "((hormone monitoring) AND (endocrinology[MeSH Terms])) AND (2022:2026[Date - Publication])",
+        "purpose": "field",
+        "status": "succeeded",
+        "value": [
+          "101"
+        ]
+      }
+    },
+    {
+      "action": "invalid_evidence",
+      "result": "Citation quote is absent from the specified read source."
+    },
+    {
+      "action": "invalid_evidence",
+      "result": "Provide 1 to 6 source citations."
+    }
+  ],
+  "reviewedEvidence": {
+    "facts": [
+      {
+        "type": "position",
+        "text": "Alice Example 是港湾大学医院（Harbour University Hospital）内分泌科的顾问医生（Consultant）。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      },
+      {
+        "type": "research_direction",
+        "text": "其专业范围为内分泌学（Endocrinology）。除科室归属外，目前未发现可验证的个人研究方向描述。",
+        "citations": [
+          {
+            "sourceId": "src_directory",
+            "quote": "Alice Example | Endocrinology | Consultant"
+          }
+        ]
+      }
+    ],
+    "topics": {
+      "terms": [
+        "内分泌学",
+        "激素监测"
+      ],
+      "explanation": "综述范围基于已验证的职业身份（内分泌科顾问医生），因此以内分泌学及相关临床主题（如激素监测）为合理范围。",
+      "citations": [
+        {
+          "sourceId": "src_directory",
+          "quote": "Alice Example | Endocrinology | Consultant"
+        }
+      ]
+    },
+    "doctorPublications": [],
+    "fieldPublications": [
+      {
+        "pmid": "101",
+        "rationale": "PMID 101《Hormone monitoring in adults》是一项关于成人激素监测的观察性研究，与已验证的内分泌学专业范围直接相关，可用作该领域的参考文献。"
+      }
+    ],
+    "limitations": [
+      "PubMed 作者检索（Alice Example[Author]，2022–2026）仅返回 PMID 101，但该记录的作者元数据为 \"Example A\" 和 \"Example B\"，与 \"Alice Example\" 的姓名匹配存在歧义。",
+      "PMID 101 的作者单位信息（authorAffiliations）为空，无法通过该作者本人的所属机构确认其与港湾大学医院的关联；其他共同作者的单位也不能作为归属依据。",
+      "未发现任何公开资料明确将 PMID 101 与 Alice Example 本人关联（无 ORCID、无官方个人主页、无外部档案引用该文献）。因此该文不能计入其本人已验证论文。",
+      "未找到 Alice Example 本人可验证的论文；本报告仅基于其已验证的职业身份（内分泌科顾问医生）构建领域综述范围。",
+      "本次检索为有限的 PubMed 查询，不代表穷尽式检索；未验证她是否具有其他年份或以其他姓名形式发表的论文。"
+    ]
+  }
+}

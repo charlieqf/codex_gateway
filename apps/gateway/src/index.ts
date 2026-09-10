@@ -1144,6 +1144,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       officialSourceMode: researchOfficialSourceMode,
       officialWebAllowedDomains: researchOfficialWebAllowedDomains,
       officialIdentityRegistry: researchOfficialIdentityRegistry,
+      identityAgentEnabled: defaultResearchRuntime?.identityAgentEnabled ?? false,
       now: clock
     });
   }
@@ -5750,7 +5751,7 @@ function parseResearchLlmReadinessRequirements(input: {
   const callsPerRun = boundedReadinessInteger(
     input.calls_per_run,
     "calls_per_run",
-    7
+    32
   );
   const concurrentCalls =
     input.concurrent_calls === undefined
@@ -5909,6 +5910,7 @@ function createDefaultResearchRuntime(
   officialSourceMode: "brave" | "serpapi" | "direct";
   officialWebAllowedDomains: string[];
   officialIdentityRegistry: ResearchIdentityRegistryEntry[];
+  identityAgentEnabled: boolean;
 } | null {
   if (!parseResearchEnabled(env.RESEARCH_API_ENABLED)) {
     return null;
@@ -5942,7 +5944,8 @@ function createDefaultResearchRuntime(
       env.RESEARCH_OFFICIAL_WEB_ALLOWED_DOMAINS,
       env.NODE_ENV
     );
-  const officialIdentityRegistry = loadResearchOfficialIdentityRegistry(
+  const identityAgentEnabled = parseResearchBoolean(env.RESEARCH_IDENTITY_AGENT_ENABLED, false, "RESEARCH_IDENTITY_AGENT_ENABLED");
+  const officialIdentityRegistry = identityAgentEnabled ? [] : loadResearchOfficialIdentityRegistry(
     env,
     officialWebAllowedDomains
   );
@@ -6069,6 +6072,7 @@ function createDefaultResearchRuntime(
     officialSourceMode,
     officialWebAllowedDomains,
     officialIdentityRegistry,
+    identityAgentEnabled,
     admissionGuard: async (now) => {
       const latestBackup = store.latestSuccessfulBackupAt();
       if (
