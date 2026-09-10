@@ -841,7 +841,7 @@ function parseStrictModelJson(
     try {
       return { ok: true, value: JSON.parse(repaired) };
     } catch {
-      // A reproduced Riemer response contained one complete object followed
+      // A reproduced model response contained one complete object followed
       // by one extra closing brace. Accept only that exact transport defect;
       // missing delimiters, multiple objects, and surrounding prose still fail.
       if (!repaired.endsWith("}}")) return { ok: false };

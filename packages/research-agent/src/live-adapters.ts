@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
-import { reviewedProfileDirectoryCandidates, requestedDepartmentEvidenceGroups, reviewedProfessionalPublisher } from "./institution-names.js";
+import { requestedDepartmentEvidenceGroups, reviewedProfessionalPublisher } from "./institution-names.js";
 import {
   type FrozenIdentityRecord,
   type FrozenOfficialSource,
@@ -543,8 +543,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     // Discovery may relax phrase quoting; fetched evidence must still match
     // the exact requested person and institution in the workflow.
     const domains = this.institutionHost
-      ? [this.institutionHost, ...(/\p{Script=Han}/u.test(doctorName)
-          ? ["edu.cn"] : ["europeancancer.org", "rsna.org"])] : [];
+      ? [this.institutionHost] : [];
     let query = domains.length > 0
       ? `${nameQuery.replaceAll('"', "")} (${domains.map(domain => `site:${domain}`).join(" OR ")})` : nameQuery.replaceAll('"', "");
     if (recovery) {
@@ -573,9 +572,6 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     const results: OfficialSearchResult[] = [...linked, ...searched.filter(result =>
       typeof result.url === "string" && !/\.pdf(?:[?#]|$)/iu.test(result.url)
     )];
-    if (results.length === 0 && !recovery) {
-      results.push(...reviewedProfileDirectoryCandidates(doctorName).map(url => ({ url, title: doctorName })));
-    }
     const ids: string[] = [];
     for (const result of results) {
       if (typeof result.url !== "string" || (!linkedUrls.has(result.url) && !searchResultMentionsRequestedIdentity(result, nameQuery))) continue;

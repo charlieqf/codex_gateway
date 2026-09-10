@@ -3,7 +3,7 @@
 // probe directory and uses the configured internal Research model service.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 const root = process.env.RESEARCH_REPAIR_PROBE_ROOT;
@@ -24,21 +24,31 @@ const diagnostic = await import(`data:text/javascript;base64,${Buffer.from(code)
 const cases = JSON.parse(readFileSync(`${root}/scripts/ops/doctor-research-repair-cases.json`, "utf8"));
 const selectedArg = process.env.RESEARCH_REPAIR_PROBE_CASE;
 const selected = selectedArg && /^\d$/u.test(selectedArg) ? cases[Number(selectedArg)]?.name : selectedArg;
+const freshInput = process.env.RESEARCH_REPAIR_FRESH_INPUT === "1";
 const db = new DatabaseSync("/var/lib/codex-gateway-research/research.db", { readOnly: true });
 db.exec("PRAGMA query_only=ON");
 const policy = { ...config.workflowPolicy, budgets: { ...config.workflowPolicy.budgets, externalRequests: 1000, externalResponseBytes: 2_000_000_000 } };
 const results = [];
 for (const [index, target] of cases.entries()) {
   if (selected && target.name !== selected) continue;
-  const row = db.prepare("SELECT run_id,input_json FROM research_runs WHERE json_extract(input_json,'$.doctor.name')=? ORDER BY created_at DESC LIMIT 1").get(target.name);
-  if (!row) { emit({ event: "missing_original_input", name: target.name }); continue; }
-  const input = JSON.parse(row.input_json);
+  if (Object.keys(target).sort().join(",") !== "department,hospital,name" || Object.values(target).some(value => typeof value !== "string" || value.trim().length === 0)) throw new Error("Probe cases must contain only name, hospital, department.");
+  const row = freshInput ? undefined : db.prepare("SELECT run_id,input_json FROM research_runs WHERE json_extract(input_json,'$.doctor.name')=? ORDER BY created_at DESC LIMIT 1").get(target.name);
+  if (!row && !freshInput) { emit({ event: "missing_original_input", name: target.name }); continue; }
+  const input = freshInput ? { doctor: { title: null, city: null, orcid: null }, mode: "brief", language: "zh-CN", options: { publicationYears: 10, citationStyle: "vancouver" }, clientReference: null } : JSON.parse(row.input_json);
+  const diagnosticRunId = row?.run_id ?? `drr_${randomUUID().replaceAll("-", "")}`;
   input.doctor = { ...input.doctor, name: target.name, hospital: target.hospital, department: target.department, officialProfileUrls: [] };
   const started = Date.now();
   let searchCalls = 0;
   const traces = [];
   const adapters = new LiveResearchAdapters({
     ...config.adapterOptions,
+    ...(process.env.RESEARCH_REPAIR_NO_SEARCH_CACHE === "1" ? {
+      fetchImpl: (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (url.hostname === "serpapi.com") url.searchParams.set("no_cache", "true");
+        return fetch(url, init);
+      }
+    } : {}),
     ncbi: { ...config.adapterOptions.ncbi, ...(config.ncbiApiKeyFile ? { apiKey: readFileSync(config.ncbiApiKeyFile, "utf8").trim() } : {}) },
     orcid: { enabled: false },
     officialWeb: { ...config.adapterOptions.officialWeb, apiKey: readFileSync(config.webSearchApiKeyFile, "utf8").trim() },
@@ -57,7 +67,7 @@ for (const [index, target] of cases.entries()) {
       return source;
     } catch (error) { if (!signal.aborted) emit({ event: "probe_source_error", name: target.name, source_id: id, error_type: error?.name }); throw error; }
   };
-  emit({ event: "probe_started", at_utc: new Date().toISOString(), mode: full ? "full" : "identity", name: target.name, hospital: target.hospital, department: target.department, original_run_id: row.run_id });
+  emit({ event: "probe_started", at_utc: new Date().toISOString(), mode: full ? "full" : "identity", name: target.name, hospital: target.hospital, department: target.department, original_run_id: row?.run_id ?? null, fresh_input: freshInput, search_cache_disabled: process.env.RESEARCH_REPAIR_NO_SEARCH_CACHE === "1" });
   let store;
   let result;
   try {
@@ -92,7 +102,7 @@ for (const [index, target] of cases.entries()) {
       result = { ...outcome, probe_run_id: created.run.runId, artifacts, stages, case_root: caseRoot };
     } else {
       const signal = AbortSignal.timeout(170_000);
-      const run = { runId: row.run_id, input };
+      const run = { runId: diagnosticRunId, input };
       let reserved = 0;
       const evidence = await diagnostic.discoverIdentityEvidence({ run, input: { adapters, policy, signal }, callSignal: () => signal, chargeExternal: units => { reserved += units; } });
       result = { identity_resolved: Boolean(diagnostic.resolveIdentity(run, evidence)), reserved_external_units: reserved, discovered_sources: evidence.discoveredSourceCount, fetched_sources: evidence.fetchedSourceCount,
