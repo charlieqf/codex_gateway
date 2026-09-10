@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-10 (model error copy release, runtime smoke, public health and Compose services).
+Last verified: 2026-09-10 (vision limits/recovery release, compiled image smoke, public health and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -21,16 +21,16 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-10; local inference verification on 2026-09-06:
 
 - `current`:
-  `31946c97954af05399582010f5da7589204aac4b`
+  `8dab89da424ce722df2c433d52132e19707536b9`
 - `previous`:
-  `532774dca5e1c5ddc5f719d29e22015c6fc2388e`
+  `31946c97954af05399582010f5da7589204aac4b`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `31946c9`; Research Worker remains on the existing runtime with
+Gateway runs `8dab89d`; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -57,6 +57,18 @@ describes failed vision/text operations in Chinese, with separate processing,
 connection, timeout and provider-access messages. Error codes, request IDs and
 retry contracts remain compatible with installed clients. Runtime fault injection
 and public health checks passed; existing control data and other services are unchanged.
+
+The [vision limits and recovery release](./r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)
+provides structured image/body limits and authenticated `/gateway/vision/capabilities`.
+Only vision requests declaring `x-medcode-vision-recovery-contract: 1` use bounded
+recovery: initial generation, tool repair and same-service retry share two calls
+and one deadline. Final failures carry the strict client stop contract. The image
+limit stays at eight; installed clients without the header retain their retry behavior.
+The actual image passed 16 isolated route cases, all 574 Linux tests passed, and
+control data/configuration/schema 28 remain unchanged. Gateway work did not modify
+Desktop source or packages. Its team separately reports image-budget fixes and 203
+passing tests; alignment with the new image-limit fields and opt-in header, followed
+by EXE/PPT acceptance, remains pending. See the joint contract's delivery review.
 
 The public text surface contains:
 
