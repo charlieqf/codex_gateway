@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-09 (Billing create compatibility release, public acceptance and Compose services).
+Last verified: 2026-09-10 (new-phone daily 10k free quota release, public acceptance and Compose services).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,19 +18,19 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway and Compose verification on 2026-09-09; local inference verification on 2026-09-06:
+Gateway and Compose verification on 2026-09-10; local inference verification on 2026-09-06:
 
 - `current`:
-  `27f10d95c13476ac8bd9c609985071882e37eb9e`
+  `532774dca5e1c5ddc5f719d29e22015c6fc2388e`
 - `previous`:
-  `63c818f3c0588f602eaa51438b46981d8a34cc9e`
+  `27f10d95c13476ac8bd9c609985071882e37eb9e`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker, Research LLM Gateway and Research maintenance: healthy,
   without published host ports
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `27f10d9`; Research Worker remains on the existing runtime with
+Gateway runs `532774d`; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -44,12 +44,16 @@ synthetic body-timeout tests passed during that release.
 The [Billing compatibility release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)
 preserves May's POST /subjects contract and makes resolve optional. Passing phone
 directly enables account linking and atomic new-phone provisioning with a
-1,000,000-token daily free entitlement and phone enrollment; the optional two-step
+daily free entitlement and phone enrollment; the optional two-step
 flow remains supported. Legacy requests without phone or prior resolve retain
 original Billing behavior. Desktop reuses phone-auth v1 after external SMS login;
 external-token v2 is withdrawn. Configuration and schema 28 remain unchanged.
-344 tests and public legacy/direct-phone/two-step/key/model checks passed.
-Pre-existing control rows and other service containers remain unchanged.
+The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
+temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
+Existing 1M/day and other grants retain their original Plans, keys and snapshots.
+345 tests and public legacy/direct-phone/two-step/key/model checks passed.
+All 583 pre-existing entitlement rows and the other checked control rows remain unchanged,
+as do the other service containers.
 
 The public text surface contains:
 
