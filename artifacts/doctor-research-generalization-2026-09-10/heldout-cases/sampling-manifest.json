@@ -1,0 +1,274 @@
+{
+  "seed": 20260910,
+  "algorithm": "CPython random.Random(seed).randrange(n), exactly one draw per stratum in recorded order; candidate index is zero-based; no replacement after service results.",
+  "directory_selection": "Independent purposive selection of eight official department directories, followed by random sampling within each directory; this is not a probability sample of all doctors worldwide.",
+  "frozen_candidate_order": "As displayed in each retrieved official directory section, excluding only ineligible roles, incomplete names, and duplicate appearances as logged. Names preserve source spelling; titles are removed.",
+  "strata": [
+    {
+      "id": "CN01",
+      "country": "中国",
+      "institution": "首都医科大学附属北京天坛医院",
+      "department": "内分泌科",
+      "source_url": "https://bifns.bjtth.org/Mobile/DoctorTeam/Index?departmentId=1007",
+      "source_section": "内分泌科；采用 web.open 返回的目录快照顺序（与 search 摘要不同；未合并两个版本）",
+      "candidates": [
+        "徐剑",
+        "钟历勇",
+        "李娟",
+        "王莹",
+        "王晓辰",
+        "张春芳",
+        "范虹",
+        "李征",
+        "郭莹",
+        "梁丹",
+        "刘洪宇",
+        "王尧",
+        "于菲"
+      ],
+      "exclusions": [
+        {
+          "name": "杨文雯",
+          "reason": "职称为护士，不属于本次医生抽样范围"
+        },
+        {
+          "name": "谷静",
+          "reason": "职称为护师，不属于本次医生抽样范围"
+        },
+        {
+          "name": "姚宁",
+          "reason": "职称为主管护师，不属于本次医生抽样范围"
+        }
+      ]
+    },
+    {
+      "id": "CN02",
+      "country": "中国",
+      "institution": "中山大学附属第六医院",
+      "department": "普通外科",
+      "source_url": "https://www.sysu6h.cn/medical-department/key/national/1",
+      "source_section": "专家",
+      "candidates": [
+        "汪建平",
+        "兰平",
+        "吴小剑",
+        "黄美近",
+        "康亮",
+        "任东林",
+        "彭俊生",
+        "潘卫东",
+        "杨祖立",
+        "王辉",
+        "何小文",
+        "黄晓明",
+        "练磊",
+        "彭慧",
+        "王华摄",
+        "郑哲宇",
+        "向军",
+        "谢尚奎",
+        "张大伟",
+        "苏丹",
+        "林义佳",
+        "黄榕康",
+        "廖艺",
+        "柯嘉",
+        "邹一丰",
+        "马腾辉",
+        "秦启元",
+        "袁紫旭",
+        "王新友",
+        "何晓生",
+        "何真"
+      ],
+      "exclusions": []
+    },
+    {
+      "id": "CN03",
+      "country": "中国",
+      "institution": "天津医科大学总医院",
+      "department": "皮肤性病科（含医学美容科）",
+      "source_url": "https://www.tjmugh.com.cn/lcks/pfk/zjjs/index.shtml",
+      "source_section": "医师介绍",
+      "candidates": [
+        "刘全忠",
+        "王惠平",
+        "齐蔓莉",
+        "周之海",
+        "李燕",
+        "罗素菊",
+        "车雅敏",
+        "张俊艳",
+        "侯淑萍",
+        "刘原君",
+        "邵丽丽"
+      ],
+      "exclusions": []
+    },
+    {
+      "id": "OS01",
+      "country": "英国",
+      "institution": "盖伊和圣托马斯医院国民保健署基金会信托",
+      "department": "消化内科",
+      "institution_original": "Guy's and St Thomas' NHS Foundation Trust",
+      "department_original": "Gastroenterology",
+      "source_url": "https://www.guysandstthomas.nhs.uk/our-services/gastroenterology",
+      "source_section": "Our consultants",
+      "candidates": [
+        "Alexandra Zissimopoulos",
+        "Michelle McCarthy",
+        "Terence Wong",
+        "Bo Wang",
+        "Giovanni Tritto",
+        "Jason Dunn",
+        "Jeremy Sanderson",
+        "Joel Mawdsley",
+        "John Meenan",
+        "Leo Chong",
+        "Mark Samaan",
+        "Matthew Long",
+        "Mohamed Hussein",
+        "Peter Irving",
+        "Philip Berry",
+        "Robin Dart",
+        "Sabina De Martino",
+        "Sebastian Zeki",
+        "Shuvra Ray",
+        "Simon Anderson",
+        "Sreelakshmi Kotha"
+      ],
+      "exclusions": []
+    },
+    {
+      "id": "OS02",
+      "country": "新西兰",
+      "institution": "奥塔哥大学",
+      "department": "但尼丁内科学系急诊医学组",
+      "institution_original": "University of Otago",
+      "department_original": "Department of Medicine, Dunedin — Emergency Medicine",
+      "source_url": "https://www.otago.ac.nz/dsm-medicine/people",
+      "source_section": "Academic staff > Emergency Medicine",
+      "candidates": [
+        "Sierra Beck",
+        "Caroline Collins",
+        "Aileen Conboy",
+        "Susan Creighton",
+        "Clive Dreyer",
+        "Tim Kerruish",
+        "Bruce Lambie",
+        "Jill Rubython"
+      ],
+      "exclusions": []
+    },
+    {
+      "id": "OS03",
+      "country": "加拿大",
+      "institution": "麦吉尔大学",
+      "department": "风湿病学部",
+      "institution_original": "McGill University",
+      "department_original": "Division of Rheumatology",
+      "source_url": "https://www.mcgill.ca/rheumatology/faculty",
+      "source_section": "Faculty",
+      "candidates": [
+        "Laeora Berkson",
+        "Elizabeth Hazel",
+        "Fares Kalache",
+        "Susan Bartlett",
+        "Sasha Bernatsky",
+        "Ines Colmegna",
+        "John DiBattista",
+        "Sabrina Fallavollita",
+        "Mary-Ann Fitzcharles",
+        "Louis-Pierre Grenier",
+        "Genevieve Gyger",
+        "Marie Hudson",
+        "Alexandra Ladouceur",
+        "Francisca Lambert-Fliszar",
+        "Valerie Leclair",
+        "Arielle Mendel",
+        "Pantelis Panopalis",
+        "Christian Pineau",
+        "Joyce Rauch",
+        "Jan Schulz",
+        "Michael Starr",
+        "Michael Stein",
+        "Alexander Tsoukas",
+        "Evelyne Vinet",
+        "Sophie Wojcik"
+      ],
+      "exclusions": [],
+      "note": "按任务允许的临床/医学研究人员范围纳入此官方学部全部 Faculty，包括医学研究 PhD；未按知名度过滤。"
+    },
+    {
+      "id": "OS04",
+      "country": "日本",
+      "institution": "名古屋大学医学部附属医院",
+      "department": "神经内科",
+      "institution_original": "名古屋大学医学部附属病院",
+      "department_original": "脳神経内科",
+      "source_url": "https://www.med.nagoya-u.ac.jp/hospital/guide/outpatient/schedules/neurology/",
+      "source_section": "9月（令和8年9月1日現在）；按诊察室行优先、周一到周五列优先，重复人名仅保留首次",
+      "candidates": [
+        "佐橋 健太郎",
+        "横井 聡",
+        "井口 洋平",
+        "村上 あゆ香",
+        "川瀬 崇広",
+        "飯田 円",
+        "玉腰 大悟",
+        "山田 晋一郎",
+        "勝野 雅央",
+        "鈴木 将史",
+        "坪井 崇",
+        "深見 祐樹",
+        "平賀 経太",
+        "植松 高史",
+        "伊藤 大輔"
+      ],
+      "exclusions": [
+        {
+          "name": "蛭薙（1・3週）",
+          "reason": "该目录仅公开姓，缺少完整姓名，不进行外部补名后纳入"
+        },
+        {
+          "name": "辻河（2・4週）",
+          "reason": "该目录仅公开姓，缺少完整姓名，不进行外部补名后纳入"
+        },
+        {
+          "name": "担当医",
+          "reason": "未公开个人姓名"
+        }
+      ],
+      "duplicate_entries_removed": [
+        "山田 晋一郎",
+        "佐橋 健太郎",
+        "坪井 崇",
+        "井口 洋平"
+      ]
+    },
+    {
+      "id": "OS05",
+      "country": "澳大利亚",
+      "institution": "阿尔弗雷德医院",
+      "department": "内分泌科",
+      "institution_original": "The Alfred",
+      "department_original": "Endocrinology",
+      "source_url": "https://www.alfredhealth.org.au/the-alfred/services/hp/endocrinology-clinic",
+      "source_section": "Clinic consultants",
+      "candidates": [
+        "Anthony Russell",
+        "Duncan Topliss",
+        "Leon Bach",
+        "Mark Cooper",
+        "Richard Arnott",
+        "Shane Hamblin",
+        "Kathryn Hackman",
+        "Sybil McAuley",
+        "Elisabeth Ng",
+        "Shoshana Sztal-Mazer",
+        "Annabelle Warren"
+      ],
+      "exclusions": []
+    }
+  ]
+}

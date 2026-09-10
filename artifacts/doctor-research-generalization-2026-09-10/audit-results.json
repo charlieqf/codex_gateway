@@ -1,0 +1,1275 @@
+{
+  "manifest": {
+    "revision": "a67d2d3a4415d3aceed360d2a394e6f4933964da",
+    "archive_sha256": "421df7f35d59977aa87aa7e7244a64336157902b0da216f64311a6514454869f",
+    "original_input_sha256": "f7af16073320e8101da23a6a5e27ae0b87f368058bbcee2ae5af3c03b4301a92",
+    "normalized_input_sha256": "beffdcb5ac5c9aa9fc6b1fee2a5b666b56dd387edf5f1e6f274f048608d651c7",
+    "worker_base_image": "sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be",
+    "case_count": 8,
+    "fresh_input": true,
+    "search_cache_disabled": true,
+    "official_profile_urls": [],
+    "code_sha256": {
+      "scripts/ops/probe-doctor-research-repair.mjs": "c5a3e7b336c0995d0e629be30a2918b8a4def25ff9076541ee844a8e125c5c6e",
+      "packages/research-agent/dist/workflow.js": "ca7c81a87d36c27393992b0ba5fcf0d2848fab13e103fa2414d2aef1ccc2d394",
+      "packages/research-agent/dist/research-prompt-projection.test.js": "1e6cf69c4d488a20a08284ddbe9aba2db02aa73023cba692739efdd1f5b745bb",
+      "packages/research-agent/dist/backup.js": "bb6d9af5e6729573c57656c5965823e89c076160ce7bb44afc62b13601425c17",
+      "packages/research-agent/dist/review-contract-policy.test.js": "d522f9a00d73cc33164e5c57da1ccfed19f6d18b6540348a3852295c12c62e79",
+      "packages/research-agent/dist/eval-runner.js": "429780a6fd0a7088c445a781a1b3636cef6ef8af931f0a7d43cc0d613bdddbc1",
+      "packages/research-agent/dist/replay.test.js": "ca968739aef482e90471ac9113975e58f2c94a05c3e577b470dff91e6ebe1661",
+      "packages/research-agent/dist/institution-names.js": "438690dd3ec14ce72d27ec28bfc8ab27299d68e6d0cd1f37cb453e1e48f69a8b",
+      "packages/research-agent/dist/storage.js": "db100a45f4ac581df6392a2f1d8b048504007d922c88b949d60909789c88bf6c",
+      "packages/research-agent/dist/literature-identity.test.js": "c320e149b2e36aabaee5aff000c89aeabc768519e2fc65b3236f8402d260408b",
+      "packages/research-agent/dist/model-client.js": "2e4e51d8dcfaa4f23662227e70fdd675853b6c55d9c8b5465822a8791d77695e",
+      "packages/research-agent/dist/replay.js": "14fbec8f5df2ef022edfb7c4796ef329bffc5d341b00b7a57539f14288fdfdea",
+      "packages/research-agent/dist/skill-definition.js": "5c1e897b150f806745ff30b7c2716058a76161e25daa3b86159f38887657ca06",
+      "packages/research-agent/dist/review-section-repair.test.js": "bee3a39a6994058448c848d2c7b4bac342941621afea6c88eb5a5c1760641ee9",
+      "packages/research-agent/dist/research-search-recovery.test.js": "f09cd4c9140de630a1e079e36b249d41436eff05860a7e0067d64ead0f79c674",
+      "packages/research-agent/dist/review-section-repair.js": "a140511d176330968009e3b7b3858416f5828c466acfdcc4d5407eb0fc3f51f4",
+      "packages/research-agent/dist/lease-guard.js": "4c1498c54997f98e23a3ddd5ae41c240a9d3fff0e655d57dc856e07ff92337f9",
+      "packages/research-agent/dist/maintenance.js": "a0ef9ab44540aae3d6f3ebcb229b62ec19304c3780a9ba691c5b12b3633934b7",
+      "packages/research-agent/dist/research-prompt-projection.js": "e8cb6d8fc0ddc0c546f03d9ae64100b556b87aae85b1acb7cbd7d9ec7e91ad62",
+      "packages/research-agent/dist/safe-http.js": "52a26a4633ed2ef4be51a9f7d1ad57162213c06667f83f4f2a7d366bfc718c2c",
+      "packages/research-agent/dist/medical-skill-bundle.js": "827479035588b9e5895e60103a5b5211d8f5ec3e100f0f346aab6401b1af4fcb",
+      "packages/research-agent/dist/adapters.js": "d013b2fcb9d9b6f0b756167ffa3182080969e4d23bd5081f091ef25e3ce17dc4",
+      "packages/research-agent/dist/model-client.test.js": "4e56af6865d64df52aabb023cf35330ec6529873b6d080b2b88563724c01574d",
+      "packages/research-agent/dist/contracts.js": "917985c07e10716b0172750dae87be9b78173d50b88418345c5fb5911a943047",
+      "packages/research-agent/dist/institution-names.test.js": "56668dab96d94fb3b8b1cd36841df1cf53766718b9707767b7897da8c94bc0aa",
+      "packages/research-agent/dist/index.js": "800d5c06f9c6fcdbe66851bfea5855d0357c89b4d2426d9103184ed43228e0f6",
+      "packages/research-agent/dist/literature-identity.js": "7089edffc64166042e01882fdd87b3c8dd262282a97a8b0034de3dd5188681df",
+      "packages/research-agent/dist/review-contract-policy.js": "21076dba2633d4e74838dc465abd75d3bf3e416f3624496f8791c331bccf4571",
+      "packages/research-agent/dist/research-agent.test.js": "e64826bab2ef11f51535c98d6198e791647689380fa4c8509b78e2877e285a9e",
+      "packages/research-agent/dist/fs-guard.js": "94eed18ab0da3deac219973a0dc6ce65319abec0d1f6b2b04ec11bb2ad9366a6",
+      "packages/research-agent/dist/live-adapters.test.js": "8708ddfa95486c35f2403db9d425cb0ef7fc5bb5d24a56d535c0a72bb9472532",
+      "packages/research-agent/dist/live-adapters.js": "c84747f1a7b0da4fb13ff625c3f6bba43b7b210402b52b566a28ee77288a3b64",
+      "packages/research-agent/dist/artifacts.js": "426beba8ad63a449275ad2402f3c90f9ec9f7081b80a419791e6afbdeec7fc0a",
+      "packages/research-agent/dist/medical-skill-bundle.test.js": "2dbd165cbf6986cdf8e2612449ae6bfc8c1c357659264df99aa86d9008189568",
+      "packages/research-agent/dist/review-prose-rules.js": "17dc7348fddd5a06e123dad09a5bab70c356798a605322ab8965896a2c3fd6ad"
+    },
+    "protocol": "All eight once in fixed order; no runtime code changes or manual evidence injection.",
+    "code_unchanged_after_test": true,
+    "probe_exit_code": 0
+  },
+  "results": [
+    {
+      "name": "钟历勇",
+      "elapsed_ms": 71597,
+      "search_calls": 4,
+      "outcome": "succeeded",
+      "probe_run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+      "artifacts": [
+        {
+          "kind": "answers",
+          "size_bytes": 2246,
+          "sha256": "21e0fe0fc88da5cac83be7690e37c89555ad91bc80ba15ba134e3a3eb4f92f39"
+        },
+        {
+          "kind": "profile",
+          "size_bytes": 584,
+          "sha256": "cedb7f59e38b4e9713e4ddac4d16565e391e9f2fe84333b31b7cceda6c0bbf31"
+        },
+        {
+          "kind": "questions",
+          "size_bytes": 262,
+          "sha256": "1c4359d97db375bc0a2377f87ccaa1e51a0bdcce42195982077b3a4df7363f38"
+        },
+        {
+          "kind": "review",
+          "size_bytes": 3954,
+          "sha256": "5ed5e41b89d408ef282978086178ff13132f125d10eae5a651ac5e7149cb2dfe"
+        }
+      ],
+      "stages": [
+        {
+          "stage": "synthesize_review",
+          "attempt": 1,
+          "error_code": null,
+          "duration_ms": 36088
+        }
+      ],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-0",
+      "traces": [
+        {
+          "source_id": "src_web_23e23849f71d568611e4b556",
+          "url": "https://cmtopdr.com/classroom/recod/detail/67018.html",
+          "fetched": true,
+          "characters": 1848
+        },
+        {
+          "source_id": "src_web_939a44cc5b62036f0fb1d6d8",
+          "url": "https://m.gxszw.com/region/beijing/wsbj/202601/23122927.html",
+          "fetched": true,
+          "characters": 4015
+        },
+        {
+          "source_id": "src_web_3de99cc5c184b6872b6a8e15",
+          "url": "https://yjsh.ccmu.edu.cn/xsjl_3106/109792.htm",
+          "fetched": true,
+          "characters": 14109
+        },
+        {
+          "source_id": "src_web_ba0e13baa208e8ce7dd246a2",
+          "url": "https://rshch.ccmu.edu.cn/tzgg_1479/410b2e88cab047fb885665a966214f2b.htm",
+          "fetched": true,
+          "characters": 1084
+        },
+        {
+          "source_id": "src_web_52f1f2f46942549a5336e805",
+          "url": "https://baike.baidu.com/item/%E9%92%9F%E5%8E%86%E5%8B%87/1142896",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_8e6e32500813a6eaab37cd9d",
+          "url": "https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm",
+          "fetched": true,
+          "characters": 7128
+        }
+      ],
+      "run": {
+        "run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+        "status": "succeeded",
+        "terminal_reason": null,
+        "active_elapsed_ms": 71488,
+        "warnings": [
+          "abstract_only_evidence",
+          "licensed_chinese_literature_not_covered",
+          "doctor_publication_evidence_not_found",
+          "verified_reference_target_not_reached",
+          "doctor_lookup_sources_require_user_verification",
+          "brief_relaxed_review_content_minimum",
+          "brief_relaxed_reference_count_minimum",
+          "brief_relaxed_paragraph_citation_coverage",
+          "brief_relaxed_answer_length_contract",
+          "brief_relaxed_numeric_evidence_closure",
+          "doctor_lookup_brief_completed",
+          "peer_review_skipped_after_deterministic_validation"
+        ]
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 1,
+        "discovered_source_count": 6,
+        "fetched_source_count": 5,
+        "source_failures": [
+          {
+            "sourceId": "src_web_52f1f2f46942549a5336e805",
+            "httpStatus": 403,
+            "kind": "http_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_23e23849f71d568611e4b556",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_939a44cc5b62036f0fb1d6d8",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_3de99cc5c184b6872b6a8e15",
+            "reason": "affiliation_or_specialty_missing"
+          },
+          {
+            "source_id": "src_web_ba0e13baa208e8ce7dd246a2",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_8e6e32500813a6eaab37cd9d",
+            "reason": "accepted"
+          }
+        ],
+        "hospital_official_domain_count": 0,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 1,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "钟历勇",
+          "run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+          "host": "serpapi.com",
+          "query_sha256": "a9f58c39c9f3e62387435b1f05bfc76e9c2ced5faca6c3ac2d5ccb9a01e603a1",
+          "attempt": 1,
+          "duration_ms": 2542,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29ec6304ebaa5f70e43f0"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "钟历勇",
+          "run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+          "host": "serpapi.com",
+          "query_sha256": "591a30ac86acfa45972f706ebcae15b75a22c200675786d63a8bf9647b0dda16",
+          "attempt": 1,
+          "duration_ms": 4058,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29ec6a26f568d49767661"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "钟历勇",
+          "run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+          "host": "serpapi.com",
+          "query_sha256": "554d73bd235e29c005a71a7db64a4e3a18535fdff776a27ba26f55463158c379",
+          "attempt": 1,
+          "duration_ms": 20003,
+          "outcome": "failed",
+          "http_status": null,
+          "error_kind": "timeout",
+          "search_id": null
+        },
+        {
+          "event": "probe_external_request",
+          "name": "钟历勇",
+          "run_id": "drr_735521bdf8a4472bb5b977c2936ffb9b",
+          "host": "serpapi.com",
+          "query_sha256": "554d73bd235e29c005a71a7db64a4e3a18535fdff776a27ba26f55463158c379",
+          "attempt": 2,
+          "duration_ms": 7803,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29ee1e9639b6c729ea942"
+        }
+      ],
+      "artifact_files_verified": 4
+    },
+    {
+      "name": "杨祖立",
+      "elapsed_ms": 57053,
+      "search_calls": 3,
+      "outcome": "succeeded",
+      "probe_run_id": "drr_55cef04fe83742449b85e26e80b54482",
+      "artifacts": [
+        {
+          "kind": "answers",
+          "size_bytes": 2084,
+          "sha256": "707a5038afe63ff4b0c4e4f7bac76615028fbc2d8f2be7c710984230bc63103f"
+        },
+        {
+          "kind": "profile",
+          "size_bytes": 1284,
+          "sha256": "241fd86dfa3b290d6663e868bc58e046f4642f30640900b8072e40ad78b6da43"
+        },
+        {
+          "kind": "questions",
+          "size_bytes": 286,
+          "sha256": "55f953ad96327c46ddac8e6597849dd8b655bc9fe0ae2c936e9ee3d46c6a5c36"
+        },
+        {
+          "kind": "review",
+          "size_bytes": 2766,
+          "sha256": "38867513e46e7ad8df0e51a1c2a8725afcddbc74767e6b829dcc8008ae09bcba"
+        }
+      ],
+      "stages": [
+        {
+          "stage": "synthesize_review",
+          "attempt": 1,
+          "error_code": null,
+          "duration_ms": 20644
+        }
+      ],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-1",
+      "traces": [
+        {
+          "source_id": "src_web_69cd7bdef972e417556cceb1",
+          "url": "https://static.nfnews.com/content/202412/29/c10385269.html",
+          "fetched": true,
+          "characters": 799
+        },
+        {
+          "source_id": "src_web_b5add79c88bea0c082055dec",
+          "url": "https://www.haodf.com/hospital/617/keshi/6972140434.html",
+          "fetched": true,
+          "characters": 2368
+        },
+        {
+          "source_id": "src_web_f9daff3da239fe7049ff5d5b",
+          "url": "https://www.sysu6h.cn/expert/653",
+          "fetched": true,
+          "characters": 2052
+        },
+        {
+          "source_id": "src_web_f0e3841a375441d0c2978fa1",
+          "url": "https://zhuanlan.zhihu.com/p/15167068865",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_5ee661ec81d12afb21db4980",
+          "url": "https://www.sysu6h.cn/",
+          "fetched": true,
+          "characters": 8232
+        }
+      ],
+      "run": {
+        "run_id": "drr_55cef04fe83742449b85e26e80b54482",
+        "status": "succeeded",
+        "terminal_reason": null,
+        "active_elapsed_ms": 56979,
+        "warnings": [
+          "abstract_only_evidence",
+          "licensed_chinese_literature_not_covered",
+          "doctor_publication_evidence_not_found",
+          "doctor_research_direction_evidence_not_found",
+          "verified_reference_target_not_reached",
+          "doctor_lookup_sources_require_user_verification",
+          "brief_relaxed_review_content_minimum",
+          "brief_relaxed_reference_count_minimum",
+          "brief_relaxed_paragraph_citation_coverage",
+          "brief_relaxed_answer_length_contract",
+          "doctor_lookup_brief_completed",
+          "peer_review_skipped_after_deterministic_validation"
+        ]
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 1,
+        "discovered_source_count": 8,
+        "fetched_source_count": 4,
+        "source_failures": [
+          {
+            "sourceId": "src_web_5dbfec070bd793e87659d195",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_f0e3841a375441d0c2978fa1",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_9a767e86060dd6dc7ea27c04",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_69cd7bdef972e417556cceb1",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_b5add79c88bea0c082055dec",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_f9daff3da239fe7049ff5d5b",
+            "reason": "accepted"
+          },
+          {
+            "source_id": "src_web_5ee661ec81d12afb21db4980",
+            "reason": "name_not_found"
+          }
+        ],
+        "hospital_official_domain_count": 1,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 1,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "杨祖立",
+          "run_id": "drr_55cef04fe83742449b85e26e80b54482",
+          "host": "serpapi.com",
+          "query_sha256": "57930943d920bee5ddd3abc963d0a81e245798c82826b30ee6a489a652d88c6c",
+          "attempt": 1,
+          "duration_ms": 3218,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f0eff7aa2076d7422aa"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "杨祖立",
+          "run_id": "drr_55cef04fe83742449b85e26e80b54482",
+          "host": "serpapi.com",
+          "query_sha256": "b63d1c6daf7e6839758ec2377de339dfc0c0558265103585eba2bf3831038fe1",
+          "attempt": 1,
+          "duration_ms": 20002,
+          "outcome": "failed",
+          "http_status": null,
+          "error_kind": "timeout",
+          "search_id": null
+        },
+        {
+          "event": "probe_external_request",
+          "name": "杨祖立",
+          "run_id": "drr_55cef04fe83742449b85e26e80b54482",
+          "host": "serpapi.com",
+          "query_sha256": "b63d1c6daf7e6839758ec2377de339dfc0c0558265103585eba2bf3831038fe1",
+          "attempt": 2,
+          "duration_ms": 11810,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f2269819d049299cf9f"
+        }
+      ],
+      "artifact_files_verified": 4
+    },
+    {
+      "name": "王惠平",
+      "elapsed_ms": 40290,
+      "search_calls": 3,
+      "outcome": "failed",
+      "reason": "upstream_unavailable",
+      "retryable": true,
+      "dependencyScope": "request",
+      "upstreamErrorKind": "timeout",
+      "probe_run_id": "drr_9bda898e3a15422cb253fe02e4f1ebdf",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-2",
+      "traces": [],
+      "run": {
+        "run_id": "drr_9bda898e3a15422cb253fe02e4f1ebdf",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": null,
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "王惠平",
+          "run_id": "drr_9bda898e3a15422cb253fe02e4f1ebdf",
+          "host": "serpapi.com",
+          "query_sha256": "de61c02fe13abd7521d46f624bb14366792cc6877c3a610c49b323c1635bde92",
+          "attempt": 1,
+          "duration_ms": 2835,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f4771a41d509edd9cce"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "王惠平",
+          "run_id": "drr_9bda898e3a15422cb253fe02e4f1ebdf",
+          "host": "serpapi.com",
+          "query_sha256": "67707ca109a954e2a7360c3dcd5f771b5f15a775e59544f940e42bba48ae3aeb",
+          "attempt": 1,
+          "duration_ms": 20001,
+          "outcome": "failed",
+          "http_status": null,
+          "error_kind": "timeout",
+          "search_id": null
+        },
+        {
+          "event": "probe_external_request",
+          "name": "王惠平",
+          "run_id": "drr_9bda898e3a15422cb253fe02e4f1ebdf",
+          "host": "serpapi.com",
+          "query_sha256": "67707ca109a954e2a7360c3dcd5f771b5f15a775e59544f940e42bba48ae3aeb",
+          "attempt": 2,
+          "duration_ms": 20002,
+          "outcome": "failed",
+          "http_status": null,
+          "error_kind": "timeout",
+          "search_id": null
+        }
+      ],
+      "artifact_files_verified": 0
+    },
+    {
+      "name": "Jason Dunn",
+      "elapsed_ms": 56339,
+      "search_calls": 5,
+      "outcome": "failed",
+      "reason": "identity_not_resolved",
+      "probe_run_id": "drr_2906e48b884c4d62866127463a26e049",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-3",
+      "traces": [
+        {
+          "source_id": "src_web_746266b103cce20ce521141a",
+          "url": "https://zh.wikipedia.org/zh-hans/%E8%93%8B%E4%BC%8A%E9%86%AB%E9%99%A2",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_1b0c4b2bbf03aec5f2521f7b",
+          "url": "https://www.reddit.com/r/doctorsUK/comments/1ena3lr/dispute_update_guys_st_thomas_nhs_trust/",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_b0bf7334d2616345bb0730ca",
+          "url": "https://www.guysandstthomas.nhs.uk/",
+          "fetched": true,
+          "characters": 3276
+        },
+        {
+          "source_id": "src_web_51394fc1e004aa4b0d323af0",
+          "url": "https://www.reddit.com/r/ChristianMusic/comments/1tv4axs/jason_dunn_interview_poppunk/",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_3e03594ee868b21110860325",
+          "url": "https://www.christianrock.net/artists/Jason_Dunn",
+          "fetched": true,
+          "characters": 1325
+        },
+        {
+          "source_id": "src_web_d84ca37dedaab1bbdc7f4523",
+          "url": "https://www.researchgate.net/publication/354899474_Effect_of_psychological_problems_and_interventions_on_gastrointestinal_diseases",
+          "fetched": false,
+          "characters": 0
+        }
+      ],
+      "run": {
+        "run_id": "drr_2906e48b884c4d62866127463a26e049",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 0,
+        "discovered_source_count": 6,
+        "fetched_source_count": 2,
+        "source_failures": [
+          {
+            "sourceId": "src_web_746266b103cce20ce521141a",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_1b0c4b2bbf03aec5f2521f7b",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_51394fc1e004aa4b0d323af0",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_d84ca37dedaab1bbdc7f4523",
+            "httpStatus": 403,
+            "kind": "http_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_b0bf7334d2616345bb0730ca",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_3e03594ee868b21110860325",
+            "reason": "source_not_verified"
+          }
+        ],
+        "hospital_official_domain_count": 0,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 0,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "Jason Dunn",
+          "run_id": "drr_2906e48b884c4d62866127463a26e049",
+          "host": "serpapi.com",
+          "query_sha256": "4da9948d6ed2c8e92110ccbab1f499645211e33ba60fd97e18d17e89127389f2",
+          "attempt": 1,
+          "duration_ms": 17388,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f6fdd2e1618f1e93d60"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Jason Dunn",
+          "run_id": "drr_2906e48b884c4d62866127463a26e049",
+          "host": "serpapi.com",
+          "query_sha256": "307a406824b5af62841cd3b3fc641f4f3e4ce6bfe8d8dd7dd3ec0d7caffd6cc5",
+          "attempt": 1,
+          "duration_ms": 20003,
+          "outcome": "failed",
+          "http_status": null,
+          "error_kind": "timeout",
+          "search_id": null
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Jason Dunn",
+          "run_id": "drr_2906e48b884c4d62866127463a26e049",
+          "host": "serpapi.com",
+          "query_sha256": "307a406824b5af62841cd3b3fc641f4f3e4ce6bfe8d8dd7dd3ec0d7caffd6cc5",
+          "attempt": 2,
+          "duration_ms": 16831,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f83a3ce8402c132bd5e"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Jason Dunn",
+          "run_id": "drr_2906e48b884c4d62866127463a26e049",
+          "host": "serpapi.com",
+          "query_sha256": "c8b7c3d75e4f5f66b064ea3612cfb18a96b7642349cbc2d52f087d3f4f4cd38a",
+          "attempt": 1,
+          "duration_ms": 13116,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29f964a08983625f9e563"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Jason Dunn",
+          "run_id": "drr_2906e48b884c4d62866127463a26e049",
+          "host": "serpapi.com",
+          "query_sha256": "84a277477cb70450b6123ac6404ae671613263655399bb5b1b224ae8cf7a757d",
+          "attempt": 1,
+          "duration_ms": 2387,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fa516a5a83a00dc1199"
+        }
+      ],
+      "artifact_files_verified": 0
+    },
+    {
+      "name": "Tim Kerruish",
+      "elapsed_ms": 10502,
+      "search_calls": 4,
+      "outcome": "failed",
+      "reason": "identity_not_resolved",
+      "probe_run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-4",
+      "traces": [
+        {
+          "source_id": "src_web_3fda6078c5372c117a18b843",
+          "url": "https://baike.baidu.com/item/%E5%A5%A5%E5%A1%94%E5%93%A5%E5%A4%A7%E5%AD%A6/7082663",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_cb9969687d1e0a4acbe47877",
+          "url": "https://www.universityofotago.cn/",
+          "fetched": true,
+          "characters": 1884
+        },
+        {
+          "source_id": "src_web_52b9cd293946c1bbbf726e47",
+          "url": "https://www.otago.ac.nz/international/future-students",
+          "fetched": false,
+          "characters": 0
+        }
+      ],
+      "run": {
+        "run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 0,
+        "discovered_source_count": 3,
+        "fetched_source_count": 1,
+        "source_failures": [
+          {
+            "sourceId": "src_web_3fda6078c5372c117a18b843",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_52b9cd293946c1bbbf726e47",
+            "httpStatus": 403,
+            "kind": "http_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_cb9969687d1e0a4acbe47877",
+            "reason": "name_not_found"
+          }
+        ],
+        "hospital_official_domain_count": 1,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 0,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "Tim Kerruish",
+          "run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+          "host": "serpapi.com",
+          "query_sha256": "29eedbed21196acd877c78b845354704f79e96bd94104af6e0664a8376758872",
+          "attempt": 1,
+          "duration_ms": 1315,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fa795e0b3c50d2652d5"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Tim Kerruish",
+          "run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+          "host": "serpapi.com",
+          "query_sha256": "5b8fec4d135a7f94613d0d62d7aa051d185fb2b9d62c4c08b9bf202481430a79",
+          "attempt": 1,
+          "duration_ms": 3783,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fa8b8b4a52da7910c37"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Tim Kerruish",
+          "run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+          "host": "serpapi.com",
+          "query_sha256": "f432b18178ade448c9bfc1f1abd1b12c80dce4894daa5a668b95c818763f99bc",
+          "attempt": 1,
+          "duration_ms": 1206,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29faca1de1272ec7b5fa6"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Tim Kerruish",
+          "run_id": "drr_29633f1e5a3e40c3adb20bb295fda462",
+          "host": "serpapi.com",
+          "query_sha256": "a62b752820ac6626393c36ee51c8632111af1ee0efef095fc5012445d5337099",
+          "attempt": 1,
+          "duration_ms": 4173,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fadb9dbc4ffbb05c0e5"
+        }
+      ],
+      "artifact_files_verified": 0
+    },
+    {
+      "name": "Alexander Tsoukas",
+      "elapsed_ms": 25479,
+      "search_calls": 4,
+      "outcome": "failed",
+      "reason": "identity_not_resolved",
+      "probe_run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-5",
+      "traces": [
+        {
+          "source_id": "src_web_8d8f32cee3a0207f4dbcd8d3",
+          "url": "https://zh.wikipedia.org/wiki/%E9%BA%A6%E5%90%89%E5%B0%94%E5%A4%A7%E5%AD%A6",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_81cd6215036be2473fb52fc5",
+          "url": "https://www.studypug.com/learning/zh/articles/magill-university-application-strategy/",
+          "fetched": true,
+          "characters": 13828
+        },
+        {
+          "source_id": "src_web_73a781092ca3cc520e3d4a93",
+          "url": "https://www.books.com.tw/products/F013901168",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_5b3de11cc3a3709d5a863240",
+          "url": "https://academic.oup.com/book/36530",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_4fd8f28decc761b32e19825e",
+          "url": "https://www.amazon.com/-/zh_TW/Stefan-Siebert-ebook/dp/B01LYR78RM",
+          "fetched": true,
+          "characters": 9139
+        }
+      ],
+      "run": {
+        "run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 0,
+        "discovered_source_count": 5,
+        "fetched_source_count": 2,
+        "source_failures": [
+          {
+            "sourceId": "src_web_8d8f32cee3a0207f4dbcd8d3",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_73a781092ca3cc520e3d4a93",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_5b3de11cc3a3709d5a863240",
+            "httpStatus": 403,
+            "kind": "http_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_81cd6215036be2473fb52fc5",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_4fd8f28decc761b32e19825e",
+            "reason": "source_not_verified"
+          }
+        ],
+        "hospital_official_domain_count": 0,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 0,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "Alexander Tsoukas",
+          "run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+          "host": "serpapi.com",
+          "query_sha256": "eb7fe5d9de351d11bc8404233d5fcbcd3e52f175dbffbff1c889278c0224b65b",
+          "attempt": 1,
+          "duration_ms": 1876,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fb2868180e9ac6da5e1"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Alexander Tsoukas",
+          "run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+          "host": "serpapi.com",
+          "query_sha256": "96a81114c54bdd20866210f8a454803176a4b22ff42f1f0e511e31f68cd53e0a",
+          "attempt": 1,
+          "duration_ms": 7741,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fb29b762d174c3025b6"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Alexander Tsoukas",
+          "run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+          "host": "serpapi.com",
+          "query_sha256": "f3612a95af9285b5e9455d8d0292be87c712e55dbbbd74faa3ec1c3754c43737",
+          "attempt": 1,
+          "duration_ms": 1539,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fc422abf785edaf8e98"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Alexander Tsoukas",
+          "run_id": "drr_39a64ea59b294c1cb1146b1ffec4059d",
+          "host": "serpapi.com",
+          "query_sha256": "ec5fd69ff498a13f82317429f9e84b02d781ac0bb710b2f82c3b3e0c0be5cc6a",
+          "attempt": 1,
+          "duration_ms": 2981,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fc6c986af8b23aea9d5"
+        }
+      ],
+      "artifact_files_verified": 0
+    },
+    {
+      "name": "飯田 円",
+      "elapsed_ms": 29032,
+      "search_calls": 3,
+      "outcome": "failed",
+      "reason": "identity_not_resolved",
+      "probe_run_id": "drr_c078c668bb46480d99434054f9468217",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-6",
+      "traces": [
+        {
+          "source_id": "src_web_46284644acc41b0a9f6cda5e",
+          "url": "https://kaken.nii.ac.jp/grant/KAKENHI-PROJECT-24K22096",
+          "fetched": true,
+          "characters": 6197
+        },
+        {
+          "source_id": "src_web_6618ba30d582f1a7e4be528b",
+          "url": "https://square.umin.ac.jp/cohort/thesis/D/index.html",
+          "fetched": true,
+          "characters": 1707
+        },
+        {
+          "source_id": "src_web_99e6c1c659c53dd0b0c0706b",
+          "url": "https://pub.confit.atlas.jp/ja/event/neuro2025/session/AP-02",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_4553b1ceb45a2e4bf06e8b08",
+          "url": "https://baike.baidu.com/item/%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E5%AD%A6%E5%8C%BB%E5%AD%A6%E9%83%A8%E9%99%84%E5%B1%9E%E7%97%85%E9%99%A2/50145888",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_cd146748d7e1f9ca54149514",
+          "url": "https://jsnt44.umin.jp/program.html",
+          "fetched": true,
+          "characters": 14774
+        },
+        {
+          "source_id": "src_web_f11095704e1e6f523da0bfad",
+          "url": "https://www.link-j.org/bulletinboard/article-51105.html",
+          "fetched": true,
+          "characters": 3365
+        },
+        {
+          "source_id": "src_web_3fbb5f381da5e88e557cf26f",
+          "url": "https://ja.wikipedia.org/wiki/%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E5%AD%A6%E5%8C%BB%E5%AD%A6%E9%83%A8%E9%99%84%E5%B1%9E%E7%97%85%E9%99%A2",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_7971962cddd6664f0d4aed76",
+          "url": "https://m.chujingyi.cn/yiyuan/jap/eegonj",
+          "fetched": true,
+          "characters": 2446
+        },
+        {
+          "source_id": "src_web_4cbd487b9b3fadeb4db373c7",
+          "url": "https://enc.piano.or.jp/persons/14003",
+          "fetched": true,
+          "characters": 2066
+        }
+      ],
+      "run": {
+        "run_id": "drr_c078c668bb46480d99434054f9468217",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 0,
+        "discovered_source_count": 10,
+        "fetched_source_count": 6,
+        "source_failures": [
+          {
+            "sourceId": "src_web_99e6c1c659c53dd0b0c0706b",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_4553b1ceb45a2e4bf06e8b08",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_3fbb5f381da5e88e557cf26f",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_46284644acc41b0a9f6cda5e",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_6618ba30d582f1a7e4be528b",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_cd146748d7e1f9ca54149514",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_f11095704e1e6f523da0bfad",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_7971962cddd6664f0d4aed76",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_4cbd487b9b3fadeb4db373c7",
+            "reason": "source_not_verified"
+          }
+        ],
+        "hospital_official_domain_count": 0,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 0,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "飯田 円",
+          "run_id": "drr_c078c668bb46480d99434054f9468217",
+          "host": "serpapi.com",
+          "query_sha256": "4c1d9b03480ad939edb82791984ec42494119390188a7621652d40def7d8a0db",
+          "attempt": 1,
+          "duration_ms": 2959,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fcb9b762d2820d4a8ad"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "飯田 円",
+          "run_id": "drr_c078c668bb46480d99434054f9468217",
+          "host": "serpapi.com",
+          "query_sha256": "dbba40be14b3ae8d590053e7e2ee4c45f23159094e6dfb85b0d186cf796e2aa8",
+          "attempt": 1,
+          "duration_ms": 16772,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fcc2c2bb4fef86938db"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "飯田 円",
+          "run_id": "drr_c078c668bb46480d99434054f9468217",
+          "host": "serpapi.com",
+          "query_sha256": "9585a2c54136ab93db86e147f22cfe599d797ff4e7053cef30e7129695e1cc7b",
+          "attempt": 1,
+          "duration_ms": 7105,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fe1badf0b5657ae603e"
+        }
+      ],
+      "artifact_files_verified": 0
+    },
+    {
+      "name": "Shoshana Sztal-Mazer",
+      "elapsed_ms": 19078,
+      "search_calls": 3,
+      "outcome": "failed",
+      "reason": "identity_not_resolved",
+      "probe_run_id": "drr_1b8813686be8435a883255de8a2e107b",
+      "artifacts": [],
+      "stages": [],
+      "case_root": "/tmp/doctor-research-repair-20260910-heldouta67d2d3/full-7",
+      "traces": [
+        {
+          "source_id": "src_web_4cc0bfd6fe6a4b4c9ddb7dc1",
+          "url": "https://research.monash.edu/en/publications/functional-hypothalamic-amenorrhoea-a-diagnosis-of-exclusion/",
+          "fetched": true,
+          "characters": 3957
+        },
+        {
+          "source_id": "src_web_1edfd6b85f2c2a25d9e3e49a",
+          "url": "https://www.jhltopen.org/article/S2950-1334(24)00131-9/pdf",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_345d2d68ac41c657d6f9d138",
+          "url": "https://loop.frontiersin.org/people/3003209/overview",
+          "fetched": true,
+          "characters": 509
+        },
+        {
+          "source_id": "src_web_9cac887d792cd3b835b4fa58",
+          "url": "https://www.alfredhealth.org.au/caulfield/services/hp/osteoporosis-clinic",
+          "fetched": true,
+          "characters": 4469
+        },
+        {
+          "source_id": "src_web_f689c71860d30b401c9ebe80",
+          "url": "https://dhs.lacounty.gov/zh-CN/%E6%B8%AF%E5%8F%A3ucla%E5%8C%BB%E7%96%97%E4%B8%AD%E5%BF%83/me/%E6%89%8B%E6%9C%AF/%E6%A0%A1%E5%8F%8B/%E6%99%AE%E9%80%9A%E5%A4%96%E7%A7%91%E4%BD%8F%E9%99%A2%E5%8C%BB%E5%B8%88/",
+          "fetched": true,
+          "characters": 11203
+        },
+        {
+          "source_id": "src_web_8f7e5213359f67f63e906f9e",
+          "url": "https://ads-adea-2016.m.asnevents.com.au/schedule/author/170104",
+          "fetched": true,
+          "characters": 2282
+        },
+        {
+          "source_id": "src_web_f204eaca1f4226e821659f32",
+          "url": "https://play.google.com/store/apps/details",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_ae99b9f0b3bd38029eba4918",
+          "url": "https://www.gleneagles.com.sg/zh/patient-services/specialists/profile/yan-chee-hong-peter",
+          "fetched": false,
+          "characters": 0
+        },
+        {
+          "source_id": "src_web_3c7a014ea6fa50daee8b7821",
+          "url": "https://academic.oup.com/jbmr/advance-article/doi/10.1093/jbmr/zjag070/8655117",
+          "fetched": false,
+          "characters": 0
+        }
+      ],
+      "run": {
+        "run_id": "drr_1b8813686be8435a883255de8a2e107b",
+        "status": "running",
+        "terminal_reason": null,
+        "active_elapsed_ms": 0,
+        "warnings": []
+      },
+      "identity_checkpoint": {
+        "schema_version": "doctor_research_identity_checkpoint.v1",
+        "official_source_count": 0,
+        "discovered_source_count": 10,
+        "fetched_source_count": 5,
+        "source_failures": [
+          {
+            "sourceId": "src_web_1edfd6b85f2c2a25d9e3e49a",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_f204eaca1f4226e821659f32",
+            "httpStatus": null,
+            "kind": "fetch_error"
+          },
+          {
+            "sourceId": "src_web_ae99b9f0b3bd38029eba4918",
+            "httpStatus": 403,
+            "kind": "http_error"
+          },
+          {
+            "sourceId": "src_web_3c7a014ea6fa50daee8b7821",
+            "httpStatus": 403,
+            "kind": "http_error"
+          }
+        ],
+        "source_decisions": [
+          {
+            "source_id": "src_web_4cc0bfd6fe6a4b4c9ddb7dc1",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_345d2d68ac41c657d6f9d138",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_9cac887d792cd3b835b4fa58",
+            "reason": "source_not_verified"
+          },
+          {
+            "source_id": "src_web_f689c71860d30b401c9ebe80",
+            "reason": "name_not_found"
+          },
+          {
+            "source_id": "src_web_8f7e5213359f67f63e906f9e",
+            "reason": "source_not_verified"
+          }
+        ],
+        "hospital_official_domain_count": 0,
+        "hospital_domain_matched_source_count": 0,
+        "hospital_alias_candidate_count": 0,
+        "hospital_alias_matched_source_count": 0,
+        "hospital_alias_ambiguous": false,
+        "orcid_resolved": false
+      },
+      "search_attempts": [
+        {
+          "event": "probe_external_request",
+          "name": "Shoshana Sztal-Mazer",
+          "run_id": "drr_1b8813686be8435a883255de8a2e107b",
+          "host": "serpapi.com",
+          "query_sha256": "d647df5ee4a3113e0ec77c2af3b7dc338c071bd1f31de0fe5b0ecf0cd4d546e3",
+          "attempt": 1,
+          "duration_ms": 2140,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fe9e6425071c6e7b7e2"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Shoshana Sztal-Mazer",
+          "run_id": "drr_1b8813686be8435a883255de8a2e107b",
+          "host": "serpapi.com",
+          "query_sha256": "ab50766e4e536dfe66218156b912c7b13e9560296295e61ab89ebef9550ec64a",
+          "attempt": 1,
+          "duration_ms": 8105,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29fe8759dbc32c98d32d1"
+        },
+        {
+          "event": "probe_external_request",
+          "name": "Shoshana Sztal-Mazer",
+          "run_id": "drr_1b8813686be8435a883255de8a2e107b",
+          "host": "serpapi.com",
+          "query_sha256": "ae1e0dbb0c353091d86aa1a90bdf08d8ab9a78622f3fb46c8276059cb6646802",
+          "attempt": 1,
+          "duration_ms": 1887,
+          "outcome": "succeeded",
+          "http_status": 200,
+          "error_kind": null,
+          "search_id": "6aa29ff9410cda717b7c8d35"
+        }
+      ],
+      "artifact_files_verified": 0
+    }
+  ],
+  "verified_artifacts": 8,
+  "outcome_counts": {
+    "succeeded": 2,
+    "failed": 6
+  },
+  "boundary": "One complete workflow attempt per case, including adapter retries; no Worker requeue loop or public API admission."
+}

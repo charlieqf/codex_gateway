@@ -1,0 +1,50 @@
+[
+  {
+    "id": "CN01",
+    "candidate_count": 13,
+    "selected_index_zero_based": 1,
+    "name": "钟历勇"
+  },
+  {
+    "id": "CN02",
+    "candidate_count": 31,
+    "selected_index_zero_based": 8,
+    "name": "杨祖立"
+  },
+  {
+    "id": "CN03",
+    "candidate_count": 11,
+    "selected_index_zero_based": 1,
+    "name": "王惠平"
+  },
+  {
+    "id": "OS01",
+    "candidate_count": 21,
+    "selected_index_zero_based": 5,
+    "name": "Jason Dunn"
+  },
+  {
+    "id": "OS02",
+    "candidate_count": 8,
+    "selected_index_zero_based": 5,
+    "name": "Tim Kerruish"
+  },
+  {
+    "id": "OS03",
+    "candidate_count": 25,
+    "selected_index_zero_based": 22,
+    "name": "Alexander Tsoukas"
+  },
+  {
+    "id": "OS04",
+    "candidate_count": 15,
+    "selected_index_zero_based": 5,
+    "name": "飯田 円"
+  },
+  {
+    "id": "OS05",
+    "candidate_count": 11,
+    "selected_index_zero_based": 9,
+    "name": "Shoshana Sztal-Mazer"
+  }
+]

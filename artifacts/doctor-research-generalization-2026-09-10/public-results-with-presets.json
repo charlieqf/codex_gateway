@@ -1,0 +1,311 @@
+{
+  "runs": [
+    {
+      "run_id": "drr_a06190a1401548c581c739c44e2b387d",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 111623,
+      "created_at": "2026-09-10T11:35:41.920Z",
+      "completed_at": "2026-09-10T11:37:33.918Z",
+      "name": "Axel Rominger",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_research_direction_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_citation_reference_closure",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "brief_relaxed_numeric_evidence_closure",
+        "doctor_lookup_brief_completed",
+        "peer_review_skipped_after_deterministic_validation"
+      ],
+      "identity_seconds": 4.941,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "0e5cda35cc91906570c3e6c282df59573ec7a1f8240cad86eb00db60fd9aa420",
+          "size_bytes": 3629
+        },
+        {
+          "kind": "profile",
+          "sha256": "48524135c32cddc18c772fa7ab0a8b3af40436e7f485fcbbebcaad5d9feea73b",
+          "size_bytes": 2533
+        },
+        {
+          "kind": "questions",
+          "sha256": "b1008fd2f87498e163e425e32ccf55c95cc4839c85a912ade10069fc8bdaa518",
+          "size_bytes": 224
+        },
+        {
+          "kind": "review",
+          "sha256": "5e3e4a4e5eb9941682bdae726b4b94dc95e2f33a855a5d82cc757dc5fc69ae9d",
+          "size_bytes": 6690
+        }
+      ]
+    },
+    {
+      "run_id": "drr_32d8c91b4cff44b4bdb2a5d445892473",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 18569,
+      "created_at": "2026-09-10T11:37:47.510Z",
+      "completed_at": "2026-09-10T11:38:06.808Z",
+      "name": "沈嵘",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_publication_evidence_not_found",
+        "doctor_research_direction_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_reference_count_minimum",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "doctor_lookup_brief_completed",
+        "peer_review_skipped_after_deterministic_validation"
+      ],
+      "identity_seconds": 3.004,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "5f7d31bab2eb61434341c1c6e2f3986ce1fbaebd52af8a3355b9a9e4d106e2ba",
+          "size_bytes": 1560
+        },
+        {
+          "kind": "profile",
+          "sha256": "4a54e5822e5b2a57745c94b1653c5b4532843ca1c812d61dd9bcad8590a4e963",
+          "size_bytes": 730
+        },
+        {
+          "kind": "questions",
+          "sha256": "a6398f2eda5335ca91d39f3774fac07fcb9fffa517692dc6768c5eec005b06ea",
+          "size_bytes": 268
+        },
+        {
+          "kind": "review",
+          "sha256": "bca365a7c95f81ecdc9171d117f0d716bc1cec23b0c70761c6066fc1c5845d2e",
+          "size_bytes": 2153
+        }
+      ]
+    },
+    {
+      "run_id": "drr_979feae6027649d888326cb468f39c2d",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 80039,
+      "created_at": "2026-09-10T11:38:26.587Z",
+      "completed_at": "2026-09-10T11:39:46.706Z",
+      "name": "漆洪波",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_publication_evidence_not_found",
+        "doctor_research_direction_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_reference_count_minimum",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "brief_relaxed_numeric_evidence_closure",
+        "doctor_lookup_brief_completed",
+        "bounded_doctor_lookup_contract_retry_completed"
+      ],
+      "identity_seconds": 1.119,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "b17c0ad79759e8def14ef4cfa3a1179cc4bd265673b1f71b3dd8fc2a758f8f79",
+          "size_bytes": 3285
+        },
+        {
+          "kind": "profile",
+          "sha256": "b636ebfd28b33e8c913afb6aac173f74f2d3907d1092894830e238a7d1ceae72",
+          "size_bytes": 1386
+        },
+        {
+          "kind": "questions",
+          "sha256": "be4e3dd2eb4a81631073fa58acb94be45268218b92dfc55d28d0d9dfa2c40fb4",
+          "size_bytes": 307
+        },
+        {
+          "kind": "review",
+          "sha256": "eeda5c0bddc2b0ade5522349e176531ecaadc10c270e26626b990a94cc6e623b",
+          "size_bytes": 3302
+        }
+      ]
+    },
+    {
+      "run_id": "drr_6754a98ec278421f830aaa1e92a08ebb",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 41299,
+      "created_at": "2026-09-10T11:40:03.051Z",
+      "completed_at": "2026-09-10T11:40:44.606Z",
+      "name": "Leonhard Schaetz",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_research_direction_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_reference_count_minimum",
+        "brief_relaxed_citation_reference_closure",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "brief_relaxed_numeric_evidence_closure",
+        "doctor_lookup_brief_completed",
+        "peer_review_skipped_after_deterministic_validation"
+      ],
+      "identity_seconds": 15.4,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "f7a5bd4e39a0dd325b04183212eae708eddb4026a6d5b0082616cf9003679377",
+          "size_bytes": 2504
+        },
+        {
+          "kind": "profile",
+          "sha256": "7ab2fad8d7af8597341eb7009892c79e7224e4bfc1f0ff12f48949d519ab7561",
+          "size_bytes": 1230
+        },
+        {
+          "kind": "questions",
+          "sha256": "1d3a08231af371c6969810c5c9fbb822cf10bb008a8b88dd9ba6315a13e5a794",
+          "size_bytes": 240
+        },
+        {
+          "kind": "review",
+          "sha256": "e9a316cdcff0537c1c380b33ac5e2ecde54629d6e3c58683d1f4b36a6bc922bd",
+          "size_bytes": 4222
+        }
+      ]
+    },
+    {
+      "run_id": "drr_7bc6369a37bf41669979d0311366a77f",
+      "status": "failed",
+      "terminal_reason": "model_contract_error",
+      "active_elapsed_ms": 91754,
+      "created_at": "2026-09-10T11:41:01.236Z",
+      "completed_at": "2026-09-10T11:42:33.937Z",
+      "name": "Riemer Slart",
+      "warnings": [],
+      "identity_seconds": 3.67,
+      "artifacts": []
+    },
+    {
+      "run_id": "drr_c7f5ce048e6244f39efaf175408594ae",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 33008,
+      "created_at": "2026-09-10T11:44:35.506Z",
+      "completed_at": "2026-09-10T11:45:09.431Z",
+      "name": "Iva Hristova",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_publication_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_reference_count_minimum",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "brief_relaxed_numeric_evidence_closure",
+        "doctor_lookup_brief_completed",
+        "peer_review_skipped_after_deterministic_validation"
+      ],
+      "identity_seconds": 15.185,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "1192ae9b99e8632b86f853d0c7d9c18c6c5975a97224a1c74a97f60bc3dcdc44",
+          "size_bytes": 1974
+        },
+        {
+          "kind": "profile",
+          "sha256": "7ae9c80352dfffc832b954d356045e85fc00ab9f339685353ddf96f349cd617e",
+          "size_bytes": 585
+        },
+        {
+          "kind": "questions",
+          "sha256": "35a5407c2c291351402826898d4754c96b552434a7b4760135ff2125a7efe039",
+          "size_bytes": 295
+        },
+        {
+          "kind": "review",
+          "sha256": "fb344ac588951b263dc983e55e0322bf93d8eed5477bdf825024d6e779d706f9",
+          "size_bytes": 2767
+        }
+      ]
+    },
+    {
+      "run_id": "drr_b1088fb630b042ddb197c93f34fe10fb",
+      "status": "succeeded",
+      "terminal_reason": null,
+      "active_elapsed_ms": 89338,
+      "created_at": "2026-09-10T11:45:28.146Z",
+      "completed_at": "2026-09-10T11:46:58.331Z",
+      "name": "王永生",
+      "warnings": [
+        "abstract_only_evidence",
+        "licensed_chinese_literature_not_covered",
+        "doctor_publication_evidence_not_found",
+        "verified_reference_target_not_reached",
+        "doctor_lookup_sources_require_user_verification",
+        "brief_relaxed_review_content_minimum",
+        "brief_relaxed_reference_count_minimum",
+        "brief_relaxed_paragraph_citation_coverage",
+        "brief_relaxed_answer_length_contract",
+        "brief_relaxed_numeric_evidence_closure",
+        "doctor_lookup_brief_completed",
+        "peer_review_skipped_after_deterministic_validation"
+      ],
+      "identity_seconds": 18.813,
+      "artifacts": [
+        {
+          "kind": "answers",
+          "sha256": "cece7177f465960d138c9da7c735490b7d423dc762836b64879d3099fbdcac16",
+          "size_bytes": 2587
+        },
+        {
+          "kind": "profile",
+          "sha256": "a768cadb5ff9fd05f4ac15eda7fb7fb309657cd5d30cc9248572ee899140bfe1",
+          "size_bytes": 1084
+        },
+        {
+          "kind": "questions",
+          "sha256": "1f8db64c5b0b98981cc616a3ecfd25534aaf6087c0f2294ccafda8e71e9e7cce",
+          "size_bytes": 244
+        },
+        {
+          "kind": "review",
+          "sha256": "9daddef46f4b02c445de12b02280dc981212ef53f20fec0331e5ce6fa463e56c",
+          "size_bytes": 3042
+        }
+      ]
+    }
+  ],
+  "verified_artifacts": 24,
+  "quick_check": "ok",
+  "foreign_key_violations": 0,
+  "worker_image": "sha256:57cbb4ad3efa52305cc4b86853f4cfb88eda534db372b178b2acf47951aa77be",
+  "worker_revision": "8efd541caea150e5ffb6dea59a8b4f354a19abd8",
+  "worker_restarts": 0,
+  "heartbeat": [
+    {
+      "worker_id": "research-production-worker-1",
+      "process_instance_id": "drw_322ff5cfc84b4406a311dae1f2831f12",
+      "version": "research-repair-8efd541caea1",
+      "state": "ready",
+      "started_at": "2026-09-10T11:34:44.167Z",
+      "last_seen_at": "2026-09-10T12:20:16.909Z"
+    }
+  ],
+  "temporary_artifacts_removed": 24
+}

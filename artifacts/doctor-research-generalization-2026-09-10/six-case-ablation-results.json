@@ -1,0 +1,409 @@
+[
+  {
+    "name": "沈嵘",
+    "elapsed_ms": 40690,
+    "search_calls": 3,
+    "identity_resolved": true,
+    "reserved_external_units": 36,
+    "discovered_sources": 4,
+    "fetched_sources": 2,
+    "approved_sources": [
+      {
+        "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "basis": "reviewed_professional_publisher"
+      }
+    ],
+    "failures": [],
+    "traces": [
+      {
+        "source_id": "src_web_cdc5cc4676ac609a1f608683",
+        "url": "https://www.njrd.gov.cn/dbfc/201709/t20170908_2025572.html",
+        "fetched": true,
+        "characters": 1796
+      },
+      {
+        "source_id": "src_web_eb3bb36653f9276bfd217890",
+        "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "fetched": true,
+        "characters": 639
+      }
+    ]
+  },
+  {
+    "name": "漆洪波",
+    "elapsed_ms": 5833,
+    "search_calls": 2,
+    "identity_resolved": true,
+    "reserved_external_units": 28,
+    "discovered_sources": 8,
+    "fetched_sources": 1,
+    "approved_sources": [
+      {
+        "url": "https://m.12371.gov.cn/content/2025-01/05/content_481389.html",
+        "basis": "reviewed_professional_publisher"
+      }
+    ],
+    "failures": [],
+    "traces": [
+      {
+        "source_id": "src_web_8142021e586b0ef70842bd4c",
+        "url": "https://m.12371.gov.cn/content/2025-01/05/content_481389.html",
+        "fetched": true,
+        "characters": 3467
+      }
+    ]
+  },
+  {
+    "name": "Leonhard Schaetz",
+    "elapsed_ms": 17837,
+    "search_calls": 4,
+    "identity_resolved": false,
+    "reserved_external_units": 32,
+    "discovered_sources": 3,
+    "fetched_sources": 1,
+    "approved_sources": [],
+    "failures": [
+      {
+        "sourceId": "src_web_b0f1f6cf3328373b0c78d3de",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_17a1f8428b7f595754d63e8b",
+        "httpStatus": 403,
+        "kind": "http_error"
+      }
+    ],
+    "traces": [
+      {
+        "source_id": "src_web_17a1f8428b7f595754d63e8b",
+        "url": "https://baike.baidu.com/item/%E8%AF%BA%E5%8D%8E/3889985",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_b0f1f6cf3328373b0c78d3de",
+        "url": "https://zh.wikipedia.org/zh-hans/%E8%AF%BA%E5%8D%8E",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_45cb3e1aa94a9426ff337597",
+        "url": "https://www.novartis.com.cn/",
+        "fetched": true,
+        "characters": 3482
+      }
+    ]
+  },
+  {
+    "name": "Axel Rominger",
+    "elapsed_ms": 39043,
+    "search_calls": 4,
+    "identity_resolved": false,
+    "reserved_external_units": 80,
+    "discovered_sources": 10,
+    "fetched_sources": 4,
+    "approved_sources": [],
+    "failures": [
+      {
+        "sourceId": "src_web_499625fc2f379f7ec8acd5d0",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_dc81f5805afbb173e79f69f5",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_4594a10d34bdde8bb476e3b6",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_f4ba1aa03a03d671f2f491af",
+        "httpStatus": 403,
+        "kind": "http_error"
+      },
+      {
+        "sourceId": "src_web_ff974a87678c944f62d534c0",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      }
+    ],
+    "traces": [
+      {
+        "source_id": "src_web_4eaaae0e9749363cf8ead10e",
+        "url": "https://www.tjh.com.cn/TjhNews/20250924_56828.html",
+        "fetched": true,
+        "characters": 1812
+      },
+      {
+        "source_id": "src_web_499625fc2f379f7ec8acd5d0",
+        "url": "https://www.swissinfo.ch/chi/topic/archive-%E7%A7%91%E5%AD%A6/page/57/",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_dc81f5805afbb173e79f69f5",
+        "url": "https://sns.sinap.ac.cn/website/html/ggtz/content/1890218445374472194_index.html",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_f4ba1aa03a03d671f2f491af",
+        "url": "https://baike.baidu.com/item/%E8%99%9A%E6%8B%9F%E5%B0%B8%E6%A3%80%E6%96%B9%E6%B3%95%EF%BC%9A%E6%B3%95%E5%8C%BB3D%E5%85%89%E5%AD%A6%E5%92%8C%E6%94%BE%E5%B0%84%E5%AD%A6%E6%89%AB%E6%8F%8F%E4%B8%8E%E9%87%8D%E6%9E%84/53101744",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_4594a10d34bdde8bb476e3b6",
+        "url": "https://sns.sinap.ac.cn/website/otherFile/1b268f0d-6fa6-4d3f-9b33-af456a681915.pdf",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_f37bf2e34e92dd19ccf46db6",
+        "url": "https://deepenergy.cug.edu.cn/info/1036/1316.htm",
+        "fetched": true,
+        "characters": 1056
+      },
+      {
+        "source_id": "src_web_f8e0abed8097d438ebaf7bdd",
+        "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/details/person/detail/axel-rominger",
+        "fetched": true,
+        "characters": 7388
+      },
+      {
+        "source_id": "src_web_ff974a87678c944f62d534c0",
+        "url": "https://scholar.google.com/citations",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_47de01c79f7957656cc855c8",
+        "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+        "fetched": true,
+        "characters": 7146
+      }
+    ]
+  },
+  {
+    "name": "Riemer Slart",
+    "elapsed_ms": 38406,
+    "search_calls": 4,
+    "identity_resolved": false,
+    "reserved_external_units": 64,
+    "discovered_sources": 7,
+    "fetched_sources": 4,
+    "approved_sources": [],
+    "failures": [
+      {
+        "sourceId": "src_web_0140201a98f72d5e3b6dd344",
+        "httpStatus": 403,
+        "kind": "http_error"
+      },
+      {
+        "sourceId": "src_web_6c27f56f5aedb4af5d20f513",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_690bd61c53abd56daa140bdc",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      }
+    ],
+    "traces": [
+      {
+        "source_id": "src_web_127b3bd7d58951455eeb5a0e",
+        "url": "https://jiankang.usst.edu.cn/2022/0613/c4124a270581/page.htm",
+        "fetched": true,
+        "characters": 7187
+      },
+      {
+        "source_id": "src_web_75fff54128099bbacf5f9050",
+        "url": "https://www.bohrium.com/scholar/UP7941537/Gianclaudio_Mecozzi",
+        "fetched": true,
+        "characters": 34220
+      },
+      {
+        "source_id": "src_web_d3c255ed922d7f65f522a882",
+        "url": "https://www.fwhzxxgbyy.com/article/1276.html",
+        "fetched": true,
+        "characters": 3467
+      },
+      {
+        "source_id": "src_web_23b68e0591cc00250cb99f95",
+        "url": "https://www.tjskq.com/system/2016/08/24/012254007.shtml",
+        "fetched": true,
+        "characters": 728
+      },
+      {
+        "source_id": "src_web_0140201a98f72d5e3b6dd344",
+        "url": "https://www.researchgate.net/profile/Riemer-Slart/2",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_6c27f56f5aedb4af5d20f513",
+        "url": "https://scholar.google.com/citations",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_690bd61c53abd56daa140bdc",
+        "url": "https://mm.sciconf.cn/cn/web/speaker/36599",
+        "fetched": false,
+        "characters": 0
+      }
+    ]
+  },
+  {
+    "name": "Iva Hristova",
+    "elapsed_ms": 39465,
+    "search_calls": 4,
+    "identity_resolved": false,
+    "reserved_external_units": 48,
+    "discovered_sources": 5,
+    "fetched_sources": 2,
+    "approved_sources": [],
+    "failures": [
+      {
+        "sourceId": "src_web_00eb49ff775228b8336ef775",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_e4a754446062cf348f4ff0cd",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_e401477066e5ea82db313bdf",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      }
+    ],
+    "traces": [
+      {
+        "source_id": "src_web_94559a77d1f417461947c927",
+        "url": "https://www.8meetings.com/2021/2021_eanm.html",
+        "fetched": true,
+        "characters": 3662
+      },
+      {
+        "source_id": "src_web_ac5a64cedbb303a5c4665503",
+        "url": "https://www.lingyuint.com/2026/2026_eanm.html",
+        "fetched": true,
+        "characters": 4221
+      },
+      {
+        "source_id": "src_web_00eb49ff775228b8336ef775",
+        "url": "https://es.linkedin.com/in/ivihristova/en",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_e4a754446062cf348f4ff0cd",
+        "url": "https://www.instagram.com/ivavhrist/",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_e401477066e5ea82db313bdf",
+        "url": "https://www.scribd.com/document/449146295/WCA-September-2019-pdf",
+        "fetched": false,
+        "characters": 0
+      }
+    ]
+  },
+  {
+    "name": "王永生",
+    "elapsed_ms": 24972,
+    "search_calls": 3,
+    "identity_resolved": false,
+    "reserved_external_units": 78,
+    "discovered_sources": 9,
+    "fetched_sources": 5,
+    "approved_sources": [],
+    "failures": [
+      {
+        "sourceId": "src_web_1f3f2631b646f31ca8cb1df0",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_35565e6ade2408c79af746b5",
+        "httpStatus": 404,
+        "kind": "http_error"
+      },
+      {
+        "sourceId": "src_web_1f7b4a0cf53913a918bcfd6d",
+        "httpStatus": null,
+        "kind": "fetch_error"
+      },
+      {
+        "sourceId": "src_web_c8e3f09ba4a6418566be84c9",
+        "httpStatus": 403,
+        "kind": "http_error"
+      }
+    ],
+    "traces": [
+      {
+        "source_id": "src_web_98570067a5d536bbf60a6f5b",
+        "url": "https://bydrug.pharmcube.com/news/detail/1407798b54c55523423de257258395af",
+        "fetched": true,
+        "characters": 2871
+      },
+      {
+        "source_id": "src_web_1f3f2631b646f31ca8cb1df0",
+        "url": "https://view.inews.qq.com/a/20260616A08UH400",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_35565e6ade2408c79af746b5",
+        "url": "https://wchscu.cn/news/doctordetail",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_cae437156d8ecc168626c4f7",
+        "url": "https://www.lechenghopecity.com/news/1518.html",
+        "fetched": true,
+        "characters": 43
+      },
+      {
+        "source_id": "src_web_a3351d105d8a63b326b3e822",
+        "url": "https://wchscu.cn/public/notice/tender/87563.html",
+        "fetched": true,
+        "characters": 1732
+      },
+      {
+        "source_id": "src_web_53d46ffb0b18a3245acc1a54",
+        "url": "https://it.wchscu.cn/preview/285/412/8013",
+        "fetched": true,
+        "characters": 5040
+      },
+      {
+        "source_id": "src_web_c3edf8c5950e6f127969261d",
+        "url": "https://yjs.cd120.com/contents/410/4618.html",
+        "fetched": true,
+        "characters": 1476
+      },
+      {
+        "source_id": "src_web_c8e3f09ba4a6418566be84c9",
+        "url": "https://baike.baidu.com/item/%E7%8E%8B%E6%B0%B8%E7%94%9F/4348429",
+        "fetched": false,
+        "characters": 0
+      },
+      {
+        "source_id": "src_web_1f7b4a0cf53913a918bcfd6d",
+        "url": "https://zh.wikipedia.org/zh-hans/%E7%8E%8B%E6%B0%B8%E7%94%9F",
+        "fetched": false,
+        "characters": 0
+      }
+    ]
+  }
+]

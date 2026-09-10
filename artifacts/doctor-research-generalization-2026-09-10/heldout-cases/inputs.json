@@ -1,0 +1,50 @@
+[
+  {
+    "id": "CN01",
+    "name": "钟历勇",
+    "institution": "首都医科大学附属北京天坛医院",
+    "department": "内分泌科"
+  },
+  {
+    "id": "CN02",
+    "name": "杨祖立",
+    "institution": "中山大学附属第六医院",
+    "department": "普通外科"
+  },
+  {
+    "id": "CN03",
+    "name": "王惠平",
+    "institution": "天津医科大学总医院",
+    "department": "皮肤性病科（含医学美容科）"
+  },
+  {
+    "id": "OS01",
+    "name": "Jason Dunn",
+    "institution": "盖伊和圣托马斯医院国民保健署基金会信托",
+    "department": "消化内科"
+  },
+  {
+    "id": "OS02",
+    "name": "Tim Kerruish",
+    "institution": "奥塔哥大学",
+    "department": "但尼丁内科学系急诊医学组"
+  },
+  {
+    "id": "OS03",
+    "name": "Alexander Tsoukas",
+    "institution": "麦吉尔大学",
+    "department": "风湿病学部"
+  },
+  {
+    "id": "OS04",
+    "name": "飯田 円",
+    "institution": "名古屋大学医学部附属医院",
+    "department": "神经内科"
+  },
+  {
+    "id": "OS05",
+    "name": "Shoshana Sztal-Mazer",
+    "institution": "阿尔弗雷德医院",
+    "department": "内分泌科"
+  }
+]

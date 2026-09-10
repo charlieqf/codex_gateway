@@ -1,0 +1,191 @@
+{
+  "purpose": "盲测真值，仅供结果评估；不得作为服务输入、提示词、URL种子或搜索提示。",
+  "verified_at_utc": "2026-09-10 12:06:36 UTC",
+  "input_sha256": "f7af16073320e8101da23a6a5e27ae0b87f368058bbcee2ae5af3c03b4301a92",
+  "records": [
+    {
+      "id": "CN01",
+      "name": "钟历勇",
+      "country": "中国",
+      "input_institution_zh": "首都医科大学附属北京天坛医院",
+      "input_department_zh": "内分泌科",
+      "official_institution": "首都医科大学附属北京天坛医院",
+      "official_department": "内分泌科",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "内分泌科；采用 web.open 返回的目录快照顺序（与 search 摘要不同；未合并两个版本）",
+          "url": "https://bifns.bjtth.org/Mobile/DoctorTeam/Index?departmentId=1007"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://www.bjtth.cn/Html/Doctors/Main/Index_1031092.html"
+        }
+      ],
+      "verification": "医院个人页的姓名、主任医师职称及科室栏直接对应；同页内分泌科说明给出医院全称。",
+      "limitations": "抽样目录 web.open 快照与搜索摘要版本不同，严格采用 manifest 已固定的 web.open 列表。抽中人的新主站个人页已另行核验，未重新抽样。"
+    },
+    {
+      "id": "CN02",
+      "name": "杨祖立",
+      "country": "中国",
+      "input_institution_zh": "中山大学附属第六医院",
+      "input_department_zh": "普通外科",
+      "official_institution": "中山大学附属第六医院",
+      "official_department": "普通外科",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "专家",
+          "url": "https://www.sysu6h.cn/medical-department/key/national/1"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://www.sysu6h.cn/expert/653"
+        }
+      ],
+      "verification": "医院个人页明确列出主任医师、胃外科二区主任，科室字段为普通外科；因此沿用目录所属一级科室。",
+      "limitations": null
+    },
+    {
+      "id": "CN03",
+      "name": "王惠平",
+      "country": "中国",
+      "input_institution_zh": "天津医科大学总医院",
+      "input_department_zh": "皮肤性病科（含医学美容科）",
+      "official_institution": "天津医科大学总医院",
+      "official_department": "皮肤性病科（含医学美容科）",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "医师介绍",
+          "url": "https://www.tjmugh.com.cn/lcks/pfk/zjjs/index.shtml"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://www.tjmugh.com.cn/system/2018/11/09/020005347.shtml"
+        }
+      ],
+      "verification": "医院皮肤性病科医师目录列出姓名；个人页载明主任医师，皮肤科主任兼过敏性疾病科主任。",
+      "limitations": "个人页 URL 含2018年日期；目前官方医师目录仍链接此页。仅确认公开身份对应，不由页面日期推断最新行政任期。"
+    },
+    {
+      "id": "OS01",
+      "name": "Jason Dunn",
+      "country": "英国",
+      "input_institution_zh": "盖伊和圣托马斯医院国民保健署基金会信托",
+      "input_department_zh": "消化内科",
+      "official_institution": "Guy's and St Thomas' NHS Foundation Trust",
+      "official_department": "Gastroenterology",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "Our consultants",
+          "url": "https://www.guysandstthomas.nhs.uk/our-services/gastroenterology"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://www.guysandstthomas.nhs.uk/our-consultants/jason-dunn"
+        }
+      ],
+      "verification": "医院个人页明确为该信托的消化内科顾问医师，并列出 MBBS 和研究兴趣；目录与个人页相互一致。",
+      "limitations": "机构中文为依据官方英文全称的完整中文翻译，不声称是该机构发布的唯一官方中文译名。"
+    },
+    {
+      "id": "OS02",
+      "name": "Tim Kerruish",
+      "country": "新西兰",
+      "input_institution_zh": "奥塔哥大学",
+      "input_department_zh": "但尼丁内科学系急诊医学组",
+      "official_institution": "University of Otago",
+      "official_department": "Department of Medicine, Dunedin — Emergency Medicine",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "Academic staff > Emergency Medicine",
+          "url": "https://www.otago.ac.nz/dsm-medicine/people"
+        }
+      ],
+      "verification": "大学正式内科学系人员目录在 Academic staff > Emergency Medicine 下列出其姓名及 Clinical Senior Lecturer 职务。目录本身已同时确认机构、学系、临床专业和人员身份。",
+      "limitations": "个人 profile?id=1493 直达页先后返回超时/内部错误；仍保留此样本，以可公开读取的大学人员目录构建真值，未将个人页不可抓取作为剔除条件。"
+    },
+    {
+      "id": "OS03",
+      "name": "Alexander Tsoukas",
+      "country": "加拿大",
+      "input_institution_zh": "麦吉尔大学",
+      "input_department_zh": "风湿病学部",
+      "official_institution": "McGill University",
+      "official_department": "Division of Rheumatology",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "Faculty",
+          "url": "https://www.mcgill.ca/rheumatology/faculty"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://healthenews.mcgill.ca/rheumatology-outreach-in-abitibi/"
+        }
+      ],
+      "verification": "大学风湿病学部 Faculty 目录标明该人为 MD、风湿病医师；医学院官方新闻进一步确认其为内科学系风湿病学部助理教授，兼麦吉尔大学健康中心风湿病医师。",
+      "limitations": null
+    },
+    {
+      "id": "OS04",
+      "name": "飯田 円",
+      "country": "日本",
+      "input_institution_zh": "名古屋大学医学部附属医院",
+      "input_department_zh": "神经内科",
+      "official_institution": "名古屋大学医学部附属病院",
+      "official_department": "脳神経内科",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "9月（令和8年9月1日現在）；按诊察室行优先、周一到周五列优先，重复人名仅保留首次",
+          "url": "https://www.med.nagoya-u.ac.jp/hospital/guide/outpatient/schedules/neurology/"
+        }
+      ],
+      "verification": "医院官方2026年9月神经内科门诊医生表（标注2026年9月1日）在第2诊察室周一列出完整姓名。保留日文原字形和姓/名间空格。",
+      "limitations": "原文脳神経内科译为神经内科，非神经外科。官方排班目录已确认此人，无须提供个人URL给服务。"
+    },
+    {
+      "id": "OS05",
+      "name": "Shoshana Sztal-Mazer",
+      "country": "澳大利亚",
+      "input_institution_zh": "阿尔弗雷德医院",
+      "input_department_zh": "内分泌科",
+      "official_institution": "The Alfred",
+      "official_department": "Endocrinology",
+      "verified": true,
+      "verification_date": "2026-09-10",
+      "sources": [
+        {
+          "kind": "official_directory",
+          "title": "Clinic consultants",
+          "url": "https://www.alfredhealth.org.au/the-alfred/services/hp/endocrinology-clinic"
+        },
+        {
+          "kind": "official_confirmation",
+          "url": "https://www.alfredhealth.org.au/services/womens-endocrinology-health-clinic"
+        }
+      ],
+      "verification": "医院内分泌门诊顾问名单直接给出其姓名与专业，院区为 The Alfred；该院女性内分泌门诊页面另有一致记录。",
+      "limitations": "The Alfred 为具体医院；Bayside Health/Alfred Health 是其管理组织或网站品牌。输入采用具体医院中文名，未把 Royal Prince Alfred Hospital 当作同一机构。"
+    }
+  ]
+}
