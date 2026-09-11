@@ -44,15 +44,15 @@ describe("Research Worker fail-closed configuration", () => {
   });
 
   it("requires an explicit budget for the evidence-driven identity Agent", () => {
-    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_PRACTICAL_PROFILE_ENABLED: "false",
       RESEARCH_MAX_CHECKPOINT_BYTES: "100000" })).toThrow("900000-byte Agent state");
-    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_PRACTICAL_PROFILE_ENABLED: "false",
       RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS: "1" })).toThrow("publication reads must cover");
-    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true",
+    expect(() => loadResearchWorkerConfig({ ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_PRACTICAL_PROFILE_ENABLED: "false",
       RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000", RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000" }))
       .toThrow("every enabled identity Agent call");
     const config = loadResearchWorkerConfig({ ...validEnvironment(),
-      RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_MAX_LLM_CALLS_PER_RUN: "29",
+      RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_PRACTICAL_PROFILE_ENABLED: "false", RESEARCH_MAX_LLM_CALLS_PER_RUN: "29",
       RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "34000", RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
       RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000"
     });
@@ -62,7 +62,7 @@ describe("Research Worker fail-closed configuration", () => {
   });
 
   it("reserves independent narrative review calls in the sharded Agent budget", () => {
-    const env = { ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
+    const env = { ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_PRACTICAL_PROFILE_ENABLED: "false", RESEARCH_SYNTHESIS_SHARD_COUNT: "3",
       RESEARCH_MAX_LLM_CALLS_PER_RUN: "29", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "34000",
       RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000",
       RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000" };
@@ -73,6 +73,17 @@ describe("Research Worker fail-closed configuration", () => {
     expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "30000" })).toThrow("Research LLM budgets");
     expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })).toThrow("9 bounded synthesis or review calls");
     expect(loadResearchWorkerConfig({ ...env, RESEARCH_SYNTHESIS_SHARD_COUNT: "1", RESEARCH_MAX_LLM_CALLS_PER_RUN: "26" })?.workflowPolicy.budgets.llmCalls).toBe(26);
+  });
+
+  it("defaults the enabled identity Agent to a practical profile with no academic call or publication reservation", () => {
+    const env = { ...validEnvironment(), RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_MAX_LLM_CALLS_PER_RUN: "14",
+      RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000", RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "300000",
+      RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "60000", RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "168",
+      RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "336000000", RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS: "1" };
+    expect(loadResearchWorkerConfig(env)?.workflowPolicy).toMatchObject({ practicalProfileEnabled: true, budgets: { llmCalls: 14, externalRequests: 168 } });
+    expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_LLM_CALLS_PER_RUN: "13" })).toThrow("Research LLM budgets");
+    expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "167" })).toThrow("practical profile tool ledger");
+    expect(() => loadResearchWorkerConfig({ ...env, RESEARCH_IDENTITY_AGENT_ENABLED: "false", RESEARCH_PRACTICAL_PROFILE_ENABLED: "true" })).toThrow("require RESEARCH_IDENTITY_AGENT_ENABLED");
   });
 
   it("allows the run budget to account for provider-reported hidden reasoning", () => {

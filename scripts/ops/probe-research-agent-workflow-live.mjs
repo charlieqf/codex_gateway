@@ -6,8 +6,7 @@ import { executeDoctorResearchWorkflow } from "/app/packages/research-agent/dist
 import { GatewayResearchModelClient, researchModelCallTelemetryFromError } from "/app/packages/research-agent/dist/model-client.js";
 import { LiveResearchAdapters } from "/app/packages/research-agent/dist/live-adapters.js";
 import { loadResearchWorkerConfig } from "/app/apps/research-worker/dist/config.js";
-import { loadMedicalSkillBundle } from "/app/packages/research-agent/dist/medical-skill-bundle.js";
-import { assertReviewedReviewContractPolicy } from "/app/packages/research-agent/dist/review-contract-policy.js";
+import { practicalProfilePolicy } from "/app/packages/research-agent/dist/practical-profile-agent.js";
 const root = process.cwd();
 if (!/^\/tmp\/doctor-research-agent-workflow-live-[a-z0-9-]+$/u.test(root)) throw new Error("Isolated workflow probe root required.");
 const limits = existsSync(`${root}/probe-limits.json`) ? JSON.parse(readFileSync(`${root}/probe-limits.json`, "utf8")) : { maximum_serpapi_requests: 2 };
@@ -17,19 +16,17 @@ const replay = existsSync(`${root}/diagnostic-replay.json`) ? JSON.parse(readFil
 if ((replay !== null) !== (maximumSerpRequests === 0)) throw new Error("A diagnostic replay must disable paid search; a fresh probe must declare a search budget.");
 const original = JSON.parse(readFileSync(`${root}/input.json`, "utf8"));
 if (Object.keys(original).sort().join(",") !== "department,hospital,name") throw new Error("Exactly the original three fields are required.");
-const medicalSkillBundle = loadMedicalSkillBundle(process.env.RESEARCH_MEDICAL_SKILL_ROOT ?? "/app/docs/research/采访skill");
-assertReviewedReviewContractPolicy(medicalSkillBundle.digest);
 const config = loadResearchWorkerConfig({ ...process.env,
   RESEARCH_IDENTITY_AGENT_ENABLED: "true", RESEARCH_IDENTITY_MAX_SEARCH_REQUESTS: String(Math.max(1, maximumSerpRequests)),
   RESEARCH_IDENTITY_MAX_PAGE_REQUESTS: "12", RESEARCH_IDENTITY_MAX_MODEL_CALLS: "8",
   RESEARCH_EVIDENCE_MAX_SEARCH_REQUESTS: "4", RESEARCH_EVIDENCE_MAX_PUBLICATION_REQUESTS: "50",
   RESEARCH_EVIDENCE_MAX_PAGE_REQUESTS: "4", RESEARCH_EVIDENCE_MAX_MODEL_CALLS: "12",
-  RESEARCH_MAX_LLM_CALLS_PER_RUN: "29", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000",
-  RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "17000",
+  RESEARCH_MAX_LLM_CALLS_PER_RUN: "14", RESEARCH_MAX_INPUT_TOKENS_PER_CALL: "40000",
+  RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL: "6000", RESEARCH_PRACTICAL_PROFILE_ENABLED: "true",
   RESEARCH_MAX_INPUT_TOKENS_PER_RUN: "1000000", RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN: "300000",
   RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN: "1000", RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN: "2000000000",
   RESEARCH_MAX_CHECKPOINT_BYTES: "1000000", RESEARCH_MAX_PUBLICATIONS: "40",
-  RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED: "false", RESEARCH_SYNTHESIS_SHARD_COUNT: "3"
+  RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED: "false", RESEARCH_SYNTHESIS_SHARD_COUNT: "1"
 });
 const signal = AbortSignal.timeout(600_000);
 const hash = value => createHash("sha256").update(value).digest("hex");
@@ -69,7 +66,7 @@ const modelCalls = [], validationFailures = [], externalCalls = [], budgetFailur
 const client = new GatewayResearchModelClient({ ...config.llm,
   bearerToken: readFileSync(config.llm.bearerTokenFile, "utf8").trim(),
   readinessRequirements: { maximumPromptTokensPerCall: config.workflowPolicy.maximumInputTokensPerCall,
-    maximumOutputTokensPerCall: config.workflowPolicy.maximumOutputTokensPerCall, callsPerRun: 29, concurrentCalls: 3,
+    maximumOutputTokensPerCall: config.workflowPolicy.maximumOutputTokensPerCall, callsPerRun: 14, concurrentCalls: 1,
     maximumTokensPerRun: 1_300_000 }
 });
 const adapters = new LiveResearchAdapters({ ...config.adapterOptions, orcid: { enabled: false },
@@ -93,7 +90,7 @@ for (const name of ["searchOfficialSources", "searchSupplementalOfficialSources"
 const started = now.getTime();
 const { forbiddenOutputFragments: _privateOutputFilters, ...publicPolicy } = config.workflowPolicy;
 save("execution-policy", { input, policy: publicPolicy, maximum_serpapi_requests: maximumSerpRequests,
-  medical_skill_bundle_sha256: medicalSkillBundle.digest,
+  content_policy: practicalProfilePolicy.version,
   diagnostic_replay: replay !== null, fresh_case_acceptance_eligible: replay === null,
   provider_search_cache_bypassed: false,
   public_api_or_admission_tested: false, production_database_writable: false });
@@ -106,9 +103,9 @@ if (process.argv.includes("--preflight")) {
   process.exit(0);
 }
 try {
-  const execute = () => executeDoctorResearchWorkflow({ lease, store, adapters, signal, medicalSkillBundle, artifactRoot: `${root}/artifacts`, policy: config.workflowPolicy,
+  const execute = () => executeDoctorResearchWorkflow({ lease, store, adapters, signal, artifactRoot: `${root}/artifacts`, policy: config.workflowPolicy,
     modelClient: { model: client.model, generate: async request => {
-      if (++modelRequests > 29) throw new Error("Probe model request cap reached.");
+      if (++modelRequests > 14) throw new Error("Probe model request cap reached.");
       const at = Date.now();
       try {
         const response = await client.generate(request);

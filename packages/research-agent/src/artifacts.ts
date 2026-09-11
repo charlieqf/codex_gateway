@@ -244,7 +244,8 @@ export async function deleteResearchArtifactFiles(input: {
 
 export function renderDoctorResearchArtifacts(
   result: DoctorResearchContent,
-  language: "zh-CN" | "en"
+  language: "zh-CN" | "en",
+  presentation: "academic" | "practical" = "academic"
 ): RenderedResearchArtifact[] {
   if (
     result.predicted_questions.length !== 5 ||
@@ -252,6 +253,7 @@ export function renderDoctorResearchArtifacts(
   ) {
     throw new Error("Exactly five questions and answers are required.");
   }
+  if (presentation === "practical") return renderPracticalArtifacts(result, language);
   const displayName = safeDisplayFilenamePart(result.doctor.name);
   const sourceById = new Map(
     result.sources.map((source) => [source.source_id, source])
@@ -423,6 +425,38 @@ export function renderDoctorResearchArtifacts(
       `${questions}\n`
     ),
     rendered("answers", names.answers, "doctor-research-answers.md", answers)
+  ];
+}
+
+function renderPracticalArtifacts(result: DoctorResearchContent, language: "zh-CN" | "en"): RenderedResearchArtifact[] {
+  const zh = language === "zh-CN";
+  const displayName = safeDisplayFilenamePart(result.doctor.name);
+  const links = (ids: readonly string[]) => ids.map(id => {
+    const source = result.sources.find(s => s.source_id === id);
+    if (!source) throw new Error(`Unknown practical source: ${id}`);
+    return `[${markdownInline(source.title)}](<${markdownHttpsUrl(source.url)}>)`;
+  }).join("; ");
+  const scope = section(zh ? "信息范围" : "Information Scope", result.source_coverage.warnings);
+  const profile = [
+    `# ${markdownInline(result.doctor.name)} ${zh ? "公开资料" : "Public Profile"}`, "",
+    section(zh ? "检索输入" : "Search Input", [result.doctor.name, result.doctor.hospital ?? "", result.doctor.department ?? ""].filter(Boolean)),
+    `## ${zh ? "已核实资料" : "Verified Information"}`, "",
+    ...result.profile.claims.map(c => `- ${markdownInline(c.text)} ${links(c.source_ids)}`), "", scope,
+    `## ${zh ? "公开来源" : "Public Sources"}`, "",
+    ...result.sources.map(s => `- ${links([s.source_id])} (${s.accessed_at.slice(0, 10)})`), "",
+    zh ? "括号内为来源访问日期；任职与经历按原文时间理解。" : "Dates are access dates; interpret appointments and career information at the source publication date.", ""
+  ].join("\n");
+  const review = [`# ${markdownInline(result.review.title)}`, "", result.review.markdown, "", scope, ""].join("\n");
+  const questions = result.predicted_questions.map((q, i) => `${i + 1}. ${q}`).join("\n") + "\n";
+  const answers = [`# ${markdownInline(result.doctor.name)} ${zh ? "交流问题与参考要点" : "Questions and Reference Points"}`, "",
+    zh ? "以下是依据公开资料整理的交流准备要点，不代表本人的回答或意见。" : "These points prepare a conversation from public sources; they are not the person's answers or opinions.", "",
+    ...result.answers.flatMap(a => [`## ${a.question_index}. ${markdownInline(result.predicted_questions[a.question_index - 1]!)}`, "",
+      markdownInline(a.answer), "", `${zh ? "来源" : "Sources"}: ${links(a.source_ids)}`, ""]), scope, ""].join("\n");
+  return [
+    rendered("profile", `${displayName}_${zh ? "公开资料" : "public-profile"}.md`, "doctor-research-profile.md", profile),
+    rendered("review", `${displayName}_${zh ? "专业背景与交流准备" : "professional-background"}.md`, "doctor-research-review.md", review),
+    rendered("questions", `${displayName}_${zh ? "交流问题" : "conversation-questions"}.txt`, "doctor-research-questions.txt", questions),
+    rendered("answers", `${displayName}_${zh ? "参考要点" : "reference-points"}.md`, "doctor-research-answers.md", answers)
   ];
 }
 
@@ -710,7 +744,7 @@ function profileResearchDirectionsSection(
   ].join("\n");
 }
 
-function markdownInline(value: string): string {
+export function markdownInline(value: string): string {
   return value
     .normalize("NFC")
     .replace(/[\r\n]+/gu, " ")
@@ -723,7 +757,7 @@ function markdownInline(value: string): string {
     .replace(/([\\`*_[\]{}()<>#+\-.!|])/gu, "\\$1");
 }
 
-function markdownHttpsUrl(value: string): string {
+export function markdownHttpsUrl(value: string): string {
   const url = new URL(value);
   if (
     url.protocol !== "https:" ||

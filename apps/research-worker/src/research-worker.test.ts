@@ -3435,7 +3435,7 @@ describe("Research Worker controlled-beta workflow", () => {
     const result = await executeDoctorResearchWorkflow({ lease: fixture.lease, store: fixture.store,
       adapters: { ...adapters(), async searchWeb() { throw new Error("Search must not run before the first model decision."); }, async readWebPage() { throw new Error("No page should be read."); } },
       modelClient: { model: "test-model", async generate() { calls++; throw new Error("No model call should be sent."); } },
-      artifactRoot: fixture.artifactRoot, policy: { ...workflowPolicy(), identityAgentEnabled: true, maximumInputTokensPerCall: 64 },
+      artifactRoot: fixture.artifactRoot, policy: { ...workflowPolicy(), identityAgentEnabled: true, practicalProfileEnabled: false, maximumInputTokensPerCall: 64 },
       signal: new AbortController().signal, now: () => fixture.now, onResourceBudgetFailure(event) { failures.push(event); }
     });
     expect(result).toMatchObject({ outcome: "failed", reason: "resource_budget_exceeded" });
@@ -3738,6 +3738,52 @@ describe("Research Worker controlled-beta workflow", () => {
     fixture.store.close();
   });
 
+  it.each([false, true])("delivers the default practical profile with zero literature, including editorial recovery: %s", async resume => {
+    const fixture = createLeasedWorkflowFixture(`practical_profile_${resume}`);
+    const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    const citations = [{ sourceId: source.sourceId, passageId: "text_0" }];
+    const draft = { facts: [{ type: "expertise", text: "The verified specialty is cardiology.", citations }],
+      background: [{ text: "The public profile identifies a cardiology role at Example Hospital.", citations }],
+      qa: Array.from({ length: 5 }, (_, i) => ({ question: `Which aspect of your cardiology work should we discuss (${i + 1})?`,
+        answer: "Public information describes the cardiology role; personal priorities should be confirmed in conversation.", citations })), limitations: [] };
+    let searches = 0, reads = 0, authors = 0, editors = 0;
+    const execute = () => executeDoctorResearchWorkflow({
+      lease: fixture.lease, store: fixture.store, artifactRoot: fixture.artifactRoot,
+      adapters: { ...adapters(),
+        async searchOfficialSources() { throw new Error("Legacy discovery must not run."); },
+        async searchWeb() { searches++; return [{ url: source.url, title: source.title, snippet: "Profile" }]; },
+        async readWebPage() { reads++; return source; },
+        async searchPubMed() { throw new Error("No literature needed for this profile."); },
+        async getPubMedMetadata() { throw new Error("No publication reads needed."); }
+      },
+      modelClient: { model: "test-model", async generate(request) {
+        let value: unknown;
+        if (request.stage === "discover_identity" && request.attempt === 1) value = { actions: [{ type: "search", query: "Example Doctor Example Hospital" }] };
+        else if (request.stage === "discover_identity" && request.attempt === 2) value = { actions: [{ type: "read", url: source.url }] };
+        else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+          citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: source.sourceId, passageId: "text_0", explanation: "Fixture relationship." })) } };
+        else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
+        else if (request.stage === "synthesize_review") { authors++; value = { draft }; }
+        else if (request.stage === "validate_outputs") { editors++; if (resume && editors === 1) throw new ResearchModelClientError("upstream_error", 503, null); value = { approved: true, draft }; }
+        else throw new Error(`Academic stage must not run: ${request.stage}`);
+        return { text: JSON.stringify(value), gatewayRequestId: `req_practical_${request.stage}_${request.attempt}`,
+          usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };
+      } },
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, minimumReferences: 40, maximumPublications: 40,
+        minimumReviewContent: 5000, minimumAnswerContent: 450, maximumAnswerContent: 1000,
+        budgets: { ...workflowPolicy().budgets, llmCalls: 14, outputTokens: 60000 } },
+      signal: new AbortController().signal, now: () => fixture.now
+    });
+    if (resume) expect(await execute()).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
+    expect(await execute()).toEqual({ outcome: "succeeded" });
+    expect(searches).toBe(1); expect(reads).toBe(1); expect(authors).toBe(1); expect(editors).toBe(resume ? 2 : 1);
+    const result = fixture.store.getRunResultForSubject(fixture.lease.run.runId, fixture.lease.run.subjectId)!;
+    expect(result.result).toMatchObject({ review: { references: [], core_evidence: [] }, source_coverage: { literature_sources: [] }, quality: { status: "passed" } });
+    expect(result.result.artifacts).toHaveLength(4);
+    expect(result.result.quality).toMatchObject({ checks: expect.arrayContaining(["doctor_practical_profile.v1", "practical_profile_fact_review"]) });
+    fixture.store.close();
+  });
+
   it("resumes a transient second Agent model call without replaying its successful web search", async () => {
     const fixture = createLeasedWorkflowFixture("agent_model_resume");
     const source = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
@@ -3763,7 +3809,7 @@ describe("Research Worker controlled-beta workflow", () => {
         return { text: JSON.stringify(value), gatewayRequestId: `req_resume_${request.stage}_${request.attempt}`,
           usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } };
       } },
-      policy: { ...workflowPolicy(), identityAgentEnabled: true, budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60000 } },
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, practicalProfileEnabled: false, budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60000 } },
       signal: new AbortController().signal, now: () => fixture.now
     });
     expect(await execute()).toMatchObject({ outcome: "failed", reason: "upstream_unavailable", retryable: true });
@@ -3888,7 +3934,7 @@ describe("Research Worker controlled-beta workflow", () => {
           usage: { promptTokens: 100, completionTokens: 100, totalTokens: 200 } };
       } },
       artifactRoot: fixture.artifactRoot,
-      policy: { ...workflowPolicy(), identityAgentEnabled: true,
+      policy: { ...workflowPolicy(), identityAgentEnabled: true, practicalProfileEnabled: false,
         ...(narrativeAgent ? { synthesisShardCount: 3 as const } : {}),
         ...(requireLongerAnswers ? { minimumAnswerContent: 50 } : {}),
         budgets: { ...workflowPolicy().budgets, llmCalls: 24, outputTokens: 60_000 } },
@@ -7222,7 +7268,7 @@ async function identityRegression(
       usage: { promptTokens: 100, completionTokens: 10, totalTokens: 110 }
     }; } },
     artifactRoot: fixture.artifactRoot,
-    policy: { ...workflowPolicy(), ...(agentSource ? { identityAgentEnabled: true } : {}),
+    policy: { ...workflowPolicy(), ...(agentSource ? { identityAgentEnabled: true, practicalProfileEnabled: false } : {}),
       budgets: { ...workflowPolicy().budgets, ...(agentSource ? { llmCalls: 15, outputTokens: 40_000 } : {}), externalRequests: 160, externalResponseBytes: 320_000_000 } },
     signal: AbortSignal.timeout(2_000), now: () => fixture.now
   });

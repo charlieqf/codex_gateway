@@ -29,15 +29,15 @@ export interface SkillDefinition {
 export const doctorResearchSkillDefinition: Readonly<SkillDefinition> =
   deepFreeze({
     name: "doctor-research-query",
-    version: "1.6.119",
+    version: "1.7.0",
     inputSchemaVersion: "doctor_research_run_input.v2",
     modelOutputSchemaVersion: "doctor_research_model_draft.v1",
     outputSchemaVersion: "doctor_research_result.v1",
-    workflowPolicyVersion: "doctor_research_workflow.v88",
-    promptVersion: "doctor-research-prompt.v33",
+    workflowPolicyVersion: "doctor_research_workflow.v89",
+    promptVersion: "doctor-research-prompt.v34",
     allowedTools: [...researchToolNames],
-    validationPolicyVersion: "doctor_research_validation.v48",
-    artifactPolicyVersion: "doctor_research_artifacts.v3",
+    validationPolicyVersion: "doctor_research_validation.v49",
+    artifactPolicyVersion: "doctor_research_artifacts.v4",
     contentTrustPolicy: "external_content_is_untrusted_data"
   });
 

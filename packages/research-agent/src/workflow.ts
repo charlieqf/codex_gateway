@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { preparePracticalProfile, practicalProfilePolicy, PracticalProfileBudgetError, type PracticalProfileState } from "./practical-profile-agent.js";
+import { assemblePracticalProfile } from "./practical-profile-output.js";
 import { investigationTiming } from "./investigation-timing.js";
 import { maximumNarrativeReviewCalls, NarrativeReviewBudgetError, reviewNarrativeWithAgent, splitNarrativeDiagnostics } from "./narrative-review-agent.js";
 import {
@@ -133,6 +135,7 @@ export interface DoctorResearchWorkflowPolicy {
   synthesisShardCount?: 1 | 3;
   doctorLookupBriefEnabled?: boolean;
   identityAgentEnabled?: boolean;
+  practicalProfileEnabled?: boolean;
   identityInvestigation?: IdentityInvestigationPolicy;
   evidenceInvestigation?: EvidenceInvestigationPolicy;
   budgets: ResearchRunBudgetLimits;
@@ -179,10 +182,11 @@ export async function executeDoctorResearchWorkflow(input: {
 }): Promise<DoctorResearchWorkflowResult> {
   const now = input.now ?? (() => new Date());
   validateWorkflowPolicy(input.policy);
+  const practicalProfile = input.policy.identityAgentEnabled === true && input.policy.practicalProfileEnabled !== false;
   const medicalSkillBundle =
-    input.medicalSkillBundle ?? getDefaultMedicalSkillBundle();
+    practicalProfile ? null : input.medicalSkillBundle ?? getDefaultMedicalSkillBundle();
   try {
-    assertReviewedReviewContractPolicy(medicalSkillBundle.digest);
+    if (medicalSkillBundle) assertReviewedReviewContractPolicy(medicalSkillBundle.digest);
   } catch {
     return { outcome: "failed", reason: "model_contract_error" };
   }
@@ -196,7 +200,7 @@ export async function executeDoctorResearchWorkflow(input: {
     await context.checkpoint("validate_input", 1, {
       schema_version: "doctor_research_input_checkpoint.v1",
       input_sha256: sha256(JSON.stringify(input.lease.run.input)),
-      medical_skill_bundle_sha256: medicalSkillBundle.digest
+      ...(practicalProfile ? { content_policy: practicalProfilePolicy.version } : { medical_skill_bundle_sha256: medicalSkillBundle!.digest })
     });
 
     await context.checkpoint("discover_identity", 7, {
@@ -242,6 +246,12 @@ export async function executeDoctorResearchWorkflow(input: {
       schema_version: "doctor_research_profile_sources_checkpoint.v1",
       source_ids: identity.sources.map((source) => source.source_id)
     });
+    let finalized: DoctorResearchModelOutput;
+    if (practicalProfile) {
+      const prepared = await collectPracticalProfile(context, identity);
+      if (!prepared) return { outcome: "failed", reason: "resource_budget_exceeded" };
+      finalized = prepared;
+    } else {
     const doctorLookupBrief =
       context.run.mode === "brief" && input.policy.doctorLookupBriefEnabled === true;
     const investigated = input.policy.identityAgentEnabled
@@ -280,7 +290,7 @@ export async function executeDoctorResearchWorkflow(input: {
     }
     await context.checkpoint("infer_research_topics", 27, {
       schema_version: "doctor_research_topics_checkpoint.v3",
-      medical_skill_bundle_sha256: medicalSkillBundle.digest,
+      medical_skill_bundle_sha256: medicalSkillBundle!.digest,
       topic_terms: researchTopics.terms,
       topic_source: researchTopics.source,
       verified_doctor_publication_count:
@@ -378,7 +388,7 @@ export async function executeDoctorResearchWorkflow(input: {
       evidence,
       searchQuery,
       literature.discoveredCount,
-      medicalSkillBundle
+      medicalSkillBundle!
     );
     if (!generatedResult) {
       return { outcome: "failed", reason: "model_contract_error" };
@@ -450,7 +460,7 @@ export async function executeDoctorResearchWorkflow(input: {
             "medical_team_skill_bundle",
             "peer_review_self_check"
           ];
-    const finalized: DoctorResearchModelOutput = {
+    finalized = {
       ...generated,
       quality: {
         status: "passed_with_warnings",
@@ -476,14 +486,16 @@ export async function executeDoctorResearchWorkflow(input: {
         ]
       }
     };
+    }
     await context.checkpoint("validate_outputs", 87, {
       schema_version: "doctor_research_quality_checkpoint.v1",
-      checks: qualityChecks
+      checks: finalized.quality.checks
     });
 
     const rendered = renderDoctorResearchArtifacts(
       finalized,
-      context.run.language
+      context.run.language,
+      practicalProfile ? "practical" : "academic"
     );
     if (
       rendered.length !== 4 ||
@@ -563,7 +575,7 @@ export async function executeDoctorResearchWorkflow(input: {
     if (error instanceof WorkflowFencedError) {
       return { outcome: "fenced_or_cancelled" };
     }
-    if (error instanceof IdentityInvestigationBudgetError || error instanceof EvidenceInvestigationBudgetError || error instanceof NarrativeReviewBudgetError) {
+    if (error instanceof IdentityInvestigationBudgetError || error instanceof EvidenceInvestigationBudgetError || error instanceof NarrativeReviewBudgetError || error instanceof PracticalProfileBudgetError) {
       context.reportBudgetFailure(error instanceof NarrativeReviewBudgetError ? "narrative_prompt_bytes" : error.limit);
       return { outcome: "failed", reason: "resource_budget_exceeded" };
     }
@@ -2027,6 +2039,52 @@ export function replayDoctorResearchSynthesis(input: {
       content: artifact.content
     }))
   };
+}
+
+async function collectPracticalProfile(context: WorkflowContext, identity: ResolvedDoctorResearchIdentity): Promise<DoctorResearchModelOutput | null> {
+  const { store, adapters, policy, signal } = context.input;
+  if (!identity.investigatedIdentity || !identity.investigationPages || !store.readAgentState || !store.writeAgentState || !adapters.readWebPage) {
+    throw new Error("Practical profile requires reviewed identity, source provenance and durable state.");
+  }
+  const loaded = store.readAgentState({ token: context.token, stage: "collect_profile_evidence", now: context["now"]() });
+  if (loaded.outcome !== "read") throw new WorkflowFencedError();
+  const result = await preparePracticalProfile({
+    doctor: context.run.input.doctor, identity: identity.investigatedIdentity, pages: identity.investigationPages,
+    language: context.run.language, ...(loaded.payload ? { restoredState: loaded.payload as PracticalProfileState } : {}),
+    dependencies: {
+      signal, timing: () => context.investigationTiming(),
+      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
+      save: async state => {
+        const saved = store.writeAgentState!({ token: context.token, stage: "collect_profile_evidence", progressPercent: 25,
+          payload: state, payloadSha256: sha256(JSON.stringify(state)), now: context["now"]() });
+        if (saved.outcome !== "written") throw new WorkflowFencedError();
+      },
+      searchPublications: async query => {
+        context.chargeExternal(3);
+        return adapters.searchPubMedCandidates ? (await adapters.searchPubMedCandidates(query, context.callSignal())).pmids : adapters.searchPubMed(query, context.callSignal());
+      },
+      readPublication: pmid => { context.chargeExternal(6); return adapters.getPubMedMetadata(pmid, context.callSignal()); },
+      readPage: url => { context.chargeExternal(8); return adapters.readWebPage!(url, context.callSignal()); },
+      generate: async request => (await context.generateModel({
+        stage: request.role === "author" ? "synthesize_review" : "validate_outputs", attempt: request.attempt,
+        system: request.system, prompt: request.prompt, maximumDurationMs: 90_000, reasoningEffort: "low",
+        maximumOutputTokens: Math.min(practicalProfilePolicy.maximumOutputTokens, policy.maximumOutputTokensPerCall)
+      })).text
+    }
+  });
+  if (result.outcome !== "resolved") { context.reportBudgetFailure("practical_profile_investigation"); return null; }
+  const output = assemblePracticalProfile({ doctor: context.run.input.doctor, identity: identity.investigatedIdentity,
+    canonicalIdentityId: identity.canonicalIdentityId, pages: identity.investigationPages, draft: result.draft, state: result.state,
+    language: context.run.language, now: context["now"]() });
+  const serialized = JSON.stringify(output).normalize("NFC").toLowerCase();
+  if (policy.forbiddenOutputFragments.some(f => f.trim() && serialized.includes(f.normalize("NFC").toLowerCase()))) {
+    throw new WorkflowModelContractError("forbidden_output_fragment");
+  }
+  await context.checkpoint("synthesize_review", 67, { schema_version: practicalProfilePolicy.version,
+    output_sha256: sha256(JSON.stringify(output)), publication_count: output.review.references.length });
+  await context.checkpoint("generate_questions", 73, { question_count: output.predicted_questions.length });
+  await context.checkpoint("generate_answers", 80, { answer_count: output.answers.length });
+  return output;
 }
 
 async function collectAgentResearchEvidence(
@@ -11573,6 +11631,8 @@ function sha256(value: string): string {
 }
 
 function validateWorkflowPolicy(policy: DoctorResearchWorkflowPolicy): void {
+  if (policy.practicalProfileEnabled !== undefined && typeof policy.practicalProfileEnabled !== "boolean") throw new Error("practicalProfileEnabled must be a boolean.");
+  if (policy.practicalProfileEnabled === true && policy.identityAgentEnabled !== true) throw new Error("Practical profiles require the identity Agent.");
   for (const [name, value] of Object.entries({
     resultTtlSeconds: policy.resultTtlSeconds,
     maximumArtifactBytes: policy.maximumArtifactBytes,

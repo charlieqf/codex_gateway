@@ -6,7 +6,7 @@ import type {
   DoctorResearchWorkflowPolicy,
   LiveResearchAdapterOptions
 } from "@codex-gateway/research-agent";
-import { maximumNarrativeReviewCalls, researchTopicInferenceModelBudget } from "@codex-gateway/research-agent";
+import { maximumNarrativeReviewCalls, practicalProfilePolicy, researchTopicInferenceModelBudget } from "@codex-gateway/research-agent";
 
 export interface ResearchWorkerConfig {
   databasePath: string;
@@ -141,6 +141,8 @@ export function loadResearchWorkerConfig(
     );
   }
   const identityAgentEnabled = parseBoolean(env.RESEARCH_IDENTITY_AGENT_ENABLED, false, "RESEARCH_IDENTITY_AGENT_ENABLED");
+  const practicalProfileEnabled = parseBoolean(env.RESEARCH_PRACTICAL_PROFILE_ENABLED, identityAgentEnabled, "RESEARCH_PRACTICAL_PROFILE_ENABLED");
+  if (practicalProfileEnabled && !identityAgentEnabled) throw new Error("Practical profiles require RESEARCH_IDENTITY_AGENT_ENABLED=true.");
   const maximumCheckpointBytes = boundedInteger(env.RESEARCH_MAX_CHECKPOINT_BYTES, "RESEARCH_MAX_CHECKPOINT_BYTES", 10 * 1_024 * 1_024);
   if (identityAgentEnabled && maximumCheckpointBytes < 900_000) {
     throw new Error("RESEARCH_MAX_CHECKPOINT_BYTES must cover the 900000-byte Agent state bound.");
@@ -428,7 +430,7 @@ export function loadResearchWorkerConfig(
       "RESEARCH_MIN_REFERENCES must not exceed RESEARCH_MAX_PUBLICATIONS."
     );
   }
-  if (identityAgentEnabled && minimumReferences > evidenceInvestigation.maximumPublicationRequests) {
+  if (identityAgentEnabled && !practicalProfileEnabled && minimumReferences > evidenceInvestigation.maximumPublicationRequests) {
     throw new Error("Evidence Agent publication reads must cover the required reference minimum.");
   }
   const maximumOfficialResults = boundedInteger(
@@ -459,7 +461,10 @@ export function loadResearchWorkerConfig(
       "RESEARCH_MAX_EXTERNAL_RESPONSE_BYTES_PER_CALL must cover every adapter response byte limit."
     );
   }
-  const singleAttemptExternalRequestUnits = identityAgentEnabled
+  const singleAttemptExternalRequestUnits = practicalProfileEnabled
+    ? identityInvestigation.maximumSearchRequests + identityInvestigation.maximumPageRequests * 8 +
+      practicalProfilePolicy.maximumPageReads * 8 + practicalProfilePolicy.maximumPublicationSearches * 3 + practicalProfilePolicy.maximumPublicationReads * 6
+    : identityAgentEnabled
     ? identityInvestigation.maximumSearchRequests + identityInvestigation.maximumPageRequests * 8 +
       evidenceInvestigation.maximumSearchRequests * 3 + evidenceInvestigation.maximumPublicationRequests * 6 +
       evidenceInvestigation.maximumPageRequests * 8 + Math.min(maximumPublications + 5, evidenceInvestigation.maximumPublicationRequests) * 3
@@ -471,7 +476,7 @@ export function loadResearchWorkerConfig(
     maximumPublications * 9;
   // Agent search/page/metadata reservations survive requeue and bound BOTH attempts.
   // Only interrupted optional DOI enrichment can be dispatched again after takeover.
-  const reservedExternalRequestUnits = identityAgentEnabled
+  const reservedExternalRequestUnits = practicalProfileEnabled ? singleAttemptExternalRequestUnits : identityAgentEnabled
     ? singleAttemptExternalRequestUnits + Math.min(maximumPublications + 5, evidenceInvestigation.maximumPublicationRequests) * 3
     : singleAttemptExternalRequestUnits * 2;
   if (
@@ -483,7 +488,7 @@ export function loadResearchWorkerConfig(
       reservedExternalRequestUnits * maximumExternalResponseBytesPerCall
   ) {
     throw new Error(
-      identityAgentEnabled
+      practicalProfileEnabled ? "Research external budgets must cover the durable practical profile tool ledger." : identityAgentEnabled
         ? "Research external budgets must cover the durable Agent tool ledger and one interrupted DOI-enrichment replay."
         : "Research external budgets must reserve two full workflow attempts at the configured worst-case adapter limits."
     );
@@ -526,13 +531,13 @@ export function loadResearchWorkerConfig(
     false,
     "RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED"
   );
-  const fullSynthesisCallCount = identityAgentEnabled && synthesisShardCount === 3
+  const fullSynthesisCallCount = practicalProfileEnabled ? practicalProfilePolicy.maximumModelCalls : identityAgentEnabled && synthesisShardCount === 3
     ? 3 + maximumNarrativeReviewCalls : 6;
   const identityModelCalls = identityAgentEnabled ? identityInvestigation.maximumModelCalls : 0;
-  const evidenceModelCalls = identityAgentEnabled ? evidenceInvestigation.maximumModelCalls : 0;
+  const evidenceModelCalls = identityAgentEnabled && !practicalProfileEnabled ? evidenceInvestigation.maximumModelCalls : 0;
   const topicModelCalls = identityAgentEnabled ? 0 : 1;
   const requiredOutputTokenBudget =
-    maximumOutputTokensPerCall * fullSynthesisCallCount +
+    (practicalProfileEnabled ? Math.min(maximumOutputTokensPerCall, practicalProfilePolicy.maximumOutputTokens) : maximumOutputTokensPerCall) * fullSynthesisCallCount +
     topicModelCalls * researchTopicInferenceModelBudget.maximumOutputTokens + identityModelCalls * Math.min(3_000, maximumOutputTokensPerCall) +
     evidenceModelCalls * Math.min(10_000, maximumOutputTokensPerCall);
   const requiredInputTokenBudget =
@@ -750,6 +755,7 @@ export function loadResearchWorkerConfig(
       synthesisShardCount,
       doctorLookupBriefEnabled,
       identityAgentEnabled,
+      practicalProfileEnabled,
       ...(identityAgentEnabled ? { identityInvestigation, evidenceInvestigation } : {}),
       budgets,
       forbiddenOutputFragments

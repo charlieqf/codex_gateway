@@ -480,7 +480,7 @@ export const doctorResearchResultSchema = {
           properties: {
             databases: stringArray(1),
             searched_at: { type: "string", pattern: isoInstantPattern },
-            queries: stringArray(1),
+            queries: stringArray(0),
             included_count: { type: "integer", minimum: 0 }
           }
         }
@@ -496,7 +496,7 @@ export const doctorResearchResultSchema = {
         "warnings"
       ],
       properties: {
-        literature_sources: stringArray(1),
+        literature_sources: stringArray(0),
         profile_sources: stringArray(1),
         cutoff_date: {
           type: "string",
