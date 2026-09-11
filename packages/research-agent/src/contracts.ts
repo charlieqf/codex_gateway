@@ -41,6 +41,7 @@ export interface DoctorResearchSource {
   url: string;
   accessed_at: string;
   content_sha256: string;
+  retrieval_method?: "search_excerpt";
 }
 
 export interface DoctorResearchClaim {
@@ -328,7 +329,8 @@ export const doctorResearchResultSchema = {
           title: { type: "string", minLength: 1, maxLength: 500 },
           url: { type: "string", pattern: "^https://", maxLength: 2048 },
           accessed_at: { type: "string", pattern: isoInstantPattern },
-          content_sha256: { type: "string", pattern: sha256Pattern }
+          content_sha256: { type: "string", pattern: sha256Pattern },
+          retrieval_method: { const: "search_excerpt" }
         }
       }
     },

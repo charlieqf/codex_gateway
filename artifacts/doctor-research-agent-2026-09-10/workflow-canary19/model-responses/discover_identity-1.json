@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"王永生 四川大学华西医院 肿瘤\",\"purpose\":\"identify the requested clinician at West China Hospital oncology\"}]}",
+  "usage": {
+    "promptTokens": 1367,
+    "completionTokens": 54,
+    "reasoningTokens": 13,
+    "totalTokens": 1421
+  },
+  "gatewayRequestId": "req-8f0c81ac-9d43-4d10-8535-09056b86c99c"
+}

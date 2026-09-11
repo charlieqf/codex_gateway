@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://earl.eanm.org/\",\"find\":\"Hristova\",\"purpose\":\"confirm Ivalina Hristova's role in EANM/EARL accreditation programme\"}]}",
+  "usage": {
+    "promptTokens": 5494,
+    "completionTokens": 318,
+    "reasoningTokens": 269,
+    "totalTokens": 5812
+  },
+  "gatewayRequestId": "req-c57086a9-d0f3-4825-8995-b044dc2adf3f"
+}

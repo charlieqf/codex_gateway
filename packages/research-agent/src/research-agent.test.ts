@@ -127,10 +127,10 @@ describe("Doctor Research production contracts", () => {
   it("freezes and versions the reviewed SkillDefinition", () => {
     expect(doctorResearchSkillDefinition).toMatchObject({
       name: "doctor-research-query",
-      version: "1.7.2",
-      workflowPolicyVersion: "doctor_research_workflow.v91",
-      promptVersion: "doctor-research-prompt.v36",
-      validationPolicyVersion: "doctor_research_validation.v50",
+      version: "1.7.3",
+      workflowPolicyVersion: "doctor_research_workflow.v92",
+      promptVersion: "doctor-research-prompt.v37",
+      validationPolicyVersion: "doctor_research_validation.v51",
       artifactPolicyVersion: "doctor_research_artifacts.v4",
       inputSchemaVersion: "doctor_research_run_input.v2",
       modelOutputSchemaVersion: "doctor_research_model_draft.v1",
@@ -154,14 +154,14 @@ describe("Doctor Research production contracts", () => {
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        promptVersion: "doctor-research-prompt.v37"
+        promptVersion: "doctor-research-prompt.v38"
       })
     ).toThrow("strictly newer semantic version");
     expect(() =>
       assertSkillDefinitionUpgrade(doctorResearchSkillDefinition, {
         ...doctorResearchSkillDefinition,
-        version: "1.7.3",
-        promptVersion: "doctor-research-prompt.v37"
+        version: "1.7.4",
+        promptVersion: "doctor-research-prompt.v38"
       })
     ).not.toThrow();
   });

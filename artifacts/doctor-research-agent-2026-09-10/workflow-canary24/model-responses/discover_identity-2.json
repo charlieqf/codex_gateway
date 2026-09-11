@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.otago.ac.nz/dsm-medicine/people/profile?id=1493\",\"purpose\":\"verify Tim Kerruish's University of Otago Department of Medicine (Dunedin) Emergency Medicine role\"}]}",
+  "usage": {
+    "promptTokens": 2241,
+    "completionTokens": 71,
+    "reasoningTokens": 17,
+    "totalTokens": 2312
+  },
+  "gatewayRequestId": "req-c740259d-7fbd-48c0-a88e-cf04ccb27c9a"
+}

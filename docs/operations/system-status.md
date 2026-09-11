@@ -27,9 +27,11 @@ Gateway and Compose verification on 2026-09-11 Sydney; local inference verificat
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
-- Research maintenance: exited since 2026-09-10 12:35 UTC, backup startup ENOENT;
-  pre-existing incident, container unchanged by the Gateway release. Automatic
-  maintenance/backups need a separate repair.
+- Research maintenance: healthy with zero restarts, checked 2026-09-11 01:04 UTC.
+  Its missing temporary-smoke files were reproduced byte-for-byte from stored
+  results and restored; the original container completed a verified backup at
+  00:51:32 UTC. Audit-retained records were preserved. Gateway and Worker versions
+  did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
 Gateway runs `77c6404`, schema 29; Research Worker remains on the existing runtime with

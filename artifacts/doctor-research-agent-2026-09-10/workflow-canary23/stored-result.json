@@ -1,0 +1,302 @@
+{
+  "runId": "drr_4734b593859b4cfcb5eb9e2401002c7c",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "Jason Dunn",
+      "hospital": "盖伊和圣托马斯医院国民保健署基金会信托",
+      "department": "消化内科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_9bcd5f6dc36a80a5051281605f999967",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_cc6c12b2d796511d62714adb3b6d3932",
+        "source_type": "official_web",
+        "title": "Dr Jason Dunn - Guys and St Thomas Specialist Care",
+        "url": "https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/",
+        "accessed_at": "2026-09-11T00:50:28.781Z",
+        "content_sha256": "ed68a61f5249797eed4dc10461311b8c5479e9d04c02cf95ff66ac87decedeee"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "Dr Jason Dunn（PhD, MRCP, BSc (Hons)）是盖伊和圣托马斯医院的消化内科顾问医师，专注于上消化道及消化系统疾病。",
+        "其执业地点为圣托马斯医院。",
+        "据其医生简介，他自2012年起在盖伊和圣托马斯医院执业，并在圣托马斯医院创建了面向英格兰东南部地区（含肯特、萨里和萨塞克斯）的区域性内镜治疗中心（Endotherapy Centre），并担任伦敦癌症联盟（LCA）的早期诊断负责人。",
+        "他在伦敦国王学院和奥斯陆大学医学信息学研究所持有荣誉高级讲师职位。",
+        "据其医生简介，他担任英国胃肠病学会（BSG）食管科的研究负责人，是NICE的顾问，以及患者支持慈善机构Action against Heartburn的医学顾问。"
+      ],
+      "expertise": [
+        "他常规诊治的疾病包括贲门失弛缓症、自身免疫疾病、巴雷特食管（Barrett's oesophagus）、乳糜泻、结直肠癌、胃食管反流病（GERD/GORD）、炎症性肠病（IBD）、肠易激综合征（IBS）、食管癌、胃溃疡等。",
+        "他开展的治疗包括肠癌筛查、结肠镜检查、内镜黏膜切除术（EMR）、胃镜检查（OGD）、食管支架置入、PEG置管，以及包括HALO射频消融（RFA）在内的治疗性内镜。",
+        "他对营养学有兴趣，专长包括肿瘤/姑息治疗中的肠外营养和PEG管置入。"
+      ],
+      "education_and_career": [
+        "他2000年毕业于伦敦国王学院GKT医学院，2005年获英国皇家内科医师学会MRCP(UK)资格，2007年获英国癌症研究中心（Cancer Research UK）临床奖学金赴伦敦大学学院（UCL），2011年在UCL获博士学位，2015年获伦敦国王学院荣誉高级讲师（honorary senior lecturer）称号。"
+      ],
+      "research_directions": [
+        "他的研究方向包括巴雷特食管的射频消融（RFA）治疗，以及预测癌症进展的生物标志物，相关研究多次获奖，并曾为伦敦癌症联盟撰写巴雷特食管管理指南。"
+      ],
+      "representative_outputs": [
+        "他发表了关于治疗颈椎入口斑（cervical inlet patch）所致球感症的新内镜技术的论文，并于2018年启动了一项后续随机试验。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "Dr Jason Dunn · Guy's and St Thomas' NHS Foundation Trust · Gastroenterology (consultant gastroenterologist)",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "Dr Jason Dunn（PhD, MRCP, BSc (Hons)）是盖伊和圣托马斯医院的消化内科顾问医师，专注于上消化道及消化系统疾病。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "其执业地点为圣托马斯医院。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "expertise",
+          "text": "他常规诊治的疾病包括贲门失弛缓症、自身免疫疾病、巴雷特食管（Barrett's oesophagus）、乳糜泻、结直肠癌、胃食管反流病（GERD/GORD）、炎症性肠病（IBD）、肠易激综合征（IBS）、食管癌、胃溃疡等。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "expertise",
+          "text": "他开展的治疗包括肠癌筛查、结肠镜检查、内镜黏膜切除术（EMR）、胃镜检查（OGD）、食管支架置入、PEG置管，以及包括HALO射频消融（RFA）在内的治疗性内镜。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "education_and_career",
+          "text": "他2000年毕业于伦敦国王学院GKT医学院，2005年获英国皇家内科医师学会MRCP(UK)资格，2007年获英国癌症研究中心（Cancer Research UK）临床奖学金赴伦敦大学学院（UCL），2011年在UCL获博士学位，2015年获伦敦国王学院荣誉高级讲师（honorary senior lecturer）称号。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "position",
+          "text": "据其医生简介，他自2012年起在盖伊和圣托马斯医院执业，并在圣托马斯医院创建了面向英格兰东南部地区（含肯特、萨里和萨塞克斯）的区域性内镜治疗中心（Endotherapy Centre），并担任伦敦癌症联盟（LCA）的早期诊断负责人。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_6",
+          "claim_type": "research_direction",
+          "text": "他的研究方向包括巴雷特食管的射频消融（RFA）治疗，以及预测癌症进展的生物标志物，相关研究多次获奖，并曾为伦敦癌症联盟撰写巴雷特食管管理指南。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_7",
+          "claim_type": "representative_output",
+          "text": "他发表了关于治疗颈椎入口斑（cervical inlet patch）所致球感症的新内镜技术的论文，并于2018年启动了一项后续随机试验。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_8",
+          "claim_type": "position",
+          "text": "他在伦敦国王学院和奥斯陆大学医学信息学研究所持有荣誉高级讲师职位。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_9",
+          "claim_type": "expertise",
+          "text": "他对营养学有兴趣，专长包括肿瘤/姑息治疗中的肠外营养和PEG管置入。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_10",
+          "claim_type": "position",
+          "text": "据其医生简介，他担任英国胃肠病学会（BSG）食管科的研究负责人，是NICE的顾问，以及患者支持慈善机构Action against Heartburn的医学顾问。",
+          "source_ids": [
+            "src_cc6c12b2d796511d62714adb3b6d3932"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_cc6c12b2d796511d62714adb3b6d3932"
+      ]
+    },
+    "review": {
+      "title": "Jason Dunn 专业背景与交流准备",
+      "abstract": "Dr Jason Dunn 是盖伊和圣托马斯医院的消化内科顾问医师，拥有PhD、MRCP、BSc (Hons)资格，执业地点在圣托马斯医院。他专注于上消化道和消化系统疾病，常规诊治范围涵盖贲门失弛缓症、巴雷特食管、乳糜泻、胃食管反流、炎症性肠病、肠易激综合征、食管癌、胃溃疡等多种疾病，并开展结肠镜、胃镜、EMR、食管支架和HALO射频消融等治疗性内镜操作。",
+      "keywords": [
+        "Gastroenterology (consultant gastroenterologist)"
+      ],
+      "markdown": "Dr Jason Dunn 是盖伊和圣托马斯医院的消化内科顾问医师，拥有PhD、MRCP、BSc \\(Hons\\)资格，执业地点在圣托马斯医院。他专注于上消化道和消化系统疾病，常规诊治范围涵盖贲门失弛缓症、巴雷特食管、乳糜泻、胃食管反流、炎症性肠病、肠易激综合征、食管癌、胃溃疡等多种疾病，并开展结肠镜、胃镜、EMR、食管支架和HALO射频消融等治疗性内镜操作。 [来源 1](<https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/>)\n\n职业方面，他2000年毕业于伦敦国王学院GKT医学院，2005年获MRCP\\(UK\\)，2007年获Cancer Research UK临床奖学金，2011年在伦敦大学学院获博士学位，2015年被任命为伦敦国王学院荣誉高级讲师。据其医生简介，他自2012年起在盖伊和圣托马斯医院执业，创建了面向英格兰东南部的区域性内镜治疗中心，并担任伦敦癌症联盟早期诊断负责人。 [来源 1](<https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/>)\n\n学术方面，他的研究集中于巴雷特食管射频消融治疗及预测癌症进展的生物标志物，多次获奖并撰写了伦敦癌症联盟的巴雷特食管管理指南；还发表了关于入口斑所致球感症新内镜技术的论文，并于2018年启动后续随机试验。据其医生简介，他在伦敦国王学院和奥斯陆大学医学信息学研究所持有荣誉高级讲师职位，并担任英国胃肠病学会食管科研究负责人、NICE顾问及Action against Heartburn医学顾问。学会会员包括英国胃肠病学会、美国胃肠病学会和英国肠外与肠内营养协会。 [来源 1](<https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:51:25.395Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "Requested hospital given in Chinese (盖伊和圣托马斯医院国民保健署基金会信托) matches Guy's and St Thomas' NHS Foundation Trust; the specialist-care page read describes the private care arm of the same hospitals rather than the NHS Trust's own consultant directory, but it consistently identifies Dr Jason Dunn as a consultant gastroenterologist at Guy's and St Thomas'.",
+        "所读页面为盖伊和圣托马斯专科医疗（私人医疗部门）的医生简介，其中关于伦敦癌症联盟早期诊断负责人、BSG研究负责人、NICE顾问及慈善机构医学顾问等职务的任职时间未注明，无法确认这些职务目前是否仍然有效。"
+      ]
+    },
+    "predicted_questions": [
+      "他的主要临床专长是什么？",
+      "他在盖伊和圣托马斯医院担任什么职务？",
+      "他的教育背景如何？",
+      "他的研究方向是什么？",
+      "他在学术组织中有哪些角色？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "上消化道和消化系统疾病，包括巴雷特食管、胃食管反流、贲门失弛缓症、炎症性肠病、肠易激综合征、食管癌等，并开展治疗性内镜操作（如HALO射频消融、EMR、食管支架）。",
+        "source_ids": [
+          "src_cc6c12b2d796511d62714adb3b6d3932"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "他是消化内科顾问医师，据其医生简介，自2012年起在该院执业，执业地点为圣托马斯医院，并创建了区域性内镜治疗中心。",
+        "source_ids": [
+          "src_cc6c12b2d796511d62714adb3b6d3932"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "2000年毕业于伦敦国王学院GKT医学院，2005年获MRCP(UK)，2007年获Cancer Research UK临床奖学金，2011年获伦敦大学学院博士学位，2015年被任命为伦敦国王学院荣誉高级讲师。",
+        "source_ids": [
+          "src_cc6c12b2d796511d62714adb3b6d3932"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "巴雷特食管的射频消融治疗和预测癌症进展的生物标志物，以及针对入口斑所致球感症的新内镜技术，2018年启动了一项后续随机试验。",
+        "source_ids": [
+          "src_cc6c12b2d796511d62714adb3b6d3932"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "据其医生简介，他担任英国胃肠病学会食管科研究负责人、NICE顾问及Action against Heartburn医学顾问，并在伦敦国王学院和奥斯陆大学医学信息学研究所持有荣誉高级讲师职位。",
+        "source_ids": [
+          "src_cc6c12b2d796511d62714adb3b6d3932"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "Requested hospital given in Chinese (盖伊和圣托马斯医院国民保健署基金会信托) matches Guy's and St Thomas' NHS Foundation Trust; the specialist-care page read describes the private care arm of the same hospitals rather than the NHS Trust's own consultant directory, but it consistently identifies Dr Jason Dunn as a consultant gastroenterologist at Guy's and St Thomas'.",
+        "所读页面为盖伊和圣托马斯专科医疗（私人医疗部门）的医生简介，其中关于伦敦癌症联盟早期诊断负责人、BSG研究负责人、NICE顾问及慈善机构医学顾问等职务的任职时间未注明，无法确认这些职务目前是否仍然有效。"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_4734b593859b4cfcb5eb9e2401002c7c",
+    "run_id": "drr_4734b593859b4cfcb5eb9e2401002c7c",
+    "artifacts": [
+      {
+        "artifact_id": "dra_2b7c1ad775c54284825f1af47ddc87f2",
+        "kind": "profile",
+        "filename": "Jason Dunn_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 4769,
+        "sha256": "ba8628cb8cc5e8fa530a3a2e35b268fef73b6885ffcda0e22fa1920b7540041b",
+        "expires_at": "2026-10-11T00:51:25.406Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_2b7c1ad775c54284825f1af47ddc87f2/download"
+      },
+      {
+        "artifact_id": "dra_03af0cf215dd49e2ad4934fd6007b6fe",
+        "kind": "review",
+        "filename": "Jason Dunn_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2521,
+        "sha256": "f979005b0b49bc483b692940987de556b7826de8ba3063972dcc7c70eee0d5fe",
+        "expires_at": "2026-10-11T00:51:25.406Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_03af0cf215dd49e2ad4934fd6007b6fe/download"
+      },
+      {
+        "artifact_id": "dra_c20beae6bd2a4367bfcb7963ce8f52a9",
+        "kind": "questions",
+        "filename": "Jason Dunn_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 206,
+        "sha256": "b7f2ff5b5788ac5f959c6a0f7740d2d66efef2ccc780b8c255907c6e5ac9b8ba",
+        "expires_at": "2026-10-11T00:51:25.406Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_c20beae6bd2a4367bfcb7963ce8f52a9/download"
+      },
+      {
+        "artifact_id": "dra_dde344922e014c30969ac08ba2b5ce3b",
+        "kind": "answers",
+        "filename": "Jason Dunn_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2769,
+        "sha256": "5eea4f8bd55c27a19264a3cf762420680f8d52ef662958c7af3a89a8ecc2989b",
+        "expires_at": "2026-10-11T00:51:25.406Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_dde344922e014c30969ac08ba2b5ce3b/download"
+      }
+    ]
+  },
+  "sha256": "311cc03aa83801440a497f54310bd46dae5384f99da5e9fc0c3cb03b47854a96",
+  "sizeBytes": 14642,
+  "createdAt": "2026-09-11T00:51:25.406Z",
+  "expiresAt": "2026-10-11T00:51:25.406Z"
+}

@@ -53,6 +53,25 @@ describe("Practical profile scope, provenance and durable recovery (scripted mod
     expect(calls[1]![0].prompt).toContain("invalid_response");
   });
 
+  it("preserves excerpt provenance and qualification in the contract and every delivered file", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    f.input.pages = [{ ...f.page, title: "[Search excerpt; original page unavailable] Professional profile", retrieval: { method: "search_excerpt", query: "Alice Example" } }];
+    responses.push({ draft: f.draft }, { approved: true, draft: f.draft });
+    const result = await preparePracticalProfile(f.input);
+    expect(result.outcome).toBe("resolved"); if (result.outcome !== "resolved") return;
+    const output = assemblePracticalProfile({ ...f.input, canonicalIdentityId: `dci_${"a".repeat(32)}`, draft: result.draft, state: result.state, now: new Date(f.page.accessedAt) });
+    expect(parseAndValidateDoctorResearchModelOutput(JSON.stringify(output))).toMatchObject({ ok: true });
+    expect(output.sources[0]!.retrieval_method).toBe("search_excerpt");
+    expect(output.identity_resolution.confidence).toBe("medium");
+    expect(output.quality.warnings.join(" ")).toContain("could not be read in full");
+    for (const artifact of renderDoctorResearchArtifacts(output, "en", "practical").filter(a => a.kind !== "questions")) {
+      expect(artifact.content).toContain("could not be read in full");
+    }
+    for (const [request] of vi.mocked(f.input.dependencies.generate).mock.calls) {
+      expect(JSON.parse(request.prompt).sources[0].retrieval.method).toBe("search_excerpt");
+    }
+  });
+
   it("delivers four useful files from a single official profile with zero literature and no academic minimum", async () => {
     const responses: unknown[] = []; const f = fixture(responses);
     responses.push({ draft: f.draft }, { approved: true, draft: f.draft });

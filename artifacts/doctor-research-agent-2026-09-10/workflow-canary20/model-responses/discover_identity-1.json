@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"钟历勇 北京天坛医院 内分泌科\",\"purpose\":\"find directory or profile evidence linking 钟历勇 to Beijing Tiantan Hospital endocrinology\"}]}",
+  "usage": {
+    "promptTokens": 1370,
+    "completionTokens": 66,
+    "reasoningTokens": 20,
+    "totalTokens": 1436
+  },
+  "gatewayRequestId": "req-4d10afc1-4257-4be6-8560-4507c574731b"
+}

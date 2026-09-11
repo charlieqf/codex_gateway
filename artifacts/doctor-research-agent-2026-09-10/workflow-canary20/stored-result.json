@@ -1,0 +1,295 @@
+{
+  "runId": "drr_b2b18eacef2a44bd9d9da4bd9e4c6dbb",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "钟历勇",
+      "hospital": "首都医科大学附属北京天坛医院",
+      "department": "内分泌科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_e806131055f96470d56f1cb9f0bbaad5",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_a8e34f637806e46fa39cc47966e9da78",
+        "source_type": "official_web",
+        "title": "钟历勇 天坛名医 -北京天坛医院",
+        "url": "https://www.bjtth.cn/Html/News/Articles/211356.html",
+        "accessed_at": "2026-09-11T00:44:23.702Z",
+        "content_sha256": "3c6a45207d62fdbe735b518c803765c6bc14374e577ad0d114f6c0d4c3f96985"
+      },
+      {
+        "source_id": "src_8e6e32500813a6eaab37cd9d062393a8",
+        "source_type": "official_web",
+        "title": "首都医科大学研究生院",
+        "url": "https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm",
+        "accessed_at": "2026-09-11T00:44:23.966Z",
+        "content_sha256": "8d30251b789a71cbcb6afd6eb86f786671f76ebb72740fb59d79b0f7ad3bf556"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "钟历勇，主任医师、教授、博士生导师；北京天坛医院官网“天坛名医”页面称其为内分泌科原主任，首都医科大学研究生院导师页面（2023年发布）记载其2014年5月起任该院内分泌科主任，两处表述的任职状态不一致。",
+        "学术兼职包括中华医学会内分泌学分会全国委员及下丘脑-垂体学组副组长、北京医学会内分泌学分会副主任委员、中国医师协会内分泌代谢科医师分会常务委员、中国研究型医院学会糖尿病专业委员会常务委员、首都医科大学内分泌代谢学系副主任、北京围手术期医学研究会副会长兼神经内分泌专委会主任委员等，并任《中华内分泌代谢杂志》《中国卒中杂志》编委。"
+      ],
+      "expertise": [
+        "临床擅长鞍区神经内分泌（下丘脑-垂体-靶腺）疾病的精准功能评价与功能重建，包括各型垂体瘤（泌乳素瘤、肢端肥大症、库欣病、中枢性甲亢、中枢性尿崩症、腺垂体功能低下）、颅咽管瘤、颅内生殖细胞瘤、淋巴细胞性垂体炎等。",
+        "亦擅长儿童与青少年生长发育障碍、各型糖尿病及其慢性并发症、甲状腺疾病、骨代谢性疾病、痛风与高尿酸血症、肥胖症等疾病的临床诊疗。"
+      ],
+      "education_and_career": [
+        "教育经历：1988年9月—1991年7月西安医科大学第一临床医学院硕士研究生；1993年9月—1996年7月上海医科大学研究生院博士研究生；2000年9月—2001年9月在香港大学医学院生理系任研究员。",
+        "任职经历（据研究生院导师页个人简历）：1996年7月—2000年9月及2001年9月—2003年10月在东南大学医学院附属中大医院内分泌科任科主任；2003年10月—2013年5月在北京天坛医院内分泌科任科主任；2014年5月起任北京天坛医院内分泌科主任、教授、主任医师、博士生导师。"
+      ],
+      "research_directions": [
+        "研究生招生方向为内科学（内分泌与代谢病）硕博，研究方向名称为神经内分泌学（下丘脑-垂体疾病的基础与临床研究）。"
+      ],
+      "representative_outputs": [
+        "在北京市科委首都临床特色项目支持下，建立了“基于内分泌长反馈调节轴的颅咽管瘤神经内分泌功能受损分级评价标准与功能重建”的创新诊疗技术体系；发表学术论文逾200篇（其中SCI收录超过50篇），参与编写统编教材与学术专著15余部，培养毕业硕士与博士研究生30余名。",
+        "代表性论文（通讯作者）涉及颅内生殖细胞瘤致性早熟、垂体柄生殖细胞肿瘤、促甲状腺激素分泌型垂体腺瘤、儿童颅咽管瘤占位效应解除前后神经内分泌功能障碍比较评价等鞍区神经内分泌疾病的临床研究，发表于Endocr Relat Cancer、Int J Endocrinol、Chin Med J、J Pediatr Endocrinol Metab等期刊。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "钟历勇 · 首都医科大学附属北京天坛医院 · 内分泌科",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78",
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "钟历勇，主任医师、教授、博士生导师；北京天坛医院官网“天坛名医”页面称其为内分泌科原主任，首都医科大学研究生院导师页面（2023年发布）记载其2014年5月起任该院内分泌科主任，两处表述的任职状态不一致。",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78",
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "expertise",
+          "text": "临床擅长鞍区神经内分泌（下丘脑-垂体-靶腺）疾病的精准功能评价与功能重建，包括各型垂体瘤（泌乳素瘤、肢端肥大症、库欣病、中枢性甲亢、中枢性尿崩症、腺垂体功能低下）、颅咽管瘤、颅内生殖细胞瘤、淋巴细胞性垂体炎等。",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "expertise",
+          "text": "亦擅长儿童与青少年生长发育障碍、各型糖尿病及其慢性并发症、甲状腺疾病、骨代谢性疾病、痛风与高尿酸血症、肥胖症等疾病的临床诊疗。",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "research_direction",
+          "text": "研究生招生方向为内科学（内分泌与代谢病）硕博，研究方向名称为神经内分泌学（下丘脑-垂体疾病的基础与临床研究）。",
+          "source_ids": [
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "education_and_career",
+          "text": "教育经历：1988年9月—1991年7月西安医科大学第一临床医学院硕士研究生；1993年9月—1996年7月上海医科大学研究生院博士研究生；2000年9月—2001年9月在香港大学医学院生理系任研究员。",
+          "source_ids": [
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "education_and_career",
+          "text": "任职经历（据研究生院导师页个人简历）：1996年7月—2000年9月及2001年9月—2003年10月在东南大学医学院附属中大医院内分泌科任科主任；2003年10月—2013年5月在北京天坛医院内分泌科任科主任；2014年5月起任北京天坛医院内分泌科主任、教授、主任医师、博士生导师。",
+          "source_ids": [
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_6",
+          "claim_type": "position",
+          "text": "学术兼职包括中华医学会内分泌学分会全国委员及下丘脑-垂体学组副组长、北京医学会内分泌学分会副主任委员、中国医师协会内分泌代谢科医师分会常务委员、中国研究型医院学会糖尿病专业委员会常务委员、首都医科大学内分泌代谢学系副主任、北京围手术期医学研究会副会长兼神经内分泌专委会主任委员等，并任《中华内分泌代谢杂志》《中国卒中杂志》编委。",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78",
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_7",
+          "claim_type": "representative_output",
+          "text": "在北京市科委首都临床特色项目支持下，建立了“基于内分泌长反馈调节轴的颅咽管瘤神经内分泌功能受损分级评价标准与功能重建”的创新诊疗技术体系；发表学术论文逾200篇（其中SCI收录超过50篇），参与编写统编教材与学术专著15余部，培养毕业硕士与博士研究生30余名。",
+          "source_ids": [
+            "src_a8e34f637806e46fa39cc47966e9da78"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_8",
+          "claim_type": "representative_output",
+          "text": "代表性论文（通讯作者）涉及颅内生殖细胞瘤致性早熟、垂体柄生殖细胞肿瘤、促甲状腺激素分泌型垂体腺瘤、儿童颅咽管瘤占位效应解除前后神经内分泌功能障碍比较评价等鞍区神经内分泌疾病的临床研究，发表于Endocr Relat Cancer、Int J Endocrinol、Chin Med J、J Pediatr Endocrinol Metab等期刊。",
+          "source_ids": [
+            "src_8e6e32500813a6eaab37cd9d062393a8"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_a8e34f637806e46fa39cc47966e9da78",
+        "src_8e6e32500813a6eaab37cd9d062393a8"
+      ]
+    },
+    "review": {
+      "title": "钟历勇 专业背景与交流准备",
+      "abstract": "钟历勇是首都医科大学附属北京天坛医院内分泌科主任医师、教授、博士生导师，为该院官网“天坛名医”（第二届）专题收录的专家。官网称其为内分泌科“原主任”，而首都医科大学研究生院导师页（2023年11月发布）记载其自2014年5月起任内分泌科主任；关于其目前是否仍担任科主任职务，两处来源表述不一致，可在交流时确认。",
+      "keywords": [
+        "内分泌科"
+      ],
+      "markdown": "钟历勇是首都医科大学附属北京天坛医院内分泌科主任医师、教授、博士生导师，为该院官网“天坛名医”（第二届）专题收录的专家。官网称其为内分泌科“原主任”，而首都医科大学研究生院导师页（2023年11月发布）记载其自2014年5月起任内分泌科主任；关于其目前是否仍担任科主任职务，两处来源表述不一致，可在交流时确认。 [来源 1](<https://www.bjtth.cn/Html/News/Articles/211356.html>) [来源 2](<https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm>)\n\n他的临床专长集中于鞍区神经内分泌（下丘脑\\-垂体\\-靶腺）疾病，如各型垂体瘤、颅咽管瘤、颅内生殖细胞瘤、淋巴细胞性垂体炎等的精准功能评价与功能重建，同时涵盖儿童青少年生长发育障碍、糖尿病及并发症、甲状腺疾病、骨代谢疾病、痛风、肥胖症等常见内分泌代谢病。其研究生招生方向即“神经内分泌学（下丘脑\\-垂体疾病的基础与临床研究）”，与临床专长一致。 [来源 1](<https://www.bjtth.cn/Html/News/Articles/211356.html>) [来源 2](<https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm>)\n\n学术履历方面，他先后在西安医科大学攻读硕士、上海医科大学攻读博士，2000—2001年在香港大学医学院生理系任研究员，曾任东南大学医学院附属中大医院内分泌科主任，2003年起在北京天坛医院内分泌科任职并任科主任（据研究生院导师页）。他在多个全国及北京市学术团体任职，并长期承担首都医科大学第五临床医学院内科学（内分泌与代谢病）的教学工作。 [来源 2](<https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm>) [来源 1](<https://www.bjtth.cn/Html/News/Articles/211356.html>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:45:54.428Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://www.bjtth.cn/Html/News/Articles/211356.html",
+        "https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "医院官网“天坛名医”页面称其为“北京天坛医院原内分泌科主任”（前任主任），未明确当前是否仍任内分泌科主任职务"
+      ]
+    },
+    "predicted_questions": [
+      "钟历勇目前的主要临床工作重点是什么？",
+      "他是否还在招收研究生？",
+      "他有哪些代表性的研究方向或技术体系？",
+      "他在学术组织中担任哪些职务？",
+      "他的教育和工作经历大致是怎样的？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "根据医院官网介绍，其临床擅长鞍区神经内分泌（下丘脑-垂体-靶腺）疾病的精准功能评价与功能重建（如各型垂体瘤、颅咽管瘤、颅内生殖细胞瘤、淋巴细胞性垂体炎），以及糖尿病及并发症、生长发育障碍、甲状腺疾病等；具体当前出诊安排宜与医院或本人确认。",
+        "source_ids": [
+          "src_a8e34f637806e46fa39cc47966e9da78"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "首都医科大学研究生院导师页（2023年发布）显示其招生类型为科学与专业学位（硕）、科学与专业学位（博），招生专业为内科学（内分泌与代谢病），研究方向为神经内分泌学（下丘脑-垂体疾病的基础与临床研究）；最新年度招生情况需以当年招生简章为准。",
+        "source_ids": [
+          "src_8e6e32500813a6eaab37cd9d062393a8"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "在北京市科委首都临床特色项目支持下，他建立了“基于内分泌长反馈调节轴的颅咽管瘤神经内分泌功能受损分级评价标准与功能重建”的创新诊疗技术体系；代表性论文多围绕颅咽管瘤、垂体腺瘤、颅内生殖细胞瘤等鞍区疾病的神经内分泌功能评价展开。",
+        "source_ids": [
+          "src_a8e34f637806e46fa39cc47966e9da78",
+          "src_8e6e32500813a6eaab37cd9d062393a8"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "据医院官网与研究生院导师页，他兼任中华医学会内分泌学分会全国委员及下丘脑-垂体学组副组长、北京医学会内分泌学分会副主任委员、中国医师协会内分泌代谢科医师分会常务委员、北京围手术期医学研究会副会长兼神经内分泌专委会主任委员、首都医科大学内分泌代谢学系副主任等。",
+        "source_ids": [
+          "src_a8e34f637806e46fa39cc47966e9da78",
+          "src_8e6e32500813a6eaab37cd9d062393a8"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "据研究生院导师页：西安医科大学第一临床医学院硕士（1988—1991）、上海医科大学博士（1993—1996），曾在香港大学医学院生理系任研究员（2000—2001），曾任东南大学医学院附属中大医院内分泌科主任，2003年起任职于北京天坛医院内分泌科并任科主任。",
+        "source_ids": [
+          "src_8e6e32500813a6eaab37cd9d062393a8"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "医院官网“天坛名医”页面称其为“北京天坛医院原内分泌科主任”（前任主任），未明确当前是否仍任内分泌科主任职务"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_b2b18eacef2a44bd9d9da4bd9e4c6dbb",
+    "run_id": "drr_b2b18eacef2a44bd9d9da4bd9e4c6dbb",
+    "artifacts": [
+      {
+        "artifact_id": "dra_d14122c9378a4304998b7947871822f9",
+        "kind": "profile",
+        "filename": "钟历勇_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 4979,
+        "sha256": "4bee57f6883b0859b94371c782f1224a535cc47fb4114b74b7f3973b5126d7a1",
+        "expires_at": "2026-10-11T00:45:54.439Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_d14122c9378a4304998b7947871822f9/download"
+      },
+      {
+        "artifact_id": "dra_130a5138d1d447f19e472bedc2588d78",
+        "kind": "review",
+        "filename": "钟历勇_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2143,
+        "sha256": "e8b5a49ff0c358668886ecef7338c3e42b864a93383900023176160c2c17c602",
+        "expires_at": "2026-10-11T00:45:54.439Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_130a5138d1d447f19e472bedc2588d78/download"
+      },
+      {
+        "artifact_id": "dra_0a7481d095b54bf4acabec23a4ce002b",
+        "kind": "questions",
+        "filename": "钟历勇_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 251,
+        "sha256": "9c94ef5cdbe14f4ae273e54075d3fb52eb3731facea237e2c84e633cc18afb9b",
+        "expires_at": "2026-10-11T00:45:54.439Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_0a7481d095b54bf4acabec23a4ce002b/download"
+      },
+      {
+        "artifact_id": "dra_7b249317a6384648b302867d8f85960e",
+        "kind": "answers",
+        "filename": "钟历勇_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 3187,
+        "sha256": "b74c70dd03a1efd54471f3206f93e29d8f6c1330f5c4fe1a11a6f5fbe7ad1faa",
+        "expires_at": "2026-10-11T00:45:54.439Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_7b249317a6384648b302867d8f85960e/download"
+      }
+    ]
+  },
+  "sha256": "d9812813639cc4914f49686819edd9f55c7637761233f0ac0516aee6b7ed43ae",
+  "sizeBytes": 16256,
+  "createdAt": "2026-09-11T00:45:54.439Z",
+  "expiresAt": "2026-10-11T00:45:54.439Z"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo\",\"purpose\":\"verify Tim Kerruish as Dunedin emergency department consultant\"},{\"type\":\"read\",\"url\":\"https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-argue-patients\",\"purpose\":\"confirm emergency medicine role at Dunedin Hospital\"},{\"type\":\"read\",\"url\":\"https://www.wineanorak.com/newzealand/folding_hill.htm\",\"purpose\":\"independent corroboration of Tim Kerruish's medical role in Dunedin\"}]}",
+  "usage": {
+    "promptTokens": 2314,
+    "completionTokens": 197,
+    "reasoningTokens": 54,
+    "totalTokens": 2511
+  },
+  "gatewayRequestId": "req-9ec58c65-26cb-4e76-bdbc-a9a9768888af"
+}

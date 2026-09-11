@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"杨祖立\",\"institution\":\"中山大学附属第六医院\",\"department\":\"普通外科（胃外科二区主任，主任医师）\",\"limitations\":[],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\",\"explanation\":\"医院官方专家页面明确列出杨祖立的职称、职位与科室，与请求的姓名、医院和科室完全一致\"},{\"aspect\":\"institution\",\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\",\"explanation\":\"页面页脚显示为中山大学附属第六医院（广东省胃肠肛门医院）官方网站，页眉标题为“杨祖立 | 中山大学附属第六医院”\"},{\"aspect\":\"department\",\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\",\"explanation\":\"官方页面载明科室为普通外科，职位为胃外科二区主任，职称为主任医师，专业方向为胃癌、结直肠癌等腹腔镜微创治疗，与请求的普通外科相符\"},{\"aspect\":\"authority\",\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\",\"explanation\":\"该页面为中山大学附属第六医院官方网站的专家信息页（sysu6h.cn），是医院对本院医师的权威一手来源；检索结果中好大夫、知乎及南方新闻网等多方来源（胃外科二区主任杨祖立教授）亦相互印证\"}]}}",
+  "usage": {
+    "promptTokens": 5083,
+    "completionTokens": 365,
+    "reasoningTokens": 0,
+    "totalTokens": 5448
+  },
+  "gatewayRequestId": "req-2c13698c-f425-4aa8-805f-240dd3feb055"
+}

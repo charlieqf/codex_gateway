@@ -1,0 +1,228 @@
+{
+  "runId": "drr_bd73fe000aa74426928fc58dcc1d64a7",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "杨祖立",
+      "hospital": "中山大学附属第六医院",
+      "department": "普通外科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_af804c99648dfa04708e571df3027f76",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_f9daff3da239fe7049ff5d5bc6734d42",
+        "source_type": "official_web",
+        "title": "杨祖立 | 中山大学附属第六医院",
+        "url": "https://www.sysu6h.cn/expert/653",
+        "accessed_at": "2026-09-11T00:46:32.249Z",
+        "content_sha256": "84d16291a9effaa333e6b9895e28bb12d1616c3ee4c6e6571e4366497f0ee7e8"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。"
+      ],
+      "expertise": [
+        "擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。"
+      ],
+      "education_and_career": [
+        "博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+        "学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。"
+      ],
+      "research_directions": [],
+      "representative_outputs": [],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "杨祖立 · 中山大学附属第六医院 · 普通外科（胃外科二区主任，主任医师）",
+          "source_ids": [
+            "src_f9daff3da239fe7049ff5d5bc6734d42"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。",
+          "source_ids": [
+            "src_f9daff3da239fe7049ff5d5bc6734d42"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "expertise",
+          "text": "擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。",
+          "source_ids": [
+            "src_f9daff3da239fe7049ff5d5bc6734d42"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "education_and_career",
+          "text": "博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+          "source_ids": [
+            "src_f9daff3da239fe7049ff5d5bc6734d42"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "education_and_career",
+          "text": "学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。",
+          "source_ids": [
+            "src_f9daff3da239fe7049ff5d5bc6734d42"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_f9daff3da239fe7049ff5d5bc6734d42"
+      ]
+    },
+    "review": {
+      "title": "杨祖立 专业背景与交流准备",
+      "abstract": "杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，官方页面列出的学术任职包括广东省医学会胃肠外分会及消化道肿瘤分会副主任委员、中华医学会（广东省）分会副主任委员，以及国际胃癌协会（IGCA）会员。",
+      "keywords": [
+        "普通外科（胃外科二区主任，主任医师）"
+      ],
+      "markdown": "杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，官方页面列出的学术任职包括广东省医学会胃肠外分会及消化道肿瘤分会副主任委员、中华医学会（广东省）分会副主任委员，以及国际胃癌协会（IGCA）会员。 [来源 1](<https://www.sysu6h.cn/expert/653>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:47:00.525Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://www.sysu6h.cn/expert/653"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。"
+      ]
+    },
+    "predicted_questions": [
+      "杨祖立的出诊时间和地点是什么？",
+      "他在哪类手术上最有代表性？",
+      "他是否有带教资格？",
+      "他有哪些海外学习经历？",
+      "他在省级学会担任什么职务？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "据医院官方专家页面，其门诊时间为【金融城·员村院区】周一上午、周五上午；就诊安排如有变动应以医院最新公示为准。",
+        "source_ids": [
+          "src_f9daff3da239fe7049ff5d5bc6734d42"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "官方专长描述指出其在胃食管结合部癌近端胃切除保功能重建术，以及双镜联合治疗早期胃癌和特殊部位胃十二指肠间质瘤方面尤为擅长。",
+        "source_ids": [
+          "src_f9daff3da239fe7049ff5d5bc6734d42"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "官方页面载明其为博士生导师、博士后合作导师，可指导博士研究生及博士后研究人员。",
+        "source_ids": [
+          "src_f9daff3da239fe7049ff5d5bc6734d42"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "官方简历记载其为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+        "source_ids": [
+          "src_f9daff3da239fe7049ff5d5bc6734d42"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "官方页面列明其为广东省医学会胃肠外分会副主任委员和广东省医学会消化道肿瘤分会副主任委员，并任中华医学会（广东省）分会副主任委员。",
+        "source_ids": [
+          "src_f9daff3da239fe7049ff5d5bc6734d42"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_bd73fe000aa74426928fc58dcc1d64a7",
+    "run_id": "drr_bd73fe000aa74426928fc58dcc1d64a7",
+    "artifacts": [
+      {
+        "artifact_id": "dra_71896f320a074e4087ec0bc9c6f079a0",
+        "kind": "profile",
+        "filename": "杨祖立_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1815,
+        "sha256": "a0a3e0cf7e5e2edd4a501d128515d27057af7c27f095d43dba07f7b5ab2453c2",
+        "expires_at": "2026-10-11T00:47:00.535Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_71896f320a074e4087ec0bc9c6f079a0/download"
+      },
+      {
+        "artifact_id": "dra_21b7d002cc1e4ac0bcf4ff393fc15c8f",
+        "kind": "review",
+        "filename": "杨祖立_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1120,
+        "sha256": "99de42c8b84fc9febd5dfa86b48acd1763f304cc63cd8ca6bfcf23cc731c5c40",
+        "expires_at": "2026-10-11T00:47:00.535Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_21b7d002cc1e4ac0bcf4ff393fc15c8f/download"
+      },
+      {
+        "artifact_id": "dra_c64fe2ba1ee34976a8084036efbaec43",
+        "kind": "questions",
+        "filename": "杨祖立_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 203,
+        "sha256": "abb2b9ca74ed5b23128861da4bcb778cf46158dd7f19b4c2bff963b01f9f3d6b",
+        "expires_at": "2026-10-11T00:47:00.535Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_c64fe2ba1ee34976a8084036efbaec43/download"
+      },
+      {
+        "artifact_id": "dra_8f38fea2545e4d3db7d831c6eebbbe12",
+        "kind": "answers",
+        "filename": "杨祖立_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1792,
+        "sha256": "df4fa748ff31c59ac94ce13308a34a1e029ed341d47d155637f36a436dd282e6",
+        "expires_at": "2026-10-11T00:47:00.535Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_8f38fea2545e4d3db7d831c6eebbbe12/download"
+      }
+    ]
+  },
+  "sha256": "527dd33ccab8c4b9a58e21d4f20a1323cc09a24004d4ce79d1830aa2edd7cdc1",
+  "sizeBytes": 9082,
+  "createdAt": "2026-09-11T00:47:00.535Z",
+  "expiresAt": "2026-10-11T00:47:00.535Z"
+}

@@ -1,0 +1,3260 @@
+[
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "26b24fad18fea0c4d304d2e51bfd4a332304956c4b7ee7d9d2cc0b08122830c1",
+      "searches": [
+        {
+          "query": "\"Tim Kerruish\" Otago Dunedin emergency medicine",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://www.otago.ac.nz/dsm-medicine/people/profile?id=1493",
+              "title": "Dr Tim Kerruish",
+              "snippet": "Dr Tim Kerruish. Contact Details. Email: tim.kerruish@southerndhb.govt.nz. University Links. Faculty of Medicine · Department of Medicine (Dunedin)."
+            },
+            {
+              "url": "https://natlib.govt.nz/items?i%5Bcentury%5D=2000&i%5Bsubject%5D=Chambers%2C+John%2C+1955%3F-",
+              "title": "Page 1 of 1 | Items",
+              "snippet": "... Dr Tim Kerruish. Describes some of the challenges he faced to improve conditions for patients and some of his accomplishments. Favourite. Icon of Newspaper."
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-argue-patients",
+              "title": "Retiring ED head quick to argue for patients",
+              "snippet": "Dr John Chambers has opened the door for Dr Tim Kerruish to take over as clinical leader of Dunedin Hospital's emergency department."
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+              "title": "Folding Hill, Central Otago",
+              "snippet": "Tim Kerruish (above) is a doctor from the Isle of Man (UK). He and his wife came out to New Zealand when she was doing a PhD in Dunedin (she's a biomedical ..."
+            },
+            {
+              "url": "https://www.emerald.com/lhs/article/259973/Board-drive-for-clinical-leadership-New-Zealand",
+              "title": "Board drive for clinical leadership (New Zealand)",
+              "snippet": "Emergency specialist Dr Tim Kerruish, who is leading the project, told a board committee the project had made some gains, but may not get ..."
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "title": "Chardonnay Joins Pinot At Bendigo",
+              "snippet": "Folding Hill vigneron Tim Kerruish plans to plant half a hectare of ... He is a doctor and works as a consultant in the emergency department of ..."
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader",
+              "title": "SDHB seeking 'acting' ED clinical leader",
+              "snippet": "In March, Dr Tim Kerruish stepped down as clinical leader after a disagreement with management over staff numbers. Senior doctors union representative Dr ..."
+            },
+            {
+              "url": "https://www.otago.ac.nz/dsm-medicine/people",
+              "title": "Our people at the Department of Medicine, Dunedin",
+              "snippet": "Emergency Medicine · Dr Sierra Beck · Dr Caroline Collins · Dr Aileen Conboy · Dr Susan Creighton · Dr Clive Dreyer · Dr Tim Kerruish · Dr Bruce Lambie · Dr Jill ..."
+            },
+            {
+              "url": "https://www.nzherald.co.nz/nz/scientists-in-dark-on-kronics-ill-effects/RWZ6NZEUT35PC456NI6UKMDQUI/",
+              "title": "Scientists in dark on Kronic's ill effects",
+              "snippet": "And Dr Tim Kerruish, clinical leader of Dunedin Hospital's emergency department, told the Otago Daily Times how some users had suffered ..."
+            },
+            {
+              "url": "https://www.researchgate.net/publication/266262263_Emergency_Nurse_New_Zealand_Winter_2011_P_1_EMERGENCY_NURSE_NEW_ZEALAND_Triage_Process_Under_Review_Government_Must_Get_Tough_On_Alcohol_Abuse_Shorter_Stays_in_Emergency_Departments_National_Research_",
+              "title": "(PDF) Emergency Nurse New Zealand | Winter 2011",
+              "snippet": "... Dunedin, with a new Clinical Director. Dr Tim Kerruish at the helm. One of the main focuses will be. meeting the 6hr target. One of the main initiatives' and ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_6d6869c49dca261af51ed2eb8927ed4f",
+          "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+          "title": "Chardonnay Joins Pinot At Bendigo",
+          "accessedAt": "2026-09-11T00:52:31.969Z",
+          "contentSha256": "4b8b96c35c212806f4545a87522f9c54ff7f418c85892a830cff837ff24553ad",
+          "untrustedText": "Chardonnay Joins Pinot At Bendigo\nMAIN MENU\nHOME\nRural News\nDairy News\nHort News\nNZ Winegrower\nSubscribe\nAdvertise\nContact\nBROWSE CATEGORIES\nNational\nRegional\nOpinion\nProfiles\nIndustry\nMachinery & Products\nWednesday, 20 May 2015 15:25\nChardonnay Joins Pinot At Bendigo\nWritten by\nRural News Group\nfont size\ndecrease font size\nincrease font size\nPrint\nEmail\nFolding Hill vigneron Tim Kerruish.\nFolding Hill vigneron Tim Kerruish plans to plant half a hectare of white grapes on his heat drenched, Pinot-dedicated slopes at Bendigo in Central Otago.\nThe site sits beneath a (perplexing) new cattle station, which is heavily irrigated and stands in stark green contrast to Kerruish’s arid Folding Hill Vineyard, from which he produces 1500 cases of Pinot Noir each year.\nThis year Chardonnay will join the Pinot grapes, which are grown on land that was formerly known as Clearview Station and devoted to its former life as a sheep farm.\nTim and Nikki Kerruish bought 16 hectares of the sheep station in 2000, planting four hectares of Pinot Noir in 2003 and producing their first vintage in 2007. The Folding Hill Pinot Noirs are unfined and unfiltered; made by Fred Reinds at the old Black Ridge Winery in Alexandra.\nThe couple arrived in New Zealand 20 years ago. Each was on their own individual quest to fish, ski and walk. They met each other early on and shared both a passion for the land and for their individual careers in medicine. He is a doctor and works as a consultant in the emergency department of Dunedin Hospital; she is a bio-ethicist.\nInspired by his own early student winemaking days, Kerruish originally began producing ‘wine’ back when he bought cans of grape concentrate from Boot’s in the United Kingdom.\nThe couple now live in Dunedin and have built an off-the-grid home in the middle of their Bendigo vineyard in Central Otago. It is on land that he describes as “a drop dead gorgeous site that we visited on a perfect winter day when fresh snow had just landed on the hills opposite, so we bought it straight away.”\nTweet\nPublished in\nRegional Updates\nMore like this\nAlan Brady: Central Otago's Pinot Noir Pioneer at 90\nHaving founded three wineries, sold two, and put the 21st vintage of Wild Irishman into barrel, Central Otago winemaking pioneer Alan Brady could choose to put his feet up.\nLynnette Hudson Named 2026 NZ Winegrowers Fellow\nLynnette Hudson's 30-year obsession with Pinot Noir was sparked working vintage in Burgundy, seeing how subtle changes in terroir were expressed in the glass. It was, she says, \"an elightening moment in every way\".\nNZW Fellows: Sir Sam Neill Remembered for His Deep Love of New Zealand Wine\nSir Sam Neill made an extraordinary mark on the world, and on the world of New Zealand wine.\n36th Southern Pinot Workshop Set for January 2027\nThe 36th Southern Pinot Workshop will be held from 20–22 January 2027.\nNZ Sparkling Wine Imports Top 6 Million Litres in 2025\nNew Zealanders purchased more than six million litres of imported sparkling wine in 2025, according to NZW data.\nPopular Reads\nTaupiri Farmers Chase Ownership After Awards Success\nFor Taupiri dairy farmers Logan and Sian Dawson, their involvement in the NZ Dairy Industry Awards has been a key…\nWest Otago Farmer Luke Kane Wins Rabobank 2026 Prize\nWest Otago dairy farmer Luke Kane has been awarded the 2026 Rabobank Dr John Morris Business Development Prize.\n80% of NZ Parents Say Dinner Planning Is Too Much Effort\n\"What's for dinner?\" may sound like a simple question, but for many Kiwi parents, answering it has become a job…\nWhat Would Synlait Be Worth to Fonterra or a2 Milk?\nSpeculation of a possible joint move by Fonterra and a2 Milk to buy Synlait raises a much bigger strategic question,…\nRabobank: China Quotas, Brazil Risk to Reshape Beef Trade\nChinese beef trade quotas and a looming suspension of Brazilian beef imports into the European Union are expected to reshape…\nback to top\n&raquo;\nLatest Print Issues Online\nVisit archives\nEditorial\nFrom the Chair: Shaping Our Future\nOPINION: The months ahead are important for New Zealand Winegrowers.\nEditorial: Celebrating New Zealand Wine's 2026 Fellows\nOPINION: New Zealand's soils and climate make our wine industry extraordinary. But it is the people behind the vines and…\nPopular Reads\nAustralia's Winemaker of the Year to Speak at NZ Chardonnay Symposium\nOne of Australia's most decorated winemakers will speak at the Aotearoa New Zealand Chardonnay Symposium in Hawke's Bay this September.\nCelebrating Chardonnay: Aotearoa New Zealand Chardonnay Symposium\nThe third Aotearoa New Zealand Chardonnay Symposium will be underway in Hastings, Hawke's Bay, on 17-18 September.\nNew Zealand Wine Outperforming Australian Market Despite Demographic Challenges\nIn early May, New Zealand Winegrowers delivered a webinar for members, providing a commercial view of New Zealand wine in…\nCopyright - &copy; 2026 RuralNewsGroup . All Rights Reserved.",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://browsehappy.com/",
+              "text": "Upgrade your browser today"
+            },
+            {
+              "url": "https://browsehappy.com/",
+              "text": "Upgrade your browser today"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/",
+              "text": "HOME"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/rural-news",
+              "text": "Rural News"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/dairy-news",
+              "text": "Dairy News"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/hort-news",
+              "text": "Hort News"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower",
+              "text": "NZ Winegrower"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/index.php?option=com_breezingforms&view=form&Itemid=54&lang=en",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/component/com_blankcomponent/Itemid,55/view,default/",
+              "text": "Advertise"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/index.php?option=com_alfcontact&view=alfcontact&Itemid=56&lang=en",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news",
+              "text": "National"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates",
+              "text": "Regional"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles",
+              "text": "Profiles"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-industry",
+              "text": "Industry"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-machinery",
+              "text": "Machinery & Products"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/blog/Rural-News-Group",
+              "text": "Rural News Group"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "text": "decrease font size"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "text": "increase font size"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo?print=1&tmpl=component",
+              "text": "Print"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/component/com_mailto/link,0df7ce9034c134117f1278f6be691ae9ec8fff88/template,ruralresponsive/tmpl,component/",
+              "text": "Email"
+            },
+            {
+              "url": "https://twitter.com/share",
+              "text": "Tweet"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates",
+              "text": "Regional Updates"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/alan-brady-central-otago-wine-pioneer-90",
+              "text": "Alan Brady: Central Otago's Pinot Noir Pioneer at 90"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/lynnette-hudson-new-zealand-winegrowers-fellow-2026",
+              "text": "Lynnette Hudson Named 2026 NZ Winegrowers Fellow"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/sir-sam-neill-new-zealand-wine-tribute",
+              "text": "NZW Fellows: Sir Sam Neill Remembered for His Deep Love of New Zealand Wine"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/southern-pinot-workshop-2027",
+              "text": "36th Southern Pinot Workshop Set for January 2027"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/nz-sparkling-wine-imports-2025-vilaura-opportunity",
+              "text": "NZ Sparkling Wine Imports Top 6 Million Litres in 2025"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "text": "Popular Reads"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-management/logan-sian-dawson-taupiri-dairy-farm-ownership-pathway",
+              "text": "Taupiri Farmers Chase Ownership After Awards Success"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-agribusiness/luke-kane-west-otago-wins-rabobank-business-development-prize-2026",
+              "text": "West Otago Farmer Luke Kane Wins Rabobank 2026 Prize"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/rural-news/rural-general-news/hellofresh-nz-dinner-mental-load-research",
+              "text": "80% of NZ Parents Say Dinner Planning Is Too Much Effort"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-general-news/fonterra-a2-milk-synlait-buyout-speculation",
+              "text": "What Would Synlait Be Worth to Fonterra or a2 Milk?"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/rural-news/rural-agribusiness/rabobank-global-beef-quarterly-q3-2026-nz-exports",
+              "text": "Rabobank: China Quotas, Brazil Risk to Reshape Beef Trade"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "text": "back to top"
+            },
+            {
+              "url": "https://disqus.com/?ref_noscript",
+              "text": "comments powered by Disqus."
+            },
+            {
+              "url": "https://issuu.com/ruralnewsgroup/",
+              "text": "Visit archives"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial/nz-winegrowers-new-ceo-2026-board-elections",
+              "text": "From the Chair: Shaping Our Future"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial/2026-new-zealand-winegrowers-fellows-announced",
+              "text": "Editorial: Celebrating New Zealand Wine's 2026 Fellows"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+              "text": "Popular Reads"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/virginia-willcock-nz-chardonnay-symposium-hawkes-bay-2026",
+              "text": "Australia's Winemaker of the Year to Speak at NZ Chardonnay Symposium"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/new-zealand-chardonnay-symposium-2026-julia-harding",
+              "text": "Celebrating Chardonnay: Aotearoa New Zealand Chardonnay Symposium"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/new-zealand-wine-australia-market-growth-refreshment-trend",
+              "text": "New Zealand Wine Outperforming Australian Market Despite Demographic Challenges"
+            },
+            {
+              "url": "https://www.ruralnewsgroup.co.nz/",
+              "text": "RuralNewsGroup"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_ba30a968a2c920fde00488752e8fa54a",
+          "url": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+          "title": "Retiring ED head quick to argue for patients",
+          "accessedAt": "2026-09-11T00:52:34.687Z",
+          "contentSha256": "34fab1a7a5b1e114e9ba9740c43e33328d4d64f107a81de8f28941dbd081bd89",
+          "untrustedText": "Retiring ED head quick to argue for patients\nGO\nSubscribe\nSubscribe\nCLOSE\nSECTIONS\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSIGN IN | CREATE ACCOUNT\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSubscribe\nSubscribe\nSubscribe\nNews\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSIGN IN\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSocial media\nGO\nSubscribe\nNews | Dunedin\nDunedin\nRetiring ED head quick to argue for patients\nElspeth McLean\nTuesday, January 18, 2011\nfacebook twitter whatsapp email linkedin\nfacebook twitter whatsapp email linkedin\nPHOTO\nDr John Chambers has opened the door for Dr Tim Kerruish to take over as clinical leader of Dunedin Hospital's emergency department. Photo by Peter McIntosh. Outspoken Dr John Chambers has stood down after 17 years as Dunedin Hospital emergency department clinical leader, but he has not finished yet. He is looking forward to being a full-time specialist without the leadership role. Dr Chambers reflects on his time in charge of emergency medicine with ODT health reporter Elspeth McLean.\nStraight-talking Scot Dr John Chambers (55) has often hit the headlines during his 17 years as Dunedin Hospital emergency department clinical leader, but he says that is \"almost in the job description\".\nHe readily admits he is no shrinking violet, saying emergency department leaders are there to advocate for their patients along with their departments.\n\"I think you will find every doctor in charge of an emergency department is prominent.\n\"We are often asked our opinions.\"\nSometimes the emergency department was \"where things are happening in society\" and flagged trends about such things as drug use and types of accidents.\nSince he came to Dunedin in 1993, Dr Chambers has frequently spoken out about the state of the department, countered frequent claims too many people were turning up for minor ailments, and has had to front up in situations when the department has come under criticism.\nIn recent times, he even controversially turned to verse, published on the Association for Salaried Medical Specialists' website, to vent his frustration with what he saw as a lack of progress towards improvements in his department.\nDr Chambers trained in Scotland, worked in England and was in Adelaide - where he had just finished his training as a specialist - when he saw the senior ED doctor's job advertised at Dunedin Hospital.\nAt that time, the department was led by GP Dr Peter Bamford, and when Dr Chambers took over, he was the first trained specialist to take on the role.\nAt that time, emergency medicine in New Zealand was very much in its infancy, he said.\nDuring his time in the department, he has seen the number of doctors - including both senior and junior clinicians - increase from 7 to 24.\nIt had also been very gratifying to see the development of emergency nursing in that time.\nDunedin had an excellent team of dedicated nurses without whom doctors could not do their job, he said.\nHe also paid tribute to ASMS executive director Ian Powell.\nSenior doctors at Dunedin Hospital had benefited greatly from his support and input over the years.\nDr Chambers said during his 17 years, the role of the department had changed considerably.\nToday, there was a lot of observational medicine, with patients in the care of the department for the whole of their stay, whereas in the past, patients would receive an assessment in the department then move quickly to a ward.\nHe had not been in Dunedin long before he was agitating for improved facilities and was pleased when the department got a $2 million upgrade in 1998 which was \"a great improvement on what we had before\".\nDr Chambers said he was proud of the performance of the department around the turn of the century compared with other hospitals.\nHowever, he had always expected that the 1998 upgrade would only last about 10 years and that had proved to be the case.\nNow, the department was not adequate to offer the sort of observational medicine being practised in emergency medicine.\nPatients who would not be admitted to a ward but who needed a period of observation needed to be in a proper acute ward, not spending many hours in a corridor.\nOne of the \"big positive things\" about the past 17 years had been the increase in the number of specialists and the number who had done much of their training in Dunedin.\nThe department had nine specialists and five of them had Dunedin training.\nRegistrars in training had a 100% pass rate, which was as good as any other Australasian centre, he said.\nHe estimates there are about 25 specialists working all over Australasia who were largely trained in Dunedin during his time.\nOne of the main reasons Dr Chambers was attracted to the Dunedin job was that the city offered a teaching hospital with both neurosurgery and cardiac surgery.\nThat was rather unusual, even for larger centres such as Auckland, he says.\n\"One of the frustrations training in the UK was having to spend hours and hours in ambulances transporting people between hospitals.\"\nHe estimated there were only about four or five hospitals in the United Kingdom which were teaching hospitals with a range of specialties.\nIn the recent debate over the siting of neurosurgery in the South, he considered that aspect of Dunedin's facilities had been well emphasised and the expert panel reviewing the service could \"see exactly what Dunedin had and that it shouldn't be eroded\".\nDr Chambers said one of the aspects of emergency department work which was changing was the increasing number of elderly people with complex needs who were turning up.\nWhen he reviewed some figures recently, he was surprised at the number of patients aged 80 and more.\nDunedin needed to keep up with how other leading hospitals were dealing with this trend.\nHe has also noticed an upward trend in the number of young women who have been binge-drinking, along with a rise in the number of people consuming other drugs such as party pills.\nThe number of patients presenting purely with intoxication was quite stable, but there were many patients who had other conditions which had some link with alcohol consumption.\nHe was reluctant to draw too many conclusions about this, as someone who trained in Glasgow where it seemed everybody who turned up was drunk.\n\"It is fair to say a fair proportion of ED attendances have always been intoxicated.\"\nEven after all this time, Dr Chambers concedes there are nights when he loses sleep worrying about a patient's diagnosis.\n\"It's not always easy and you do worry, did you get it right?\"A mentor once told him that with many decisions to make each day \"if you get 99% of them right, then you are a good doctor.\n\"You have to recognise you won't always get it right.\"\nWith the increasing number of diagnostic tests available to doctors now, \"quite honestly, we don't miss much\".\nTwenty years ago, it was a different story and people who hankered for the \"good old days of hospitals\" tended to overlook that.\n\"People used to die of all sorts of things 20 years younger than they do now.\"\nDr Chambers said he was looking forward to being a full-time specialist without a leadership role.\nHe would also be working in an advisory capacity with St John.\nHe estimated he had another \"good 10 years\" of work in him.\nHis wish for the department is not likely to change, however.\nHe wants investment in the department similar to that which is occurring in other places in the country so patients can get out of the corridors and receive a \"good quality of care\".\nThis would involve ongoing commitment to make sure patients did not \"creep\" back into the corridors again in future years.\nelspeth.mclean@odt.co.nz\nNews | Dunedin\nfacebook twitter whatsapp email linkedin\nTags:\nHealth Health care SDHB\nOTHER ARTICLES\nE-edition Facebook Newsletter ODT Store\nContact\nContact us\nSend us your news\nAbout us\nPrivacy Policy\nPlatform Terms of Use\nMedia Council complaints\nRemoval request policy\nNewspapers\nOtago Daily Times\nBlenheim Sun\nKaikoura Star\nGreymouth Star\nHokitika Guardian\nThe West Coast Messenger\nWest Coast Rural Life\nNorth Canterbury News\nCanterbury Rural Life\nThe Geraldine News\nThe Star - Christchurch\nBay Harbour News\nPegasus Post\nWestern News\nSouthern View\nSelwyn Times\nAshburton Courier\nThe Courier - Timaru\nOamaru Mail\nWanaka Sun\nCromwell Bulletin\nMountain Scene\nThe News Central Otago\nThe Star - Dunedin\nClutha Leader\nSouthern Rural Life\nThe Ensign\nSouthland Express\nMagazines\nKiwi Gardener\nClassic Driver\n03 Magazine\nRugby News\nEvents\nCity2Surf\nChristchurch Home Show\nServices\nAllied Productions\nAllied Creative\nAllied Print\nMainland Distribution\nSubscribe\nSubscribe\nTerms & Conditions\nStops, starts and redirects\nFAQs\nAdvertise\nAdvertise with us\nPlace a death notice\nPlace a classified ad\nAdvertising terms and conditions\nCopyright Allied Press Limited, trading as Allied Media 2026. All rights reserved.",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion/editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/100-years-ago",
+              "text": "100 Years Ago"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content",
+              "text": "Advertising Features"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+              "text": "Build Buy Renovate"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+              "text": "Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+              "text": "Canterbury Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+              "text": "SIGN IN | CREATE ACCOUNT"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "SUBSCRIBE"
+            },
+            {
+              "url": "https://www.odt.co.nz/MyAccount",
+              "text": "My Account"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/advertise/",
+              "text": "Advertising"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/",
+              "text": "Allied Media"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion/editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/100-years-ago",
+              "text": "100 Years Ago"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content",
+              "text": "Advertising Features"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+              "text": "Build Buy Renovate"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+              "text": "Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+              "text": "Canterbury Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "SUBSCRIBE"
+            },
+            {
+              "url": "https://www.odt.co.nz/MyAccount",
+              "text": "My Account"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/advertise/",
+              "text": "Advertising"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/",
+              "text": "Allied Media"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Health",
+              "text": "Health"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Health-care",
+              "text": "Health care"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/SDHB",
+              "text": "SDHB"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-edition"
+            },
+            {
+              "url": "https://www.facebook.com/OtagoDailyTimes/",
+              "text": "Facebook"
+            },
+            {
+              "url": "https://newsletters.odt.co.nz/odt-morning-briefing",
+              "text": "Newsletter"
+            },
+            {
+              "url": "https://odtshop.co.nz/",
+              "text": "ODT Store"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us-aa1af4pu",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://www.odt.co.nz/about-us-ckfd8ssa",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.odt.co.nz/privacy-policy-ql32ejw6",
+              "text": "Privacy Policy"
+            },
+            {
+              "url": "https://www.odt.co.nz/platform-terms-of-use-pcxcq1h8",
+              "text": "Platform Terms of Use"
+            },
+            {
+              "url": "https://www.odt.co.nz/media-council-complaints-lhk0j25s",
+              "text": "Media Council complaints"
+            },
+            {
+              "url": "https://www.odt.co.nz/removal-requests-kr8qdiox",
+              "text": "Removal request policy"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/odt/",
+              "text": "Otago Daily Times"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/blenheim-sun/",
+              "text": "Blenheim Sun"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/kaikoura-star/",
+              "text": "Kaikoura Star"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/greymouth-star/",
+              "text": "Greymouth Star"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/hokitika-guardian/",
+              "text": "Hokitika Guardian"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/west-coast-messenger/",
+              "text": "The West Coast Messenger"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/west-coast-rural-life/",
+              "text": "West Coast Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/north-canterbury-news/",
+              "text": "North Canterbury News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/canterbury-rural-life/",
+              "text": "Canterbury Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-geraldine-news/",
+              "text": "The Geraldine News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-star-christchurch/",
+              "text": "The Star - Christchurch"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/bay-harbour-news/",
+              "text": "Bay Harbour News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/pegasus-post/",
+              "text": "Pegasus Post"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/western-news/",
+              "text": "Western News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southern-view/",
+              "text": "Southern View"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/selwyn-times/",
+              "text": "Selwyn Times"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/ashburton-courier/",
+              "text": "Ashburton Courier"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-courier/",
+              "text": "The Courier - Timaru"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/oamaru-mail/",
+              "text": "Oamaru Mail"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/wanaka-sun/",
+              "text": "Wanaka Sun"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/cromwell-bulletin/",
+              "text": "Cromwell Bulletin"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/mountain-scene/",
+              "text": "Mountain Scene"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-news/",
+              "text": "The News Central Otago"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-star/",
+              "text": "The Star - Dunedin"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/clutha-leader/",
+              "text": "Clutha Leader"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southern-rural-life/",
+              "text": "Southern Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-ensign/",
+              "text": "The Ensign"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southland-express/",
+              "text": "Southland Express"
+            },
+            {
+              "url": "https://kiwigardenermagazine.co.nz/",
+              "text": "Kiwi Gardener"
+            },
+            {
+              "url": "https://classicdriver.co.nz/",
+              "text": "Classic Driver"
+            },
+            {
+              "url": "https://03magazine.co.nz/",
+              "text": "03 Magazine"
+            },
+            {
+              "url": "https://rugbynews.co.nz/",
+              "text": "Rugby News"
+            },
+            {
+              "url": "https://city2surf.co.nz/",
+              "text": "City2Surf"
+            },
+            {
+              "url": "https://starhomeshow.kiwi/",
+              "text": "Christchurch Home Show"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-productions/",
+              "text": "Allied Productions"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-creative/",
+              "text": "Allied Creative"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-print/",
+              "text": "Allied Print"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/mainland-distribution/",
+              "text": "Mainland Distribution"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/terms-and-conditions-fz40zi85",
+              "text": "Terms & Conditions"
+            },
+            {
+              "url": "https://www.odt.co.nz/delivery-stops-starts-and-redirections-qd4wo2qu",
+              "text": "Stops, starts and redirects"
+            },
+            {
+              "url": "https://www.odt.co.nz/faqs-circulation-and-home-delivery-jsfntd13",
+              "text": "FAQs"
+            },
+            {
+              "url": "https://www.odt.co.nz/advertise-with-us-a8jgkh7n",
+              "text": "Advertise with us"
+            },
+            {
+              "url": "https://www.odt.co.nz/place-a-death-notice-bkngy2y3",
+              "text": "Place a death notice"
+            },
+            {
+              "url": "https://www.odt.co.nz/place-a-classified-ad-tpfjmhyv",
+              "text": "Place a classified ad"
+            },
+            {
+              "url": "https://www.odt.co.nz/advertising-terms-and-conditions-aq3quuua",
+              "text": "Advertising terms and conditions"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_0c022ba78efd95b6ca6291c6cbbf3a69",
+          "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+          "title": "Folding Hill, Central Otago",
+          "accessedAt": "2026-09-11T00:52:35.860Z",
+          "contentSha256": "d85e52597263f1b5c928dee534f5cc07bfac8615249d208302dc177e5565cbf6",
+          "untrustedText": "Folding Hill, Central Otago\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\nFolding Hill\nRevisiting Central Otago, New Zealand, part 4\nTim Kerruish ( above ) is a doctor\nfrom the Isle of Man (UK). He and his wife came out to New Zealand\nwhen she was doing a PhD in Dunedin (she's a biomedical ethicist),\nand they bought this property in 2001. Tim still works as the\nemergency room in Dunedin hospital, but he's clearly been bitten by\nthe wine bug. He now has 4 hectares of vineyard, all Pinot Noir, as\nwell as 30 sheep and an orchard. He's currently planning to plant a\nbit of Chardonnay.\nThe existing vineyard was planted in 2003, and is at 230 m, looking\nacross to the Pisa range, with Mt Pisa at 1800 m providing a\nbeautiful backdrop. If you look left, you can see Mount Difficulty;\nlook to the right, and you can see the southern alps.\nThe wines are made by Fred Reinds at Black Ridge winery, but Tim's\nplan is to put a small cellar into the basement of the home he has\non the property (used currently as a holiday home) and make the\nwines himself. So you could say he's a lifestyler, but of the best\nsort, where the wine quality is a total focus.\nRudi Bauer was the first to make wines in Bendigo, which has a\nseries of terraces, and is one of the warmer spots in Central Otago.\nFollowing a nice summer afternoon, it's still warm here at 7 pm. The\nsoils are typical of Central: wind-blown loess with masses of river\ngravels under a thin topsoil. There's very little organic material\nin these young soils, so irrigation is essential. 'It's virtually\nhydroponics,' says Tim.\nWhat are the characteristics of Bendigo wines? 'Bendigo wines tend\nto be fruit driven on the mid palate with a chocolatey thing on the\nback palate,' says Tim. 'This is what I'd be looking for in a blind\ntasting: a bit of mocha on the back palate.'\nWinemaking involves full destemming, and a cold soak until things\nstart to happen. There may be an inoculation. The wines are then run\nto barrel.\n'The most profound effect we have is on crop level,� reveals Tim.\n�For Central you need to run a pretty low yield. We do one bunch a\nshoot and take the shoulders off, which gives an average yield of\n3.5-4 tons/hectare. The average for Central is 6-6.5 tons hectare,\nand for second or third tier wines it will be more.� He adds that\nsome people have made single vineyard wines from his vineyard, and\nhave taken higher yields, but they then don't get the same degree of\nconcentration. �We have to make the best wine we can here, otherwise\nno one will buy it. This requires aggregational gains � a percent\nhere, a percent there. This is why we are thinking about bringing\nthe winemaking on site.�\n�With Pinot, you get what you get, and this is what makes it\nexciting.'\nCan the region get enough traction so there's enough support for\npeople making interesting wines, before they run out of money or\nenthusiasm? Tim thinks that the real sustainability in Central Otago\nis whether people can keep their operations going.\nI tried verticals of the regular Pinot Noir and also the Orchard\nBlock, a special part of the vineyard next to some apple trees. Tim\ndoesn't know why it's special, but it does seem to be of particular\ninterest. Production of both wines is 600 cases in total.\nTim gave me a summary of the recent vintages. �When you have a small\nvineyard like this you really get the vintage variation, which I\nenjoy,� he says.\n2012 � lots of excitement about this vintage, the wines have an\nimmediacy\n2011 � An interesting vintage. It didn't stop raining, which is rare\nhere. We were picking grapes in grass that came up to our knees.\nThere was a lot of rot through the region. We didn't have the luxury\nof letting fruit hang out so we picked a little earlier, by a week\nor 10 days.\n2010 � a lot of tannic structure across the region. A run of cold\nfronts came through in February with ridiculous temperature\nvariations- 35 C one day and a high of 10 C the next. This put\nstress on the vines and increased tannins in the grapes.\n2009 � an important vintage for us: we got a gold in the Air New\nZealand show. We don't do shows any more.\n2008 � not a highly regarded vintage down here. Nice uneventful\nseason with biggish berries and bunches. I have always liked the\n2008s.\n2007 � seemed to be going well until we started to pick, when it\nrained, and then this happened again. It was a late harvest, on May\n3.\nTHE WINES\nFolding Hill Pinot Noir 201 2 Central Otago, New Zealand\n'There's lots of excitement about 2012,' says\nTim. 'The wines have an immediacy.' Lovely silky elegance to the\nfresh cherry and plum fruit. Nice purity and focus. Some structure,\nsome minerality and a bit of savouriness. Great balance with ripe\nbut fresh red cherry fruit. 95/100\nFolding Hill Pinot Noir 201 1 Central Otago, New Zealand\nLively and bright; fresh and focused. With a\nsubtly sappy green note and bright spiciness. Bright, very\ndrinkable, yet tight and structured with juiciness. 92/100\nFolding Hill Pinot Noir 2010 Central Otago, New Zealand\nSweet, warm, ripe cherry and plum fruit nose. The palate is\nconcentrated and dense with nice grippy tannins melding well with\nthe sweet ripe cherry and plum fruit. Dense and quite structured,\nshowing lovely silkiness. Will take some time to peak. 95/100\nFolding Hill Pinot Noir 2009 Central Otago, New Zealand\nSweet, ripe, seamless nose with hints of warm spices and\nattractive florality alongside the rich, slightly balsamic/soy\nnotes. Rich, ripe, bold palate is subtly meaty with nice spiciness\nand ripe fruit. A ripe style but with nice brightness, good texture\nand a mineral edge. 94/100\nFolding Hill Pinot Noir 2008 Central Otago, New Zealand\nSupple, pure and fresh with attractive black cherry and plum\nfruit. Smooth with fine texture. Still youthful and direct with a\nbit of bright spiciness, as well as some tingly acidity on the\nfinish. A pretty, harmonious wine. 92/100\nFolding Hill Pinot Noir 2007 Central Otago, New Zealand\nSweet, ripe and perfumed with subtle meaty sweetness under the\nfine dried herb and cherry notes. Lovely fresh palate is pure, fine\nand a little lighter than other vintages of this wine. Elegant and\ndetailed with nice tea and dried herb notes, Pure, fine, silky and\nrefined. 94/100\nFolding Hill Orchard Block Pinot Noir 2011 Central Otago, New\nZealand\nFine and subtly expressive. Precise with amazing detail and\nprecision. Light but concentrated with a fine spiciness. Real\nelegance and some structure. Quite mineral: an amazing wine that's\nnot a blockbuster but just deliciously detailed. 95/100\nFolding Hill Orchard Block Pinot Noir 2010 Central Otago, New\nZealand\nFresh, ripe, fine nose with some spiciness and minerality, as well\nas a subtle hint of ginger. There's an appealing mineral edge to the\npalate with nice grippiness and a hint of spiciness. Fresh with\ndried herb complexity. 94/100\nFolding Hill Orchard Block Pinot Noir 2009 Central Otago, New\nZealand\nBeautifully expressive and perfumed with aromas of floral black\ncherries and herbs. So detailed with sweet fruit and also a complex\nmineral, spicy character. Some warmth and richness but also amazing\ndetail and elegance. 95/100\nVISITING CENTRAL OTAGO\nGibbston\nValley\nChard\nFarm\nWooing\nTree\nFolding\nHill\nMount\nDifficulty\nLowburn\nFerry\nGrasshopper\nRock\nWines\ntasted 02/14\nFind these wines with wine-searcher.com\nBack\nto top\n|\n|\n|\n|\n|",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.wineanorak.com/newzealand/gibbstonvalley2.htm",
+              "text": "Gibbston Valley"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/chard_farm.htm",
+              "text": "Chard Farm"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/wooing_tree.htm",
+              "text": "Wooing Tree"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+              "text": "Folding Hill"
+            },
+            {
+              "url": "https://www.wineanorak.com/difficulty.htm",
+              "text": "Mount Difficulty"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/lowburn_ferry.htm",
+              "text": "Lowburn Ferry"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/grasshopper_rock.htm",
+              "text": "Grasshopper Rock"
+            },
+            {
+              "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+              "text": "Back to top"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_93c02985ad36cdcdd9c96b7c59cc2766",
+          "url": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852",
+          "title": "SDHB seeking 'acting' ED clinical leader",
+          "accessedAt": "2026-09-11T00:53:04.513Z",
+          "contentSha256": "a29fd13a4844c484302e373e2cb0285e0dc3ed41de55bda4ee4dcf578fef9954",
+          "untrustedText": "SDHB seeking 'acting' ED clinical leader\nGO\nSubscribe\nSubscribe\nCLOSE\nSECTIONS\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSIGN IN | CREATE ACCOUNT\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSubscribe\nSubscribe\nSubscribe\nNews\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSIGN IN\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSocial media\nGO\nSubscribe\nNews | Dunedin\nDunedin\nSDHB seeking 'acting' ED clinical leader\nEileen Goodwin\nWednesday, July 11, 2012\nfacebook twitter whatsapp email linkedin\nfacebook twitter whatsapp email linkedin\nPHOTO\nJohn Chambers.\nThe Southern District Health Board is yet to appoint someone to, or externally advertise, the position of Dunedin Hospital emergency department (ED) clinical leader, despite the position having been vacant for several months.\nRather than seek a permanent appointee, it is looking for an \"acting\" clinical leader from within the organisation.\nIn March, Dr Tim Kerruish stepped down as clinical leader after a disagreement with management over staff numbers.\nSenior doctors union representative Dr John Chambers, an ED specialist, said the Australasian College for Emergency Medicine (ACEM) had written to the DHB about the vacancy.\nThe role was important because it was part of requirements for ACEM accreditation as a training hospital. ACEM would be flexible about the DHB filling the crucial vacancy, because such positions could take months to fill, he said.\n\"I think the DHB [is] hoping someone will act as clinical leader and solve the problem in the interim without any actual change in FTEs or personnel. [I am] not surprised about this, but it does show that the [ACEM] letter has led to some movement.\n\"I think looking for an acting clinical leader misses the point and gives some indication of the current level of leadership in the organisation,\" Dr Chambers said.\nThe situation affected morale.\n\"We are in a limbo situation at the moment and this is having an effect on morale and day-to-day operation, representation on committees and direction for our non-medical colleagues within the department ...\"\nDr Chambers said ED staff were upset by comments chief executive Carole Heatly made at a hospital advisory committee meeting last week in Dunedin.\nMs Heatly said the fact only about a third of patients presenting at the ED were admitted to hospital indicated the rest should not have attended the ED.\nPrimary health services, such as GPs, needed to play a much bigger role, she suggested.\nDr Chambers disputed this.\n\"Front-line staff do not feel that ED performance issues are related to large numbers of inappropriate attenders in Dunedin.\n\"The attendance figures and admission rates are within norms for our population.\"\nStaff looked forward to the new observation unit opening in the ED next month, he said.\nThe clinical leader position was an internal appointment, and had not been externally advertised, Otago chief medical officer Dick Bunton said through a spokeswoman.\nHe was unavailable to respond to further questions, including why the DHB was seeking an acting clinical leader not a permanent one.\neileen.goodwin@odt.co.nz\nNews | Dunedin\nfacebook twitter whatsapp email linkedin\nTags:\nSDHB\nOTHER ARTICLES\nE-edition Facebook Newsletter ODT Store\nContact\nContact us\nSend us your news\nAbout us\nPrivacy Policy\nPlatform Terms of Use\nMedia Council complaints\nRemoval request policy\nNewspapers\nOtago Daily Times\nBlenheim Sun\nKaikoura Star\nGreymouth Star\nHokitika Guardian\nThe West Coast Messenger\nWest Coast Rural Life\nNorth Canterbury News\nCanterbury Rural Life\nThe Geraldine News\nThe Star - Christchurch\nBay Harbour News\nPegasus Post\nWestern News\nSouthern View\nSelwyn Times\nAshburton Courier\nThe Courier - Timaru\nOamaru Mail\nWanaka Sun\nCromwell Bulletin\nMountain Scene\nThe News Central Otago\nThe Star - Dunedin\nClutha Leader\nSouthern Rural Life\nThe Ensign\nSouthland Express\nMagazines\nKiwi Gardener\nClassic Driver\n03 Magazine\nRugby News\nEvents\nCity2Surf\nChristchurch Home Show\nServices\nAllied Productions\nAllied Creative\nAllied Print\nMainland Distribution\nSubscribe\nSubscribe\nTerms & Conditions\nStops, starts and redirects\nFAQs\nAdvertise\nAdvertise with us\nPlace a death notice\nPlace a classified ad\nAdvertising terms and conditions\nCopyright Allied Press Limited, trading as Allied Media 2026. All rights reserved.",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion/editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/100-years-ago",
+              "text": "100 Years Ago"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content",
+              "text": "Advertising Features"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+              "text": "Build Buy Renovate"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+              "text": "Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+              "text": "Canterbury Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852",
+              "text": "SIGN IN | CREATE ACCOUNT"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "SUBSCRIBE"
+            },
+            {
+              "url": "https://www.odt.co.nz/MyAccount",
+              "text": "My Account"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/advertise/",
+              "text": "Advertising"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/",
+              "text": "Allied Media"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago",
+              "text": "Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/queenstown",
+              "text": "Queenstown"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/wanaka",
+              "text": "Wānaka"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/central-otago",
+              "text": "Central Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/south-otago",
+              "text": "South Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/otago/north-otago",
+              "text": "North Otago"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury",
+              "text": "Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/christchurch",
+              "text": "Christchurch"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+              "text": "South Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+              "text": "North Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+              "text": "Mid Canterbury"
+            },
+            {
+              "url": "https://www.odt.co.nz/canterbury/selwyn",
+              "text": "Selwyn"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life",
+              "text": "Rural Life"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/dairy",
+              "text": "Dairy"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/red-meat",
+              "text": "Red Meat"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/horticulture",
+              "text": "Horticulture"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-people",
+              "text": "Rural People"
+            },
+            {
+              "url": "https://www.odt.co.nz/rural-life/rural-events",
+              "text": "Rural Events"
+            },
+            {
+              "url": "https://www.odt.co.nz/business",
+              "text": "Business"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style",
+              "text": "Lifestyle"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+              "text": "Fresh Spring Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+              "text": "Food & Wine"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+              "text": "ODT Quiz"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+              "text": "Home & Garden"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/the-mix",
+              "text": "The Mix"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/entertainment",
+              "text": "Entertainment"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/travel",
+              "text": "Travel"
+            },
+            {
+              "url": "https://www.odt.co.nz/life-and-style/fashion",
+              "text": "Fashion"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport",
+              "text": "Sport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/cricket",
+              "text": "Cricket"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/rugby",
+              "text": "Rugby"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/racing",
+              "text": "Racing"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/basketball",
+              "text": "Basketball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/football",
+              "text": "Football"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/netball",
+              "text": "Netball"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/motorsport",
+              "text": "Motorsport"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/league",
+              "text": "League"
+            },
+            {
+              "url": "https://www.odt.co.nz/sport/golf",
+              "text": "Golf"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/southland",
+              "text": "Southland"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/west-coast",
+              "text": "West Coast"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/national",
+              "text": "National"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/world",
+              "text": "World"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion",
+              "text": "Opinion"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/opinion/editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/100-years-ago",
+              "text": "100 Years Ago"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content",
+              "text": "Advertising Features"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+              "text": "Build Buy Renovate"
+            },
+            {
+              "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+              "text": "Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+              "text": "Canterbury Healthcare Providers"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "SUBSCRIBE"
+            },
+            {
+              "url": "https://www.odt.co.nz/MyAccount",
+              "text": "My Account"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-Edition"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/advertise/",
+              "text": "Advertising"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/",
+              "text": "Allied Media"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.odt.co.nz/news/dunedin",
+              "text": "Dunedin"
+            },
+            {
+              "url": "https://www.odt.co.nz/tag/SDHB",
+              "text": "SDHB"
+            },
+            {
+              "url": "https://newspapers.odt.co.nz/",
+              "text": "E-edition"
+            },
+            {
+              "url": "https://www.facebook.com/OtagoDailyTimes/",
+              "text": "Facebook"
+            },
+            {
+              "url": "https://newsletters.odt.co.nz/odt-morning-briefing",
+              "text": "Newsletter"
+            },
+            {
+              "url": "https://odtshop.co.nz/",
+              "text": "ODT Store"
+            },
+            {
+              "url": "https://www.odt.co.nz/contact-us-aa1af4pu",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://www.odt.co.nz/about-us-ckfd8ssa",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.odt.co.nz/privacy-policy-ql32ejw6",
+              "text": "Privacy Policy"
+            },
+            {
+              "url": "https://www.odt.co.nz/platform-terms-of-use-pcxcq1h8",
+              "text": "Platform Terms of Use"
+            },
+            {
+              "url": "https://www.odt.co.nz/media-council-complaints-lhk0j25s",
+              "text": "Media Council complaints"
+            },
+            {
+              "url": "https://www.odt.co.nz/removal-requests-kr8qdiox",
+              "text": "Removal request policy"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/odt/",
+              "text": "Otago Daily Times"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/blenheim-sun/",
+              "text": "Blenheim Sun"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/kaikoura-star/",
+              "text": "Kaikoura Star"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/greymouth-star/",
+              "text": "Greymouth Star"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/hokitika-guardian/",
+              "text": "Hokitika Guardian"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/west-coast-messenger/",
+              "text": "The West Coast Messenger"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/west-coast-rural-life/",
+              "text": "West Coast Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/north-canterbury-news/",
+              "text": "North Canterbury News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/canterbury-rural-life/",
+              "text": "Canterbury Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-geraldine-news/",
+              "text": "The Geraldine News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-star-christchurch/",
+              "text": "The Star - Christchurch"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/bay-harbour-news/",
+              "text": "Bay Harbour News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/pegasus-post/",
+              "text": "Pegasus Post"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/western-news/",
+              "text": "Western News"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southern-view/",
+              "text": "Southern View"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/selwyn-times/",
+              "text": "Selwyn Times"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/ashburton-courier/",
+              "text": "Ashburton Courier"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-courier/",
+              "text": "The Courier - Timaru"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/oamaru-mail/",
+              "text": "Oamaru Mail"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/wanaka-sun/",
+              "text": "Wanaka Sun"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/cromwell-bulletin/",
+              "text": "Cromwell Bulletin"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/mountain-scene/",
+              "text": "Mountain Scene"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-news/",
+              "text": "The News Central Otago"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-star/",
+              "text": "The Star - Dunedin"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/clutha-leader/",
+              "text": "Clutha Leader"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southern-rural-life/",
+              "text": "Southern Rural Life"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/the-ensign/",
+              "text": "The Ensign"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/southland-express/",
+              "text": "Southland Express"
+            },
+            {
+              "url": "https://kiwigardenermagazine.co.nz/",
+              "text": "Kiwi Gardener"
+            },
+            {
+              "url": "https://classicdriver.co.nz/",
+              "text": "Classic Driver"
+            },
+            {
+              "url": "https://03magazine.co.nz/",
+              "text": "03 Magazine"
+            },
+            {
+              "url": "https://rugbynews.co.nz/",
+              "text": "Rugby News"
+            },
+            {
+              "url": "https://city2surf.co.nz/",
+              "text": "City2Surf"
+            },
+            {
+              "url": "https://starhomeshow.kiwi/",
+              "text": "Christchurch Home Show"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-productions/",
+              "text": "Allied Productions"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-creative/",
+              "text": "Allied Creative"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/allied-print/",
+              "text": "Allied Print"
+            },
+            {
+              "url": "https://alliedmedia.co.nz/mainland-distribution/",
+              "text": "Mainland Distribution"
+            },
+            {
+              "url": "https://www.odt.co.nz/subscribe",
+              "text": "Subscribe"
+            },
+            {
+              "url": "https://www.odt.co.nz/terms-and-conditions-fz40zi85",
+              "text": "Terms & Conditions"
+            },
+            {
+              "url": "https://www.odt.co.nz/delivery-stops-starts-and-redirections-qd4wo2qu",
+              "text": "Stops, starts and redirects"
+            },
+            {
+              "url": "https://www.odt.co.nz/faqs-circulation-and-home-delivery-jsfntd13",
+              "text": "FAQs"
+            },
+            {
+              "url": "https://www.odt.co.nz/advertise-with-us-a8jgkh7n",
+              "text": "Advertise with us"
+            },
+            {
+              "url": "https://www.odt.co.nz/place-a-death-notice-bkngy2y3",
+              "text": "Place a death notice"
+            },
+            {
+              "url": "https://www.odt.co.nz/place-a-classified-ad-tpfjmhyv",
+              "text": "Place a classified ad"
+            },
+            {
+              "url": "https://www.odt.co.nz/advertising-terms-and-conditions-aq3quuua",
+              "text": "Advertising terms and conditions"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+        "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-argue-patients": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+        "https://www.wineanorak.com/newzealand/folding_hill.htm": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+        "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852"
+      },
+      "pageRequests": 7,
+      "modelCalls": 8,
+      "allowedUrls": [
+        "https://www.otago.ac.nz/dsm-medicine/people/profile?id=1493",
+        "https://natlib.govt.nz/items?i%5Bcentury%5D=2000&i%5Bsubject%5D=Chambers%2C+John%2C+1955%3F-",
+        "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-argue-patients",
+        "https://www.wineanorak.com/newzealand/folding_hill.htm",
+        "https://www.emerald.com/lhs/article/259973/Board-drive-for-clinical-leadership-New-Zealand",
+        "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+        "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader",
+        "https://www.otago.ac.nz/dsm-medicine/people",
+        "https://www.nzherald.co.nz/nz/scientists-in-dark-on-kronics-ill-effects/RWZ6NZEUT35PC456NI6UKMDQUI/",
+        "https://www.researchgate.net/publication/266262263_Emergency_Nurse_New_Zealand_Winter_2011_P_1_EMERGENCY_NURSE_NEW_ZEALAND_Triage_Process_Under_Review_Government_Must_Get_Tough_On_Alcohol_Abuse_Shorter_Stays_in_Emergency_Departments_National_Research_",
+        "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+        "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852"
+      ],
+      "observations": [
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.otago.ac.nz/dsm-medicine/people/profile?id=1493",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.otago.ac.nz/dsm-medicine/people",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_6d6869c49dca261af51ed2eb8927ed4f",
+            "title": "Chardonnay Joins Pinot At Bendigo",
+            "offset": 0,
+            "total_characters": 4929,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Chardonnay Joins Pinot At Bendigo\nMAIN MENU\nHOME\nRural News\nDairy News\nHort News\nNZ Winegrower\nSubscribe\nAdvertise\nContact\nBROWSE CATEGORIES\nNational\nRegional\nOpinion\nProfiles\nIndustry\nMachinery & Products\nWednesday, 20 May 2015 15:25\nChardonnay Joins Pinot At Bendigo\nWritten by\nRural News Group\nfont size\ndecrease font size\nincrease font size\nPrint\nEmail\nFolding Hill vigneron Tim Kerruish.\nFolding Hill vigneron Tim Kerruish plans to plant half a hectare of white grapes on his heat drenched, Pinot-dedicated slopes at Bendigo in Central Otago.\nThe site sits beneath a (perplexing) new cattle station, which is heavily irrigated and stands in stark green contrast to Kerruish’s arid Folding Hill Vineyard, from which he produces 1500 cases of Pinot Noir each year.\nThis year Chardonnay will join the Pinot grapes, which are grown on land that was formerly known as Clearview Station and devoted to its former life as a sheep farm.\nTim and Nikki Kerruish bought 16 hectares of the sheep station in 2000, planting four hectares of Pinot Noir in 2003 and producing their first vintage in 2007. The Folding Hill Pinot Noirs are unfined and unfiltered; made by Fred Reinds at the old Black Ridge Winery"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": " in Alexandra.\nThe couple arrived in New Zealand 20 years ago. Each was on their own individual quest to fish, ski and walk. They met each other early on and shared both a passion for the land and for their individual careers in medicine. He is a doctor and works as a consultant in the emergency department of Dunedin Hospital; she is a bio-ethicist.\nInspired by his own early student winemaking days, Kerruish originally began producing ‘wine’ back when he bought cans of grape concentrate from Boot’s in the United Kingdom.\nThe couple now live in Dunedin and have built an off-the-grid home in the middle of their Bendigo vineyard in Central Otago. It is on land that he describes as “a drop dead gorgeous site that we visited on a perfect winter day when fresh snow had just landed on the hills opposite, so we bought it straight away.”\nTweet\nPublished in\nRegional Updates\nMore like this\nAlan Brady: Central Otago's Pinot Noir Pioneer at 90\nHaving founded three wineries, sold two, and put the 21st vintage of Wild Irishman into barrel, Central Otago winemaking pioneer Alan Brady could choose to put his feet up.\nLynnette Hudson Named 2026 NZ Winegrowers Fellow\nLynnette Hudson's 30-year obsessi"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "on with Pinot Noir was sparked working vintage in Burgundy, seeing how subtle changes in terroir were expressed in the glass. It was, she says, \"an elightening moment in every way\".\nNZW Fellows: Sir Sam Neill Remembered for His Deep Love of New Zealand Wine\nSir Sam Neill made an extraordinary mark on the world, and on the world of New Zealand wine.\n36th Southern Pinot Workshop Set for January 2027\nThe 36th Southern Pinot Workshop will be held from 20–22 January 2027.\nNZ Sparkling Wine Imports Top 6 Million Litres in 2025\nNew Zealanders purchased more than six million litres of imported sparkling wine in 2025, according to NZW data.\nPopular Reads\nTaupiri Farmers Chase Ownership After Awards Success\nFor Taupiri dairy farmers Logan and Sian Dawson, their involvement in the NZ Dairy Industry Awards has been a key…\nWest Otago Farmer Luke Kane Wins Rabobank 2026 Prize\nWest Otago dairy farmer Luke Kane has been awarded the 2026 Rabobank Dr John Morris Business Development Prize.\n80% of NZ Parents Say Dinner Planning Is Too Much Effort\n\"What's for dinner?\" may sound like a simple question, but for many Kiwi parents, answering it has become a job…\nWhat Would Synlait Be Worth to Fonterra or "
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "a2 Milk?\nSpeculation of a possible joint move by Fonterra and a2 Milk to buy Synlait raises a much bigger strategic question,…\nRabobank: China Quotas, Brazil Risk to Reshape Beef Trade\nChinese beef trade quotas and a looming suspension of Brazilian beef imports into the European Union are expected to reshape…\nback to top\n&raquo;\nLatest Print Issues Online\nVisit archives\nEditorial\nFrom the Chair: Shaping Our Future\nOPINION: The months ahead are important for New Zealand Winegrowers.\nEditorial: Celebrating New Zealand Wine's 2026 Fellows\nOPINION: New Zealand's soils and climate make our wine industry extraordinary. But it is the people behind the vines and…\nPopular Reads\nAustralia's Winemaker of the Year to Speak at NZ Chardonnay Symposium\nOne of Australia's most decorated winemakers will speak at the Aotearoa New Zealand Chardonnay Symposium in Hawke's Bay this September.\nCelebrating Chardonnay: Aotearoa New Zealand Chardonnay Symposium\nThe third Aotearoa New Zealand Chardonnay Symposium will be underway in Hastings, Hawke's Bay, on 17-18 September.\nNew Zealand Wine Outperforming Australian Market Despite Demographic Challenges\nIn early May, New Zealand Winegrowers delivered a webin"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "ar for members, providing a commercial view of New Zealand wine in…\nCopyright - &copy; 2026 RuralNewsGroup . All Rights Reserved."
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+            "links": [
+              {
+                "url": "https://browsehappy.com/",
+                "text": "Upgrade your browser today"
+              },
+              {
+                "url": "https://browsehappy.com/",
+                "text": "Upgrade your browser today"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/",
+                "text": "HOME"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/rural-news",
+                "text": "Rural News"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/dairy-news",
+                "text": "Dairy News"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/hort-news",
+                "text": "Hort News"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower",
+                "text": "NZ Winegrower"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/index.php?option=com_breezingforms&view=form&Itemid=54&lang=en",
+                "text": "Subscribe"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/component/com_blankcomponent/Itemid,55/view,default/",
+                "text": "Advertise"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/index.php?option=com_alfcontact&view=alfcontact&Itemid=56&lang=en",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news",
+                "text": "National"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates",
+                "text": "Regional"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion",
+                "text": "Opinion"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles",
+                "text": "Profiles"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-industry",
+                "text": "Industry"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-machinery",
+                "text": "Machinery & Products"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/blog/Rural-News-Group",
+                "text": "Rural News Group"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+                "text": "decrease font size"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+                "text": "increase font size"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo?print=1&tmpl=component",
+                "text": "Print"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/component/com_mailto/link,0df7ce9034c134117f1278f6be691ae9ec8fff88/template,ruralresponsive/tmpl,component/",
+                "text": "Email"
+              },
+              {
+                "url": "https://twitter.com/share",
+                "text": "Tweet"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates",
+                "text": "Regional Updates"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/alan-brady-central-otago-wine-pioneer-90",
+                "text": "Alan Brady: Central Otago's Pinot Noir Pioneer at 90"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/lynnette-hudson-new-zealand-winegrowers-fellow-2026",
+                "text": "Lynnette Hudson Named 2026 NZ Winegrowers Fellow"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-profiles/sir-sam-neill-new-zealand-wine-tribute",
+                "text": "NZW Fellows: Sir Sam Neill Remembered for His Deep Love of New Zealand Wine"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/southern-pinot-workshop-2027",
+                "text": "36th Southern Pinot Workshop Set for January 2027"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/nz-sparkling-wine-imports-2025-vilaura-opportunity",
+                "text": "NZ Sparkling Wine Imports Top 6 Million Litres in 2025"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+                "text": "Popular Reads"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-management/logan-sian-dawson-taupiri-dairy-farm-ownership-pathway",
+                "text": "Taupiri Farmers Chase Ownership After Awards Success"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-agribusiness/luke-kane-west-otago-wins-rabobank-business-development-prize-2026",
+                "text": "West Otago Farmer Luke Kane Wins Rabobank 2026 Prize"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/rural-news/rural-general-news/hellofresh-nz-dinner-mental-load-research",
+                "text": "80% of NZ Parents Say Dinner Planning Is Too Much Effort"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/dairy-news/dairy-general-news/fonterra-a2-milk-synlait-buyout-speculation",
+                "text": "What Would Synlait Be Worth to Fonterra or a2 Milk?"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/rural-news/rural-agribusiness/rabobank-global-beef-quarterly-q3-2026-nz-exports",
+                "text": "Rabobank: China Quotas, Brazil Risk to Reshape Beef Trade"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+                "text": "back to top"
+              },
+              {
+                "url": "https://disqus.com/?ref_noscript",
+                "text": "comments powered by Disqus."
+              },
+              {
+                "url": "https://issuu.com/ruralnewsgroup/",
+                "text": "Visit archives"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial",
+                "text": "Editorial"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial/nz-winegrowers-new-ceo-2026-board-elections",
+                "text": "From the Chair: Shaping Our Future"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-opinion/editorial/2026-new-zealand-winegrowers-fellows-announced",
+                "text": "Editorial: Celebrating New Zealand Wine's 2026 Fellows"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-regional-updates/chardonnay-joins-pinot-at-bendigo",
+                "text": "Popular Reads"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/virginia-willcock-nz-chardonnay-symposium-hawkes-bay-2026",
+                "text": "Australia's Winemaker of the Year to Speak at NZ Chardonnay Symposium"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/new-zealand-chardonnay-symposium-2026-julia-harding",
+                "text": "Celebrating Chardonnay: Aotearoa New Zealand Chardonnay Symposium"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/wine-grower/wg-general-news/new-zealand-wine-australia-market-growth-refreshment-trend",
+                "text": "New Zealand Wine Outperforming Australian Market Despite Demographic Challenges"
+              },
+              {
+                "url": "https://www.ruralnewsgroup.co.nz/",
+                "text": "RuralNewsGroup"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 45
+          }
+        },
+        {
+          "action": "redirect",
+          "result": {
+            "requested": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-argue-patients",
+            "final": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd"
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_ba30a968a2c920fde00488752e8fa54a",
+            "title": "Retiring ED head quick to argue for patients",
+            "offset": 0,
+            "total_characters": 10526,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Retiring ED head quick to argue for patients\nGO\nSubscribe\nSubscribe\nCLOSE\nSECTIONS\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSIGN IN | CREATE ACCOUNT\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSubscribe\nSubscribe\nSubscribe\nNews\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSpor"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "t\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSIGN IN\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSocial media\nGO\nSubscribe\nNews | Dunedin\nDunedin\nRetiring ED head quick to argue for patients\nElspeth McLean\nTuesday, January 18, 2011\nfacebook twitter whatsapp email linkedin\nfacebook twitter whatsapp email linkedin\nPHOTO\nDr John Chambers has opened the door for Dr Tim Kerruish to take over as clinical leader of Dunedin Hospital's emergency department. Photo by Peter McIntosh. Outspoken D"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "r John Chambers has stood down after 17 years as Dunedin Hospital emergency department clinical leader, but he has not finished yet. He is looking forward to being a full-time specialist without the leadership role. Dr Chambers reflects on his time in charge of emergency medicine with ODT health reporter Elspeth McLean.\nStraight-talking Scot Dr John Chambers (55) has often hit the headlines during his 17 years as Dunedin Hospital emergency department clinical leader, but he says that is \"almost in the job description\".\nHe readily admits he is no shrinking violet, saying emergency department leaders are there to advocate for their patients along with their departments.\n\"I think you will find every doctor in charge of an emergency department is prominent.\n\"We are often asked our opinions.\"\nSometimes the emergency department was \"where things are happening in society\" and flagged trends about such things as drug use and types of accidents.\nSince he came to Dunedin in 1993, Dr Chambers has frequently spoken out about the state of the department, countered frequent claims too many people were turning up for minor ailments, and has had to front up in situations when the department has co"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "me under criticism.\nIn recent times, he even controversially turned to verse, published on the Association for Salaried Medical Specialists' website, to vent his frustration with what he saw as a lack of progress towards improvements in his department.\nDr Chambers trained in Scotland, worked in England and was in Adelaide - where he had just finished his training as a specialist - when he saw the senior ED doctor's job advertised at Dunedin Hospital.\nAt that time, the department was led by GP Dr Peter Bamford, and when Dr Chambers took over, he was the first trained specialist to take on the role.\nAt that time, emergency medicine in New Zealand was very much in its infancy, he said.\nDuring his time in the department, he has seen the number of doctors - including both senior and junior clinicians - increase from 7 to 24.\nIt had also been very gratifying to see the development of emergency nursing in that time.\nDunedin had an excellent team of dedicated nurses without whom doctors could not do their job, he said.\nHe also paid tribute to ASMS executive director Ian Powell.\nSenior doctors at Dunedin Hospital had benefited greatly from his support and input over the years.\nDr Chambers s"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "aid during his 17 years, the role of the department had changed considerably.\nToday, there was a lot of observational medicine, with patients in the care of the department for the whole of their stay, whereas in the past, patients would receive an assessment in the department then move quickly to a ward.\nHe had not been in Dunedin long before he was agitating for improved facilities and was pleased when the department got a $2 million upgrade in 1998 which was \"a great improvement on what we had before\".\nDr Chambers said he was proud of the performance of the department around the turn of the century compared with other hospitals.\nHowever, he had always expected that the 1998 upgrade would only last about 10 years and that had proved to be the case.\nNow, the department was not adequate to offer the sort of observational medicine being practised in emergency medicine.\nPatients who would not be admitted to a ward but who needed a period of observation needed to be in a proper acute ward, not spending many hours in a corridor.\nOne of the \"big positive things\" about the past 17 years had been the increase in the number of specialists and the number who had done much of their training i"
+              },
+              {
+                "passageId": "text_5",
+                "offset": 6000,
+                "quote": "n Dunedin.\nThe department had nine specialists and five of them had Dunedin training.\nRegistrars in training had a 100% pass rate, which was as good as any other Australasian centre, he said.\nHe estimates there are about 25 specialists working all over Australasia who were largely trained in Dunedin during his time.\nOne of the main reasons Dr Chambers was attracted to the Dunedin job was that the city offered a teaching hospital with both neurosurgery and cardiac surgery.\nThat was rather unusual, even for larger centres such as Auckland, he says.\n\"One of the frustrations training in the UK was having to spend hours and hours in ambulances transporting people between hospitals.\"\nHe estimated there were only about four or five hospitals in the United Kingdom which were teaching hospitals with a range of specialties.\nIn the recent debate over the siting of neurosurgery in the South, he considered that aspect of Dunedin's facilities had been well emphasised and the expert panel reviewing the service could \"see exactly what Dunedin had and that it shouldn't be eroded\".\nDr Chambers said one of the aspects of emergency department work which was changing was the increasing number of elderl"
+              },
+              {
+                "passageId": "text_6",
+                "offset": 7200,
+                "quote": "y people with complex needs who were turning up.\nWhen he reviewed some figures recently, he was surprised at the number of patients aged 80 and more.\nDunedin needed to keep up with how other leading hospitals were dealing with this trend.\nHe has also noticed an upward trend in the number of young women who have been binge-drinking, along with a rise in the number of people consuming other drugs such as party pills.\nThe number of patients presenting purely with intoxication was quite stable, but there were many patients who had other conditions which had some link with alcohol consumption.\nHe was reluctant to draw too many conclusions about this, as someone who trained in Glasgow where it seemed everybody who turned up was drunk.\n\"It is fair to say a fair proportion of ED attendances have always been intoxicated.\"\nEven after all this time, Dr Chambers concedes there are nights when he loses sleep worrying about a patient's diagnosis.\n\"It's not always easy and you do worry, did you get it right?\"A mentor once told him that with many decisions to make each day \"if you get 99% of them right, then you are a good doctor.\n\"You have to recognise you won't always get it right.\"\nWith the inc"
+              },
+              {
+                "passageId": "text_7",
+                "offset": 8400,
+                "quote": "reasing number of diagnostic tests available to doctors now, \"quite honestly, we don't miss much\".\nTwenty years ago, it was a different story and people who hankered for the \"good old days of hospitals\" tended to overlook that.\n\"People used to die of all sorts of things 20 years younger than they do now.\"\nDr Chambers said he was looking forward to being a full-time specialist without a leadership role.\nHe would also be working in an advisory capacity with St John.\nHe estimated he had another \"good 10 years\" of work in him.\nHis wish for the department is not likely to change, however.\nHe wants investment in the department similar to that which is occurring in other places in the country so patients can get out of the corridors and receive a \"good quality of care\".\nThis would involve ongoing commitment to make sure patients did not \"creep\" back into the corridors again in future years.\nelspeth.mclean@odt.co.nz\nNews | Dunedin\nfacebook twitter whatsapp email linkedin\nTags:\nHealth Health care SDHB\nOTHER ARTICLES\nE-edition Facebook Newsletter ODT Store\nContact\nContact us\nSend us your news\nAbout us\nPrivacy Policy\nPlatform Terms of Use\nMedia Council complaints\nRemoval request policy\nNewspa"
+              },
+              {
+                "passageId": "text_8",
+                "offset": 9600,
+                "quote": "pers\nOtago Daily Times\nBlenheim Sun\nKaikoura Star\nGreymouth Star\nHokitika Guardian\nThe West Coast Messenger\nWest Coast Rural Life\nNorth Canterbury News\nCanterbury Rural Life\nThe Geraldine News\nThe Star - Christchurch\nBay Harbour News\nPegasus Post\nWestern News\nSouthern View\nSelwyn Times\nAshburton Courier\nThe Courier - Timaru\nOamaru Mail\nWanaka Sun\nCromwell Bulletin\nMountain Scene\nThe News Central Otago\nThe Star - Dunedin\nClutha Leader\nSouthern Rural Life\nThe Ensign\nSouthland Express\nMagazines\nKiwi Gardener\nClassic Driver\n03 Magazine\nRugby News\nEvents\nCity2Surf\nChristchurch Home Show\nServices\nAllied Productions\nAllied Creative\nAllied Print\nMainland Distribution\nSubscribe\nSubscribe\nTerms & Conditions\nStops, starts and redirects\nFAQs\nAdvertise\nAdvertise with us\nPlace a death notice\nPlace a classified ad\nAdvertising terms and conditions\nCopyright Allied Press Limited, trading as Allied Media 2026. All rights reserved."
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+            "links": [
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "Subscribe"
+              },
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "Subscribe"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin",
+                "text": "Dunedin"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago",
+                "text": "Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin",
+                "text": "Dunedin"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/queenstown",
+                "text": "Queenstown"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/wanaka",
+                "text": "Wānaka"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/central-otago",
+                "text": "Central Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/south-otago",
+                "text": "South Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/north-otago",
+                "text": "North Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury",
+                "text": "Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/christchurch",
+                "text": "Christchurch"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+                "text": "South Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+                "text": "North Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+                "text": "Mid Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/selwyn",
+                "text": "Selwyn"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life",
+                "text": "Rural Life"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/dairy",
+                "text": "Dairy"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/red-meat",
+                "text": "Red Meat"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/horticulture",
+                "text": "Horticulture"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/rural-people",
+                "text": "Rural People"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/rural-events",
+                "text": "Rural Events"
+              },
+              {
+                "url": "https://www.odt.co.nz/business",
+                "text": "Business"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style",
+                "text": "Lifestyle"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+                "text": "Fresh Spring Edition"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+                "text": "Food & Wine"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+                "text": "ODT Quiz"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+                "text": "Home & Garden"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/the-mix",
+                "text": "The Mix"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/entertainment",
+                "text": "Entertainment"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/travel",
+                "text": "Travel"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/fashion",
+                "text": "Fashion"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport",
+                "text": "Sport"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/cricket",
+                "text": "Cricket"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/rugby",
+                "text": "Rugby"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/racing",
+                "text": "Racing"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/basketball",
+                "text": "Basketball"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/football",
+                "text": "Football"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/netball",
+                "text": "Netball"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/motorsport",
+                "text": "Motorsport"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/league",
+                "text": "League"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/golf",
+                "text": "Golf"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/southland",
+                "text": "Southland"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/west-coast",
+                "text": "West Coast"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/national",
+                "text": "National"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/world",
+                "text": "World"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/opinion",
+                "text": "Opinion"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/opinion/editorial",
+                "text": "Editorial"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/100-years-ago",
+                "text": "100 Years Ago"
+              },
+              {
+                "url": "https://www.odt.co.nz/sponsored-content",
+                "text": "Advertising Features"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+                "text": "Build Buy Renovate"
+              },
+              {
+                "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+                "text": "Healthcare Providers"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+                "text": "Canterbury Healthcare Providers"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin/retiring-ed-head-quick-to-argue-for-patients-uoosxyfd",
+                "text": "SIGN IN | CREATE ACCOUNT"
+              },
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "SUBSCRIBE"
+              },
+              {
+                "url": "https://www.odt.co.nz/MyAccount",
+                "text": "My Account"
+              },
+              {
+                "url": "https://newspapers.odt.co.nz/",
+                "text": "E-Edition"
+              },
+              {
+                "url": "https://www.odt.co.nz/contact-us",
+                "text": "Contact us"
+              },
+              {
+                "url": "https://alliedmedia.co.nz/advertise/",
+                "text": "Advertising"
+              },
+              {
+                "url": "https://alliedmedia.co.nz/",
+                "text": "Allied Media"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 238
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_0c022ba78efd95b6ca6291c6cbbf3a69",
+            "title": "Folding Hill, Central Otago",
+            "offset": 0,
+            "total_characters": 7321,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Folding Hill, Central Otago\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\nFolding Hill\nRevisiting Central Otago, New Zealand, part 4\nTim Kerruish ( above ) is a doctor\nfrom the Isle of Man (UK). He and his wife came out to New Zealand\nwhen she was doing a PhD in Dunedin (she's a biomedical ethicist),\nand they bought this property in 2001. Tim still works as the\nemergency room in Dunedin hospital, but he's clearly been bitten by\nthe wine bug. He now has 4 hectares of vineyard, all Pinot Noir, as\nwell as 30 sheep and an orchard. He's currently planning to plant a\nbit of Chardonnay.\nThe existing vineyard was planted in 2003, and is at 230 m, looking\nacross to the Pisa range, with Mt Pisa at 1800 m providing a\nbeautiful backdrop. If you look left, you can see Mount Difficulty;\nlook to the right, and you can see the southern alps.\nThe wines are made by Fred Reinds at Black Ridge winery, but Tim's\nplan is to put a small cellar into the basement of the home he has\non the property (used currently as a holiday home) and make the\nwines himself. So you could say he's a lifestyler, but of the best\nsort, where the wine quality is a total focus.\nRudi Bauer was the first to make wines in Bendigo, which has a"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "\nseries of terraces, and is one of the warmer spots in Central Otago.\nFollowing a nice summer afternoon, it's still warm here at 7 pm. The\nsoils are typical of Central: wind-blown loess with masses of river\ngravels under a thin topsoil. There's very little organic material\nin these young soils, so irrigation is essential. 'It's virtually\nhydroponics,' says Tim.\nWhat are the characteristics of Bendigo wines? 'Bendigo wines tend\nto be fruit driven on the mid palate with a chocolatey thing on the\nback palate,' says Tim. 'This is what I'd be looking for in a blind\ntasting: a bit of mocha on the back palate.'\nWinemaking involves full destemming, and a cold soak until things\nstart to happen. There may be an inoculation. The wines are then run\nto barrel.\n'The most profound effect we have is on crop level,� reveals Tim.\n�For Central you need to run a pretty low yield. We do one bunch a\nshoot and take the shoulders off, which gives an average yield of\n3.5-4 tons/hectare. The average for Central is 6-6.5 tons hectare,\nand for second or third tier wines it will be more.� He adds that\nsome people have made single vineyard wines from his vineyard, and\nhave taken higher yields, but they then don"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "'t get the same degree of\nconcentration. �We have to make the best wine we can here, otherwise\nno one will buy it. This requires aggregational gains � a percent\nhere, a percent there. This is why we are thinking about bringing\nthe winemaking on site.�\n�With Pinot, you get what you get, and this is what makes it\nexciting.'\nCan the region get enough traction so there's enough support for\npeople making interesting wines, before they run out of money or\nenthusiasm? Tim thinks that the real sustainability in Central Otago\nis whether people can keep their operations going.\nI tried verticals of the regular Pinot Noir and also the Orchard\nBlock, a special part of the vineyard next to some apple trees. Tim\ndoesn't know why it's special, but it does seem to be of particular\ninterest. Production of both wines is 600 cases in total.\nTim gave me a summary of the recent vintages. �When you have a small\nvineyard like this you really get the vintage variation, which I\nenjoy,� he says.\n2012 � lots of excitement about this vintage, the wines have an\nimmediacy\n2011 � An interesting vintage. It didn't stop raining, which is rare\nhere. We were picking grapes in grass that came up to our knees.\nThere wa"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "s a lot of rot through the region. We didn't have the luxury\nof letting fruit hang out so we picked a little earlier, by a week\nor 10 days.\n2010 � a lot of tannic structure across the region. A run of cold\nfronts came through in February with ridiculous temperature\nvariations- 35 C one day and a high of 10 C the next. This put\nstress on the vines and increased tannins in the grapes.\n2009 � an important vintage for us: we got a gold in the Air New\nZealand show. We don't do shows any more.\n2008 � not a highly regarded vintage down here. Nice uneventful\nseason with biggish berries and bunches. I have always liked the\n2008s.\n2007 � seemed to be going well until we started to pick, when it\nrained, and then this happened again. It was a late harvest, on May\n3.\nTHE WINES\nFolding Hill Pinot Noir 201 2 Central Otago, New Zealand\n'There's lots of excitement about 2012,' says\nTim. 'The wines have an immediacy.' Lovely silky elegance to the\nfresh cherry and plum fruit. Nice purity and focus. Some structure,\nsome minerality and a bit of savouriness. Great balance with ripe\nbut fresh red cherry fruit. 95/100\nFolding Hill Pinot Noir 201 1 Central Otago, New Zealand\nLively and bright; fresh and fo"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "cused. With a\nsubtly sappy green note and bright spiciness. Bright, very\ndrinkable, yet tight and structured with juiciness. 92/100\nFolding Hill Pinot Noir 2010 Central Otago, New Zealand\nSweet, warm, ripe cherry and plum fruit nose. The palate is\nconcentrated and dense with nice grippy tannins melding well with\nthe sweet ripe cherry and plum fruit. Dense and quite structured,\nshowing lovely silkiness. Will take some time to peak. 95/100\nFolding Hill Pinot Noir 2009 Central Otago, New Zealand\nSweet, ripe, seamless nose with hints of warm spices and\nattractive florality alongside the rich, slightly balsamic/soy\nnotes. Rich, ripe, bold palate is subtly meaty with nice spiciness\nand ripe fruit. A ripe style but with nice brightness, good texture\nand a mineral edge. 94/100\nFolding Hill Pinot Noir 2008 Central Otago, New Zealand\nSupple, pure and fresh with attractive black cherry and plum\nfruit. Smooth with fine texture. Still youthful and direct with a\nbit of bright spiciness, as well as some tingly acidity on the\nfinish. A pretty, harmonious wine. 92/100\nFolding Hill Pinot Noir 2007 Central Otago, New Zealand\nSweet, ripe and perfumed with subtle meaty sweetness under the\nfine dried he"
+              },
+              {
+                "passageId": "text_5",
+                "offset": 6000,
+                "quote": "rb and cherry notes. Lovely fresh palate is pure, fine\nand a little lighter than other vintages of this wine. Elegant and\ndetailed with nice tea and dried herb notes, Pure, fine, silky and\nrefined. 94/100\nFolding Hill Orchard Block Pinot Noir 2011 Central Otago, New\nZealand\nFine and subtly expressive. Precise with amazing detail and\nprecision. Light but concentrated with a fine spiciness. Real\nelegance and some structure. Quite mineral: an amazing wine that's\nnot a blockbuster but just deliciously detailed. 95/100\nFolding Hill Orchard Block Pinot Noir 2010 Central Otago, New\nZealand\nFresh, ripe, fine nose with some spiciness and minerality, as well\nas a subtle hint of ginger. There's an appealing mineral edge to the\npalate with nice grippiness and a hint of spiciness. Fresh with\ndried herb complexity. 94/100\nFolding Hill Orchard Block Pinot Noir 2009 Central Otago, New\nZealand\nBeautifully expressive and perfumed with aromas of floral black\ncherries and herbs. So detailed with sweet fruit and also a complex\nmineral, spicy character. Some warmth and richness but also amazing\ndetail and elegance. 95/100\nVISITING CENTRAL OTAGO\nGibbston\nValley\nChard\nFarm\nWooing\nTree\nFolding\nHill\nMount\nD"
+              },
+              {
+                "passageId": "text_6",
+                "offset": 7200,
+                "quote": "ifficulty\nLowburn\nFerry\nGrasshopper\nRock\nWines\ntasted 02/14\nFind these wines with wine-searcher.com\nBack\nto top\n|\n|\n|\n|\n|"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+            "links": [
+              {
+                "url": "https://www.wineanorak.com/newzealand/gibbstonvalley2.htm",
+                "text": "Gibbston Valley"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/chard_farm.htm",
+                "text": "Chard Farm"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/wooing_tree.htm",
+                "text": "Wooing Tree"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+                "text": "Folding Hill"
+              },
+              {
+                "url": "https://www.wineanorak.com/difficulty.htm",
+                "text": "Mount Difficulty"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/lowburn_ferry.htm",
+                "text": "Lowburn Ferry"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/grasshopper_rock.htm",
+                "text": "Grasshopper Rock"
+              },
+              {
+                "url": "https://www.wineanorak.com/newzealand/folding_hill.htm",
+                "text": "Back to top"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 8
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.emerald.com/lhs/article/259973/Board-drive-for-clinical-leadership-New-Zealand",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        },
+        {
+          "action": "redirect",
+          "result": {
+            "requested": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader",
+            "final": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852"
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_93c02985ad36cdcdd9c96b7c59cc2766",
+            "title": "SDHB seeking 'acting' ED clinical leader",
+            "offset": 1096,
+            "total_characters": 5973,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "SDHB seeking 'acting' ED clinical leader\nGO\nSubscribe\nSubscribe\nCLOSE\nSECTIONS\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSIGN IN | CREATE ACCOUNT\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSubscribe\nSubscribe\nSubscribe\nNews\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCr"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "icket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSIGN IN\nDunedin\nQueenstown\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nDunedin\nOtago\nDunedin\nQueenstown\nWānaka\nCentral Otago\nSouth Otago\nNorth Otago\nCanterbury\nChristchurch\nSouth Canterbury\nNorth Canterbury\nMid Canterbury\nSelwyn\nRural Life\nDairy\nRed Meat\nHorticulture\nRural People\nRural Events\nBusiness\nLifestyle\nFresh Spring Edition\nFood & Wine\nODT Quiz\nHome & Garden\nThe Mix\nEntertainment\nTravel\nFashion\nSport\nCricket\nRugby\nRacing\nBasketball\nFootball\nNetball\nMotorsport\nLeague\nGolf\nSouthland\nWest Coast\nNational\nWorld\nOpinion\nEditorial\n100 Years Ago\nAdvertising Features\nBuild Buy Renovate\nHealthcare Providers\nCanterbury Healthcare Providers\nSEND US NEWS & PHOTOS\nSUBSCRIBE\nMy Account\nE-Edition\nContact us\nAdvertising\nAllied Media\nSocial media\nGO\nSubscribe\nNews | Dunedin\nDunedin\nSDHB seeking 'acting' ED clinical leader\nEileen Goodwin\nWednesday, July 11, 2012\nfacebook twitter whatsapp email linkedin\nfacebook twitter whatsapp email linkedin\nPHOTO\nJohn Chambers.\nThe Southern District Health Board is yet to appoint someone to, or externally advertise, the position of Dunedin Hospital emergency department (ED) clinical leade"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "r, despite the position having been vacant for several months.\nRather than seek a permanent appointee, it is looking for an \"acting\" clinical leader from within the organisation.\nIn March, Dr Tim Kerruish stepped down as clinical leader after a disagreement with management over staff numbers.\nSenior doctors union representative Dr John Chambers, an ED specialist, said the Australasian College for Emergency Medicine (ACEM) had written to the DHB about the vacancy.\nThe role was important because it was part of requirements for ACEM accreditation as a training hospital. ACEM would be flexible about the DHB filling the crucial vacancy, because such positions could take months to fill, he said.\n\"I think the DHB [is] hoping someone will act as clinical leader and solve the problem in the interim without any actual change in FTEs or personnel. [I am] not surprised about this, but it does show that the [ACEM] letter has led to some movement.\n\"I think looking for an acting clinical leader misses the point and gives some indication of the current level of leadership in the organisation,\" Dr Chambers said.\nThe situation affected morale.\n\"We are in a limbo situation at the moment and this is h"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "aving an effect on morale and day-to-day operation, representation on committees and direction for our non-medical colleagues within the department ...\"\nDr Chambers said ED staff were upset by comments chief executive Carole Heatly made at a hospital advisory committee meeting last week in Dunedin.\nMs Heatly said the fact only about a third of patients presenting at the ED were admitted to hospital indicated the rest should not have attended the ED.\nPrimary health services, such as GPs, needed to play a much bigger role, she suggested.\nDr Chambers disputed this.\n\"Front-line staff do not feel that ED performance issues are related to large numbers of inappropriate attenders in Dunedin.\n\"The attendance figures and admission rates are within norms for our population.\"\nStaff looked forward to the new observation unit opening in the ED next month, he said.\nThe clinical leader position was an internal appointment, and had not been externally advertised, Otago chief medical officer Dick Bunton said through a spokeswoman.\nHe was unavailable to respond to further questions, including why the DHB was seeking an acting clinical leader not a permanent one.\neileen.goodwin@odt.co.nz\nNews | Duned"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "in\nfacebook twitter whatsapp email linkedin\nTags:\nSDHB\nOTHER ARTICLES\nE-edition Facebook Newsletter ODT Store\nContact\nContact us\nSend us your news\nAbout us\nPrivacy Policy\nPlatform Terms of Use\nMedia Council complaints\nRemoval request policy\nNewspapers\nOtago Daily Times\nBlenheim Sun\nKaikoura Star\nGreymouth Star\nHokitika Guardian\nThe West Coast Messenger\nWest Coast Rural Life\nNorth Canterbury News\nCanterbury Rural Life\nThe Geraldine News\nThe Star - Christchurch\nBay Harbour News\nPegasus Post\nWestern News\nSouthern View\nSelwyn Times\nAshburton Courier\nThe Courier - Timaru\nOamaru Mail\nWanaka Sun\nCromwell Bulletin\nMountain Scene\nThe News Central Otago\nThe Star - Dunedin\nClutha Leader\nSouthern Rural Life\nThe Ensign\nSouthland Express\nMagazines\nKiwi Gardener\nClassic Driver\n03 Magazine\nRugby News\nEvents\nCity2Surf\nChristchurch Home Show\nServices\nAllied Productions\nAllied Creative\nAllied Print\nMainland Distribution\nSubscribe\nSubscribe\nTerms & Conditions\nStops, starts and redirects\nFAQs\nAdvertise\nAdvertise with us\nPlace a death notice\nPlace a classified ad\nAdvertising terms and conditions\nCopyright Allied Press Limited, trading as Allied Media 2026. All rights reserved."
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852",
+            "links": [
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "Subscribe"
+              },
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "Subscribe"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin",
+                "text": "Dunedin"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago",
+                "text": "Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin",
+                "text": "Dunedin"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/queenstown",
+                "text": "Queenstown"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/wanaka",
+                "text": "Wānaka"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/central-otago",
+                "text": "Central Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/south-otago",
+                "text": "South Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/otago/north-otago",
+                "text": "North Otago"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury",
+                "text": "Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/christchurch",
+                "text": "Christchurch"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/south-canterbury",
+                "text": "South Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/north-canterbury",
+                "text": "North Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/mid-canterbury",
+                "text": "Mid Canterbury"
+              },
+              {
+                "url": "https://www.odt.co.nz/canterbury/selwyn",
+                "text": "Selwyn"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life",
+                "text": "Rural Life"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/dairy",
+                "text": "Dairy"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/red-meat",
+                "text": "Red Meat"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/horticulture",
+                "text": "Horticulture"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/rural-people",
+                "text": "Rural People"
+              },
+              {
+                "url": "https://www.odt.co.nz/rural-life/rural-events",
+                "text": "Rural Events"
+              },
+              {
+                "url": "https://www.odt.co.nz/business",
+                "text": "Business"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style",
+                "text": "Lifestyle"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Fresh-Spring-Edition",
+                "text": "Fresh Spring Edition"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/food-and-wine",
+                "text": "Food & Wine"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/odt-quiz",
+                "text": "ODT Quiz"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/home-and-garden",
+                "text": "Home & Garden"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/the-mix",
+                "text": "The Mix"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/entertainment",
+                "text": "Entertainment"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/travel",
+                "text": "Travel"
+              },
+              {
+                "url": "https://www.odt.co.nz/life-and-style/fashion",
+                "text": "Fashion"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport",
+                "text": "Sport"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/cricket",
+                "text": "Cricket"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/rugby",
+                "text": "Rugby"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/racing",
+                "text": "Racing"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/basketball",
+                "text": "Basketball"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/football",
+                "text": "Football"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/netball",
+                "text": "Netball"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/motorsport",
+                "text": "Motorsport"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/league",
+                "text": "League"
+              },
+              {
+                "url": "https://www.odt.co.nz/sport/golf",
+                "text": "Golf"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/southland",
+                "text": "Southland"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/west-coast",
+                "text": "West Coast"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/national",
+                "text": "National"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/world",
+                "text": "World"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/opinion",
+                "text": "Opinion"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/opinion/editorial",
+                "text": "Editorial"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/100-years-ago",
+                "text": "100 Years Ago"
+              },
+              {
+                "url": "https://www.odt.co.nz/sponsored-content",
+                "text": "Advertising Features"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Build-Buy-Renovate",
+                "text": "Build Buy Renovate"
+              },
+              {
+                "url": "https://www.odt.co.nz/sponsored-content/healthcare-providers",
+                "text": "Healthcare Providers"
+              },
+              {
+                "url": "https://www.odt.co.nz/tag/Healthcare-Providers-Canterbury",
+                "text": "Canterbury Healthcare Providers"
+              },
+              {
+                "url": "https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader-qp3cs852",
+                "text": "SIGN IN | CREATE ACCOUNT"
+              },
+              {
+                "url": "https://www.odt.co.nz/subscribe",
+                "text": "SUBSCRIBE"
+              },
+              {
+                "url": "https://www.odt.co.nz/MyAccount",
+                "text": "My Account"
+              },
+              {
+                "url": "https://newspapers.odt.co.nz/",
+                "text": "E-Edition"
+              },
+              {
+                "url": "https://www.odt.co.nz/contact-us",
+                "text": "Contact us"
+              },
+              {
+                "url": "https://alliedmedia.co.nz/advertise/",
+                "text": "Advertising"
+              },
+              {
+                "url": "https://alliedmedia.co.nz/",
+                "text": "Allied Media"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 236
+          }
+        },
+        {
+          "action": "unresolved",
+          "result": "The person Dr Tim Kerruish is well established by read sources as an emergency department doctor at Dunedin Hospital (ODT articles; Rural News profile), matching the requested Dunedin emergency medicine specialty. However, the requested institutional affiliation with the University of Otago (奥塔哥大学) Department of Medicine, Dunedin, Emergency Medicine group could not be verified from any page actually read: the Otago University profile (otago.ac.nz/dsm-medicine/people/profile?id=1493) and the departmental people list both returned HTTP 403 errors, and the Emerald article was also inaccessible. O"
+        }
+      ],
+      "reviewedIdentity": null
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 0,
+      "discovered_source_count": 12,
+      "fetched_source_count": 4,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_6d6869c49dca261af51ed2eb8927ed4f",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_ba30a968a2c920fde00488752e8fa54a",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_0c022ba78efd95b6ca6291c6cbbf3a69",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_93c02985ad36cdcdd9c96b7c59cc2766",
+          "reason": "not_used_for_identity"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "unresolved",
+        "reason": "insufficient_evidence",
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 7,
+        "model_calls_reserved": 8,
+        "evidence_citations": []
+      }
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "0b7106cc1c1a93db8aa223783aa8f6d76f572585da0cb877d5b704450e902b20",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  }
+]

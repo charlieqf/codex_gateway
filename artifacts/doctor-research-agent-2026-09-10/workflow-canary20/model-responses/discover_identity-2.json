@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.bjtth.cn/Html/News/Articles/211356.html\",\"purpose\":\"verify identity via official Beijing Tiantan Hospital page for 钟历勇\"},{\"type\":\"read\",\"url\":\"https://yjsh.ccmu.edu.cn/dsdw/dsjj/bsyjsds/sdykdxfsbjttyy/nkxnfmydxb4/2004114.htm\",\"purpose\":\"confirm affiliation and role via Capital Medical University graduate school supervisor profile\"}]}",
+  "usage": {
+    "promptTokens": 2473,
+    "completionTokens": 121,
+    "reasoningTokens": 7,
+    "totalTokens": 2594
+  },
+  "gatewayRequestId": "req-f7f61d05-40db-470c-a65c-aacc9fe715c0"
+}

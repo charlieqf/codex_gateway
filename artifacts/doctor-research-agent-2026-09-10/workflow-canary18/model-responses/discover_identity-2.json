@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://eanm.org/the-eanm-community/about-us/executive-office/\",\"find\":\"Hristova\",\"purpose\":\"verify person, role and institution on official EANM page\"}]}",
+  "usage": {
+    "promptTokens": 2075,
+    "completionTokens": 50,
+    "reasoningTokens": 0,
+    "totalTokens": 2125
+  },
+  "gatewayRequestId": "req-05200f21-4084-4c32-9540-a7f966e06cf0"
+}

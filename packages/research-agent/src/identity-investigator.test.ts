@@ -36,6 +36,57 @@ const searchAction = { actions: [{ type: "search", query: "Alice Example Example
 const readAction = { actions: [{ type: "read", url: directory.url }] };
 
 describe("Evidence-driven identity investigator (offline tools and scripted model)", () => {
+  it.each([true, false])("captures an inaccessible page's original search excerpt without bypassing review (accepted: %s)", async accepted => {
+    const url = "https://university.example/staff/alice";
+    const candidate = { url, title: "University staff", snippet: "Alice Example, Example University Hospital, Department of Cardiology." };
+    let saved: IdentityInvestigationState | undefined;
+    let call = 0;
+    const generate = vi.fn(async (request: { prompt: string; role: string }) => {
+      call++;
+      if (call === 1) return JSON.stringify(searchAction);
+      if (call === 2) return JSON.stringify({ actions: [{ type: "read", url }] });
+      if (call === 3) return JSON.stringify({ actions: [{ type: "read", url: profile.url }] });
+      if (call === 4) return JSON.stringify({ actions: [{ type: "search_excerpt", url }] });
+      if (call === 5) {
+        const excerpt = saved!.pages.find(p => p.retrieval)!;
+        return JSON.stringify({ identity: { ...conclusion(profile), limitations: ["The university page was inaccessible; its search excerpt corroborates the independent read profile."],
+          citations: conclusion(profile).citations.map(c => c.aspect === "institution" ? { ...c, sourceId: excerpt.sourceId, quote: excerpt.untrustedText } : c) } });
+      }
+      if (request.role === "identity_reviewer") return JSON.stringify(accepted ? { accepted: true, issues: [] } : { accepted: false, issues: ["The excerpt has an unresolved competing person."] });
+      return JSON.stringify({ unresolved: "conflicting_evidence" });
+    });
+    const search = vi.fn(async () => [candidate, { url: profile.url, title: profile.title, snippet: "Staff" }]);
+    const read = vi.fn(async (u: string) => { if (u === url) throw new Error("HTTP 403"); return profile; });
+    const dependencies = { search, read, generate, save: async (s: IdentityInvestigationState) => { saved = s; }, signal: new AbortController().signal };
+    const result = await investigateDoctorIdentity({ doctor, dependencies });
+    expect(result.outcome).toBe(accepted ? "resolved" : "unresolved");
+    expect(search).toHaveBeenCalledTimes(1); expect(read).toHaveBeenCalledTimes(2);
+    const excerpt = result.state.pages.find(p => p.retrieval)!;
+    expect(excerpt.untrustedText).toBe(candidate.title + "\n" + candidate.snippet);
+    expect(excerpt.title).toContain("Search excerpt; original page unavailable");
+    expect(excerpt.retrieval).toEqual({ method: "search_excerpt", query: searchAction.actions[0]!.query });
+    const review = JSON.parse(generate.mock.calls.find(([r]) => r.role === "identity_reviewer")![0].prompt);
+    expect(review.sources.find((s: { sourceId: string }) => s.sourceId === excerpt.sourceId).retrieval.method).toBe("search_excerpt");
+    expect(() => validateConclusion(conclusion(excerpt), [excerpt])).toThrow("corroborating read-page evidence");
+    if (accepted) {
+      expect(await investigateDoctorIdentity({ doctor, restoredState: saved, dependencies })).toMatchObject({ outcome: "resolved" });
+      expect(search).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("does not capture a guessed URL or a snippet before attempting its page", async () => {
+    const generate = scripted([searchAction, { actions: [
+      { type: "search_excerpt", url: profile.url }, { type: "search_excerpt", url: "https://invented.example/profile" }
+    ] }, { unresolved: "insufficient_evidence" }]);
+    const read = vi.fn(async () => profile);
+    const result = await investigateDoctorIdentity({ doctor, dependencies: {
+      search: async () => [{ url: profile.url, title: profile.title, snippet: profile.untrustedText }], read, generate,
+      save: async () => {}, signal: new AbortController().signal
+    } });
+    expect(result.state.pages).toEqual([]); expect(read).not.toHaveBeenCalled();
+    expect(result.state.observations.filter(o => o.action === "excerpt_unavailable")).toHaveLength(2);
+  });
+
   it.each([true, false])("resolves source passage IDs but still requires semantic identity review (accepted: %s)", async accepted => {
     const proposal = { ...conclusion(directory), citations: conclusion(directory).citations.map(({ quote: _quote, ...citation }) => ({ ...citation, passageId: "text_0" })) };
     const generate = scripted([searchAction, readAction, { identity: proposal },

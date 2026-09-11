@@ -46,6 +46,8 @@ export interface FrozenOfficialSource {
   untrustedText: string;
   discoveryKinds?: readonly OfficialSourceDiscoveryKind[];
   navigationLinks?: readonly { url: string; text: string }[];
+  /** Indexed excerpt observed through search, not the linked page's body. */
+  retrieval?: { method: "search_excerpt"; query: string };
 }
 
 /** Search candidates are unverified leads. Neither ranking nor snippets establish identity. */

@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Dr Jason Dunn\",\"institution\":\"Guy's and St Thomas' NHS Foundation Trust\",\"department\":\"Gastroenterology (consultant gastroenterologist)\",\"limitations\":[\"Requested hospital given in Chinese (盖伊和圣托马斯医院国民保健署基金会信托) matches Guy's and St Thomas' NHS Foundation Trust; the specialist-care page read describes the private care arm of the same hospitals rather than the NHS Trust's own consultant directory, but it consistently identifies Dr Jason Dunn as a consultant gastroenterologist at Guy's and St Thomas'.\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_cc6c12b2d796511d62714adb3b6d3932\",\"passageId\":\"text_2\",\"explanation\":\"The specialist profile page identifies Dr Jason Dunn, PhD, MRCP, as a consultant gastroenterologist at Guy's and St Thomas' Hospitals, matching the requested name, institution and specialty.\"},{\"aspect\":\"department\",\"sourceId\":\"src_cc6c12b2d796511d62714adb3b6d3932\",\"passageId\":\"text_2\",\"explanation\":\"Lists his specialism as Gastroenterology with clinical practice at Guy's and St Thomas', specialising in upper gastrointestinal and digestive conditions.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_cc6c12b2d796511d62714adb3b6d3932\",\"passageId\":\"text_4\",\"explanation\":\"Biography confirms he has practiced at Guy's and St Thomas' since 2012 and established the regional Endotherapy Centre at St Thomas' Hospital, supporting the institution relationship.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_cc6c12b2d796511d62714adb3b6d3932\",\"passageId\":\"text_4\",\"explanation\":\"The page is an official Guy's and St Thomas' Specialist Care (private arm of Guy's and St Thomas') profile, publishing his credentials (GKT 2000, MRCP 2005, PhD UCL 2011) and roles, making it an authoritative source for his identity, institution and role.\"}]}}",
+  "usage": {
+    "promptTokens": 7874,
+    "completionTokens": 458,
+    "reasoningTokens": 0,
+    "totalTokens": 8332
+  },
+  "gatewayRequestId": "req-c738a112-9c38-4b50-90e0-b941b537ebd5"
+}

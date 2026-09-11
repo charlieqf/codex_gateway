@@ -1,0 +1,41 @@
+# Iva Hristova 交流问题与参考要点
+
+以下是依据公开资料整理的交流准备要点，不代表本人的回答或意见。
+
+## 1. 她的准确姓名和职务是什么？
+
+官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。
+
+来源: [Executive Office – EANM](<https://eanm.org/the-eanm-community/about-us/executive-office/>)
+
+## 2. EARL 首席科学官在组织中承担什么职责？
+
+EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。
+
+来源: [Organisational Structure – EANM EARL – Research4Life](<https://earl.eanm.org/organisational-structure/>)
+
+## 3. EARL 的认证项目覆盖哪些设备和领域？
+
+EARL 网站列出的认证范围包括 18F PET/CT\|PET/MR、脑 PET/CT、68Ga PET/CT\|PET/MR、89Zr PET/CT\|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。
+
+来源: [EANM EARL – Research4Life – EARL – Research4Life](<https://earl.eanm.org/>)
+
+## 4. EARL 与 EANM 是什么关系？
+
+EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。
+
+来源: [EANM EARL – Research4Life – EARL – Research4Life](<https://earl.eanm.org/>); [Organisational Structure – EANM EARL – Research4Life](<https://earl.eanm.org/organisational-structure/>)
+
+## 5. 如何联系她所在的机构？
+
+EANM 执行办公室建议一般事务发邮件至 office@eanm\.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm\.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。
+
+来源: [Executive Office – EANM](<https://eanm.org/the-eanm-community/about-us/executive-office/>); [Contacts – EANM EARL – Research4Life](<https://earl.eanm.org/contacts/>)
+
+## 信息范围
+
+- The requested name 'Iva Hristova' is an unconfirmed short form; sources consistently publish the name as 'Ivalina Hristova'
+- The requested department was given in Chinese as '认证项目' \(accreditation programme\); a direct role tie to the accreditation programme is inferred from her EARL Chief Scientific Officer position, since EARL runs EANM's accreditation activities
+- 现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间
+- 未检索到其本人署名的代表性论文或个人研究方向信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认
+

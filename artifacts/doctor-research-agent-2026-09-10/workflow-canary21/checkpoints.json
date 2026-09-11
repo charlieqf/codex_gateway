@@ -1,0 +1,1177 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_f9daff3da239fe7049ff5d5bc6734d42"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "7baa3d43e1da4c31bd9b2fbce2993dac39b9782ba1656c474b6786167827503c",
+      "calls": 2,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，现任广东省医学会胃肠外分会及消化道肿瘤分会副主任委员，也是国际胃癌协会（IGCA）会员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "杨祖立的出诊时间和地点是什么？",
+            "answer": "据医院官方专家页面，其门诊时间为【金融城·员村院区】周一上午、周五上午；就诊安排如有变动应以医院最新公示为准。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他在哪类手术上最有代表性？",
+            "answer": "官方专长描述指出其在胃食管结合部癌近端胃切除保功能重建术，以及双镜联合治疗早期胃癌和特殊部位胃十二指肠间质瘤方面尤为擅长。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他是否有带教资格？",
+            "answer": "官方页面载明其为博士生导师、博士后合作导师，可指导博士研究生及博士后研究人员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他有哪些海外学习经历？",
+            "answer": "官方简历记载其为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他在省级学会担任什么职务？",
+            "answer": "官方页面列明其为广东省医学会胃肠外分会副主任委员和广东省医学会消化道肿瘤分会副主任委员，并任中华医学会（广东省）分会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，官方页面列出的学术任职包括广东省医学会胃肠外分会及消化道肿瘤分会副主任委员、中华医学会（广东省）分会副主任委员，以及国际胃癌协会（IGCA）会员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "杨祖立的出诊时间和地点是什么？",
+            "answer": "据医院官方专家页面，其门诊时间为【金融城·员村院区】周一上午、周五上午；就诊安排如有变动应以医院最新公示为准。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他在哪类手术上最有代表性？",
+            "answer": "官方专长描述指出其在胃食管结合部癌近端胃切除保功能重建术，以及双镜联合治疗早期胃癌和特殊部位胃十二指肠间质瘤方面尤为擅长。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他是否有带教资格？",
+            "answer": "官方页面载明其为博士生导师、博士后合作导师，可指导博士研究生及博士后研究人员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他有哪些海外学习经历？",
+            "answer": "官方简历记载其为美国安德森肿瘤中心和日本癌研有明医院访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他在省级学会担任什么职务？",
+            "answer": "官方页面列明其为广东省医学会胃肠外分会副主任委员和广东省医学会消化道肿瘤分会副主任委员，并任中华医学会（广东省）分会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "af804c99648dfa04708e571df3027f7658aa3e741dd5a63f2302fdaf1af5ce42",
+      "searches": [
+        {
+          "query": "杨祖立 中山大学附属第六医院 普通外科",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "title": "杨祖立",
+              "snippet": "博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。 擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除 ..."
+            },
+            {
+              "url": "https://baike.baidu.com/item/%E6%9D%A8%E7%A5%96%E7%AB%8B/59456681",
+              "title": "杨祖立",
+              "snippet": "杨祖立，中山大学附属第六医院外科专业主任医师。 职业信息. 工作地点. 中山大学附属第六医院. 1. 执业科室. 外科专业. 其他信息. 临床职称. 主任医师. 相关视频."
+            },
+            {
+              "url": "https://www.jdocn.com/video/index.html",
+              "title": "精术济世-- 消化肿瘤杂志（电子版）",
+              "snippet": "手术者：陈浩，黄俊豪，张博威，杨祖立. 单位：中山大学附属第六医院普通外科（胃外科二区），广东省结直肠盆底疾病研究重点实验室，广州市黄埔区中六生物医学创新研究院."
+            },
+            {
+              "url": "https://www.haodf.com/hospital/617/keshi/6972140434.html",
+              "title": "胃肠外科- 中山六院",
+              "snippet": "科室医生 · 胃肠外科. 杨祖立. 主任医师教授. 科主任 · 肛肠科. 陈实. 主任医师. 3.4 · 胃肠外科. 刁德昌. 主任医师副教授. 3.4 · 胃肠外科. 刘浩铭. 医师. 3.4 · 胃肠外科. 廖 ..."
+            },
+            {
+              "url": "https://zhuanlan.zhihu.com/p/15167068865",
+              "title": "中山大学杨祖立教授当选广东省医学会胃肠外科分会第四届 ...",
+              "snippet": "经过严格的评审和选举程序，本次大会共选出委员128人，常务委员31人，副主任委员10人，中山大学附属第六医院胃外科二区主任杨祖立教授高票当选第四届主任 ..."
+            },
+            {
+              "url": "https://www.sysu6h.cn/search/expert",
+              "title": "搜索结果-专家信息",
+              "snippet": "科室： 直肠癌联合门诊, 结直肠肛门外科, 普通外科,. 诊时：【金融城·员村】雅和门诊（020-38777688）（需预约）. 详情placeholder 咨询placeholder."
+            },
+            {
+              "url": "https://nansha.fahsysu.org.cn/node/494",
+              "title": "普外一科（胃肠）",
+              "snippet": "一、胃肠外科一、二科. 科室人才梯队. 科主任：何裕隆. 副主任：蔡世荣韩方海谭敏. 支部书记：蔡世荣. 正高：詹文华何裕隆蔡世荣韩方海陈创奇宋新明 马晋平黄奕华谭敏 ..."
+            },
+            {
+              "url": "https://static.nfnews.com/content/202412/29/c10385269.html",
+              "title": "中山大学杨祖立教授当选广东省医学会胃肠外科分会第四届主任 ...",
+              "snippet": "杨祖立教授感谢广东省医学会、医院及省内同行专家们的支持和信任、对中山大学附属第六医院胃外科学术地位的高度肯定。在未来的工作中，将继续秉承 ..."
+            },
+            {
+              "url": "https://www.jmszxyy.com.cn/byjs/bydt/202501/t1005422.html",
+              "title": "群英荟萃，大咖云集！广东省医学会学术直通车走进江门",
+              "snippet": "广东省医学会胃肠外科学分会新任主任委员杨祖立、江门市中心医院普通外科罗满华、中山大学第六附属医院陈春宇、江门市人民医院陈海明等专家分别以《近端胃 ..."
+            },
+            {
+              "url": "https://research.sysu.edu.cn/article/2765",
+              "title": "中山大学附属第六医院胃肠肿瘤肝转移中心正式成立",
+              "snippet": "“我们中心汇聚了包括肿瘤科、胃肠外科、肝胆外科、超声、介入、放疗、影像、病理、核医学等9个学科的顶尖专家，将病人管理从诊断到治疗再到随访形成规范化 ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+          "url": "https://www.sysu6h.cn/expert/653",
+          "title": "杨祖立 | 中山大学附属第六医院",
+          "accessedAt": "2026-09-11T00:46:32.249Z",
+          "contentSha256": "84d16291a9effaa333e6b9895e28bb12d1616c3ee4c6e6571e4366497f0ee7e8",
+          "untrustedText": "杨祖立 | 中山大学附属第六医院\n跳转到主要内容\n医院官网\nOA系统\n分类\n- 选择 - 科室信息 专家信息 资讯信息 新媒体资讯 科研教学 就医指南\n搜索\n首页\n医院概况\n医院概况\n院领导概况\n医院历史\n医院院训\n科室导航\n重点科室\n学科介绍\n专家信息\n招聘招标\n招聘系统\n招标采购\n国际医疗部 International Medical Center\n医院简介 Hospital Overview\n国际医疗部介绍 About Us\n保险直付 Insurance Direct Billing\n联系方式 Contact Us\n科研\n科学研究\n伦理委员会\n实验动物中心（院内网）\n教学\n研究生教育\n研究生招生\n研究生导师\n本科生教育\n毕业后医学教育\n继续医学教育\n资讯信息\n医院动态\n医院公告\n媒体报道\n党工团建设\n微信资讯\n医务社工\n就医指南\n急诊指南\n门诊指南\n住院指南\n交通指南\n预约方式\n先进技术及设备\n医疗服务承诺\n医疗环境展示\n医保公费专窗\n医院楼层分布及指示图\n微博微信\n专家信息\n名称\n科室\n全部 《中华炎性肠病杂志》 《中华胃肠外科杂志》 临床研究中心 急诊科 手术麻醉科 普通外科 病理科 直肠癌联合门诊 神经科 结直肠盆底疾病研究重点实验室 结直肠肛门外科 胃肠病学研究所 风湿免疫科 国家药物临床试验机构（GCP） 心电图室 生殖医学中心 皮肤科 麻醉科 中医科 干细胞临床研究机构 手术室 消化内镜科 肾内科 雅和医疗 临床研究中心办公室 供应消毒室 医学影像科 妇科 康复医学科 炎症性肠病治疗部 产科 泌尿外科 生物样本库 盆底治疗专科 输血科 重症医学科 全科医学科 放疗科 检验科 眼科 统计与数据管理办公室 血液、腹膜透析室 人类遗传资源管理办公室 儿科 口腔科 影像检验中心 肿瘤科 超声科 中山六院临床研究相关业务及联系方式 围产中心与遗传代谢实验室 核医学科 消化内科 甲状腺外科 耳鼻咽喉头颈外科 血液内科 内分泌科 睡眠呼吸障碍诊疗专科 神经外科 放射诊断科 胸外科 创伤骨科 肝胆胰脾外科 呼吸与危重症医学科 肛肠外科 小儿外科 心血管内科 康复医疗中心 疝与腹壁外科 胰腺肝胆外科 小肠内镜科 脊柱外科 介入科 医学美容科 内镜外科 运动康复医学科 临床营养与微生态科 乳腺外科 移植外科/小肠外科 结直肠外科六区 结直肠外科二区 结直肠外科三区 结直肠外科五区 关节外科/运动医学科 结直肠外科一区 结直肠外科八区 胃外科一区 胃外科二区\n医院公告\n2025年度中山大学附属第六医院部门决算\n2026年中山大学附属第六医院单位整体支出绩效自评报告\n2026年中山大学附属第六医院部门预算\n中山大学附属第六医院接收社会公益事业捐赠公示 （2025年度）\n关于清退门诊预交金的公告\n2024年度中山大学附属第六医院部门决算\n2025年度广东省胃肠病学研究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "跳转到主要内容"
+            },
+            {
+              "url": "https://www.sysu6h.cn/home",
+              "text": "医院官网"
+            },
+            {
+              "url": "https://www.sysu6h.cn/home",
+              "text": "首页"
+            },
+            {
+              "url": "https://www.sysu6h.cn/about",
+              "text": "医院概况"
+            },
+            {
+              "url": "https://www.sysu6h.cn/about",
+              "text": "医院概况"
+            },
+            {
+              "url": "https://www.sysu6h.cn/about/leaders",
+              "text": "院领导概况"
+            },
+            {
+              "url": "https://www.sysu6h.cn/about/history",
+              "text": "医院历史"
+            },
+            {
+              "url": "https://www.sysu6h.cn/about/motto",
+              "text": "医院院训"
+            },
+            {
+              "url": "https://www.sysu6h.cn/medical-department/key/national",
+              "text": "科室导航"
+            },
+            {
+              "url": "https://www.sysu6h.cn/medical-department/key/national",
+              "text": "重点科室"
+            },
+            {
+              "url": "https://www.sysu6h.cn/medical-department/subject/surgical",
+              "text": "学科介绍"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert",
+              "text": "专家信息"
+            },
+            {
+              "url": "https://www.sysu6h.cn/bidding/TenderInfo",
+              "text": "招聘招标"
+            },
+            {
+              "url": "https://www.sysu6h.cn/bidding/TenderInfo",
+              "text": "招标采购"
+            },
+            {
+              "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+              "text": "国际医疗部 International Medical Center"
+            },
+            {
+              "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+              "text": "医院简介 Hospital Overview"
+            },
+            {
+              "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+              "text": "国际医疗部介绍 About Us"
+            },
+            {
+              "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+              "text": "保险直付 Insurance Direct Billing"
+            },
+            {
+              "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+              "text": "联系方式 Contact Us"
+            },
+            {
+              "url": "https://www.sysu6h.cn/research",
+              "text": "科研"
+            },
+            {
+              "url": "https://www.sysu6h.cn/research",
+              "text": "科学研究"
+            },
+            {
+              "url": "https://www.sysu6h.cn/ethics",
+              "text": "伦理委员会"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching",
+              "text": "教学"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching",
+              "text": "研究生教育"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching/graduate/admission",
+              "text": "研究生招生"
+            },
+            {
+              "url": "https://www.sysu6h.cn/mentor",
+              "text": "研究生导师"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching/undergraduate/eduation",
+              "text": "本科生教育"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching/graduate-medical-education/news",
+              "text": "毕业后医学教育"
+            },
+            {
+              "url": "https://www.sysu6h.cn/teaching/continuing-education/news",
+              "text": "继续医学教育"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information",
+              "text": "资讯信息"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information",
+              "text": "医院动态"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement",
+              "text": "医院公告"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/press",
+              "text": "媒体报道"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/construct",
+              "text": "党工团建设"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/wechat",
+              "text": "微信资讯"
+            },
+            {
+              "url": "https://www.sysu6h.cn/medical",
+              "text": "医务社工"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/emergency",
+              "text": "就医指南"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/emergency",
+              "text": "急诊指南"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/outpatient",
+              "text": "门诊指南"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/hospitalization",
+              "text": "住院指南"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/transportation",
+              "text": "交通指南"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/reservation",
+              "text": "预约方式"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/advanced-technology",
+              "text": "先进技术及设备"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/service",
+              "text": "医疗服务承诺"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/environment",
+              "text": "医疗环境展示"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/insurance",
+              "text": "医保公费专窗"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/building",
+              "text": "医院楼层分布及指示图"
+            },
+            {
+              "url": "https://www.sysu6h.cn/guide/social",
+              "text": "微博微信"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/14373",
+              "text": "2025年度中山大学附属第六医院部门决算"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/14310",
+              "text": "2026年中山大学附属第六医院单位整体支出绩效自评报告"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/14004",
+              "text": "2026年中山大学附属第六医院部门预算"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/13976",
+              "text": "中山大学附属第六医院接收社会公益事业捐赠公示 （2025年度）"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/13873",
+              "text": "关于清退门诊预交金的公告"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/13850",
+              "text": "2024年度中山大学附属第六医院部门决算"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/13840",
+              "text": "2025年度广东省胃肠病学研究所单位整体支出绩效自评报告"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement/13839",
+              "text": "2025年度中山大学附属第六医院单位整体支出绩效自评报告"
+            },
+            {
+              "url": "https://www.sysu6h.cn/information/announcement",
+              "text": "查看更多"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "详细介绍"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "个人简历"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "学术任职"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "科研教学"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "荣誉奖项"
+            },
+            {
+              "url": "https://www.sysu6h.cn/expert/653",
+              "text": "医疗专长"
+            },
+            {
+              "url": "https://www.fahsysu.org.cn/home",
+              "text": "中山大学附属第一医院"
+            },
+            {
+              "url": "https://www.zssy.com.cn/",
+              "text": "中山大学附属第三医院"
+            },
+            {
+              "url": "https://www.zdkqyy.com/",
+              "text": "中山大学光华口腔医学院"
+            },
+            {
+              "url": "https://www.sysu8h.com.cn/",
+              "text": "中山大学附属第八医院"
+            },
+            {
+              "url": "https://www.gzsys.org.cn/",
+              "text": "中山大学孙逸仙纪念医院"
+            },
+            {
+              "url": "https://www.sysucc.org.cn/",
+              "text": "中山大学肿瘤防治中心"
+            },
+            {
+              "url": "https://www.gzzoc.com/",
+              "text": "中山大学中山眼科中心"
+            },
+            {
+              "url": "https://www.sysu.edu.cn/",
+              "text": "中山大学"
+            },
+            {
+              "url": "https://beian.miit.gov.cn/",
+              "text": "粤ICP备10008071号"
+            },
+            {
+              "url": "https://www.sysu6h.cn/middlePage",
+              "text": "预约挂号"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://www.sysu6h.cn/expert/653": "https://www.sysu6h.cn/expert/653"
+      },
+      "pageRequests": 1,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://www.sysu6h.cn/expert/653",
+        "https://baike.baidu.com/item/%E6%9D%A8%E7%A5%96%E7%AB%8B/59456681",
+        "https://www.jdocn.com/video/index.html",
+        "https://www.haodf.com/hospital/617/keshi/6972140434.html",
+        "https://zhuanlan.zhihu.com/p/15167068865",
+        "https://www.sysu6h.cn/search/expert",
+        "https://nansha.fahsysu.org.cn/node/494",
+        "https://static.nfnews.com/content/202412/29/c10385269.html",
+        "https://www.jmszxyy.com.cn/byjs/bydt/202501/t1005422.html",
+        "https://research.sysu.edu.cn/article/2765"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "杨祖立 中山大学附属第六医院 普通外科",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://www.sysu6h.cn/expert/653",
+                "title": "杨祖立",
+                "snippet": "博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。 擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除 ..."
+              },
+              {
+                "url": "https://baike.baidu.com/item/%E6%9D%A8%E7%A5%96%E7%AB%8B/59456681",
+                "title": "杨祖立",
+                "snippet": "杨祖立，中山大学附属第六医院外科专业主任医师。 职业信息. 工作地点. 中山大学附属第六医院. 1. 执业科室. 外科专业. 其他信息. 临床职称. 主任医师. 相关视频."
+              },
+              {
+                "url": "https://www.jdocn.com/video/index.html",
+                "title": "精术济世-- 消化肿瘤杂志（电子版）",
+                "snippet": "手术者：陈浩，黄俊豪，张博威，杨祖立. 单位：中山大学附属第六医院普通外科（胃外科二区），广东省结直肠盆底疾病研究重点实验室，广州市黄埔区中六生物医学创新研究院."
+              },
+              {
+                "url": "https://www.haodf.com/hospital/617/keshi/6972140434.html",
+                "title": "胃肠外科- 中山六院",
+                "snippet": "科室医生 · 胃肠外科. 杨祖立. 主任医师教授. 科主任 · 肛肠科. 陈实. 主任医师. 3.4 · 胃肠外科. 刁德昌. 主任医师副教授. 3.4 · 胃肠外科. 刘浩铭. 医师. 3.4 · 胃肠外科. 廖 ..."
+              },
+              {
+                "url": "https://zhuanlan.zhihu.com/p/15167068865",
+                "title": "中山大学杨祖立教授当选广东省医学会胃肠外科分会第四届 ...",
+                "snippet": "经过严格的评审和选举程序，本次大会共选出委员128人，常务委员31人，副主任委员10人，中山大学附属第六医院胃外科二区主任杨祖立教授高票当选第四届主任 ..."
+              },
+              {
+                "url": "https://www.sysu6h.cn/search/expert",
+                "title": "搜索结果-专家信息",
+                "snippet": "科室： 直肠癌联合门诊, 结直肠肛门外科, 普通外科,. 诊时：【金融城·员村】雅和门诊（020-38777688）（需预约）. 详情placeholder 咨询placeholder."
+              },
+              {
+                "url": "https://nansha.fahsysu.org.cn/node/494",
+                "title": "普外一科（胃肠）",
+                "snippet": "一、胃肠外科一、二科. 科室人才梯队. 科主任：何裕隆. 副主任：蔡世荣韩方海谭敏. 支部书记：蔡世荣. 正高：詹文华何裕隆蔡世荣韩方海陈创奇宋新明 马晋平黄奕华谭敏 ..."
+              },
+              {
+                "url": "https://static.nfnews.com/content/202412/29/c10385269.html",
+                "title": "中山大学杨祖立教授当选广东省医学会胃肠外科分会第四届主任 ...",
+                "snippet": "杨祖立教授感谢广东省医学会、医院及省内同行专家们的支持和信任、对中山大学附属第六医院胃外科学术地位的高度肯定。在未来的工作中，将继续秉承 ..."
+              },
+              {
+                "url": "https://www.jmszxyy.com.cn/byjs/bydt/202501/t1005422.html",
+                "title": "群英荟萃，大咖云集！广东省医学会学术直通车走进江门",
+                "snippet": "广东省医学会胃肠外科学分会新任主任委员杨祖立、江门市中心医院普通外科罗满华、中山大学第六附属医院陈春宇、江门市人民医院陈海明等专家分别以《近端胃 ..."
+              },
+              {
+                "url": "https://research.sysu.edu.cn/article/2765",
+                "title": "中山大学附属第六医院胃肠肿瘤肝转移中心正式成立",
+                "snippet": "“我们中心汇聚了包括肿瘤科、胃肠外科、肝胆外科、超声、介入、放疗、影像、病理、核医学等9个学科的顶尖专家，将病人管理从诊断到治疗再到随访形成规范化 ..."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "title": "杨祖立 | 中山大学附属第六医院",
+            "offset": 0,
+            "total_characters": 2052,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "杨祖立 | 中山大学附属第六医院\n跳转到主要内容\n医院官网\nOA系统\n分类\n- 选择 - 科室信息 专家信息 资讯信息 新媒体资讯 科研教学 就医指南\n搜索\n首页\n医院概况\n医院概况\n院领导概况\n医院历史\n医院院训\n科室导航\n重点科室\n学科介绍\n专家信息\n招聘招标\n招聘系统\n招标采购\n国际医疗部 International Medical Center\n医院简介 Hospital Overview\n国际医疗部介绍 About Us\n保险直付 Insurance Direct Billing\n联系方式 Contact Us\n科研\n科学研究\n伦理委员会\n实验动物中心（院内网）\n教学\n研究生教育\n研究生招生\n研究生导师\n本科生教育\n毕业后医学教育\n继续医学教育\n资讯信息\n医院动态\n医院公告\n媒体报道\n党工团建设\n微信资讯\n医务社工\n就医指南\n急诊指南\n门诊指南\n住院指南\n交通指南\n预约方式\n先进技术及设备\n医疗服务承诺\n医疗环境展示\n医保公费专窗\n医院楼层分布及指示图\n微博微信\n专家信息\n名称\n科室\n全部 《中华炎性肠病杂志》 《中华胃肠外科杂志》 临床研究中心 急诊科 手术麻醉科 普通外科 病理科 直肠癌联合门诊 神经科 结直肠盆底疾病研究重点实验室 结直肠肛门外科 胃肠病学研究所 风湿免疫科 国家药物临床试验机构（GCP） 心电图室 生殖医学中心 皮肤科 麻醉科 中医科 干细胞临床研究机构 手术室 消化内镜科 肾内科 雅和医疗 临床研究中心办公室 供应消毒室 医学影像科 妇科 康复医学科 炎症性肠病治疗部 产科 泌尿外科 生物样本库 盆底治疗专科 输血科 重症医学科 全科医学科 放疗科 检验科 眼科 统计与数据管理办公室 血液、腹膜透析室 人类遗传资源管理办公室 儿科 口腔科 影像检验中心 肿瘤科 超声科 中山六院临床研究相关业务及联系方式 围产中心与遗传代谢实验室 核医学科 消化内科 甲状腺外科 耳鼻咽喉头颈外科 血液内科 内分泌科 睡眠呼吸障碍诊疗专科 神经外科 放射诊断科 胸外科 创伤骨科 肝胆胰脾外科 呼吸与危重症医学科 肛肠外科 小儿外科 心血管内科 康复医疗中心 疝与腹壁外科 胰腺肝胆外科 小肠内镜科 脊柱外科 介入科 医学美容科 内镜外科 运动康复医学科 临床营养与微生态科 乳腺外科 移植外科/小肠外科 结直肠外科六区 结直肠外科二区 结直肠外科三区 结直肠外科五区 关节外科/运动医学科 结直肠外科一区 结直肠外科八区 胃外科一区 胃外科二区\n医院公告\n2025年度中山大学附属第六医院部门决算\n2026年中山大学附属第六医院单位整体支出绩效自评报告\n2026年中山大学附属第六医院部门预算\n中山大学附属第六医院接收社会公益事业捐赠公示 （2025年度）\n关于清退门诊预交金的公告\n2024年度中山大学附属第六医院部门决算\n2025年度广东省胃肠病学研"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.sysu6h.cn/expert/653",
+            "links": [
+              {
+                "url": "https://www.sysu6h.cn/expert/653",
+                "text": "跳转到主要内容"
+              },
+              {
+                "url": "https://www.sysu6h.cn/home",
+                "text": "医院官网"
+              },
+              {
+                "url": "https://www.sysu6h.cn/home",
+                "text": "首页"
+              },
+              {
+                "url": "https://www.sysu6h.cn/about",
+                "text": "医院概况"
+              },
+              {
+                "url": "https://www.sysu6h.cn/about",
+                "text": "医院概况"
+              },
+              {
+                "url": "https://www.sysu6h.cn/about/leaders",
+                "text": "院领导概况"
+              },
+              {
+                "url": "https://www.sysu6h.cn/about/history",
+                "text": "医院历史"
+              },
+              {
+                "url": "https://www.sysu6h.cn/about/motto",
+                "text": "医院院训"
+              },
+              {
+                "url": "https://www.sysu6h.cn/medical-department/key/national",
+                "text": "科室导航"
+              },
+              {
+                "url": "https://www.sysu6h.cn/medical-department/key/national",
+                "text": "重点科室"
+              },
+              {
+                "url": "https://www.sysu6h.cn/medical-department/subject/surgical",
+                "text": "学科介绍"
+              },
+              {
+                "url": "https://www.sysu6h.cn/expert",
+                "text": "专家信息"
+              },
+              {
+                "url": "https://www.sysu6h.cn/bidding/TenderInfo",
+                "text": "招聘招标"
+              },
+              {
+                "url": "https://www.sysu6h.cn/bidding/TenderInfo",
+                "text": "招标采购"
+              },
+              {
+                "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+                "text": "国际医疗部 International Medical Center"
+              },
+              {
+                "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+                "text": "医院简介 Hospital Overview"
+              },
+              {
+                "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+                "text": "国际医疗部介绍 About Us"
+              },
+              {
+                "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+                "text": "保险直付 Insurance Direct Billing"
+              },
+              {
+                "url": "https://www.sysu6h.cn/Internationalmedicalcenter",
+                "text": "联系方式 Contact Us"
+              },
+              {
+                "url": "https://www.sysu6h.cn/research",
+                "text": "科研"
+              },
+              {
+                "url": "https://www.sysu6h.cn/research",
+                "text": "科学研究"
+              },
+              {
+                "url": "https://www.sysu6h.cn/ethics",
+                "text": "伦理委员会"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching",
+                "text": "教学"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching",
+                "text": "研究生教育"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching/graduate/admission",
+                "text": "研究生招生"
+              },
+              {
+                "url": "https://www.sysu6h.cn/mentor",
+                "text": "研究生导师"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching/undergraduate/eduation",
+                "text": "本科生教育"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching/graduate-medical-education/news",
+                "text": "毕业后医学教育"
+              },
+              {
+                "url": "https://www.sysu6h.cn/teaching/continuing-education/news",
+                "text": "继续医学教育"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information",
+                "text": "资讯信息"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information",
+                "text": "医院动态"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement",
+                "text": "医院公告"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/press",
+                "text": "媒体报道"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/construct",
+                "text": "党工团建设"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/wechat",
+                "text": "微信资讯"
+              },
+              {
+                "url": "https://www.sysu6h.cn/medical",
+                "text": "医务社工"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/emergency",
+                "text": "就医指南"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/emergency",
+                "text": "急诊指南"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/outpatient",
+                "text": "门诊指南"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/hospitalization",
+                "text": "住院指南"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/transportation",
+                "text": "交通指南"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/reservation",
+                "text": "预约方式"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/advanced-technology",
+                "text": "先进技术及设备"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/service",
+                "text": "医疗服务承诺"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/environment",
+                "text": "医疗环境展示"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/insurance",
+                "text": "医保公费专窗"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/building",
+                "text": "医院楼层分布及指示图"
+              },
+              {
+                "url": "https://www.sysu6h.cn/guide/social",
+                "text": "微博微信"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/14373",
+                "text": "2025年度中山大学附属第六医院部门决算"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/14310",
+                "text": "2026年中山大学附属第六医院单位整体支出绩效自评报告"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/14004",
+                "text": "2026年中山大学附属第六医院部门预算"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/13976",
+                "text": "中山大学附属第六医院接收社会公益事业捐赠公示 （2025年度）"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/13873",
+                "text": "关于清退门诊预交金的公告"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/13850",
+                "text": "2024年度中山大学附属第六医院部门决算"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/13840",
+                "text": "2025年度广东省胃肠病学研究所单位整体支出绩效自评报告"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement/13839",
+                "text": "2025年度中山大学附属第六医院单位整体支出绩效自评报告"
+              },
+              {
+                "url": "https://www.sysu6h.cn/information/announcement",
+                "text": "查看更多"
+              },
+              {
+                "url": "https://www.sysu6h.cn/expert/653",
+                "text": "详细介绍"
+              },
+              {
+                "url": "https://www.sysu6h.cn/expert/653",
+                "text": "个人简历"
+              },
+              {
+                "url": "https://www.sysu6h.cn/expert/653",
+                "text": "学术任职"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 73
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "杨祖立",
+        "institution": "中山大学附属第六医院",
+        "department": "普通外科（胃外科二区主任，主任医师）",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "医院官方专家页面明确列出杨祖立的职称、职位与科室，与请求的姓名、医院和科室完全一致"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "页面页脚显示为中山大学附属第六医院（广东省胃肠肛门医院）官方网站，页眉标题为“杨祖立 | 中山大学附属第六医院”"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "官方页面载明科室为普通外科，职位为胃外科二区主任，职称为主任医师，专业方向为胃癌、结直肠癌等腹腔镜微创治疗，与请求的普通外科相符"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "该页面为中山大学附属第六医院官方网站的专家信息页（sysu6h.cn），是医院对本院医师的权威一手来源；检索结果中好大夫、知乎及南方新闻网等多方来源（胃外科二区主任杨祖立教授）亦相互印证"
+          }
+        ],
+        "limitations": []
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "a0a3e0cf7e5e2edd4a501d128515d27057af7c27f095d43dba07f7b5ab2453c2"
+        },
+        {
+          "kind": "review",
+          "sha256": "99de42c8b84fc9febd5dfa86b48acd1763f304cc63cd8ca6bfcf23cc731c5c40"
+        },
+        {
+          "kind": "questions",
+          "sha256": "abb2b9ca74ed5b23128861da4bcb778cf46158dd7f19b4c2bff963b01f9f3d6b"
+        },
+        {
+          "kind": "answers",
+          "sha256": "df4fa748ff31c59ac94ce13308a34a1e029ed341d47d155637f36a436dd282e6"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 1,
+      "discovered_source_count": 10,
+      "fetched_source_count": 1,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_f9daff3da239fe7049ff5d5bc6734d42",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 1,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "医院官方专家页面明确列出杨祖立的职称、职位与科室，与请求的姓名、医院和科室完全一致"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "页面页脚显示为中山大学附属第六医院（广东省胃肠肛门医院）官方网站，页眉标题为“杨祖立 | 中山大学附属第六医院”"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "官方页面载明科室为普通外科，职位为胃外科二区主任，职称为主任医师，专业方向为胃癌、结直肠癌等腹腔镜微创治疗，与请求的普通外科相符"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_f9daff3da239fe7049ff5d5bc6734d42",
+            "quote": "究所单位整体支出绩效自评报告\n2025年度中山大学附属第六医院单位整体支出绩效自评报告\n查看更多\n杨祖立\n职称\n主任医师\n职位\n胃外科二区主任\n科室\n普通外科\n诊时\n【金融城·员村】周一上午，周五上午\n详细介绍\n个人简历\n学术任职\n科研教学\n荣誉奖项\n医疗专长\n博士，主任医师，博士生导师，博士后合作导师。胃外科二区主任。\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n中华医学会 (广东省) 分会 副主任委员\n国际胃癌协会（IGCA）会员\n广东省医学会胃肠外分会副主任委员\n广东省医学会消化道肿瘤分会副主任委员\n美国安德森肿瘤中心和日本癌研有明医院访问学者\n擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，对于胃肠道肿瘤患者实施全程化管理。\n友情链接\n中山大学附属第一医院 中山大学附属第三医院 中山大学光华口腔医学院 中山大学附属第五医院 中山大学附属第八医院\n中山大学孙逸仙纪念医院 中山大学肿瘤防治中心 中山大学中山眼科中心 中山大学附属第七医院 中山大学\n联系我们\n医院总机:020-38254000\n医院投诉:020-35919108\n医德医风投诉:020-35919108\n红包、回扣举报投诉:020-38254011\n邮编:510655\n地址: 广州市天河区员村二横路26号(金融城院区)\n广州市黄埔区知明路688号(知识城院区)\n广州市天河区瘦狗岭17号(北院区)\nCopyright © 2024 中山大学附属第六医院（广东省胃肠肛门医院） 版权所有 未经授权 请勿转载 粤ICP备10008071号\nplaceholder\n预约挂号\n官方微博\n微信服务号\n微信订阅号\nplaceholder 返到顶部",
+            "explanation": "该页面为中山大学附属第六医院官方网站的专家信息页（sysu6h.cn），是医院对本院医师的权威一手来源；检索结果中好大夫、知乎及南方新闻网等多方来源（胃外科二区主任杨祖立教授）亦相互印证"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "5f72883caded87e906ccbce9c98e39bf6b1c3ba2eadedb110619f7c534de6be6",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "8a78273a211b2b250f60bcf79efe14694c90e8c349ed970f856a5a650ab009a2",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"education_and_career\",\"text\":\"博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"education_and_career\",\"text\":\"学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，现任广东省医学会胃肠外分会及消化道肿瘤分会副主任委员，也是国际胃癌协会（IGCA）会员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"杨祖立的出诊时间和地点是什么？\",\"answer\":\"据医院官方专家页面，其门诊时间为【金融城·员村院区】周一上午、周五上午；就诊安排如有变动应以医院最新公示为准。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他在哪类手术上最有代表性？\",\"answer\":\"官方专长描述指出其在胃食管结合部癌近端胃切除保功能重建术，以及双镜联合治疗早期胃癌和特殊部位胃十二指肠间质瘤方面尤为擅长。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他是否有带教资格？\",\"answer\":\"官方页面载明其为博士生导师、博士后合作导师，可指导博士研究生及博士后研究人员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他有哪些海外学习经历？\",\"answer\":\"官方简历记载其为美国安德森肿瘤中心和日本癌研有明医院访问学者。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他在省级学会担任什么职务？\",\"answer\":\"官方页面列明其为广东省医学会胃肠外分会副主任委员和广东省医学会消化道肿瘤分会副主任委员，并任中华医学会（广东省）分会副主任委员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。\"]}",
+            "gatewayRequestId": "req-599f1e43-132a-4c74-ba3d-8b895d935e6a",
+            "usage": {
+              "promptTokens": 5593,
+              "completionTokens": 991,
+              "reasoningTokens": 0,
+              "totalTokens": 6584
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "6b84eb8cc6351b092265ee7b19c80c41c5f449088a5f90e09cac437204a45eb4",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "b59a7ae7cf14106d50fbbf9e5d791ead9f092b5e208e0ab10123b8a92edfd533",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"杨祖立，主任医师，中山大学附属第六医院普通外科（胃外科二区主任），博士生导师、博士后合作导师。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"擅长胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤等腹腔镜微创治疗，尤其是胃食管结合部癌近端胃切除保功能重建术，以及双镜联合在早期胃癌和特殊部位胃十二指肠间质瘤手术中的应用，并对胃肠道肿瘤患者实施全程化管理。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"education_and_career\",\"text\":\"博士学历；曾为美国安德森肿瘤中心和日本癌研有明医院访问学者。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"type\":\"education_and_career\",\"text\":\"学术任职包括：中华医学会（广东省）分会副主任委员、国际胃癌协会（IGCA）会员、广东省医学会胃肠外分会副主任委员、广东省医学会消化道肿瘤分会副主任委员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"杨祖立博士是中山大学附属第六医院普通外科主任医师、胃外科二区主任，并担任博士生导师和博士后合作导师。他的临床重点是胃肠道肿瘤的腹腔镜微创治疗，涵盖胃癌、十二指肠肿瘤、结直肠癌和胃肠道间质瘤，尤其专注胃食管结合部癌近端胃切除后的保功能重建，以及双镜联合技术用于早期胃癌和特殊部位胃十二指肠间质瘤手术，同时强调对胃肠道肿瘤患者的全程化管理。学术方面，他曾赴美国安德森肿瘤中心和日本癌研有明医院做访问学者，官方页面列出的学术任职包括广东省医学会胃肠外分会及消化道肿瘤分会副主任委员、中华医学会（广东省）分会副主任委员，以及国际胃癌协会（IGCA）会员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"杨祖立的出诊时间和地点是什么？\",\"answer\":\"据医院官方专家页面，其门诊时间为【金融城·员村院区】周一上午、周五上午；就诊安排如有变动应以医院最新公示为准。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他在哪类手术上最有代表性？\",\"answer\":\"官方专长描述指出其在胃食管结合部癌近端胃切除保功能重建术，以及双镜联合治疗早期胃癌和特殊部位胃十二指肠间质瘤方面尤为擅长。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他是否有带教资格？\",\"answer\":\"官方页面载明其为博士生导师、博士后合作导师，可指导博士研究生及博士后研究人员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他有哪些海外学习经历？\",\"answer\":\"官方简历记载其为美国安德森肿瘤中心和日本癌研有明医院访问学者。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]},{\"question\":\"他在省级学会担任什么职务？\",\"answer\":\"官方页面列明其为广东省医学会胃肠外分会副主任委员和广东省医学会消化道肿瘤分会副主任委员，并任中华医学会（广东省）分会副主任委员。\",\"citations\":[{\"sourceId\":\"src_f9daff3da239fe7049ff5d5bc6734d42\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"官方页面的“科研教学”“荣誉奖项”等栏目具体内容未在已读文本中展开，代表性论文、科研项目与奖项信息未能核实，如需可向本人或医院确认。\"]}}",
+            "gatewayRequestId": "req-5b853ac2-2b75-4a35-89ab-e97e1b7c03e8",
+            "usage": {
+              "promptTokens": 5554,
+              "completionTokens": 1056,
+              "reasoningTokens": 45,
+              "totalTokens": 6610
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.tjmugh.com.cn/system/2018/11/09/020005347.shtml\",\"find\":\"王惠平\",\"purpose\":\"verify hospital official profile page for name, department and title at 天津医科大学总医院\"}]}",
+  "usage": {
+    "promptTokens": 3938,
+    "completionTokens": 187,
+    "reasoningTokens": 124,
+    "totalTokens": 4125
+  },
+  "gatewayRequestId": "req-005abdea-9d33-4e75-9f6c-6eabe56da7d2"
+}

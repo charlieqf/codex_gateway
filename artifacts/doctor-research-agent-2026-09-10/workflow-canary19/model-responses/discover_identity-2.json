@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://yjs.cd120.com/contents/579/1738.html\",\"purpose\":\"confirm name, institution, department\"},{\"type\":\"read\",\"url\":\"https://www.wchscu.cn/comprehensive/97918.html\",\"purpose\":\"hospital official confirmation of role in oncology center\"}]}",
+  "usage": {
+    "promptTokens": 2261,
+    "completionTokens": 91,
+    "reasoningTokens": 19,
+    "totalTokens": 2352
+  },
+  "gatewayRequestId": "req-b56591a5-0976-450b-9360-0e73a5fe22f0"
+}

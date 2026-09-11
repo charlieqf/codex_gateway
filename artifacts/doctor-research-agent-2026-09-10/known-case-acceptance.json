@@ -252,14 +252,24 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary18/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 118456,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
       "full_worker_attempt": {
-        "evidence": "workflow-canary17/result.json",
-        "outcome": "failed",
-        "reported_reason": "resource_budget_exceeded",
+        "evidence": "workflow-canary18/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
         "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
-        "elapsed_ms": 78578,
+        "elapsed_ms": 118456,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
@@ -272,7 +282,29 @@
         "hospital": "四川大学华西医院",
         "department": "肿瘤"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary19/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 76038,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary19/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 76038,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "CN01",
@@ -281,7 +313,29 @@
         "hospital": "首都医科大学附属北京天坛医院",
         "department": "内分泌科"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary20/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 131808,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary20/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 131808,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "CN02",
@@ -290,7 +344,29 @@
         "hospital": "中山大学附属第六医院",
         "department": "普通外科"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary21/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 38406,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary21/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 38406,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "CN03",
@@ -299,7 +375,29 @@
         "hospital": "天津医科大学总医院",
         "department": "皮肤性病科（含医学美容科）"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary22/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 110040,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary22/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 110040,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "OS01",
@@ -308,7 +406,29 @@
         "hospital": "盖伊和圣托马斯医院国民保健署基金会信托",
         "department": "消化内科"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary23/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 101365,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary23/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 101365,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "OS02",
@@ -317,7 +437,29 @@
         "hospital": "奥塔哥大学",
         "department": "但尼丁内科学系急诊医学组"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary24/result.json",
+          "outcome": "failed",
+          "reported_reason": "identity_not_resolved",
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 84849,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary24/result.json",
+        "outcome": "failed",
+        "reported_reason": "identity_not_resolved",
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 84849,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "OS03",

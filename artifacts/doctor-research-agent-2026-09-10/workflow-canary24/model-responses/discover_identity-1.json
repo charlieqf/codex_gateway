@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"\\\"Tim Kerruish\\\" Otago Dunedin emergency medicine\",\"purpose\":\"identify the person at the University of Otago, Dunedin emergency medicine group\"}]}",
+  "usage": {
+    "promptTokens": 1374,
+    "completionTokens": 59,
+    "reasoningTokens": 15,
+    "totalTokens": 1433
+  },
+  "gatewayRequestId": "req-5d8e2cb9-aeb4-4c8a-ac32-a2624743a1cc"
+}

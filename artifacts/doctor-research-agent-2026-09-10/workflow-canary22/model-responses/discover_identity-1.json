@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"王惠平 天津医科大学总医院 皮肤科\",\"purpose\":\"find evidence of this dermatologist at the requested hospital\"}]}",
+  "usage": {
+    "promptTokens": 1375,
+    "completionTokens": 51,
+    "reasoningTokens": 14,
+    "totalTokens": 1426
+  },
+  "gatewayRequestId": "req-a96de949-62f0-4150-9a50-44ef8b827b0f"
+}

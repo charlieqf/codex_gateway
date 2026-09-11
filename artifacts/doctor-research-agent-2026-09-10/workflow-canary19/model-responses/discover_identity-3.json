@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"王永生\",\"institution\":\"四川大学华西医院\",\"department\":\"肿瘤中心（肿瘤学教授、主任医师，肿瘤中心常务副主任）\",\"limitations\":[\"请求中未提供职称、城市或ORCID，无需核实；具体科别（肿瘤）已由官方来源证实为肿瘤中心\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\",\"explanation\":\"华西医院研究生部导师库明确记载王永生为肿瘤学教授、博士生导师，2007年获四川大学肿瘤学博士学位后留院工作，并历任胸部肿瘤科副主任、华西医院GCP中心主任、肿瘤中心副主任、常务副主任等职务，确认其姓名与专业身份\"},{\"aspect\":\"institution\",\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\",\"explanation\":\"该导师页面由四川大学华西临床医学院研究生部（yjs.cd120.com，版权页显示华西临床医学院）发布，页面记载其任职于华西医院肿瘤中心及创新药物临床研究与评价国家药监局重点实验室，确认其所属机构为四川大学华西医院\"},{\"aspect\":\"department\",\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\",\"explanation\":\"华西医院官网新闻明确记载王永生现任该院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师，主任医师，研究方向为胸部恶性肿瘤靶向与免疫治疗等，确认其肿瘤科（肿瘤中心）专业角色\"},{\"aspect\":\"authority\",\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\",\"explanation\":\"该文为四川大学华西医院官网综合新闻（2026.07.16），由医院肿瘤中心供稿，属机构官方发布，与研究生部导师库信息（导师页 text_0）相互印证，共同确立王永生在四川大学华西医院肿瘤中心的身份\"}]}}",
+  "usage": {
+    "promptTokens": 7121,
+    "completionTokens": 491,
+    "reasoningTokens": 8,
+    "totalTokens": 7612
+  },
+  "gatewayRequestId": "req-49327205-92cd-415b-b01e-b81841c33606"
+}

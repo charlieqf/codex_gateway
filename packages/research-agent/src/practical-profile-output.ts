@@ -18,7 +18,8 @@ export function assemblePracticalProfile(input: {
   const pages = [...new Map([...input.pages, ...state.pages].map(p => [p.sourceId, p])).values()].filter(p => used.has(p.sourceId));
   const publications = state.publications.flatMap(p => p.status === "succeeded" && p.value && used.has(`src_pubmed_${p.pmid}`) ? [p.value] : []);
   const sources: DoctorResearchSource[] = pages.map(p => ({ source_id: p.sourceId, source_type: "official_web", title: p.title,
-    url: p.url, accessed_at: p.accessedAt, content_sha256: p.contentSha256 }));
+    url: p.url, accessed_at: p.accessedAt, content_sha256: p.contentSha256,
+    ...(p.retrieval ? { retrieval_method: p.retrieval.method } : {}) }));
   for (const p of publications) {
     if (!p.sourceUrl || !p.accessedAt || !p.contentSha256) throw new Error("Publication provenance is required.");
     sources.push({ source_id: `src_pubmed_${p.pmid}`, source_type: "pubmed", title: p.title,
@@ -38,14 +39,18 @@ export function assemblePracticalProfile(input: {
     profile.claims.push({ claim_id: `clm_practical_${index}`, claim_type: fact.type, text: fact.text,
       source_ids: ids(fact.citations), verification_status: "verified" });
   }
-  const warnings = [...new Set([...(identity.limitations ?? []), ...draft.limitations])];
+  const excerptSources = pages.filter(p => p.retrieval?.method === "search_excerpt");
+  const warnings = [...new Set([...(identity.limitations ?? []), ...draft.limitations,
+    ...excerptSources.map(p => input.language === "zh-CN"
+      ? `来源 ${p.url} 未能阅读全文，仅使用搜索引擎返回的标题与摘要，并结合其他已读资料判断；原文现状及未展示内容尚未核实。`
+      : `Source ${p.url} could not be read in full. Only its search title and excerpt were used alongside other read evidence; unseen content and current status remain unverified.`)])];
   const references = publications.map(p => ({ reference_id: `ref_pmid_${p.pmid}`, title: p.title, journal: p.journal,
     publication_year: p.publicationYear, pmid: p.pmid, doi: p.doi, verification_status: "verified" as const }));
   const zh = input.language === "zh-CN";
   return {
     schema_version: "doctor_research_model_output.v1",
     doctor: { name: input.doctor.name, hospital: input.doctor.hospital, department: input.doctor.department },
-    identity_resolution: { status: "verified", confidence: "high", canonical_identity_id: input.canonicalIdentityId, matched_by: ["institution", "department"] },
+    identity_resolution: { status: "verified", confidence: excerptSources.length ? "medium" : "high", canonical_identity_id: input.canonicalIdentityId, matched_by: ["institution", "department"] },
     sources, profile,
     review: {
       title: `${input.doctor.name} ${zh ? "专业背景与交流准备" : "Professional Background and Conversation Preparation"}`,

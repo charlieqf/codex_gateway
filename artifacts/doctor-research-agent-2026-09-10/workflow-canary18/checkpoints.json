@@ -1,0 +1,3510 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_a0656494a428d0e7cf19ed9625a0086f",
+        "src_07ea7388da34245618636fae13401ec4",
+        "src_93c3dc7645487e403061aaf935001fc9"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "54b7c97ca79766b2ec5938f6361846c3a1327480a5a9a3f03caec38526a49fee",
+      "calls": 4,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Unexpected non-whitespace character after JSON at position 4292 (line 1 column 4293)",
+            "previous_response": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Ivalina Hristova is listed on the EANM Executive Office directory as Chief Scientific Officer (首席科学官) of EARL.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"type\":\"position\",\"text\":\"EARL's organizational structure page states that one chief scientific officer oversees and coordinates EARL projects and teams, and reports to the CEO; EARL is an Austrian-registered GmbH and a 100% subsidiary of the EANM non-profit association.\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"EARL, launched by EANM in 2006 to promote multicentre nuclear medicine and research, runs PET/CT scanner accreditation and works to enhance comparability of molecular imaging data; as its Chief Scientific Officer, Hristova's role sits within this accreditation and research body.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"EARL's current accreditation portfolio covers 18F PET/CT | PET/MR, brain PET/CT, 68Ga PET/CT | PET/MR, 89Zr PET/CT | PET/MR and 177Lu SPECT/CT accreditation, plus a Centres of Excellence network and SASAI audits.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"EANM and EARL are headquartered at Schmalzhofgasse 26, 1060 Vienna, Austria; Hristova works within the Vienna-based EANM Executive Office.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_5\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Ivalina Hristova（伊瓦琳娜·赫里斯托娃）是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官（Chief Scientific Officer）。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"text\":\"根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程负责 EARL 的活动。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"text\":\"EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"她的准确姓名和职务是什么？\",\"answer\":\"官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"question\":\"EARL 首席科学官在组织中承担什么职责？\",\"answer\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"EARL 的认证项目覆盖哪些设备和领域？\",\"answer\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"question\":\"EARL 与 EANM 是什么关系？\",\"answer\":\"EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系她所在的机构？\",\"answer\":\"EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间\",\"未检索到其个人代表性论文或研究方向的本人署名作品信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认\"]}]}"
+          }
+        },
+        {
+          "action": "invalid_edited_draft",
+          "result": "Draft needs facts (0-16), background (1-6), exactly five qa pairs, and limitations (0-8 strings)."
+        }
+      ],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Ivalina Hristova is listed on the EANM Executive Office directory as Chief Scientific Officer (首席科学官) of EARL.",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "EARL's organisational structure page states that one chief scientific officer oversees and coordinates EARL projects and teams, and reports to the CEO; EARL is an Austrian-registered GmbH and a 100% subsidiary of the EANM non-profit association.",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "EARL, launched by EANM in 2006 to promote multicentre nuclear medicine and research, runs PET/CT scanner accreditation and works to enhance comparability of molecular imaging data; as its Chief Scientific Officer, Hristova's role sits within this accreditation and research body.",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "EARL's current accreditation portfolio covers 18F PET/CT | PET/MR, brain PET/CT, 68Ga PET/CT | PET/MR, 89Zr PET/CT | PET/MR and 177Lu SPECT/CT accreditation, plus a Centres of Excellence network and SASAI audits.",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "EANM and EARL are headquartered at Schmalzhofgasse 26, 1060 Vienna, Austria; Hristova works within the Vienna-based EANM Executive Office.",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_5"
+              },
+              {
+                "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Ivalina Hristova（伊瓦琳娜·赫里斯托娃）是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官（Chief Scientific Officer）。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程负责 EARL 的活动。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "她的准确姓名和职务是什么？",
+            "answer": "官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "question": "EARL 首席科学官在组织中承担什么职责？",
+            "answer": "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "EARL 的认证项目覆盖哪些设备和领域？",
+            "answer": "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "EARL 与 EANM 是什么关系？",
+            "answer": "EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何联系她所在的机构？",
+            "answer": "EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间",
+          "未检索到其个人代表性论文或研究方向的本人署名作品信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Ivalina Hristova 在 EANM 执行办公室官方目录中被列为 EARL 的首席科学官（Chief Scientific Officer）。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的各项目与团队，并向首席执行官汇报；EARL 是在奥地利注册的有限责任公司（GmbH），是 EANM 非营利协会的全资子公司。",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "EARL 由 EANM 于 2006 年发起设立，旨在推动多中心核医学与研究，运行 PET/CT 扫描仪认证，并致力于提升分子影像数据的可比性；Hristova 作为首席科学官，其职责位于这一认证与研究机构之内。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT 认证，并设有卓越中心（Centres of Excellence）网络与 SASAI 审计项目。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "EANM 与 EARL 的办公地址均为奥地利维也纳 Schmalzhofgasse 26, 1060；Hristova 隶属于位于维也纳的 EANM 执行办公室。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_5"
+              },
+              {
+                "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Ivalina Hristova 是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "她的准确姓名和职务是什么？",
+            "answer": "官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "question": "EARL 首席科学官在组织中承担什么职责？",
+            "answer": "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。",
+            "citations": [
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "EARL 的认证项目覆盖哪些设备和领域？",
+            "answer": "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "EARL 与 EANM 是什么关系？",
+            "answer": "EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。",
+            "citations": [
+              {
+                "sourceId": "src_07ea7388da34245618636fae13401ec4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何联系她所在的机构？",
+            "answer": "EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。",
+            "citations": [
+              {
+                "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间",
+          "未检索到其本人署名的代表性论文或个人研究方向信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "7c676014fe40fc5b668efea513327c1584157acf7b0a779ab0845609ee4ee333",
+      "searches": [
+        {
+          "query": "Iva Hristova EANM",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+              "title": "Executive Office",
+              "snippet": "The EANM Executive Office supervises all EANM activities. Write to office@eanm.org for general inquiries. Ivalina Hristova Chief Scientific Officer"
+            },
+            {
+              "url": "https://www.linkedin.com/in/ivalina-hristova-bs-cnmt-rt-ct-15773b21",
+              "title": "Ivalina Hristova, BS, CNMT, RT(CT)",
+              "snippet": "Chief Scientific Officer at EANM Research Ltd. · Experience: EANM Forschungs GmbH (EARL) · Education: Radboud University Nijmegen · Location: ..."
+            },
+            {
+              "url": "https://www.facebook.com/officialEANM/posts/last-week-eanm-president-rudi-dierckx-and-earl-director-ivalina-hristova-had-the/1124060179721300/",
+              "title": "European Association of Nuclear Medicine - EANM",
+              "snippet": "Last week, EANM President Rudi Dierckx and EARL Director Ivalina Hristova had the pleasure of participating in the 64th Annual Scientific ..."
+            },
+            {
+              "url": "https://www.sciencedirect.com/journal/eanm-innovation/vol/2/suppl/C",
+              "title": "EANM Innovation | Vol 2, March 2026",
+              "snippet": "raising the standard of targeted radionuclide therapy care in Europe and beyond Iva Hristova, Daria Ferrara, European Association of Nuclear Medicine (EANM)."
+            },
+            {
+              "url": "https://www.linkedin.com/posts/ivalina-hristova-bs-cnmt-rt-ct-15773b21_eanm-nuclearmedicine-activity-7455229464956891136-bJSr",
+              "title": "Ivalina Hristova, BS, CNMT, RT(CT)'s Post",
+              "snippet": "Chief Scientific Officer at EANM Research Ltd. part of the 13th Balkan Congress of Nuclear Medicine in Sofia 🇧🇬. Chief Scientific Officer"
+            },
+            {
+              "url": "https://jnm.snmjournals.org/content/66/supplement_1/251783",
+              "title": "An EANM/EARL accreditation standard for quantitative Lu-177 ...",
+              "snippet": "The aim of this paper is to present an EANM/EARL accreditation standard for quantitative Lu-177 SPECT-CT imaging. Methods: Following the model ..."
+            },
+            {
+              "url": "https://www.researchgate.net/profile/Ivalina-Hristova",
+              "title": "Ivalina HRISTOVA | Research profile",
+              "snippet": "Ivalina Hristova · Ronald ... OP 50 Initial experience with the EANM accreditation procedure of FDG PET/CT devices."
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+              "title": "EANM Mentorship Programme",
+              "snippet": "Hristova, Ivalina, Technologist/Nurse/Radiogapher, (BG) ; Hyafil, Fabien, Nuclear Medicine Physician, (FR) ; Ivashchenko, Oleksandra, Medical Physicist, (NL)."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+          "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+          "title": "Executive Office – EANM",
+          "accessedAt": "2026-09-11T00:39:41.086Z",
+          "contentSha256": "0a8c9596897e0861728e8e3ff4357b386dddaf9dbc2629eb03c1927d00a95cea",
+          "untrustedText": "Executive Office – EANM\nSkip to main content\nmyEANM-Area\nMembership\nSearch for:\nNewsletters\nThe EANM\nCommunity\nThe EANM Community\nAbout us\nHistory\nMission\nWhat is Nuclear Medicine\nExecutive Office\nWork at EANM\nMembership\nOrganisation\nStatutes\nBoard\nPast Presidents\nCommittees\nCouncils\nMember Societies\nAssemblies\nOpportunities\nYoung Professionals\nMentorship Programme\nCalendar of Events\nCareer Opportunities\nGet Involved!\nInitiatives\nEARL\nWomen’s Empowerment\nINSPIRE by EANM\nCongress &\nScientific Events\nCongress & Scientific Events\nAnnual Congress\nEANM'26\nAwards\nBidding Requirements\nPast Congresses\nSustainability Plan\nFocus Meetings\nFocus Meeting 7\nPast Focus Meetings\nICNC\nInternational Conference on Nuclear Cardiology (ICNC)\nYoung Investigators Meeting\n2026 Edition\n2025 Edition\n2024 Edition\nJournals &\nPublications\nJournals & Publications\nJournals\nGeneral Information\nBecome a Reviewer\nThe EANM Journal\nEANM Innovation\nEANM Alavi-Carlsen Award\nGuidelines & Publications\nLatest Publications\nGuidelines\nOther Publications\nTechnologists’ Guide\nPosition Papers & Editorials\nEndorsed Publications\nAdvocacy Publications\nUseful Resources\nClinical Decision Support (CDS)\nEuropean Nuclear Medicine Guide\nPaediatric Dosage Calculator\nSurveys\nEducation\nEducation\nGet your dose of education and broaden your knowledge!\nLearning Opportunities\nEuropean School of Multimodality Imaging and Therapy (ESMIT)\nAD-LEARN\nRadioligand Therapy (RLT) Academy\nTrainings & Certifications\nUEMS/EBNM: Certificate of Fellowship of the European Board of Nuclear Medicine\nNuclear Cardiology Certification\nRadiopharmacy Certification\nTechnologists Benchmark Documents EQF\nYoung\nProfessionals\nYoung Professionals\nYoung Professionals\nYoung Professionals Council\nMentorship Programme\nLearning Opportunities\nCareer Opportunities\nYoung Investigators Meeting\nGet Involved!\nCongress Opportunities\nEANM Sanjiv Sam Gambhir Award\nEANM Young Authors Award\nYoung Professionals Lounge\nEANM Next-Gen Programme\nFuture Workforce\nINSPIRE by EANM\nEU & Global\nAffairs\nEU & Global Affairs\nPolicy\nVision & Mission\nRadiopharmaceuticals Regulatory Considerations\nSupply & Shortages of Radiopharmaceuticals\nRadiation Protection\nHealthcare Systems\nNuclear Medicine Workforce\nEU Projects\nOverview\nProjects\nTenders\nFunding Opportunities\nAdvocacy Publications\nEU Compass\nPosition Papers & Editorials\nPublic Consultations\nExternal Publications\nPartnerships\nPRAC\nPolicy Pulse\nEU Institutions\nPartner Societies\nRLT Angels\nCorporate Members\nFinancial Assessment\nContact Form\nPublic & Media\nRelations\nPublic & Media Relations\nDon't miss out—stay tuned and follow us!\nChannels\nSocial Media\nNewsletters\nPress Work\nPodcast\nLatest News\nAdvertising Opportunities\nEANM TV\nAbout us\nExecutive Office\nMeet our international office, based in Vienna.\nEANM\n/ The EANM Community\n/ About us\n/ Executive Office\nEANM Executive Office\nThe EANM Executive Office supervises all EANM activities and manages the coordination between the Board, the Committees, the Councils, and external entities.\nIf you need to reach out to us, please:\nWrite to office@eanm.org for general inquiries\nContact the relevant EANM staff member directly for specific requests\nExecutive Leadership\nHenrik Silber\nExecutive Director\nsend email\nAndreas Felser\nExecutive Director\nsend email\nStrategy Implementation\nSilvia Marchetti\nStrategy Implementation Director\nsend email\nNúria Serra Serra\nStrategy Implementation Director\nsend email\nAccounting & Human Resources\nBarbara Öffel\nHead of Accounting\nsend email\nZejnepe Memedi\nAccounting Manager\nsend email\nElke Orth\nJunior Accounting Manager\nsend email\nJutta Peter\nHead of Human Resources\nsend email\nAnnual Congress, Scientific Events & External Customer Management\nAndrea Csismazia\nHead of Scientific Events\nsend email\nEvelyn Mansutti\nScientific Events Manager\nsend email\nGracia Gallo\nScientific Events Manager\nsend email\nClemens Wadsak\nScientific Events Manager\nsend email\nAnastasiia Mishchanyn\nScientific Events Assistant\nsend email\nPetra Wurzinger\nHead of External Customer Management\nsend email\nAlexander Berger\nScientific Events, Sponsoring Acquisition, External Customer Manager\nsend email\nNina Felser\nExternal Customer Manager\nsend email\nJürgen Westenthaler\nJunior Scientific Events Manager\nsend email\nBoard Relations\nAline Abercrombie\nExecutive Assistant\nsend email\nCommunications & Press Relations\nTiphaine Trudelle\nHead of Communications\nsend email\nLauna Schöbinger-Hassve\nCommunications Manager\nsend email\nEliza Muto\nCommunications Manager\nsend email\nHelena Bates\nJunior Communications Manager\nsend email\nEARL\nIvalina Hristova\nChief Scientific Officer\nsend email\nRonald Boellaard\nPET/CT Scientific Advisor\nsend email\nAndres Kaalep\nEARL Freelance Data Analyst\nsend email\nPanayiotis Hadjitheodorou\nEARL Freelance Data Analyst\nsend email\nEducational Events & ESMIT\nSara Iglesias Rivas\nHead of Educational Events\nsend email\nNabila Ashri\nDeputy Head of Educational Events\nsend email\nLili Leitner\nEducational Events Manager\nsend email\nMiruna Bortoi\nJunior Educational Events Manager\nsend email\nTill Nonnenmacher\nEducational Events Assistant\nsend email\nEU Affairs & EU Projects\nAmélie de Martini\nHead of EU Affairs\nsend email\nMoritz Zieglmeier\nHead of EU Projects Management\nsend email\nMirka Kurčíková\nEU Policy & Projects Manager\nsend email\nDaria Ferrara\nEU Affairs Manager & Assistant to the Scientific Liaison Officer\nsend email\nMaja Barthelmess\nJunior Policy and Advocacy Affairs Manager\nsend email\nExternal Consulting\nLeonhard Schätz\nSenior Advisor for Strategic Partnerships & Development​\nsend email\nGovernance & Community Management\nIsabela Estrada\nHead of Governance & Community Management\nsend email\nAnnalee Sekulić\nGovernance & Community Manager\nsend email\nMaybeleen Wichers\nJunior Governance & Community Manager\nsend email\nKatharina Kortschak\nGovernance & Community - AI Projects Manager\nsend email\nElio Hashimoto\nGovernance & Community Manager\nsend email\nValeriia Klimetc\nGovernance & Community Manager - INSPIRE by EANM\nsend email\nGraphic Design\nFrançois Gustin\nBrand Manager\nsend email\nOlga Dogadina\nGraphics Project Manager\nsend email\nPetra Schröfl\nGraphics Project Manager\nsend email\nGuidelines, Journals & Publications\nSophie Karsai\nHead of Guidelines & Publications\nsend email\nEsther Pilla\nEditorial Manager (on maternity leave)\nNarcisa Fabian\nJunior Editorial Manager\nsend email\nHenar Alonso-Marcos\nGuidelines & Publications Manager\nsend email\nJulia Elorza\nJunior Guidelines & Publications Manager\nsend email\nOffice Management\nCassandra Krause\nOffice & Travel Manager\nsend email\nSign up for our newsletters\nSUBSCRIBE\nEANM is a non-profit organisation registered in Austria. By using this website, you agree to our Privacy Policy and Terms & Conditions.\n© Copyright 2026 European Association of Nuclear Medicine. All rights reserved worldwide.\nQUICK LINKS\nAbout us\nMission\nWhat is Nuclear Medicine?\nExecutive Office\nLEGAL\nImprint\nData privacy\nTerms & Conditions\nCONTACT\nEANM Executive Office\nSchmalzhofgasse 26\n1060 Vienna (Austria)\nPhone: +43 1 890 44 27\nFax: +43 1 890 44 27-9\nE-mail:\noffice@eanm.org\nFOLLOW US\n© 2026 European Association of Nuclear Medicine. All rights reserved.\nEnglish\nEnglish\nDeutsch\nEspañol\nFrançais\nItaliano\nPolski\nSvenska\nSuomi\nPortuguês\nRomână\nSlovenščina\nSlovenčina\nNederlands\nDansk\nΕλληνικά\nČeština\nMagyar\nLietuvių\nLatviešu\nEesti\nHrvatski\nGaeilge\nБългарски\nNorsk\nTürkçe\nBahasa Indonesia\nPortuguês (Brasil)\n日本語\n한국어\n简体中文\nالعربية\nРусский\nहिन्दी\nУкраїнська\nSrpski\nEnglish (UK)\nایران\nישראל\nМакедонија\nประเทศไทย\nViệt Nam\nAccessibility Adjustments\nPowered by\nOneTap\nHide Toolbar\nBack\nHow long do you want to hide the toolbar?\nHide Toolbar Duration\nOnly for this session\n24 hours\nA Week\nNot Now\nHide Toolbar\nSelect your accessibility profile\nVision Impaired Mode\nEnhances website's visuals\nSeizure Safe Profile\nClear flashes & reduces color\nADHD Friendly Mode\nFocused browsing, distraction-free\nBlindness Mode\nReduces distractions, improves focus\nEpilepsy Safe Mode\nDims colors and stops blinking\nContent Modules\nFont Size\n+\nDefault\n-\nHighlight Links\nLine Height\n+\nDefault\n-\nReadable Font\nCursor\nText Magnifier\nDyslexic Font\nAlign Text\nLetter Spacing\nFont Weight\nColor Modules\nDark Contrast\nLight Contrast\nHigh Contrast\nMonochrome\nSaturation\nOrientation Modules\nReading Line\nReading Mask\nBrowser needs to be updated\nYour browser doesn’t support speech output. Please update your browser or use one with speech synthesis enabled (e.g. Chrome, Edge, Safari).\nHow to Update?\nRead Page\nKeyboard Navigation\nHide Images\nMute Sounds\nHighlight Titles\nHighlight Content\nStop Animations\nReset Settings",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+              "text": "Skip to main content"
+            },
+            {
+              "url": "https://myeanm.eanm.org/auth/login",
+              "text": "myEANM-Area"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/membership/",
+              "text": "Membership"
+            },
+            {
+              "url": "https://eanm.org/media-relations/newsletters/",
+              "text": "Newsletters"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/",
+              "text": "About us"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/history/",
+              "text": "History"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/mission/",
+              "text": "Mission"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/what-is-nuclear-medicine/",
+              "text": "What is Nuclear Medicine"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+              "text": "Executive Office"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/work-at-eanm/",
+              "text": "Work at EANM"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/membership/",
+              "text": "Membership"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/",
+              "text": "Organisation"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/statutes/",
+              "text": "Statutes"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/board/",
+              "text": "Board"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/past-presidents/",
+              "text": "Past Presidents"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/committees/",
+              "text": "Committees"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/councils/",
+              "text": "Councils"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/member-societies/",
+              "text": "Member Societies"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/assemblies/",
+              "text": "Assemblies"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/",
+              "text": "Opportunities"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/",
+              "text": "Young Professionals"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+              "text": "Mentorship Programme"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/calendar-of-events/",
+              "text": "Calendar of Events"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/career-opportunities/",
+              "text": "Career Opportunities"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/get-involved/",
+              "text": "Get Involved!"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/initiatives/",
+              "text": "Initiatives"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/initiatives/womens-empowerment/",
+              "text": "Women’s Empowerment"
+            },
+            {
+              "url": "https://inspirebyeanm.org/",
+              "text": "INSPIRE by EANM"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/annual-congress/",
+              "text": "Annual Congress"
+            },
+            {
+              "url": "https://eanm26.eanm.org/",
+              "text": "EANM'26"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/congress-awards/",
+              "text": "Awards"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/annual-congress/bidding-requirements/",
+              "text": "Bidding Requirements"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/annual-congress/past-congresses/",
+              "text": "Past Congresses"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/annual-congress/sustainability-plan/",
+              "text": "Sustainability Plan"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/focus-meetings/",
+              "text": "Focus Meetings"
+            },
+            {
+              "url": "https://focusmeeting.eanm.org/",
+              "text": "Focus Meeting 7"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/focus-meetings/past-focus-meetings/",
+              "text": "Past Focus Meetings"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/icnc/",
+              "text": "ICNC"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/icnc/",
+              "text": "International Conference on Nuclear Cardiology (ICNC)"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/",
+              "text": "Young Investigators Meeting"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2026-edition/",
+              "text": "2026 Edition"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2025-edition/",
+              "text": "2025 Edition"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2024-edition/",
+              "text": "2024 Edition"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/",
+              "text": "Journals"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/",
+              "text": "General Information"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/become-a-reviewer/",
+              "text": "Become a Reviewer"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/the-eanm-journal/",
+              "text": "The EANM Journal"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/eanm-innovation/",
+              "text": "EANM Innovation"
+            },
+            {
+              "url": "https://eanm.org/publications/eanm-journals/eanm-alavi-carlsen-award/",
+              "text": "EANM Alavi-Carlsen Award"
+            },
+            {
+              "url": "https://eanm.org/publications/",
+              "text": "Guidelines & Publications"
+            },
+            {
+              "url": "https://eanm.org/publications/latest-publications/",
+              "text": "Latest Publications"
+            },
+            {
+              "url": "https://eanm.org/publications/guidelines/overview/",
+              "text": "Guidelines"
+            },
+            {
+              "url": "https://eanm.org/publications/other-publications/",
+              "text": "Other Publications"
+            },
+            {
+              "url": "https://eanm.org/publications/other-publications/technologists-guide/",
+              "text": "Technologists’ Guide"
+            },
+            {
+              "url": "https://eanm.org/publications/other-publications/position-papers-editorials/",
+              "text": "Position Papers & Editorials"
+            },
+            {
+              "url": "https://eanm.org/publications/other-publications/endorsed-publications/",
+              "text": "Endorsed Publications"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/advocacy-publications/",
+              "text": "Advocacy Publications"
+            },
+            {
+              "url": "https://eanm.org/publications/useful-resources/",
+              "text": "Useful Resources"
+            },
+            {
+              "url": "https://eanm.org/publications/useful-resources/clinical-decision-support/",
+              "text": "Clinical Decision Support (CDS)"
+            },
+            {
+              "url": "https://eanm.org/publications/useful-resources/nuclear-medicine-guide/",
+              "text": "European Nuclear Medicine Guide"
+            },
+            {
+              "url": "https://eanm.org/publications/useful-resources/paediatric-dosage-calculator/",
+              "text": "Paediatric Dosage Calculator"
+            },
+            {
+              "url": "https://eanm.org/publications/useful-resources/surveys/",
+              "text": "Surveys"
+            },
+            {
+              "url": "https://eanm.org/education/learning-opportunities/",
+              "text": "Learning Opportunities"
+            },
+            {
+              "url": "https://esmit.eanm.org/",
+              "text": "European School of Multimodality Imaging and Therapy (ESMIT)"
+            },
+            {
+              "url": "https://adlearn.eanm.org/",
+              "text": "AD-LEARN"
+            },
+            {
+              "url": "https://esmit.eanm.org/rlt-academy/",
+              "text": "Radioligand Therapy (RLT) Academy"
+            },
+            {
+              "url": "https://eanm.org/education/trainings-certifications/",
+              "text": "Trainings & Certifications"
+            },
+            {
+              "url": "https://uems.eanm.org/fellowship-examination/",
+              "text": "UEMS/EBNM: Certificate of Fellowship of the European Board of Nuclear Medicine"
+            },
+            {
+              "url": "https://esmit.eanm.org/nuclear-cardiology-certification/",
+              "text": "Nuclear Cardiology Certification"
+            },
+            {
+              "url": "https://esmit.eanm.org/radiopharmacy-certification/",
+              "text": "Radiopharmacy Certification"
+            },
+            {
+              "url": "https://eanm.org/education/trainings-certifications/technologists-benchmark-documents-eqf/",
+              "text": "Technologists Benchmark Documents EQF"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/",
+              "text": "Young Professionals"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/councils/",
+              "text": "Young Professionals Council"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+              "text": "Mentorship Programme"
+            },
+            {
+              "url": "https://eanm.org/education/learning-opportunities/",
+              "text": "Learning Opportunities"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/career-opportunities/",
+              "text": "Career Opportunities"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/",
+              "text": "Young Investigators Meeting"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/get-involved/",
+              "text": "Get Involved!"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/",
+              "text": "Congress Opportunities"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/congress-awards/eanm-sanjiv-sam-gambhir-award/",
+              "text": "EANM Sanjiv Sam Gambhir Award"
+            },
+            {
+              "url": "https://eanm.org/congress-scientific-events/congress-awards/eanm-young-authors-award/",
+              "text": "EANM Young Authors Award"
+            },
+            {
+              "url": "https://eanm26.eanm.org/young-professionals-lounge/",
+              "text": "Young Professionals Lounge"
+            },
+            {
+              "url": "https://eanm26.eanm.org/the-next-gen-programme/",
+              "text": "EANM Next-Gen Programme"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/initiatives/inspire-by-eanm/",
+              "text": "Future Workforce"
+            },
+            {
+              "url": "https://inspirebyeanm.org/",
+              "text": "INSPIRE by EANM"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/",
+              "text": "Policy"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/vision-mission/",
+              "text": "Vision & Mission"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/radiopharmaceuticals-regulatory-considerations/",
+              "text": "Radiopharmaceuticals Regulatory Considerations"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/supply-and-shortages-of-radiopharmaceuticals/",
+              "text": "Supply & Shortages of Radiopharmaceuticals"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/radiation-protection/",
+              "text": "Radiation Protection"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/healthcare-systems/",
+              "text": "Healthcare Systems"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/policy/nuclear-medicine-workforce/",
+              "text": "Nuclear Medicine Workforce"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/eu-projects/overview/",
+              "text": "Overview"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/eu-projects/projects/",
+              "text": "Projects"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/eu-projects/tenders/",
+              "text": "Tenders"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/eu-projects/open-calls/",
+              "text": "Funding Opportunities"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/advocacy-publications/",
+              "text": "Advocacy Publications"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/newsletters/",
+              "text": "EU Compass"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/advocacy-publications/position-papers-editorials/",
+              "text": "Position Papers & Editorials"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/advocacy-publications/public-consultations/",
+              "text": "Public Consultations"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/advocacy-publications/external-publications/",
+              "text": "External Publications"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/",
+              "text": "Partnerships"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/prac/",
+              "text": "PRAC"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/policy-pulse/",
+              "text": "Policy Pulse"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/eu-institutions/",
+              "text": "EU Institutions"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/partner-societies/",
+              "text": "Partner Societies"
+            },
+            {
+              "url": "https://rlt-angels.com/",
+              "text": "RLT Angels"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/corporate-members/",
+              "text": "Corporate Members"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/financial-assessment/",
+              "text": "Financial Assessment"
+            },
+            {
+              "url": "https://eanm.org/eu-global-affairs/partnerships/contact-form/",
+              "text": "Contact Form"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/",
+              "text": "Channels"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/social-media/",
+              "text": "Social Media"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/newsletters/",
+              "text": "Newsletters"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/press-work/",
+              "text": "Press Work"
+            },
+            {
+              "url": "https://eanm.org/public-and-media-relations/podcast/",
+              "text": "Podcast"
+            },
+            {
+              "url": "https://eanm.org/latestnews/",
+              "text": "Latest News"
+            },
+            {
+              "url": "https://eanm.org/advertising-opportunities/",
+              "text": "Advertising Opportunities"
+            },
+            {
+              "url": "https://youtube.com/playlist?list=PLuCRB1E3sSyTJnfMlo27gd-9FpxQM3hly&si=gZVJJ_jvXwineaSO",
+              "text": "EANM TV"
+            },
+            {
+              "url": "https://eanm.org/",
+              "text": "EANM"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/",
+              "text": "The EANM Community"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/",
+              "text": "About us"
+            },
+            {
+              "url": "https://eanm.org/media-relations/newsletters/",
+              "text": "SUBSCRIBE"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/",
+              "text": "About us"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/mission/",
+              "text": "Mission"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/what-is-nuclear-medicine/",
+              "text": "What is Nuclear Medicine?"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+              "text": "Executive Office"
+            },
+            {
+              "url": "https://eanm.org/imprint/",
+              "text": "Imprint"
+            },
+            {
+              "url": "https://eanm.org/data-privacy/",
+              "text": "Data privacy"
+            },
+            {
+              "url": "https://eanm.org/terms-and-conditions/",
+              "text": "Terms & Conditions"
+            },
+            {
+              "url": "https://wponetap.com/?utm_source=frontend-link&utm_medium=link&utm_campaign=ref-link-toolbar",
+              "text": "OneTap"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+              "text": "How to Update?"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_07ea7388da34245618636fae13401ec4",
+          "url": "https://earl.eanm.org/",
+          "title": "EANM EARL – Research4Life – EARL – Research4Life",
+          "accessedAt": "2026-09-11T00:39:49.059Z",
+          "contentSha256": "ab505d0227c796338c990f500a4875c9e1eea31f581bf77a65be1c62eabe3b5d",
+          "untrustedText": "EANM EARL – Research4Life – EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nAbout EARL​\nThe European Association of Nuclear Medicine ( EANM ), with its central role in the scientific community and its professional setup, today constitutes the umbrella organisation for nuclear medicine in Europe. In 2006, the leadership of the EANM launched EANM Forschungs GmbH (EARL) as an initiative to promote multicentre nuclear medicine and research .\nEARL was created to unleash the power of molecular imaging and further:\nTo act as a contact point for researchers as well as for clinicians and business leaders\nTo provide basis for discussion and the exchange of cutting edge ideas\nTo improve nuclear medicine and its practice\nEARL can accredit your PET/CT scanner\nTo give a platform for the efficient pursuit of\nscientific initiatives\nTo enhance the comparability\nof data acquired by molecular imaging\nTo boost molecular imaging so that it becomes\na standard diagnostic modality in future clinical medicine and research\nTo position nuclear medicine within the\nEU research agenda\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://www.eanm.org/",
+              "text": "EANM"
+            },
+            {
+              "url": "https://www.eanm.org/",
+              "text": "EANM"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "Home"
+            },
+            {
+              "url": "https://earl.eanm.org/about-earl-2/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://eanm.org/",
+              "text": "© European Association of Nuclear Medicine Schmalzhofgasse 26, 1060 Vienna I Austria"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "Back to Top"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+          "url": "https://earl.eanm.org/contacts/",
+          "title": "Contacts – EANM EARL – Research4Life",
+          "accessedAt": "2026-09-11T00:39:52.587Z",
+          "contentSha256": "443623705cf500a6f27cfa57ae071afedc582cf4e96838acff15b7d40c01b4e8",
+          "untrustedText": "Contacts – EANM EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nContact us\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nPhone: +43 (0) 1 890 33 27\nE-Mail: earl@eanm.org\nEditorial Office\nEuropean Association of Nuclear Medicine (EANM)\nSchmalzhofgasse 26\n1060 Vienna, Austria\nE-Mail: office@eanm.org\nLegal and Fiscal Framework\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "Home"
+            },
+            {
+              "url": "https://earl.eanm.org/about-earl-2/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://eanm.org/",
+              "text": "© European Association of Nuclear Medicine Schmalzhofgasse 26, 1060 Vienna I Austria"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Back to Top"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+          "url": "https://earl.eanm.org/organisational-structure/",
+          "title": "Organisational Structure – EANM EARL – Research4Life",
+          "accessedAt": "2026-09-11T00:39:57.314Z",
+          "contentSha256": "4b2f091aa3c1cc24906f313e1956a4bf46aab93bd556372c840f48b67ed3cb8f",
+          "untrustedText": "Organisational Structure – EANM EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nOrganisational\nStructure\nEARL is an in Austria registered GmbH and a 100% daughter of the EANM non-profit Association.\nIt has one CEO, who constantly reports to the EANM Board .\nWithin the EANM Board the Scientific Liaison Officer is per EANM statutes the responsible for the activities of EARL.\nOne chief scientific officer oversees and coordinates the EARL projects and teams, and reports to the CEO.\nPhysicists, physicians and scientists from leading European institutions , together with EANM support, ensure the expertise and authority of EARL.\nEARL provides scientific support through the Scientific Advisory Board , where high-ranking experts in nuclear medicine provide leadership on scientific questions .\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://earl.eanm.org/earl/",
+              "text": "EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Organisational Structure"
+            },
+            {
+              "url": "https://earl.eanm.org/testimonials/",
+              "text": "Testimonials"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/about/",
+              "text": "About"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-process-timelines/",
+              "text": "Accreditation process / timelines"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-specifications/",
+              "text": "Accreditation specifications"
+            },
+            {
+              "url": "https://earl.eanm.org/fees/",
+              "text": "Fees"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+              "text": "18 F PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+              "text": "Brain PET/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+              "text": "68 Ga PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+              "text": "89 Zr PET/CT | PET/MR"
+            },
+            {
+              "url": "https://earl.eanm.org/177lu-spect-ct/",
+              "text": "177 Lu SPECT/CT"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+              "text": "PET/CT | PET/MR Accreditation enrollment form"
+            },
+            {
+              "url": "https://earl.eanm.org/online-box/",
+              "text": "Online Box"
+            },
+            {
+              "url": "https://earl.eanm.org/nema-phantom-video/",
+              "text": "Phantom Videos"
+            },
+            {
+              "url": "https://earl.eanm.org/centres-of-excellence-network/",
+              "text": "Centres of Excellence network"
+            },
+            {
+              "url": "https://earl.eanm.org/coe-clinical-studies/",
+              "text": "CoE clinical studies"
+            },
+            {
+              "url": "https://earl.eanm.org/webinar/",
+              "text": "Webinars"
+            },
+            {
+              "url": "https://earl.eanm.org/guidelines-and-publications/",
+              "text": "Guidelines and publications"
+            },
+            {
+              "url": "https://earl.eanm.org/theranostics/",
+              "text": "Theranostics"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-about/",
+              "text": "About SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/expert-auditors/",
+              "text": "Expert Auditors"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports/",
+              "text": "Available Audit Reports"
+            },
+            {
+              "url": "https://earl.eanm.org/abx-2023/",
+              "text": "ABX"
+            },
+            {
+              "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+              "text": "GE Healthcare"
+            },
+            {
+              "url": "https://earl.eanm.org/upcoming-audits/",
+              "text": "Upcoming Audits"
+            },
+            {
+              "url": "https://earl.eanm.org/audit-report-order-form/",
+              "text": "Audit report order form"
+            },
+            {
+              "url": "https://earl.eanm.org/faq/",
+              "text": "FAQ"
+            },
+            {
+              "url": "https://earl.eanm.org/eu-projects/",
+              "text": "EU Projects"
+            },
+            {
+              "url": "https://earl.eanm.org/simplerad/",
+              "text": "SIMPLERAD"
+            },
+            {
+              "url": "https://earl.eanm.org/consortium/",
+              "text": "Consortium"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board/",
+              "text": "Advisory Board"
+            },
+            {
+              "url": "https://earl.eanm.org/work-packages/",
+              "text": "Work packages"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-programme/",
+              "text": "Workshop Programme"
+            },
+            {
+              "url": "https://earl.eanm.org/workshop-sessions-review/",
+              "text": "Workshop Sessions review"
+            },
+            {
+              "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+              "text": "Final Report"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://www.eanm.org/",
+              "text": "EANM"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/board/",
+              "text": "EANM Board"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/board/",
+              "text": "EANM Board"
+            },
+            {
+              "url": "https://eanm.org/the-eanm-community/organisation/statutes/",
+              "text": "EANM statutes"
+            },
+            {
+              "url": "https://www.eanm.org/",
+              "text": "EANM"
+            },
+            {
+              "url": "https://earl.eanm.org/",
+              "text": "Home"
+            },
+            {
+              "url": "https://earl.eanm.org/about-earl-2/",
+              "text": "About EARL"
+            },
+            {
+              "url": "https://earl.eanm.org/accreditation/",
+              "text": "Accreditation"
+            },
+            {
+              "url": "https://earl.eanm.org/sasai-2/",
+              "text": "SASAI"
+            },
+            {
+              "url": "https://earl.eanm.org/contacts/",
+              "text": "Contacts"
+            },
+            {
+              "url": "https://eanm.org/",
+              "text": "© European Association of Nuclear Medicine Schmalzhofgasse 26, 1060 Vienna I Austria"
+            },
+            {
+              "url": "https://earl.eanm.org/organisational-structure/",
+              "text": "Back to Top"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://eanm.org/the-eanm-community/about-us/executive-office/": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+        "https://earl.eanm.org/": "https://earl.eanm.org/",
+        "https://earl.eanm.org/contacts/": "https://earl.eanm.org/contacts/",
+        "https://earl.eanm.org/organisational-structure/": "https://earl.eanm.org/organisational-structure/"
+      },
+      "pageRequests": 4,
+      "modelCalls": 7,
+      "allowedUrls": [
+        "https://eanm.org/the-eanm-community/about-us/executive-office/",
+        "https://www.linkedin.com/in/ivalina-hristova-bs-cnmt-rt-ct-15773b21",
+        "https://www.facebook.com/officialEANM/posts/last-week-eanm-president-rudi-dierckx-and-earl-director-ivalina-hristova-had-the/1124060179721300/",
+        "https://www.sciencedirect.com/journal/eanm-innovation/vol/2/suppl/C",
+        "https://www.linkedin.com/posts/ivalina-hristova-bs-cnmt-rt-ct-15773b21_eanm-nuclearmedicine-activity-7455229464956891136-bJSr",
+        "https://jnm.snmjournals.org/content/66/supplement_1/251783",
+        "https://www.researchgate.net/profile/Ivalina-Hristova",
+        "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+        "https://earl.eanm.org/",
+        "https://earl.eanm.org/contacts/",
+        "https://earl.eanm.org/organisational-structure/"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "Iva Hristova EANM",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+                "title": "Executive Office",
+                "snippet": "The EANM Executive Office supervises all EANM activities. Write to office@eanm.org for general inquiries. Ivalina Hristova Chief Scientific Officer"
+              },
+              {
+                "url": "https://www.linkedin.com/in/ivalina-hristova-bs-cnmt-rt-ct-15773b21",
+                "title": "Ivalina Hristova, BS, CNMT, RT(CT)",
+                "snippet": "Chief Scientific Officer at EANM Research Ltd. · Experience: EANM Forschungs GmbH (EARL) · Education: Radboud University Nijmegen · Location: ..."
+              },
+              {
+                "url": "https://www.facebook.com/officialEANM/posts/last-week-eanm-president-rudi-dierckx-and-earl-director-ivalina-hristova-had-the/1124060179721300/",
+                "title": "European Association of Nuclear Medicine - EANM",
+                "snippet": "Last week, EANM President Rudi Dierckx and EARL Director Ivalina Hristova had the pleasure of participating in the 64th Annual Scientific ..."
+              },
+              {
+                "url": "https://www.sciencedirect.com/journal/eanm-innovation/vol/2/suppl/C",
+                "title": "EANM Innovation | Vol 2, March 2026",
+                "snippet": "raising the standard of targeted radionuclide therapy care in Europe and beyond Iva Hristova, Daria Ferrara, European Association of Nuclear Medicine (EANM)."
+              },
+              {
+                "url": "https://www.linkedin.com/posts/ivalina-hristova-bs-cnmt-rt-ct-15773b21_eanm-nuclearmedicine-activity-7455229464956891136-bJSr",
+                "title": "Ivalina Hristova, BS, CNMT, RT(CT)'s Post",
+                "snippet": "Chief Scientific Officer at EANM Research Ltd. part of the 13th Balkan Congress of Nuclear Medicine in Sofia 🇧🇬. Chief Scientific Officer"
+              },
+              {
+                "url": "https://jnm.snmjournals.org/content/66/supplement_1/251783",
+                "title": "An EANM/EARL accreditation standard for quantitative Lu-177 ...",
+                "snippet": "The aim of this paper is to present an EANM/EARL accreditation standard for quantitative Lu-177 SPECT-CT imaging. Methods: Following the model ..."
+              },
+              {
+                "url": "https://www.researchgate.net/profile/Ivalina-Hristova",
+                "title": "Ivalina HRISTOVA | Research profile",
+                "snippet": "Ivalina Hristova · Ronald ... OP 50 Initial experience with the EANM accreditation procedure of FDG PET/CT devices."
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+                "title": "EANM Mentorship Programme",
+                "snippet": "Hristova, Ivalina, Technologist/Nurse/Radiogapher, (BG) ; Hyafil, Fabien, Nuclear Medicine Physician, (FR) ; Ivashchenko, Oleksandra, Medical Physicist, (NL)."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+            "title": "Executive Office – EANM",
+            "offset": 3073,
+            "total_characters": 8579,
+            "citation_passages": [
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "s\nPRAC\nPolicy Pulse\nEU Institutions\nPartner Societies\nRLT Angels\nCorporate Members\nFinancial Assessment\nContact Form\nPublic & Media\nRelations\nPublic & Media Relations\nDon't miss out—stay tuned and follow us!\nChannels\nSocial Media\nNewsletters\nPress Work\nPodcast\nLatest News\nAdvertising Opportunities\nEANM TV\nAbout us\nExecutive Office\nMeet our international office, based in Vienna.\nEANM\n/ The EANM Community\n/ About us\n/ Executive Office\nEANM Executive Office\nThe EANM Executive Office supervises all EANM activities and manages the coordination between the Board, the Committees, the Councils, and external entities.\nIf you need to reach out to us, please:\nWrite to office@eanm.org for general inquiries\nContact the relevant EANM staff member directly for specific requests\nExecutive Leadership\nHenrik Silber\nExecutive Director\nsend email\nAndreas Felser\nExecutive Director\nsend email\nStrategy Implementation\nSilvia Marchetti\nStrategy Implementation Director\nsend email\nNúria Serra Serra\nStrategy Implementation Director\nsend email\nAccounting & Human Resources\nBarbara Öffel\nHead of Accounting\nsend email\nZejnepe Memedi\nAccounting Manager\nsend email\nElke Orth\nJunior Accounting Manager\nsend email\nJutt"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "a Peter\nHead of Human Resources\nsend email\nAnnual Congress, Scientific Events & External Customer Management\nAndrea Csismazia\nHead of Scientific Events\nsend email\nEvelyn Mansutti\nScientific Events Manager\nsend email\nGracia Gallo\nScientific Events Manager\nsend email\nClemens Wadsak\nScientific Events Manager\nsend email\nAnastasiia Mishchanyn\nScientific Events Assistant\nsend email\nPetra Wurzinger\nHead of External Customer Management\nsend email\nAlexander Berger\nScientific Events, Sponsoring Acquisition, External Customer Manager\nsend email\nNina Felser\nExternal Customer Manager\nsend email\nJürgen Westenthaler\nJunior Scientific Events Manager\nsend email\nBoard Relations\nAline Abercrombie\nExecutive Assistant\nsend email\nCommunications & Press Relations\nTiphaine Trudelle\nHead of Communications\nsend email\nLauna Schöbinger-Hassve\nCommunications Manager\nsend email\nEliza Muto\nCommunications Manager\nsend email\nHelena Bates\nJunior Communications Manager\nsend email\nEARL\nIvalina Hristova\nChief Scientific Officer\nsend email\nRonald Boellaard\nPET/CT Scientific Advisor\nsend email\nAndres Kaalep\nEARL Freelance Data Analyst\nsend email\nPanayiotis Hadjitheodorou\nEARL Freelance Data Analyst\nsend email\nEducationa"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "l Events & ESMIT\nSara Iglesias Rivas\nHead of Educational Events\nsend email\nNabila Ashri\nDeputy Head of Educational Events\nsend email\nLili Leitner\nEducational Events Manager\nsend email\nMiruna Bortoi\nJunior Educational Events Manager\nsend email\nTill Nonnenmacher\nEducational Events Assistant\nsend email\nEU Affairs & EU Projects\nAmélie de Martini\nHead of EU Affairs\nsend email\nMoritz Zieglmeier\nHead of EU Projects Management\nsend email\nMirka Kurčíková\nEU Policy & Projects Manager\nsend email\nDaria Ferrara\nEU Affairs Manager & Assistant to the Scientific Liaison Officer\nsend email\nMaja Barthelmess\nJunior Policy and Advocacy Affairs Manager\nsend email\nExternal Consulting\nLeonhard Schätz\nSenior Advisor for Strategic Partnerships & Development​\nsend email\nGovernance & Community Management\nIsabela Estrada\nHead of Governance & Community Management\nsend email\nAnnalee Sekulić\nGovernance & Community Manager\nsend email\nMaybeleen Wichers\nJunior Governance & Community Manager\nsend email\nKatharina Kortschak\nGovernance & Community - AI Projects Manager\nsend email\nElio Hashimoto\nGovernance & Community Manager\nsend email\nValeriia Klimetc\nGovernance & Community Manager - INSPIRE by EANM\nsend email\nGraphic"
+              },
+              {
+                "passageId": "text_5",
+                "offset": 6000,
+                "quote": " Design\nFrançois Gustin\nBrand Manager\nsend email\nOlga Dogadina\nGraphics Project Manager\nsend email\nPetra Schröfl\nGraphics Project Manager\nsend email\nGuidelines, Journals & Publications\nSophie Karsai\nHead of Guidelines & Publications\nsend email\nEsther Pilla\nEditorial Manager (on maternity leave)\nNarcisa Fabian\nJunior Editorial Manager\nsend email\nHenar Alonso-Marcos\nGuidelines & Publications Manager\nsend email\nJulia Elorza\nJunior Guidelines & Publications Manager\nsend email\nOffice Management\nCassandra Krause\nOffice & Travel Manager\nsend email\nSign up for our newsletters\nSUBSCRIBE\nEANM is a non-profit organisation registered in Austria. By using this website, you agree to our Privacy Policy and Terms & Conditions.\n© Copyright 2026 European Association of Nuclear Medicine. All rights reserved worldwide.\nQUICK LINKS\nAbout us\nMission\nWhat is Nuclear Medicine?\nExecutive Office\nLEGAL\nImprint\nData privacy\nTerms & Conditions\nCONTACT\nEANM Executive Office\nSchmalzhofgasse 26\n1060 Vienna (Austria)\nPhone: +43 1 890 44 27\nFax: +43 1 890 44 27-9\nE-mail:\noffice@eanm.org\nFOLLOW US\n© 2026 European Association of Nuclear Medicine. All rights reserved.\nEnglish\nEnglish\nDeutsch\nEspañol\nFrançais\nItaliano\n"
+              },
+              {
+                "passageId": "text_6",
+                "offset": 7200,
+                "quote": "Polski\nSvenska\nSuomi\nPortuguês\nRomână\nSlovenščina\nSlovenčina\nNederlands\nDansk\nΕλληνικά\nČeština\nMagyar\nLietuvių\nLatviešu\nEesti\nHrvatski\nGaeilge\nБългарски\nNorsk\nTürkçe\nBahasa Indonesia\nPortuguês (Brasil)\n日本語\n한국어\n简体中文\nالعربية\nРусский\nहिन्दी\nУкраїнська\nSrpski\nEnglish (UK)\nایران\nישראל\nМакедонија\nประเทศไทย\nViệt Nam\nAccessibility Adjustments\nPowered by\nOneTap\nHide Toolbar\nBack\nHow long do you want to hide the toolbar?\nHide Toolbar Duration\nOnly for this session\n24 hours\nA Week\nNot Now\nHide Toolbar\nSelect your accessibility profile\nVision Impaired Mode\nEnhances website's visuals\nSeizure Safe Profile\nClear flashes & reduces color\nADHD Friendly Mode\nFocused browsing, distraction-free\nBlindness Mode\nReduces distractions, improves focus\nEpilepsy Safe Mode\nDims colors and stops blinking\nContent Modules\nFont Size\n+\nDefault\n-\nHighlight Links\nLine Height\n+\nDefault\n-\nReadable Font\nCursor\nText Magnifier\nDyslexic Font\nAlign Text\nLetter Spacing\nFont Weight\nColor Modules\nDark Contrast\nLight Contrast\nHigh Contrast\nMonochrome\nSaturation\nOrientation Modules\nReading Line\nReading Mask\nBrowser needs to be updated\nYour browser doesn’t support speech output. Please update your browser or use one with speech sy"
+              },
+              {
+                "passageId": "text_7",
+                "offset": 8400,
+                "quote": "nthesis enabled (e.g. Chrome, Edge, Safari).\nHow to Update?\nRead Page\nKeyboard Navigation\nHide Images\nMute Sounds\nHighlight Titles\nHighlight Content\nStop Animations\nReset Settings"
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+            "links": [
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+                "text": "Skip to main content"
+              },
+              {
+                "url": "https://myeanm.eanm.org/auth/login",
+                "text": "myEANM-Area"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/membership/",
+                "text": "Membership"
+              },
+              {
+                "url": "https://eanm.org/media-relations/newsletters/",
+                "text": "Newsletters"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/",
+                "text": "About us"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/history/",
+                "text": "History"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/mission/",
+                "text": "Mission"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/what-is-nuclear-medicine/",
+                "text": "What is Nuclear Medicine"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+                "text": "Executive Office"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/work-at-eanm/",
+                "text": "Work at EANM"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/about-us/membership/",
+                "text": "Membership"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/",
+                "text": "Organisation"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/statutes/",
+                "text": "Statutes"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/board/",
+                "text": "Board"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/past-presidents/",
+                "text": "Past Presidents"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/committees/",
+                "text": "Committees"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/councils/",
+                "text": "Councils"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/member-societies/",
+                "text": "Member Societies"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/assemblies/",
+                "text": "Assemblies"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/",
+                "text": "Opportunities"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/",
+                "text": "Young Professionals"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/",
+                "text": "Mentorship Programme"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/calendar-of-events/",
+                "text": "Calendar of Events"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/opportunities/career-opportunities/",
+                "text": "Career Opportunities"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/organisation/get-involved/",
+                "text": "Get Involved!"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/initiatives/",
+                "text": "Initiatives"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://eanm.org/the-eanm-community/initiatives/womens-empowerment/",
+                "text": "Women’s Empowerment"
+              },
+              {
+                "url": "https://inspirebyeanm.org/",
+                "text": "INSPIRE by EANM"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/annual-congress/",
+                "text": "Annual Congress"
+              },
+              {
+                "url": "https://eanm26.eanm.org/",
+                "text": "EANM'26"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/congress-awards/",
+                "text": "Awards"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/annual-congress/bidding-requirements/",
+                "text": "Bidding Requirements"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/annual-congress/past-congresses/",
+                "text": "Past Congresses"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/annual-congress/sustainability-plan/",
+                "text": "Sustainability Plan"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/focus-meetings/",
+                "text": "Focus Meetings"
+              },
+              {
+                "url": "https://focusmeeting.eanm.org/",
+                "text": "Focus Meeting 7"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/focus-meetings/past-focus-meetings/",
+                "text": "Past Focus Meetings"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/icnc/",
+                "text": "ICNC"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/icnc/",
+                "text": "International Conference on Nuclear Cardiology (ICNC)"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/",
+                "text": "Young Investigators Meeting"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2026-edition/",
+                "text": "2026 Edition"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2025-edition/",
+                "text": "2025 Edition"
+              },
+              {
+                "url": "https://eanm.org/congress-scientific-events/young-investigators-meeting/2024-edition/",
+                "text": "2024 Edition"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/",
+                "text": "Journals"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/",
+                "text": "General Information"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/become-a-reviewer/",
+                "text": "Become a Reviewer"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/the-eanm-journal/",
+                "text": "The EANM Journal"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/eanm-innovation/",
+                "text": "EANM Innovation"
+              },
+              {
+                "url": "https://eanm.org/publications/eanm-journals/eanm-alavi-carlsen-award/",
+                "text": "EANM Alavi-Carlsen Award"
+              },
+              {
+                "url": "https://eanm.org/publications/",
+                "text": "Guidelines & Publications"
+              },
+              {
+                "url": "https://eanm.org/publications/latest-publications/",
+                "text": "Latest Publications"
+              },
+              {
+                "url": "https://eanm.org/publications/guidelines/overview/",
+                "text": "Guidelines"
+              },
+              {
+                "url": "https://eanm.org/publications/other-publications/",
+                "text": "Other Publications"
+              },
+              {
+                "url": "https://eanm.org/publications/other-publications/technologists-guide/",
+                "text": "Technologists’ Guide"
+              },
+              {
+                "url": "https://eanm.org/publications/other-publications/position-papers-editorials/",
+                "text": "Position Papers & Editorials"
+              },
+              {
+                "url": "https://eanm.org/publications/other-publications/endorsed-publications/",
+                "text": "Endorsed Publications"
+              },
+              {
+                "url": "https://eanm.org/eu-global-affairs/advocacy-publications/",
+                "text": "Advocacy Publications"
+              },
+              {
+                "url": "https://eanm.org/publications/useful-resources/",
+                "text": "Useful Resources"
+              },
+              {
+                "url": "https://eanm.org/publications/useful-resources/clinical-decision-support/",
+                "text": "Clinical Decision Support (CDS)"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 133
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_07ea7388da34245618636fae13401ec4",
+            "title": "EANM EARL – Research4Life – EARL – Research4Life",
+            "offset": 0,
+            "total_characters": 2667,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "EANM EARL – Research4Life – EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming "
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nAbout EARL​\nThe European Association of Nuclear Medicine ( EANM ), with its central role in the scientific community and its professional setup, today constitutes the umbrella organisation for nuclear medicine in Europe. In 2006, the leadership of the EANM launched EANM Forschungs GmbH (EARL) as an initiative to promote multicentre nuclear medicine and research .\nEARL was created to unleash the power of molecular imaging and further:\nTo act as a contact point for researchers as well as for clinicians and business leaders\nTo provide basis for discussion and the exchange of cutting edge ideas\nTo improve nuclear medicine and its practice\nEARL can accredit your PET/CT scanner\nTo give a platform for the efficient pursuit of\nscientific initiatives\nTo enhance the comparability\nof data acquired by molecular imaging\nTo boost molecular imaging so that it becomes\na standard diagnostic modality in future clinical medicine and research\nTo position nuclear medicine within the\nEU research agenda\nHome\nAbout EARL\nAccreditation\nSASAI\nConta"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "cts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top"
+              }
+            ],
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://earl.eanm.org/",
+            "links": [
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              },
+              {
+                "url": "https://earl.eanm.org/guidelines-and-publications/",
+                "text": "Guidelines and publications"
+              },
+              {
+                "url": "https://earl.eanm.org/theranostics/",
+                "text": "Theranostics"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-2/",
+                "text": "SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-about/",
+                "text": "About SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/expert-auditors/",
+                "text": "Expert Auditors"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports/",
+                "text": "Available Audit Reports"
+              },
+              {
+                "url": "https://earl.eanm.org/abx-2023/",
+                "text": "ABX"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+                "text": "GE Healthcare"
+              },
+              {
+                "url": "https://earl.eanm.org/upcoming-audits/",
+                "text": "Upcoming Audits"
+              },
+              {
+                "url": "https://earl.eanm.org/audit-report-order-form/",
+                "text": "Audit report order form"
+              },
+              {
+                "url": "https://earl.eanm.org/faq/",
+                "text": "FAQ"
+              },
+              {
+                "url": "https://earl.eanm.org/eu-projects/",
+                "text": "EU Projects"
+              },
+              {
+                "url": "https://earl.eanm.org/simplerad/",
+                "text": "SIMPLERAD"
+              },
+              {
+                "url": "https://earl.eanm.org/consortium/",
+                "text": "Consortium"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board/",
+                "text": "Advisory Board"
+              },
+              {
+                "url": "https://earl.eanm.org/work-packages/",
+                "text": "Work packages"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-programme/",
+                "text": "Workshop Programme"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-sessions-review/",
+                "text": "Workshop Sessions review"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+                "text": "Final Report"
+              },
+              {
+                "url": "https://earl.eanm.org/contacts/",
+                "text": "Contacts"
+              },
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 89
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_c9fb32ef73a1f0733132bab36ba54bef",
+            "title": "Contacts – EANM EARL – Research4Life",
+            "offset": 0,
+            "total_characters": 2042,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Contacts – EANM EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": " report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nContact us\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nPhone: +43 (0) 1 890 33 27\nE-Mail: earl@eanm.org\nEditorial Office\nEuropean Association of Nuclear Medicine (EANM)\nSchmalzhofgasse 26\n1060 Vienna, Austria\nE-Mail: office@eanm.org\nLegal and Fiscal Framework\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://earl.eanm.org/contacts/",
+            "links": [
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              },
+              {
+                "url": "https://earl.eanm.org/guidelines-and-publications/",
+                "text": "Guidelines and publications"
+              },
+              {
+                "url": "https://earl.eanm.org/theranostics/",
+                "text": "Theranostics"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-2/",
+                "text": "SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-about/",
+                "text": "About SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/expert-auditors/",
+                "text": "Expert Auditors"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports/",
+                "text": "Available Audit Reports"
+              },
+              {
+                "url": "https://earl.eanm.org/abx-2023/",
+                "text": "ABX"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+                "text": "GE Healthcare"
+              },
+              {
+                "url": "https://earl.eanm.org/upcoming-audits/",
+                "text": "Upcoming Audits"
+              },
+              {
+                "url": "https://earl.eanm.org/audit-report-order-form/",
+                "text": "Audit report order form"
+              },
+              {
+                "url": "https://earl.eanm.org/faq/",
+                "text": "FAQ"
+              },
+              {
+                "url": "https://earl.eanm.org/eu-projects/",
+                "text": "EU Projects"
+              },
+              {
+                "url": "https://earl.eanm.org/simplerad/",
+                "text": "SIMPLERAD"
+              },
+              {
+                "url": "https://earl.eanm.org/consortium/",
+                "text": "Consortium"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board/",
+                "text": "Advisory Board"
+              },
+              {
+                "url": "https://earl.eanm.org/work-packages/",
+                "text": "Work packages"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-programme/",
+                "text": "Workshop Programme"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-sessions-review/",
+                "text": "Workshop Sessions review"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+                "text": "Final Report"
+              },
+              {
+                "url": "https://earl.eanm.org/contacts/",
+                "text": "Contacts"
+              },
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 87
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+            "title": "Organisational Structure – EANM EARL – Research4Life",
+            "offset": 0,
+            "total_characters": 2390,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Organisational Structure – EANM EARL – Research4Life\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcoming Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nEARL\nAbout EARL\nOrganisational Structure\nTestimonials\nAccreditation\nAbout\nAccreditation process / timelines\nAccreditation specifications\nFees\n18 F PET/CT | PET/MR\nBrain PET/CT\n68 Ga PET/CT | PET/MR\n89 Zr PET/CT | PET/MR\n177 Lu SPECT/CT\nPET/CT | PET/MR Accreditation enrollment form\nOnline Box\nPhantom Videos\nCentres of Excellence network\nCoE clinical studies\nWebinars\nGuidelines and publications\nTheranostics\nSASAI\nAbout SASAI\nExpert Auditors\nAvailable Audit Reports\nABX\nGE Healthcare\nUpcom"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "ing Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nOrganisational\nStructure\nEARL is an in Austria registered GmbH and a 100% daughter of the EANM non-profit Association.\nIt has one CEO, who constantly reports to the EANM Board .\nWithin the EANM Board the Scientific Liaison Officer is per EANM statutes the responsible for the activities of EARL.\nOne chief scientific officer oversees and coordinates the EARL projects and teams, and reports to the CEO.\nPhysicists, physicians and scientists from leading European institutions , together with EANM support, ensure the expertise and authority of EARL.\nEARL provides scientific support through the Scientific Advisory Board , where high-ranking experts in nuclear medicine provide leadership on scientific questions .\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top"
+              }
+            ],
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://earl.eanm.org/organisational-structure/",
+            "links": [
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              },
+              {
+                "url": "https://earl.eanm.org/guidelines-and-publications/",
+                "text": "Guidelines and publications"
+              },
+              {
+                "url": "https://earl.eanm.org/theranostics/",
+                "text": "Theranostics"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-2/",
+                "text": "SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/sasai-about/",
+                "text": "About SASAI"
+              },
+              {
+                "url": "https://earl.eanm.org/expert-auditors/",
+                "text": "Expert Auditors"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports/",
+                "text": "Available Audit Reports"
+              },
+              {
+                "url": "https://earl.eanm.org/abx-2023/",
+                "text": "ABX"
+              },
+              {
+                "url": "https://earl.eanm.org/available-audit-reports-ge_healthcare/",
+                "text": "GE Healthcare"
+              },
+              {
+                "url": "https://earl.eanm.org/upcoming-audits/",
+                "text": "Upcoming Audits"
+              },
+              {
+                "url": "https://earl.eanm.org/audit-report-order-form/",
+                "text": "Audit report order form"
+              },
+              {
+                "url": "https://earl.eanm.org/faq/",
+                "text": "FAQ"
+              },
+              {
+                "url": "https://earl.eanm.org/eu-projects/",
+                "text": "EU Projects"
+              },
+              {
+                "url": "https://earl.eanm.org/simplerad/",
+                "text": "SIMPLERAD"
+              },
+              {
+                "url": "https://earl.eanm.org/consortium/",
+                "text": "Consortium"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board/",
+                "text": "Advisory Board"
+              },
+              {
+                "url": "https://earl.eanm.org/work-packages/",
+                "text": "Work packages"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-programme/",
+                "text": "Workshop Programme"
+              },
+              {
+                "url": "https://earl.eanm.org/workshop-sessions-review/",
+                "text": "Workshop Sessions review"
+              },
+              {
+                "url": "https://earl.eanm.org/advisory-board-cloned-4665/",
+                "text": "Final Report"
+              },
+              {
+                "url": "https://earl.eanm.org/contacts/",
+                "text": "Contacts"
+              },
+              {
+                "url": "https://earl.eanm.org/earl/",
+                "text": "EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/",
+                "text": "About EARL"
+              },
+              {
+                "url": "https://earl.eanm.org/organisational-structure/",
+                "text": "Organisational Structure"
+              },
+              {
+                "url": "https://earl.eanm.org/testimonials/",
+                "text": "Testimonials"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation/",
+                "text": "Accreditation"
+              },
+              {
+                "url": "https://earl.eanm.org/about/",
+                "text": "About"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-process-timelines/",
+                "text": "Accreditation process / timelines"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-specifications/",
+                "text": "Accreditation specifications"
+              },
+              {
+                "url": "https://earl.eanm.org/fees/",
+                "text": "Fees"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-pet-ct_pet-mr/",
+                "text": "18 F PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/18f-brain-pet-ct/",
+                "text": "Brain PET/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/68ga-pet-ct-mr/",
+                "text": "68 Ga PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/89zr-pet-ct-mr/",
+                "text": "89 Zr PET/CT | PET/MR"
+              },
+              {
+                "url": "https://earl.eanm.org/177lu-spect-ct/",
+                "text": "177 Lu SPECT/CT"
+              },
+              {
+                "url": "https://earl.eanm.org/accreditation-enrollment-form/",
+                "text": "PET/CT | PET/MR Accreditation enrollment form"
+              },
+              {
+                "url": "https://earl.eanm.org/online-box/",
+                "text": "Online Box"
+              },
+              {
+                "url": "https://earl.eanm.org/nema-phantom-video/",
+                "text": "Phantom Videos"
+              },
+              {
+                "url": "https://earl.eanm.org/centres-of-excellence-network/",
+                "text": "Centres of Excellence network"
+              },
+              {
+                "url": "https://earl.eanm.org/coe-clinical-studies/",
+                "text": "CoE clinical studies"
+              },
+              {
+                "url": "https://earl.eanm.org/webinar/",
+                "text": "Webinars"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 92
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "Ivalina Hristova",
+        "institution": "European Association of Nuclear Medicine (EANM) / EANM Forschungs GmbH (EARL)",
+        "department": "EARL – Chief Scientific Officer (accreditation programmes)",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+            "quote": "a Peter\nHead of Human Resources\nsend email\nAnnual Congress, Scientific Events & External Customer Management\nAndrea Csismazia\nHead of Scientific Events\nsend email\nEvelyn Mansutti\nScientific Events Manager\nsend email\nGracia Gallo\nScientific Events Manager\nsend email\nClemens Wadsak\nScientific Events Manager\nsend email\nAnastasiia Mishchanyn\nScientific Events Assistant\nsend email\nPetra Wurzinger\nHead of External Customer Management\nsend email\nAlexander Berger\nScientific Events, Sponsoring Acquisition, External Customer Manager\nsend email\nNina Felser\nExternal Customer Manager\nsend email\nJürgen Westenthaler\nJunior Scientific Events Manager\nsend email\nBoard Relations\nAline Abercrombie\nExecutive Assistant\nsend email\nCommunications & Press Relations\nTiphaine Trudelle\nHead of Communications\nsend email\nLauna Schöbinger-Hassve\nCommunications Manager\nsend email\nEliza Muto\nCommunications Manager\nsend email\nHelena Bates\nJunior Communications Manager\nsend email\nEARL\nIvalina Hristova\nChief Scientific Officer\nsend email\nRonald Boellaard\nPET/CT Scientific Advisor\nsend email\nAndres Kaalep\nEARL Freelance Data Analyst\nsend email\nPanayiotis Hadjitheodorou\nEARL Freelance Data Analyst\nsend email\nEducationa",
+            "explanation": "The official EANM Executive Office directory lists Ivalina Hristova under the EARL unit as Chief Scientific Officer, establishing the person's name and professional role at the requested organisation (European Association of Nuclear Medicine)."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_07ea7388da34245618636fae13401ec4",
+            "quote": "Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nAbout EARL​\nThe European Association of Nuclear Medicine ( EANM ), with its central role in the scientific community and its professional setup, today constitutes the umbrella organisation for nuclear medicine in Europe. In 2006, the leadership of the EANM launched EANM Forschungs GmbH (EARL) as an initiative to promote multicentre nuclear medicine and research .\nEARL was created to unleash the power of molecular imaging and further:\nTo act as a contact point for researchers as well as for clinicians and business leaders\nTo provide basis for discussion and the exchange of cutting edge ideas\nTo improve nuclear medicine and its practice\nEARL can accredit your PET/CT scanner\nTo give a platform for the efficient pursuit of\nscientific initiatives\nTo enhance the comparability\nof data acquired by molecular imaging\nTo boost molecular imaging so that it becomes\na standard diagnostic modality in future clinical medicine and research\nTo position nuclear medicine within the\nEU research agenda\nHome\nAbout EARL\nAccreditation\nSASAI\nConta",
+            "explanation": "The EARL site states that EANM launched EANM Forschungs GmbH (EARL) and that EARL 'can accredit your PET/CT scanner', establishing EARL as EANM's research and accreditation arm at the European Association of Nuclear Medicine."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+            "quote": "ing Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nOrganisational\nStructure\nEARL is an in Austria registered GmbH and a 100% daughter of the EANM non-profit Association.\nIt has one CEO, who constantly reports to the EANM Board .\nWithin the EANM Board the Scientific Liaison Officer is per EANM statutes the responsible for the activities of EARL.\nOne chief scientific officer oversees and coordinates the EARL projects and teams, and reports to the CEO.\nPhysicists, physicians and scientists from leading European institutions , together with EANM support, ensure the expertise and authority of EARL.\nEARL provides scientific support through the Scientific Advisory Board , where high-ranking experts in nuclear medicine provide leadership on scientific questions .\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top",
+            "explanation": "The EARL organisational structure page states that 'One chief scientific officer oversees and coordinates the EARL projects and teams', matching Hristova's Chief Scientific Officer title in the EANM Executive Office directory and placing her role within EARL, the body operating EANM's accreditation programmes."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+            "quote": "s\nPRAC\nPolicy Pulse\nEU Institutions\nPartner Societies\nRLT Angels\nCorporate Members\nFinancial Assessment\nContact Form\nPublic & Media\nRelations\nPublic & Media Relations\nDon't miss out—stay tuned and follow us!\nChannels\nSocial Media\nNewsletters\nPress Work\nPodcast\nLatest News\nAdvertising Opportunities\nEANM TV\nAbout us\nExecutive Office\nMeet our international office, based in Vienna.\nEANM\n/ The EANM Community\n/ About us\n/ Executive Office\nEANM Executive Office\nThe EANM Executive Office supervises all EANM activities and manages the coordination between the Board, the Committees, the Councils, and external entities.\nIf you need to reach out to us, please:\nWrite to office@eanm.org for general inquiries\nContact the relevant EANM staff member directly for specific requests\nExecutive Leadership\nHenrik Silber\nExecutive Director\nsend email\nAndreas Felser\nExecutive Director\nsend email\nStrategy Implementation\nSilvia Marchetti\nStrategy Implementation Director\nsend email\nNúria Serra Serra\nStrategy Implementation Director\nsend email\nAccounting & Human Resources\nBarbara Öffel\nHead of Accounting\nsend email\nZejnepe Memedi\nAccounting Manager\nsend email\nElke Orth\nJunior Accounting Manager\nsend email\nJutt",
+            "explanation": "The EANM Executive Office page is the association's own official staff directory, making it an authoritative primary source for personnel at the European Association of Nuclear Medicine."
+          }
+        ],
+        "limitations": [
+          "The requested name 'Iva Hristova' is an unconfirmed short form; sources consistently publish the name as 'Ivalina Hristova'",
+          "The requested department was given in Chinese as '认证项目' (accreditation programme); a direct role tie to the accreditation programme is inferred from her EARL Chief Scientific Officer position, since EARL runs EANM's accreditation activities"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "caf6aa4e1c9202c09913baeb431d629bb8d63e28052733f5020c4548853d54d2"
+        },
+        {
+          "kind": "review",
+          "sha256": "ff71d1c57dff1cc0d81b9c3d3bc4f23ba8a94ee76b40961740e8234d79b810fe"
+        },
+        {
+          "kind": "questions",
+          "sha256": "c28cb94091e936488f5f7b1f43b4cc87b7f492be1f3841f6e7653da35498a7b3"
+        },
+        {
+          "kind": "answers",
+          "sha256": "581411b935543ef28aa5b8e2903c732637d2fb86d6b439d9d0e19b0d545558e5"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 3,
+      "discovered_source_count": 11,
+      "fetched_source_count": 4,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_a0656494a428d0e7cf19ed9625a0086f",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_07ea7388da34245618636fae13401ec4",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_c9fb32ef73a1f0733132bab36ba54bef",
+          "reason": "not_used_for_identity"
+        },
+        {
+          "source_id": "src_93c3dc7645487e403061aaf935001fc9",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 4,
+        "model_calls_reserved": 7,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+            "quote": "a Peter\nHead of Human Resources\nsend email\nAnnual Congress, Scientific Events & External Customer Management\nAndrea Csismazia\nHead of Scientific Events\nsend email\nEvelyn Mansutti\nScientific Events Manager\nsend email\nGracia Gallo\nScientific Events Manager\nsend email\nClemens Wadsak\nScientific Events Manager\nsend email\nAnastasiia Mishchanyn\nScientific Events Assistant\nsend email\nPetra Wurzinger\nHead of External Customer Management\nsend email\nAlexander Berger\nScientific Events, Sponsoring Acquisition, External Customer Manager\nsend email\nNina Felser\nExternal Customer Manager\nsend email\nJürgen Westenthaler\nJunior Scientific Events Manager\nsend email\nBoard Relations\nAline Abercrombie\nExecutive Assistant\nsend email\nCommunications & Press Relations\nTiphaine Trudelle\nHead of Communications\nsend email\nLauna Schöbinger-Hassve\nCommunications Manager\nsend email\nEliza Muto\nCommunications Manager\nsend email\nHelena Bates\nJunior Communications Manager\nsend email\nEARL\nIvalina Hristova\nChief Scientific Officer\nsend email\nRonald Boellaard\nPET/CT Scientific Advisor\nsend email\nAndres Kaalep\nEARL Freelance Data Analyst\nsend email\nPanayiotis Hadjitheodorou\nEARL Freelance Data Analyst\nsend email\nEducationa",
+            "explanation": "The official EANM Executive Office directory lists Ivalina Hristova under the EARL unit as Chief Scientific Officer, establishing the person's name and professional role at the requested organisation (European Association of Nuclear Medicine)."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_07ea7388da34245618636fae13401ec4",
+            "quote": "Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nAbout EARL​\nThe European Association of Nuclear Medicine ( EANM ), with its central role in the scientific community and its professional setup, today constitutes the umbrella organisation for nuclear medicine in Europe. In 2006, the leadership of the EANM launched EANM Forschungs GmbH (EARL) as an initiative to promote multicentre nuclear medicine and research .\nEARL was created to unleash the power of molecular imaging and further:\nTo act as a contact point for researchers as well as for clinicians and business leaders\nTo provide basis for discussion and the exchange of cutting edge ideas\nTo improve nuclear medicine and its practice\nEARL can accredit your PET/CT scanner\nTo give a platform for the efficient pursuit of\nscientific initiatives\nTo enhance the comparability\nof data acquired by molecular imaging\nTo boost molecular imaging so that it becomes\na standard diagnostic modality in future clinical medicine and research\nTo position nuclear medicine within the\nEU research agenda\nHome\nAbout EARL\nAccreditation\nSASAI\nConta",
+            "explanation": "The EARL site states that EANM launched EANM Forschungs GmbH (EARL) and that EARL 'can accredit your PET/CT scanner', establishing EARL as EANM's research and accreditation arm at the European Association of Nuclear Medicine."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_93c3dc7645487e403061aaf935001fc9",
+            "quote": "ing Audits\nAudit report order form\nFAQ\nEU Projects\nSIMPLERAD\nConsortium\nAdvisory Board\nWork packages\nWorkshop Programme\nWorkshop Sessions review\nFinal Report\nContacts\nOrganisational\nStructure\nEARL is an in Austria registered GmbH and a 100% daughter of the EANM non-profit Association.\nIt has one CEO, who constantly reports to the EANM Board .\nWithin the EANM Board the Scientific Liaison Officer is per EANM statutes the responsible for the activities of EARL.\nOne chief scientific officer oversees and coordinates the EARL projects and teams, and reports to the CEO.\nPhysicists, physicians and scientists from leading European institutions , together with EANM support, ensure the expertise and authority of EARL.\nEARL provides scientific support through the Scientific Advisory Board , where high-ranking experts in nuclear medicine provide leadership on scientific questions .\nHome\nAbout EARL\nAccreditation\nSASAI\nContacts\nEANM Forschungs GmbH\nSchmalzhofgasse 26\n1060 Vienna, Austria\nAustrian Registry of Corporations: FN 291161d\nVAT-ID No. in Austria: ATU 63436026\nСommercial court Vienna\n© European Association of Nuclear Medicine\nSchmalzhofgasse 26, 1060 Vienna I Austria\nBack to Top",
+            "explanation": "The EARL organisational structure page states that 'One chief scientific officer oversees and coordinates the EARL projects and teams', matching Hristova's Chief Scientific Officer title in the EANM Executive Office directory and placing her role within EARL, the body operating EANM's accreditation programmes."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_a0656494a428d0e7cf19ed9625a0086f",
+            "quote": "s\nPRAC\nPolicy Pulse\nEU Institutions\nPartner Societies\nRLT Angels\nCorporate Members\nFinancial Assessment\nContact Form\nPublic & Media\nRelations\nPublic & Media Relations\nDon't miss out—stay tuned and follow us!\nChannels\nSocial Media\nNewsletters\nPress Work\nPodcast\nLatest News\nAdvertising Opportunities\nEANM TV\nAbout us\nExecutive Office\nMeet our international office, based in Vienna.\nEANM\n/ The EANM Community\n/ About us\n/ Executive Office\nEANM Executive Office\nThe EANM Executive Office supervises all EANM activities and manages the coordination between the Board, the Committees, the Councils, and external entities.\nIf you need to reach out to us, please:\nWrite to office@eanm.org for general inquiries\nContact the relevant EANM staff member directly for specific requests\nExecutive Leadership\nHenrik Silber\nExecutive Director\nsend email\nAndreas Felser\nExecutive Director\nsend email\nStrategy Implementation\nSilvia Marchetti\nStrategy Implementation Director\nsend email\nNúria Serra Serra\nStrategy Implementation Director\nsend email\nAccounting & Human Resources\nBarbara Öffel\nHead of Accounting\nsend email\nZejnepe Memedi\nAccounting Manager\nsend email\nElke Orth\nJunior Accounting Manager\nsend email\nJutt",
+            "explanation": "The EANM Executive Office page is the association's own official staff directory, making it an authoritative primary source for personnel at the European Association of Nuclear Medicine."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "1a32288f944a16952b44f95240015474ed079aeaefbc9efe35f33d7c02b8fe53",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "8f336795c99715f3116b07df463ef29de8e6b1ef4eb7ca66236e5897ee1cc0ca",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Ivalina Hristova is listed on the EANM Executive Office directory as Chief Scientific Officer (首席科学官) of EARL.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"type\":\"position\",\"text\":\"EARL's organizational structure page states that one chief scientific officer oversees and coordinates EARL projects and teams, and reports to the CEO; EARL is an Austrian-registered GmbH and a 100% subsidiary of the EANM non-profit association.\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"EARL, launched by EANM in 2006 to promote multicentre nuclear medicine and research, runs PET/CT scanner accreditation and works to enhance comparability of molecular imaging data; as its Chief Scientific Officer, Hristova's role sits within this accreditation and research body.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"EARL's current accreditation portfolio covers 18F PET/CT | PET/MR, brain PET/CT, 68Ga PET/CT | PET/MR, 89Zr PET/CT | PET/MR and 177Lu SPECT/CT accreditation, plus a Centres of Excellence network and SASAI audits.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"EANM and EARL are headquartered at Schmalzhofgasse 26, 1060 Vienna, Austria; Hristova works within the Vienna-based EANM Executive Office.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_5\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Ivalina Hristova（伊瓦琳娜·赫里斯托娃）是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官（Chief Scientific Officer）。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"text\":\"根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程负责 EARL 的活动。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"text\":\"EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"她的准确姓名和职务是什么？\",\"answer\":\"官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"question\":\"EARL 首席科学官在组织中承担什么职责？\",\"answer\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"EARL 的认证项目覆盖哪些设备和领域？\",\"answer\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"question\":\"EARL 与 EANM 是什么关系？\",\"answer\":\"EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系她所在的机构？\",\"answer\":\"EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间\",\"未检索到其个人代表性论文或研究方向的本人署名作品信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认\"]}]}",
+            "gatewayRequestId": "req-48617d57-56d0-41d7-84d3-370976729371",
+            "usage": {
+              "promptTokens": 10519,
+              "completionTokens": 1782,
+              "reasoningTokens": 0,
+              "totalTokens": 12301
+            }
+          }
+        },
+        {
+          "inputSha256": "555f12db29e2454b4e7a8b7f7bbb1da5a6dd3408ed677e3715f44f7e2f4d9a51",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Ivalina Hristova is listed on the EANM Executive Office directory as Chief Scientific Officer (首席科学官) of EARL.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"type\":\"position\",\"text\":\"EARL's organisational structure page states that one chief scientific officer oversees and coordinates EARL projects and teams, and reports to the CEO; EARL is an Austrian-registered GmbH and a 100% subsidiary of the EANM non-profit association.\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"EARL, launched by EANM in 2006 to promote multicentre nuclear medicine and research, runs PET/CT scanner accreditation and works to enhance comparability of molecular imaging data; as its Chief Scientific Officer, Hristova's role sits within this accreditation and research body.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"EARL's current accreditation portfolio covers 18F PET/CT | PET/MR, brain PET/CT, 68Ga PET/CT | PET/MR, 89Zr PET/CT | PET/MR and 177Lu SPECT/CT accreditation, plus a Centres of Excellence network and SASAI audits.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"EANM and EARL are headquartered at Schmalzhofgasse 26, 1060 Vienna, Austria; Hristova works within the Vienna-based EANM Executive Office.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_5\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Ivalina Hristova（伊瓦琳娜·赫里斯托娃）是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官（Chief Scientific Officer）。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"text\":\"根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程负责 EARL 的活动。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"text\":\"EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"她的准确姓名和职务是什么？\",\"answer\":\"官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"question\":\"EARL 首席科学官在组织中承担什么职责？\",\"answer\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"EARL 的认证项目覆盖哪些设备和领域？\",\"answer\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"question\":\"EARL 与 EANM 是什么关系？\",\"answer\":\"EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系她所在的机构？\",\"answer\":\"EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间\",\"未检索到其个人代表性论文或研究方向的本人署名作品信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认\"]}",
+            "gatewayRequestId": "req-96fdf550-e32c-4d83-9f65-37ea1b849c73",
+            "usage": {
+              "promptTokens": 12409,
+              "completionTokens": 1807,
+              "reasoningTokens": 25,
+              "totalTokens": 14216
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "352b8f2aa1b7789709d41a830d65e168800a40c79f616e4dc28ec6a31579ca63",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "f9f8c5c87ff06648ab7c319e6e298080470bdb3fc4824ad643db60fe63fc4b7f",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Ivalina Hristova is listed on the EANM Executive Office directory as Chief Scientific Officer of EARL.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"type\":\"position\",\"text\":\"EARL's organisational structure page states that one chief scientific officer oversees and coordinates EARL projects and teams, and reports to the CEO; EARL is an Austrian-registered GmbH and a 100% daughter of the EANM non-profit association.\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"EARL, launched by EANM in 2006 to promote multicentre nuclear medicine and research, runs PET/CT scanner accreditation and works to enhance comparability of molecular imaging data; as its Chief Scientific Officer, Hristova's role sits within this accreditation and research body.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"EARL's accreditation portfolio listed on its site covers 18F PET/CT | PET/MR, brain PET/CT, 68Ga PET/CT | PET/MR, 89Zr PET/CT | PET/MR and 177Lu SPECT/CT accreditation, plus a Centres of Excellence network and SASAI audits.\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"EANM and EARL are headquartered at Schmalzhofgasse 26, 1060 Vienna, Austria; the EANM Executive Office directory, where Hristova is listed, is described as the association's Vienna-based international office.\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_5\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Ivalina Hristova（伊瓦琳娜·赫里斯托娃）是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官（Chief Scientific Officer）。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"text\":\"根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程负责 EARL 的活动。EARL 网站列出的认证范围涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"text\":\"EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"她的准确姓名和职务是什么？\",\"answer\":\"官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"question\":\"EARL 首席科学官在组织中承担什么职责？\",\"answer\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"EARL 的认证项目覆盖哪些设备和领域？\",\"answer\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"question\":\"EARL 与 EANM 是什么关系？\",\"answer\":\"EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系她所在的机构？\",\"answer\":\"EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]},{\"question\":\"她有哪些代表性论文或研究方向？\",\"answer\":\"现有官方来源未提供其个人署名的论文或研究方向信息，这一点尚待确认；如需了解其个人学术贡献，建议直接向本人或其所在机构询问。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间；如需了解其个人学术贡献可直接向本人确认\"]}}",
+            "gatewayRequestId": "req-6b4a396f-159c-49ec-917b-f9c59744bc5b",
+            "usage": {
+              "promptTokens": 10445,
+              "completionTokens": 1872,
+              "reasoningTokens": 0,
+              "totalTokens": 12317
+            }
+          }
+        },
+        {
+          "inputSha256": "e6ce6d912ba9aa3c4c55304301189557dd9e7779e045a11e4c6bbc5d91f37a8e",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Ivalina Hristova 在 EANM 执行办公室官方目录中被列为 EARL 的首席科学官（Chief Scientific Officer）。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"type\":\"position\",\"text\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的各项目与团队，并向首席执行官汇报；EARL 是在奥地利注册的有限责任公司（GmbH），是 EANM 非营利协会的全资子公司。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"EARL 由 EANM 于 2006 年发起设立，旨在推动多中心核医学与研究，运行 PET/CT 扫描仪认证，并致力于提升分子影像数据的可比性；Hristova 作为首席科学官，其职责位于这一认证与研究机构之内。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT 认证，并设有卓越中心（Centres of Excellence）网络与 SASAI 审计项目。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"EANM 与 EARL 的办公地址均为奥地利维也纳 Schmalzhofgasse 26, 1060；Hristova 隶属于位于维也纳的 EANM 执行办公室。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_5\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Ivalina Hristova 是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"text\":\"根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。EARL 的认证范围目前涵盖 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"text\":\"EARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"她的准确姓名和职务是什么？\",\"answer\":\"官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\"}]},{\"question\":\"EARL 首席科学官在组织中承担什么职责？\",\"answer\":\"EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。\",\"citations\":[{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"EARL 的认证项目覆盖哪些设备和领域？\",\"answer\":\"EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_0\"}]},{\"question\":\"EARL 与 EANM 是什么关系？\",\"answer\":\"EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。\",\"citations\":[{\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系她所在的机构？\",\"answer\":\"EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。\",\"citations\":[{\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_c9fb32ef73a1f0733132bab36ba54bef\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间\",\"未检索到其本人署名的代表性论文或个人研究方向信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认\"]}}",
+            "gatewayRequestId": "req-110e9f51-e615-4b2e-8d58-0fe7303d2a4a",
+            "usage": {
+              "promptTokens": 10483,
+              "completionTokens": 1884,
+              "reasoningTokens": 91,
+              "totalTokens": 12367
+            }
+          }
+        }
+      ]
+    }
+  }
+]

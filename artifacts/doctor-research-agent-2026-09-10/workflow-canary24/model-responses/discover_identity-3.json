@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.otago.ac.nz/dsm-medicine/people\",\"find\":\"Kerruish\",\"purpose\":\"verify Tim Kerruish in the Dunedin Department of Medicine directory, including emergency medicine group listing\"}]}",
+  "usage": {
+    "promptTokens": 2280,
+    "completionTokens": 52,
+    "reasoningTokens": 0,
+    "totalTokens": 2332
+  },
+  "gatewayRequestId": "req-d6f31ee1-6cbb-4093-ab2b-fcdc569db321"
+}

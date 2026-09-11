@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"钟历勇\",\"institution\":\"首都医科大学附属北京天坛医院\",\"department\":\"内分泌科\",\"limitations\":[\"医院官网（天坛名医页）称其为\"原内分泌科主任\"，即已不再担任科主任职务；未验证其他兼职社会任职\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_a8e34f637806e46fa39cc47966e9da78\",\"passageId\":\"text_4\",\"explanation\":\"北京天坛医院官网\"天坛名医\"专栏直接记载钟历勇的姓名、职称（主任医师、教授、博士生导师）及其与该院内分泌科的关系，是本人身份的权威来源。\"},{\"aspect\":\"institution\",\"sourceId\":\"src_8e6e32500813a6eaab37cd9d062393a8\",\"passageId\":\"text_1\",\"explanation\":\"首都医科大学研究生院官方导师页面个人简历明确记载\"201405- :首都医科大学附属北京天坛医院内分泌科 内分泌科主任，教授，主任医师，博士生导师\"，确认其就职于首都医科大学附属北京天坛医院。\"},{\"aspect\":\"department\",\"sourceId\":\"src_8e6e32500813a6eaab37cd9d062393a8\",\"passageId\":\"text_0\",\"explanation\":\"导师页面载明其招生单位为附属天坛医院，招生专业为内科学（内分泌与代谢病），研究方向为神经内分泌学（下丘脑-垂体疾病的基础与临床研究），与所请求的内分泌科相符。\"},{\"aspect\":\"authority\",\"sourceId\":\"src_a8e34f637806e46fa39cc47966e9da78\",\"passageId\":\"text_4\",\"explanation\":\"官网页面为北京天坛医院官方发布的天坛名医介绍，研究生院页面为首都医科大学官方导师信息，两来源相互印证同一人在该院内分泌科的职称与职务，来源权威可信。\"}]}}",
+  "usage": {
+    "promptTokens": 13346,
+    "completionTokens": 419,
+    "reasoningTokens": 0,
+    "totalTokens": 13765
+  },
+  "gatewayRequestId": "req-253d87c7-3c43-4ff2-8e9b-eaf2d43d739c"
+}

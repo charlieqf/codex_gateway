@@ -634,9 +634,136 @@
       "fresh_case_acceptance_eligible": true,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary18",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 11,
+      "elapsed_ms": 118456,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "4885b213ed7284b3ecc58d2395028151370eba9e47d612142c7d48da83a9b091",
+      "evidence_archive_sha256": "b2ac9d3997be1513e55ed01a68f70a521828b3e672c624c90cdef3a96088d7f1",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary19",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 6,
+      "elapsed_ms": 76038,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "1f556382fc75fd2bcad851be925ef79b19e8ea17fd8d6d0249055471f281a111",
+      "evidence_archive_sha256": "340b0d25d3a3bd51823c3d77dca2ba5a883f2af8f5d01601b80142192c7ead84",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary20",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 131808,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "1db6c8164405bc43d01389566ac54fc3c358963833f77c0b2948d6ebfbe4c56d",
+      "evidence_archive_sha256": "34b1099f585ba645f07d6555ef23ac1b7550a3aa88cf17dbca58d2ea4aefbade",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary21",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 6,
+      "elapsed_ms": 38406,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "fb61d4cc7abedb69ca1bc1a717619459c08f10cd0ed8df875ce1500ceafc5558",
+      "evidence_archive_sha256": "71e6628b4d7b827f65ac9224c22dbc9279ea53c6048f3e2d74f2a63dec4985d9",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary22",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 110040,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "015d791af24d9d8e7815ac6017788667d883ca355f49ab80ecd5987a90541533",
+      "evidence_archive_sha256": "6707a049f570bc427e8004b949d7bb5d3628e4ede485da57e2208843d5c2f494",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary23",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 6,
+      "elapsed_ms": 101365,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "8ac13ef1a2d45fc85945d4696805d99316890ce2c934ff97f28fdaebcd1a21b3",
+      "evidence_archive_sha256": "cc3f24e0e18752c8b984896f55f37e904b1003b1fc7ac100b471039129549261",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary24",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 84849,
+      "result": {
+        "outcome": "failed",
+        "reason": "identity_not_resolved"
+      },
+      "archive_sha256": "96e614f8d6b8df640307025ece40e2f0ec3236f6f699e04994d14e0180e1490d",
+      "evidence_archive_sha256": "20e8722fed52d4540914fb671b443d8e5941042620810db49f69089ab56a1d9e",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 0
     }
   ],
-  "total_new_serpapi_requests": 17,
+  "total_new_serpapi_requests": 24,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,

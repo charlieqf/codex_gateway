@@ -1,0 +1,1952 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_7ee57515f4b2242198110addeff9ba16",
+        "src_7c015ffbc49a21ec2211f7e73e9e17d4"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "e03f9d7ce6cb3799e71a4350e6d4e30f8922eee6b4df51602469cd1479b14bff",
+      "calls": 2,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "王永生现任四川大学华西医院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师、主任医师。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2007年获四川大学肿瘤学博士学位后留院工作；2013年任胸部肿瘤科副主任，2015-2016年赴美国杜克大学访学，2018年任华西医院GCP中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任兼华西临床医学院肿瘤学系常务副主任。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化；导师页表述为恶性肿瘤细胞与疫苗治疗的基础与临床转化。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "长期致力于肿瘤免疫治疗的临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，带领团队研发的新型CAR-T细胞已开展多项临床试验并实现转化。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "学术任职包括中国抗癌协会中西整合控瘤新药研究专委会主任委员（2026年7月当选第二届）、中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员等，并任国家“重大新药创制”专项评审专家。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "以第一作者或通讯作者发表研究论文100余篇，期刊包括Signal Transduct Target Ther、J Clin Oncol、Ann Oncol、Cancer Res、Clin Cancer Res、Mol Ther等；牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "王永生是四川大学华西医院肿瘤中心教授、主任医师、博士生导师、博士后合作导师，现任肿瘤中心常务副主任和国家药监局创新药物临床研究与评价重点实验室主任，也是四川省卫生健康首席专家。他1975年11月出生，2007年在四川大学获肿瘤学博士学位后留院从事临床、科研与教学工作，2015-2016年曾赴美国杜克大学做访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "他的职业轨迹兼顾临床科室管理与临床研究平台建设：2013年任胸部肿瘤科副主任，2018年任华西医院GCP（药物临床试验质量管理规范）中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任。其专业重心为胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究及中西医整合肿瘤药物转化。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "在学术与社会任职方面，2026年7月他当选中国抗癌协会中西整合控瘤新药研究专业委员会第二届主任委员，并任中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省医师协会药物临床试验研究者分会第一届会长等；他还担任多家医学期刊编委和四川省卫生应急肿瘤诊疗专家库核心专家。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他的主要临床和专业领域是什么？",
+            "answer": "肿瘤学，重点是胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究以及中西医整合肿瘤药物转化；导师页还列出恶性肿瘤细胞与疫苗治疗的基础与临床转化方向。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在华西医院担任哪些管理职务？",
+            "answer": "现任肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任；此前历任胸部肿瘤科副主任、GCP中心主任、肿瘤中心副主任。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在新药临床研究方面有什么背景？",
+            "answer": "他牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项，并曾任华西医院GCP中心主任，兼任国家“重大新药创制”专项评审专家。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他的代表性研究方向和成果有哪些？",
+            "answer": "长期从事肿瘤免疫治疗临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，团队研发的新型CAR-T细胞已开展多项临床试验；以第一/通讯作者发表论文100余篇，见于Signal Transduct Target Ther、J Clin Oncol等期刊。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "如需联系或挂号，可以参考什么信息？",
+            "answer": "导师页列出其邮箱为 wangys@wchscu.edu.cn；门诊出诊安排未在已获取的官方页面中列出，建议通过华西医院官方渠道（如华医通App或医院公众号）确认。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "已获取来源未提供具体门诊出诊时间安排，需向医院或本人确认。",
+          "代表性论文仅据导师页列出的期刊与数量概述，未逐一核对具体篇目题目。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "王永生现任四川大学华西医院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师、主任医师。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2007年获四川大学肿瘤学博士学位后留院工作；2013年任胸部肿瘤科副主任，2015-2016年赴美国杜克大学访学，2018年任华西医院GCP中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任兼华西临床医学院肿瘤学系常务副主任。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化；导师页表述为恶性肿瘤细胞与疫苗治疗的基础与临床转化。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "长期致力于肿瘤免疫治疗的临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，带领团队研发的新型CAR-T细胞已开展多项临床试验并实现转化。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "学术任职包括中国抗癌协会中西整合控瘤新药研究专委会主任委员（2026年7月当选第二届）、中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员等，并任国家“重大新药创制”专项评审专家。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "以第一作者或通讯作者发表研究论文100余篇，期刊包括Signal Transduct Target Ther、J Clin Oncol、Ann Oncol、Cancer Res、Clin Cancer Res、Mol Ther等；牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "王永生是四川大学华西医院肿瘤中心教授、主任医师、博士生导师、博士后合作导师，现任肿瘤中心常务副主任和国家药监局创新药物临床研究与评价重点实验室主任，也是四川省卫生健康首席专家。他1975年11月出生，2007年在四川大学获肿瘤学博士学位后留院从事临床、科研与教学工作，2015-2016年曾赴美国杜克大学做访问学者。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "他的职业轨迹兼顾临床科室管理与临床研究平台建设：2013年任胸部肿瘤科副主任，2018年任华西医院GCP（药物临床试验质量管理规范）中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任。其专业重心为胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究及中西医整合肿瘤药物转化。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "在学术与社会任职方面，2026年7月他当选中国抗癌协会中西整合控瘤新药研究专业委员会第二届主任委员，并任中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省医师协会药物临床试验研究者分会第一届会长等；他还担任多家医学期刊编委和四川省卫生应急肿瘤诊疗专家库核心专家。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他的主要临床和专业领域是什么？",
+            "answer": "肿瘤学，重点是胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究以及中西医整合肿瘤药物转化；导师页还列出恶性肿瘤细胞与疫苗治疗的基础与临床转化方向。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在华西医院担任哪些管理职务？",
+            "answer": "现任肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任；此前历任胸部肿瘤科副主任、GCP中心主任、肿瘤中心副主任。",
+            "citations": [
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在新药临床研究方面有什么背景？",
+            "answer": "他牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项，并曾任华西医院GCP中心主任，兼任国家“重大新药创制”专项评审专家。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他的代表性研究方向和成果有哪些？",
+            "answer": "长期从事肿瘤免疫治疗临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，团队研发的新型CAR-T细胞已开展多项临床试验；以第一/通讯作者发表论文100余篇，见于Signal Transduct Target Ther、J Clin Oncol等期刊。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "如需联系或挂号，可以参考什么信息？",
+            "answer": "导师页列出其邮箱为 wangys@wchscu.edu.cn；门诊出诊安排未在已获取的官方页面中列出，建议通过华西医院官方渠道（如华医通App或医院公众号）确认。",
+            "citations": [
+              {
+                "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "已获取来源未提供具体门诊出诊时间安排，需向医院或本人确认。",
+          "代表性论文仅据导师页列出的期刊与数量概述，未逐一核对具体篇目题目。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "33a1db8bab4f14790461a4f9fbc9b7d29092a17e427a8ebc513ee64bd9011133",
+      "searches": [
+        {
+          "query": "王永生 四川大学华西医院 肿瘤",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://yjs.cd120.com/contents/579/1738.html",
+              "title": "王永生- 肿瘤学 - 研究生部门户网站- 四川大学华西医院",
+              "snippet": "肿瘤学教授，博士生导师，博士后合作导师，四川省卫生健康首席专家。 ... 中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任 ..."
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/97918.html",
+              "title": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控 ...",
+              "snippet": "王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床 ..."
+            },
+            {
+              "url": "https://www.wchscu.cn/public/notice/recruit/98617.html",
+              "title": "肿瘤中心王永生教授课题组博士后招聘启事",
+              "snippet": "肿瘤中心王永生教授课题组博士・ 长期开展肿瘤免疫治疗基础・ 联系人:李老师;联系方式:19983137962;"
+            },
+            {
+              "url": "https://www.sciconf.cn/cn/person-detail/339?user_id=KMDr_xaRiQw_jY4JU0bHZAxw_d_d",
+              "title": "王永生-四川大学华西医院",
+              "snippet": "肿瘤学教授、博士研究生导师. 四川大学华西医院肿瘤中心副主任兼临床研究部副部长. 四川省卫生健康首席专家、卫健委学术带头人. 中国抗癌协会中西医整合肿瘤专业委员会 ..."
+            },
+            {
+              "url": "https://www.wchscu.cn/department_xbzlk.html",
+              "title": "胸部肿瘤科",
+              "snippet": "四川大学华西医院胸部肿瘤科主要收治肺癌、食道癌及纵膈肿瘤等胸部恶性肿瘤。科室医护员工130人，医师团队中有肿瘤放射治疗医师和肿瘤内科治疗医师，其中教授/主任 ..."
+            },
+            {
+              "url": "https://www.wclchscu.cn/channels/40.html",
+              "title": "生物医学与细胞治疗中心",
+              "snippet": "四川大学华西医院肿瘤科主任医师教授，博士生导师. 查看详情>. 擅长: 专业擅长肺癌的综合治疗,食管癌全程管理,胸腺瘤及间皮瘤等少见肿瘤的诊疗 · 王永生. 四川大学华西医院 ..."
+            },
+            {
+              "url": "https://www.wchscu.cn/scientific/science_technology/trends/63965.html",
+              "title": "我院召开第五期“华西医院临床-基础交叉午间研讨会”",
+              "snippet": "王永生教授简介. 王永生，肿瘤学教授，博士研究生导师，担任华西医院临床试验中心主任、国家药监局创新药物临床研究与评价重点实验室主任、四川省卫生 ..."
+            },
+            {
+              "url": "https://www.yingjiesheng.com/job-008-064-235.html",
+              "title": "[成都]四川大学华西医院肿瘤中心王永生教授课题组",
+              "snippet": "四川大学华西医院肿瘤中心王永生教授课题组招聘专职博士后。 开展肿瘤免疫治疗基础和临床转化研究・ 开展肿瘤免疫治疗相关研究,产出高水平科研成果・ 待 ..."
+            },
+            {
+              "url": "https://bydrug.pharmcube.com/news/detail/c040292dc1d7861622e370f38cdf8a69",
+              "title": "华西乐城医院注射国内首款恶性肿瘤个性化DC疫苗 - ByDrug",
+              "snippet": "4月27日，由四川大学华西医院肿瘤中心王永生教授作为项目PI，以四川大学华西乐城医院为主体申报的“恶性肿瘤个性化DC疫苗治疗技术”生物医学新技术 ..."
+            },
+            {
+              "url": "https://yjs.cd120.com/contents/580/1772.html",
+              "title": "王力 - 研究生部门户网站",
+              "snippet": "王力，男，副教授，肿瘤学博士、博士后。现就职于四川大学华西医院 ; 肺癌中心。主要从事 ; 肺癌的化疗、靶向治疗、免疫治疗等临床工作及基础 ; 临床转化研究。热爱教学工作， ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+          "url": "https://yjs.cd120.com/contents/579/1738.html",
+          "title": "研究生部门户网站",
+          "accessedAt": "2026-09-11T00:42:27.188Z",
+          "contentSha256": "fd83ad94575be888c20aa90712d5b96ec7e99330ec5c87d7721b202b94ecd7dd",
+          "untrustedText": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验 30 多项，其中全球多中心临床试验中国区 组长 5 项。\n上一篇：王辛\n下一篇：魏霞蔚\n四川大学研究生院\n四川大学图书馆\n四川大学华西医院\n四川大学华西妇产儿童医院\n研究生部公众号\n友情链接：\n==校内链接==\n四川大学华西医院\n四川大学研究生院\n四川大学毕业生就业网\n华西医院科技部\n四川大学新闻网\n四川大学图书馆\n四川大学\n再生医学研究中心\n==国外链接==\n哈佛大学\n牛津大学\n剑桥大学\n美国国立医学图书馆\nPubmed\n==常用链接==\n国家留学基金委\n国务院学位委员会办公室\n学信网\n北京协和医学院\n世界卫生组织\n华西临床医学院©2026 All rights reserved.\n四川省成都市武侯区国学巷37号 邮编610041\n蜀ICP备16010396号-5\n川公网安备51010702002012",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://yjs.cd120.com/",
+              "text": "网站首页"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1708.html",
+              "text": "部门简介"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1708.html",
+              "text": "岗位概况"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1711.html",
+              "text": "机构设置"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1712.html",
+              "text": "人员配置"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/410.html",
+              "text": "招生工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/410.html",
+              "text": "招生信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/412.html",
+              "text": "招生简章"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/622.html",
+              "text": "同等学力"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/353.html",
+              "text": "学科导师"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/415.html",
+              "text": "培养工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/415.html",
+              "text": "培养信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/416.html",
+              "text": "课程信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/417.html",
+              "text": "培养规定"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/423.html",
+              "text": "学位工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/423.html",
+              "text": "学位信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/422.html",
+              "text": "学位规定"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/426.html",
+              "text": "就业工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/426.html",
+              "text": "就业指导"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/427.html",
+              "text": "校园招聘"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/428.html",
+              "text": "就业信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/431.html",
+              "text": "学生事务"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/431.html",
+              "text": "事务信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/432.html",
+              "text": "奖励资助"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/435.html",
+              "text": "研究生会"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/435.html",
+              "text": "研会概况"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/436.html",
+              "text": "研会风采"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/437.html",
+              "text": "实事关注"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/448.html",
+              "text": "下载专区"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/448.html",
+              "text": "招生工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/449.html",
+              "text": "培养工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/450.html",
+              "text": "学位工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/451.html",
+              "text": "学生事务"
+            },
+            {
+              "url": "https://yjs.cd120.com/",
+              "text": "研究生部 Department of Postgraduate Students"
+            },
+            {
+              "url": "https://yjs.cd120.com/",
+              "text": "网站首页"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1708.html",
+              "text": "部门简介"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1708.html",
+              "text": "岗位概况"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1711.html",
+              "text": "机构设置"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/1712.html",
+              "text": "人员配置"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/410.html",
+              "text": "招生工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/410.html",
+              "text": "招生信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/412.html",
+              "text": "招生简章"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/622.html",
+              "text": "同等学力"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/353.html",
+              "text": "学科导师"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/415.html",
+              "text": "培养工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/415.html",
+              "text": "培养信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/416.html",
+              "text": "课程信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/417.html",
+              "text": "培养规定"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/423.html",
+              "text": "学位工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/423.html",
+              "text": "学位信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/422.html",
+              "text": "学位规定"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/426.html",
+              "text": "就业工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/426.html",
+              "text": "就业指导"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/427.html",
+              "text": "校园招聘"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/428.html",
+              "text": "就业信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/431.html",
+              "text": "学生事务"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/431.html",
+              "text": "事务信息"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/432.html",
+              "text": "奖励资助"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/435.html",
+              "text": "研究生会"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/435.html",
+              "text": "研会概况"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/436.html",
+              "text": "研会风采"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/437.html",
+              "text": "实事关注"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/448.html",
+              "text": "下载专区"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/448.html",
+              "text": "招生工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/449.html",
+              "text": "培养工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/450.html",
+              "text": "学位工作"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/451.html",
+              "text": "学生事务"
+            },
+            {
+              "url": "https://yjs.cd120.com/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/353.html",
+              "text": "学科导师"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/578.html",
+              "text": "肿瘤学"
+            },
+            {
+              "url": "https://yjs.cd120.com/channels/579.html",
+              "text": "博导"
+            },
+            {
+              "url": "https://yjs.cd120.com/contents/579/1738.html",
+              "text": "中国"
+            },
+            {
+              "url": "https://yjs.cd120.com/contents/579/1738.html",
+              "text": "学院"
+            },
+            {
+              "url": "https://yjs.cd120.com/contents/579/1746.html",
+              "text": "上一篇：王辛"
+            },
+            {
+              "url": "https://yjs.cd120.com/contents/579/2878.html",
+              "text": "下一篇：魏霞蔚"
+            },
+            {
+              "url": "https://gs.scu.edu.cn/index.htm",
+              "text": "四川大学研究生院"
+            },
+            {
+              "url": "https://lib.scu.edu.cn/",
+              "text": "四川大学图书馆"
+            },
+            {
+              "url": "https://www.motherchildren.com/",
+              "text": "四川大学华西妇产儿童医院"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+          "url": "https://www.wchscu.cn/comprehensive/97918.html",
+          "title": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院",
+          "accessedAt": "2026-09-11T00:42:27.641Z",
+          "contentSha256": "4b438771a56fc3fccf0aec91c4ed075aef2eb97599de2a9f8763bed6019c19d5",
+          "untrustedText": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永忠书记受邀参加省人...\n2026.08.01\n✖\n微信扫码分享\n基本信息填写\n您的姓名：\n联系方式：\n电子邮箱：\n问题类型：\nselect…\nselect…\n内容无法访问 信息不更新 内容不准确 错别字 图片不准确 其他\n内容无法访问\n信息不更新\n内容不准确\n错别字\n图片不准确\n其他\n问题页面网址：\n问题描述：\n验证码：\n提交\n医院概况\n患者服务\n医学教育\n科学研究\n专家介绍\n新闻中心\n百年华西\n华西校友\n华西医联体\n华西产业\n华西官方微信公众号\n华西官方微博\n网站地图 法律声明 联系我们\n蜀ICP备16010396号\n川公网安备51010702002012\n网站建设 ： 北京分形科技\n因网站挂号系统正在升级，\n预约挂号请关注四川大学华西医院公众号或者下载华医通app进行预约挂号\n华西官方微信公众号\n华医通",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.wchscu.cn/xxgkw/index.html",
+              "text": "信息公开"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/index.html",
+              "text": "公众版"
+            },
+            {
+              "url": "https://www.wchscu.cn/staff/index_new.html",
+              "text": "员工/学生版"
+            },
+            {
+              "url": "https://www.wchscu.cn/clique/index.html",
+              "text": "党建版"
+            },
+            {
+              "url": "https://www.wchscu.cn/Home.html",
+              "text": "EN"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://www.wchscu.cn/about.html",
+              "text": "医院/科室概况"
+            },
+            {
+              "url": "https://www.wchscu.cn/about.html",
+              "text": "医院简介"
+            },
+            {
+              "url": "https://www.wchscu.cn/about.html",
+              "text": "职能部门"
+            },
+            {
+              "url": "https://www.wchscu.cn/departone.html",
+              "text": "科室导航"
+            },
+            {
+              "url": "https://www.wchscu.cn/about.html",
+              "text": "历/现任领导"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation.html",
+              "text": "患者服务"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation.html",
+              "text": "门诊就医指南"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/diseases.html",
+              "text": "特色医疗技术"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/hospitalized.html",
+              "text": "出/入院服务"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/traffic.html",
+              "text": "交通路线"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/hospital.html",
+              "text": "院区分布"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/specia.html",
+              "text": "特需医疗"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/medical.html",
+              "text": "医保服务"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/problem.html",
+              "text": "常见问题"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/refuting.html",
+              "text": "健康科普"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/characteristic.html",
+              "text": "特色医疗模式"
+            },
+            {
+              "url": "https://it.wchscu.cn/jwb/",
+              "text": "本科教育"
+            },
+            {
+              "url": "https://yjs.cd120.com/",
+              "text": "研究生教育"
+            },
+            {
+              "url": "https://wcsn.scu.edu.cn/",
+              "text": "华西护理学院"
+            },
+            {
+              "url": "https://it.wchscu.cn/byh/",
+              "text": "毕业后教育"
+            },
+            {
+              "url": "https://simulationcenter.wchscu.cn/",
+              "text": "医学模拟中心"
+            },
+            {
+              "url": "https://www.wchscu.cn/department_yxjsxy.html",
+              "text": "医学技术学院"
+            },
+            {
+              "url": "https://www.wchscu.cn/scientific/index.html",
+              "text": "科学研究"
+            },
+            {
+              "url": "https://www.wchscu.cn/scientific/office.html",
+              "text": "学科建设部"
+            },
+            {
+              "url": "https://www.wchscu.cn/clinicalresearch.html",
+              "text": "临床研究管理部"
+            },
+            {
+              "url": "https://www.wchscu.cn/expertlist.html",
+              "text": "专家介绍"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/xwzx.html",
+              "text": "新闻中心"
+            },
+            {
+              "url": "https://www.wchscu.cn/academi.html",
+              "text": "学术新闻"
+            },
+            {
+              "url": "https://www.wchscu.cn/technology.html",
+              "text": "医疗新闻"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive.html",
+              "text": "综合新闻"
+            },
+            {
+              "url": "https://www.wchscu.cn/thematic.html",
+              "text": "专题专栏"
+            },
+            {
+              "url": "https://www.wchscu.cn/bnhx.html",
+              "text": "百年华西"
+            },
+            {
+              "url": "https://www.wchscu.cn/ysg/damuchuqi.html",
+              "text": "华西院史馆"
+            },
+            {
+              "url": "https://www.wchscu.cn/bnhx.html",
+              "text": "百年华西"
+            },
+            {
+              "url": "https://www.wchscu.cn/dpb/tenured.html",
+              "text": "终身教授"
+            },
+            {
+              "url": "https://www.wchscu.cn/dpb/subject_tree.html",
+              "text": "学科树"
+            },
+            {
+              "url": "https://www.wchscu.cn/rwzt/honor.html",
+              "text": "华西人物"
+            },
+            {
+              "url": "https://www.wchscu.cn/hxxy.html",
+              "text": "华西校友"
+            },
+            {
+              "url": "https://www.wchscu.cn/ylt.html",
+              "text": "华西医联体"
+            },
+            {
+              "url": "https://www.wchscu.cn/hxcy.html",
+              "text": "华西产业"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation/354.html",
+              "text": "联系 我们"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation.html",
+              "text": "就诊 指南"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/problem.html",
+              "text": "常见 问题"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/xwzx.html",
+              "text": "新闻中心"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive.html",
+              "text": "综合新闻"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/97955.html",
+              "text": "上一条：我院举办第九届华西呼吸青年医师论坛"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/97917.html",
+              "text": "下一条：意大利米兰比可卡大学副校长一行到访我院"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive.html",
+              "text": "查看更多"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/97921.html",
+              "text": "“树牢正确政绩观 锻造... 2026.07.16"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98308.html",
+              "text": "聚焦质子治疗 我院与中... 2026.08.17"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98298.html",
+              "text": "我院举办第13届华西急... 2026.08.14"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98288.html",
+              "text": "我院承办2026第九届... 2026.08.14"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98287.html",
+              "text": "我院参加四川省医学会2... 2026.08.14"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98243.html",
+              "text": "我院举办第八届华西临床... 2026.08.10"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98221.html",
+              "text": "我院组建2026年国家... 2026.08.07"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98195.html",
+              "text": "我院举办2026年管理... 2026.08.05"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98187.html",
+              "text": "我院首批信息技师规培项... 2026.08.05"
+            },
+            {
+              "url": "https://www.wchscu.cn/comprehensive/98135.html",
+              "text": "程永忠书记受邀参加省人... 2026.08.01"
+            },
+            {
+              "url": "https://www.wchscu.cn/about.html",
+              "text": "医院概况"
+            },
+            {
+              "url": "https://www.wchscu.cn/gzb/yyghdlnew.html",
+              "text": "患者服务"
+            },
+            {
+              "url": "https://it.wchscu.cn/jwb/",
+              "text": "医学教育"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/xwzx.html",
+              "text": "新闻中心"
+            },
+            {
+              "url": "https://www.wchscu.cn/bnhx.html",
+              "text": "百年华西"
+            },
+            {
+              "url": "https://www.wchscu.cn/hxxy.html",
+              "text": "华西校友"
+            },
+            {
+              "url": "https://www.wchscu.cn/ylt.html",
+              "text": "华西医联体"
+            },
+            {
+              "url": "https://www.wchscu.cn/hxcy.html",
+              "text": "华西产业"
+            },
+            {
+              "url": "https://www.wchscu.cn/sitemap.html",
+              "text": "网站地图"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation/402.html",
+              "text": "法律声明"
+            },
+            {
+              "url": "https://www.wchscu.cn/public/consultation/354.html",
+              "text": "联系我们"
+            },
+            {
+              "url": "https://beian.miit.gov.cn/",
+              "text": "蜀ICP备16010396号"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://yjs.cd120.com/contents/579/1738.html": "https://yjs.cd120.com/contents/579/1738.html",
+        "https://www.wchscu.cn/comprehensive/97918.html": "https://www.wchscu.cn/comprehensive/97918.html"
+      },
+      "pageRequests": 2,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://yjs.cd120.com/contents/579/1738.html",
+        "https://www.wchscu.cn/comprehensive/97918.html",
+        "https://www.wchscu.cn/public/notice/recruit/98617.html",
+        "https://www.sciconf.cn/cn/person-detail/339?user_id=KMDr_xaRiQw_jY4JU0bHZAxw_d_d",
+        "https://www.wchscu.cn/department_xbzlk.html",
+        "https://www.wclchscu.cn/channels/40.html",
+        "https://www.wchscu.cn/scientific/science_technology/trends/63965.html",
+        "https://www.yingjiesheng.com/job-008-064-235.html",
+        "https://bydrug.pharmcube.com/news/detail/c040292dc1d7861622e370f38cdf8a69",
+        "https://yjs.cd120.com/contents/580/1772.html"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "王永生 四川大学华西医院 肿瘤",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://yjs.cd120.com/contents/579/1738.html",
+                "title": "王永生- 肿瘤学 - 研究生部门户网站- 四川大学华西医院",
+                "snippet": "肿瘤学教授，博士生导师，博士后合作导师，四川省卫生健康首席专家。 ... 中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任 ..."
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/97918.html",
+                "title": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控 ...",
+                "snippet": "王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床 ..."
+              },
+              {
+                "url": "https://www.wchscu.cn/public/notice/recruit/98617.html",
+                "title": "肿瘤中心王永生教授课题组博士后招聘启事",
+                "snippet": "肿瘤中心王永生教授课题组博士・ 长期开展肿瘤免疫治疗基础・ 联系人:李老师;联系方式:19983137962;"
+              },
+              {
+                "url": "https://www.sciconf.cn/cn/person-detail/339?user_id=KMDr_xaRiQw_jY4JU0bHZAxw_d_d",
+                "title": "王永生-四川大学华西医院",
+                "snippet": "肿瘤学教授、博士研究生导师. 四川大学华西医院肿瘤中心副主任兼临床研究部副部长. 四川省卫生健康首席专家、卫健委学术带头人. 中国抗癌协会中西医整合肿瘤专业委员会 ..."
+              },
+              {
+                "url": "https://www.wchscu.cn/department_xbzlk.html",
+                "title": "胸部肿瘤科",
+                "snippet": "四川大学华西医院胸部肿瘤科主要收治肺癌、食道癌及纵膈肿瘤等胸部恶性肿瘤。科室医护员工130人，医师团队中有肿瘤放射治疗医师和肿瘤内科治疗医师，其中教授/主任 ..."
+              },
+              {
+                "url": "https://www.wclchscu.cn/channels/40.html",
+                "title": "生物医学与细胞治疗中心",
+                "snippet": "四川大学华西医院肿瘤科主任医师教授，博士生导师. 查看详情>. 擅长: 专业擅长肺癌的综合治疗,食管癌全程管理,胸腺瘤及间皮瘤等少见肿瘤的诊疗 · 王永生. 四川大学华西医院 ..."
+              },
+              {
+                "url": "https://www.wchscu.cn/scientific/science_technology/trends/63965.html",
+                "title": "我院召开第五期“华西医院临床-基础交叉午间研讨会”",
+                "snippet": "王永生教授简介. 王永生，肿瘤学教授，博士研究生导师，担任华西医院临床试验中心主任、国家药监局创新药物临床研究与评价重点实验室主任、四川省卫生 ..."
+              },
+              {
+                "url": "https://www.yingjiesheng.com/job-008-064-235.html",
+                "title": "[成都]四川大学华西医院肿瘤中心王永生教授课题组",
+                "snippet": "四川大学华西医院肿瘤中心王永生教授课题组招聘专职博士后。 开展肿瘤免疫治疗基础和临床转化研究・ 开展肿瘤免疫治疗相关研究,产出高水平科研成果・ 待 ..."
+              },
+              {
+                "url": "https://bydrug.pharmcube.com/news/detail/c040292dc1d7861622e370f38cdf8a69",
+                "title": "华西乐城医院注射国内首款恶性肿瘤个性化DC疫苗 - ByDrug",
+                "snippet": "4月27日，由四川大学华西医院肿瘤中心王永生教授作为项目PI，以四川大学华西乐城医院为主体申报的“恶性肿瘤个性化DC疫苗治疗技术”生物医学新技术 ..."
+              },
+              {
+                "url": "https://yjs.cd120.com/contents/580/1772.html",
+                "title": "王力 - 研究生部门户网站",
+                "snippet": "王力，男，副教授，肿瘤学博士、博士后。现就职于四川大学华西医院 ; 肺癌中心。主要从事 ; 肺癌的化疗、靶向治疗、免疫治疗等临床工作及基础 ; 临床转化研究。热爱教学工作， ..."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+            "title": "研究生部门户网站",
+            "offset": 0,
+            "total_characters": 1558,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": " 30 多项，其中全球多中心临床试验中国区 组长 5 项。\n上一篇：王辛\n下一篇：魏霞蔚\n四川大学研究生院\n四川大学图书馆\n四川大学华西医院\n四川大学华西妇产儿童医院\n研究生部公众号\n友情链接：\n==校内链接==\n四川大学华西医院\n四川大学研究生院\n四川大学毕业生就业网\n华西医院科技部\n四川大学新闻网\n四川大学图书馆\n四川大学\n再生医学研究中心\n==国外链接==\n哈佛大学\n牛津大学\n剑桥大学\n美国国立医学图书馆\nPubmed\n==常用链接==\n国家留学基金委\n国务院学位委员会办公室\n学信网\n北京协和医学院\n世界卫生组织\n华西临床医学院©2026 All rights reserved.\n四川省成都市武侯区国学巷37号 邮编610041\n蜀ICP备16010396号-5\n川公网安备51010702002012"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://yjs.cd120.com/contents/579/1738.html",
+            "links": [
+              {
+                "url": "https://yjs.cd120.com/",
+                "text": "网站首页"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1708.html",
+                "text": "部门简介"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1708.html",
+                "text": "岗位概况"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1711.html",
+                "text": "机构设置"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1712.html",
+                "text": "人员配置"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/410.html",
+                "text": "招生工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/410.html",
+                "text": "招生信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/412.html",
+                "text": "招生简章"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/622.html",
+                "text": "同等学力"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/353.html",
+                "text": "学科导师"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/415.html",
+                "text": "培养工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/415.html",
+                "text": "培养信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/416.html",
+                "text": "课程信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/417.html",
+                "text": "培养规定"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/423.html",
+                "text": "学位工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/423.html",
+                "text": "学位信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/422.html",
+                "text": "学位规定"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/426.html",
+                "text": "就业工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/426.html",
+                "text": "就业指导"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/427.html",
+                "text": "校园招聘"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/428.html",
+                "text": "就业信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/431.html",
+                "text": "学生事务"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/431.html",
+                "text": "事务信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/432.html",
+                "text": "奖励资助"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/435.html",
+                "text": "研究生会"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/435.html",
+                "text": "研会概况"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/436.html",
+                "text": "研会风采"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/437.html",
+                "text": "实事关注"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/448.html",
+                "text": "下载专区"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/448.html",
+                "text": "招生工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/449.html",
+                "text": "培养工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/450.html",
+                "text": "学位工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/451.html",
+                "text": "学生事务"
+              },
+              {
+                "url": "https://yjs.cd120.com/",
+                "text": "研究生部 Department of Postgraduate Students"
+              },
+              {
+                "url": "https://yjs.cd120.com/",
+                "text": "网站首页"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1708.html",
+                "text": "部门简介"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1708.html",
+                "text": "岗位概况"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1711.html",
+                "text": "机构设置"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/1712.html",
+                "text": "人员配置"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/410.html",
+                "text": "招生工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/410.html",
+                "text": "招生信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/412.html",
+                "text": "招生简章"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/622.html",
+                "text": "同等学力"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/353.html",
+                "text": "学科导师"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/415.html",
+                "text": "培养工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/415.html",
+                "text": "培养信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/416.html",
+                "text": "课程信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/417.html",
+                "text": "培养规定"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/423.html",
+                "text": "学位工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/423.html",
+                "text": "学位信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/422.html",
+                "text": "学位规定"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/426.html",
+                "text": "就业工作"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/426.html",
+                "text": "就业指导"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/427.html",
+                "text": "校园招聘"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/428.html",
+                "text": "就业信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/431.html",
+                "text": "学生事务"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/431.html",
+                "text": "事务信息"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/432.html",
+                "text": "奖励资助"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/435.html",
+                "text": "研究生会"
+              },
+              {
+                "url": "https://yjs.cd120.com/channels/435.html",
+                "text": "研会概况"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 78
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+            "title": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院",
+            "offset": 0,
+            "total_characters": 1559,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "忠书记受邀参加省人...\n2026.08.01\n✖\n微信扫码分享\n基本信息填写\n您的姓名：\n联系方式：\n电子邮箱：\n问题类型：\nselect…\nselect…\n内容无法访问 信息不更新 内容不准确 错别字 图片不准确 其他\n内容无法访问\n信息不更新\n内容不准确\n错别字\n图片不准确\n其他\n问题页面网址：\n问题描述：\n验证码：\n提交\n医院概况\n患者服务\n医学教育\n科学研究\n专家介绍\n新闻中心\n百年华西\n华西校友\n华西医联体\n华西产业\n华西官方微信公众号\n华西官方微博\n网站地图 法律声明 联系我们\n蜀ICP备16010396号\n川公网安备51010702002012\n网站建设 ： 北京分形科技\n因网站挂号系统正在升级，\n预约挂号请关注四川大学华西医院公众号或者下载华医通app进行预约挂号\n华西官方微信公众号\n华医通"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.wchscu.cn/comprehensive/97918.html",
+            "links": [
+              {
+                "url": "https://www.wchscu.cn/xxgkw/index.html",
+                "text": "信息公开"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/index.html",
+                "text": "公众版"
+              },
+              {
+                "url": "https://www.wchscu.cn/staff/index_new.html",
+                "text": "员工/学生版"
+              },
+              {
+                "url": "https://www.wchscu.cn/clique/index.html",
+                "text": "党建版"
+              },
+              {
+                "url": "https://www.wchscu.cn/Home.html",
+                "text": "EN"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/index.html",
+                "text": "首页"
+              },
+              {
+                "url": "https://www.wchscu.cn/about.html",
+                "text": "医院/科室概况"
+              },
+              {
+                "url": "https://www.wchscu.cn/about.html",
+                "text": "医院简介"
+              },
+              {
+                "url": "https://www.wchscu.cn/about.html",
+                "text": "职能部门"
+              },
+              {
+                "url": "https://www.wchscu.cn/departone.html",
+                "text": "科室导航"
+              },
+              {
+                "url": "https://www.wchscu.cn/about.html",
+                "text": "历/现任领导"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/consultation.html",
+                "text": "患者服务"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/consultation.html",
+                "text": "门诊就医指南"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/diseases.html",
+                "text": "特色医疗技术"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/hospitalized.html",
+                "text": "出/入院服务"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/traffic.html",
+                "text": "交通路线"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/hospital.html",
+                "text": "院区分布"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/specia.html",
+                "text": "特需医疗"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/medical.html",
+                "text": "医保服务"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/problem.html",
+                "text": "常见问题"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/refuting.html",
+                "text": "健康科普"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/characteristic.html",
+                "text": "特色医疗模式"
+              },
+              {
+                "url": "https://it.wchscu.cn/jwb/",
+                "text": "本科教育"
+              },
+              {
+                "url": "https://yjs.cd120.com/",
+                "text": "研究生教育"
+              },
+              {
+                "url": "https://wcsn.scu.edu.cn/",
+                "text": "华西护理学院"
+              },
+              {
+                "url": "https://it.wchscu.cn/byh/",
+                "text": "毕业后教育"
+              },
+              {
+                "url": "https://simulationcenter.wchscu.cn/",
+                "text": "医学模拟中心"
+              },
+              {
+                "url": "https://www.wchscu.cn/department_yxjsxy.html",
+                "text": "医学技术学院"
+              },
+              {
+                "url": "https://www.wchscu.cn/scientific/index.html",
+                "text": "科学研究"
+              },
+              {
+                "url": "https://www.wchscu.cn/scientific/office.html",
+                "text": "学科建设部"
+              },
+              {
+                "url": "https://www.wchscu.cn/clinicalresearch.html",
+                "text": "临床研究管理部"
+              },
+              {
+                "url": "https://www.wchscu.cn/expertlist.html",
+                "text": "专家介绍"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/xwzx.html",
+                "text": "新闻中心"
+              },
+              {
+                "url": "https://www.wchscu.cn/academi.html",
+                "text": "学术新闻"
+              },
+              {
+                "url": "https://www.wchscu.cn/technology.html",
+                "text": "医疗新闻"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive.html",
+                "text": "综合新闻"
+              },
+              {
+                "url": "https://www.wchscu.cn/thematic.html",
+                "text": "专题专栏"
+              },
+              {
+                "url": "https://www.wchscu.cn/bnhx.html",
+                "text": "百年华西"
+              },
+              {
+                "url": "https://www.wchscu.cn/ysg/damuchuqi.html",
+                "text": "华西院史馆"
+              },
+              {
+                "url": "https://www.wchscu.cn/bnhx.html",
+                "text": "百年华西"
+              },
+              {
+                "url": "https://www.wchscu.cn/dpb/tenured.html",
+                "text": "终身教授"
+              },
+              {
+                "url": "https://www.wchscu.cn/dpb/subject_tree.html",
+                "text": "学科树"
+              },
+              {
+                "url": "https://www.wchscu.cn/rwzt/honor.html",
+                "text": "华西人物"
+              },
+              {
+                "url": "https://www.wchscu.cn/hxxy.html",
+                "text": "华西校友"
+              },
+              {
+                "url": "https://www.wchscu.cn/ylt.html",
+                "text": "华西医联体"
+              },
+              {
+                "url": "https://www.wchscu.cn/hxcy.html",
+                "text": "华西产业"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/consultation/354.html",
+                "text": "联系 我们"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/consultation.html",
+                "text": "就诊 指南"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/problem.html",
+                "text": "常见 问题"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/index.html",
+                "text": "首页"
+              },
+              {
+                "url": "https://www.wchscu.cn/public/xwzx.html",
+                "text": "新闻中心"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive.html",
+                "text": "综合新闻"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/97955.html",
+                "text": "上一条：我院举办第九届华西呼吸青年医师论坛"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/97917.html",
+                "text": "下一条：意大利米兰比可卡大学副校长一行到访我院"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive.html",
+                "text": "查看更多"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/97921.html",
+                "text": "“树牢正确政绩观 锻造... 2026.07.16"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/98308.html",
+                "text": "聚焦质子治疗 我院与中... 2026.08.17"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/98298.html",
+                "text": "我院举办第13届华西急... 2026.08.14"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/98288.html",
+                "text": "我院承办2026第九届... 2026.08.14"
+              },
+              {
+                "url": "https://www.wchscu.cn/comprehensive/98287.html",
+                "text": "我院参加四川省医学会2... 2026.08.14"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 77
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "王永生",
+        "institution": "四川大学华西医院",
+        "department": "肿瘤中心（肿瘤学教授、主任医师，肿瘤中心常务副主任）",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+            "quote": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验",
+            "explanation": "华西医院研究生部导师库明确记载王永生为肿瘤学教授、博士生导师，2007年获四川大学肿瘤学博士学位后留院工作，并历任胸部肿瘤科副主任、华西医院GCP中心主任、肿瘤中心副主任、常务副主任等职务，确认其姓名与专业身份"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+            "quote": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验",
+            "explanation": "该导师页面由四川大学华西临床医学院研究生部（yjs.cd120.com，版权页显示华西临床医学院）发布，页面记载其任职于华西医院肿瘤中心及创新药物临床研究与评价国家药监局重点实验室，确认其所属机构为四川大学华西医院"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+            "quote": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永",
+            "explanation": "华西医院官网新闻明确记载王永生现任该院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师，主任医师，研究方向为胸部恶性肿瘤靶向与免疫治疗等，确认其肿瘤科（肿瘤中心）专业角色"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+            "quote": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永",
+            "explanation": "该文为四川大学华西医院官网综合新闻（2026.07.16），由医院肿瘤中心供稿，属机构官方发布，与研究生部导师库信息（导师页 text_0）相互印证，共同确立王永生在四川大学华西医院肿瘤中心的身份"
+          }
+        ],
+        "limitations": [
+          "请求中未提供职称、城市或ORCID，无需核实；具体科别（肿瘤）已由官方来源证实为肿瘤中心"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "2d55a0c0b117b96720ff8629558cfc8ef43612b5a458a32b3a32f8493d4e963c"
+        },
+        {
+          "kind": "review",
+          "sha256": "fbcd68fdaca3fbae7f3c86df2febaec0e6d57711a28e7317806ee95cd1451cf6"
+        },
+        {
+          "kind": "questions",
+          "sha256": "84ecbe0c3b421f951c6d4eb80d5dfa872fa832adc8ae1730bdc33dc909feabd5"
+        },
+        {
+          "kind": "answers",
+          "sha256": "805f804abbac448eb87ad4b676c3d23495f72334804826c9f9c51ac93dedfdaa"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 2,
+      "discovered_source_count": 10,
+      "fetched_source_count": 2,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_7ee57515f4b2242198110addeff9ba16",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 2,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+            "quote": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验",
+            "explanation": "华西医院研究生部导师库明确记载王永生为肿瘤学教授、博士生导师，2007年获四川大学肿瘤学博士学位后留院工作，并历任胸部肿瘤科副主任、华西医院GCP中心主任、肿瘤中心副主任、常务副主任等职务，确认其姓名与专业身份"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_7ee57515f4b2242198110addeff9ba16",
+            "quote": "研究生部门户网站\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n研究生部 Department of Postgraduate Students\n搜索\n网站首页\n部门简介\n岗位概况\n机构设置\n人员配置\n招生工作\n招生信息\n招生简章\n同等学力\n学科导师\n培养工作\n培养信息\n课程信息\n培养规定\n学位工作\n学位信息\n学位规定\n就业工作\n就业指导\n校园招聘\n就业信息\n学生事务\n事务信息\n奖励资助\n研究生会\n研会概况\n研会风采\n实事关注\n下载专区\n招生工作\n培养工作\n学位工作\n学生事务\n搜索\n输入关键词检索相关内容\n首页 > 学科导师 > 肿瘤学 > 博导\n王永生\n肿瘤学\n1975-11\n|\n博导\n电话：\n邮箱： wangys@wchscu.edu.cn\n研究方向：\n恶性肿瘤细胞与疫苗治疗的基础与临床转化\n个人简历\n学术任职\n科研、学术成果\n肿瘤学 教授，博士生导师，博士后合作导师 ，四川省卫生健康首席专家。 20 07 年 获 四川大学肿瘤学博士学位后 留院开展临床、科研与教学工作， 201 3年担任胸部肿瘤科副主任，2015-2016年杜克大学访问学者，2018年担任华西医院GCP中心主任，2021 年 至今担任华西医院创新 药物临床研究与评价国家药监局重点实验室主任 ， 2022年任华西医院肿瘤中心副主任，2026年任华西医院肿瘤中心常务副主任，华西临床医学院肿瘤学系常务副主任。\n中国抗癌协会中西整合控瘤新药研究专委会主任委员，中国生物医药技术协会临床研究专业委员会副主任委员，中国临床肿瘤学会 (CSCO) 免疫治疗专家委员会常务委员，四川省医师协会药物临床试验研究者分会第一届会长，四川省医促会肿瘤学 MDT 分会会长 。\n长期致力于 肿瘤免疫治疗的临床与转化研究， 特别是 CAR-T 细胞与肿瘤疫苗的临床转化。承担并完成国家科技部 863 项目， “ 重大新药创制 ” 科技重大专项，承担自然科学基金项目 8 项，四川省科技厅重点项目，中国医学科学院临床与转化医学研究基金重点项目等，总经费近 3000 万元。 带领团队 研发的新型 CAR-T 细胞开展临床试验 6 项，实现 临床与企业 转化。以第一作者或通讯作者在 Signal Transduct Target Ther （ 6 篇）， J Clin Oncol ， Ann O ncol ， Cancer Res ， Clin Cancer Res （ 2 篇）， Mol Ther 等发表研究论文 100 多篇。牵头开展新药临床试验",
+            "explanation": "该导师页面由四川大学华西临床医学院研究生部（yjs.cd120.com，版权页显示华西临床医学院）发布，页面记载其任职于华西医院肿瘤中心及创新药物临床研究与评价国家药监局重点实验室，确认其所属机构为四川大学华西医院"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+            "quote": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永",
+            "explanation": "华西医院官网新闻明确记载王永生现任该院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师，主任医师，研究方向为胸部恶性肿瘤靶向与免疫治疗等，确认其肿瘤科（肿瘤中心）专业角色"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_7c015ffbc49a21ec2211f7e73e9e17d4",
+            "quote": "我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员 - 四川大学华西医院 - 四川大学华西医院\n信息公开\n公众版\n员工/学生版\nEN\n\n首页\n医院/科室概况\n医院简介\n职能部门\n科室导航\n历/现任领导\n患者服务\n预约挂号\n门诊就医指南\n特色医疗技术\n出/入院服务\n交通路线\n院区分布\n特需医疗\n医保服务\n常见问题\n健康科普\n特色医疗模式\n医学教育\n本科教育\n研究生教育\n华西护理学院\n毕业后教育\n医学模拟中心\n医学技术学院\n科学研究\n科技部\n学科建设部\n临床研究管理部\n科研实验室管理部\n专家介绍\n新闻中心\n学术新闻\n医疗新闻\n综合新闻\n教学新闻\n专题专栏\n百年华西\n华西院史馆\n百年华西\n终身教授\n学科树\n华西人物\n华西校友\n华西医联体\n华西产业\n预约\n挂号\n联系\n我们\n就诊\n指南\n常见\n问题\n返回\n顶部\n请输入关键字\n确定\n首页 >\n新闻中心 > 综合新闻 > 详细页\n我院肿瘤中心王永生主任医师当选中国抗癌协会中西整合控瘤新药研究专业委员会主任委员\n2026.07.16\n7月4日，中国抗癌协会中西整合控瘤新药研究专业委员会第二届委员会换届大会在杭州召开。经现场民主投票选举，我院肿瘤中心王永生主任医师当选该专委会第二届主任委员。\n王永生主任医师表示，专委会将始终秉持整体思维和形象思维的指导思想，从源头上发挥中西医的整合交叉优势，研发“中国药”与“控瘤新药”，进一步提升我国肿瘤防治的水平，为健康中国建设贡献专业力量，为全球肿瘤防治提供中国智慧。\n王永生，现任我院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师。主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化。四川省卫生健康首席专家，曾赴美国杜克大学访学深造。兼任国家“重大新药创制”专项评审专家、中国临床肿瘤学会专委会常委、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省肿瘤质量控制中心专家等多项国家级、省级学术职务；同时担任多家权威医学期刊编委，四川省卫生应急肿瘤诊疗专家库核心专家。\n作者：李红 编辑：刘榴 刘欢 来源：肿瘤中心\n分享到：\n上一条：我院举办第九届华西呼吸青年医师论坛\n下一条：意大利米兰比可卡大学副校长一行到访我院\n综合新闻\n查看更多\n“树牢正确政绩观 锻造...\n2026.07.16\n聚焦质子治疗 我院与中...\n2026.08.17\n我院举办第13届华西急...\n2026.08.14\n我院承办2026第九届...\n2026.08.14\n我院参加四川省医学会2...\n2026.08.14\n我院举办第八届华西临床...\n2026.08.10\n我院组建2026年国家...\n2026.08.07\n我院举办2026年管理...\n2026.08.05\n我院首批信息技师规培项...\n2026.08.05\n程永",
+            "explanation": "该文为四川大学华西医院官网综合新闻（2026.07.16），由医院肿瘤中心供稿，属机构官方发布，与研究生部导师库信息（导师页 text_0）相互印证，共同确立王永生在四川大学华西医院肿瘤中心的身份"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "b3b808f009b8e3816ef06c2d980623cd4991cb37834eda3cd65970c4e60e2d5d",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "6934bdc227d1ed8578748d51506270febf7732f7be6abe0015f0743b3d2f65d9",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"王永生现任四川大学华西医院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师、主任医师。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"2007年获四川大学肿瘤学博士学位后留院工作；2013年任胸部肿瘤科副主任，2015-2016年赴美国杜克大学访学，2018年任华西医院GCP中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任兼华西临床医学院肿瘤学系常务副主任。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"type\":\"research_direction\",\"text\":\"主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化；导师页表述为恶性肿瘤细胞与疫苗治疗的基础与临床转化。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"长期致力于肿瘤免疫治疗的临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，带领团队研发的新型CAR-T细胞已开展多项临床试验并实现转化。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"学术任职包括中国抗癌协会中西整合控瘤新药研究专委会主任委员（2026年7月当选第二届）、中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员等，并任国家“重大新药创制”专项评审专家。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"以第一作者或通讯作者发表研究论文100余篇，期刊包括Signal Transduct Target Ther、J Clin Oncol、Ann Oncol、Cancer Res、Clin Cancer Res、Mol Ther等；牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"王永生是四川大学华西医院肿瘤中心教授、主任医师、博士生导师、博士后合作导师，现任肿瘤中心常务副主任和国家药监局创新药物临床研究与评价重点实验室主任，也是四川省卫生健康首席专家。他1975年11月出生，2007年在四川大学获肿瘤学博士学位后留院从事临床、科研与教学工作，2015-2016年曾赴美国杜克大学做访问学者。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},{\"text\":\"他的职业轨迹兼顾临床科室管理与临床研究平台建设：2013年任胸部肿瘤科副主任，2018年任华西医院GCP（药物临床试验质量管理规范）中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任。其专业重心为胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究及中西医整合肿瘤药物转化。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},{\"text\":\"在学术与社会任职方面，2026年7月他当选中国抗癌协会中西整合控瘤新药研究专业委员会第二届主任委员，并任中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省医师协会药物临床试验研究者分会第一届会长等；他还担任多家医学期刊编委和四川省卫生应急肿瘤诊疗专家库核心专家。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]}],\"qa\":[{\"question\":\"他的主要临床和专业领域是什么？\",\"answer\":\"肿瘤学，重点是胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究以及中西医整合肿瘤药物转化；导师页还列出恶性肿瘤细胞与疫苗治疗的基础与临床转化方向。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"question\":\"他在华西医院担任哪些管理职务？\",\"answer\":\"现任肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任；此前历任胸部肿瘤科副主任、GCP中心主任、肿瘤中心副主任。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"question\":\"他在新药临床研究方面有什么背景？\",\"answer\":\"他牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项，并曾任华西医院GCP中心主任，兼任国家“重大新药创制”专项评审专家。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"question\":\"他的代表性研究方向和成果有哪些？\",\"answer\":\"长期从事肿瘤免疫治疗临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，团队研发的新型CAR-T细胞已开展多项临床试验；以第一/通讯作者发表论文100余篇，见于Signal Transduct Target Ther、J Clin Oncol等期刊。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},{\"question\":\"如需联系或挂号，可以参考什么信息？\",\"answer\":\"导师页列出其邮箱为 wangys@wchscu.edu.cn；门诊出诊安排未在已获取的官方页面中列出，建议通过华西医院官方渠道（如华医通App或医院公众号）确认。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"已获取来源未提供具体门诊出诊时间安排，需向医院或本人确认。\",\"代表性论文仅据导师页列出的期刊与数量概述，未逐一核对具体篇目题目。\"]}",
+            "gatewayRequestId": "req-5d7d7ed7-f077-4259-9cf1-1a1eaf6097d0",
+            "usage": {
+              "promptTokens": 7754,
+              "completionTokens": 1909,
+              "reasoningTokens": 0,
+              "totalTokens": 9663
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "97012486176479d015857f86bc2c4865e6d53a9607323a4b41599de9a30ce8d1",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "8adcfe85f5b3dd0d286d49d4898221bd5c22923d846fb5d27245cdeb6a66117f",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\n \"facts\":[\n  {\"type\":\"position\",\"text\":\"王永生现任四川大学华西医院肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任，教授、博士生导师、主任医师。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},\n  {\"type\":\"education_and_career\",\"text\":\"2007年获四川大学肿瘤学博士学位后留院工作；2013年任胸部肿瘤科副主任，2015-2016年赴美国杜克大学访学，2018年任华西医院GCP中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任兼华西临床医学院肿瘤学系常务副主任。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"type\":\"research_direction\",\"text\":\"主要研究方向为胸部恶性肿瘤靶向与免疫治疗、抗肿瘤新药临床研究、中西医整合肿瘤药物转化；导师页表述为恶性肿瘤细胞与疫苗治疗的基础与临床转化。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"type\":\"expertise\",\"text\":\"长期致力于肿瘤免疫治疗的临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，带领团队研发的新型CAR-T细胞已开展多项临床试验并实现转化。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"type\":\"position\",\"text\":\"学术任职包括中国抗癌协会中西整合控瘤新药研究专委会主任委员（2026年7月当选第二届）、中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员等，并任国家“重大新药创制”专项评审专家。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"type\":\"representative_output\",\"text\":\"以第一作者或通讯作者发表研究论文100余篇，期刊包括Signal Transduct Target Ther、J Clin Oncol、Ann Oncol、Cancer Res、Clin Cancer Res、Mol Ther等；牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_1\"}]}\n ],\n \"background\":[\n  {\"text\":\"王永生是四川大学华西医院肿瘤中心教授、主任医师、博士生导师、博士后合作导师，现任肿瘤中心常务副主任和国家药监局创新药物临床研究与评价重点实验室主任，也是四川省卫生健康首席专家。他1975年11月出生，2007年在四川大学获肿瘤学博士学位后留院从事临床、科研与教学工作，2015-2016年曾赴美国杜克大学做访问学者。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},\n  {\"text\":\"他的职业轨迹兼顾临床科室管理与临床研究平台建设：2013年任胸部肿瘤科副主任，2018年任华西医院GCP（药物临床试验质量管理规范）中心主任，2021年起任创新药物临床研究与评价国家药监局重点实验室主任，2022年任肿瘤中心副主任，2026年任肿瘤中心常务副主任。其专业重心为胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究及中西医整合肿瘤药物转化。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"}]},\n  {\"text\":\"在学术与社会任职方面，2026年7月他当选中国抗癌协会中西整合控瘤新药研究专业委员会第二届主任委员，并任中国临床肿瘤学会(CSCO)免疫治疗专家委员会常务委员、四川省抗癌协会肿瘤药物临床专委会主任委员、四川省医师协会药物临床试验研究者分会第一届会长等；他还担任多家医学期刊编委和四川省卫生应急肿瘤诊疗专家库核心专家。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]}\n ],\n \"qa\":[\n  {\"question\":\"他的主要临床和专业领域是什么？\",\"answer\":\"肿瘤学，重点是胸部恶性肿瘤的靶向与免疫治疗、抗肿瘤新药临床研究以及中西医整合肿瘤药物转化；导师页还列出恶性肿瘤细胞与疫苗治疗的基础与临床转化方向。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"question\":\"他在华西医院担任哪些管理职务？\",\"answer\":\"现任肿瘤中心常务副主任、国家药监局创新药物临床研究与评价重点实验室主任；此前历任胸部肿瘤科副主任、GCP中心主任、肿瘤中心副主任。\",\"citations\":[{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"question\":\"他在新药临床研究方面有什么背景？\",\"answer\":\"他牵头开展新药临床试验30余项，其中全球多中心临床试验中国区组长5项，并曾任华西医院GCP中心主任，兼任国家“重大新药创制”专项评审专家。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"question\":\"他的代表性研究方向和成果有哪些？\",\"answer\":\"长期从事肿瘤免疫治疗临床与转化研究，特别是CAR-T细胞与肿瘤疫苗的临床转化，团队研发的新型CAR-T细胞已开展多项临床试验；以第一/通讯作者发表论文100余篇，见于Signal Transduct Target Ther、J Clin Oncol等期刊。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"}]},\n  {\"question\":\"如需联系或挂号，可以参考什么信息？\",\"answer\":\"导师页列出其邮箱为 wangys@wchscu.edu.cn；门诊出诊安排未在已获取的官方页面中列出，建议通过华西医院官方渠道（如华医通App或医院公众号）确认。\",\"citations\":[{\"sourceId\":\"src_7ee57515f4b2242198110addeff9ba16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_7c015ffbc49a21ec2211f7e73e9e17d4\",\"passageId\":\"text_1\"}]}\n ],\n \"limitations\":[\n  \"已获取来源未提供具体门诊出诊时间安排，需向医院或本人确认。\",\n  \"代表性论文仅据导师页列出的期刊与数量概述，未逐一核对具体篇目题目。\"\n ]\n}}",
+            "gatewayRequestId": "req-f48dffc6-34df-4807-b5d0-e730c909d726",
+            "usage": {
+              "promptTokens": 8020,
+              "completionTokens": 2079,
+              "reasoningTokens": 136,
+              "totalTokens": 10099
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.emerald.com/lhs/article/259973/Board-drive-for-clinical-leadership-New-Zealand\",\"find\":\"Kerruish\",\"purpose\":\"verify Tim Kerruish's emergency specialist role and any Dunedin/University affiliation from a readable page\"}]}",
+  "usage": {
+    "promptTokens": 12135,
+    "completionTokens": 443,
+    "reasoningTokens": 374,
+    "totalTokens": 12578
+  },
+  "gatewayRequestId": "req-80187cd3-eca6-4063-a64d-e62210d9dfb2"
+}

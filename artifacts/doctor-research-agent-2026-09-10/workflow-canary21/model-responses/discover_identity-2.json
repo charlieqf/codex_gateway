@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.sysu6h.cn/expert/653\",\"purpose\":\"verify person, institution and department via official hospital expert profile\"}]}",
+  "usage": {
+    "promptTokens": 2307,
+    "completionTokens": 40,
+    "reasoningTokens": 0,
+    "totalTokens": 2347
+  },
+  "gatewayRequestId": "req-13faff94-869e-47e9-b136-08cc14bcf31a"
+}

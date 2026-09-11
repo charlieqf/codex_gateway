@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Jason Dunn gastroenterology Guy's and St Thomas'\",\"purpose\":\"identify the clinician at the requested hospital and specialty\"}]}",
+  "usage": {
+    "promptTokens": 1373,
+    "completionTokens": 51,
+    "reasoningTokens": 14,
+    "totalTokens": 1424
+  },
+  "gatewayRequestId": "req-66ac55ca-343b-4f12-822e-77dd59677a5a"
+}

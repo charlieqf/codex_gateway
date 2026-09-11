@@ -1,0 +1,10 @@
+{
+  "text": "{\"unresolved\":\"insufficient_evidence\",\"explanation\":\"The person Dr Tim Kerruish is well established by read sources as an emergency department doctor at Dunedin Hospital (ODT articles; Rural News profile), matching the requested Dunedin emergency medicine specialty. However, the requested institutional affiliation with the University of Otago (奥塔哥大学) Department of Medicine, Dunedin, Emergency Medicine group could not be verified from any page actually read: the Otago University profile (otago.ac.nz/dsm-medicine/people/profile?id=1493) and the departmental people list both returned HTTP 403 errors, and the Emerald article was also inaccessible. Only untrusted search snippets, which cannot be treated as verified facts, indicate the University of Otago affiliation. No searches or model calls remain to obtain and review the needed evidence.\"}",
+  "usage": {
+    "promptTokens": 15335,
+    "completionTokens": 621,
+    "reasoningTokens": 447,
+    "totalTokens": 15956
+  },
+  "gatewayRequestId": "req-764d8b28-988f-4b48-9cfe-9767168fbaff"
+}

@@ -1,0 +1,280 @@
+{
+  "runId": "drr_688a3e38721e4b1e9eb941e051cef907",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "Iva Hristova",
+      "hospital": "欧洲核医学协会",
+      "department": "认证项目"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_7c676014fe40fc5b668efea513327c15",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_a0656494a428d0e7cf19ed9625a0086f",
+        "source_type": "official_web",
+        "title": "Executive Office – EANM",
+        "url": "https://eanm.org/the-eanm-community/about-us/executive-office/",
+        "accessed_at": "2026-09-11T00:39:41.086Z",
+        "content_sha256": "0a8c9596897e0861728e8e3ff4357b386dddaf9dbc2629eb03c1927d00a95cea"
+      },
+      {
+        "source_id": "src_07ea7388da34245618636fae13401ec4",
+        "source_type": "official_web",
+        "title": "EANM EARL – Research4Life – EARL – Research4Life",
+        "url": "https://earl.eanm.org/",
+        "accessed_at": "2026-09-11T00:39:49.059Z",
+        "content_sha256": "ab505d0227c796338c990f500a4875c9e1eea31f581bf77a65be1c62eabe3b5d"
+      },
+      {
+        "source_id": "src_c9fb32ef73a1f0733132bab36ba54bef",
+        "source_type": "official_web",
+        "title": "Contacts – EANM EARL – Research4Life",
+        "url": "https://earl.eanm.org/contacts/",
+        "accessed_at": "2026-09-11T00:39:52.587Z",
+        "content_sha256": "443623705cf500a6f27cfa57ae071afedc582cf4e96838acff15b7d40c01b4e8"
+      },
+      {
+        "source_id": "src_93c3dc7645487e403061aaf935001fc9",
+        "source_type": "official_web",
+        "title": "Organisational Structure – EANM EARL – Research4Life",
+        "url": "https://earl.eanm.org/organisational-structure/",
+        "accessed_at": "2026-09-11T00:39:57.314Z",
+        "content_sha256": "4b2f091aa3c1cc24906f313e1956a4bf46aab93bd556372c840f48b67ed3cb8f"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "Ivalina Hristova 在 EANM 执行办公室官方目录中被列为 EARL 的首席科学官（Chief Scientific Officer）。",
+        "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的各项目与团队，并向首席执行官汇报；EARL 是在奥地利注册的有限责任公司（GmbH），是 EANM 非营利协会的全资子公司。"
+      ],
+      "expertise": [
+        "EARL 由 EANM 于 2006 年发起设立，旨在推动多中心核医学与研究，运行 PET/CT 扫描仪认证，并致力于提升分子影像数据的可比性；Hristova 作为首席科学官，其职责位于这一认证与研究机构之内。"
+      ],
+      "education_and_career": [
+        "EANM 与 EARL 的办公地址均为奥地利维也纳 Schmalzhofgasse 26, 1060；Hristova 隶属于位于维也纳的 EANM 执行办公室。"
+      ],
+      "research_directions": [
+        "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT 认证，并设有卓越中心（Centres of Excellence）网络与 SASAI 审计项目。"
+      ],
+      "representative_outputs": [],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "Ivalina Hristova · European Association of Nuclear Medicine (EANM) / EANM Forschungs GmbH (EARL) · EARL – Chief Scientific Officer (accreditation programmes)",
+          "source_ids": [
+            "src_a0656494a428d0e7cf19ed9625a0086f",
+            "src_07ea7388da34245618636fae13401ec4",
+            "src_93c3dc7645487e403061aaf935001fc9"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "Ivalina Hristova 在 EANM 执行办公室官方目录中被列为 EARL 的首席科学官（Chief Scientific Officer）。",
+          "source_ids": [
+            "src_a0656494a428d0e7cf19ed9625a0086f"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的各项目与团队，并向首席执行官汇报；EARL 是在奥地利注册的有限责任公司（GmbH），是 EANM 非营利协会的全资子公司。",
+          "source_ids": [
+            "src_93c3dc7645487e403061aaf935001fc9"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "expertise",
+          "text": "EARL 由 EANM 于 2006 年发起设立，旨在推动多中心核医学与研究，运行 PET/CT 扫描仪认证，并致力于提升分子影像数据的可比性；Hristova 作为首席科学官，其职责位于这一认证与研究机构之内。",
+          "source_ids": [
+            "src_07ea7388da34245618636fae13401ec4"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "research_direction",
+          "text": "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 和 177Lu SPECT/CT 认证，并设有卓越中心（Centres of Excellence）网络与 SASAI 审计项目。",
+          "source_ids": [
+            "src_07ea7388da34245618636fae13401ec4"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "education_and_career",
+          "text": "EANM 与 EARL 的办公地址均为奥地利维也纳 Schmalzhofgasse 26, 1060；Hristova 隶属于位于维也纳的 EANM 执行办公室。",
+          "source_ids": [
+            "src_a0656494a428d0e7cf19ed9625a0086f",
+            "src_c9fb32ef73a1f0733132bab36ba54bef"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_a0656494a428d0e7cf19ed9625a0086f",
+        "src_07ea7388da34245618636fae13401ec4",
+        "src_93c3dc7645487e403061aaf935001fc9",
+        "src_c9fb32ef73a1f0733132bab36ba54bef"
+      ]
+    },
+    "review": {
+      "title": "Iva Hristova 专业背景与交流准备",
+      "abstract": "Ivalina Hristova 是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。",
+      "keywords": [
+        "EARL – Chief Scientific Officer (accreditation programmes)"
+      ],
+      "markdown": "Ivalina Hristova 是欧洲核医学协会（EANM）执行办公室目录中列出的 EARL 首席科学官。EANM 于 2006 年设立 EANM Forschungs GmbH（EARL），作为推动多中心核医学与研究的机构；EARL 是 EANM 非营利协会的全资子公司，在奥地利注册，负责运行 PET/CT 扫描仪认证等质量与可比性项目。 [来源 1](<https://eanm.org/the-eanm-community/about-us/executive-office/>) [来源 2](<https://earl.eanm.org/>) [来源 4](<https://earl.eanm.org/organisational-structure/>)\n\n根据 EARL 的组织结构说明，首席科学官负责监督和协调 EARL 的各项目与团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。EARL 的认证范围目前涵盖 18F PET/CT\\|PET/MR、脑 PET/CT、68Ga PET/CT\\|PET/MR、89Zr PET/CT\\|PET/MR 和 177Lu SPECT/CT，并设有卓越中心网络与 SASAI 审计项目。与她会谈时，PET/CT 等设备认证流程、标准和多中心影像数据可比性是与其职务直接相关的话题。 [来源 4](<https://earl.eanm.org/organisational-structure/>) [来源 2](<https://earl.eanm.org/>)\n\nEARL 团队还包括 PET/CT 科学顾问 Ronald Boellaard 和数据分析人员；EARL 依托来自欧洲领先机构的物理学家、医生和科学家以及科学顾问委员会提供科学支持。EANM/EARL 办公地址为维也纳 Schmalzhofgasse 26。 [来源 1](<https://eanm.org/the-eanm-community/about-us/executive-office/>) [来源 4](<https://earl.eanm.org/organisational-structure/>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:41:32.277Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://eanm.org/the-eanm-community/about-us/executive-office/",
+        "https://earl.eanm.org/",
+        "https://earl.eanm.org/contacts/",
+        "https://earl.eanm.org/organisational-structure/"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "The requested name 'Iva Hristova' is an unconfirmed short form; sources consistently publish the name as 'Ivalina Hristova'",
+        "The requested department was given in Chinese as '认证项目' (accreditation programme); a direct role tie to the accreditation programme is inferred from her EARL Chief Scientific Officer position, since EARL runs EANM's accreditation activities",
+        "现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间",
+        "未检索到其本人署名的代表性论文或个人研究方向信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认"
+      ]
+    },
+    "predicted_questions": [
+      "她的准确姓名和职务是什么？",
+      "EARL 首席科学官在组织中承担什么职责？",
+      "EARL 的认证项目覆盖哪些设备和领域？",
+      "EARL 与 EANM 是什么关系？",
+      "如何联系她所在的机构？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "官方 EANM 执行办公室目录使用的姓名是 Ivalina Hristova（并非请求中较短的 Iva 形式），职务为 EARL 首席科学官。",
+        "source_ids": [
+          "src_a0656494a428d0e7cf19ed9625a0086f"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "EARL 组织结构页说明：一名首席科学官监督并协调 EARL 的项目和团队，并向首席执行官汇报；EANM 理事会中的科学联络官依章程对 EARL 活动负责。",
+        "source_ids": [
+          "src_93c3dc7645487e403061aaf935001fc9"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "EARL 网站列出的认证范围包括 18F PET/CT|PET/MR、脑 PET/CT、68Ga PET/CT|PET/MR、89Zr PET/CT|PET/MR 以及 177Lu SPECT/CT，并提供认证流程时间表、规范和费用信息。",
+        "source_ids": [
+          "src_07ea7388da34245618636fae13401ec4"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "EARL（EANM Forschungs GmbH）是 2006 年由 EANM 领导层发起设立的机构，是在奥地利注册的有限责任公司、EANM 非营利协会的全资子公司，旨在推动多中心核医学与研究，并提升分子影像数据的可比性。",
+        "source_ids": [
+          "src_07ea7388da34245618636fae13401ec4",
+          "src_93c3dc7645487e403061aaf935001fc9"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "EANM 执行办公室建议一般事务发邮件至 office@eanm.org 或直接联系相关工作人员；EARL 的联系邮箱为 earl@eanm.org，地址为奥地利维也纳 Schmalzhofgasse 26, 1060。",
+        "source_ids": [
+          "src_a0656494a428d0e7cf19ed9625a0086f",
+          "src_c9fb32ef73a1f0733132bab36ba54bef"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "The requested name 'Iva Hristova' is an unconfirmed short form; sources consistently publish the name as 'Ivalina Hristova'",
+        "The requested department was given in Chinese as '认证项目' (accreditation programme); a direct role tie to the accreditation programme is inferred from her EARL Chief Scientific Officer position, since EARL runs EANM's accreditation activities",
+        "现有官方来源仅确认其机构职务（EARL 首席科学官），未提供其教育背景、以往职业经历或任职起始时间",
+        "未检索到其本人署名的代表性论文或个人研究方向信息，无法列代表成果；如需了解其个人学术贡献可直接向本人确认"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_688a3e38721e4b1e9eb941e051cef907",
+    "run_id": "drr_688a3e38721e4b1e9eb941e051cef907",
+    "artifacts": [
+      {
+        "artifact_id": "dra_3a98eae059dc4de8902730382e3575ca",
+        "kind": "profile",
+        "filename": "Iva Hristova_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 3316,
+        "sha256": "caf6aa4e1c9202c09913baeb431d629bb8d63e28052733f5020c4548853d54d2",
+        "expires_at": "2026-10-11T00:41:32.287Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_3a98eae059dc4de8902730382e3575ca/download"
+      },
+      {
+        "artifact_id": "dra_76c86b884c004160a95f1b140d29c22e",
+        "kind": "review",
+        "filename": "Iva Hristova_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2278,
+        "sha256": "ff71d1c57dff1cc0d81b9c3d3bc4f23ba8a94ee76b40961740e8234d79b810fe",
+        "expires_at": "2026-10-11T00:41:32.287Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_76c86b884c004160a95f1b140d29c22e/download"
+      },
+      {
+        "artifact_id": "dra_9bc299ca645746e590ce6fed3a2e08ca",
+        "kind": "questions",
+        "filename": "Iva Hristova_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 227,
+        "sha256": "c28cb94091e936488f5f7b1f43b4cc87b7f492be1f3841f6e7653da35498a7b3",
+        "expires_at": "2026-10-11T00:41:32.287Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_9bc299ca645746e590ce6fed3a2e08ca/download"
+      },
+      {
+        "artifact_id": "dra_b434fd5ac91344d1b63db5ff069cb39e",
+        "kind": "answers",
+        "filename": "Iva Hristova_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2776,
+        "sha256": "581411b935543ef28aa5b8e2903c732637d2fb86d6b439d9d0e19b0d545558e5",
+        "expires_at": "2026-10-11T00:41:32.287Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_b434fd5ac91344d1b63db5ff069cb39e/download"
+      }
+    ]
+  },
+  "sha256": "449f21e5233be1b86ef38c52c160b9f87d02a4a706549fb537a827846d8df002",
+  "sizeBytes": 12545,
+  "createdAt": "2026-09-11T00:41:32.287Z",
+  "expiresAt": "2026-10-11T00:41:32.287Z"
+}

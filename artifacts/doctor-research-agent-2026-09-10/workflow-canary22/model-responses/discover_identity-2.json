@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://csd.cma.org.cn/contents20/36/473.html\",\"purpose\":\"verify identity via Chinese Medical Association directory\"},{\"type\":\"read\",\"url\":\"https://www.tjmugh.com.cn/lcks/pfk/index.shtml\",\"purpose\":\"verify department listing on hospital official site\"}]}",
+  "usage": {
+    "promptTokens": 2275,
+    "completionTokens": 90,
+    "reasoningTokens": 19,
+    "totalTokens": 2365
+  },
+  "gatewayRequestId": "req-1f3d8054-7b7c-4101-a5b9-acd8720090a4"
+}

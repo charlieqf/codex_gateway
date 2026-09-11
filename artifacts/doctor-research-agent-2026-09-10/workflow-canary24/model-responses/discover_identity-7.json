@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.odt.co.nz/news/dunedin/sdhb-seeking-acting-ed-clinical-leader\",\"find\":\"Kerruish\",\"purpose\":\"Confirm Dr Tim Kerruish's emergency medicine role at Dunedin Hospital from a read page\"}]}",
+  "usage": {
+    "promptTokens": 12245,
+    "completionTokens": 471,
+    "reasoningTokens": 408,
+    "totalTokens": 12716
+  },
+  "gatewayRequestId": "req-a4af672a-3066-4337-8783-e8f1d70e21c9"
+}

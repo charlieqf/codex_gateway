@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"杨祖立 中山大学附属第六医院 普通外科\",\"purpose\":\"locate the requested person at the hospital directory\"}]}",
+  "usage": {
+    "promptTokens": 1367,
+    "completionTokens": 48,
+    "reasoningTokens": 10,
+    "totalTokens": 1415
+  },
+  "gatewayRequestId": "req-144f6fc2-1b57-4271-9026-4da4dfe86b13"
+}

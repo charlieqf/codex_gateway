@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.guysandstthomass.nhs.uk/our-consultants/jason-dunn\",\"purpose\":\"verify official trust profile for Jason Dunn, gastroenterology, Guy's and St Thomas'\"},{\"type\":\"read\",\"url\":\"https://guysandstthomasspecialistcare.co.uk/specialists/jason-dunn/\",\"purpose\":\"corroborate consultant gastroenterologist role and specialty details\"}]}",
+  "usage": {
+    "promptTokens": 2140,
+    "completionTokens": 113,
+    "reasoningTokens": 12,
+    "totalTokens": 2253
+  },
+  "gatewayRequestId": "req-60351c50-a160-48b5-b076-15c9752b7d90"
+}

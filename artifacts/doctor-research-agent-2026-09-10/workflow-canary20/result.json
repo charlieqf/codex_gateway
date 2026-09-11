@@ -1,0 +1,250 @@
+{
+  "original": {
+    "name": "钟历勇",
+    "hospital": "首都医科大学附属北京天坛医院",
+    "department": "内分泌科"
+  },
+  "result": {
+    "outcome": "succeeded"
+  },
+  "elapsed_ms": 131808,
+  "serpapi_requests": 1,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 131805,
+      "result": {
+        "outcome": "succeeded"
+      }
+    }
+  ],
+  "diagnostic_replay": false,
+  "fresh_case_acceptance_eligible": true,
+  "legacy_calls": 0,
+  "model_requests": 8,
+  "renew_error": null,
+  "checked_artifacts": [
+    {
+      "kind": "answers",
+      "bytes": 3187,
+      "hash_verified": true
+    },
+    {
+      "kind": "profile",
+      "bytes": 4979,
+      "hash_verified": true
+    },
+    {
+      "kind": "questions",
+      "bytes": 251,
+      "hash_verified": true
+    },
+    {
+      "kind": "review",
+      "bytes": 2143,
+      "hash_verified": true
+    }
+  ],
+  "model_calls": [
+    {
+      "stage": "discover_identity",
+      "attempt": 1,
+      "elapsed_ms": 2087,
+      "gateway_request_id": "req-4d10afc1-4257-4be6-8560-4507c574731b",
+      "response_sha256": "bc0e5d32b40c2ab481762585b22ff4ceb787f954fcd93d0c5199f14cb91ce28d",
+      "usage": {
+        "promptTokens": 1370,
+        "completionTokens": 66,
+        "reasoningTokens": 20,
+        "totalTokens": 1436
+      },
+      "telemetry": {
+        "promptChars": 6651,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:43:42.721Z",
+        "clientTotalMs": 2087,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 2,
+      "elapsed_ms": 1952,
+      "gateway_request_id": "req-f7f61d05-40db-470c-a65c-aacc9fe715c0",
+      "response_sha256": "d1983d94c8ba581ca46291f742c6edc63370847877700c6d451df55767b1d989",
+      "usage": {
+        "promptTokens": 2473,
+        "completionTokens": 121,
+        "reasoningTokens": 7,
+        "totalTokens": 2594
+      },
+      "telemetry": {
+        "promptChars": 8869,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:44:21.516Z",
+        "clientTotalMs": 1951,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 3,
+      "elapsed_ms": 6298,
+      "gateway_request_id": "req-253d87c7-3c43-4ff2-8e9b-eaf2d43d739c",
+      "response_sha256": "b53d72dcb632d5bdf505c7b3355b7681eb0447f51d1ac48a9010282d716b91bd",
+      "usage": {
+        "promptTokens": 13346,
+        "completionTokens": 419,
+        "reasoningTokens": 0,
+        "totalTokens": 13765
+      },
+      "telemetry": {
+        "promptChars": 33279,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:44:23.991Z",
+        "clientTotalMs": 6297,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 4,
+      "elapsed_ms": 6186,
+      "gateway_request_id": "req-8702b7db-bee3-4558-8454-61da0b5ef7b3",
+      "response_sha256": "c30962cb620f687a11bc6eac191fb0c9c6eeb46ea63ee31af014338d3a18056d",
+      "usage": {
+        "promptTokens": 13365,
+        "completionTokens": 435,
+        "reasoningTokens": 0,
+        "totalTokens": 13800
+      },
+      "telemetry": {
+        "promptChars": 33377,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:44:30.313Z",
+        "clientTotalMs": 6186,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "resolve_identity",
+      "attempt": 5,
+      "elapsed_ms": 1052,
+      "gateway_request_id": "req-0de7cb09-39f8-4349-ac87-9451c4096d55",
+      "response_sha256": "796e4ebe9f38fb0c0ce3641743f6db9fdc8eb0d507c77c85a80e235031e42799",
+      "usage": {
+        "promptTokens": 9823,
+        "completionTokens": 10,
+        "reasoningTokens": 0,
+        "totalTokens": 9833
+      },
+      "telemetry": {
+        "promptChars": 19123,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:44:36.518Z",
+        "clientTotalMs": 1052,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "synthesize_review",
+      "attempt": 1,
+      "elapsed_ms": 25357,
+      "gateway_request_id": "req-5b0120b6-7d04-48ae-aac9-f48b95fe64ba",
+      "response_sha256": "bc3775af9f75d645b3f0982d36b918ebb4bb31f29c3e876dbdc9837996939e7f",
+      "usage": {
+        "promptTokens": 13325,
+        "completionTokens": 2865,
+        "reasoningTokens": 0,
+        "totalTokens": 16190
+      },
+      "telemetry": {
+        "promptChars": 30336,
+        "maximumOutputTokens": 6000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:44:37.594Z",
+        "clientTotalMs": 25357,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 2,
+      "elapsed_ms": 31371,
+      "gateway_request_id": "req-b9832057-20f9-4dac-844f-667e5cdcd637",
+      "response_sha256": "9ee921e1e730289f5968026e233805c89bb7a8027c064bfd1b9045c1714da66a",
+      "usage": {
+        "promptTokens": 11061,
+        "completionTokens": 2671,
+        "reasoningTokens": 120,
+        "totalTokens": 13732
+      },
+      "telemetry": {
+        "promptChars": 23654,
+        "maximumOutputTokens": 6000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:45:02.969Z",
+        "clientTotalMs": 31370,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "validate_outputs",
+      "attempt": 3,
+      "elapsed_ms": 20061,
+      "gateway_request_id": "req-b4d9b37f-952a-4f71-8e61-697c04efb2a0",
+      "response_sha256": "29607ea399aecc0b07e8156480d01a8525877095c8d1707c08a2d43d12ef4600",
+      "usage": {
+        "promptTokens": 13722,
+        "completionTokens": 2482,
+        "reasoningTokens": 33,
+        "totalTokens": 16204
+      },
+      "telemetry": {
+        "promptChars": 29300,
+        "maximumOutputTokens": 6000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:45:34.358Z",
+        "clientTotalMs": 20060,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [],
+  "external_calls": [
+    {
+      "run_id": "drr_b2b18eacef2a44bd9d9da4bd9e4c6dbb",
+      "host": "serpapi.com",
+      "query_sha256": "e6b2408937a47b669df2def81505c2d61b992574dd66ced8ba2e4825cb8d707f",
+      "attempt": 1,
+      "duration_ms": 36692,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": "6aa34ec19701219011211487"
+    }
+  ],
+  "budget_failures": [],
+  "public_api_or_admission_tested": false
+}
