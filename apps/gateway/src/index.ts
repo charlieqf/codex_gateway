@@ -1291,7 +1291,8 @@ export function buildGateway(options: GatewayOptions = {}) {
     async (request, reply) => {
       applyPrivateResponseHeaders(reply);
       const { subject, scope, credential } = getGatewayContext(request);
-      const access = planEntitlementStore?.entitlementAccessForSubject(subject.id);
+      const usageNow = clock();
+      const access = planEntitlementStore?.entitlementAccessForSubject(subject.id, usageNow);
       const activeEntitlement = access?.status === "active" ? access.entitlement : null;
       const activePlan = access?.status === "active" ? access.plan : null;
       const visibleEntitlement =
@@ -1312,7 +1313,8 @@ export function buildGateway(options: GatewayOptions = {}) {
                 entitlementId: activeEntitlement?.id ?? null,
                 entitlementPeriodStart: activeEntitlement?.periodStart ?? null,
                 entitlementPeriodEnd: activeEntitlement?.periodEnd ?? null,
-                policy: tokenPolicy
+                policy: tokenPolicy,
+                now: usageNow
               })
               .then(publicTokenUsage)
               .catch((err) => {
