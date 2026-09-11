@@ -99,7 +99,7 @@ if mode == 'prepare':
     worker_flags={'RESEARCH_IDENTITY_AGENT_ENABLED':'true','RESEARCH_PRACTICAL_PROFILE_ENABLED':'true',
         'RESEARCH_IDENTITY_MAX_SEARCH_REQUESTS':'2','RESEARCH_IDENTITY_MAX_PAGE_REQUESTS':'12','RESEARCH_IDENTITY_MAX_MODEL_CALLS':'8',
         'RESEARCH_MAX_LLM_CALLS_PER_RUN':'14','RESEARCH_MAX_INPUT_TOKENS_PER_CALL':'40000','RESEARCH_MAX_OUTPUT_TOKENS_PER_CALL':'6000',
-        'RESEARCH_MAX_INPUT_TOKENS_PER_RUN':'1000000','RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN':'300000',
+        'RESEARCH_MAX_INPUT_TOKENS_PER_RUN':'560000','RESEARCH_MAX_OUTPUT_TOKENS_PER_RUN':'84000',
         'RESEARCH_MAX_EXTERNAL_REQUESTS_PER_RUN':'1000','RESEARCH_MAX_EXTERNAL_BYTES_PER_RUN':'2000000000',
         'RESEARCH_MAX_CHECKPOINT_BYTES':'1000000','RESEARCH_DOCTOR_LOOKUP_BRIEF_ENABLED':'false','RESEARCH_SYNTHESIS_SHARD_COUNT':'1',
         'RESEARCH_WORKER_VERSION':'research-practical-'+revision[:12]}
@@ -112,15 +112,29 @@ if mode == 'prepare':
     assert parsed==expected
     proposed_path=backup/'proposed.override.yml'; proposed_path.write_text(proposed); os.chmod(proposed_path,0o600)
     command(compose(proposed_path)+['config','--quiet'])
+    effective=json.loads(command(compose(proposed_path)+['config','--format','json']))
+    existing_mounts=mounts(worker)
+    for secret in effective['services']['research-worker']['secrets']:
+        name=secret['source']; target='/run/secrets/'+secret.get('target',name)
+        source=pathlib.Path(existing_mounts[target]); destination=pathlib.Path(effective['secrets'][name]['file'])
+        assert source.is_file() and stat.S_IMODE(source.stat().st_mode)&0o007==0
+        if not destination.exists():
+            assert destination.parent==release/'secrets' and not destination.is_symlink()
+            destination.parent.mkdir(mode=0o700,exist_ok=True); destination.symlink_to(source.resolve())
+        assert destination.resolve()==source.resolve()
     private_env=backup/'preflight.private.env'
     env=dict(item.split('=',1) for item in worker['Config']['Env']); env.update(worker_flags)
     assert all('\n' not in str(v) and '\r' not in str(v) for v in env.values())
     private_env.write_text(''.join(k+'='+str(v)+'\n' for k,v in env.items())); os.chmod(private_env,0o600)
     try:
-        args=['docker','run','--rm','--network','none','--read-only','--cap-drop','ALL','--env-file',str(private_env)]
+        assert 'codex_gateway_r760_default' in worker['NetworkSettings']['Networks']
+        args=['docker','run','--rm','--network','codex_gateway_r760_default','--read-only','--cap-drop','ALL','--env-file',str(private_env)]
         for m in worker['Mounts']: args+=['--mount','type=bind,src='+m['Source']+',dst='+m['Destination']+',readonly']
         args += ['-i',image,'node','--input-type=module','-']
-        code="import {loadResearchWorkerConfig} from '/app/apps/research-worker/dist/config.js'; const c=loadResearchWorkerConfig(process.env); if(!c.workflowPolicy.identityAgentEnabled||!c.workflowPolicy.practicalProfileEnabled||c.workflowPolicy.budgets.llmCalls!==14)throw Error('Unexpected policy'); console.log(JSON.stringify({configuration_valid:true}));"
+        # This authenticated GET checks the existing private Gateway and service
+        # credential before draining the healthy Worker. It does not generate
+        # model output or consume a search request.
+        code="import {readFileSync} from 'node:fs'; import {loadResearchWorkerConfig} from '/app/apps/research-worker/dist/config.js'; import {GatewayResearchModelClient} from '/app/packages/research-agent/dist/model-client.js'; const c=loadResearchWorkerConfig(process.env); if(!c.workflowPolicy.identityAgentEnabled||!c.workflowPolicy.practicalProfileEnabled||c.workflowPolicy.budgets.llmCalls!==14)throw Error('Unexpected policy'); const client=new GatewayResearchModelClient({...c.llm,bearerToken:readFileSync(process.env.RESEARCH_LLM_BEARER_TOKEN_FILE,'utf8').trim(),readinessRequirements:{maximumPromptTokensPerCall:c.workflowPolicy.maximumInputTokensPerCall,maximumOutputTokensPerCall:c.workflowPolicy.maximumOutputTokensPerCall,callsPerRun:c.workflowPolicy.budgets.llmCalls,concurrentCalls:1,maximumTokensPerRun:c.workflowPolicy.budgets.inputTokens+c.workflowPolicy.budgets.outputTokens}}); await client.assertModelAvailable(AbortSignal.timeout(20000)); console.log(JSON.stringify({configuration_valid:true,private_gateway_and_credential_ready:true}));"
         assert json.loads(command(args,input=code))['configuration_valid']
     finally: private_env.unlink()
     state['proposed_override_sha256']=sha(proposed_path)

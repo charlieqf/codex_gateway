@@ -21,7 +21,7 @@ import {
   type ResolveResearchIdentityInput,
   type ResearchStore
 } from "@codex-gateway/core";
-import { openVerifiedResearchArtifactStream } from "@codex-gateway/research-agent";
+import { normalizePracticalResultWarnings, openVerifiedResearchArtifactStream } from "@codex-gateway/research-agent";
 import { getGatewayContext, researchRouteConfig } from "./http/context.js";
 import type { CredentialRateLimiter } from "./services/rate-limiter.js";
 import {
@@ -534,7 +534,7 @@ export function registerResearchRoutes(
           throw new Error("Succeeded Research run has no stored result.");
         }
         return {
-          ...stored.result,
+          ...normalizePracticalResultWarnings(stored.result),
           schema_version: stored.schemaVersion,
           request_id: request.id,
           run_id: run.runId

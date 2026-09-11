@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { preparePracticalProfile, type PracticalProfileDraft, type PracticalProfileInput, type PracticalProfileState } from "./practical-profile-agent.js";
-import { assemblePracticalProfile } from "./practical-profile-output.js";
+import { assemblePracticalProfile, normalizePracticalResultWarnings } from "./practical-profile-output.js";
 import { renderDoctorResearchArtifacts } from "./artifacts.js";
 import { parseAndValidateDoctorResearchModelOutput } from "./contracts.js";
 import { investigationTiming } from "./investigation-timing.js";
@@ -32,6 +32,23 @@ function fixture(responses: unknown[]) {
 }
 
 describe("Practical profile scope, provenance and durable recovery (scripted model)", () => {
+  it("preserves legacy practical result text and artifact bytes while exposing warning codes", async () => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    responses.push({ draft: f.draft }, { approved: true, draft: f.draft });
+    const result = await preparePracticalProfile(f.input);
+    if (result.outcome !== "resolved") throw Error("Fixture must resolve");
+    const output = assemblePracticalProfile({ ...f.input, canonicalIdentityId: `dci_${"a".repeat(32)}`, draft: result.draft, state: result.state, now: new Date(f.page.accessedAt) });
+    const legacy = { ...output, quality: { ...output.quality, warnings: ["教育经历尚未核实。"], status: "passed_with_warnings" as const },
+      source_coverage: { ...output.source_coverage, limitations: undefined, warnings: ["教育经历尚未核实。"] } };
+    const before = structuredClone(legacy);
+    const normalized = normalizePracticalResultWarnings(legacy) as unknown as typeof output;
+    expect(normalized.quality.warnings).toEqual(["practical_profile_scope_limited"]);
+    expect(normalized.source_coverage.limitations).toEqual(["教育经历尚未核实。"]);
+    expect(parseAndValidateDoctorResearchModelOutput(JSON.stringify(normalized))).toMatchObject({ ok: true });
+    expect(renderDoctorResearchArtifacts(normalized, "zh-CN", "practical")).toEqual(renderDoctorResearchArtifacts(legacy, "zh-CN", "practical"));
+    expect(legacy).toEqual(before);
+    expect(normalizePracticalResultWarnings(normalized as unknown as Record<string, unknown>)).toBe(normalized);
+  });
   it.each(["inline_fence", "missing_outer_envelope"])("accepts a complete draft with %s while still requiring factual editing", async defect => {
     const responses: unknown[] = []; const f = fixture(responses);
     const text = JSON.stringify({ draft: f.draft });
@@ -63,7 +80,8 @@ describe("Practical profile scope, provenance and durable recovery (scripted mod
     expect(parseAndValidateDoctorResearchModelOutput(JSON.stringify(output))).toMatchObject({ ok: true });
     expect(output.sources[0]!.retrieval_method).toBe("search_excerpt");
     expect(output.identity_resolution.confidence).toBe("medium");
-    expect(output.quality.warnings.join(" ")).toContain("could not be read in full");
+    expect(output.quality.warnings).toEqual(["practical_profile_scope_limited", "search_excerpt_used"]);
+    expect(output.source_coverage.limitations?.join(" ")).toContain("could not be read in full");
     for (const artifact of renderDoctorResearchArtifacts(output, "en", "practical").filter(a => a.kind !== "questions")) {
       expect(artifact.content).toContain("could not be read in full");
     }

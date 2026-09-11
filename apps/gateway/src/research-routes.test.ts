@@ -844,7 +844,7 @@ describe("Doctor Research control-plane routes", () => {
       mode: "brief",
       skill: {
         name: "doctor-research-query",
-        version: "1.7.3"
+        version: "1.7.4"
       }
     });
     expect(replayed.statusCode).toBe(202);

@@ -137,6 +137,7 @@ export interface DoctorResearchContent {
     profile_sources: string[];
     cutoff_date: string;
     warnings: string[];
+    limitations?: string[];
   };
   predicted_questions: string[];
   answers: Array<{
@@ -504,7 +505,8 @@ export const doctorResearchResultSchema = {
           type: "string",
           pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
         },
-        warnings: stringArray()
+        warnings: stringArray(),
+        limitations: stringArray()
       }
     },
     predicted_questions: {

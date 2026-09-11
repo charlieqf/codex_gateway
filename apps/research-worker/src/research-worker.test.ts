@@ -6930,7 +6930,7 @@ describe("Research Worker controlled-beta workflow", () => {
     const practicalDraft = { facts: [{ type: "expertise", text: "Cardiology at Example Hospital.", citations: practicalCitation }],
       background: [{ text: "The public profile identifies the person's cardiology work at Example Hospital.", citations: practicalCitation }],
       qa: Array.from({ length: 5 }, (_, i) => ({ question: `What should we discuss about your cardiology work (${i + 1})?`,
-        answer: "The public profile identifies cardiology; personal priorities should be confirmed in conversation.", citations: practicalCitation })), limitations: [] };
+        answer: "The public profile identifies cardiology; personal priorities should be confirmed in conversation.", citations: practicalCitation })), limitations: ["教育经历未核实；仅整理已读公开资料。"] };
     const gatewayStore = createSqliteStore({ path: ":memory:" });
     const researchGatewayStore = createResearchSqliteStore({
       path: config.databasePath,
@@ -7121,6 +7121,13 @@ describe("Research Worker controlled-beta workflow", () => {
         headers: { authorization }
       });
       expect(resultResponse.statusCode).toBe(200);
+      if (practical) {
+        const payload = resultResponse.json();
+        expect(payload.source_coverage.limitations).toContain("教育经历未核实；仅整理已读公开资料。");
+        for (const code of [...payload.quality.warnings, ...payload.source_coverage.warnings]) {
+          expect(code).toMatch(/^[a-z][a-z0-9_.:-]{0,119}$/u);
+        }
+      }
       const result = resultResponse.json() as {
         artifacts: Array<{
           artifact_id: string;

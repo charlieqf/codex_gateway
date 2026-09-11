@@ -1,10 +1,28 @@
-import type { DoctorResearchRunInput } from "@codex-gateway/core";
+import { isRecord, type DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource } from "./adapters.js";
 import type { InvestigatedIdentity } from "./identity-investigator.js";
 import type { PracticalProfileDraft, PracticalProfileState } from "./practical-profile-agent.js";
 import { practicalProfilePolicy } from "./practical-profile-agent.js";
 import type { DoctorResearchModelOutput, DoctorResearchSource } from "./contracts.js";
 import { markdownInline, markdownHttpsUrl } from "./artifacts.js";
+
+/** Read compatibility for early practical results; stored bytes and files stay immutable. */
+export function normalizePracticalResultWarnings(result: Record<string, unknown>): Record<string, unknown> {
+  const quality = result.quality;
+  const coverage = result.source_coverage;
+  if (!isRecord(quality) || !isRecord(coverage) || !Array.isArray(quality.checks) ||
+      !quality.checks.includes("doctor_practical_profile.v1") ||
+      !Array.isArray(quality.warnings) || !Array.isArray(coverage.warnings)) return result;
+  const all = [...quality.warnings, ...coverage.warnings];
+  if (!all.every(w => typeof w === "string")) return result;
+  const code = /^[a-z][a-z0-9_.:-]{0,119}$/u;
+  const prose = [...new Set(all.filter(w => !code.test(w)))];
+  if (!prose.length) return result;
+  const warnings = [...new Set([...all.filter(w => code.test(w)), "practical_profile_scope_limited",
+    ...(Array.isArray(result.sources) && result.sources.some(s => isRecord(s) && s.retrieval_method === "search_excerpt") ? ["search_excerpt_used"] : [])])];
+  return { ...result, quality: { ...quality, warnings }, source_coverage: { ...coverage, warnings,
+    limitations: [...new Set([...(Array.isArray(coverage.limitations) ? coverage.limitations.filter(v => typeof v === "string") : []), ...prose])] } };
+}
 
 /** Only the factual editor's accepted draft reaches this server-owned assembly. */
 export function assemblePracticalProfile(input: {
@@ -40,10 +58,14 @@ export function assemblePracticalProfile(input: {
       source_ids: ids(fact.citations), verification_status: "verified" });
   }
   const excerptSources = pages.filter(p => p.retrieval?.method === "search_excerpt");
-  const warnings = [...new Set([...(identity.limitations ?? []), ...draft.limitations,
+  const limitations = [...new Set([...(identity.limitations ?? []), ...draft.limitations,
     ...excerptSources.map(p => input.language === "zh-CN"
       ? `来源 ${p.url} 未能阅读全文，仅使用搜索引擎返回的标题与摘要，并结合其他已读资料判断；原文现状及未展示内容尚未核实。`
       : `Source ${p.url} could not be read in full. Only its search title and excerpt were used alongside other read evidence; unseen content and current status remain unverified.`)])];
+  const warnings = [
+    ...(limitations.length ? ["practical_profile_scope_limited"] : []),
+    ...(excerptSources.length ? ["search_excerpt_used"] : [])
+  ];
   const references = publications.map(p => ({ reference_id: `ref_pmid_${p.pmid}`, title: p.title, journal: p.journal,
     publication_year: p.publicationYear, pmid: p.pmid, doi: p.doi, verification_status: "verified" as const }));
   const zh = input.language === "zh-CN";
@@ -64,7 +86,7 @@ export function assemblePracticalProfile(input: {
         queries: state.searches.map(s => s.query), included_count: references.length }
     },
     source_coverage: { literature_sources: publications.length ? ["pubmed"] : [], profile_sources: pages.map(p => p.url),
-      cutoff_date: input.now.toISOString().slice(0, 10), warnings },
+      cutoff_date: input.now.toISOString().slice(0, 10), warnings, limitations },
     predicted_questions: draft.qa.map(p => p.question),
     answers: draft.qa.map((p, index) => ({ question_index: index + 1, answer: p.answer, source_ids: ids(p.citations) })),
     quality: { status: warnings.length ? "passed_with_warnings" : "passed", warnings,
