@@ -1,8 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
-import type {
-  ListSubjectsInput,
-  Subject,
-  SubjectState
+import {
+  GatewayError,
+  type ListSubjectsInput,
+  type Subject,
+  type SubjectState
 } from "@codex-gateway/core";
 import { subjectColumns } from "./columns.js";
 import { rowToSubject } from "./row-mappers.js";
@@ -44,15 +45,19 @@ export function getByExternal(
   provider: string,
   externalUserId: string
 ): Subject | null {
-  const row = db
+  const rows = db
     .prepare(
       `SELECT ${subjectColumns}
        FROM subjects
-       WHERE external_provider = ?
-         AND external_user_id = ?`
+       WHERE (external_provider = ? AND external_user_id = ?)
+          OR id IN (SELECT subject_id FROM external_subject_registrations
+                    WHERE provider = ? AND external_user_id = ? AND state = 'linked')`
     )
-    .get(provider, externalUserId);
-  return row ? rowToSubject(row) : null;
+    .all(provider, externalUserId, provider, externalUserId);
+  if (rows.length > 1) {
+    throw new GatewayError({ code: "identity_conflict", message: "External identity matches multiple subjects.", httpStatus: 409 });
+  }
+  return rows[0] ? rowToSubject(rows[0]) : null;
 }
 
 export function list(db: DatabaseSync, input: ListSubjectsInput = {}): Subject[] {

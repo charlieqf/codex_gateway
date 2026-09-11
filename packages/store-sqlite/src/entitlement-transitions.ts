@@ -4,6 +4,7 @@ import { entitlementColumns } from "./columns.js";
 import { insertTransitionAudit } from "./entitlement-audit.js";
 import { currentExists } from "./entitlement-queries.js";
 import { rowToEntitlement } from "./row-mappers.js";
+import { freePlanSql, paidPlanSql } from "./free-allowance.js";
 
 export function activeForSubjectInTransaction(
   db: DatabaseSync,
@@ -15,7 +16,7 @@ export function activeForSubjectInTransaction(
       `SELECT ${entitlementColumns}
        FROM entitlements
        WHERE subject_id = ?
-         AND state = 'active'
+         AND state IN ('active', 'scheduled')
          AND period_end IS NOT NULL
          AND period_end <= ?`
     )
@@ -25,18 +26,20 @@ export function activeForSubjectInTransaction(
   for (const entitlement of expiredRows) {
     db.prepare("UPDATE entitlements SET state = 'expired' WHERE id = ?").run(entitlement.id);
     insertTransitionAudit(db, "entitlement-expire", entitlement, now, {
-      from_state: "active",
+      from_state: entitlement.state,
       to_state: "expired"
     });
   }
 
-  if (!currentExists(db, subjectId)) {
+  if (!currentExists(db, subjectId, true)) {
+    const hasFree = currentExists(db, subjectId);
     const scheduled = db
       .prepare(
         `SELECT ${entitlementColumns}
          FROM entitlements
          WHERE subject_id = ?
            AND state = 'scheduled'
+           ${hasFree ? `AND (${paidPlanSql})` : ""}
            AND period_start <= ?
          ORDER BY period_start ASC, created_at ASC
          LIMIT 1`
@@ -60,7 +63,7 @@ export function activeForSubjectInTransaction(
          AND state = 'active'
          AND period_start <= ?
          AND (period_end IS NULL OR period_end > ?)
-       ORDER BY period_start DESC, created_at DESC
+       ORDER BY CASE WHEN (${freePlanSql}) THEN 1 ELSE 0 END, period_start DESC, created_at DESC
        LIMIT 1`
     )
     .get(subjectId, now.toISOString(), now.toISOString());
@@ -71,14 +74,16 @@ export function cancelCurrent(
   db: DatabaseSync,
   subjectId: string,
   now: Date,
-  reason: string
+  reason: string,
+  preserveFree = false
 ): void {
   const entitlements = db
     .prepare(
       `SELECT ${entitlementColumns}
        FROM entitlements
        WHERE subject_id = ?
-         AND state IN ('active', 'paused')`
+         AND state IN ('active', 'paused')
+         ${preserveFree ? `AND NOT (${freePlanSql})` : ""}`
     )
     .all(subjectId)
     .map(rowToEntitlement);
@@ -86,7 +91,8 @@ export function cancelCurrent(
     `UPDATE entitlements
      SET state = 'cancelled', cancelled_at = ?, cancelled_reason = ?
      WHERE subject_id = ?
-       AND state IN ('active', 'paused')`
+       AND state IN ('active', 'paused')
+       ${preserveFree ? `AND NOT (${freePlanSql})` : ""}`
   ).run(now.toISOString(), reason, subjectId);
   for (const entitlement of entitlements) {
     insertTransitionAudit(db, "entitlement-cancel", entitlement, now, {

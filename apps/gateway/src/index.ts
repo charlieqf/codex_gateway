@@ -110,6 +110,7 @@ import {
   registerPhoneAuthRoutes,
   sendPhoneAuthError
 } from "./phone-auth-routes.js";
+import type { ExternalIdentityStore } from "@codex-gateway/core";
 import {
   PhoneAuthService,
   resolvePhoneAuthMode,
@@ -274,6 +275,8 @@ import {
 import { resolveEntitlementAccessForChat } from "./services/entitlement-access.js";
 import { OpenAICompatibleProviderAdapter } from "./services/openai-compatible-provider.js";
 import { NativeCallBudget, canFailoverNativeError, nativeFailoverEnabled, runNativeToolFailover } from "./services/native-tool-failover.js";
+import { VisionRequestRecovery, runVisionRequestRecovery, visionRecoveryRequestHeader } from "./services/vision-request-recovery.js";
+import { visionDefaultRequestBodyBytes, visionInputLimitError } from "./services/vision-input-policy.js";
 import { quotaCooldownMs, type QuotaRequestShape } from "./services/provider-quota-circuit.js";
 import { resolveProviderApiKey } from "./services/provider-secret.js";
 import {
@@ -344,6 +347,9 @@ export interface GatewayOptions {
   planEntitlementStore?: PlanEntitlementStore;
   phoneAuthStore?: PhoneAuthStore;
   phoneAuthService?: PhoneAuthService | null;
+  externalIdentityProvider?: string | null;
+  externalIdentityStore?: ExternalIdentityStore;
+  unifiedKeyRecoverySecret?: string | null;
   desktopVersionGate?: DesktopVersionGate;
   medevidenceOriginPolicy?: MedevidenceOriginPolicy;
   phoneAuthLoginRateLimiter?: CredentialRateLimiter;
@@ -477,7 +483,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     parseLocalContextAdmissionMode(process.env.MEDCODE_LOCAL_CONTEXT_ADMISSION_MODE);
   const visionRequestBodyLimitBytes = parsePositiveIntegerEnv(
     process.env.MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES,
-    30 * 1_024 * 1_024,
+    visionDefaultRequestBodyBytes,
     "MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES"
   );
   const subject = options.subject ?? defaultSubject();
@@ -775,6 +781,14 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
   const billingAdminStore =
     options.billingAdminStore ?? (isBillingAdminStore(sessions) ? sessions : undefined);
+  const externalIdentityProvider = options.externalIdentityProvider ?? process.env.GATEWAY_BILLING_IDENTITY_PROVIDER?.trim() ?? null;
+  if (externalIdentityProvider && !/^[A-Za-z0-9._:-]{1,100}$/.test(externalIdentityProvider)) {
+    throw new Error("Invalid GATEWAY_BILLING_IDENTITY_PROVIDER.");
+  }
+  const externalIdentityStore = options.externalIdentityStore ?? (isExternalIdentityStore(sessions) ? sessions : undefined);
+  const unifiedKeyRecoverySecret = options.unifiedKeyRecoverySecret === undefined
+    ? resolveProviderApiKey(process.env, "GATEWAY_UNIFIED_KEY_RECOVERY_KEY").apiKey
+    : options.unifiedKeyRecoverySecret;
   const billingAdminTokenStore =
     options.billingAdminTokenStore ?? (isBillingAdminTokenStore(sessions) ? sessions : undefined);
   const billingAdminAccess = resolveBillingAdminAccess({
@@ -931,6 +945,7 @@ export function buildGateway(options: GatewayOptions = {}) {
   });
 
   registerVisionAssetRoutes(app, {
+    maximumRequestBodyBytes: visionRequestBodyLimitBytes,
     service: visionAssetService,
     authorize: (request) => {
       const context = getGatewayContext(request);
@@ -1846,6 +1861,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     publicBaseUrl: publicGatewayBaseUrl,
     desktopClientVersion: desktopVersionGate.minimumVersion,
     phoneAuthService,
+    externalIdentityProvider,
+    externalIdentityStore,
+    unifiedKeyRecoverySecret,
     publicModels: publicModelRegistry.models.map((model) => ({
       id: model.id,
       aliases: model.aliases,
@@ -2272,6 +2290,9 @@ export function buildGateway(options: GatewayOptions = {}) {
     }
     request.gatewayPublicModelId = publicModel.id;
     const modality = parsed.images?.length ? "vision" : "text";
+    const visionRecovery = modality === "vision" && request.headers[visionRecoveryRequestHeader] === "1"
+      ? new VisionRequestRecovery(parsed.images!.length) : undefined;
+    request.gatewayVisionRecovery = visionRecovery;
     request.gatewayRequestedReasoningEffort = parsed.reasoningEffort ?? null;
     request.gatewayEffectiveReasoningEffort = null;
     request.gatewayReasoningEffortSource =
@@ -2352,7 +2373,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       publicModel.runtime === "pool" && modality === "text" &&
       publicModel.pool!.members.every((member) => member.runtime === "tencent" || member.runtime === "tiankuan") &&
       goldencodeNativeFailover && (!goldencodeFailoverSubjects.size || goldencodeFailoverSubjects.has(subject.id));
-    request.gatewayProviderFailoverEnabled = goldencodeRequestFailover;
+    request.gatewayProviderFailoverEnabled = goldencodeRequestFailover || !!visionRecovery;
     let attempt = chatRuntimeDispatcher.begin({
       model: publicModel,
       modality,
@@ -2600,7 +2621,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     if (parsed.stream) {
       const sse = setupSseResponse(reply);
       const deadline = createChatRequestDeadline({
-        timeoutMs: chatRequestTimeoutMs,
+        timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
         parentSignals: [executionOptions.signal, sse.signal],
         now: clock()
       });
@@ -2690,6 +2711,7 @@ export function buildGateway(options: GatewayOptions = {}) {
           const onProviderError = createProviderErrorLogger(request);
           const nativeResult = await runNativeWithFailover({
             failover: nativeFailover,
+            visionRecovery,
             runtime: attempt,
             deadlineAt: deadline.deadlineAt,
             now: clock,
@@ -2771,6 +2793,13 @@ export function buildGateway(options: GatewayOptions = {}) {
         } else {
           const providerSummaries: ProviderStreamSummary[] = [];
           while (true) {
+            const endError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock });
+            if (endError) {
+              markProviderStreamSummary(request, combineProviderStreamSummaries(providerSummaries));
+              writeOpenAIStreamError(request, reply, sse, endError);
+              failed = true;
+              break;
+            }
             const onProviderError = createProviderErrorLogger(request);
             const providerSummary = new ProviderStreamSummaryCollector({
               softToolArgumentBytes: nativeFileToolRecoveryPolicy.softArgumentBytes,
@@ -2783,6 +2812,7 @@ export function buildGateway(options: GatewayOptions = {}) {
             > = [];
             let attemptHasToolCalls = false;
             let retrying = false;
+            visionRecovery?.budget.consume();
             for await (const event of attempt.adapter.message({
               upstreamAccount: attempt.adapterInputUpstreamAccount,
               subject: attempt.subject,
@@ -2811,13 +2841,21 @@ export function buildGateway(options: GatewayOptions = {}) {
                 continue;
               }
               if (event.type === "error") {
-                const error = streamErrorToGatewayError(event);
+                let error = streamErrorToGatewayError(event);
                 const errorSummary = providerSummary.snapshot(
                   chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
                 );
                 providerSummaries.push(errorSummary);
                 attempt.recordError(error);
+                if (visionRecovery && await visionRecovery.prepareRetry({ error, summary: errorSummary,
+                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent })) {
+                  statelessAttempts += 1;
+                  retrying = true;
+                  break;
+                }
+                error = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? error;
                 if (
+                  !visionRecovery &&
                   !initialChunkSent &&
                   !deadline.signal.aborted &&
                   (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
@@ -2884,7 +2922,7 @@ export function buildGateway(options: GatewayOptions = {}) {
               const successSummary = providerSummary.snapshot(
                 chatRuntimeAttemptContext(attempt, attemptKind, parsed.toolChoice)
               );
-              const completionError = providerCompletionError(successSummary, {
+              let completionError = providerCompletionError(successSummary, {
                 outputTruncationMode: nativeFileToolRecoveryPolicy.mode,
                 outputKind: "auto"
               });
@@ -2893,7 +2931,14 @@ export function buildGateway(options: GatewayOptions = {}) {
                   providerStreamSummaryFromError(completionError) ?? successSummary;
                 providerSummaries.push(errorSummary);
                 attempt.recordError(completionError);
+                if (visionRecovery && await visionRecovery.prepareRetry({ error: completionError, summary: errorSummary,
+                  signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: initialChunkSent })) {
+                  statelessAttempts += 1;
+                  continue;
+                }
+                completionError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? completionError;
                 if (
+                  !visionRecovery &&
                   !initialChunkSent &&
                   !deadline.signal.aborted &&
                   (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
@@ -2979,7 +3024,7 @@ export function buildGateway(options: GatewayOptions = {}) {
     const toolCalls: OpenAIChatToolCall[] = [];
     let usage: OpenAIChatUsage | null = null;
     const deadline = createChatRequestDeadline({
-      timeoutMs: chatRequestTimeoutMs,
+      timeoutMs: chatRequestTimeoutMs || (visionRecovery ? 600_000 : 0),
       parentSignals: [executionOptions.signal, request.gatewayClientDisconnect?.signal],
       now: clock()
     });
@@ -3026,6 +3071,7 @@ export function buildGateway(options: GatewayOptions = {}) {
         const onProviderError = createProviderErrorLogger(request);
         const nativeResult = await runNativeWithFailover({
           failover: nativeFailover,
+          visionRecovery,
           runtime: attempt,
           deadlineAt: deadline.deadlineAt,
           now: clock,
@@ -3070,7 +3116,13 @@ export function buildGateway(options: GatewayOptions = {}) {
         let collected: CollectedProviderMessage | null = null;
         const providerSummaries: ProviderStreamSummary[] = [];
         while (true) {
+          const endError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock });
+          if (endError) {
+            markProviderStreamSummary(request, combineProviderStreamSummaries(providerSummaries));
+            return fail(endError);
+          }
           const onProviderError = createProviderErrorLogger(request);
+          visionRecovery?.budget.consume();
           const attemptResult = await collectProviderMessage({
             provider: attempt.adapter,
             upstreamAccount: attempt.adapterInputUpstreamAccount,
@@ -3106,7 +3158,13 @@ export function buildGateway(options: GatewayOptions = {}) {
               providerSummaries.push(providerSummary);
             }
             attempt.recordError(attemptResult);
+            if (visionRecovery && await visionRecovery.prepareRetry({ error: attemptResult, summary: providerSummary,
+              signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock, outputCommitted: false })) {
+              statelessAttempts += 1;
+              continue;
+            }
             if (
+              !visionRecovery &&
               !deadline.signal.aborted &&
               (!deadline.deadlineAt || deadline.deadlineAt.getTime() - clock().getTime() >= 1000) &&
               statelessAttempts < maxStatelessAttempts &&
@@ -3133,7 +3191,13 @@ export function buildGateway(options: GatewayOptions = {}) {
               request,
               combineProviderStreamSummaries(providerSummaries) ?? providerSummary
             );
-            return fail(attemptResult);
+            return fail(visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock }) ?? attemptResult);
+          }
+          const afterCallError = visionRecovery?.endError({ signal: deadline.signal, deadlineAt: deadline.deadlineAt, now: clock });
+          if (afterCallError) {
+            providerSummaries.push(attemptResult.providerSummary);
+            markProviderStreamSummary(request, combineProviderStreamSummaries(providerSummaries));
+            return fail(afterCallError);
           }
           collected = attemptResult;
           providerSummaries.push(collected.providerSummary);
@@ -3192,15 +3256,27 @@ export function buildGateway(options: GatewayOptions = {}) {
     });
   };
 
+  const modelRouteOptions = {
+    bodyLimit: visionRequestBodyLimitBytes,
+    errorHandler: (error: Error & { code?: string }, request: FastifyRequest, reply: FastifyReply) => {
+      if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+        return reply.send(sendOpenAIError(request, reply, visionInputLimitError({
+          kind: "request_bytes", actual: null, maximum: visionRequestBodyLimitBytes
+        })));
+      }
+      return reply.send(error);
+    }
+  };
+
   app.post<{ Body: unknown }>(
     "/v1/chat/completions",
-    { bodyLimit: visionRequestBodyLimitBytes },
+    modelRouteOptions,
     chatCompletionsHandler
   );
 
   app.post<{ Body: unknown }>(
     "/v1/responses",
-    { bodyLimit: visionRequestBodyLimitBytes },
+    modelRouteOptions,
     async (request, reply) => {
     const parsed = parseResponsesRequest(request.body);
     if (parsed instanceof GatewayError) {
@@ -3541,22 +3617,29 @@ interface StrictToolCollection {
 
 async function runNativeWithFailover(input: NativeClientToolsInput & {
   failover: boolean;
+  visionRecovery?: VisionRequestRecovery;
   runtime: ChatRuntimeContext;
   deadlineAt: Date | null;
   now: () => Date;
   outputCommitted: () => boolean;
   selected: (runtime: ChatRuntimeContext) => void;
 }): Promise<StrictClientToolsResult | GatewayError> {
-  const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget) => runNativeClientTools({
+  const execute = (runtime: ChatRuntimeContext, callBudget?: NativeCallBudget, retry = false) => runNativeClientTools({
     ...input, callBudget,
     request: { ...input.request, maximumOutputTokens: input.request.maximumOutputTokens ?? runtime.limits.maxOutputTokens },
     onNativeCall: runtime.updateQuotaRequest,
-    failoverAttempt: runtime.runtimeInstanceId !== input.runtime.runtimeInstanceId,
+    failoverAttempt: retry || runtime.runtimeInstanceId !== input.runtime.runtimeInstanceId,
     provider: runtime.adapter, upstreamAccount: runtime.adapterInputUpstreamAccount,
     upstreamRuntime: runtime.runtime, upstreamModel: runtime.upstreamModel,
     subject: runtime.subject, scope: runtime.scope, session: runtime.session,
     reasoningEffort: runtime.reasoningEffort
   });
+  if (input.visionRecovery) {
+    const result = await runVisionRequestRecovery({ ...input, recovery: input.visionRecovery, signal: input.signal!,
+      execute: (budget, retry) => execute(input.runtime, budget, retry) });
+    if (result instanceof GatewayError) return result;
+    return { ...result, usage: openAIUsageFromTokenUsage(result.providerSummary?.usage ?? undefined) };
+  }
   if (!input.failover) {
     return input.runtime.updateQuotaRequest ? execute(input.runtime) : runNativeClientTools(input);
   }
@@ -4718,7 +4801,13 @@ function gatewayErrorResponseContext(
   error: GatewayError
 ): GatewayErrorResponseContext {
   inferUpstreamRateLimitOrigin(request, error);
+  if (request.gatewayVisionRecovery && request.gatewayVisionRecovery.stopReason === null) {
+    request.gatewayVisionRecovery.stopReason = error.code === "client_aborted" ? "cancelled" :
+      error.code === "upstream_timeout" ? "deadline_exhausted" :
+      error.code === "service_unavailable" && request.gatewayVisionRecovery.budget.used === 0 ? "no_available_service" : "not_retryable";
+  }
   return {
+    visionRecovery: request.gatewayVisionRecovery?.snapshot(),
     requestId: request.id,
     providerFailoverEnabled: request.gatewayProviderFailoverEnabled,
     limitKind: request.gatewayLimitKind,
@@ -5070,6 +5159,10 @@ function isImageFallbackRetryableError(error: GatewayError): boolean {
 
 function sendOpenAIError(request: FastifyRequest, reply: FastifyReply, error: GatewayError) {
   markGatewayError(request, error);
+  if (error.imageLimitDetails) {
+    request.log.info({ request_id: request.id, image_limit: error.imageLimitDetails, upstream_attempt_count: 0 },
+      "Model request input limit rejected.");
+  }
   if (error.upstreamStatus !== undefined) {
     request.gatewayUpstreamHttpStatus = error.upstreamStatus;
   }
@@ -6805,7 +6898,14 @@ function markProviderStreamSummary(
   request.gatewayUpstreamRawResponseChars = summary.rawResponseChars;
   request.gatewayUpstreamEmptyStop = summary.emptyStop;
   request.gatewayUpstreamAttemptCount = summary.attempts.length;
-  request.gatewayUpstreamAttempts = summary.attempts;
+  const vision = request.gatewayVisionRecovery?.snapshot();
+  request.gatewayUpstreamAttempts = summary.attempts.map((attempt, index) => ({ ...attempt,
+    ...(vision && index === summary.attempts.length - 1 ? { visionRecovery: {
+      imageCount: vision.image_count, callsUsed: vision.attempts, maximumCalls: vision.maximum_attempts,
+      contentDelivered: vision.content_delivered, stopReason: vision.stop_reason
+    } } : {})
+  }));
+  if (vision) request.log.info({ request_id: request.id, modality: "vision", ...vision }, "Vision request recovery assessed.");
   request.gatewayProviderFailure = summary.failure;
 }
 
@@ -8343,6 +8443,14 @@ function isPhoneAuthStore(
     typeof candidate.revokePhoneAuthSession === "function" &&
     typeof candidate.recordPhoneAuthAudit === "function"
   );
+}
+
+function isExternalIdentityStore(store: GatewayStore): store is GatewayStore & ExternalIdentityStore {
+  const candidate = store as Partial<ExternalIdentityStore>;
+  return typeof candidate.getSubjectByExternalIdentity === "function" &&
+    typeof candidate.getExternalSubjectRegistrationState === "function" &&
+    typeof candidate.resolveExternalSubject === "function" &&
+    typeof candidate.claimExternalSubjectCreate === "function";
 }
 
 function isBillingAdminStore(store: GatewayStore): store is GatewayStore & BillingAdminStore {

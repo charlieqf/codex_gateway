@@ -5,6 +5,7 @@ import type {
 } from "@codex-gateway/core";
 import { entitlementColumns } from "./columns.js";
 import { rowToEntitlement } from "./row-mappers.js";
+import { freePlanSql } from "./free-allowance.js";
 
 export function get(db: DatabaseSync, id: string): Entitlement | null {
   const row = db
@@ -62,13 +63,14 @@ export function latestForSubject(db: DatabaseSync, subjectId: string): Entitleme
   return row ? rowToEntitlement(row) : null;
 }
 
-export function currentExists(db: DatabaseSync, subjectId: string): boolean {
+export function currentExists(db: DatabaseSync, subjectId: string, excludeFree = false): boolean {
   const row = db
     .prepare(
       `SELECT 1 AS found
        FROM entitlements
        WHERE subject_id = ?
          AND state IN ('active', 'paused')
+         ${excludeFree ? `AND NOT (${freePlanSql})` : ""}
        LIMIT 1`
     )
     .get(subjectId);

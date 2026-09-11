@@ -5,6 +5,7 @@ import {
   tableExists
 } from "./sqlite-managed.js";
 import type { SqliteStoreLogger } from "./types.js";
+import { ensureFreeAllowance, paidPlanSql } from "./free-allowance.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -991,6 +992,56 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
     },
     logger
   );
+
+  applyMigration(db, 28, `
+    CREATE TABLE external_subject_registrations (
+      provider TEXT NOT NULL,
+      external_user_id TEXT NOT NULL,
+      phone_number TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('ready', 'creating', 'linked')),
+      subject_id TEXT,
+      idempotency_key TEXT,
+      payload_hash TEXT,
+      request_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (provider, external_user_id),
+      FOREIGN KEY (subject_id) REFERENCES subjects(id),
+      CHECK ((state = 'linked' AND subject_id IS NOT NULL) OR
+             (state != 'linked' AND subject_id IS NULL))
+    );
+    CREATE UNIQUE INDEX idx_external_subject_registration_subject
+      ON external_subject_registrations(provider, subject_id)
+      WHERE subject_id IS NOT NULL;
+    CREATE UNIQUE INDEX idx_external_subject_registration_pending_phone
+      ON external_subject_registrations(phone_number) WHERE state != 'linked';
+  `, logger);
+
+  if (!eventOnlySchema) applyMigration(db, 29, () => {
+    const columns: Array<[string, string]> = [
+      ["free_entitlement_id", "TEXT REFERENCES entitlements(id)"],
+      ["free_reserved_tokens", "INTEGER NOT NULL DEFAULT 0"],
+      ["free_policy_snapshot_json", "TEXT"],
+      ["free_month_window_start", "TEXT"],
+      ["final_free_tokens", "INTEGER"],
+      ["final_paid_tokens", "INTEGER"]
+    ];
+    for (const [column, type] of columns) {
+      if (!columnExists(db, "token_reservations", column)) {
+        db.exec(`ALTER TABLE token_reservations ADD COLUMN ${column} ${type}`);
+      }
+    }
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_token_reservations_free_active
+      ON token_reservations(free_entitlement_id, day_window_start, finalized_at, expires_at)
+      WHERE free_entitlement_id IS NOT NULL`);
+    const now = new Date();
+    const paid = db.prepare(`SELECT DISTINCT subject_id FROM entitlements
+      WHERE (${paidPlanSql}) AND state IN ('active', 'paused', 'scheduled')
+        AND (period_end IS NULL OR period_end > ?)
+        AND subject_id IN (SELECT id FROM subjects WHERE state = 'active')`)
+      .all(now.toISOString()) as Array<{ subject_id: string }>;
+    for (const row of paid) ensureFreeAllowance(db, row.subject_id, now);
+  }, logger);
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

@@ -7,6 +7,10 @@ const { DatabaseSync, backup } = require("node:sqlite");
 
 const FORMAT = "codex_gateway_usage_history.v1";
 const MIN_SCHEMA_VERSION = 24;
+const FREE_PAID_RESERVATION_COLUMNS = [
+  "free_entitlement_id", "free_reserved_tokens", "free_policy_snapshot_json",
+  "free_month_window_start", "final_free_tokens", "final_paid_tokens"
+];
 const PHASE0_REQUEST_EVENT_COLUMNS = [
   "upstream_failure_origin", "upstream_failure_kind", "upstream_failure_stage",
   "upstream_transport_code", "upstream_failure_retry_count",
@@ -47,7 +51,7 @@ const COLUMNS = {
     "charge_policy_snapshot", "minute_window_start", "day_window_start", "month_window_start",
     "max_prompt_tokens_per_request", "max_total_tokens_per_request", "over_request_limit",
     "policy_json", "entitlement_id", "public_model_id", "upstream_runtime", "upstream_model",
-    "reasoning_effort", "final_reasoning_tokens"
+    "reasoning_effort", "final_reasoning_tokens", ...FREE_PAID_RESERVATION_COLUMNS
   ],
   admin_audit_events: [
     "id", "action", "target_user_id", "target_credential_id", "target_credential_prefix",
@@ -152,11 +156,14 @@ function requestEventColumnVariants() {
 function supportedColumns(table, columns) {
   const variants = table === "request_events"
     ? requestEventColumnVariants()
-    : [COLUMNS[table]];
+    : table === "token_reservations"
+      ? [COLUMNS[table], COLUMNS[table].filter((column) => !FREE_PAID_RESERVATION_COLUMNS.includes(column))]
+      : [COLUMNS[table]];
   return variants.some((expected) => arraysEqual(columns, expected));
 }
 
 function missingColumnValue(table, column) {
+  if (table === "token_reservations" && column === "free_reserved_tokens") return 0;
   if (table === "request_events" && column === "reasoning_effort_normalized") {
     return 0;
   }
@@ -280,6 +287,9 @@ function analyze(db, payload) {
     let unchanged = 0;
     for (const row of normalizedPayload.tables[table]) {
       const existing = target.get(String(row[PRIMARY_KEY[table]]));
+      if (table === "token_reservations" && (row.free_entitlement_id || existing?.free_entitlement_id)) {
+        fail("Dual free/paid reservations require an allowance-aware recovery workflow; legacy usage import refused.");
+      }
       if (!existing) {
         if (table === "token_reservations") {
           const conflict = db.prepare("SELECT id FROM token_reservations WHERE request_id = ?").get(row.request_id);
@@ -355,6 +365,11 @@ function applyWindowDelta(db, table, identityColumn, identity, kind, start, delt
 }
 
 function applyReservation(db, row, existing) {
+  // This retained recovery helper predates independent allowances. Fail closed
+  // instead of charging the full request to paid quota or overwriting a split.
+  if (row.free_entitlement_id || existing?.free_entitlement_id) {
+    fail("Dual free/paid reservations require an allowance-aware recovery workflow; legacy usage import refused.");
+  }
   const delta = usageDelta(row, existing);
   insertOrUpdate(db, "token_reservations", row);
   const windows = [

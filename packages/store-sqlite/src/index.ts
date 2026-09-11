@@ -4,6 +4,7 @@ import * as adminAudit from "./admin-audit.js";
 import * as billingAdminTokens from "./billing-admin-tokens.js";
 import * as billingEvents from "./billing-events.js";
 import * as billingSubjects from "./billing-subjects.js";
+import * as externalIdentities from "./external-identities.js";
 import * as entitlementsStore from "./entitlements.js";
 import type { EntitlementStoreDependencies } from "./entitlements.js";
 import { migrateGatewaySchema } from "./migrations.js";
@@ -21,6 +22,10 @@ import type { SqliteStoreLogger, SqliteStoreOptions, UpdateSubjectInput } from "
 import * as upstreamAccounts from "./upstream-accounts.js";
 import {
   type AccessCredentialRecord,
+  type ClaimExternalSubjectInput,
+  type ExternalIdentityKey,
+  type ExternalSubjectResolution,
+  type ResolveExternalSubjectInput,
   type AdminAuditEventRecord,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
@@ -374,6 +379,22 @@ export class SqliteGatewayStore implements GatewayStore {
 
   getBillingSubject(subjectId: string): BillingSubjectDetails | null {
     return billingSubjects.getDetails(this.db, subjectId);
+  }
+
+  getSubjectByExternalIdentity(identity: ExternalIdentityKey): Subject | null {
+    return subjectsStore.getByExternal(this.db, identity.provider, identity.externalUserId);
+  }
+
+  getExternalSubjectRegistrationState(identity: ExternalIdentityKey): "ready" | "creating" | "linked" | null {
+    return externalIdentities.registration(this.db, identity.provider, identity.externalUserId)?.state ?? null;
+  }
+
+  resolveExternalSubject(input: ResolveExternalSubjectInput): ExternalSubjectResolution {
+    return externalIdentities.resolve(this.db, input);
+  }
+
+  claimExternalSubjectCreate(input: ClaimExternalSubjectInput): string {
+    return externalIdentities.claimCreate(this.db, input);
   }
 
   getBillingSubjectByExternal(

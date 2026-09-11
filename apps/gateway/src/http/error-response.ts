@@ -9,6 +9,10 @@ import type {
 export interface GatewayErrorResponseContext {
   requestId?: string | null;
   providerFailoverEnabled?: boolean;
+  visionRecovery?: {
+    image_count: number; attempts: number; maximum_attempts: number;
+    content_delivered: boolean; stop_reason: string | null;
+  };
   limitKind?: LimitKind | null;
   limitDetails?: LimitDetails | null;
   rateLimitOrigin?: RateLimitOrigin | null;
@@ -45,6 +49,14 @@ export function gatewayErrorMetadata(
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(context.visionRecovery ? {
+      vision_recovery_contract_version: 1,
+      vision_recovery: context.visionRecovery
+    } : {}),
+    ...(error.imageLimitDetails ? {
+      image_limit_contract_version: 1,
+      image_limit: { ...error.imageLimitDetails }
+    } : {}),
     // Only final error serializers consume this context. Internal attempts and
     // transformed client recovery retain their separate contracts.
     ...(context.providerFailoverEnabled && (
@@ -54,6 +66,7 @@ export function gatewayErrorMetadata(
       error.code === "upstream_empty_response" ||
       error.code === "service_unavailable" ||
       error.code === "client_aborted" ||
+      (context.visionRecovery && ["tool_call_validation_failed", "tool_call_output_truncated", "output_length_exceeded"].includes(error.code)) ||
       (error.code === "rate_limited" && rateLimitOrigin(context) === "upstream")
     )
       ? { retry_contract_version: 1, automatic_retry_allowed: false }

@@ -18,6 +18,16 @@ import {
 } from "@codex-gateway/core";
 
 describe("streamErrorToGatewayError", () => {
+  it.each([0, 10])("preserves an explicit provider Retry-After of %s seconds", (seconds) => {
+    const gatewayError = new GatewayError({
+      code: "rate_limited", message: "limited", httpStatus: 429,
+      retryAfterSeconds: seconds, upstreamRetryAfterSeconds: seconds
+    });
+    const error = streamErrorToGatewayError({ code: gatewayError.code, message: gatewayError.message, gatewayError });
+    expect(error.retryAfterSeconds).toBe(seconds);
+    expect(error.upstreamRetryAfterSeconds).toBe(seconds);
+  });
+
   it("preserves client abort errors without classifying the upstream as unavailable", () => {
     const error = streamErrorToGatewayError({
       code: "client_aborted",

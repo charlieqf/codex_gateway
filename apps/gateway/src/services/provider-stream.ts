@@ -453,7 +453,8 @@ export function streamErrorToGatewayError(event: {
       code: "rate_limited",
       message: event.message,
       httpStatus: 429,
-      retryAfterSeconds: 60,
+      retryAfterSeconds: event.gatewayError?.retryAfterSeconds ?? 60,
+      upstreamRetryAfterSeconds: event.gatewayError?.upstreamRetryAfterSeconds,
       providerFailure: failure
     });
   }

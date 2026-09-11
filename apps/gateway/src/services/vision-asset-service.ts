@@ -16,9 +16,10 @@ import { request as httpsRequest } from "node:https";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { GatewayError } from "@codex-gateway/core";
+import { visionMaximumImageBytes, visionMaximumImagesPerRequest } from "./vision-input-policy.js";
 
-export const visionAssetMaximumBytes = 20 * 1_024 * 1_024;
-export const visionAssetMaximumImagesPerRequest = 8;
+export const visionAssetMaximumBytes = visionMaximumImageBytes;
+export const visionAssetMaximumImagesPerRequest = visionMaximumImagesPerRequest;
 export const visionAssetMaximumIdCharacters = 2_048;
 
 export type VisionAssetContentType = "image/png" | "image/jpeg";

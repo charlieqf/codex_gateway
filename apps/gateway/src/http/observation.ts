@@ -238,6 +238,17 @@ export function recordObservation(
     );
   }
   const requestFailed = isErrorResponse(request, statusCode);
+  const vision = request.gatewayVisionRecovery;
+  const lastAttempt = attempts.at(-1);
+  if (vision && lastAttempt) {
+    // onResponse runs after delivery. Keep the decision-time stop reason while
+    // recording whether the successful result was ultimately committed.
+    lastAttempt.visionRecovery = {
+      imageCount: vision.imageCount, callsUsed: vision.budget.used, maximumCalls: 2,
+      contentDelivered: vision.contentDelivered || !requestFailed,
+      stopReason: vision.stopReason
+    };
+  }
   const terminalFailure = requestFailed && attemptCount > 0
     ? request.gatewayProviderFailure ?? attempts.findLast((attempt) => attempt.failure)?.failure ?? null
     : null;

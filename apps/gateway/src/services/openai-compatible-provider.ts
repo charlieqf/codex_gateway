@@ -466,12 +466,21 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
     }
     const candidate = upstreamRequestId(response.headers) ?? bodyRequestId;
     const requestId = this.safeRequestId(candidate);
-    const error = this.normalizeAndReport(
+    const normalized = this.normalizeAndReport(
       new UpstreamHttpError(response.status, body || response.statusText),
       "http_response",
       input,
       { stage, upstreamStatus: response.status }
     );
+    const retryAfter = response.headers.get("retry-after")?.trim();
+    const parsedDelay = retryAfter && /^\d+$/.test(retryAfter)
+      ? Math.ceil(Number(retryAfter))
+      : retryAfter && /^[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(retryAfter)
+        ? Math.max(0, Math.ceil((Date.parse(retryAfter) - Date.now()) / 1000)) : NaN;
+    const error = response.status === 429 && Number.isSafeInteger(parsedDelay) && parsedDelay <= 86400
+      ? new GatewayError({ ...normalized, message: normalized.message,
+          retryAfterSeconds: parsedDelay, upstreamRetryAfterSeconds: parsedDelay })
+      : normalized;
     return { error, responseSummary: {
       finishReason: null, upstreamRequestId: requestId, upstreamHttpStatus: response.status,
       semanticOutputChars: 0, visibleOutputChars: 0,
@@ -502,7 +511,13 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
         : failure.kind === "body_timeout" || failure.kind === "headers_timeout"
           ? new GatewayError({ code: "upstream_timeout", message: "MedCode service timed out.", httpStatus: 504 })
           : this.normalize(err, input);
-    const normalized = withProviderFailure(normalizedBase, failure);
+    const normalized = withProviderFailure(
+      new GatewayError({
+        ...normalizedBase,
+        message: modelRequestErrorMessage(normalizedBase, failure, input)
+      }),
+      failure
+    );
     if (input.onProviderError) {
       try {
         input.onProviderError(createProviderErrorDiagnostic(err, source, normalized));
@@ -578,6 +593,33 @@ export class OpenAICompatibleProviderAdapter implements ProviderAdapter {
       httpStatus: 503
     });
   }
+}
+
+// Describe the failed operation, not the availability of the entire product.
+// Keep codes and recovery metadata unchanged for installed Desktop clients.
+function modelRequestErrorMessage(
+  error: GatewayError,
+  failure: ProviderFailureClassification,
+  input: MessageInput
+): string {
+  const operation = input.images?.length ? "图片分析" : "模型处理";
+  const retry = "请稍后在当前对话中重试；如持续失败，请联系支持并提供请求编号。";
+  if (error.code === "upstream_timeout") {
+    return `${operation}响应超时，本次请求未完成。${retry}`;
+  }
+  if (error.code !== "upstream_unavailable") {
+    return error.message;
+  }
+  if (failure.kind === "http_auth" || failure.kind === "provider_reauth") {
+    return `${operation}服务的接入配置异常，本次请求未完成。请联系支持并提供请求编号。`;
+  }
+  if (failure.origin === "network" || failure.origin === "proxy") {
+    return `${operation}连接异常，本次请求未完成。${retry}`;
+  }
+  if (failure.kind === "http_server") {
+    return `${operation}时发生处理错误，本次请求未完成。${retry}`;
+  }
+  return `${operation}未返回有效结果，本次请求未完成。${retry}`;
 }
 
 interface ParsedOpenAIChunk {
@@ -1109,6 +1151,7 @@ function withProviderFailure(
     message: error.message,
     httpStatus: error.httpStatus,
     retryAfterSeconds: error.retryAfterSeconds,
+    upstreamRetryAfterSeconds: error.upstreamRetryAfterSeconds,
     upstreamStatus: error.upstreamStatus,
     contractVersion: error.contractVersion,
     failureKind: error.failureKind,
@@ -1119,6 +1162,7 @@ function withProviderFailure(
     requestedValue: error.requestedValue,
     supportedValues: error.supportedValues,
     contextWindowDetails: error.contextWindowDetails,
+    imageLimitDetails: error.imageLimitDetails,
     providerFailure
   }) as GatewayError & { readonly providerFailure: ProviderFailureClassification };
 }

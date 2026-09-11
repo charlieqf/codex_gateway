@@ -1248,7 +1248,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
     ["ERR_TLS_CERT_ALTNAME_INVALID", "network", "tls"],
     ["ERR_HTTP_PROXY_CONNECT", "proxy", "proxy_connect"]
   ] as const)(
-    "classifies nested fetch cause %s without changing the public error",
+    "classifies nested fetch cause %s with actionable copy and unchanged error code",
     async (code, origin, kind) => {
       const nested = Object.assign(new Error("transport detail must stay internal"), { code });
       const fetchError = new TypeError("fetch failed", { cause: nested });
@@ -1258,7 +1258,7 @@ describe("OpenAICompatibleProviderAdapter", () => {
         {
           type: "error",
           code: "upstream_unavailable",
-          message: "MedCode service is temporarily unavailable.",
+          message: "模型处理连接异常，本次请求未完成。请稍后在当前对话中重试；如持续失败，请联系支持并提供请求编号。",
           providerFailure: {
             origin,
             kind,
@@ -1296,6 +1296,26 @@ describe("OpenAICompatibleProviderAdapter", () => {
         upstreamStatus: status
       }
     });
+  });
+
+  it.each([
+    [500, "图片分析时发生处理错误", "upstream_unavailable", 503],
+    [504, "图片分析响应超时", "upstream_timeout", 504],
+    [401, "图片分析服务的接入配置异常", "upstream_unavailable", 502]
+  ] as const)("explains vision HTTP %i without exposing provider details", async (status, message, code, httpStatus) => {
+    const events = await providerEvents(async () =>
+      new Response('{"error":"private-provider-detail"}', { status }),
+      { images: [{ imageUrl: "data:image/png;base64,aGVsbG8=", detail: "auto" }] }
+    );
+    expect(events[0]).toMatchObject({
+      code,
+      message: expect.stringContaining(message),
+      gatewayError: { code, httpStatus, upstreamStatus: status },
+      providerFailure: { origin: "provider", upstreamStatus: status }
+    });
+    expect(JSON.stringify(events)).not.toContain("private-provider-detail");
+    expect(JSON.stringify(events)).not.toContain("temporarily unavailable");
+    if (status === 401) expect(events[0]).not.toMatchObject({ message: expect.stringContaining("重试") });
   });
 
   it("classifies a local vLLM context rejection as client compaction required", async () => {
@@ -1460,6 +1480,7 @@ async function providerEvents(
     signal?: AbortSignal;
     providerKind?: "openrouter" | "local-openai";
     maximumOutputTokens?: number;
+    images?: MessageInput["images"];
   } = {}
 ) {
   const provider = new OpenAICompatibleProviderAdapter({
@@ -1482,6 +1503,7 @@ async function providerEvents(
     scope: "code",
     session: testSession(),
     message: "diagnostic test",
+    images: options.images,
     maximumOutputTokens: options.maximumOutputTokens,
     signal: options.signal
   };

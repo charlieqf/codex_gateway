@@ -1,11 +1,15 @@
 # MedEvidence 收费/充值 API 集成指南（外发版）
 
-日期：2026-05-13
+初版：2026-05-13；手机号开户合同更新：2026-09-09。
 适用：收费、充值团队后端开发与产品
+
+地址更新（2026-09-08）：当前 Base URL 为 `https://goldencode.instmarket.com.au:1443`，开户完整地址为 `https://goldencode.instmarket.com.au:1443/gateway/admin/billing/v1/subjects`。查询、轮换和权益通知继续使用原 `/gateway/admin/billing/v1/...` 路径及 Billing Admin 鉴权。历史交流中的 `https://gw.instmarket.com.au` 不再作为当前对接地址。
 
 本文给出收费/充值团队接入 MedEvidence 后台 API 所需的接口 contract、事件语义、双方分工、联调顺序和错误处理建议。本文为外发版，只描述对接方需要使用和理解的能力，不包含 MedEvidence 内部实现细节。
 
-说明：当前 P0 联调可用范围、测试环境地址和已完成验证，以 `docs/medevidence-billing-p0-joint-test-handoff.external.zh-CN.md` 为准。
+接口范围及历史 P0 验证记录见[联调交付说明](./medevidence-billing-p0-joint-test-handoff.external.zh-CN.md)。其中 2026-05 的结果保留原验证时点，不替代当前环境验收。本轮已部署的手机号关联、开户、免费权益及 Desktop 登录以[2026-09-09 联调说明](./outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md)为准。
+
+2026-09-09 兼容修订：取消 resolve 强制前置，兼容 5 月版第 4.1 节原样开户请求。手机号开户可直接在 `POST /subjects` 中增加可选 `phone` 字段；第 4.0 节两步流程继续支持。未传 phone、也未预先关联的请求沿用原 Billing 开户行为，不自动具备手机号登录或每日免费权益。两个接口都使用服务端 Billing Admin 凭据，不使用外部短信 access_token。
 
 - **P0**：用户开户注册、opaque key 下发、套餐查询、支付事件写入、权益状态变更、token usage 对账。
 - **P1**：预付费充值余额、退款冲正、余额过期、token/image 按价格表扣费。P1 为后续阶段，不属于当前 P0 联调必测范围。
@@ -16,8 +20,8 @@ MedEvidence 负责模型访问账号、opaque key、套餐、权益、能力开�
 
 - 收费/充值团队拥有注册页、登录、找回密码、支付页、订单状态机和退款流程。
 - 收费/充值团队后端通过服务端接口调用 MedEvidence，不允许客户端直接调用后台接口。
-- 用户开户注册时，收费后端调用 MedEvidence 创建 subject，并拿到 `subject_id` 和 opaque `cgu_live_*` key。
-- 用户或客户端只需要保存 `cgu_live_*` key。MedEvidence 后端会完成凭据校验和请求路由，底层实现对收费团队和终端用户不可见。
+- 手机号登录后，身份／收费后端可直接调用 `POST /subjects` 并带 phone；Gateway 内部关联既有账户或为新账户准备 Key、每日免费权益及手机号登录身份。2026-09-10 起新开户临时默认每日 1 万 token；此前已发放的每日 100 万 token 和其他既有权益保持不变。旧的不带 phone 的 Billing 开户仍返回 `subject.id` 和 opaque `credential.key`（`cgu_live_*`），权益继续沿用原支付事件流程。
+- Desktop 完成外部短信登录后，用既有 Gateway 手机号 v1 登录和 bootstrap 领取当前 `cgu_live_*`。外部短信会话与 Gateway Phone Session 分别保存；外部会话用于身份／支付接口。MedEvidence 后端完成模型凭据校验和请求路由。
 - 付费状态以收费系统订单为准；模型是否可用，以 MedEvidence 返回的 entitlement / quota 状态为准。
 
 ## 2. 鉴权
@@ -114,7 +118,37 @@ Content-Type: application/json
 
 收费团队在注册、试用开通或首次购买前调用本接口创建 MedEvidence subject。
 
+### 4.0 可选的手机号账户关联（2026-09-09 新增）
+
+身份后端可选的两步接入方式；也可以跳过此接口，在第 4.1 节请求中直接带 phone。完整地址：
+
+```http
+POST https://goldencode.instmarket.com.au:1443/gateway/admin/billing/v1/subjects/resolve
+Authorization: Bearer <billing-admin-token>
+Content-Type: application/json
+```
+
+```json
+{
+  "provider": "medevidence_billing",
+  "external_user_id": "medevidence_test_21",
+  "phone": "13800138000"
+}
+```
+
+手机号取本次身份后端登录的用户；只在此接口的 `phone` 字段传入。`APP_ENV=prod` 时 `external_user_id=str(user_id)`，其他环境为 `medevidence_test_{user_id}`。示例值须替换成真实映射，resolve 和 create 使用相同的 provider、external_user_id。
+
+| 响应 `status` | 后续动作 |
+| --- | --- |
+| `linked` | 保存返回的 `subject.id`，复用原账户、Key 和权益，不再 create |
+| `create_ready` | 执行第 4.1 节 create |
+| `account_pending` | 继续原开户事件，使用原 Idempotency-Key 和完全相同请求体 |
+
+`resolve` 返回 `status`、`subject`（尚未开户时为 null）和 `request_id`，不返回完整 Key。它不是浏览器直接打开的 GET 页面。手机号冲突返回 `409 identity_conflict`，停用账户返回 `403 account_disabled`。调用过 resolve 的开户重试保持原业务事件和请求体。
+
 ### 4.1 创建 subject
+
+沿用 5 月版原请求及嵌套响应结构，无需先调用 resolve。完整地址为 `https://goldencode.instmarket.com.au:1443/gateway/admin/billing/v1/subjects`。
 
 ```http
 POST /gateway/admin/billing/v1/subjects
@@ -145,10 +179,13 @@ Content-Type: application/json
 | `provider` | 必填 | 收费系统或支付系统标识，例如 `medevidence_billing` |
 | `external_user_id` | 必填 | 收费系统稳定用户 ID；同 `(provider, external_user_id)` 只能开户注册一次；字符集 `[A-Za-z0-9._-]`，长度 1..128 |
 | `display_name` | 可选 | 用户显示名，仅用于客服排障；不要传邮箱、手机号等敏感信息 |
+| `phone` | 可选扩展 | `medevidence_billing` 手机号开户可直接提供 11 位中国大陆手机号或 +86 格式；Gateway 内部执行关联，无需另调 resolve |
 | `scope_allowlist` | 可选 | P0 默认 `["code"]` |
 | `metadata` | 可选 | 非敏感上下文字段，JSON 序列化后不超过 4KB |
 
-不要传邮箱、手机号、密码、证件号、支付账户、账单地址、完整 API key 或 token。
+手机号仅放在专用 `phone` 字段，不放入 display_name 或 metadata；请求不传邮箱、密码、证件号、支付账户、账单地址、完整 API key 或 token。`display_name` 可省略，无姓名时无需用手机号代替；Gateway 开户不要求上传身份证件。
+
+手机号接入时，使用真实 external_user_id 映射：生产为 str(user_id)，非生产为 medevidence_test_{user_id}。只需在上述请求中增加 `"phone": "13800138000"`。完全不带 phone 且没有 resolve 记录时，仍执行旧 Billing 开户，不额外授予手机号登录或免费权益。
 
 成功响应：
 
@@ -178,9 +215,13 @@ Content-Type: application/json
 
 注意：
 
+- 响应是上述嵌套结构：账户 ID 为 `subject.id`，Key 为 `credential.key`，有效期字段为 `credential.expires_at`。不返回顶层 `subject_id`、`key` 或 `expired_at`；Key 前缀为 `cgu_live_*`。收费侧可以自行封装返回结构，但应从这些字段准确映射，不能把 `credential.id` 当作账户 ID。
+- 提供 phone 或沿用 resolve 的手机号新开户，在同一事务中准备 Subject、Key、`plan_free_daily_10k_v1` 免费权益和 Phone identity。成功返回 200 后，Desktop 可以走手机号 v1 登录，无需人工登记或单独发放免费额度。旧版 `plan_free_daily_1m_v1` 继续保留供既有权益使用，不批量迁移老用户。
+- 提供 phone 匹配到既有账户时，会建立外部身份关联，沿用旧规范返回 `409 subject_already_exists`；按第 4.2 节 provider/external_user_id 查询取回原 `subject.id`。不会再建账户、轮换 Key 或改动原权益。
+- 新开户免费额度临时设为每天累计 10,000 token，沿用 UTC 00:00 日窗口；重复开户、登录不重置额度。额度以已发放权益快照为准，既有用户不受默认值调整影响。首次从免费转付费使用 `purchase` + `replace_current=true`，不对无期末的免费权益使用 `renew`。
 - `credential.key` 只在首次成功响应里返回一次。
 - 同一 `Idempotency-Key` replay 时只返回 `key_prefix`，不会再次返回 `credential.key` 原文。
-- 收费团队必须立即安全展示或保存 key；遗失后只能走轮换。
+- 收费侧若需保管完整 Key，应在首次响应后立即安全持久化；后续步骤失败不重新 create。Desktop 可通过已准备的手机号登录和 bootstrap 取回当前 Key；收费侧后台若需恢复遗失的完整 Key，沿用受控轮换流程。
 
 ### 4.2 查询 subject
 
@@ -507,6 +548,9 @@ Authorization: Bearer <billing-admin-token>
 | 404 | `entitlement_not_found` | entitlement 不存在或不在可操作状态 |
 | 404 | `credential_not_found` | 指定 key 不存在 |
 | 409 | `subject_already_exists` | 同一外部用户已开户注册 |
+| 409 | `identity_link_required` | 已开始的手机号开户出现账户竞争，需要重新关联；不代表所有开户必须先调 resolve |
+| 409 | `identity_conflict` | 手机号或外部身份关联冲突，停止自动改绑 |
+| 409 | `account_pending` | 原开户事件仍在处理中，使用原事件的 key 和 body 继续 |
 | 409 | `idempotency_conflict` | 同 key 与历史 payload 冲突 |
 | 409 | `entitlement_already_active` | 已有 active entitlement |
 | 409 | `invalid_entitlement_transition` | 状态流转不允许 |
@@ -516,16 +560,16 @@ Authorization: Bearer <billing-admin-token>
 
 ## 8. 收费/充值团队 P0 必做
 
-1. 注册页和账号体系：邮箱验证、密码/SSO、captcha、找回密码都在收费侧完成。
-2. 开户调用：注册成功后调用 `POST /subjects`，保存 `subject.id`、`credential.key_prefix` 和首次返回的 `credential.key`。
-3. Key 展示：`credential.key` 只返回一次。注册成功页或账户中心应提供复制/备份能力，并提示遗失后只能轮换。
+1. 身份登录和账号体系在身份／收费侧完成。Gateway 本文开户接口不要求身份证件、邮箱或密码。
+2. 开户调用：5 月原样请求继续支持。手机号新开户直接在 `POST /subjects` 中传 phone；已有账户按 `subject_already_exists` 查询恢复。第 4.0 节 resolve 为可选流程。
+3. Key 保存：首次响应按需安全持久化 `subject.id`、`credential.key_prefix` 和 `credential.key`。Desktop 沿用手机号 bootstrap 领取当前 Key；收费侧需要恢复完整 Key 时按第 4.3 节受控轮换。
 4. 用户映射：保存收费系统 `user_id` 与 MedEvidence `subject_id` 的映射。
 5. SKU 映射：收费侧 SKU 映射到 MedEvidence `plan_id`。
 6. 支付事件：支付成功、续费、暂停、恢复、取消都通过 entitlement event 写入。
 7. 升级事件：用户升级套餐且支付成功后，发送 `purchase` + `replace_current=true`，`plan_id` 为升级后的新套餐；metadata 中建议记录 `from_plan_id` / `to_plan_id` 供审计排障。
 8. 降级策略：降级不在 P0 范围；如需降级，建议收费侧在下一周期续费时切换 `plan_id`。
 9. 周期计算：收费侧计算 `period_start` / `period_end`；升级扩容建议沿用原订阅周期，不重置周期。
-10. 重试策略：2xx 和 `idempotent_replay=true` 按成功处理；409 冲突停止自动重试；429/5xx/网络失败指数退避。
+10. 重试策略：2xx 和 `idempotent_replay=true` 按成功处理；`account_pending` 使用原业务事件继续，其他 409 按具体错误码处理，不盲目换 key 重试；429/5xx/网络失败指数退避并保持原 key 和请求体。
 11. 退款策略：退款不会自动停权；如需停权请显式发送 `cancel` 或 `pause`。
 12. 注销：用户注销时调用 `POST /subjects/{subject_id}/disable`。
 13. 对账：保存 `x-request-id`、`billing_event.id`、`entitlement.id`、`subject.id`、`credential.key_prefix`。

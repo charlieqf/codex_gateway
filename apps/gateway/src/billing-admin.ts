@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   defaultPublicModelAliasGroups,
   mergeEntitlementTokenPolicy,
+  normalizeMainlandChinaPhone,
   billingPayloadHash,
   encryptSecret,
   extractBillingAdminTokenPrefix,
@@ -12,6 +13,7 @@ import {
   storedAllowedPublicModelsAreCorrupt,
   isBillingEventType,
   publicFeaturePolicy,
+  publicTokenUsage,
   validateBillingIdempotencyKey,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
@@ -29,6 +31,7 @@ import {
   type BillingUsageGroupBy,
   type BillingUsageReportResult,
   type Entitlement,
+  type ExternalIdentityStore,
   type PeriodKind,
   type Plan,
   type PlanEntitlementStore,
@@ -37,7 +40,6 @@ import {
   type Scope,
   type TokenBudgetLimiter,
   type TokenLimitPolicy,
-  type TokenUsageSnapshot,
   type TokenWindowKind,
   verifyBillingAdminToken
 } from "@codex-gateway/core";
@@ -104,6 +106,9 @@ export interface BillingAdminRouteOptions {
   realUserIssueJobStore?: RealUserIssueJobStore;
   publicModels?: BillingPublicModel[];
   phoneAuthService?: PhoneAuthService | null;
+  externalIdentityStore?: ExternalIdentityStore;
+  externalIdentityProvider?: string | null;
+  unifiedKeyRecoverySecret?: string | null;
   now?: () => Date;
 }
 
@@ -256,6 +261,38 @@ export function registerBillingAdminRoutes(
   );
 
   app.post<{ Body: unknown }>(
+    "/gateway/admin/billing/v1/subjects/resolve",
+    billingRouteOptions(),
+    async (request, reply) => {
+      const authError = billingRoutePreflight(request, reply, options);
+      if (authError) return authError;
+      if (!options.externalIdentityStore || !options.externalIdentityProvider) {
+        return sendBillingError(request, reply, serviceUnavailable("External identity linking is not configured."));
+      }
+      const body = objectBody(request.body);
+      if (body instanceof GatewayError) return sendBillingError(request, reply, body);
+      if (!hasExactObjectKeys(body, ["provider", "external_user_id", "phone"]) ||
+        body.provider !== options.externalIdentityProvider || typeof body.external_user_id !== "string" ||
+        !/^[A-Za-z0-9._-]{1,128}$/.test(body.external_user_id) || typeof body.phone !== "string") {
+        return sendBillingError(request, reply, invalidRequest("Configured provider, external_user_id and verified phone are required."));
+      }
+      try {
+        const result = options.externalIdentityStore.resolveExternalSubject({
+          provider: options.externalIdentityProvider, externalUserId: body.external_user_id,
+          phone: body.phone, requestId: request.id, now: billingNow(options)
+        });
+        return billingSecurityHeaders(reply).send({
+          status: result.status,
+          subject: result.subject ? { id: result.subject.id, state: result.subject.state } : null,
+          request_id: request.id
+        });
+      } catch (error) {
+        return sendBillingError(request, reply, toBillingGatewayError(error));
+      }
+    }
+  );
+
+  app.post<{ Body: unknown }>(
     "/gateway/admin/billing/v1/subjects",
     billingRouteOptions(),
     async (request, reply) => {
@@ -279,6 +316,23 @@ export function registerBillingAdminRoutes(
         );
         if (replay) {
           return billingSecurityHeaders(reply).send(publicCreateSubjectResult(replay, null));
+        }
+        if (parsed.phone) {
+          if (parsed.provider !== options.externalIdentityProvider) {
+            return sendBillingError(request, reply, invalidRequest("Phone signup requires the configured identity provider."));
+          }
+          if (!options.externalIdentityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
+            return sendBillingError(request, reply, serviceUnavailable("Phone signup is not configured."));
+          }
+          if (parsed.scopeAllowlist.length !== 1 || parsed.scopeAllowlist[0] !== "code") {
+            return sendBillingError(request, reply, invalidRequest("Phone signup requires scope_allowlist [code]."));
+          }
+          // A single create request can coordinate its phone internally. Keep
+          // existing-subject 409/query recovery and all legacy response fields.
+          options.externalIdentityStore.resolveExternalSubject({
+            provider: parsed.provider, externalUserId: parsed.externalUserId,
+            phone: parsed.phone, requestId: request.id, now: billingNow(options)
+          });
         }
         if (options.billingStore.getBillingSubjectByExternal(parsed.provider, parsed.externalUserId)) {
           return sendBillingError(
@@ -402,6 +456,10 @@ export function registerBillingAdminRoutes(
           options.credentialStore?.getAccessCredentialByPrefix(
             activeUnifiedKey.codexCredentialPrefix
           );
+        if ((activeUnifiedKey.isCurrent || activeUnifiedKey.tokenCiphertext ||
+          subject.subject.externalProvider === options.externalIdentityProvider) && !options.unifiedKeyRecoverySecret) {
+          return sendBillingError(request, reply, serviceUnavailable("Unified key recovery is required before rotation."));
+        }
         if (!activeGatewayCredential) {
           return sendBillingError(
             request,
@@ -459,8 +517,13 @@ export function registerBillingAdminRoutes(
           medevidenceKeyPrefix: activeUnifiedKey.medevidenceKeyPrefix,
           metadata: activeUnifiedKey.metadata,
           credentialClass: activeUnifiedKey.credentialClass ?? "unknown",
+          isCurrent: Boolean(options.unifiedKeyRecoverySecret),
           now
         });
+
+        if (options.unifiedKeyRecoverySecret) {
+          unified.record.tokenCiphertext = encryptSecret(unified.token, options.unifiedKeyRecoverySecret);
+        }
 
         const result = options.billingStore.rotateBillingSubject({
           idempotencyKey: parsed.idempotencyKey,
@@ -473,7 +536,7 @@ export function registerBillingAdminRoutes(
           unifiedClientKey: unified.record,
           now
         });
-        return billingSecurityHeaders(reply).send(publicRotateSubjectResult(result, unified.token));
+        return billingSecurityHeaders(reply).send(publicRotateSubjectResult(result, result.idempotentReplay ? null : unified.token));
       } catch (err) {
         return sendBillingError(request, reply, toBillingGatewayError(err));
       }
@@ -654,12 +717,14 @@ export function registerBillingAdminRoutes(
       try {
         const result = options.billingStore.listBillingEntitlements({
           subjectId: request.params.subjectId,
+          now: options.now?.(),
           limit: parseLimit(request.query.limit, 50),
           cursor: optionalString(request.query.cursor) ?? undefined
         });
         return billingSecurityHeaders(reply).send({
           subject_id: result.subjectId,
           current: result.current ? publicEntitlement(result.current) : null,
+          ...(result.freeAllowance ? { free_allowance: publicEntitlement(result.freeAllowance) } : {}),
           history: result.history.map(publicEntitlement),
           next_cursor: result.nextCursor
         });
@@ -699,8 +764,8 @@ export function registerBillingAdminRoutes(
       }
 
       try {
-        const requestReset = resetRequestQuota(options, credentials, parsed.requestWindows);
         const tokenReset = await resetTokenQuota(options, credentials[0], parsed.tokenWindows, now);
+        const requestReset = resetRequestQuota(options, credentials, parsed.requestWindows);
         recordBillingQuotaResetAudit(options, parsed, "ok", null, {
           credential_prefixes: credentials.map((credential) => credential.prefix),
           request_windows: parsed.requestWindows,
@@ -715,7 +780,9 @@ export function registerBillingAdminRoutes(
         });
       } catch (err) {
         const message = sanitizeBillingAdminLogMessage(errorMessage(err));
-        request.log.error({ error: message }, "Billing quota reset failed.");
+        if (!(err instanceof GatewayError && err.httpStatus < 500)) {
+          request.log.error({ error: message }, "Billing quota reset failed.");
+        }
         recordBillingQuotaResetAudit(options, parsed, "error", message);
         return sendBillingError(request, reply, toBillingGatewayError(err));
       }
@@ -1201,6 +1268,7 @@ function parseCreateSubjectRequest(
       provider: string;
       externalUserId: string;
       displayName: string | null;
+      phone: string | null;
       scopeAllowlist: Scope[];
       metadata: Record<string, unknown> | null;
       payloadHash: string;
@@ -1241,11 +1309,17 @@ function parseCreateSubjectRequest(
   if (metadata instanceof GatewayError) {
     return metadata;
   }
+  const phone = body.phone === undefined ? null
+    : typeof body.phone === "string" ? normalizeMainlandChinaPhone(body.phone) : null;
+  if (body.phone !== undefined && !phone) {
+    return invalidRequest("phone must be a supported mainland China phone number.");
+  }
   return {
     idempotencyKey,
     provider,
     externalUserId,
     displayName: optionalString(body.display_name),
+    phone,
     scopeAllowlist,
     metadata,
     payloadHash: billingPayloadHash(body)
@@ -2309,8 +2383,8 @@ async function resetTokenQuota(
     entitlement_id: context.entitlementId,
     windows: result.windows,
     expired_reservations: result.expiredReservations,
-    usage_before: publicTokenUsageSnapshot(result.before),
-    usage_after: publicTokenUsageSnapshot(result.after)
+    usage_before: publicTokenUsage(result.before),
+    usage_after: publicTokenUsage(result.after)
   };
 }
 
@@ -2347,15 +2421,6 @@ function tokenResetContext(
   return null;
 }
 
-function publicTokenUsageSnapshot(snapshot: TokenUsageSnapshot) {
-  return {
-    source: snapshot.source,
-    minute: publicWindowSnapshot(snapshot.minute),
-    day: publicWindowSnapshot(snapshot.day),
-    month: publicWindowSnapshot(snapshot.month)
-  };
-}
-
 function publicRateLimitResetResult(result: RateLimitResetResult) {
   return {
     found: result.found,
@@ -2375,17 +2440,6 @@ function publicRateLimitResetSnapshot(snapshot: RateLimitResetResult["before"]) 
     day_window: snapshot.dayWindow,
     day_count: snapshot.dayCount,
     active: snapshot.active
-  };
-}
-
-function publicWindowSnapshot(snapshot: TokenUsageSnapshot["minute"]) {
-  return {
-    limit: snapshot.limit,
-    used: snapshot.used,
-    reserved: snapshot.reserved,
-    remaining: snapshot.remaining,
-    window_start: snapshot.windowStart,
-    window_end: snapshot.windowEnd
   };
 }
 
@@ -2872,7 +2926,7 @@ export interface ProvisionBillingSubjectInput {
 
 export interface ProvisionedBillingSubject {
   result: CreateBillingSubjectResult;
-  token: string;
+  token: string | null;
 }
 
 /**
@@ -2897,6 +2951,20 @@ async function provisionBillingSubject(
     throw serviceUnavailable("Gateway API key encryption secret is not configured.");
   }
 
+  let signupPhone: string | null = null;
+  // May's create contract remains valid without a phone or a reservation.
+  // A reservation comes from optional resolve or from create's phone field.
+  if (parsed.provider === options.externalIdentityProvider &&
+      options.externalIdentityStore?.getExternalSubjectRegistrationState(parsed) != null) {
+    if (!options.externalIdentityStore || !options.unifiedKeyRecoverySecret || options.phoneAuthService?.mode !== "transition") {
+      throw serviceUnavailable("Identity linking, phone auth and unified key recovery must be configured before signup.");
+    }
+    if (parsed.scopeAllowlist.length !== 1 || parsed.scopeAllowlist[0] !== "code") {
+      throw invalidRequest("Phone signup requires scope_allowlist [code].");
+    }
+    signupPhone = options.externalIdentityStore.claimExternalSubjectCreate(parsed);
+  }
+
   const subjectId = deterministicBillingSubjectId(parsed.provider, parsed.externalUserId);
   const v2IdempotencyKey = `medevidence:${subjectId}:create_user`;
   const upstream = await options.upstreamV2Client.createUser({
@@ -2919,6 +2987,8 @@ async function provisionBillingSubject(
     expiresAt,
     allowedPublicModels: realUserDesktopPublicModelIds,
     knownPublicModelIds: realUserDesktopPublicModelIds,
+    credentialClass: options.unifiedKeyRecoverySecret && parsed.scopeAllowlist[0] === "code" ? "desktop" : "unknown",
+    ...(signupPhone ? { rate: defaultRealUserIssueRate } : {}),
     now
   });
   const gatewayRecord = {
@@ -2936,8 +3006,12 @@ async function provisionBillingSubject(
     medevidenceKeyPrefix: upstream.key.keyPrefix,
     metadata: { medevidence_base_url: phoneAuthMedevidenceOrigin },
     credentialClass: gatewayRecord.credentialClass ?? "unknown",
+    isCurrent: Boolean(options.unifiedKeyRecoverySecret),
     now
   });
+  if (options.unifiedKeyRecoverySecret) {
+    unified.record.tokenCiphertext = encryptSecret(unified.token, options.unifiedKeyRecoverySecret);
+  }
   const result = options.billingStore.createBillingSubject({
     idempotencyKey: parsed.idempotencyKey,
     payloadHash: parsed.payloadHash,
@@ -2962,9 +3036,15 @@ async function provisionBillingSubject(
       createdAt: now,
       updatedAt: now
     },
+    ...(signupPhone ? {
+      phoneSignup: options.phoneAuthService!.identityPreparation({
+        phone: signupPhone, subjectId, unifiedKey: unified.token,
+        key: unified.record, requestId: `billing-signup:${parsed.idempotencyKey}`, now
+      })
+    } : {}),
     now
   });
-  return { result, token: unified.token };
+  return { result, token: result.idempotentReplay ? null : unified.token };
 }
 
 function publicCreateSubjectResult(result: CreateBillingSubjectResult, key: string | null) {

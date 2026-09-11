@@ -1,6 +1,6 @@
 # Runbook Index
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-10.
 
 Choose one path for the task. Do not read every operations document.
 
@@ -10,6 +10,7 @@ Choose one path for the task. Do not read every operations document.
 | --- | --- |
 | Named user's Desktop messages | [Desktop User Message Query](./client-message-query-support.zh-CN.md) |
 | Generic MedCode unavailable/error | [MedCode Service Unavailable](./medcode-service-unavailable-runbook.md) |
+| Model/vision operation-specific error messages | [2026-09-10 Error Copy Release](./r760-model-error-copy-release-2026-09-10.zh-CN.md) |
 | Desktop turn/support-code diagnostics | [Desktop Client Turn Diagnostics](./desktop-client-turn-diagnostics-runbook.md) |
 | Current production state | [System Status](./system-status.md) |
 | R760 access/deployment boundary | [Environment Access](./environment-access.md) |
@@ -25,7 +26,10 @@ documents.
 | Real-user key / user / Plan / entitlement / usage | [R760 Control-Plane Authority](./r760-control-plane-authority.md) |
 | Real-user/Desktop key provisioning details | [MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md) |
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
+| Independent Free/paid balances, cancellation target and reset conflicts | [Quota Contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md), [2026-09-11 Fix Release](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
+| Temporary new-user daily 10k free quota; existing grants unchanged | [2026-09-10 Release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md) |
+| SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused |
 
 ## Runtime Components
 

@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-08 (Gateway timeout observability release and Compose services).
+Last verified: 2026-09-10 22:23 UTC (2026-09-11 Sydney: quota review fixes, public Billing/model smoke, databases; pre-existing Research maintenance outage recorded below).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -18,19 +18,21 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway and Compose verification on 2026-09-08; local inference verification on 2026-09-06:
+Gateway and Compose verification on 2026-09-11 Sydney; local inference verification on 2026-09-06:
 
 - `current`:
-  `6640d0eda4db0f90ecf6aa18adbfb95e38b8f251`
+  `77c6404fe5884f360a9b68fceb30fcaec13cd2e9`
 - `previous`:
-  `ebad087785d4158767bca99c8f841e33df4eca97`
+  `9627d4f263a97b10a38bfcc12f52867b8f9df824`
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
-- Research Worker, Research LLM Gateway and Research maintenance: healthy,
-  without published host ports
+- Research Worker and Research LLM Gateway: healthy, without published host ports
+- Research maintenance: exited since 2026-09-10 12:35 UTC, backup startup ENOENT;
+  pre-existing incident, container unchanged by the Gateway release. Automatic
+  maintenance/backups need a separate repair.
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `6640d0e`; Research Worker remains on the existing runtime with
+Gateway runs `77c6404`, schema 29; Research Worker remains on the existing runtime with
 Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
 and one Chinese doctor passed public execution and all 16 artifact downloads.
 Results retain source and literature quality warnings. Release evidence:
@@ -39,8 +41,65 @@ Results retain source and literature quality warnings. Release evidence:
 The [timeout observability release](./r760-timeout-observability-release-2026-09-08.zh-CN.md)
 preserves interrupted stream progress and classifies header/body read timeouts.
 Public success/deadline tests and ordinary-user admin correlation passed;
-synthetic body-timeout tests passed inside the deployed container. Gateway
-configuration and all other service containers remain unchanged.
+synthetic body-timeout tests passed during that release.
+
+The [Billing compatibility release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)
+preserves May's POST /subjects contract and makes resolve optional. Passing phone
+directly enables account linking and atomic new-phone provisioning with a
+daily free entitlement and phone enrollment; the optional two-step
+flow remains supported. Legacy requests without phone or prior resolve retain
+original Billing behavior. Desktop reuses phone-auth v1 after external SMS login;
+external-token v2 is withdrawn. The current schema 29 also supports independent Free/paid accounting.
+The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
+temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
+Existing 1M/day and other grants retain their original Plans, keys and snapshots.
+
+`plan_paid_yearly_v1` was created on 2026-09-10 at 11:07 UTC and verified through
+the public Billing catalog. It has no daily/monthly token total cap and retains
+the existing monthly Plan's capabilities and technical request/rate limits.
+Annual purchases use Billing `one_off` with explicit one-year start/end dates;
+the monthly Plan remains at 5M/day and 50M/month. See the
+[monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
+including outstanding credential-expiry coverage before full annual-payment acceptance.
+The [Free/paid accounting release](./r760-free-paid-quota-release-2026-09-10.zh-CN.md)
+retains the user's Free daily allowance alongside monthly/yearly paid quota,
+reserves and settles free tokens first, and keeps the base Free entitlement at
+paid expiry. Purchasing with `replace_current=true` preserves Free. Four existing
+paid-only accounts received a 10K/day base allowance; all pre-existing control
+rows, paid snapshots and historical usage are preserved. Public Billing reads
+verified all four. Client display fields are in the
+[Free/paid quota contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md).
+Do not roll back directly to a program that assumes one active entitlement;
+recovery must preserve and understand both ledgers.
+
+The [quota review fixes](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md)
+preserve future renewals on default cancellation and reject conflicting resets
+with `409 quota_reset_conflict` until shared requests settle. The Gateway dashboard
+shows both balances and uncapped usage. Missing default Free templates are initialized
+atomically; explicitly deprecated templates fail the paid grant when a new Free is needed.
+The contract now accurately states Free missing-usage `estimate` and paid `none`;
+existing snapshots are unchanged. Public Billing lifecycle and a real model request
+passed, along with 600 Linux tests. Existing control rows were preserved, and the
+synthetic account was disabled with all credentials revoked. Gateway checks passed;
+the separate pre-existing Research maintenance outage prevents an all-services-green claim.
+
+The [model error copy release](./r760-model-error-copy-release-2026-09-10.zh-CN.md)
+describes failed vision/text operations in Chinese, with separate processing,
+connection, timeout and provider-access messages. Error codes, request IDs and
+retry contracts remain compatible with installed clients. Runtime fault injection
+and public health checks passed; existing control data and other services are unchanged.
+
+The [vision limits and recovery release](./r760-vision-limits-recovery-release-2026-09-10.zh-CN.md)
+provides structured image/body limits and authenticated `/gateway/vision/capabilities`.
+Only vision requests declaring `x-medcode-vision-recovery-contract: 1` use bounded
+recovery: initial generation, tool repair and same-service retry share two calls
+and one deadline. Final failures carry the strict client stop contract. The image
+limit stays at eight; installed clients without the header retain their retry behavior.
+Its isolated route acceptance is recorded in that release report. The current
+release retains these behaviors and passed 600 Linux tests. Gateway work did not
+modify Desktop source or packages. Its team separately reports image-budget fixes and 203
+passing tests; alignment with the new image-limit fields and opt-in header, followed
+by EXE/PPT acceptance, remains pending. See the joint contract's delivery review.
 
 The public text surface contains:
 

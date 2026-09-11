@@ -17,6 +17,22 @@ afterEach(async () => {
 });
 
 describe("vision asset routes", () => {
+  it("serves private capabilities independently of asset storage availability", async () => {
+    const response = await testApp(null).inject({ method: "GET", url: "/gateway/vision/capabilities" });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.json()).toMatchObject({ image_limit_contract_version: 1,
+      limits: { maximum_images_per_model_request: 8, maximum_request_body_bytes: 31457280 } });
+  });
+
+  it("applies entitlement authorization to capabilities", async () => {
+    const response = await testApp(null, () => new GatewayError({ code: "plan_inactive",
+      httpStatus: 402, message: "inactive" })).inject({ method: "GET", url: "/gateway/vision/capabilities" });
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error.code).toBe("plan_inactive");
+    expect(response.json()).not.toHaveProperty("limits");
+  });
+
   it("returns a private direct-upload contract and binds it to the subject", async () => {
     const service = fakeService();
     const app = testApp(service);

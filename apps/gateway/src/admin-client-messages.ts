@@ -1045,6 +1045,13 @@ function publicGatewayRequest(event: RequestEventRecord) {
       upstream_runtime: attempt.upstreamRuntime ?? null,
       upstream_model: attempt.upstreamModel ?? null,
       duration_ms: attempt.durationMs ?? null,
+      vision_recovery: attempt.visionRecovery ? {
+        image_count: attempt.visionRecovery.imageCount,
+        attempts: attempt.visionRecovery.callsUsed,
+        maximum_attempts: attempt.visionRecovery.maximumCalls,
+        content_delivered: attempt.visionRecovery.contentDelivered,
+        stop_reason: attempt.visionRecovery.stopReason
+      } : null,
       upstream_http_status: attempt.upstreamHttpStatus ?? null,
       upstream_request_id: attempt.upstreamRequestId ?? null,
       stream_progress: attempt.streamProgress ? {

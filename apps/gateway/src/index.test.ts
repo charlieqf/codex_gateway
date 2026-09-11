@@ -2682,6 +2682,41 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("rejects a conflicting Free reset through Billing without resetting request counters or losing late paid usage", async () => {
+    const { store, issued, headers } = createCredentialBackedStore({ requestsPerMinute: 100, requestsPerDay: 1, concurrentRequests: 2 });
+    const now = new Date("2026-09-11T01:00:00Z");
+    store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
+      policy: unrestrictedTokenPolicy(), now });
+    const paid = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_paid_monthly_v1", periodKind: "one_off",
+      periodStart: now, periodEnd: new Date("2026-10-11T01:00:00Z"), now });
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const app = buildGateway({ authMode: "credential", sessionStore: store, now: () => now, logger: false,
+      billingAdminToken: "billing-admin-token-1234567890",
+      provider: new FakeProvider([{ type: "message_delta", text: "ok" }, { type: "completed",
+        providerSessionRef: "review", usage: { promptTokens: 10_000, completionTokens: 0, totalTokens: 10_000 } }]) });
+    try {
+      const payload = { model: "medcode", messages: [{ role: "user", content: "ok" }] };
+      expect((await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload })).statusCode).toBe(200);
+      const pending = await limiter.acquire({ requestId: "billing-reset-pending", credentialId: issued.record.id, subjectId: "subj_dev",
+        entitlementId: paid.id, entitlementPeriodStart: paid.periodStart, entitlementPeriodEnd: paid.periodEnd,
+        policy: paid.policySnapshot, estimatedPromptTokens: 5_000, scope: "code", upstreamAccountId: null, provider: null, now });
+      if (!pending.ok) throw pending.error;
+      store.pauseEntitlement({ id: paid.id, now });
+      const resetRequest = { method: "POST" as const, url: "/gateway/admin/billing/v1/users/subj_dev/quota-reset",
+        headers: { authorization: "Bearer billing-admin-token-1234567890" },
+        payload: { request_windows: ["day"], token_windows: ["day"], reason: "review" } };
+      const blocked = await app.inject(resetRequest);
+      expect(blocked.statusCode).toBe(409);
+      expect(blocked.json().error.code).toBe("quota_reset_conflict");
+      expect((await app.inject({ method: "POST", url: "/v1/chat/completions", headers, payload })).statusCode).toBe(429);
+      expect((await limiter.finalize({ reservationId: pending.reservationId,
+        usage: { promptTokens: 5_000, completionTokens: 0, totalTokens: 5_000 }, now })).finalTotalTokens).toBe(5_000);
+      expect((await app.inject(resetRequest)).statusCode).toBe(200);
+      expect((await limiter.getCurrentUsage({ subjectId: "subj_dev", entitlementId: paid.id,
+        entitlementPeriodStart: paid.periodStart, entitlementPeriodEnd: paid.periodEnd, policy: paid.policySnapshot, now })).month.used).toBe(5_000);
+    } finally { await app.close(); }
+  });
+
   it("authenticates billing admin routes with a DB token without an env token", async () => {
     const { store } = createCredentialBackedStore();
     store.createPlan({
@@ -7567,6 +7602,179 @@ describe("gateway phase 1 routes", () => {
       releaseUpstream();
       await server.close();
     }
+  });
+
+  it.each([
+    ["/v1/chat/completions", false],
+    ["/v1/chat/completions", true],
+    ["/v1/responses", false],
+    ["/v1/responses", true]
+  ] as const)("delivers actionable vision errors through %s (stream=%s)", async (url, stream) => {
+    for (const partial of [false, true]) {
+      let calls = 0;
+      const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
+        calls += 1;
+        if (!partial) {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end('{"error":"private-provider-detail"}');
+          return;
+        }
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write('data: {"choices":[{"delta":{"content":"partial text"}}]}\n\n');
+        response.end('data: {"error":{"status":500,"message":"private-provider-detail"}}\n\n');
+      });
+      const config = goldencodePoolConfig();
+      config.pool.requireAllMembers = false;
+      try {
+        await withTemporaryEnv({
+          MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: {
+            ...config,
+            vision: { runtime: "xai", upstreamModel: "grok-4.5", contextWindow: 200000,
+              maxOutputTokens: 128000, enabled: true }
+          } }),
+          MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-key",
+          MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+          MEDCODE_VISION_XAI_API_KEY: "synthetic-key",
+          MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
+        }, async () => {
+          const app = buildGateway({ accessToken: "secret", provider: new FakeProvider(), logger: false });
+          try {
+            const response = await app.inject({ method: "POST", url,
+              headers: { authorization: "Bearer secret" },
+              payload: url === "/v1/responses"
+                ? { model: "goldencode", stream, input: [{ type: "message", role: "user", content: [
+                    { type: "input_text", text: "Describe this chart." },
+                    { type: "input_image", image_url: "data:image/png;base64,aGVsbG8=" }
+                  ] }] }
+                : { model: "goldencode", stream, messages: [{ role: "user", content: [
+                    { type: "text", text: "Describe this chart." },
+                    { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } }
+                  ] }] }
+            });
+            expect(response.body).toContain("图片分析时发生处理错误，本次请求未完成。");
+            expect(response.body).toContain("请稍后在当前对话中重试");
+            expect(response.body).toContain('"code":"upstream_unavailable"');
+            expect(response.body).toContain(expectRequestIdHeader(response));
+            expect(response.body).not.toContain("temporarily unavailable");
+            expect(response.body).not.toContain("private-provider-detail");
+            expect(response.body).not.toContain("synthetic-key");
+            expect(calls).toBe(1);
+          } finally { await app.close(); }
+        });
+      } finally { await upstream.close(); }
+    }
+  });
+
+  it.each([
+    ["/v1/chat/completions", false, false], ["/v1/chat/completions", true, false],
+    ["/v1/chat/completions", false, true], ["/v1/chat/completions", true, true],
+    ["/v1/responses", false, false], ["/v1/responses", true, false],
+    ["/v1/responses", false, true], ["/v1/responses", true, true]
+  ] as const)("recovers one vision failure through %s stream=%s tools=%s", async (url, stream, tools) => {
+    await runVisionRecoveryFixture({ url, stream, tools, failures: 1 }, ({ response, calls, events }) => {
+      expect(response.statusCode).toBe(200);
+      expect(calls).toBe(2);
+      expect(response.body).not.toContain("automatic_retry_allowed");
+      expect(response.body).toContain(tools ? "inspect_chart" : "vision recovered");
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: "ok", upstreamAttemptCount: 2, upstreamFailureRetryCount: 1,
+        upstreamRecoveryAttemptCount: 0, totalTokens: 12 });
+      expect(events[0].upstreamAttempts?.at(-1)).toMatchObject({ purpose: "failure_retry",
+        visionRecovery: { imageCount: 4, callsUsed: 2, maximumCalls: 2, contentDelivered: true, stopReason: null } });
+    });
+  });
+
+  it.each([
+    ["/v1/chat/completions", false], ["/v1/chat/completions", true],
+    ["/v1/responses", false], ["/v1/responses", true]
+  ] as const)("returns one strict vision terminal through %s stream=%s", async (url, stream) => {
+    await runVisionRecoveryFixture({ url, stream, tools: true, failures: 2 }, ({ response, calls, events }) => {
+      expect(calls).toBe(2);
+      expect(modelResponseErrors(response.body)).toEqual([expect.objectContaining({
+        code: "upstream_unavailable", retry_contract_version: 1, automatic_retry_allowed: false,
+        request_id: expectRequestIdHeader(response), vision_recovery_contract_version: 1,
+        vision_recovery: { image_count: 4, attempts: 2, maximum_attempts: 2, content_delivered: false, stop_reason: "calls_exhausted" }
+      })]);
+      expect(response.body).not.toContain("response.completed");
+      expect(response.body).not.toContain("[DONE]");
+      expect(events[0]).toMatchObject({ status: "error", upstreamAttemptCount: 2, upstreamFailureRetryCount: 1 });
+      expect(events[0].upstreamAttempts?.at(-1)?.visionRecovery?.stopReason).toBe("calls_exhausted");
+    });
+  });
+
+  it.each([
+    { optIn: false, reason: undefined },
+    { status: 401, reason: "not_retryable" },
+    { timeoutMs: 1000, reason: "deadline_insufficient" },
+    { partial: true, reason: "content_delivered" },
+    { status: 429, reason: "retry_after_missing" },
+    { status: 429, retryAfter: "-1", reason: "retry_after_missing" },
+    { status: 429, retryAfter: "invalid", reason: "retry_after_missing" },
+    { status: 429, retryAfter: "10", timeoutMs: 5000, reason: "deadline_insufficient" }
+  ])("keeps vision to one call when recovery is unsafe: %j", async (options) => {
+    await runVisionRecoveryFixture({ ...options, stream: true, failures: 1 }, ({ response, calls }) => {
+      expect(calls).toBe(1);
+      const errors = modelResponseErrors(response.body);
+      expect(errors).toHaveLength(1);
+      if (options.optIn === false) expect(errors[0]).not.toHaveProperty("automatic_retry_allowed");
+      else expect(errors[0]).toMatchObject({ automatic_retry_allowed: false, vision_recovery: { stop_reason: options.reason } });
+    });
+  });
+
+  it("honors an explicit upstream rate-limit wait before vision recovery", async () => {
+    await runVisionRecoveryFixture({ status: 429, retryAfter: "0", failures: 1 }, ({ response, calls }) => {
+      expect(calls).toBe(2);
+      expect(response.statusCode).toBe(200);
+    });
+  });
+
+  it.each([false, true])("ends an actual vision deadline without another call, tools=%s", async (tools) => {
+    await runVisionRecoveryFixture({ tools, stream: true, failures: 1, hang: true, timeoutMs: 1000 }, ({ response, calls, events }) => {
+      expect(calls).toBe(1);
+      expect(modelResponseErrors(response.body)).toEqual([expect.objectContaining({ code: "upstream_timeout",
+        automatic_retry_allowed: false, vision_recovery: { image_count: 4, attempts: 1, maximum_attempts: 2,
+          content_delivered: false, stop_reason: "deadline_exhausted" } })]);
+      expect(events[0].upstreamAttemptCount).toBe(1);
+      expect(response.body).not.toContain("[DONE]");
+    });
+  });
+
+  it("shares the two-call vision budget with tool repair", async () => {
+    await runVisionRecoveryFixture({ tools: true, failures: 2, firstInvalidTool: true }, ({ response, calls, events }) => {
+      expect(calls).toBe(2);
+      expect(modelResponseErrors(response.body)[0]).toMatchObject({ automatic_retry_allowed: false,
+        vision_recovery: { attempts: 2, stop_reason: "calls_exhausted" } });
+      expect(events[0].upstreamAttempts).toHaveLength(2);
+      expect(events[0].upstreamRecoveryAttemptCount).toBe(1);
+      expect(events[0].upstreamFailureRetryCount).toBe(0);
+    });
+  });
+
+  it("exposes shared limits and rejects 12 images before any upstream call", async () => {
+    await runVisionRecoveryFixture({ images: 12, failures: 0 }, ({ response, calls, capabilities }) => {
+      expect(calls).toBe(0);
+      expect(response.statusCode).toBe(413);
+      expect(response.json().error).toMatchObject({ image_limit_contract_version: 1,
+        image_limit: { kind: "image_count", actual: 12, maximum: 8 } });
+      expect(capabilities).toMatchObject({ image_limit_contract_version: 1, vision_recovery_contract_version: 1,
+        limits: { maximum_images_per_model_request: 8, maximum_bytes: 20971520,
+          maximum_inline_bytes_per_model_request: 20971520, maximum_request_body_bytes: 31457280 } });
+    });
+  });
+
+  it("classifies HTTP body size separately without inventing an image count", async () => {
+    await withTemporaryEnv({ MEDCODE_VISION_REQUEST_BODY_LIMIT_BYTES: "100" }, async () => {
+      const app = buildGateway({ accessToken: "secret", provider: new FakeProvider(), logger: false });
+      try {
+        for (const url of ["/v1/chat/completions", "/v1/responses"]) {
+          const response = await app.inject({ method: "POST", url, headers: { authorization: "Bearer secret" },
+            payload: { model: "goldencode", input: "x".repeat(200) } });
+          expect(response.statusCode).toBe(413);
+          expect(response.json().error).toMatchObject({ code: "invalid_request", request_id: expectRequestIdHeader(response),
+            image_limit_contract_version: 1, image_limit: { kind: "request_bytes", maximum: 100, actual: null } });
+        }
+      } finally { await app.close(); }
+    });
   });
 
   it("routes GoldenCode images to xAI while pure text remains in the GLM-5.2 pool", async () => {
@@ -14993,6 +15201,66 @@ describe("gateway phase 1 routes", () => {
     await app.close();
   });
 
+  it("keeps Free alongside a Billing purchase and splits actual Chat/Responses usage in both transport modes", async () => {
+    const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.end('data: {"choices":[{"delta":{"content":"quota success"},"finish_reason":"stop"}],"usage":{"prompt_tokens":18000,"completion_tokens":2000,"total_tokens":20000}}\n\ndata: [DONE]\n\n');
+    });
+    const config = goldencodePoolConfig();
+    config.pool.members = config.pool.members.filter((member) => member.runtime === "tencent");
+    try { await withTemporaryEnv({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: config }),
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic", MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl
+    }, async () => {
+    const { store, issued } = createCredentialBackedStore();
+    const now = new Date("2026-09-10T10:00:00Z");
+    const policy = { ...unrestrictedTokenPolicy(), tokensPerMinute: 300_000 };
+    store.createPlan({ id: "plan_free_daily_10k_v1", displayName: "Free", scopeAllowlist: ["code"],
+      policy: { ...policy, tokensPerDay: 10_000 } });
+    store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
+      policy: { ...policy, tokensPerDay: 100_000, tokensPerMonth: 200_000 } });
+    const free = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_free_daily_10k_v1", periodKind: "unlimited", now });
+    const provider = new FakeProvider([{ type: "message_delta", text: "quota success" },
+      { type: "completed", providerSessionRef: "quota_thread", usage: { promptTokens: 18_000, completionTokens: 2_000, totalTokens: 20_000 } }]);
+    const app = buildGateway({ authMode: "credential", provider, sessionStore: store, observationStore: store,
+      billingAdminToken: "billing-admin-token-1234567890", now: () => now, logger: false });
+    try {
+      const purchase = await app.inject({ method: "POST", url: "/gateway/admin/billing/v1/entitlement-events",
+        headers: { authorization: "Bearer billing-admin-token-1234567890", "Idempotency-Key": "medevidence_billing:quota:purchase" },
+        payload: { provider: "medevidence_billing", external_order_id: "quota_order", event_type: "purchase", apply_mode: "apply",
+          subject_id: "subj_dev", plan_id: "plan_paid_monthly_v1", period_kind: "monthly", period_start: now.toISOString(),
+          period_end: "2026-10-10T10:00:00Z", replace_current: true } });
+      expect(purchase.statusCode, purchase.body).toBe(200);
+      expect(purchase.json().cancelled_entitlement_ids).not.toContain(free.id);
+      const billingState = await app.inject({ method: "GET", url: "/gateway/admin/billing/v1/users/subj_dev/entitlements",
+        headers: { authorization: "Bearer billing-admin-token-1234567890" } });
+      expect(billingState.statusCode).toBe(200);
+      expect(billingState.json()).toMatchObject({ current: { plan_id: "plan_paid_monthly_v1" }, free_allowance: { id: free.id }, history: [] });
+      const headers = { authorization: `Bearer ${issued.token}` };
+      for (const url of ["/v1/chat/completions", "/v1/responses"]) {
+        for (const stream of [false, true]) {
+          const response = await app.inject({ method: "POST", url, headers, payload: url.endsWith("responses")
+            ? { model: "goldencode", input: "Say ok.", stream }
+            : { model: "goldencode", messages: [{ role: "user", content: "Say ok." }], stream } });
+          expect(response.statusCode, response.body).toBe(200);
+          expect(response.body).toContain("quota success");
+          const events = store.listRequestEvents({ requestId: String(response.headers["x-request-id"]) });
+          expect(events).toHaveLength(1);
+          expect(events[0].totalTokens).toBe(20_000);
+        }
+      }
+      const current = await app.inject({ method: "GET", url: "/gateway/credentials/current", headers });
+      expect(current.statusCode).toBe(200);
+      expect(current.json()).toMatchObject({ plan: { display_name: "Monthly" }, token_usage: {
+        accounting_mode: "free_then_paid_v1", day: { used: 70_000 }, month: { used: 70_000 },
+        free_allowance: { entitlement_id: free.id, day: { used: 10_000, remaining: 0 } }
+      } });
+      expect(current.body).not.toContain("free_policy_snapshot_json");
+      expect(current.body).not.toContain("missingUsageCharge");
+    } finally { await app.close(); }
+    }); } finally { await upstream.close(); }
+  });
+
   it("uses active plan entitlements for token budgets without exposing internal charge fields", async () => {
     const store = createSqliteStore({ path: ":memory:" });
     const issued = issueAccessCredential({
@@ -15884,6 +16152,80 @@ function issueCredentialForHrwAccount(accountId: string, accountIds: string[]) {
     }
   }
   throw new Error(`Could not issue a test credential for ${accountId}.`);
+}
+
+async function runVisionRecoveryFixture(options: {
+  url?: string; stream?: boolean; tools?: boolean; failures: number; status?: number;
+  partial?: boolean; hang?: boolean; timeoutMs?: number; optIn?: boolean; retryAfter?: string; firstInvalidTool?: boolean; images?: number;
+}, check: (value: { response: Awaited<ReturnType<ReturnType<typeof buildGateway>["inject"]>>;
+  calls: number; events: ReturnType<ReturnType<typeof createSqliteStore>["listRequestEvents"]>; capabilities: unknown }) => void) {
+  let calls = 0;
+  const upstream = await startOpenAICompatibleSseServer((_request, _body, response) => {
+    calls += 1;
+    const badTool = calls === 1 && options.firstInvalidTool;
+    if (options.hang) return;
+    if (calls <= options.failures && !badTool) {
+      if (options.partial) {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n');
+        response.end('data: {"error":{"status":500,"message":"synthetic"}}\n\n');
+      } else {
+        response.writeHead(options.status ?? 500, { "content-type": "application/json",
+          ...(options.retryAfter !== undefined ? { "retry-after": options.retryAfter } : {}) });
+        response.end('{"error":"synthetic"}');
+      }
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    response.write(`data: ${JSON.stringify({ choices: [{ delta: options.tools ? {
+      tool_calls: [{ index: 0, id: "call_inspect", type: "function", function: { name: "inspect_chart", arguments: badTool ? '{"value":"invalid"}' : '{"value":1}' } }]
+    } : { content: "vision recovered" }, finish_reason: options.tools ? "tool_calls" : "stop" }],
+      usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 } })}\n\n`);
+    response.end("data: [DONE]\n\n");
+  });
+  const config = goldencodePoolConfig();
+  config.pool.requireAllMembers = false;
+  try {
+    await withTemporaryEnv({
+      MEDCODE_PUBLIC_MODELS_JSON: JSON.stringify({ goldencode: { ...config,
+        vision: { runtime: "xai", upstreamModel: "grok-4.5", contextWindow: 200000, maxOutputTokens: 128000, enabled: true } } }),
+      MEDCODE_TENCENT_TOKENHUB_API_KEY: "synthetic-key", MEDCODE_TENCENT_TOKENHUB_BASE_URL: upstream.baseUrl,
+      MEDCODE_VISION_XAI_API_KEY: "synthetic-key", MEDCODE_VISION_XAI_BASE_URL: upstream.baseUrl
+    }, async () => {
+      const { store, headers } = createCredentialBackedStore();
+      const app = buildGateway({ authMode: "credential", provider: new FakeProvider(), sessionStore: store, observationStore: store, logger: false });
+      try {
+        const capabilities = await app.inject({ method: "GET", url: "/gateway/vision/capabilities", headers });
+        const url = options.url ?? "/v1/chat/completions";
+        const image = "data:image/png;base64,aGVsbG8=";
+        const tool = { type: "function", function: { name: "inspect_chart", parameters: {
+          type: "object", properties: { value: { type: "integer" } }, required: ["value"], additionalProperties: false } } };
+        const response = await app.inject({ method: "POST", url, headers: { ...headers,
+          ...(options.optIn !== false ? { "x-medcode-vision-recovery-contract": "1" } : {}),
+          ...(options.timeoutMs ? { "x-medcode-request-timeout-ms": String(options.timeoutMs) } : {}) },
+          payload: url === "/v1/responses"
+            ? { model: "goldencode", stream: options.stream, input: [{ type: "message", role: "user", content: [
+                { type: "input_text", text: "Inspect the charts." },
+                ...Array.from({ length: options.images ?? 4 }, () => ({ type: "input_image", image_url: image })) ] }],
+              ...(options.tools ? { tools: [{ type: "function", ...tool.function }], tool_choice: "required" } : {}) }
+            : { model: "goldencode", stream: options.stream, messages: [{ role: "user", content: [
+                { type: "text", text: "Inspect the charts." },
+                ...Array.from({ length: options.images ?? 4 }, () => ({ type: "image_url", image_url: { url: image } })) ] }],
+              ...(options.tools ? { tools: [tool], tool_choice: "required" } : {}) }
+        });
+        check({ response, calls, capabilities: capabilities.json(), events: store.listRequestEvents({ requestId: expectRequestIdHeader(response) }) });
+      } finally { await app.close(); }
+    });
+  } finally { await upstream.close(); }
+}
+
+function modelResponseErrors(body: string): Array<Record<string, unknown>> {
+  if (body.startsWith("{")) return [JSON.parse(body).error];
+  return body.split("\n").flatMap((line) => {
+    if (!line.startsWith("data: ") || line.includes("[DONE]")) return [];
+    const value = JSON.parse(line.slice(6));
+    return value.error ? [value.error] : value.response?.error ? [value.response.error] : [];
+  });
 }
 
 function createCredentialBackedStore(rate?: RateLimitPolicy) {

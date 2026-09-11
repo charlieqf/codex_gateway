@@ -48,7 +48,8 @@ for (const name of [
   "GATEWAY_DESKTOP_VERSION_GATE",
   "GATEWAY_MINIMUM_DESKTOP_VERSION",
   "GATEWAY_DESKTOP_DOWNLOAD_URL",
-  "GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION"
+  "GATEWAY_MEDEVIDENCE_R760_MINIMUM_DESKTOP_VERSION",
+  "GATEWAY_BILLING_IDENTITY_PROVIDER"
 ]) {
   savedEnvironment.set(name, process.env[name]);
 }
@@ -64,6 +65,83 @@ afterEach(() => {
 });
 
 describe("internal phone auth v1 routes", () => {
+  it("takes a newly provisioned free account through the existing Desktop login and resolver contract", async () => {
+    const fixture = createFixture({ billingIdentityCoordination: true });
+    try {
+      const adminHeaders = { authorization: `Bearer ${billingAdminToken}` };
+      const body = { provider: "medevidence_billing_test", external_user_id: "medevidence_test_new" };
+      const resolved = await fixture.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects/resolve",
+        headers: adminHeaders, payload: { ...body, phone: "13900139000" } });
+      expect(resolved.json().status).toBe("create_ready");
+      const created = await fixture.app.inject({ method: "POST", url: "/gateway/admin/billing/v1/subjects",
+        headers: { ...adminHeaders, "idempotency-key": "new-phone-signup" }, payload: { ...body, scope_allowlist: ["code"] } });
+      expect(created.statusCode).toBe(200);
+      const login = await fixture.app.inject({ method: "POST", url: "/gateway/auth/v1/login/start", headers: versionHeader,
+        payload: { phone: "13900139000", client: "medevidence-desktop", device_id: "sms-signup-route-device", contract_version: 1 } });
+      expect(login.statusCode).toBe(200);
+      const headers = { ...versionHeader, authorization: `Bearer ${login.json().access_token}` };
+      const bootstrap = await fixture.app.inject({ method: "POST", url: "/gateway/auth/v1/session/bootstrap", headers, payload: {} });
+      expect(bootstrap.statusCode).toBe(200);
+      expect(bootstrap.json().unified_key.key).toBe(created.json().credential.key);
+      const account = await fixture.app.inject({ url: "/gateway/account/v1/current", headers });
+      expect(account.statusCode).toBe(200);
+      expect(account.json().subject.id).toBe(created.json().subject.id);
+      const resolver = await fixture.app.inject({ method: "POST", url: "/gateway/unified-keys/resolve",
+        headers: { ...versionHeader, authorization: `Bearer ${bootstrap.json().unified_key.key}` }, payload: {} });
+      expect(resolver.statusCode).toBe(200);
+      const current = await fixture.app.inject({ url: "/gateway/credentials/current",
+        headers: { ...versionHeader, authorization: `Bearer ${resolver.json().codex_gateway.api_key}` } });
+      expect(current.statusCode).toBe(200);
+      expect(current.json().credential.token.tokensPerDay).toBe(10_000);
+      expect(fixture.store.listEntitlements({ subjectId: created.json().subject.id })[0]?.policySnapshot.tokensPerDay).toBe(10_000);
+      const unknown = await fixture.app.inject({ method: "POST", url: "/gateway/auth/v1/login/start", headers: versionHeader,
+        payload: { phone: "13700137000", client: "medevidence-desktop", device_id: "temporary-route-device", contract_version: 1 } });
+      expect(unknown.json().error.code).toBe("phone_not_registered");
+      expect(fixture.store.listSubjects()).toHaveLength(2);
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
+  it("reuses the existing phone session and key after billing identity linking without an external token", async () => {
+    const fixture = createFixture({ billingIdentityCoordination: true });
+    try {
+      const prepared = await fixture.app.inject({
+        method: "POST", url: "/gateway/admin/billing/v1/phone-auth-identities",
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: { phone: "13800138000", subject_id: fixture.subjectId, unified_key: fixture.unified.token }
+      });
+      expect(prepared.statusCode).toBe(200);
+      const linked = await fixture.app.inject({
+        method: "POST", url: "/gateway/admin/billing/v1/subjects/resolve",
+        headers: { authorization: `Bearer ${billingAdminToken}` },
+        payload: { provider: "medevidence_billing_test", external_user_id: "medevidence_test_21", phone: "13800138000" }
+      });
+      expect(linked.json()).toMatchObject({ status: "linked", subject: { id: fixture.subjectId } });
+      const login = await fixture.app.inject({
+        method: "POST", url: "/gateway/auth/v1/login/start", headers: versionHeader,
+        payload: { phone: "13800138000", client: "medevidence-desktop", device_id: "desktop-sms-phone-test", contract_version: 1 }
+      });
+      expect(login.statusCode).toBe(200);
+      expect(login.json()).toMatchObject({ auth_method: "transition_phone_only", subject: { id: fixture.subjectId } });
+      const authHeaders = { ...versionHeader, authorization: `Bearer ${login.json().access_token}` };
+      const bootstrap = await fixture.app.inject({
+        method: "POST", url: "/gateway/auth/v1/session/bootstrap", headers: authHeaders, payload: {}
+      });
+      const current = await fixture.app.inject({
+        method: "GET", url: "/gateway/account/v1/current", headers: authHeaders
+      });
+      expect(bootstrap.statusCode).toBe(200);
+      expect(bootstrap.json().unified_key.key).toBe(fixture.unified.token);
+      expect(current.statusCode).toBe(200);
+      expect(current.json().subject.id).toBe(fixture.subjectId);
+      expect(fixture.store.listUnifiedClientKeys()).toHaveLength(1);
+      expect(fixture.app.hasRoute({ method: "POST", url: "/gateway/auth/v2/runtime/authorize" })).toBe(false);
+    } finally {
+      await fixture.app.close();
+    }
+  });
+
   it("keeps legacy clients on nip.io and routes only fixed clients to R760", async () => {
     const fixture = createFixture({
       medevidenceR760MinimumDesktopVersion: "2.0.0-beta.47"
@@ -1054,11 +1132,16 @@ function createFixture(
     ipRequestsPerMinute?: number;
     deviceRequestsPerMinute?: number;
     medevidenceR760MinimumDesktopVersion?: string | null;
+    billingIdentityCoordination?: boolean;
   } = {}
 ) {
   process.env.GATEWAY_PUBLIC_BASE_URL = phoneAuthGatewayOrigin;
   process.env.GATEWAY_API_KEY_ENCRYPTION_SECRET = encryptionSecret;
   process.env.GATEWAY_PHONE_AUTH_MODE = "disabled";
+  delete process.env.GATEWAY_BILLING_IDENTITY_PROVIDER;
+  if (options.billingIdentityCoordination) {
+    process.env.GATEWAY_BILLING_IDENTITY_PROVIDER = "medevidence_billing_test";
+  }
   const subjectId = "subj_internal";
   const store = createSqliteStore({ path: ":memory:" });
   store.upsertSubject({
@@ -1158,6 +1241,7 @@ function createFixture(
     provider: new FakeProvider(),
     sessionStore: store,
     phoneAuthService: service,
+    unifiedKeyRecoverySecret: options.billingIdentityCoordination ? recoverySecret : undefined,
     desktopVersionGate: {
       mode: "auth_only",
       minimumVersion: clientVersion,
@@ -1175,6 +1259,12 @@ function createFixture(
         },
     billingAdminToken,
     billingAdminTokenMode: "env",
+    upstreamV2Client: options.billingIdentityCoordination ? {
+      createUser: async () => ({ status: "created", user: { id: "v2_new_phone_test" },
+        key: { id: "v2_key_new_phone_test", key: "medevidence-new-phone-test-key", keyPrefix: "medevidence-new-phone-test" } }),
+      revokeKey: async () => ({ revoked: true, key: { id: "v2_key_new_phone_test" } }),
+      disableUser: async () => ({ disabled: true, user: { id: "v2_new_phone_test" } })
+    } : undefined,
     phoneAuthLoginRateLimiter: loginRateLimiter,
     phoneAuthPhoneRequestsPerMinute: options.phoneRequestsPerMinute,
     phoneAuthIpRequestsPerMinute: options.ipRequestsPerMinute,

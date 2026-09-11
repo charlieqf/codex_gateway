@@ -7,6 +7,9 @@ export const gatewayErrorCodes = [
   "expired_credential",
   "access_token_invalid",
   "access_token_expired",
+  "identity_link_required",
+  "identity_conflict",
+  "account_pending",
   "refresh_token_invalid",
   "phone_not_registered",
   "phone_login_disabled",
@@ -32,6 +35,7 @@ export const gatewayErrorCodes = [
   "credential_not_found",
   "entitlement_already_active",
   "invalid_entitlement_transition",
+  "quota_reset_conflict",
   "model_not_found",
   "model_not_allowed_for_credential",
   "rate_limited",
@@ -110,10 +114,17 @@ export interface GatewayContextWindowDetails {
   tokenCountSource: GatewayContextTokenCountSource;
 }
 
+export interface GatewayImageLimitDetails {
+  kind: "image_count" | "image_bytes" | "inline_image_bytes" | "request_bytes";
+  maximum: number;
+  actual: number | null;
+}
+
 export class GatewayError extends Error {
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
   readonly retryAfterSeconds?: number;
+  readonly upstreamRetryAfterSeconds?: number;
   readonly upstreamStatus?: number;
   readonly contractVersion?: number;
   readonly failureKind?: GatewayFailureKind;
@@ -125,12 +136,14 @@ export class GatewayError extends Error {
   readonly requestedValue?: string;
   readonly supportedValues?: readonly string[];
   readonly contextWindowDetails?: GatewayContextWindowDetails;
+  readonly imageLimitDetails?: GatewayImageLimitDetails;
 
   constructor(input: {
     code: GatewayErrorCode;
     message: string;
     httpStatus: number;
     retryAfterSeconds?: number;
+    upstreamRetryAfterSeconds?: number;
     upstreamStatus?: number;
     contractVersion?: number;
     failureKind?: GatewayFailureKind;
@@ -142,12 +155,14 @@ export class GatewayError extends Error {
     requestedValue?: string;
     supportedValues?: readonly string[];
     contextWindowDetails?: GatewayContextWindowDetails;
+    imageLimitDetails?: GatewayImageLimitDetails;
   }) {
     super(input.message);
     this.name = "GatewayError";
     this.code = input.code;
     this.httpStatus = input.httpStatus;
     this.retryAfterSeconds = input.retryAfterSeconds;
+    this.upstreamRetryAfterSeconds = input.upstreamRetryAfterSeconds;
     this.upstreamStatus = input.upstreamStatus;
     this.contractVersion = input.contractVersion;
     this.failureKind = input.failureKind;
@@ -159,6 +174,7 @@ export class GatewayError extends Error {
     this.requestedValue = input.requestedValue;
     this.supportedValues = input.supportedValues;
     this.contextWindowDetails = input.contextWindowDetails;
+    this.imageLimitDetails = input.imageLimitDetails;
   }
 }
 

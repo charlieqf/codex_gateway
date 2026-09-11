@@ -15,7 +15,16 @@ export function publicTokenUsage(usage: TokenUsageSnapshot) {
     source: usage.source,
     minute: publicTokenWindow(usage.minute),
     day: publicTokenWindow(usage.day),
-    month: publicTokenWindow(usage.month)
+    month: publicTokenWindow(usage.month),
+    ...(usage.freeAllowance ? {
+      accounting_mode: "free_then_paid_v1",
+      free_allowance: {
+        entitlement_id: usage.freeAllowance.entitlementId,
+        plan_id: usage.freeAllowance.planId,
+        day: publicTokenWindow(usage.freeAllowance.day),
+        month: publicTokenWindow(usage.freeAllowance.month)
+      }
+    } : {})
   };
 }
 
