@@ -5,14 +5,16 @@
     "academic_review_required": false,
     "publication_minimum_required": false,
     "historical_probes_retain_original_contract": true,
-    "new_contract_live_verified": false,
+    "new_contract_live_verified": true,
     "runtime_case_presets": false,
     "only_original_three_fields": true,
     "full_service_success_required": true,
     "identity_only_is_not_full_success": true,
     "excellent_total_seconds": 300,
     "acceptable_total_seconds": 480,
-    "over_480_seconds_requires_investigation": true
+    "over_480_seconds_requires_investigation": true,
+    "new_contract_live_verified_scope": "Two original-input isolated Worker workflows at cbbb08eac779f202818df48ff2a02465811cbcab; public API/admission and all-case acceptance remain pending.",
+    "current_post_probe_revision_live_verified": false
   },
   "cases": [
     {
@@ -73,17 +75,39 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary11/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Practical profile delivered four hash-verified files with independent identity and factual editing, using only the original three input fields and zero PubMed queries. Content review found editorial followups recorded separately; public API acceptance remains pending.",
+          "elapsed_ms": 65094,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
       "full_worker_attempt": {
-        "evidence": "workflow-canary9/result.json",
-        "outcome": "failed",
-        "reported_reason": "resource_budget_exceeded",
-        "diagnosed_reason": "Identity passed in four calls. Source focus was used and a proposal was submitted on evidence call four, but invalid JSON, one-error-at-a-time citation feedback, and repeated /evidence-prefixed patch paths consumed the twelve evidence calls. No independent evidence review or artifact delivery occurred.",
-        "elapsed_ms": 300138,
+        "evidence": "workflow-canary11/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Practical profile delivered four hash-verified files with independent identity and factual editing, using only the original three input fields and zero PubMed queries. Content review found editorial followups recorded separately; public API acceptance remains pending.",
+        "elapsed_ms": 65094,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
+      },
+      "practical_worker_delivery": {
+        "outcome": "succeeded",
+        "evidence": "workflow-canary11/result.json",
+        "artifact_count": 4,
+        "hashes_verified": true,
+        "content_review": "usable_with_editorial_followups",
+        "editorial_followups": [
+          "Repeated unverified-role limitation",
+          "A 2024 news item was called recent"
+        ],
+        "production_or_public_api_verified": false
       }
     },
     {
@@ -213,11 +237,11 @@
       "full_service_acceptance": "pending",
       "identity_only_evidence": "live-canary2/result.json",
       "full_worker_attempt": {
-        "evidence": "workflow-canary10/result.json",
-        "outcome": "failed",
-        "reported_reason": "deadline_exceeded",
-        "diagnosed_reason": "Identity passed after four quotation-format corrections; evidence read 25 papers and independently passed in ten calls. Three report-generation calls and multiple academic output reviews then exceeded the active deadline. Revision included minimum paragraph length and numbered citations in questions. The user subsequently clarified that this service is practical doctor-profile research, not literature peer review; the old academic contract is no longer the default acceptance target.",
-        "elapsed_ms": 560134,
+        "evidence": "workflow-canary12/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Practical profile delivered four hash-verified files with independent identity and factual editing, using only the original three input fields and zero PubMed queries. Content review found editorial followups recorded separately; public API acceptance remains pending.",
+        "elapsed_ms": 94499,
         "serpapi_requests": 1,
         "public_api_or_admission_tested": false,
         "post_probe_fixes_live_verified": false
@@ -252,9 +276,31 @@
           "serpapi_requests": 1,
           "public_api_or_admission_tested": false,
           "post_probe_fixes_live_verified": false
+        },
+        {
+          "evidence": "workflow-canary12/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Practical profile delivered four hash-verified files with independent identity and factual editing, using only the original three input fields and zero PubMed queries. Content review found editorial followups recorded separately; public API acceptance remains pending.",
+          "elapsed_ms": 94499,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
         }
       ],
-      "diagnostic_replay_note": "Saved-evidence replays test recovery and generation changes; none count as fresh original-input acceptance."
+      "diagnostic_replay_note": "Saved-evidence replays test recovery and generation changes; none count as fresh original-input acceptance.",
+      "practical_worker_delivery": {
+        "outcome": "succeeded",
+        "evidence": "workflow-canary12/result.json",
+        "artifact_count": 4,
+        "hashes_verified": true,
+        "content_review": "usable_with_editorial_followups",
+        "editorial_followups": [
+          "Unnecessary treatment conclusion from an article listing",
+          "Unsupported generic qualification-path commentary"
+        ],
+        "production_or_public_api_verified": false
+      }
     }
   ],
   "additional_regression_cases": [

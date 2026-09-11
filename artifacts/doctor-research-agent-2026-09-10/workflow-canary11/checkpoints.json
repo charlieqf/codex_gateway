@@ -1,0 +1,1394 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_33df4f690f07b48e4a2a29c2cc909839",
+        "src_eb3bb36653f9276bfd21789066ebbecf"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "08989b1124fa4a0a1324484d379e5c6eab0f7930dfeee45ddbbb73f5eb025027",
+      "calls": 3,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Unexpected token '`', \"```json\n{\"\"... is not valid JSON",
+            "previous_response": "```json\n{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"text\":\"从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调“强专科、精综合”特色，预计2024年9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"qa\":[{\"question\":\"沈嵘目前的主要职务是什么？\",\"answer\":\"公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的“第四临床医学院副院长”职务未在现有公开来源中得到独立证实，建议见面时确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她在全国学术组织中有何任职？\",\"answer\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]},{\"question\":\"南京市妇幼保健院近期的重要发展是什么？\",\"answer\":\"丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调“强专科、精综合”特色和现代化就医环境。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她的具体临床专科方向是什么？\",\"answer\":\"现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"question\":\"她在医院管理方面承担什么角色？\",\"answer\":\"作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"limitations\":[\"未找到独立证据支持“南京医科大学第四临床医学院副院长”职务；现有来源均显示其为南京市妇幼保健院党委书记\",\"未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认\"]}}```"
+          }
+        }
+      ],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调\"强专科、精综合\"特色，预计2024年9月初正式启用。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "沈嵘目前的主要职务是什么？",
+            "answer": "公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的\"第四临床医学院副院长\"职务未在现有公开来源中得到独立证实，建议见面时确认。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她在全国学术组织中有何任职？",
+            "answer": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "南京市妇幼保健院近期的重要发展是什么？",
+            "answer": "丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调\"强专科、精综合\"特色和现代化就医环境。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她的具体临床专科方向是什么？",
+            "answer": "现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她在医院管理方面承担什么角色？",
+            "answer": "作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "未找到独立证据支持\"南京医科大学第四临床医学院副院长\"职务；现有来源均显示其为南京市妇幼保健院党委书记",
+          "未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调\"强专科、精综合\"特色，预计2024年9月初正式启用。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "沈嵘目前的主要职务是什么？",
+            "answer": "公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的\"第四临床医学院副院长\"职务未在现有公开来源中得到独立证实，建议见面时确认。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她在全国学术组织中有何任职？",
+            "answer": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "南京市妇幼保健院近期的重要发展是什么？",
+            "answer": "丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调\"强专科、精综合\"特色和现代化就医环境。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她的具体临床专科方向是什么？",
+            "answer": "现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。",
+            "citations": [
+              {
+                "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她在医院管理方面承担什么角色？",
+            "answer": "作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。",
+            "citations": [
+              {
+                "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "未找到独立证据支持\"南京医科大学第四临床医学院副院长\"职务；现有来源均显示其为南京市妇幼保健院党委书记",
+          "未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "10db9fd3dcc56cb56bd6dac2b30548a92fb4bbe6b052ef12fff5b08ba0425952",
+      "searches": [
+        {
+          "query": "沈嵘 南京市妇幼保健院 党委书记",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "title": "生育健康与出生缺陷防控专业委员会",
+              "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+            },
+            {
+              "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+              "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+              "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+              "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+            },
+            {
+              "url": "https://baike.baidu.com/item/%E6%B2%88%E5%B5%98/52203139",
+              "title": "沈嵘（江苏省南京市妇幼保健院工作人员）",
+              "snippet": "沈嵘，江苏省南京市妇幼保健院工作人员。2020年7月8日，被江苏省人民政府批准为“2020年江苏省有突出贡献的中青年专家（专业技术人才）”。"
+            },
+            {
+              "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+              "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+              "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+            },
+            {
+              "url": "https://www.sciconf.cn/cn/person-detail/50?user_id=NNoQ_x_x_xFpWGBAWi7rfO1pQ_d_d",
+              "title": "沈嵘-南京市妇幼保健院",
+              "snippet": "沈嵘-南京市妇幼保健院・ 南京市妇幼保健院0 讲座视频0 论文摘要166 ・ 委员、中国妇幼保健协会副秘书长"
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "url": "https://m.ysyy.org.cn/123/202105/458.html",
+          "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+          "accessedAt": "2026-09-11T00:04:54.664Z",
+          "contentSha256": "82da16e47cd94d134db47b294f98383427967383e55c162123ccdd1fa9a0a0ce",
+          "untrustedText": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://m.ysyy.org.cn/index.html",
+              "text": "首页"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会概况"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/10/202009/57.html",
+              "text": "协会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/11/202104/58.html",
+              "text": "章程规制"
+            },
+            {
+              "url": "https://www.ysyy.org.cn/62/202107/798.html",
+              "text": "办事机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/59/index.html",
+              "text": "协会领导"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/15/index.html",
+              "text": "协会历史"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/378/index.html",
+              "text": "杰出专家"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/377/index.html",
+              "text": "先进典型"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/16/index.html",
+              "text": "协会文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/355/index.html",
+              "text": "协会年鉴"
+            },
+            {
+              "url": "https://www.mysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/357/index.html",
+              "text": "品牌大会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/358/index.html",
+              "text": "协会刊物"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "新闻资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/20/index.html",
+              "text": "协会资讯"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/19/index.html",
+              "text": "通知公告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/18/index.html",
+              "text": "社会要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/21/index.html",
+              "text": "法律/法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/389/index.html",
+              "text": "政策/解读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "党建政工"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/22/index.html",
+              "text": "学习必读"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/23/index.html",
+              "text": "上级文件"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/24/index.html",
+              "text": "支部建设"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/353/index.html",
+              "text": "思想园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/354/index.html",
+              "text": "阅读推荐"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/26/index.html",
+              "text": "会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/27/index.html",
+              "text": "单位会员查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/28/index.html",
+              "text": "会员园地"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/29/index.html",
+              "text": "表格下载"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "分支机构"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/30/index.html",
+              "text": "专业委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/31/index.html",
+              "text": "工作委员会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/374/index.html",
+              "text": "管理规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/375/index.html",
+              "text": "行业动态"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/376/index.html",
+              "text": "年度考评"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "教育培训"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/32/index.html",
+              "text": "培训计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/33/index.html",
+              "text": "培训规定"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/34/index.html",
+              "text": "证书查询"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/359/index.html",
+              "text": "培训要闻"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/360/index.html",
+              "text": "基层活动"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/361/index.html",
+              "text": "政策法规"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/362/index.html",
+              "text": "中优大讲堂"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "科研科普"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/35/index.html",
+              "text": "研究报告"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/36/index.html",
+              "text": "行业标准"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/37/index.html",
+              "text": "十大课题"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/38/index.html",
+              "text": "千天计划"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/39/index.html",
+              "text": "童真中国"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/363/index.html",
+              "text": "乡村服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "地方协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/41/index.html",
+              "text": "省市优生优育类协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/42/index.html",
+              "text": "省市妇幼保健协会"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "社会服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/44/index.html",
+              "text": "宏观数据"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/45/202104/347.html",
+              "text": "摇篮工程"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/371/index.html",
+              "text": "乡村振兴"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/372/index.html",
+              "text": "家庭服务"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/123/202105/458.html",
+              "text": "分会简介"
+            },
+            {
+              "url": "https://m.ysyy.org.cn/125/index.html",
+              "text": "分会动态"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+          "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+          "accessedAt": "2026-09-11T00:04:55.177Z",
+          "contentSha256": "141bd01b85cf6fca8ec93bcd1574019868b7e92c7633ed08562d41a5cb9522cf",
+          "untrustedText": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://wjw.nanjing.gov.cn/jgxx/",
+              "text": "机构信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/",
+              "text": "政府信息公开"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/",
+              "text": "互动交流"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/",
+              "text": "办事服务"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/",
+              "text": "专题专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+              "text": "概况信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+              "text": "财政信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+              "text": "人事信息"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+              "text": "部门文件"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+              "text": "统计信息及解读"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+              "text": "信息公开指南"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+              "text": "来信办理统计"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+              "text": "主任信箱"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+              "text": "调查征集"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+              "text": "权力清单"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+              "text": "下载服务"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/doctor",
+              "text": "医生执业注册信息查询"
+            },
+            {
+              "url": "https://zgcx.nhc.gov.cn/nurse",
+              "text": "护士执业注册信息查询"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+              "text": "“双随机、一公开”监管专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+              "text": "双公示专栏"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/",
+              "text": "首页"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/",
+              "text": "工作动态"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+              "text": "【我要纠错】"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/wzdh/",
+              "text": "网站地图"
+            },
+            {
+              "url": "https://wjw.nanjing.gov.cn/lxwm/",
+              "text": "联系我们"
+            },
+            {
+              "url": "https://beian.miit.gov.cn/",
+              "text": "苏ICP备05004952号-7"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://m.ysyy.org.cn/123/202105/458.html": "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html"
+      },
+      "pageRequests": 2,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.bozhou.gov.cn/News/show/606568.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "https://baike.baidu.com/item/%E6%B2%88%E5%B5%98/52203139",
+        "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+        "https://www.sciconf.cn/cn/person-detail/50?user_id=NNoQ_x_x_xFpWGBAWi7rfO1pQ_d_d"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "沈嵘 南京市妇幼保健院 党委书记",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "title": "生育健康与出生缺陷防控专业委员会",
+                "snippet": "沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记. 谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师 ..."
+              },
+              {
+                "url": "https://wjw.bozhou.gov.cn/News/show/606568.html",
+                "title": "亳州市妇幼保健院加入南京市妇幼保健院集团-亳州市卫生健康委员会",
+                "snippet": "7月21日，“南京市妇幼保健院集团亳州市妇幼保健院”揭牌仪式暨大型专家义诊活动在亳州市妇幼保健院举行。南京市妇幼保健院党委书记沈嵘，党委委员、副院长陈德巧，亳州市 ..."
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区",
+                "snippet": "... 南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。 韩立明察看新院区 ..."
+              },
+              {
+                "url": "https://baike.baidu.com/item/%E6%B2%88%E5%B5%98/52203139",
+                "title": "沈嵘（江苏省南京市妇幼保健院工作人员）",
+                "snippet": "沈嵘，江苏省南京市妇幼保健院工作人员。2020年7月8日，被江苏省人民政府批准为“2020年江苏省有突出贡献的中青年专家（专业技术人才）”。"
+              },
+              {
+                "url": "https://health.jschina.com.cn/jkjs/202205/t20220519_3002469.shtml",
+                "title": "南京市妇幼保健院：提高助产技能保障母婴安全_中国江苏网",
+                "snippet": "医院党委书记沈嵘，护理部主任朱珠，护理部副主任周晖、张爱霞，门诊部科护士长蔡巧妹，产科护士长单春剑，特殊护理单元科护士长田莹莹，以及实践科室护士长、带教老师参加 ..."
+              },
+              {
+                "url": "https://www.sciconf.cn/cn/person-detail/50?user_id=NNoQ_x_x_xFpWGBAWi7rfO1pQ_d_d",
+                "title": "沈嵘-南京市妇幼保健院",
+                "snippet": "沈嵘-南京市妇幼保健院・ 南京市妇幼保健院0 讲座视频0 论文摘要166 ・ 委员、中国妇幼保健协会副秘书长"
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+            "offset": 0,
+            "total_characters": 1702,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "展10-12次全国巡讲。积极开展健康知识普及活动，力争做到每年覆盖不同省市，逐步提高基层从业人员、适龄人群的健康素养。\n（3）每年开展一次优质单位及个人的评审，提供生育健康规范服务：将国家相关部门的技术规范有部署、有计划、有重点地培训，更好的指导临床，普惠适龄人群，做好减少非意愿妊娠，有计划的适时生育，良好的避孕间隔，避孕节育与防病治病相结合，降低出生缺陷地发生。\n（4）制定相关课题申报流程制度。\n（5）组织编写相关共识与指南：编纂图书、发表行业指南：既有指导临床的，也有面对大众的科普书籍。\n办公地址：\n天津市和平区鞍山道154号，天津市医科大学总医院。\n联系人：\n袁 冬 电话：13102216186；E-mail： 794083681@qq.com。\n联系电话：010-65125618 、010- 65125317\n协会邮箱：youshengyouyu1989@163.com\n办公地址：北京市海淀区北四环西路甲2号 辽宁大厦24层\n京ICP备2020036426号-1\n京ICP备2020036426号\n中国优生优育协会 技术支持：中科服\n网站浏览量： 最佳显示分辨率为：1920*1080"
+              }
+            ],
+            "more_text": false,
+            "find_matched": false,
+            "url": "https://m.ysyy.org.cn/123/202105/458.html",
+            "links": [
+              {
+                "url": "https://m.ysyy.org.cn/index.html",
+                "text": "首页"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会概况"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/10/202009/57.html",
+                "text": "协会简介"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/11/202104/58.html",
+                "text": "章程规制"
+              },
+              {
+                "url": "https://www.ysyy.org.cn/62/202107/798.html",
+                "text": "办事机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/59/index.html",
+                "text": "协会领导"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/15/index.html",
+                "text": "协会历史"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/378/index.html",
+                "text": "杰出专家"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/377/index.html",
+                "text": "先进典型"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/16/index.html",
+                "text": "协会文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/355/index.html",
+                "text": "协会年鉴"
+              },
+              {
+                "url": "https://www.mysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/357/index.html",
+                "text": "品牌大会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/358/index.html",
+                "text": "协会刊物"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "新闻资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/20/index.html",
+                "text": "协会资讯"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/19/index.html",
+                "text": "通知公告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/18/index.html",
+                "text": "社会要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/21/index.html",
+                "text": "法律/法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/389/index.html",
+                "text": "政策/解读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "党建政工"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/22/index.html",
+                "text": "学习必读"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/23/index.html",
+                "text": "上级文件"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/24/index.html",
+                "text": "支部建设"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/353/index.html",
+                "text": "思想园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/354/index.html",
+                "text": "阅读推荐"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/26/index.html",
+                "text": "会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/27/index.html",
+                "text": "单位会员查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/28/index.html",
+                "text": "会员园地"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/29/index.html",
+                "text": "表格下载"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "分支机构"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/30/index.html",
+                "text": "专业委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/31/index.html",
+                "text": "工作委员会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/374/index.html",
+                "text": "管理规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/375/index.html",
+                "text": "行业动态"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/376/index.html",
+                "text": "年度考评"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "教育培训"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/32/index.html",
+                "text": "培训计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/33/index.html",
+                "text": "培训规定"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/34/index.html",
+                "text": "证书查询"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/359/index.html",
+                "text": "培训要闻"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/360/index.html",
+                "text": "基层活动"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/361/index.html",
+                "text": "政策法规"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/362/index.html",
+                "text": "中优大讲堂"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "科研科普"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/35/index.html",
+                "text": "研究报告"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/36/index.html",
+                "text": "行业标准"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/37/index.html",
+                "text": "十大课题"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/38/index.html",
+                "text": "千天计划"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/39/index.html",
+                "text": "童真中国"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/363/index.html",
+                "text": "乡村服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "地方协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/41/index.html",
+                "text": "省市优生优育类协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/42/index.html",
+                "text": "省市妇幼保健协会"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "社会服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/44/index.html",
+                "text": "宏观数据"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/45/202104/347.html",
+                "text": "摇篮工程"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/371/index.html",
+                "text": "乡村振兴"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/372/index.html",
+                "text": "家庭服务"
+              },
+              {
+                "url": "https://m.ysyy.org.cn/123/202105/458.html",
+                "text": "分会简介"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 61
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+            "offset": 0,
+            "total_characters": 639,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客"
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+            "links": [
+              {
+                "url": "https://wjw.nanjing.gov.cn/jgxx/",
+                "text": "机构信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/",
+                "text": "政府信息公开"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/",
+                "text": "互动交流"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/",
+                "text": "办事服务"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/",
+                "text": "专题专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/gkxx/",
+                "text": "概况信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/czxx/",
+                "text": "财政信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/rsxx/",
+                "text": "人事信息"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/fgwjjjd/",
+                "text": "部门文件"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/tjxxjjd/",
+                "text": "统计信息及解读"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/zwgk/xxgkzn/",
+                "text": "信息公开指南"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/lxbltj/",
+                "text": "来信办理统计"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/zrxx/",
+                "text": "主任信箱"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/hdjl/dczj/",
+                "text": "调查征集"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/qlqd/",
+                "text": "权力清单"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/bsfw/xzzq/",
+                "text": "下载服务"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/doctor",
+                "text": "医生执业注册信息查询"
+              },
+              {
+                "url": "https://zgcx.nhc.gov.cn/nurse",
+                "text": "护士执业注册信息查询"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/ssjygkjgzl/",
+                "text": "“双随机、一公开”监管专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/ztzl/sgszl/",
+                "text": "双公示专栏"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/",
+                "text": "首页"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/",
+                "text": "工作动态"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+                "text": "【我要纠错】"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/wzdh/",
+                "text": "网站地图"
+              },
+              {
+                "url": "https://wjw.nanjing.gov.cn/lxwm/",
+                "text": "联系我们"
+              },
+              {
+                "url": "https://beian.miit.gov.cn/",
+                "text": "苏ICP备05004952号-7"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 26
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "沈嵘",
+        "institution": "南京市妇幼保健院",
+        "department": "党委书记（主任医师、教授、博士生导师）",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开",
+            "explanation": "中国优生优育协会生育健康与出生缺陷防控专业委员会名单中明确列出“沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记”，确认姓名、医院及职务"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "explanation": "南京市卫生健康委员会官网报道“市妇幼保健院党委书记沈嵘参加调研”，由政府权威来源确认其任职于南京市妇幼保健院并担任党委书记"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开",
+            "explanation": "该协会名单将沈嵘的专业角色记录为主任医师、教授、博士生导师，与医院党委书记的行政职务并列"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "explanation": "来源为南京市卫生健康委员会官方网站（wjw.nanjing.gov.cn），属政府主管部门发布的工作动态，对医院领导身份具有权威性"
+          }
+        ],
+        "limitations": [
+          "未找到独立证据支持“南京医科大学第四临床医学院副院长”职务；两处来源均显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "3f9a46bf8a9013571d41530b843c88609b3778724ae31bbd1492ab187ba9b8df"
+        },
+        {
+          "kind": "review",
+          "sha256": "5760022f8ade684b2982931d8f4f5f66bf5af2f78b402d10cd756ca6c5a45aa8"
+        },
+        {
+          "kind": "questions",
+          "sha256": "2e3db7458d5264ad33dd2bae579a499a1016f577ef7eba3f0849d426ee4204d9"
+        },
+        {
+          "kind": "answers",
+          "sha256": "6bfa51409b3975d2aa3940ccf28fe4a8a564f3a5d9ffe45a49e7855892342418"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 2,
+      "discovered_source_count": 6,
+      "fetched_source_count": 2,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_33df4f690f07b48e4a2a29c2cc909839",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_eb3bb36653f9276bfd21789066ebbecf",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 2,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开",
+            "explanation": "中国优生优育协会生育健康与出生缺陷防控专业委员会名单中明确列出“沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记”，确认姓名、医院及职务"
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "explanation": "南京市卫生健康委员会官网报道“市妇幼保健院党委书记沈嵘参加调研”，由政府权威来源确认其任职于南京市妇幼保健院并担任党委书记"
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_33df4f690f07b48e4a2a29c2cc909839",
+            "quote": "生育健康与出生缺陷防控专业委员会_中国优生优育协会\n搜索\n首页\n协会概况\n协会简介\n章程规制\n办事机构\n协会领导\n协会历史\n杰出专家\n先进典型\n协会文件\n协会年鉴\n摇篮工程\n品牌大会\n协会刊物\n新闻资讯\n协会资讯\n通知公告\n社会要闻\n法律/法规\n政策/解读\n党建政工\n学习必读\n上级文件\n支部建设\n思想园地\n阅读推荐\n会员之家\n入会申请\n会员查询\n单位会员查询\n会员园地\n表格下载\n分支机构\n专业委员会\n工作委员会\n管理规定\n行业动态\n年度考评\n教育培训\n培训计划\n培训规定\n证书查询\n培训要闻\n基层活动\n政策法规\n中优大讲堂\n科研科普\n研究报告\n行业标准\n十大课题\n千天计划\n童真中国\n乡村服务\n地方协会\n省市优生优育类协会\n省市妇幼保健协会\n社会服务\n宏观数据\n摇篮工程\n乡村振兴\n家庭服务\n生育健康与出生缺陷防控专业委员会\n分会简介\n分会动态\n生育健康与出生缺陷防控专业委员会\n生育健康与出生缺陷防控专业委员会\n主任委员：\n顾向应 女 天津医科大学总医院，主任医师、硕士生导师。\n副主任委员:\n刘欣燕 女 北京协和医院妇产科学系 教授、博士生导师/产科中心副主任\n车 焱 男 复旦大学生殖与发育研究院上海市计划生育科学研究所 研究员、博士\n黄丽丽 女 浙江大学医学院附属妇产科医院 医学博士，教授，主任医师，博士生导师/计生科主任\n黄 薇 女 四川大学华西第二医院生殖医学科 教授、主任医师、博士、博士生导师/主任\n刘 庆 女 国家卫生健康委科学技术研究所科技处 硕士、副主任医师/处长\n沈 嵘 女 南京市妇幼保健院（南京医科大学附属妇产医院） 主任医师、教授、博士生导师/党委书记\n谭文华 男 哈尔滨医科大学第二附属医院妇产科 医学博士、主任医师、教授、研究生导师\n王晓军 男 新疆人类精子库 主任医师/主任\n王金山 男 重庆金山科技（集团）有限公司 博士，硕士生导师,正高级工程师/董事长\n杨 清 女 中国医科大学附属盛京医院 教授，博士生导师/妇科主任、副院长\n于晓兰 女 北京大学第一医院妇产科 医学硕士、主任医师、硕士研究生导师\n袁 冬 女 天津市河东区妇产科医院 医学硕士、主任医师/院长、书记\n曾俐琴 女 广东省妇女儿童保健中心 博士、主任医师\n章慧平 女 华中科技大学同济医学院计划生育研究所生殖免疫与流行病研究室；湖北省泌尿外科研究所生殖健康研究室 博士，教授，博士生导师/主任\n张玉泉 男 南通大学附属医院；江苏省危急重症孕产妇救治指导中心 教授、医学博士、主任医师、博士生导师/妇产科主任\n执行主任：\n袁 冬 女 主任医师、医学硕士，天津市河东区妇产科医院院长、书记。\n工作任务及业务范围：\n中国优生优育协会生育健康与出生缺陷防控专业委员会共有成员288人，分布在全国31个省、自治区、直辖市，高级职称262人，占91%。\n（1）每年开展一至两次学术会议。\n( 2）每年开",
+            "explanation": "该协会名单将沈嵘的专业角色记录为主任医师、教授、博士生导师，与医院党委书记的行政职务并列"
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_eb3bb36653f9276bfd21789066ebbecf",
+            "quote": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会\n欢迎访问南京市卫生健康委员会网站\n南京市人民政府网站 | 无障碍阅读\n网站首页\n机构信息\n政府信息公开\n互动交流\n办事服务\n专题专栏\n概况信息\n财政信息\n人事信息\n部门文件\n统计信息及解读\n信息公开指南\n来信办理统计\n主任信箱\n调查征集\n权力清单\n下载服务\n医生执业注册信息查询\n护士执业注册信息查询\n“双随机、一公开”监管专栏\n双公示专栏\n当前位置： 首页 > 工作动态\n市委书记韩立明调研南京市妇幼保健院丁家庄院区\n文章来源：南京市妇幼保健院 发布时间：2024-08-15 阅读次数： 显示稿件总访问量\n8 月 13 日下午，市委书记韩立明调研重点城建项目推进工作时，考察了南京市妇幼保健院丁家庄院区。市委常委、市委秘书长黎辉，市卫生健康委党委书记、主任唐伯才，市妇幼保健院党委书记沈嵘参加调研。\n韩立明察看新院区环境和重点科室，希望医院进一步强化优势，突出 “ 强专科、精综合 ” 特色，营造现代、智能、温馨、环保的就医环境，提供优质的医疗和健康管理服务。\n市妇幼保健院丁家庄院区目前已完成项目交付收尾，预计 9 月初正式启用。\n【打印此页】\n【关闭窗口】\n网站地图\n联系我们\n主办单位：南京市卫生健康委员会 支持单位：南京市城市数字治理中心\n苏ICP备05004952号-7 网站标识码：3201000027\n苏公网安备 32010502010277号\n您是本站第 显示网站总访问量\n位访客",
+            "explanation": "来源为南京市卫生健康委员会官方网站（wjw.nanjing.gov.cn），属政府主管部门发布的工作动态，对医院领导身份具有权威性"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "ef723e96e2c000a586d465a666d5841e2ad66cba47cdf158d040329fbe6257f8",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "5b2681c3d4c5267ad656d4060a01173e936b05a4c88ef72a541f4e1c3abaa245",
+          "response": {
+            "text": "```json\n{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"text\":\"从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调“强专科、精综合”特色，预计2024年9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"qa\":[{\"question\":\"沈嵘目前的主要职务是什么？\",\"answer\":\"公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的“第四临床医学院副院长”职务未在现有公开来源中得到独立证实，建议见面时确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她在全国学术组织中有何任职？\",\"answer\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]},{\"question\":\"南京市妇幼保健院近期的重要发展是什么？\",\"answer\":\"丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调“强专科、精综合”特色和现代化就医环境。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她的具体临床专科方向是什么？\",\"answer\":\"现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"question\":\"她在医院管理方面承担什么角色？\",\"answer\":\"作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"limitations\":[\"未找到独立证据支持“南京医科大学第四临床医学院副院长”职务；现有来源均显示其为南京市妇幼保健院党委书记\",\"未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认\"]}}```",
+            "gatewayRequestId": "req-6f659f46-1348-4285-874e-d61529939142",
+            "usage": {
+              "promptTokens": 6384,
+              "completionTokens": 1144,
+              "reasoningTokens": 13,
+              "totalTokens": 7528
+            }
+          }
+        },
+        {
+          "inputSha256": "7a24f4b3a276a5a28feb609ac577de80eccc62495fd1ad2415c20de1a8f26d28",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"text\":\"从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调\\\"强专科、精综合\\\"特色，预计2024年9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"qa\":[{\"question\":\"沈嵘目前的主要职务是什么？\",\"answer\":\"公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的\\\"第四临床医学院副院长\\\"职务未在现有公开来源中得到独立证实，建议见面时确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她在全国学术组织中有何任职？\",\"answer\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]},{\"question\":\"南京市妇幼保健院近期的重要发展是什么？\",\"answer\":\"丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调\\\"强专科、精综合\\\"特色和现代化就医环境。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她的具体临床专科方向是什么？\",\"answer\":\"现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"question\":\"她在医院管理方面承担什么角色？\",\"answer\":\"作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"limitations\":[\"未找到独立证据支持\\\"南京医科大学第四临床医学院副院长\\\"职务；现有来源均显示其为南京市妇幼保健院党委书记\",\"未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认\"]}}",
+            "gatewayRequestId": "req-32e9ad80-d182-4ec9-8585-1dbbfd7e610d",
+            "usage": {
+              "promptTokens": 7589,
+              "completionTokens": 1127,
+              "reasoningTokens": 0,
+              "totalTokens": 8716
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "ec5d7ed8506f285011e30f93490e9f4062161792cc2396bbe723d5f07c24e0a3",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "5d2b803406c0b86c32e934b26f6cb3bd73ce703d2ec54f1be3c3b2adead4f935",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"type\":\"expertise\",\"text\":\"其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"text\":\"从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调\\\"强专科、精综合\\\"特色，预计2024年9月初正式启用。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"qa\":[{\"question\":\"沈嵘目前的主要职务是什么？\",\"answer\":\"公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的\\\"第四临床医学院副院长\\\"职务未在现有公开来源中得到独立证实，建议见面时确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她在全国学术组织中有何任职？\",\"answer\":\"担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_1\"}]},{\"question\":\"南京市妇幼保健院近期的重要发展是什么？\",\"answer\":\"丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调\\\"强专科、精综合\\\"特色和现代化就医环境。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]},{\"question\":\"她的具体临床专科方向是什么？\",\"answer\":\"现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。\",\"citations\":[{\"sourceId\":\"src_33df4f690f07b48e4a2a29c2cc909839\",\"passageId\":\"text_0\"}]},{\"question\":\"她在医院管理方面承担什么角色？\",\"answer\":\"作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。\",\"citations\":[{\"sourceId\":\"src_eb3bb36653f9276bfd21789066ebbecf\",\"passageId\":\"text_0\"}]}],\"limitations\":[\"未找到独立证据支持\\\"南京医科大学第四临床医学院副院长\\\"职务；现有来源均显示其为南京市妇幼保健院党委书记\",\"未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认\"]}}",
+            "gatewayRequestId": "req-d82e0f19-94db-4fb5-b9ba-514b241d0507",
+            "usage": {
+              "promptTokens": 7072,
+              "completionTokens": 1131,
+              "reasoningTokens": 0,
+              "totalTokens": 8203
+            }
+          }
+        }
+      ]
+    }
+  }
+]

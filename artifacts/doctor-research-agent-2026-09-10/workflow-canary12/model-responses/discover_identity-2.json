@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.alfredhealth.org.au/services/endocrinology-clinic\",\"find\":\"Sztal-Mazer\",\"purpose\":\"verify official hospital listing of Shoshana Sztal-Mazer in endocrinology\"},{\"type\":\"read\",\"url\":\"https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer\",\"find\":\"Sztal-Mazer\",\"purpose\":\"confirm role as consultant endocrinologist at Alfred Health\"},{\"type\":\"read\",\"url\":\"https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer\",\"find\":\"Sztal-Mazer\",\"purpose\":\"corroborate department affiliation\"}]}",
+  "usage": {
+    "promptTokens": 2085,
+    "completionTokens": 170,
+    "reasoningTokens": 16,
+    "totalTokens": 2255
+  },
+  "gatewayRequestId": "req-35ec3895-0adf-4edd-a090-216013876940"
+}

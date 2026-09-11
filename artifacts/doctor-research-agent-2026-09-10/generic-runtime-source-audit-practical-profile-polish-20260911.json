@@ -1,0 +1,16 @@
+{
+  "checked_at_utc": "2026-09-11T00:16:41.367938+00:00",
+  "scope": "Added runtime source lines in this working-tree change; full contents of the two practical profile modules.",
+  "exact_known_name_or_institution_matches": [],
+  "source_sha256": {
+    "apps/research-worker/src/config.ts": "4e20087dd2624a9bd49f19db86a4dced93802ec97b3a1b3582781563235c0ee6",
+    "apps/research-worker/src/runtime.ts": "11459a2d09d181363d85e940ca1c97dede8fcf57a9b159635aa8eb119a7b9c30",
+    "packages/research-agent/src/identity-investigator.ts": "14f22fdfdb34db3f293a8680741b02d3686703425919b2a6d5706cf2d33bcf15",
+    "packages/research-agent/src/workflow.ts": "f28218ec964ab0b4a7b91d4a10a8c5b646c8ab00607b606403cdb94ad046ba81",
+    "packages/research-agent/src/model-client.ts": "5feda4bdd4733b09a249f89eaf7b32e36375b6f7df687ae5d9ff867b75b11a96",
+    "packages/research-agent/src/evidence-investigator.ts": "130e0826bc42d90515a05c23feef4023dea762d7d12cf44243856465256a69da",
+    "packages/research-agent/src/practical-profile-agent.ts": "97a8b00bda34a0c1a9fde2a25601c597844ff8a35870b01e8ff6e6cd2b67f0e0",
+    "packages/research-agent/src/practical-profile-output.ts": "a81640170b500b04005305da311910d5647a7be309ded21ca2046c6357acb925"
+  },
+  "qualification": "This limited source audit is not a generalization proof. Saved-evidence replays are diagnostic only; all 15 original-input full-service acceptances remain pending."
+}

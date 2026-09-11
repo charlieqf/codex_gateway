@@ -1,0 +1,244 @@
+{
+  "runId": "drr_0c93ed594a8e451a8480b746d8b80452",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "沈嵘",
+      "hospital": "南京市妇幼保健院",
+      "department": "第四临床医学院副院长、附属妇产医院党委书记"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_10db9fd3dcc56cb56bd6dac2b30548a9",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_33df4f690f07b48e4a2a29c2cc909839",
+        "source_type": "official_web",
+        "title": "生育健康与出生缺陷防控专业委员会_中国优生优育协会",
+        "url": "https://m.ysyy.org.cn/123/202105/458.html",
+        "accessed_at": "2026-09-11T00:04:54.664Z",
+        "content_sha256": "82da16e47cd94d134db47b294f98383427967383e55c162123ccdd1fa9a0a0ce"
+      },
+      {
+        "source_id": "src_eb3bb36653f9276bfd21789066ebbecf",
+        "source_type": "official_web",
+        "title": "市委书记韩立明调研南京市妇幼保健院丁家庄院区_工作动态_南京市卫生健康委员会",
+        "url": "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html",
+        "accessed_at": "2026-09-11T00:04:55.177Z",
+        "content_sha256": "141bd01b85cf6fca8ec93bcd1574019868b7e92c7633ed08562d41a5cb9522cf"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。",
+        "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。"
+      ],
+      "expertise": [
+        "其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。"
+      ],
+      "education_and_career": [
+        "2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。"
+      ],
+      "research_directions": [],
+      "representative_outputs": [],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "沈嵘 · 南京市妇幼保健院 · 党委书记（主任医师、教授、博士生导师）",
+          "source_ids": [
+            "src_33df4f690f07b48e4a2a29c2cc909839",
+            "src_eb3bb36653f9276bfd21789066ebbecf"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "沈嵘，女，任南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，为主任医师、教授、博士生导师。",
+          "source_ids": [
+            "src_33df4f690f07b48e4a2a29c2cc909839"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员。",
+          "source_ids": [
+            "src_33df4f690f07b48e4a2a29c2cc909839"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "education_and_career",
+          "text": "2024年8月，南京市委书记韩立明调研南京市妇幼保健院丁家庄院区时，沈嵘以医院党委书记身份参加调研；该新院区当时预计9月初正式启用。",
+          "source_ids": [
+            "src_eb3bb36653f9276bfd21789066ebbecf"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "expertise",
+          "text": "其所任职的中国优生优育协会生育健康与出生缺陷防控专业委员会主要围绕生育健康与出生缺陷防控开展工作，包括学术会议、全国巡讲、健康知识普及、规范服务培训及编写共识与指南等。",
+          "source_ids": [
+            "src_33df4f690f07b48e4a2a29c2cc909839"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_33df4f690f07b48e4a2a29c2cc909839",
+        "src_eb3bb36653f9276bfd21789066ebbecf"
+      ]
+    },
+    "review": {
+      "title": "沈嵘 专业背景与交流准备",
+      "abstract": "沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。",
+      "keywords": [
+        "党委书记（主任医师、教授、博士生导师）"
+      ],
+      "markdown": "沈嵘是南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，同时具有主任医师、教授、博士生导师的专业身份。她还在中国优生优育协会生育健康与出生缺陷防控专业委员会担任副主任委员，该委员会成员288人，分布于全国31个省区市，高级职称占91%。 [来源 1](<https://m.ysyy.org.cn/123/202105/458.html>)\n\n从公开报道看，她作为医院党委书记参与医院重大事务：2024年8月陪同南京市委书记韩立明调研丁家庄院区，该新院区强调\"强专科、精综合\"特色，预计2024年9月初正式启用。 [来源 2](<https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:05:30.823Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://m.ysyy.org.cn/123/202105/458.html",
+        "https://wjw.nanjing.gov.cn/gzdt/202408/t20240815_4740268.html"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "未找到独立证据支持“南京医科大学第四临床医学院副院长”职务；两处来源均显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记",
+        "未找到独立证据支持\"南京医科大学第四临床医学院副院长\"职务；现有来源均显示其为南京市妇幼保健院党委书记",
+        "未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认"
+      ]
+    },
+    "predicted_questions": [
+      "沈嵘目前的主要职务是什么？",
+      "她在全国学术组织中有何任职？",
+      "南京市妇幼保健院近期的重要发展是什么？",
+      "她的具体临床专科方向是什么？",
+      "她在医院管理方面承担什么角色？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "公开资料显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记，专业技术职称为主任医师、教授、博士生导师。用户提供的\"第四临床医学院副院长\"职务未在现有公开来源中得到独立证实，建议见面时确认。",
+        "source_ids": [
+          "src_33df4f690f07b48e4a2a29c2cc909839",
+          "src_eb3bb36653f9276bfd21789066ebbecf"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "担任中国优生优育协会生育健康与出生缺陷防控专业委员会副主任委员，该委员会开展学术会议、全国巡讲、健康科普及指南编写等工作。",
+        "source_ids": [
+          "src_33df4f690f07b48e4a2a29c2cc909839"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "丁家庄院区于2024年8月完成项目交付收尾，预计2024年9月初正式启用，市领导调研时强调\"强专科、精综合\"特色和现代化就医环境。",
+        "source_ids": [
+          "src_eb3bb36653f9276bfd21789066ebbecf"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "现有来源仅列出主任医师、教授、博士生导师的专业身份和协会任职，未说明其具体临床专科（如产科、妇科或生殖医学方向），建议直接向本人确认。",
+        "source_ids": [
+          "src_33df4f690f07b48e4a2a29c2cc909839"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "作为党委书记，她参与医院重大事项，如陪同市级领导调研新院区建设；具体管理分工范围可见面时进一步了解。",
+        "source_ids": [
+          "src_eb3bb36653f9276bfd21789066ebbecf"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "未找到独立证据支持“南京医科大学第四临床医学院副院长”职务；两处来源均显示其为南京市妇幼保健院（南京医科大学附属妇产医院）党委书记",
+        "未找到独立证据支持\"南京医科大学第四临床医学院副院长\"职务；现有来源均显示其为南京市妇幼保健院党委书记",
+        "未检索到其教育背景、具体临床专科方向及代表性论著的公开信息，相关内容需与本人确认"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_0c93ed594a8e451a8480b746d8b80452",
+    "run_id": "drr_0c93ed594a8e451a8480b746d8b80452",
+    "artifacts": [
+      {
+        "artifact_id": "dra_98a7fa1f2ed649e6b85c2872a5ac10e1",
+        "kind": "profile",
+        "filename": "沈嵘_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2715,
+        "sha256": "3f9a46bf8a9013571d41530b843c88609b3778724ae31bbd1492ab187ba9b8df",
+        "expires_at": "2026-10-11T00:05:30.832Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_98a7fa1f2ed649e6b85c2872a5ac10e1/download"
+      },
+      {
+        "artifact_id": "dra_bda75877082e4ca4934ae85146b9fbfc",
+        "kind": "review",
+        "filename": "沈嵘_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1237,
+        "sha256": "5760022f8ade684b2982931d8f4f5f66bf5af2f78b402d10cd756ca6c5a45aa8",
+        "expires_at": "2026-10-11T00:05:30.832Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_bda75877082e4ca4934ae85146b9fbfc/download"
+      },
+      {
+        "artifact_id": "dra_045a1cbe7fa44c2fb03ecf27051823f6",
+        "kind": "questions",
+        "filename": "沈嵘_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 245,
+        "sha256": "2e3db7458d5264ad33dd2bae579a499a1016f577ef7eba3f0849d426ee4204d9",
+        "expires_at": "2026-10-11T00:05:30.832Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_045a1cbe7fa44c2fb03ecf27051823f6/download"
+      },
+      {
+        "artifact_id": "dra_149df42dee1d45f0896afebf9b92b7a6",
+        "kind": "answers",
+        "filename": "沈嵘_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2849,
+        "sha256": "6bfa51409b3975d2aa3940ccf28fe4a8a564f3a5d9ffe45a49e7855892342418",
+        "expires_at": "2026-10-11T00:05:30.832Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_149df42dee1d45f0896afebf9b92b7a6/download"
+      }
+    ]
+  },
+  "sha256": "7848e81446e31f27079a05368e68cd30422b34071053067b7907b0864ca91071",
+  "sizeBytes": 9792,
+  "createdAt": "2026-09-11T00:05:30.832Z",
+  "expiresAt": "2026-10-11T00:05:30.832Z"
+}

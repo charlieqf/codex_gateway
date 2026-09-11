@@ -23,7 +23,7 @@ function fixture(responses: unknown[]) {
     dependencies: {
       signal: new AbortController().signal, timing: () => investigationTiming(new Date(page.accessedAt), new Date(page.accessedAt), 570000),
       save: async state => { saved = structuredClone(state); },
-      generate: vi.fn(async () => { const value = responses.shift(); if (value instanceof Error) throw value; if (!value) throw new Error("Unexpected model call"); return JSON.stringify(value); }),
+      generate: vi.fn(async () => { const value = responses.shift(); if (value instanceof Error) throw value; if (!value) throw new Error("Unexpected model call"); return typeof value === "string" ? value : JSON.stringify(value); }),
       readPage: vi.fn(async () => ({ ...page, sourceId: "src_example_career", url: "https://hospital.example/career" })),
       searchPublications: vi.fn(async () => ["12345"]), readPublication: vi.fn(async () => null), isFatalError: () => false
     }
@@ -32,6 +32,27 @@ function fixture(responses: unknown[]) {
 }
 
 describe("Practical profile scope, provenance and durable recovery (scripted model)", () => {
+  it.each(["inline_fence", "missing_outer_envelope"])("accepts a complete draft with %s while still requiring factual editing", async defect => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const text = JSON.stringify({ draft: f.draft });
+    responses.push(defect === "inline_fence" ? "```json\n" + text + "```" : text.slice(0, -1), { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved", draft: f.draft });
+    const calls = vi.mocked(f.input.dependencies.generate).mock.calls;
+    expect(calls).toHaveLength(2); expect(calls[1]![0].role).toBe("editor");
+    expect(JSON.parse(calls[1]![0].prompt).service_timing.request_date).toBe("2026-09-11");
+  });
+
+  it.each(["truncated_inner", "trailing_object", "truncated_approval"])("does not infer incomplete content or approval: %s", async defect => {
+    const responses: unknown[] = []; const f = fixture(responses);
+    const text = JSON.stringify({ draft: f.draft });
+    const malformed = defect === "truncated_inner" ? text.slice(0, -2) : defect === "trailing_object" ? text + " {}" : '{"approved":true,"draft":' + JSON.stringify(f.draft);
+    responses.push(malformed, { draft: f.draft }, { approved: true, draft: f.draft });
+    expect(await preparePracticalProfile(f.input)).toMatchObject({ outcome: "resolved" });
+    const calls = vi.mocked(f.input.dependencies.generate).mock.calls;
+    expect(calls).toHaveLength(3); expect(calls[1]![0].role).toBe("author"); expect(calls[2]![0].role).toBe("editor");
+    expect(calls[1]![0].prompt).toContain("invalid_response");
+  });
+
   it("delivers four useful files from a single official profile with zero literature and no academic minimum", async () => {
     const responses: unknown[] = []; const f = fixture(responses);
     responses.push({ draft: f.draft }, { approved: true, draft: f.draft });

@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Shoshana Sztal-Mazer\",\"institution\":\"Alfred Health (The Alfred, Melbourne)\",\"department\":\"Department of Endocrinology and Diabetes – Endocrinologist\",\"limitations\":[],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\",\"explanation\":\"The official Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among the clinic consultants, establishing her as a treating endocrinologist at the requested hospital.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\",\"explanation\":\"The clinic consultants list appears on the Alfred Health website with contact details for The Alfred, 55 Commercial Rd, Melbourne, confirming the hospital affiliation.\"},{\"aspect\":\"department\",\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\",\"explanation\":\"The RACGP's Australian Journal of General Practice author page gives her credentials and role as 'MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic', an authoritative peer-reviewed journal profile confirming the endocrinology department role.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\",\"explanation\":\"The RACGP journal author listing, published by the Royal Australian College of General Practitioners, is an authoritative professional source corroborating her specialty credentials (FRACP, Endocrinologist).\"}]}}",
+  "usage": {
+    "promptTokens": 7240,
+    "completionTokens": 445,
+    "reasoningTokens": 62,
+    "totalTokens": 7685
+  },
+  "gatewayRequestId": "req-5674087a-ec2c-4a2b-9593-512d6b23acdb"
+}

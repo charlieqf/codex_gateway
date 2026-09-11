@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"沈嵘 南京市妇幼保健院 党委书记\",\"purpose\":\"establish identity of 沈嵘 at Nanjing Maternity and Child Health Care Hospital\"}]}",
+  "usage": {
+    "promptTokens": 1226,
+    "completionTokens": 45,
+    "reasoningTokens": 0,
+    "totalTokens": 1271
+  },
+  "gatewayRequestId": "req-fa5ce422-6b8d-4313-9a89-25ef1ae4ccec"
+}

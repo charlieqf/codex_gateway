@@ -1,0 +1,90 @@
+[
+  {
+    "stage": "discover_identity",
+    "attempt": 1,
+    "duration_ms": 1831,
+    "error_code": null,
+    "prompt_tokens": 1224,
+    "completion_tokens": 40,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1828,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 2,
+    "duration_ms": 5979,
+    "error_code": null,
+    "prompt_tokens": 2085,
+    "completion_tokens": 170,
+    "admission_wait_ms": 0,
+    "client_total_ms": 5976,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "discover_identity",
+    "attempt": 3,
+    "duration_ms": 5790,
+    "error_code": null,
+    "prompt_tokens": 7240,
+    "completion_tokens": 445,
+    "admission_wait_ms": 0,
+    "client_total_ms": 5788,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "resolve_identity",
+    "attempt": 4,
+    "duration_ms": 1347,
+    "error_code": null,
+    "prompt_tokens": 3517,
+    "completion_tokens": 54,
+    "admission_wait_ms": 0,
+    "client_total_ms": 1345,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "synthesize_review",
+    "attempt": 1,
+    "duration_ms": 19035,
+    "error_code": null,
+    "prompt_tokens": 6441,
+    "completion_tokens": 1695,
+    "admission_wait_ms": 0,
+    "client_total_ms": 19033,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "synthesize_review",
+    "attempt": 2,
+    "duration_ms": 12273,
+    "error_code": null,
+    "prompt_tokens": 8201,
+    "completion_tokens": 1702,
+    "admission_wait_ms": 0,
+    "client_total_ms": 12270,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "synthesize_review",
+    "attempt": 3,
+    "duration_ms": 14872,
+    "error_code": null,
+    "prompt_tokens": 9990,
+    "completion_tokens": 1761,
+    "admission_wait_ms": 0,
+    "client_total_ms": 14869,
+    "terminal_source": "provider_response"
+  },
+  {
+    "stage": "validate_outputs",
+    "attempt": 4,
+    "duration_ms": 12929,
+    "error_code": null,
+    "prompt_tokens": 9354,
+    "completion_tokens": 1670,
+    "admission_wait_ms": 0,
+    "client_total_ms": 12926,
+    "terminal_source": "provider_response"
+  }
+]

@@ -1,5 +1,6 @@
 /** Whole-request timing supplied by the Worker; it does not change the hard deadline. */
 export interface InvestigationTiming {
+  request_date?: string;
   elapsed_ms: number;
   excellent_threshold_ms: 300000;
   acceptable_threshold_ms: 480000;
@@ -9,6 +10,7 @@ export interface InvestigationTiming {
 export function investigationTiming(createdAt: Date, now: Date, hardDeadlineMs: number): InvestigationTiming {
   const elapsed = Math.max(0, now.getTime() - createdAt.getTime());
   return {
+    request_date: createdAt.toISOString().slice(0, 10),
     elapsed_ms: elapsed,
     excellent_threshold_ms: 300000,
     acceptable_threshold_ms: 480000,

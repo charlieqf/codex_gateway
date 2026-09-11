@@ -507,9 +507,45 @@
       "fresh_case_acceptance_eligible": true,
       "public_api_or_admission_tested": false,
       "artifact_count": 0
+    },
+    {
+      "id": "workflow-canary11",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 7,
+      "elapsed_ms": 65094,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "45bb2281ac5075dd823658483e01c3a96a0719bbef81141279556b274bc81d4f",
+      "evidence_archive_sha256": "2f4c149851eb5358ec8b4593177064a69d98261c578ad80a27383e345660280d",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
+    },
+    {
+      "id": "workflow-canary12",
+      "kind": "isolated_full_worker_workflow",
+      "serpapi_requests": 1,
+      "model_calls": 8,
+      "elapsed_ms": 94499,
+      "result": {
+        "outcome": "succeeded"
+      },
+      "archive_sha256": "34448fb429ef32f4dc7e83c993d4846e4d136caa81e20148eb528423ad0fc5a7",
+      "evidence_archive_sha256": "adba34e37bc561dcd213fb5241f292cc1cfb56b925cdf89ed36c09851b86ef02",
+      "exit_code": 0,
+      "code_unchanged": true,
+      "diagnostic_replay": false,
+      "fresh_case_acceptance_eligible": true,
+      "public_api_or_admission_tested": false,
+      "artifact_count": 4
     }
   ],
-  "total_new_serpapi_requests": 10,
+  "total_new_serpapi_requests": 12,
   "account_after_workflow_canary": {
     "checked_at_utc": "2026-09-10T15:08:09.023Z",
     "http_status": 200,
@@ -570,6 +606,14 @@
     "plan_searches_left": 41,
     "total_searches_left": 41,
     "this_month_usage": 209,
+    "search_requests": 0
+  },
+  "account_after_workflow_canary12": {
+    "checked_at_utc": "2026-09-11T00:08:17.948Z",
+    "http_status": 200,
+    "plan_searches_left": 39,
+    "total_searches_left": 39,
+    "this_month_usage": 211,
     "search_requests": 0
   }
 }

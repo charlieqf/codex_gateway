@@ -1,0 +1,264 @@
+{
+  "runId": "drr_0eced2e0cde841968fb8ca7375dbb06d",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "Shoshana Sztal-Mazer",
+      "hospital": "阿尔弗雷德医院",
+      "department": "内分泌科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_35a108b36bf9c95231a4d4c54ed63764",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_28b221b96811972dc4124aac3528fd4b",
+        "source_type": "official_web",
+        "title": "Endocrinology Clinic | Bayside Health (Alfred)",
+        "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+        "accessed_at": "2026-09-11T00:06:29.540Z",
+        "content_sha256": "772752f2f88ec4eea2d2e7f9c612d8c09a0b2a68ae9b6d49f4dd45e362f352da"
+      },
+      {
+        "source_id": "src_28c8a82aa316c42f88eec94e2e0ad657",
+        "source_type": "official_web",
+        "title": "RACGP - AJGP (Australian Journal of General Practice)",
+        "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+        "accessed_at": "2026-09-11T00:06:32.179Z",
+        "content_sha256": "8c3c438dbacf649b3175bf68cc1065e6fca357797b0b6169f1040b4732b092a3"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。",
+        "The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。"
+      ],
+      "expertise": [],
+      "education_and_career": [
+        "她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。"
+      ],
+      "research_directions": [
+        "从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。"
+      ],
+      "representative_outputs": [
+        "她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。",
+        "她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "Shoshana Sztal-Mazer · Alfred Health (The Alfred, Melbourne) · Department of Endocrinology and Diabetes – Endocrinologist",
+          "source_ids": [
+            "src_28b221b96811972dc4124aac3528fd4b",
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。",
+          "source_ids": [
+            "src_28b221b96811972dc4124aac3528fd4b",
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "education_and_career",
+          "text": "她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。",
+          "source_ids": [
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "representative_output",
+          "text": "她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。",
+          "source_ids": [
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "representative_output",
+          "text": "她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。",
+          "source_ids": [
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "research_direction",
+          "text": "从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。",
+          "source_ids": [
+            "src_28c8a82aa316c42f88eec94e2e0ad657"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "position",
+          "text": "The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。",
+          "source_ids": [
+            "src_28b221b96811972dc4124aac3528fd4b"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_28b221b96811972dc4124aac3528fd4b",
+        "src_28c8a82aa316c42f88eec94e2e0ad657"
+      ]
+    },
+    "review": {
+      "title": "Shoshana Sztal-Mazer 专业背景与交流准备",
+      "abstract": "Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。",
+      "keywords": [
+        "Department of Endocrinology and Diabetes – Endocrinologist"
+      ],
+      "markdown": "Shoshana Sztal\\-Mazer 医生（MBBS\\(Hons\\), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。 [来源 1](<https://www.alfredhealth.org.au/services/endocrinology-clinic>) [来源 2](<https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer>)\n\n如需转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 \\(03\\) 9076 2025，查询邮箱 outpatient@alfred\\.org\\.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。 [来源 1](<https://www.alfredhealth.org.au/services/endocrinology-clinic>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:07:38.517Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+        "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。",
+        "除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。"
+      ]
+    },
+    "predicted_questions": [
+      "她在 The Alfred 的具体职位和科室是什么？",
+      "她有哪些专业资质？",
+      "她发表过哪些有代表性的文章？",
+      "她的临床关注方向是什么？",
+      "如何预约她在 The Alfred 的门诊？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生，并列入 The Alfred 内分泌门诊的顾问医生名单。",
+        "source_ids": [
+          "src_28b221b96811972dc4124aac3528fd4b",
+          "src_28c8a82aa316c42f88eec94e2e0ad657"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。",
+        "source_ids": [
+          "src_28c8a82aa316c42f88eec94e2e0ad657"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。",
+        "source_ids": [
+          "src_28c8a82aa316c42f88eec94e2e0ad657"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。",
+        "source_ids": [
+          "src_28c8a82aa316c42f88eec94e2e0ad657"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。",
+        "source_ids": [
+          "src_28b221b96811972dc4124aac3528fd4b"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。",
+        "除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_0eced2e0cde841968fb8ca7375dbb06d",
+    "run_id": "drr_0eced2e0cde841968fb8ca7375dbb06d",
+    "artifacts": [
+      {
+        "artifact_id": "dra_cbab29ebe5dc4a5ab1f07e0fde3362f0",
+        "kind": "profile",
+        "filename": "Shoshana Sztal-Mazer_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 3188,
+        "sha256": "83369cba8aec6643502e377bf6e830a6d8bd25babd706a450e1d0506cf5b0b91",
+        "expires_at": "2026-10-11T00:07:38.528Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_cbab29ebe5dc4a5ab1f07e0fde3362f0/download"
+      },
+      {
+        "artifact_id": "dra_844cdcdf54494100b6f86c4c4cc57d55",
+        "kind": "review",
+        "filename": "Shoshana Sztal-Mazer_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1361,
+        "sha256": "f56375625a31071c27f44fbd178aa329c841e8c4a7cc44c3c93101275818445a",
+        "expires_at": "2026-10-11T00:07:38.528Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_844cdcdf54494100b6f86c4c4cc57d55/download"
+      },
+      {
+        "artifact_id": "dra_24e9d6bd597f46c68a3108733f5e6504",
+        "kind": "questions",
+        "filename": "Shoshana Sztal-Mazer_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 221,
+        "sha256": "1184713069c385b5ee0309c3cd792d0f08b92d2b444b58294d0b43e19a44b681",
+        "expires_at": "2026-10-11T00:07:38.528Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_24e9d6bd597f46c68a3108733f5e6504/download"
+      },
+      {
+        "artifact_id": "dra_dd1939b083984f559f4a885cb315ea9a",
+        "kind": "answers",
+        "filename": "Shoshana Sztal-Mazer_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2321,
+        "sha256": "ad9efe195c1629597d64162bc78844c356b8696b355f954d013eeeda63dcba31",
+        "expires_at": "2026-10-11T00:07:38.528Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_dd1939b083984f559f4a885cb315ea9a/download"
+      }
+    ]
+  },
+  "sha256": "aec797eeb8bb42e03d53de85927551ee4f1b84252be152547711b5ef8d2a3aea",
+  "sizeBytes": 11110,
+  "createdAt": "2026-09-11T00:07:38.528Z",
+  "expiresAt": "2026-10-11T00:07:38.528Z"
+}

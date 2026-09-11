@@ -1,0 +1,2050 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_28b221b96811972dc4124aac3528fd4b",
+        "src_28c8a82aa316c42f88eec94e2e0ad657"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "19088debba52e3c5f9f02932e8596014537e9263a90639be0be990b85ba15866",
+      "calls": 4,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Expected ',' or '}' after property value in JSON at position 3844 (line 1 column 3845)",
+            "previous_response": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons)（医学学士/外科学士，荣誉）学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在《Australian Journal of General Practice》(AJGP) 上发表面向全科医生的综述文章，包括《Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis》和《Menopause and osteoporosis: Non-pharmacological and pharmacological management》，主题围绕绝经与骨质疏松的流行病学、筛查诊断及骨折风险分层和防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性左甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区（549 St Kilda Road，墨尔本）开诊，门诊由包括她在内的多位内分泌顾问医生负责。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院的内分泌门诊顾问名单之列。她同时是《Australian Journal of General Practice》的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需联系或转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生（Endocrinologist），并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}"
+          }
+        },
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Expected ',' or '}' after property value in JSON at position 3902 (line 1 column 3903)",
+            "previous_response": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons)（医学学士/外科学士，荣誉）学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在《Australian Journal of General Practice》(AJGP) 上发表面向全科医生的综述文章，包括《Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis》和《Menopause and osteoporosis: Non-pharmacological and pharmacological management》，主题围绕绝经与骨质疏松的流行病学、筛查诊断及骨折风险分层和防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性左甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院的内分泌门诊顾问名单之列。她同时是《Australian Journal of General Practice》的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需联系或转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生（Endocrinologist），并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}"
+          }
+        }
+      ],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "如需转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "她在 The Alfred 的具体职位和科室是什么？",
+            "answer": "她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生，并列入 The Alfred 内分泌门诊的顾问医生名单。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她有哪些专业资质？",
+            "answer": "她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她发表过哪些有代表性的文章？",
+            "answer": "在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "她的临床关注方向是什么？",
+            "answer": "从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何预约她在 The Alfred 的门诊？",
+            "answer": "该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。",
+          "除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "如需转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "她在 The Alfred 的具体职位和科室是什么？",
+            "answer": "她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生，并列入 The Alfred 内分泌门诊的顾问医生名单。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她有哪些专业资质？",
+            "answer": "她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "她发表过哪些有代表性的文章？",
+            "answer": "在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "她的临床关注方向是什么？",
+            "answer": "从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。",
+            "citations": [
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何预约她在 The Alfred 的门诊？",
+            "answer": "该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。",
+            "citations": [
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。",
+          "除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "35a108b36bf9c95231a4d4c54ed63764ba162832d1b5ff16ffc183df6d6fd7af",
+      "searches": [
+        {
+          "query": "Shoshana Sztal-Mazer endocrinology Alfred Hospital",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://www.researchgate.net/profile/Shoshana-Sztal-Mazer",
+              "title": "Shoshana Sztal-Mazer MBBS (Hons) FRACP Alfred Hospital",
+              "snippet": "Shoshana SZTAL-MAZER. Alfred Hospital, Melbourne. Department of Endocrinology and Diabetes. Clinical Endocrinology Thyroid Diseases. Department of ..."
+            },
+            {
+              "url": "https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer",
+              "title": "Dr Shoshana Sztal-Mazer - Alfred Health",
+              "snippet": "Shoshana Sztal-Mazer is a Consultant Endocrinologist at Alfred Health where has a senior role in the Women's Endocrinology Clinic. She is the Clinical Lead ..."
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+              "title": "Endocrinology Clinic",
+              "snippet": "We care for and treat people with gland and hormone problems (except diabetes and osteoporosis). Dr Shoshana Sztal-Mazer: Endocrinology. The Alfred Area U (549 ..."
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+              "title": "Shoshana Sztal-Mazer - AJGP",
+              "snippet": "Shoshana Sztal-Mazer. MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic. Menopause and osteoporosis ..."
+            },
+            {
+              "url": "https://endocrinology.medicinetoday.com.au/et/2024/august/feature-article/postmenopausal-osteoporosis-bridging-treatment-gap",
+              "title": "Postmenopausal osteoporosis: bridging the treatment gap",
+              "snippet": "Dr Sztal-Mazer is an Endocrinologist in the Department of Endocrinology & Diabetes, Alfred Health, Melbourne; Clinical Lead for the Osteoporosis and Metabolic ..."
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/womens-endocrinology-health-clinic",
+              "title": "Women's Endocrinology Health Clinic",
+              "snippet": "Dr Shoshana Sztal-Mazer: Endocrinology Head of service (549 St Kilda Road) 549 St Kilda Road, Melbourne, 3004 Phone (03) 9076 3795"
+            },
+            {
+              "url": "https://academic.oup.com/jcem/article/104/12/6116/5532584",
+              "title": "“Association of Maternal Iodine Status With Child IQ: A Meta ...",
+              "snippet": "Shoshana Sztal-Mazer Department of Endocrinology and Diabetes, Alfred Health, .sztal-mazer@alfred.org.au."
+            },
+            {
+              "url": "https://sunburymacedonranges.starweekly.com.au/womens-health/how-to-avoid-bones-breaking-bad/",
+              "title": "How to avoid bones breaking bad",
+              "snippet": "Endocrinologist, Dr Shoshana Sztal-Mazer, is in charge of the Osteoporosis and Metabolic Bone Service at Alfred Health. Health's osteoporosis ..."
+            },
+            {
+              "url": "https://m.facebook.com/TheAlfredHospital/photos/hundreds-of-disposable-insulin-pens-will-be-kept-out-of-landfill-thanks-to-a-cam/647708257395925/",
+              "title": "Hundreds of disposable insulin pens will be kept out ...",
+              "snippet": "Hundreds of disposable insulin pens will be kept out of landfill thanks to a campaign headed by endocrinologist Dr Shoshana Sztal-Mazer."
+            },
+            {
+              "url": "https://www.jhltopen.org/article/S2950-1334(24)00131-9/pdf",
+              "title": "Incidence, prevalence, and predictors of osteoporotic ...",
+              "snippet": "In 2012, the Department of Endocrinology at Alfred Health implemented a ... Chiu: investigation; Shoshana Sztal-Mazer: writing—review;. Steven Ivulich ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+          "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+          "title": "Endocrinology Clinic | Bayside Health (Alfred)",
+          "accessedAt": "2026-09-11T00:06:29.540Z",
+          "contentSha256": "772752f2f88ec4eea2d2e7f9c612d8c09a0b2a68ae9b6d49f4dd45e362f352da",
+          "untrustedText": "Endocrinology Clinic | Bayside Health (Alfred)\nSkip to main content\nWelcome to Bayside Health | Alfred. More information about Bayside Health can be found at baysidehealth.org.au\nClose notification\nContact\nAbout\nFind a doctor\nCareers\nThe Alfred Foundation\nFor staff\nPatient portal\nDonate now\nOur locations\nPatients, families & friends\nServices & clinics\nResearch\nHealth professionals\nNews\nWhat's on\nPatient portal\nDonate now\nContact\nAbout\nFind a doctor\nCareers\nThe Alfred Foundation\nFor staff\nOur hospitals\nVisit The Alfred\nGetting to The Alfred\nParking at The Alfred\nWards at The Alfred\nThe Alfred campus map\nVisitors & visiting hours\nVisit Caulfield\nGetting to Caulfield\nParking at Caulfield\nWards at Caulfield\nCaulfield campus map\nVisitors & visiting hours\nVisit Sandringham\nGetting to Sandringham\nParking at Sandringham\nWards at Sandringham\nSandringham campus map\nVisitors & visiting hours\nOther Alfred Care Group locations\nMelbourne Sexual Health Centre\nPaula Fox Melanoma & Cancer Centre\nInfant, child & youth mental health clinics\nWomen's Recovery Network\nPatients, families & friends\nBefore you arrive\nWhile you are here\nWhen you leave\nPreparing for planned surgery\nBefore you arrive\nWhile you are here\nWhen you leave\nBefore you arrive\nWhile you are here\nWhen you leave\nPreparing for planned surgery\nPatient Portal\nVisiting hours\nTelehealth\nPatient resources\nFreedom of Information\nRights and Responsibilities\nWill I have to pay fees during my stay?\nServices & clinics\nKey programs & services\nAged Care\nAlfred Cancer\nAlfred Heart\nCommunity Services\nDiagnosis & investigation\nEmergency, Trauma & Intensive care\nMedical & Surgical\nMental Health\nRehabilitation\nSpecialised Support Services\nStatewide services\nSpecialist Outpatient Clinics\nTelehealth\nServices & clinics A-Z\nSearch services & clinics\nSubmit search\nResearch\nResearch and trials\nResearch areas\nClinical trials\nEthics & research governance\nAlfred Research Alliance\nAlfred Research Week\nCollaborators & partnerships\nResearch publications\nResearch areas\nSearch research\nSubmit search\nHealth professionals\nFor health professionals\nHealth Information Services\nClinical Resources\nClinical education courses\nFor GPs\nSpecialist Outpatient Clinics\nGP Newsletters\nOur GP Liaison team\nReferrals\neReferrals\nReferral forms\nReferral guidelines\nEmergency & Trauma Centre referrals\nCareers\nMedical careers\nNursing careers\nAllied Health careers\nNews\nWhat's on\nSearch\nEndocrinology Clinic\nPatient information\nView Health Professional Information\nHome\nServices & clinics\nEndocrinology Clinic\nWe care for and treat people with gland and hormone problems (except diabetes and osteoporosis).\nHow to access this clinic\nReferral from your GP\nYou need an online, eReferral from your GP or medical practitioner to access this service.\nYour doctor will need to send your referral to us using our online system - Consultmed eReferral. We will be in contact with you in clinically recommended times, depending on waiting list length. If there is no waiting list, you will receive an appointment booking letter or we will contact you to arrange a suitable time.\nWhat to bring\nEvery time you come\nMedicare card\nHealth Care Card and/or concession card (if you have one)\nPrivate health insurance card (if applicable/if you want to use it)\nAdverse drug alert card (if you have one)\nPrevious X-ray films, scans, ultrasounds or any other test results or reports\nMedicines you need to take while you are here\nList of medicines you are currently taking (or the boxes), including medicines you have bought without a prescription, such as herbal supplements and vitamins\nGlasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated research\nEndocrinology & Diabetes research\nHave feedback for us?\nConnect with Alfred\nGet in touch:\nProvide feedback\nContact us\nIn case of an emergency, call 000\nWe acknowledge the people of the Kulin Nation, the traditional custodians and pay our respects to their culture and their Elders past, present and emerging. We welcome all cultures, nationalities and religions. Being inclusive and providing equitable healthcare is our commitment.\nThe Alfred\n55 Commercial Rd,\nMelbourne VIC 3004\n(03) 9076 2000\nCaulfield Hospital\n260 Kooyong Rd,\nCaulfield VIC 3162\n(03) 9076 6000\nSandringham Hospital\n193 Bluff Rd,\nSandringham VIC 3191\n(03) 9076 1000\nPatients, family & friends\nMaking a payment\nPartnering with patients\nPatient resources\nServices & clinics\nHow do I provide feedback about my care?\nHealth professionals\nGP Liaison\nClinical resources\nServices & clinics\nNursing Careers\nMedical Careers\nClinical support services\nFollow Bayside Health | Alfred\nX (Twitter)\nFacebook\nYouTube\nInstagram\nDisclaimer\nPrivacy Statement\nWebsite Accessibility Statement\nCopyright 2026 &copy; Bayside Health Victoria\nClose",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+              "text": "Skip to main content"
+            },
+            {
+              "url": "https://www.baysidehealth.org.au/",
+              "text": "baysidehealth.org.au"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/contact",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/about",
+              "text": "About"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/find-a-doctor",
+              "text": "Find a doctor"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers",
+              "text": "Careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred-foundation",
+              "text": "The Alfred Foundation"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/for-staff",
+              "text": "For staff"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-portal",
+              "text": "Patient portal"
+            },
+            {
+              "url": "https://alfredappeal.org.au/?utm_source=AH_GD&utm_medium=referral&utm_campaign=2022",
+              "text": "Donate now"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/our-hospitals",
+              "text": "Our locations"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends",
+              "text": "Patients, families & friends"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals",
+              "text": "Health professionals"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/events",
+              "text": "What's on"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-portal",
+              "text": "Patient portal"
+            },
+            {
+              "url": "https://alfredappeal.org.au/?utm_source=AH_GD&utm_medium=referral&utm_campaign=2022",
+              "text": "Donate now"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/contact",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/about",
+              "text": "About"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/find-a-doctor",
+              "text": "Find a doctor"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers",
+              "text": "Careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred-foundation",
+              "text": "The Alfred Foundation"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/for-staff",
+              "text": "For staff"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/our-hospitals",
+              "text": "Our hospitals"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred",
+              "text": "Visit The Alfred"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/before-you-arrive/getting-to-the-alfred",
+              "text": "Getting to The Alfred"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-the-alfred",
+              "text": "Parking at The Alfred"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/our-wards-the-alfred",
+              "text": "Wards at The Alfred"
+            },
+            {
+              "url": "https://app.prompt.org.au/download/25037?code=c626d7113eeac83578cae37b9b77ff8b",
+              "text": "The Alfred campus map"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+              "text": "Visitors & visiting hours"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/caulfield",
+              "text": "Visit Caulfield"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/getting-to-caulfield-hospital",
+              "text": "Getting to Caulfield"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-caulfield-hospital",
+              "text": "Parking at Caulfield"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/our-wards-caulfield",
+              "text": "Wards at Caulfield"
+            },
+            {
+              "url": "https://app.prompt.org.au/download/25038?code=b32729f99abfdf6542acdfc5ab6294a6",
+              "text": "Caulfield campus map"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+              "text": "Visitors & visiting hours"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/sandringham",
+              "text": "Visit Sandringham"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/getting-to-sandringham-hospital",
+              "text": "Getting to Sandringham"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-sandringham-hospital",
+              "text": "Parking at Sandringham"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/our-wards-sandringham",
+              "text": "Wards at Sandringham"
+            },
+            {
+              "url": "https://app.prompt.org.au/download/25039?code=4ef187b879d5fc029901aae7d9c53288",
+              "text": "Sandringham campus map"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+              "text": "Visitors & visiting hours"
+            },
+            {
+              "url": "https://www.mshc.org.au/",
+              "text": "Melbourne Sexual Health Centre"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/paula-fox-melanoma-and-cancer-centre",
+              "text": "Paula Fox Melanoma & Cancer Centre"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/alfred-mental-and-addiction-health/infant-child-and-youth-mental-health-and-wellness-services",
+              "text": "Infant, child & youth mental health clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/statewide-services/womens-recovery-network",
+              "text": "Women's Recovery Network"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends",
+              "text": "Patients, families & friends"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/before-you-arrive",
+              "text": "Before you arrive"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/while-you-are-here",
+              "text": "While you are here"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/when-you-leave",
+              "text": "When you leave"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/elective-surgery-pre-admission",
+              "text": "Preparing for planned surgery"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/before-you-arrive",
+              "text": "Before you arrive"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/while-you-are-here",
+              "text": "While you are here"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/while-you-are-here",
+              "text": "When you leave"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/before-you-arrive",
+              "text": "Before you arrive"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/while-you-are-here",
+              "text": "While you are here"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/when-you-leave",
+              "text": "When you leave"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/elective-surgery-pre-admission",
+              "text": "Preparing for planned surgery"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-portal",
+              "text": "Patient Portal"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+              "text": "Visiting hours"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/telehealth",
+              "text": "Telehealth"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-resources",
+              "text": "Patient resources"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/when-you-leave/can-i-have-access-to-information-about-me",
+              "text": "Freedom of Information"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/what-are-my-rights-responsibilities",
+              "text": "Rights and Responsibilities"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/will-i-have-to-pay-for-any-services",
+              "text": "Will I have to pay fees during my stay?"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=3",
+              "text": "Aged Care"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/alfred-cancer-program",
+              "text": "Alfred Cancer"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/cardiology",
+              "text": "Alfred Heart"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=4",
+              "text": "Community Services"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=16",
+              "text": "Diagnosis & investigation"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=14",
+              "text": "Emergency, Trauma & Intensive care"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=17",
+              "text": "Medical & Surgical"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/alfred-mental-and-addiction-health",
+              "text": "Mental Health"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=19",
+              "text": "Rehabilitation"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services?category=15",
+              "text": "Specialised Support Services"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/statewide-services",
+              "text": "Statewide services"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/specialist-outpatient-clinics",
+              "text": "Specialist Outpatient Clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/telehealth",
+              "text": "Telehealth"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics A-Z"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/research-areas",
+              "text": "Research areas"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/clinical-trials",
+              "text": "Clinical trials"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/ethics-research-governance",
+              "text": "Ethics & research governance"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/alfred-health-week",
+              "text": "Alfred Research Week"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/collaborators-and-partnerships",
+              "text": "Collaborators & partnerships"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/research-publications",
+              "text": "Research publications"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/research-areas",
+              "text": "Research areas"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals",
+              "text": "Health professionals"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-support-services/health-information-services",
+              "text": "Health Information Services"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-resources",
+              "text": "Clinical Resources"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/events/",
+              "text": "Clinical education courses"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/specialist-outpatient-clinics",
+              "text": "Specialist Outpatient Clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/for-gps/bayside-health-gp-news",
+              "text": "GP Newsletters"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/for-gps",
+              "text": "Our GP Liaison team"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/for-gps/ereferrals",
+              "text": "eReferrals"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-resources?category=6|60",
+              "text": "Referral forms"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-resources?category=6|61",
+              "text": "Referral guidelines"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/for-gps",
+              "text": "Emergency & Trauma Centre referrals"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers/medical-careers",
+              "text": "Medical careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers/nursing",
+              "text": "Nursing careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers/allied-health-careers",
+              "text": "Allied Health careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/events",
+              "text": "What's on"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/search",
+              "text": "Search"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/hp/endocrinology-clinic",
+              "text": "View Health Professional Information"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/",
+              "text": "Home"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-resources",
+              "text": "All patient resources"
+            },
+            {
+              "url": "https://www.diabetesaustralia.com.au/",
+              "text": "Diabetes Australia"
+            },
+            {
+              "url": "https://www.google.com/maps/dir//549%20St%20Kilda%20Road,%20Melbourne,%203004",
+              "text": "Get directions"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services/endocrinology-diabetes",
+              "text": "Endocrinology & Diabetes"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/research/research-areas/endocrinology-diabetes-research",
+              "text": "Endocrinology & Diabetes research"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/feedback",
+              "text": "Provide feedback"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/contact",
+              "text": "Contact us"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/when-you-leave/making-a-payment",
+              "text": "Making a payment"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/about/patients-come-first",
+              "text": "Partnering with patients"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-resources",
+              "text": "Patient resources"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/feedback",
+              "text": "How do I provide feedback about my care?"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/for-gps",
+              "text": "GP Liaison"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-resources",
+              "text": "Clinical resources"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/services",
+              "text": "Services & clinics"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers/nursing",
+              "text": "Nursing Careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/careers/medical-careers",
+              "text": "Medical Careers"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/health-professionals/clinical-support-services",
+              "text": "Clinical support services"
+            },
+            {
+              "url": "https://x.com/AlfredHealth",
+              "text": "X (Twitter)"
+            },
+            {
+              "url": "https://www.facebook.com/BaysideHealthAlfred/",
+              "text": "Facebook"
+            },
+            {
+              "url": "https://www.youtube.com/user/AlfredHealthTV",
+              "text": "YouTube"
+            },
+            {
+              "url": "https://www.instagram.com/baysidehealthalfred",
+              "text": "Instagram"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/disclaimer",
+              "text": "Disclaimer"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/privacy-policy",
+              "text": "Privacy Statement"
+            },
+            {
+              "url": "https://www.alfredhealth.org.au/alfred-health-website-accessibility-statement",
+              "text": "Website Accessibility Statement"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+          "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+          "title": "RACGP - AJGP (Australian Journal of General Practice)",
+          "accessedAt": "2026-09-11T00:06:32.179Z",
+          "contentSha256": "8c3c438dbacf649b3175bf68cc1065e6fca357797b0b6169f1040b4732b092a3",
+          "untrustedText": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing screening and diagnostic skills.\nMisconceptions regarding dairy intake around thyroxine administration in pregnant and postpartum women\nHypothyroidism requiring T4 replacement is common in pregnancy. Prescribers should be aware that there are no specific concerns about dairy intake with T4.\nMenopause and osteoporosis: Non-pharmacological and pharmacological management\nThis article will build on GPs’ skills in stratifying fracture risk, supporting their patients to maintain bone health and preventing osteoporotic fracture.\nPrevious\n1\nNext\nPages: 1 of 1\nAustralian Journal of General Practice (AJGP) is published by The Royal Australian College of General Practitioners, 100 Wellington Parade, East Melbourne, Victoria 3002, Australia\nEmail ajgp@racgp.org.au\nSubscribe to the AJGP\nThe Royal Australian College of General Practitioners acknowledges Aboriginal and Torres Strait Islander peoples as the Traditional Custodians of the land and sea in which we live and work, we recognise their continuing connection to land, sea and culture and pay our respects to Elders past, present and future.\n&copy; 2025 The Royal Australian College of General Practitioners (RACGP) ABN 34 000 223 807",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/september",
+              "text": "September 2026 ADHD 1"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/august",
+              "text": "August 2026 Menopause 2"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/july",
+              "text": "July 2026 Ophthalmology"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/june",
+              "text": "June 2026 When less is more"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/issues",
+              "text": "All issues"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/Supplements",
+              "text": "Academic Post Registrar abstract supplements"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/wonca-supplements",
+              "text": "WONCA 2023 abstracts"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=coronavirus",
+              "text": "Coronavirus"
+            },
+            {
+              "url": "https://www.racgp.org.au/afp",
+              "text": "Australian Family Physician (AFP)"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=AJGP%20for%20your%20CPD",
+              "text": "AJGP for your CPD"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Beyond%20the%20clinic%20door",
+              "text": "Beyond the clinic door"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Book%20review",
+              "text": "Book review"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Case%20study",
+              "text": "Case study"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Clinical",
+              "text": "Clinical"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Clinical%20challenge",
+              "text": "Clinical challenge"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Column",
+              "text": "Column"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Editorial",
+              "text": "Editorial"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Letters",
+              "text": "Letters"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Professional",
+              "text": "Professional"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=ReCEnT:%20Findings%20from%20general%20practice%20training",
+              "text": "ReCEnT: Findings from general practice training"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Research",
+              "text": "Research"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?articleType=Viewpoint",
+              "text": "Viewpoint"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=cancer",
+              "text": "Cancer"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Chronic%20disease",
+              "text": "Chronic disease"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Dermatology",
+              "text": "Dermatology"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Diabetes",
+              "text": "Diabetes"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Exercise",
+              "text": "Exercise"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Mental%20health",
+              "text": "Mental health"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Paediatrics",
+              "text": "Paediatrics"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Palliative%20care",
+              "text": "Palliative care"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Skin%20cancer",
+              "text": "Skin cancer"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/search?tagname=Weight%20management",
+              "text": "Weight management"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/reviewers/author-guidelines",
+              "text": "Author guidelines"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/reviewers/peer-reviewer-guidelines",
+              "text": "Peer reviewer guidelines"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/reviewers/racgp-clinical-guidelines",
+              "text": "RACGP Clinical guidelines"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/reviewers/journal-advisory-committee",
+              "text": "Journal Advisory Committee"
+            },
+            {
+              "url": "https://mc.manuscriptcentral.com/ajgp",
+              "text": "Submit a manuscript"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/about-the-journal",
+              "text": "About"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+              "text": "Search"
+            },
+            {
+              "url": "https://www1.racgp.org.au/AJGP/Home",
+              "text": "AJGP"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors",
+              "text": "Authors"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/august/menopause-and-osteoporosis",
+              "text": "Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2023/june/misconceptions-regarding-dairy-intake-around-thyro",
+              "text": "Misconceptions regarding dairy intake around thyroxine administration in pregnant and postpartum women"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/2026/august/non-pharmacological-and-pharmacological-management",
+              "text": "Menopause and osteoporosis: Non-pharmacological and pharmacological management"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+              "text": "Previous"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+              "text": "1"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+              "text": "Next"
+            },
+            {
+              "url": "https://www1.racgp.org.au/ajgp/subscribe",
+              "text": "Subscribe to the AJGP"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://www.alfredhealth.org.au/services/endocrinology-clinic": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+        "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer"
+      },
+      "pageRequests": 3,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://www.researchgate.net/profile/Shoshana-Sztal-Mazer",
+        "https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer",
+        "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+        "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+        "https://endocrinology.medicinetoday.com.au/et/2024/august/feature-article/postmenopausal-osteoporosis-bridging-treatment-gap",
+        "https://www.alfredhealth.org.au/services/womens-endocrinology-health-clinic",
+        "https://academic.oup.com/jcem/article/104/12/6116/5532584",
+        "https://sunburymacedonranges.starweekly.com.au/womens-health/how-to-avoid-bones-breaking-bad/",
+        "https://m.facebook.com/TheAlfredHospital/photos/hundreds-of-disposable-insulin-pens-will-be-kept-out-of-landfill-thanks-to-a-cam/647708257395925/",
+        "https://www.jhltopen.org/article/S2950-1334(24)00131-9/pdf"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "Shoshana Sztal-Mazer endocrinology Alfred Hospital",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://www.researchgate.net/profile/Shoshana-Sztal-Mazer",
+                "title": "Shoshana Sztal-Mazer MBBS (Hons) FRACP Alfred Hospital",
+                "snippet": "Shoshana SZTAL-MAZER. Alfred Hospital, Melbourne. Department of Endocrinology and Diabetes. Clinical Endocrinology Thyroid Diseases. Department of ..."
+              },
+              {
+                "url": "https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer",
+                "title": "Dr Shoshana Sztal-Mazer - Alfred Health",
+                "snippet": "Shoshana Sztal-Mazer is a Consultant Endocrinologist at Alfred Health where has a senior role in the Women's Endocrinology Clinic. She is the Clinical Lead ..."
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+                "title": "Endocrinology Clinic",
+                "snippet": "We care for and treat people with gland and hormone problems (except diabetes and osteoporosis). Dr Shoshana Sztal-Mazer: Endocrinology. The Alfred Area U (549 ..."
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+                "title": "Shoshana Sztal-Mazer - AJGP",
+                "snippet": "Shoshana Sztal-Mazer. MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic. Menopause and osteoporosis ..."
+              },
+              {
+                "url": "https://endocrinology.medicinetoday.com.au/et/2024/august/feature-article/postmenopausal-osteoporosis-bridging-treatment-gap",
+                "title": "Postmenopausal osteoporosis: bridging the treatment gap",
+                "snippet": "Dr Sztal-Mazer is an Endocrinologist in the Department of Endocrinology & Diabetes, Alfred Health, Melbourne; Clinical Lead for the Osteoporosis and Metabolic ..."
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services/womens-endocrinology-health-clinic",
+                "title": "Women's Endocrinology Health Clinic",
+                "snippet": "Dr Shoshana Sztal-Mazer: Endocrinology Head of service (549 St Kilda Road) 549 St Kilda Road, Melbourne, 3004 Phone (03) 9076 3795"
+              },
+              {
+                "url": "https://academic.oup.com/jcem/article/104/12/6116/5532584",
+                "title": "“Association of Maternal Iodine Status With Child IQ: A Meta ...",
+                "snippet": "Shoshana Sztal-Mazer Department of Endocrinology and Diabetes, Alfred Health, .sztal-mazer@alfred.org.au."
+              },
+              {
+                "url": "https://sunburymacedonranges.starweekly.com.au/womens-health/how-to-avoid-bones-breaking-bad/",
+                "title": "How to avoid bones breaking bad",
+                "snippet": "Endocrinologist, Dr Shoshana Sztal-Mazer, is in charge of the Osteoporosis and Metabolic Bone Service at Alfred Health. Health's osteoporosis ..."
+              },
+              {
+                "url": "https://m.facebook.com/TheAlfredHospital/photos/hundreds-of-disposable-insulin-pens-will-be-kept-out-of-landfill-thanks-to-a-cam/647708257395925/",
+                "title": "Hundreds of disposable insulin pens will be kept out ...",
+                "snippet": "Hundreds of disposable insulin pens will be kept out of landfill thanks to a campaign headed by endocrinologist Dr Shoshana Sztal-Mazer."
+              },
+              {
+                "url": "https://www.jhltopen.org/article/S2950-1334(24)00131-9/pdf",
+                "title": "Incidence, prevalence, and predictors of osteoporotic ...",
+                "snippet": "In 2012, the Department of Endocrinology at Alfred Health implemented a ... Chiu: investigation; Shoshana Sztal-Mazer: writing—review;. Steven Ivulich ..."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+            "title": "Endocrinology Clinic | Bayside Health (Alfred)",
+            "offset": 2893,
+            "total_characters": 5896,
+            "citation_passages": [
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "\nWhat's on\nSearch\nEndocrinology Clinic\nPatient information\nView Health Professional Information\nHome\nServices & clinics\nEndocrinology Clinic\nWe care for and treat people with gland and hormone problems (except diabetes and osteoporosis).\nHow to access this clinic\nReferral from your GP\nYou need an online, eReferral from your GP or medical practitioner to access this service.\nYour doctor will need to send your referral to us using our online system - Consultmed eReferral. We will be in contact with you in clinically recommended times, depending on waiting list length. If there is no waiting list, you will receive an appointment booking letter or we will contact you to arrange a suitable time.\nWhat to bring\nEvery time you come\nMedicare card\nHealth Care Card and/or concession card (if you have one)\nPrivate health insurance card (if applicable/if you want to use it)\nAdverse drug alert card (if you have one)\nPrevious X-ray films, scans, ultrasounds or any other test results or reports\nMedicines you need to take while you are here\nList of medicines you are currently taking (or the boxes), including medicines you have bought without a prescription, such as herbal supplements and vitamins\nG"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "lasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated resear"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "ch\nEndocrinology & Diabetes research\nHave feedback for us?\nConnect with Alfred\nGet in touch:\nProvide feedback\nContact us\nIn case of an emergency, call 000\nWe acknowledge the people of the Kulin Nation, the traditional custodians and pay our respects to their culture and their Elders past, present and emerging. We welcome all cultures, nationalities and religions. Being inclusive and providing equitable healthcare is our commitment.\nThe Alfred\n55 Commercial Rd,\nMelbourne VIC 3004\n(03) 9076 2000\nCaulfield Hospital\n260 Kooyong Rd,\nCaulfield VIC 3162\n(03) 9076 6000\nSandringham Hospital\n193 Bluff Rd,\nSandringham VIC 3191\n(03) 9076 1000\nPatients, family & friends\nMaking a payment\nPartnering with patients\nPatient resources\nServices & clinics\nHow do I provide feedback about my care?\nHealth professionals\nGP Liaison\nClinical resources\nServices & clinics\nNursing Careers\nMedical Careers\nClinical support services\nFollow Bayside Health | Alfred\nX (Twitter)\nFacebook\nYouTube\nInstagram\nDisclaimer\nPrivacy Statement\nWebsite Accessibility Statement\nCopyright 2026 &copy; Bayside Health Victoria\nClose"
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+            "links": [
+              {
+                "url": "https://www.alfredhealth.org.au/services/endocrinology-clinic",
+                "text": "Skip to main content"
+              },
+              {
+                "url": "https://www.baysidehealth.org.au/",
+                "text": "baysidehealth.org.au"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/contact",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/about",
+                "text": "About"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/find-a-doctor",
+                "text": "Find a doctor"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/careers",
+                "text": "Careers"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred-foundation",
+                "text": "The Alfred Foundation"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/for-staff",
+                "text": "For staff"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-portal",
+                "text": "Patient portal"
+              },
+              {
+                "url": "https://alfredappeal.org.au/?utm_source=AH_GD&utm_medium=referral&utm_campaign=2022",
+                "text": "Donate now"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/our-hospitals",
+                "text": "Our locations"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends",
+                "text": "Patients, families & friends"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services",
+                "text": "Services & clinics"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/research",
+                "text": "Research"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/health-professionals",
+                "text": "Health professionals"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/news",
+                "text": "News"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/events",
+                "text": "What's on"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/patient-portal",
+                "text": "Patient portal"
+              },
+              {
+                "url": "https://alfredappeal.org.au/?utm_source=AH_GD&utm_medium=referral&utm_campaign=2022",
+                "text": "Donate now"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/contact",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/about",
+                "text": "About"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/find-a-doctor",
+                "text": "Find a doctor"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/careers",
+                "text": "Careers"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred-foundation",
+                "text": "The Alfred Foundation"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/for-staff",
+                "text": "For staff"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/our-hospitals",
+                "text": "Our hospitals"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred",
+                "text": "Visit The Alfred"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/before-you-arrive/getting-to-the-alfred",
+                "text": "Getting to The Alfred"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-the-alfred",
+                "text": "Parking at The Alfred"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/our-wards-the-alfred",
+                "text": "Wards at The Alfred"
+              },
+              {
+                "url": "https://app.prompt.org.au/download/25037?code=c626d7113eeac83578cae37b9b77ff8b",
+                "text": "The Alfred campus map"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+                "text": "Visitors & visiting hours"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/caulfield",
+                "text": "Visit Caulfield"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/getting-to-caulfield-hospital",
+                "text": "Getting to Caulfield"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-caulfield-hospital",
+                "text": "Parking at Caulfield"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/our-wards-caulfield",
+                "text": "Wards at Caulfield"
+              },
+              {
+                "url": "https://app.prompt.org.au/download/25038?code=b32729f99abfdf6542acdfc5ab6294a6",
+                "text": "Caulfield campus map"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+                "text": "Visitors & visiting hours"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/sandringham",
+                "text": "Visit Sandringham"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/getting-to-sandringham-hospital",
+                "text": "Getting to Sandringham"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/parking-at-sandringham-hospital",
+                "text": "Parking at Sandringham"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/our-wards-sandringham",
+                "text": "Wards at Sandringham"
+              },
+              {
+                "url": "https://app.prompt.org.au/download/25039?code=4ef187b879d5fc029901aae7d9c53288",
+                "text": "Sandringham campus map"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/while-you-are-here/visitors-visiting-hours",
+                "text": "Visitors & visiting hours"
+              },
+              {
+                "url": "https://www.mshc.org.au/",
+                "text": "Melbourne Sexual Health Centre"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services/paula-fox-melanoma-and-cancer-centre",
+                "text": "Paula Fox Melanoma & Cancer Centre"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services/alfred-mental-and-addiction-health/infant-child-and-youth-mental-health-and-wellness-services",
+                "text": "Infant, child & youth mental health clinics"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/services/statewide-services/womens-recovery-network",
+                "text": "Women's Recovery Network"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends",
+                "text": "Patients, families & friends"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/before-you-arrive",
+                "text": "Before you arrive"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/while-you-are-here",
+                "text": "While you are here"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/the-alfred/patients-families-friends/when-you-leave",
+                "text": "When you leave"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/elective-surgery-pre-admission",
+                "text": "Preparing for planned surgery"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/before-you-arrive",
+                "text": "Before you arrive"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/while-you-are-here",
+                "text": "While you are here"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/caulfield/patients-families-friends/while-you-are-here",
+                "text": "When you leave"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/before-you-arrive",
+                "text": "Before you arrive"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/while-you-are-here",
+                "text": "While you are here"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/sandringham/patients-families-friends/when-you-leave",
+                "text": "When you leave"
+              },
+              {
+                "url": "https://www.alfredhealth.org.au/patients-families-friends/before-you-arrive/elective-surgery-pre-admission",
+                "text": "Preparing for planned surgery"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 135
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.monash.edu/medicine/womens-childrens-health-summit/shoshana-sztal-mazer",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+            "title": "RACGP - AJGP (Australian Journal of General Practice)",
+            "offset": 0,
+            "total_characters": 2385,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing scree"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "ning and diagnostic skills.\nMisconceptions regarding dairy intake around thyroxine administration in pregnant and postpartum women\nHypothyroidism requiring T4 replacement is common in pregnancy. Prescribers should be aware that there are no specific concerns about dairy intake with T4.\nMenopause and osteoporosis: Non-pharmacological and pharmacological management\nThis article will build on GPs’ skills in stratifying fracture risk, supporting their patients to maintain bone health and preventing osteoporotic fracture.\nPrevious\n1\nNext\nPages: 1 of 1\nAustralian Journal of General Practice (AJGP) is published by The Royal Australian College of General Practitioners, 100 Wellington Parade, East Melbourne, Victoria 3002, Australia\nEmail ajgp@racgp.org.au\nSubscribe to the AJGP\nThe Royal Australian College of General Practitioners acknowledges Aboriginal and Torres Strait Islander peoples as the Traditional Custodians of the land and sea in which we live and work, we recognise their continuing connection to land, sea and culture and pay our respects to Elders past, present and future.\n&copy; 2025 The Royal Australian College of General Practitioners (RACGP) ABN 34 000 223 807"
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+            "links": [
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/september",
+                "text": "September 2026 ADHD 1"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/august",
+                "text": "August 2026 Menopause 2"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/july",
+                "text": "July 2026 Ophthalmology"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/june",
+                "text": "June 2026 When less is more"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/issues",
+                "text": "All issues"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/Supplements",
+                "text": "Academic Post Registrar abstract supplements"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/wonca-supplements",
+                "text": "WONCA 2023 abstracts"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=coronavirus",
+                "text": "Coronavirus"
+              },
+              {
+                "url": "https://www.racgp.org.au/afp",
+                "text": "Australian Family Physician (AFP)"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=AJGP%20for%20your%20CPD",
+                "text": "AJGP for your CPD"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Beyond%20the%20clinic%20door",
+                "text": "Beyond the clinic door"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Book%20review",
+                "text": "Book review"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Case%20study",
+                "text": "Case study"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Clinical",
+                "text": "Clinical"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Clinical%20challenge",
+                "text": "Clinical challenge"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Column",
+                "text": "Column"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Editorial",
+                "text": "Editorial"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Letters",
+                "text": "Letters"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Professional",
+                "text": "Professional"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=ReCEnT:%20Findings%20from%20general%20practice%20training",
+                "text": "ReCEnT: Findings from general practice training"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Research",
+                "text": "Research"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?articleType=Viewpoint",
+                "text": "Viewpoint"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=cancer",
+                "text": "Cancer"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Chronic%20disease",
+                "text": "Chronic disease"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Dermatology",
+                "text": "Dermatology"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Diabetes",
+                "text": "Diabetes"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Exercise",
+                "text": "Exercise"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Mental%20health",
+                "text": "Mental health"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Paediatrics",
+                "text": "Paediatrics"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Palliative%20care",
+                "text": "Palliative care"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Skin%20cancer",
+                "text": "Skin cancer"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/search?tagname=Weight%20management",
+                "text": "Weight management"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/reviewers/author-guidelines",
+                "text": "Author guidelines"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/reviewers/peer-reviewer-guidelines",
+                "text": "Peer reviewer guidelines"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/reviewers/racgp-clinical-guidelines",
+                "text": "RACGP Clinical guidelines"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/reviewers/journal-advisory-committee",
+                "text": "Journal Advisory Committee"
+              },
+              {
+                "url": "https://mc.manuscriptcentral.com/ajgp",
+                "text": "Submit a manuscript"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/about-the-journal",
+                "text": "About"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+                "text": "Search"
+              },
+              {
+                "url": "https://www1.racgp.org.au/AJGP/Home",
+                "text": "AJGP"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors",
+                "text": "Authors"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/august/menopause-and-osteoporosis",
+                "text": "Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2023/june/misconceptions-regarding-dairy-intake-around-thyro",
+                "text": "Misconceptions regarding dairy intake around thyroxine administration in pregnant and postpartum women"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/2026/august/non-pharmacological-and-pharmacological-management",
+                "text": "Menopause and osteoporosis: Non-pharmacological and pharmacological management"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+                "text": "Previous"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+                "text": "1"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/authors/shoshana-sztal-mazer",
+                "text": "Next"
+              },
+              {
+                "url": "https://www1.racgp.org.au/ajgp/subscribe",
+                "text": "Subscribe to the AJGP"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 48
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "Shoshana Sztal-Mazer",
+        "institution": "Alfred Health (The Alfred, Melbourne)",
+        "department": "Department of Endocrinology and Diabetes – Endocrinologist",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+            "quote": "lasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated resear",
+            "explanation": "The official Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among the clinic consultants, establishing her as a treating endocrinologist at the requested hospital."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+            "quote": "lasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated resear",
+            "explanation": "The clinic consultants list appears on the Alfred Health website with contact details for The Alfred, 55 Commercial Rd, Melbourne, confirming the hospital affiliation."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+            "quote": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing scree",
+            "explanation": "The RACGP's Australian Journal of General Practice author page gives her credentials and role as 'MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic', an authoritative peer-reviewed journal profile confirming the endocrinology department role."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+            "quote": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing scree",
+            "explanation": "The RACGP journal author listing, published by the Royal Australian College of General Practitioners, is an authoritative professional source corroborating her specialty credentials (FRACP, Endocrinologist)."
+          }
+        ],
+        "limitations": []
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "83369cba8aec6643502e377bf6e830a6d8bd25babd706a450e1d0506cf5b0b91"
+        },
+        {
+          "kind": "review",
+          "sha256": "f56375625a31071c27f44fbd178aa329c841e8c4a7cc44c3c93101275818445a"
+        },
+        {
+          "kind": "questions",
+          "sha256": "1184713069c385b5ee0309c3cd792d0f08b92d2b444b58294d0b43e19a44b681"
+        },
+        {
+          "kind": "answers",
+          "sha256": "ad9efe195c1629597d64162bc78844c356b8696b355f954d013eeeda63dcba31"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 2,
+      "discovered_source_count": 10,
+      "fetched_source_count": 2,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_28b221b96811972dc4124aac3528fd4b",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_28c8a82aa316c42f88eec94e2e0ad657",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 3,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+            "quote": "lasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated resear",
+            "explanation": "The official Alfred Health Endocrinology Clinic page lists Dr Shoshana Sztal-Mazer among the clinic consultants, establishing her as a treating endocrinologist at the requested hospital."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_28b221b96811972dc4124aac3528fd4b",
+            "quote": "lasses, hearing aid(s) and/or walking frame if needed\nFor a clinic appointment\nYour appointment letter\nAny special items listed on your letter\nTAC or WorkCover claim number (if relevant)\nIf you have diabetes\nYour blood glucose meter\nYour blood glucose diary/record book\nYour favourite hypo food\nSomething to do, like a book, magazine or an iPad/tablet with headphones\nYour diabetes medicines\nClinic times\nDay |\nCampus |\nTime |\nMonday |\nThe Alfred |\nMorning |\nClinic consultants\nProf Anthony Russell: Endocrinology\nProf Duncan Topliss: Endocrinology\nProf Leon Bach: Endocrinology\nProf Mark Cooper: Endocrinology\nDr Richard Arnott: Endocrinology\nA/Prof Shane Hamblin: Endocrinology\nDr Kathryn Hackman: Endocrinology\nA/Prof Sybil McAuley: Endocrinology\nDr Elisabeth Ng: Endocrinology\nDr Shoshana Sztal-Mazer: Endocrinology\nDr Annabelle Warren: Endocrinology\nResources\nAll patient resources\nDiabetes Australia\nAmerican Diabetes Association\nHead of service\nProf Anthony Russell\nContact us\nThe Alfred\nArea U (549 St Kilda Road)\n549 St Kilda Road, Melbourne, 3004\nPhone\n(03) 9076 2025\nEnquiries email\noutpatient@alfred.org.au\nGet directions\nRelated services & clinics\nEndocrinology & Diabetes\nRelated resear",
+            "explanation": "The clinic consultants list appears on the Alfred Health website with contact details for The Alfred, 55 Commercial Rd, Melbourne, confirming the hospital affiliation."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+            "quote": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing scree",
+            "explanation": "The RACGP's Australian Journal of General Practice author page gives her credentials and role as 'MBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic', an authoritative peer-reviewed journal profile confirming the endocrinology department role."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_28c8a82aa316c42f88eec94e2e0ad657",
+            "quote": "RACGP - AJGP (Australian Journal of General Practice)\nBROWSE BY\nAll issues\nSeptember 2026\nADHD 1\nAugust 2026\nMenopause 2\nJuly 2026\nOphthalmology\nJune 2026\nWhen less is more\nAll issues\nAcademic Post Registrar abstract supplements\nWONCA 2023 abstracts\nCoronavirus\nAustralian Family Physician (AFP)\nArticle\nAJGP for your CPD\nBeyond the clinic door\nBook review\nCase study\nClinical\nClinical challenge\nColumn\nEditorial\nLetters\nProfessional\nReCEnT: Findings from general practice training\nResearch\nViewpoint\nTopics\nCancer Chronic disease Dermatology Diabetes Exercise Mental health Paediatrics Palliative care Skin cancer Weight management\nAuthors\nAuthor guidelines Peer reviewer guidelines RACGP Clinical guidelines Journal Advisory Committee\nSubmit a manuscript\nAbout\nSearch for:\nSearch\nAJGP > Authors > Shoshana Sztal-Mazer\nAuthors\nShoshana\nSztal-Mazer\nMBBS(Hons), FRACP, Endocrinologist, Department of Endocrinology and Diabetes, Alfred Health, Melbourne, Vic\nMenopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis\nThis paper aims to equip GPs with the understanding of the extent of the disease, pathophysiology and why early detection matters while further developing scree",
+            "explanation": "The RACGP journal author listing, published by the Royal Australian College of General Practitioners, is an authoritative professional source corroborating her specialty credentials (FRACP, Endocrinologist)."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "9e8387b162fa4e93d4e6775799604406b18d6dd118dbaf928f21127b6ee07605",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "33a29551d4783ca46041e73926eab96c2194798ab0d008b173cd19088cb567a8",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons)（医学学士/外科学士，荣誉）学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在《Australian Journal of General Practice》(AJGP) 上发表面向全科医生的综述文章，包括《Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis》和《Menopause and osteoporosis: Non-pharmacological and pharmacological management》，主题围绕绝经与骨质疏松的流行病学、筛查诊断及骨折风险分层和防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性左甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区（549 St Kilda Road，墨尔本）开诊，门诊由包括她在内的多位内分泌顾问医生负责。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院的内分泌门诊顾问名单之列。她同时是《Australian Journal of General Practice》的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需联系或转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生（Endocrinologist），并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}",
+            "gatewayRequestId": "req-b4457de2-f103-4ddc-b35c-3c4303e97e4d",
+            "usage": {
+              "promptTokens": 6441,
+              "completionTokens": 1695,
+              "reasoningTokens": 39,
+              "totalTokens": 8136
+            }
+          }
+        },
+        {
+          "inputSha256": "1d981a3edaae33b316d1ce4575ace6c4f2815d92966a153902a8945dd450d3b5",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons)（医学学士/外科学士，荣誉）学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在《Australian Journal of General Practice》(AJGP) 上发表面向全科医生的综述文章，包括《Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis》和《Menopause and osteoporosis: Non-pharmacological and pharmacological management》，主题围绕绝经与骨质疏松的流行病学、筛查诊断及骨折风险分层和防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性左甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院的内分泌门诊顾问名单之列。她同时是《Australian Journal of General Practice》的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需联系或转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生（Endocrinologist），并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}",
+            "gatewayRequestId": "req-e037aefe-aba3-4c49-8d6e-cffbe1bbbb02",
+            "usage": {
+              "promptTokens": 8201,
+              "completionTokens": 1702,
+              "reasoningTokens": 21,
+              "totalTokens": 9903
+            }
+          }
+        },
+        {
+          "inputSha256": "3a7ad652a3769ded07253556ce3075346eef7eaebbaa11867a9574a67eb53af8",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生，并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}}",
+            "gatewayRequestId": "req-c2c61123-1ff8-4f27-a72a-ac459f549b17",
+            "usage": {
+              "promptTokens": 9990,
+              "completionTokens": 1761,
+              "reasoningTokens": 95,
+              "totalTokens": 11751
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "70979d8b95bb0b7e94386b375bb72a616a8e4821d61c8bfbbb09551e73d4a625",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "3b107c32fab82b6dc26a28df81963f030fc7c62c63c43d5a30f5a6e776a2f13f",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Shoshana Sztal-Mazer 医生是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，列入该院内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"education_and_career\",\"text\":\"她拥有 MBBS(Hons) 学位，为澳大利亚皇家内科医师学会院士（FRACP），在 Alfred Health 内分泌与糖尿病科担任内分泌专科医生。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"type\":\"representative_output\",\"text\":\"她在 Australian Journal of General Practice（AJGP）上发表面向全科医生的综述文章，包括 Menopause and osteoporosis: Epidemiology, pathophysiology, screening and diagnosis 以及 Menopause and osteoporosis: Non-pharmacological and pharmacological management，主题围绕绝经与骨质疏松的流行病学、筛查诊断、骨折风险分层与防治管理。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"她还在 AJGP 发表了关于妊娠及产后女性甲状腺素（T4）服药与乳制品摄入误区的文章，指出 T4 替代治疗与乳制品摄入并无特定禁忌。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"从其发表文章看，她的写作关注点包括绝经与骨质疏松的筛查和管理，以及妊娠期甲状腺疾病管理的常见误区。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"The Alfred 内分泌门诊在周一上午于主院区开诊，门诊由包括她在内的多位内分泌顾问医生负责，科主任为 Prof Anthony Russell。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"background\":[{\"text\":\"Shoshana Sztal-Mazer 医生（MBBS(Hons), FRACP）是墨尔本 Alfred Health（The Alfred 医院）内分泌与糖尿病科的内分泌专科医生，在该院内分泌门诊顾问名单之列。她同时是 Australian Journal of General Practice 的作者，撰写面向全科医生的临床综述，内容集中于绝经与骨质疏松（流行病学、筛查诊断、非药物与药物治疗、骨折风险分层）以及妊娠期甲状腺素替代治疗的相关问题。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"text\":\"如需转诊至 The Alfred 内分泌门诊，需由全科医生通过 Consultmed 电子转诊系统提交转诊；门诊地点为 Area U, 549 St Kilda Road, Melbourne，咨询电话 (03) 9076 2025，查询邮箱 outpatient@alfred.org.au。需要注意，官方页面说明该门诊诊治腺体和激素问题（糖尿病和骨质疏松除外）。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"她在 The Alfred 的具体职位和科室是什么？\",\"answer\":\"她是 Alfred Health 内分泌与糖尿病科的内分泌专科医生，并列入 The Alfred 内分泌门诊的顾问医生名单。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她有哪些专业资质？\",\"answer\":\"她拥有 MBBS(Hons) 学位和澳大利亚皇家内科医师学会院士资格（FRACP），这是澳大利亚内分泌专科医生的常见资质路径。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"}]},{\"question\":\"她发表过哪些有代表性的文章？\",\"answer\":\"在 AJGP 上发表过绝经与骨质疏松系列综述（筛查诊断篇和管理篇），以及关于妊娠和产后女性甲状腺素服药与乳制品摄入误区的文章。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"她的临床关注方向是什么？\",\"answer\":\"从公开文章看，她关注绝经与骨质疏松的筛查和管理、骨折风险分层，以及甲状腺疾病（如妊娠期甲状腺素替代治疗）等内分泌问题。具体临床亚专科侧重建议当面确认。\",\"citations\":[{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_28c8a82aa316c42f88eec94e2e0ad657\",\"passageId\":\"text_1\"}]},{\"question\":\"如何预约她在 The Alfred 的门诊？\",\"answer\":\"该门诊需要全科医生通过 Consultmed 电子转诊系统转诊，就诊地点为 The Alfred（Area U, 549 St Kilda Road, Melbourne），咨询电话 (03) 9076 2025；具体出诊安排可向门诊确认。\",\"citations\":[{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_28b221b96811972dc4124aac3528fd4b\",\"passageId\":\"text_3\"}]}],\"limitations\":[\"未检索到她的完整教育经历、职称晋升或学术任职等更详细的官方履历信息。\",\"除 AJGP 文章外，未核实其他研究产出或科研职务；其研究方向的推断仅基于已发表文章主题。\"]}}",
+            "gatewayRequestId": "req-fb677e33-12ba-4f23-aa2c-48982e2102d7",
+            "usage": {
+              "promptTokens": 9354,
+              "completionTokens": 1670,
+              "reasoningTokens": 0,
+              "totalTokens": 11024
+            }
+          }
+        }
+      ]
+    }
+  }
+]
