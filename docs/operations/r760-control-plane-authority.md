@@ -1,6 +1,6 @@
 # R760 Gateway Control-Plane Authority
 
-Last updated: 2026-08-31.
+Last updated: 2026-09-11.
 
 ## Authority Boundary
 
@@ -52,6 +52,27 @@ For supported writes it must:
 
 Do not substitute raw SQL or an ad-hoc admin command for an available guarded
 operation.
+
+For an explicitly authorized in-place Plan token-policy change, the wrapper
+also supports an expected-old-value guard (arguments: Plan ID, expected and new
+monthly values, and optionally expected and new daily values; `none` means
+unlimited):
+
+```powershell
+python scripts/manage-r760-gateway-control.py --what-if -- set-plan-token-limits plan_paid_monthly_v1 50000000 150000000
+python scripts/manage-r760-gateway-control.py -- set-plan-token-limits plan_paid_monthly_v1 50000000 150000000
+python scripts/manage-r760-gateway-control.py -- set-plan-token-limits plan_paid_yearly_v1 none 200000000 none 6000000
+```
+
+This operation changes only `plans.policy_json.tokensPerMonth` (and
+`tokensPerDay` when daily values are provided), writes an admin audit event in
+the same transaction, and verifies that existing entitlement policy snapshots
+remain unchanged. It validates the existing immutable-policy trigger,
+temporarily drops it under the transaction's write lock, and restores the exact
+definition before commit; any failure rolls back both data and DDL. The
+existing backup and integrity gates
+still apply. New purchases and renewals read the updated Plan; existing grants
+retain their snapshots. Migrating existing grants is a separate operation.
 
 ## Usage
 

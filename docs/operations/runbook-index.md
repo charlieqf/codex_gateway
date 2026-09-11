@@ -27,6 +27,7 @@ documents.
 | Real-user/Desktop key provisioning details | [MedEvidence Codex Key Provisioning](./medevidence-codex-key-provisioning.md) |
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
 | Independent Free/paid balances, cancellation target and reset conflicts | [Quota Contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md), [2026-09-11 Fix Release](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md) |
+| Paid plan quota adjustment: monthly 150M/month; yearly 6M/day plus 200M per UTC calendar month, no yearly cap | [2026-09-11 Adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
 | Temporary new-user daily 10k free quota; existing grants unchanged | [2026-09-10 Release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md) |
 | SMS login, new-user daily free quota and billing account linking | [Joint Test Contract](../outbox/medevidence-sms-phone-signup-gateway-joint-test-2026-09-09.zh-CN.md), [Compatibility Release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md); May create preserved, resolve optional, phone-auth v1 reused |

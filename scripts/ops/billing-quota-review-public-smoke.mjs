@@ -65,7 +65,7 @@ try {
   const paidId = monthly.entitlement.id;
   const initial = await history();
   const freeId = initial.free_allowance.id;
-  assert.equal(initial.free_allowance.plan_id, "plan_free_daily_10k_v1");
+  assert.equal(initial.free_allowance.plan_id, "plan_free_daily_100k_v1");
   assert.equal(initial.current.id, paidId);
   const future = await event("renew", { event_type: "renew", plan_id: "plan_paid_monthly_v1",
     period_kind: "monthly", period_start: end.toISOString(), period_end: nextEnd.toISOString() });
@@ -118,12 +118,12 @@ try {
     period_start: annualStart.toISOString(), period_end: annualEnd.toISOString() });
   const annual = (await call("/gateway/credentials/current", { token: runtimeKey })).json.token_usage;
   assert.equal(annual.accounting_mode, "free_then_paid_v1");
-  assert.equal(annual.day.limit, null); assert.equal(annual.month.limit, null);
-  assert.equal(annual.month.remaining, null);
+  assert.equal(annual.day.limit, 6000000); assert.equal(annual.month.limit, 200000000);
+  assert.equal(annual.month.remaining, 200000000);
   assert.equal(annual.free_allowance.entitlement_id, freeId);
   assert.equal(annual.free_allowance.day.used, 0);
   report.billing = { default_cancel_targets_current_paused: true, scheduled_renewal_preserved: true,
-    future_cancel_requires_id: true, completed_reset: true, yearly_uncapped: true, same_free_entitlement: true };
+    future_cancel_requires_id: true, completed_reset: true, yearly_daily_monthly_limits: true, same_free_entitlement: true };
 
   const dashboard = await fetch(`${origin}/gateway/admin/quota-dashboard`, { signal: AbortSignal.timeout(20_000) });
   assert.equal(dashboard.status, 200);

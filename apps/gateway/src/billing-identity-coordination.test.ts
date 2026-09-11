@@ -119,7 +119,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const grants = f.store.listEntitlements({ subjectId: subject.id });
     expect(grants).toHaveLength(1);
     expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, periodKind: "unlimited", periodEnd: null,
-      policySnapshot: { tokensPerDay: 10_000, tokensPerMonth: null }, state: "active" });
+      policySnapshot: { tokensPerDay: 100_000, tokensPerMonth: null }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "sms-desktop-test-device", requestId: "login" });
     expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap").unified_key.key).toBe(credential.key);
     expect(f.store.listUnifiedClientKeys({ subjectId: subject.id })).toEqual([current]);
@@ -183,7 +183,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.store.listEntitlements({ subjectId, state: "active" })[0]?.planId).toBe("plan_test");
   });
 
-  it("enforces the daily 10k across retries, sessions and key rotation, and resets at UTC midnight", async () => {
+  it("enforces the daily 100k across retries, sessions and key rotation, and resets at UTC midnight", async () => {
     const f = fixture();
     await f.resolve("22");
     const subjectId = (await f.create("22")).json().subject.id;
@@ -197,11 +197,11 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     });
     for (let i = 0; i < 4; i++) {
       const at = new Date(now.getTime() + i * 60_000);
-      const result = await acquire(`use-${i}`, at, 2_500);
+      const result = await acquire(`use-${i}`, at, 25_000);
       expect(result.ok).toBe(true);
       if (!result.ok) throw new Error("unexpected budget rejection");
       await limiter.finalize({ reservationId: result.reservationId,
-        usage: { promptTokens: 2_000, completionTokens: 500, totalTokens: 2_500 }, now: at });
+        usage: { promptTokens: 20_000, completionTokens: 5_000, totalTokens: 25_000 }, now: at });
     }
     expect((await f.create("22")).json().idempotent_replay).toBe(true);
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "second-desktop-device", requestId: "relogin" });
@@ -261,7 +261,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const { subject, credential } = response.json();
     const grants = f.store.listEntitlements({ subjectId: subject.id });
     expect(grants).toHaveLength(1);
-    expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 10_000 }, state: "active" });
+    expect(grants[0]).toMatchObject({ planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 100_000 }, state: "active" });
     const session = f.phoneAuth.login({ phone: "13800138000", deviceId: "direct-phone-test-device", requestId: "login-direct" });
     expect(f.phoneAuth.bootstrap(session.access_token, "bootstrap-direct").unified_key.key).toBe(credential.key);
     const replay = (await f.create("22", "direct:22", "13800138000")).json();
@@ -272,7 +272,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.createUser).toHaveBeenCalledTimes(1);
   });
 
-  it("grants new users 10k/day while retaining the old 1M plan, entitlement, key and usage on linking", async () => {
+  it("grants new users 100k/day while retaining the old 1M plan, entitlement, key and usage on linking", async () => {
     const f = fixture();
     const template = phoneSignupFreePlan(now);
     const oldPlan = f.store.createPlan({ ...template, id: "plan_free_daily_1m_v1",
@@ -293,7 +293,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(created.statusCode).toBe(200);
     const newId = created.json().subject.id;
     expect(f.store.listEntitlements({ subjectId: newId })[0]).toMatchObject({
-      planId: "plan_free_daily_10k_v1", policySnapshot: { tokensPerDay: 10_000 } });
+      planId: phoneSignupFreePlanId, policySnapshot: { tokensPerDay: 100_000 } });
     expect(f.store.getPlan(oldPlan.id)).toEqual(oldPlan);
     expect(f.store.listEntitlements({ subjectId: old.subject.id })).toEqual([grant]);
     expect(f.store.listUnifiedClientKeys({ subjectId: old.subject.id })).toEqual([old.unified.record]);

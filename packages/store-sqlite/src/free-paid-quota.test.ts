@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { issueAccessCredential, phoneSignupFreePlan, publicTokenUsage, type ApplyBillingEntitlementEventInput, type Entitlement } from "@codex-gateway/core";
+import { issueAccessCredential, phoneSignupFreePlan, phoneSignupFreePlanId, publicTokenUsage, type ApplyBillingEntitlementEventInput, type Entitlement } from "@codex-gateway/core";
 import { buildQuotaDashboardData, createSqliteStore, createSqliteTokenBudgetLimiter, type SqliteGatewayStore } from "./index.js";
 import { migrateGatewaySchema } from "./migrations.js";
 
@@ -7,7 +7,7 @@ const stores: SqliteGatewayStore[] = [];
 const start = new Date("2026-09-10T10:00:00Z");
 const nextDay = new Date("2026-09-11T10:00:00Z");
 const end = new Date("2026-10-10T10:00:00Z");
-const freePlan = "plan_free_daily_10k_v1";
+const freePlan = phoneSignupFreePlanId;
 const paidPlan = "plan_paid_monthly_v1";
 afterEach(() => { for (const store of stores.splice(0)) store.close(); });
 
@@ -19,11 +19,14 @@ function fixture(freeLimit = 10_000, oldFree = false) {
   store.insertAccessCredential(credential.record);
   const policy = { tokensPerMinute: 300_000, tokensPerDay: freeLimit, tokensPerMonth: null,
     maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" as const };
-  store.createPlan(phoneSignupFreePlan(start));
+  // Pin an explicit Free limit so quota-split arithmetic stays stable regardless
+  // of the production default in phoneSignupFreePlan.
+  const freeTemplate = phoneSignupFreePlan(start);
+  store.createPlan({ ...freeTemplate, policy: { ...freeTemplate.policy, tokensPerDay: freeLimit } });
   const freeId = oldFree ? "plan_free_daily_1m_v1" : freePlan;
   if (oldFree) store.createPlan({ id: freeId, displayName: "Old Free", policy, scopeAllowlist: ["code"] });
   store.createPlan({ id: paidPlan, displayName: "Monthly", policy: { ...policy, tokensPerDay: 50_000, tokensPerMonth: 100_000 }, scopeAllowlist: ["code"] });
-  store.createPlan({ id: "plan_paid_yearly_v1", displayName: "Yearly", policy: { ...policy, tokensPerDay: null, tokensPerMonth: null }, scopeAllowlist: ["code"] });
+  store.createPlan({ id: "plan_paid_yearly_v1", displayName: "Yearly", policy: { ...policy, tokensPerDay: 6_000_000, tokensPerMonth: 200_000_000 }, scopeAllowlist: ["code"] });
   const free = store.grantEntitlement({ subjectId: "subj_quota", planId: freeId, periodKind: "unlimited", now: start });
   const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
   function event(overrides: Partial<ApplyBillingEntitlementEventInput> = {}) {
@@ -140,8 +143,81 @@ describe("independent daily Free and paid balances", () => {
     expect((await f.usage(paid)).day.used).toBe(0);
     const yearly = f.event({ idempotencyKey: "quota:year", payloadHash: "year", planId: "plan_paid_yearly_v1",
       replaceCurrent: true, periodKind: "one_off", periodEnd: new Date("2027-09-10T10:00:00Z") }).entitlement!;
-    expect(await f.usage(yearly)).toMatchObject({ day: { limit: null }, month: { limit: null },
+    expect(await f.usage(yearly)).toMatchObject({ day: { limit: 6_000_000 }, month: { limit: 200_000_000 },
       freeAllowance: { entitlementId: f.free.id, day: { limit: 1_000_000, used: 200_000 } } });
+  });
+
+  it("anchors a monthly entitlement's month window to its billing period across calendar months", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    stores.push(store);
+    store.upsertSubject({ id: "subj_month_window", label: "Month window", state: "active", createdAt: start });
+    const credential = issueAccessCredential({ subjectId: "subj_month_window", label: "Month window", scope: "code", expiresAt: new Date("2030-01-01Z") });
+    store.insertAccessCredential(credential.record);
+    store.createPlan({ id: "plan_month_window_v1", displayName: "Monthly window", scopeAllowlist: ["code"],
+      policy: { tokensPerMinute: 300_000, tokensPerDay: null, tokensPerMonth: 80_000,
+        maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" } });
+    const entitlement = store.applyBillingEntitlementEvent({ idempotencyKey: "window:purchase", payloadHash: "purchase-v1",
+      provider: "medevidence_billing", externalOrderId: "WINDOW_ORDER", eventType: "purchase", applyMode: "apply",
+      subjectId: "subj_month_window", planId: "plan_month_window_v1", periodKind: "monthly",
+      periodStart: start, periodEnd: end, now: start }).entitlement!;
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const consume = async (id: string, total: number, at: Date) => {
+      const acquired = await limiter.acquire({ requestId: id, credentialId: credential.record.id, subjectId: "subj_month_window",
+        entitlementId: entitlement.id, entitlementPeriodStart: entitlement.periodStart, entitlementPeriodEnd: entitlement.periodEnd,
+        scope: "code", upstreamAccountId: null, provider: null, policy: entitlement.policySnapshot, estimatedPromptTokens: total, now: at });
+      if (acquired.ok) {
+        await limiter.finalize({ reservationId: acquired.reservationId,
+          usage: { promptTokens: total - 2, completionTokens: 2, totalTokens: total }, now: at });
+      }
+      return acquired;
+    };
+    expect((await consume("september", 50_000, start)).ok).toBe(true);
+    const october = new Date("2026-10-05T10:00:00Z");
+    const rejected = await consume("october-inside-period", 50_000, october);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.limitKind).toBe("token_month");
+    const usage = await limiter.getCurrentUsage({ subjectId: "subj_month_window", entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart, entitlementPeriodEnd: entitlement.periodEnd,
+      policy: entitlement.policySnapshot, now: october });
+    expect(usage.month).toMatchObject({ limit: 80_000, used: 50_000, windowStart: start.toISOString() });
+  });
+
+  it("resets a one-off yearly entitlement's month window at UTC calendar-month boundaries", async () => {
+    const store = createSqliteStore({ path: ":memory:" });
+    stores.push(store);
+    store.upsertSubject({ id: "subj_year_window", label: "Year window", state: "active", createdAt: start });
+    const credential = issueAccessCredential({ subjectId: "subj_year_window", label: "Year window", scope: "code", expiresAt: new Date("2030-01-01Z") });
+    store.insertAccessCredential(credential.record);
+    store.createPlan({ id: "plan_year_window_v1", displayName: "Yearly window", scopeAllowlist: ["code"],
+      policy: { tokensPerMinute: 300_000, tokensPerDay: 50_000, tokensPerMonth: 80_000,
+        maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" } });
+    const entitlement = store.grantEntitlement({ subjectId: "subj_year_window", planId: "plan_year_window_v1",
+      periodKind: "one_off", periodStart: start, periodEnd: new Date("2027-09-10T10:00:00Z"), now: start });
+    const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
+    const consume = async (id: string, total: number, at: Date) => {
+      const acquired = await limiter.acquire({ requestId: id, credentialId: credential.record.id, subjectId: "subj_year_window",
+        entitlementId: entitlement.id, entitlementPeriodStart: entitlement.periodStart, entitlementPeriodEnd: entitlement.periodEnd,
+        scope: "code", upstreamAccountId: null, provider: null, policy: entitlement.policySnapshot, estimatedPromptTokens: total, now: at });
+      if (acquired.ok) {
+        await limiter.finalize({ reservationId: acquired.reservationId,
+          usage: { promptTokens: total - 2, completionTokens: 2, totalTokens: total }, now: at });
+      }
+      return acquired;
+    };
+    expect((await consume("september-a", 50_000, start)).ok).toBe(true);
+    const septemberUsage = await limiter.getCurrentUsage({ subjectId: "subj_year_window", entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart, entitlementPeriodEnd: entitlement.periodEnd,
+      policy: entitlement.policySnapshot, now: start });
+    expect(septemberUsage.month).toMatchObject({ limit: 80_000, used: 50_000, windowStart: "2026-09-01T00:00:00.000Z" });
+    const rejected = await consume("september-b", 50_000, nextDay);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.limitKind).toBe("token_month");
+    const october = new Date("2026-10-01T10:00:00Z");
+    expect((await consume("october", 50_000, october)).ok).toBe(true);
+    const octoberUsage = await limiter.getCurrentUsage({ subjectId: "subj_year_window", entitlementId: entitlement.id,
+      entitlementPeriodStart: entitlement.periodStart, entitlementPeriodEnd: entitlement.periodEnd,
+      policy: entitlement.policySnapshot, now: october });
+    expect(octoberUsage.month).toMatchObject({ limit: 80_000, used: 50_000, windowStart: "2026-10-01T00:00:00.000Z" });
   });
 
   it("activates scheduled renewal alongside Free and falls back to the same Free entitlement at final expiry", async () => {

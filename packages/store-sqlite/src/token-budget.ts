@@ -143,7 +143,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async acquire(input: AcquireInput): Promise<AcquireSuccess | LimitRejection> {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const windows = this.paidWindowBoundaries(input, now);
     const entitlementId = input.entitlementId ?? null;
     const estimatedPromptTokens = nonNegativeInteger(input.estimatedPromptTokens);
     const estimatedTotalTokens = estimatedPromptTokens + policy.reserveTokensPerRequest;
@@ -284,7 +284,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   async beginSoftWrite(input: SoftWriteBeginInput): Promise<{ reservationId: string }> {
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const windows = this.paidWindowBoundaries(input, now);
     const entitlementId = input.entitlementId ?? null;
     const reservationId = `tr_${randomUUID().replaceAll("-", "")}`;
     const finalReservationId = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
@@ -367,7 +367,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async getCurrentUsage(input: GetUsageInput): Promise<TokenUsageSnapshot> {
     const policy = validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const windows = this.paidWindowBoundaries(input, now);
     const free = this.freeAllowanceFor(input, now);
     const freeWindows = windowBoundaries(now);
 
@@ -414,7 +414,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   async resetUsage(input: ResetUsageInput): Promise<ResetUsageResult> {
     validateTokenPolicy(input.policy);
     const now = input.now ?? new Date();
-    const windows = windowBoundaries(now, entitlementPeriodWindow(input));
+    const windows = this.paidWindowBoundaries(input, now);
     const kinds = normalizeTokenWindowKinds(input.windows);
     const before = await this.getCurrentUsage({ ...input, now });
     const expiredReservations = runInTransaction(this.db, "BEGIN IMMEDIATE", () => {
@@ -720,6 +720,29 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
     if (!paid || paid.subjectId !== input.subjectId || !isRetailPaidPlan(paid.planId)) return null;
     const free = activeFreeAllowance(this.db, input.subjectId, now);
     return free && (!input.scope || free.scopeAllowlist.includes(input.scope)) ? free : null;
+  }
+
+  /**
+   * "monthly" entitlements anchor their month window to the billing period so
+   * the monthly limit never spans two calendar months of one period. One-off
+   * periods (for example yearly grants) span several months, so their monthly
+   * limit applies per UTC calendar month instead of across the whole period.
+   */
+  private paidWindowBoundaries(input: {
+    subjectId: string;
+    entitlementId?: string | null;
+    entitlementPeriodStart?: Date | null;
+    entitlementPeriodEnd?: Date | null;
+  }, now: Date): WindowBoundaries {
+    const period = entitlementPeriodWindow(input);
+    if (!period) {
+      return windowBoundaries(now);
+    }
+    const entitlement = input.entitlementId ? getEntitlement(this.db, input.entitlementId) : null;
+    if (entitlement?.subjectId === input.subjectId && entitlement.periodKind !== "monthly") {
+      return windowBoundaries(now);
+    }
+    return windowBoundaries(now, period);
   }
 
   private freeRemaining(subjectId: string, entitlementId: string, policy: TokenLimitPolicy,

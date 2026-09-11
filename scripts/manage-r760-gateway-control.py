@@ -11,8 +11,10 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import re
 import secrets
 import sys
+from pathlib import Path
 from typing import Any
 
 from codex_gateway_ops_common import redact_secrets
@@ -32,6 +34,7 @@ from gateway_state_sync import (
 
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
 BULK_USER_RPM_COMMAND = "ensure-user-rpm-minimum"
+PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "disable-user",
@@ -55,6 +58,15 @@ def positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def nullable_token_int(value: str) -> int | None:
+    if value == "none":
+        return None
+    parsed = positive_int(value)
+    if parsed > 9_007_199_254_740_991:
+        raise argparse.ArgumentTypeError("token value exceeds the safe integer range")
     return parsed
 
 
@@ -92,6 +104,15 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
+    if command == PLAN_TOKEN_LIMITS_COMMAND:
+        if len(admin_args) not in (4, 6) or not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", admin_args[1]):
+            raise ManagementError(
+                f"{PLAN_TOKEN_LIMITS_COMMAND} requires plan ID, expected and new monthly values, "
+                "and optionally expected and new daily values ('none' means unlimited)."
+            )
+        for value in admin_args[2:]:
+            nullable_token_int(value)
+        return command, None
     if command == BULK_USER_RPM_COMMAND:
         if len(admin_args) != 2:
             raise ManagementError(
@@ -214,6 +235,27 @@ def r760_endpoint(args: argparse.Namespace) -> RemoteGateway:
     )
 
 
+def run_plan_token_policy(endpoint: RemoteGateway, args: argparse.Namespace, *, apply: bool) -> dict[str, Any]:
+    operation: dict[str, Any] = {
+        "planId": args.admin_args[1],
+        "expected": nullable_token_int(args.admin_args[2]),
+        "monthly": nullable_token_int(args.admin_args[3]),
+        "apply": apply,
+    }
+    if len(args.admin_args) == 6:
+        operation["expectedDaily"] = nullable_token_int(args.admin_args[4])
+        operation["daily"] = nullable_token_int(args.admin_args[5])
+    payload = base64.b64encode(json.dumps(operation).encode("utf-8")).decode("ascii")
+    completed = run_ssh(
+        endpoint,
+        f"{docker_command(endpoint)} exec -i -w /app -e R760_PLAN_OPERATION_B64={payload} "
+        f"{shell_word(endpoint.container)} node -",
+        stdin=Path(__file__).with_name("gateway-plan-token-policy.cjs").read_text(encoding="utf-8"),
+        timeout_seconds=args.timeout_seconds,
+    )
+    return json.loads(completed.stdout)
+
+
 def execute(args: argparse.Namespace) -> dict[str, Any]:
     command, subcommand = validate_admin_args(args.admin_args)
     r760 = r760_endpoint(args)
@@ -221,6 +263,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         int(args.admin_args[1]) if command == BULK_USER_RPM_COMMAND else None
     )
     bulk_plan: dict[str, Any] | None = None
+    plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
     if bulk_minimum_rpm is not None:
         inventory = run_remote_admin(r760, ["list"], timeout_seconds=args.timeout_seconds)
         bulk_plan, _ = user_rpm_plan(inventory, bulk_minimum_rpm)
@@ -233,6 +276,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             "subcommand": subcommand,
             "argument_count": len(args.admin_args),
             **({"plan": bulk_plan} if bulk_plan is not None else {}),
+            **({"plan": plan_policy} if plan_policy is not None else {}),
         }
 
     helper_path = f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
@@ -247,7 +291,9 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             backup_label="user-rpm" if bulk_minimum_rpm is not None else "r760-control",
             helper_container_path=helper_path,
         )
-        if bulk_minimum_rpm is not None:
+        if command == PLAN_TOKEN_LIMITS_COMMAND:
+            authority_result = run_plan_token_policy(r760, args, apply=True)
+        elif bulk_minimum_rpm is not None:
             authority_result = run_remote_admin(
                 r760,
                 [BULK_USER_RPM_COMMAND, str(bulk_minimum_rpm)],

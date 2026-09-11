@@ -12,6 +12,7 @@ import {
   issueAccessCredential,
   issueBillingAdminToken,
   issueUnifiedClientKey,
+  phoneSignupFreePlan,
   validateFeaturePolicy,
   type MessageInput,
   type ProviderAdapter,
@@ -2685,6 +2686,10 @@ describe("gateway phase 1 routes", () => {
   it("rejects a conflicting Free reset through Billing without resetting request counters or losing late paid usage", async () => {
     const { store, issued, headers } = createCredentialBackedStore({ requestsPerMinute: 100, requestsPerDay: 1, concurrentRequests: 2 });
     const now = new Date("2026-09-11T01:00:00Z");
+    // Pin a small Free allowance so the pending reservation must reach the paid
+    // ledger; the production default in phoneSignupFreePlan stays out of scope.
+    const freeTemplate = phoneSignupFreePlan(now);
+    store.createPlan({ ...freeTemplate, policy: { ...freeTemplate.policy, tokensPerDay: 10_000 } });
     store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
       policy: unrestrictedTokenPolicy(), now });
     const paid = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_paid_monthly_v1", periodKind: "one_off",

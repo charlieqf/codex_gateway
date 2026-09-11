@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 import unittest
@@ -33,6 +34,32 @@ class ManageR760GatewayControlTests(unittest.TestCase):
             MODULE.validate_admin_args(["entitlement", "renew", "ent-1", "--end", "2027-01-01T00:00:00Z"]),
             ("entitlement", "renew"),
         )
+
+    def test_plan_token_limits_validation(self) -> None:
+        command = MODULE.PLAN_TOKEN_LIMITS_COMMAND
+        self.assertEqual(
+            MODULE.validate_admin_args([command, "plan_paid_monthly_v1", "50000000", "150000000"]),
+            (command, None),
+        )
+        self.assertEqual(
+            MODULE.validate_admin_args(
+                [command, "plan_paid_yearly_v1", "none", "200000000", "none", "6000000"]
+            ),
+            (command, None),
+        )
+        for bad in (
+            [command, "plan_paid_monthly_v1", "50000000"],
+            [command, "plan_paid_monthly_v1", "50000000", "150000000", "none"],
+            [command, "plan_paid_monthly_v1", "50000000", "150000000", "none", "6000000", "extra"],
+            [command, "bad plan!", "none", "200000000"],
+            [command, "plan_paid_monthly_v1", "0", "150000000"],
+            [command, "plan_paid_monthly_v1", "50000000", "not-a-number"],
+        ):
+            with self.subTest(command=bad):
+                with self.assertRaises(
+                    (MODULE.ManagementError, ValueError, argparse.ArgumentTypeError)
+                ):
+                    MODULE.validate_admin_args(bad)
 
     def test_user_rpm_plan_only_selects_below_minimum_reenableable_user_keys(self) -> None:
         inventory = {

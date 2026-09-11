@@ -51,11 +51,11 @@ try {
   assert.equal(added.length, eligible.length, "Expected reviewed paid-only accounts to receive a base allowance");
   const subjects = new Set();
   for (const row of added) {
-    assert.equal(row.plan_id, "plan_free_daily_10k_v1");
+    assert.equal(row.plan_id, "plan_free_daily_100k_v1");
     assert.equal(row.period_kind, "unlimited");
     assert.equal(row.period_end, null);
     assert.equal(row.state, "active");
-    assert.equal(JSON.parse(row.policy_snapshot_json).tokensPerDay, 10000);
+    assert.equal(JSON.parse(row.policy_snapshot_json).tokensPerDay, 100000);
     assert(eligible.some((paid) => paid.subject_id === row.subject_id));
     assert(!subjects.has(row.subject_id), "Duplicate free allowance");
     subjects.add(row.subject_id);

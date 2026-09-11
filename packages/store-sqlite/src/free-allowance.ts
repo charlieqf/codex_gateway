@@ -7,7 +7,7 @@ import { insertTransitionAudit } from "./entitlement-audit.js";
 import * as plans from "./plans.js";
 
 // These are the public product IDs, not all internal or historical Plan templates.
-const freePlanIds = ["plan_free_daily_10k_v1", "plan_free_daily_1m_v1"];
+const freePlanIds = ["plan_free_daily_100k_v1", "plan_free_daily_10k_v1", "plan_free_daily_1m_v1"];
 const paidPlanIds = ["plan_paid_monthly_v1", "plan_paid_yearly_v1"];
 export const freePlanSql = `plan_id IN ('${freePlanIds.join("', '")}') AND period_kind = 'unlimited' AND period_end IS NULL`;
 export const paidPlanSql = `plan_id IN ('${paidPlanIds.join("', '")}')`;
