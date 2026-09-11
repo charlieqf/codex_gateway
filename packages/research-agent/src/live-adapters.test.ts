@@ -9,6 +9,34 @@ import {
 } from "./index.js";
 
 describe("Doctor Research live first-party adapters", () => {
+  it("checks practical search credentials without a paid query or optional literature dependencies", async () => {
+    const events: unknown[] = [];
+    const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {
+      const url = new URL(String(input));
+      expect(url.origin + url.pathname).toBe("https://serpapi.com/account.json");
+      expect(url.searchParams.has("q")).toBe(false);
+      return jsonResponse({ total_searches_left: 12 });
+    });
+    const adapters = new LiveResearchAdapters({ practicalProfileEnabled: true,
+      ncbi: {}, crossref: {}, orcid: { enabled: true },
+      officialWeb: { provider: "serpapi", apiKey: "synthetic-test-key", serpApiEngine: "google", allowedDomains: ["hospital.example"] },
+      userAgent: "research-test/1.0", fetchImpl, onExternalRequest: e => events.push(e) });
+    await expect(adapters.assertAvailable(new AbortController().signal)).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(events).toMatchObject([{ query_sha256: null, search_id: null, http_status: 200 }]);
+    expect(JSON.stringify(events)).not.toContain("synthetic-test-key");
+  });
+
+  it("rejects invalid search credentials at practical startup without issuing a search", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: "Invalid API key" }),
+      { status: 401, headers: { "content-type": "application/json" } }));
+    const adapters = new LiveResearchAdapters({ practicalProfileEnabled: true,
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "serpapi", apiKey: "synthetic-test-key", serpApiEngine: "google", allowedDomains: ["hospital.example"] },
+      userAgent: "research-test/1.0", fetchImpl });
+    await expect(adapters.assertAvailable(new AbortController().signal)).rejects.toMatchObject({ statusCode: 401 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
   it("waits for a slow paid search once and still observes caller cancellation", async () => {
     vi.useFakeTimers();
     vi.spyOn(AbortSignal, "timeout").mockImplementation(ms => {

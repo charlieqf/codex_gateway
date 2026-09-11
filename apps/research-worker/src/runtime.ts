@@ -619,6 +619,7 @@ async function createLiveDependencies(
     medicalSkillBundle: getDefaultMedicalSkillBundle(),
     adapters: new LiveResearchAdapters({
       ...config.adapterOptions,
+      practicalProfileEnabled: config.workflowPolicy.practicalProfileEnabled,
       onExternalRequest: (event) => logger?.info("research_external_request", event),
       ncbi: {
         ...config.adapterOptions.ncbi,

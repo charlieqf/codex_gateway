@@ -20,6 +20,8 @@ import {
 } from "./safe-http.js";
 
 export interface LiveResearchAdapterOptions {
+  /** Optional literature providers are not startup dependencies for a practical profile. */
+  practicalProfileEnabled?: boolean;
   ncbi: {
     email?: string;
     tool?: string;
@@ -196,21 +198,32 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   }
 
   async assertAvailable(signal: AbortSignal): Promise<void> {
-    await this.searchPubMed('"heart"[Title] AND 2025[Date - Publication]', signal);
-    const crossref = await this.getCrossrefMetadata(
-      "10.1038/s41586-020-2649-2",
-      signal
-    );
-    if (!crossref) {
-      throw new Error("Crossref preflight metadata was unavailable.");
-    }
-    if (this.options.orcid.enabled !== false) {
-      const orcid = await this.lookupOrcid("0000-0002-1825-0097", signal);
-      if (!orcid) {
-        throw new Error("ORCID preflight record was unavailable.");
+    if (!this.options.practicalProfileEnabled) {
+      await this.searchPubMed('"heart"[Title] AND 2025[Date - Publication]', signal);
+      const crossref = await this.getCrossrefMetadata(
+        "10.1038/s41586-020-2649-2",
+        signal
+      );
+      if (!crossref) {
+        throw new Error("Crossref preflight metadata was unavailable.");
+      }
+      if (this.options.orcid.enabled !== false) {
+        const orcid = await this.lookupOrcid("0000-0002-1825-0097", signal);
+        if (!orcid) {
+          throw new Error("ORCID preflight record was unavailable.");
+        }
       }
     }
-    if (this.options.officialWeb.provider !== "direct") {
+    if (this.options.officialWeb.provider === "serpapi") {
+      // Account lookup authenticates the provider without consuming a search.
+      const url = new URL("https://serpapi.com/account.json");
+      url.searchParams.set("api_key", this.options.officialWeb.apiKey!);
+      await this.requestJsonWithRetry<unknown>(url, signal, {}, 1, value => {
+        if (value === null || typeof value !== "object") return false;
+        const remaining = Reflect.get(value, "total_searches_left");
+        return typeof remaining === "number" && Number.isSafeInteger(remaining) && remaining >= 0;
+      });
+    } else if (this.options.officialWeb.provider !== "direct") {
       await this.searchOfficialSources("doctor profile", signal);
     }
   }
