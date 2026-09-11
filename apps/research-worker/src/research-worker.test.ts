@@ -10,6 +10,7 @@ import {
   type ProviderAdapter
 } from "@codex-gateway/core";
 import { buildGateway } from "@codex-gateway/gateway";
+import { parseDoctorResearchRunRequest } from "../../gateway/src/research-routes.js";
 import {
   executeDoctorResearchWorkflow,
   parseAndValidateDoctorResearchModelOutput,
@@ -6919,9 +6920,17 @@ describe("Research Worker controlled-beta workflow", () => {
     observer.close();
   });
 
-  it("runs authenticated POST through Worker success, GET result, and four verified downloads", async () => {
+  it.each([false, true])("runs authenticated POST through Worker success, GET result, and four verified downloads (practical: %s)", async practical => {
     const root = temporaryDirectory();
     const config = workerConfig(root);
+    if (practical) config.workflowPolicy = { ...config.workflowPolicy, identityAgentEnabled: true, practicalProfileEnabled: true,
+      budgets: { ...config.workflowPolicy.budgets, llmCalls: 14, outputTokens: 60000 } };
+    const practicalSource = (await adapters().fetchApprovedSource("src_official_1", new AbortController().signal))!;
+    const practicalCitation = [{ sourceId: practicalSource.sourceId, passageId: "text_0" }];
+    const practicalDraft = { facts: [{ type: "expertise", text: "Cardiology at Example Hospital.", citations: practicalCitation }],
+      background: [{ text: "The public profile identifies the person's cardiology work at Example Hospital.", citations: practicalCitation }],
+      qa: Array.from({ length: 5 }, (_, i) => ({ question: `What should we discuss about your cardiology work (${i + 1})?`,
+        answer: "The public profile identifies cardiology; personal priorities should be confirmed in conversation.", citations: practicalCitation })), limitations: [] };
     const gatewayStore = createSqliteStore({ path: ":memory:" });
     const researchGatewayStore = createResearchSqliteStore({
       path: config.databasePath,
@@ -6980,6 +6989,11 @@ describe("Research Worker controlled-beta workflow", () => {
       researchWorkerStaleAfterSeconds: 45,
       researchArtifactRoot: config.artifactRoot,
       researchMaximumArtifactBytes: 200_000,
+      researchIdentityAgentEnabled: practical,
+      ...(practical ? { researchOfficialIdentityRegistry: [{
+        identityFingerprint: parseDoctorResearchRunRequest({ name: "Example Doctor", hospital: "Example Hospital", department: "Cardiology" }).identityFingerprint,
+        officialProfileUrls: ["https://preset.example/forbidden-profile"]
+      }] } : {}),
       researchAdmissionGuard: async () =>
         researchGatewayStore.latestSuccessfulBackupAt()
           ? null
@@ -7002,14 +7016,31 @@ describe("Research Worker controlled-beta workflow", () => {
       dependencies: {
         adapters: {
           ...adapters(),
+          ...(practical ? {
+            async searchWeb() { return [{ url: practicalSource.url, title: practicalSource.title, snippet: "Profile" }]; },
+            async readWebPage() { return practicalSource; },
+            async searchPubMed() { throw new Error("Public practical flow must not require literature."); },
+            async searchOfficialSources() { throw new Error("Public practical flow must use the identity Agent."); }
+          } : {}),
           async assertAvailable() {}
         },
         modelClient: {
           model: "test-model",
           async assertModelAvailable() {},
-          async generate() {
+          async generate(request) {
+            let value: unknown = modelOutput();
+            if (practical) {
+              if (request.stage === "discover_identity" && request.attempt === 1) value = { actions: [{ type: "search", query: "Example Doctor Example Hospital" }] };
+              else if (request.stage === "discover_identity" && request.attempt === 2) value = { actions: [{ type: "read", url: practicalSource.url }] };
+              else if (request.stage === "discover_identity") value = { identity: { name: "Example Doctor", institution: "Example Hospital", department: "Cardiology",
+                citations: ["person", "institution", "department", "authority"].map(aspect => ({ aspect, sourceId: practicalSource.sourceId, passageId: "text_0", explanation: "Synthetic source fixture." })) } };
+              else if (request.stage === "resolve_identity") value = { accepted: true, issues: [] };
+              else if (request.stage === "synthesize_review") value = { draft: practicalDraft };
+              else if (request.stage === "validate_outputs") value = { approved: true, draft: practicalDraft };
+              else throw new Error("Unexpected academic model stage in practical API test.");
+            }
             return {
-              text: JSON.stringify(modelOutput()),
+              text: JSON.stringify(value),
               gatewayRequestId: "req_model_http_e2e",
               usage: {
                 promptTokens: 100,
@@ -7058,6 +7089,7 @@ describe("Research Worker controlled-beta workflow", () => {
       expect(created.statusCode).toBe(202);
       const runId = created.json().run_id as string;
       expect(runId).toMatch(/^drr_[a-f0-9]{32}$/u);
+      if (practical) expect(researchGatewayStore.getRunForSubject(runId, subjectId)?.input.doctor.officialProfileUrls).toEqual([]);
       const initialStatus = await app.inject({
         method: "GET",
         url: `/gateway/research/v1/doctor-runs/${runId}`,
@@ -7126,7 +7158,7 @@ describe("Research Worker controlled-beta workflow", () => {
                (SELECT COUNT(*) FROM research_artifacts WHERE run_id = ?) AS artifacts`
           )
           .get(runId, runId, runId, runId)
-      ).toEqual({ sources: 2, claims: 3, refs: 1, artifacts: 4 });
+      ).toEqual(practical ? { sources: 1, claims: 2, refs: 0, artifacts: 4 } : { sources: 2, claims: 3, refs: 1, artifacts: 4 });
     } finally {
       controller.abort(new Error("HTTP controlled-beta E2E drain."));
       await Promise.allSettled([runtime]);

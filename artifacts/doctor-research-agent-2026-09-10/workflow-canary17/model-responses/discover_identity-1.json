@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Iva Hristova EANM\",\"purpose\":\"Find Iva Hristova at the European Association of Nuclear Medicine, related to certification programme\"}]}",
+  "usage": {
+    "promptTokens": 1231,
+    "completionTokens": 55,
+    "reasoningTokens": 13,
+    "totalTokens": 1286
+  },
+  "gatewayRequestId": "req-35055c89-8daa-490c-9309-c796a5c9527f"
+}

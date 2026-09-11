@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://umcgresearch.org/w/r-h-j-a-slart\",\"purpose\":\"verify nuclear medicine physician role and department at UMCG\"},{\"type\":\"read\",\"url\":\"https://www.ngfdecisive.nl/initiators/riemer-slart\",\"purpose\":\"independent source confirming Department of Nuclear Medicine & Molecular Imaging at UMCG since 2001\"}]}",
+  "usage": {
+    "promptTokens": 4464,
+    "completionTokens": 84,
+    "reasoningTokens": 0,
+    "totalTokens": 4548
+  },
+  "gatewayRequestId": "req-9b01426e-619c-4730-8b78-629925ee55fd"
+}

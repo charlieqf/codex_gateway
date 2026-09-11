@@ -1,0 +1,273 @@
+{
+  "runId": "drr_8ec0e2ffbd59432891b69336c08c9539",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "漆洪波",
+      "hospital": "重庆医科大学附属第一医院",
+      "department": "副院长（妇产、母胎医学方向）"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_53b91b4e26ad67b1709dc3592e74a071",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_d28f0e19a9eca412acb470d9bcca4700",
+        "source_type": "official_web",
+        "title": "漆洪波-重庆医科大学附属第一医院",
+        "url": "https://www.sciconf.cn/cn/person-detail/376?user_id=bDGIBtITYmnUO_xkM6HHROA_d_d",
+        "accessed_at": "2026-09-11T00:19:09.693Z",
+        "content_sha256": "9af6afd83886914abd19cdb7a232723f06d995aa987634a2dfc22b3ff3ed6b42"
+      },
+      {
+        "source_id": "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2",
+        "source_type": "official_web",
+        "title": "漆洪波-重庆市医学会",
+        "url": "https://www.cqma.cn/fc_detail/92.html",
+        "accessed_at": "2026-09-11T00:19:09.992Z",
+        "content_sha256": "b599893358b86f2c13d79d999a5778905569a35ec67cad7cf8558523dd06932f"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "漆洪波现任重庆医科大学附属第一医院副院长，主任医师、二级教授、博士生导师。",
+        "担任中华医学会围产医学分会主任委员、中华医学会妇产科学分会副主任委员、重庆市医学会妇产科学分会主任委员。",
+        "据重庆市医学会页面（信息时间较早），其时担任中华医学会围产医学分会候任主任委员，并任中国医师协会妇产科医师分会常务委员、中国医师协会母胎医学专委会副主任委员、中华医学会围产医学分会胎儿医学学组组长、重庆市医师协会围产医师分会会长等。"
+      ],
+      "expertise": [
+        "专业特长为双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠及各种胎儿畸形的处理，属母胎医学方向。"
+      ],
+      "education_and_career": [
+        "医学博士，母胎医学重庆市重点实验室主任；曾获首届医学高层次人才计划“国家杰出医师”、新世纪百千万人才工程国家级人选、国家有突出贡献中青年专家、国家卫健委突出贡献中青年专家、国务院政府特殊津贴专家等荣誉。"
+      ],
+      "research_directions": [
+        "获国家重点研发计划、国家自然科学基金重点项目及面上项目等资助30余项，以第一或通讯作者发表SCI论文200余篇，入选斯坦福大学与Elsevier发布的2022、2023年版全球前2%顶尖科学家榜单。"
+      ],
+      "representative_outputs": [
+        "主编或副主编多部全国统编《妇产科学》教材（5年制第9-10版副主编、8年制第4版副主编、专升本第3-5版主编等），共同主编《难产》《助产》等著作30余部，执笔及参与制定中华医学会指南或专家共识70余部。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "漆洪波 · 重庆医科大学附属第一医院 · 副院长，主任医师、二级教授、博士生导师（妇产科/母胎医学方向）",
+          "source_ids": [
+            "src_d28f0e19a9eca412acb470d9bcca4700",
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "漆洪波现任重庆医科大学附属第一医院副院长，主任医师、二级教授、博士生导师。",
+          "source_ids": [
+            "src_d28f0e19a9eca412acb470d9bcca4700"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "担任中华医学会围产医学分会主任委员、中华医学会妇产科学分会副主任委员、重庆市医学会妇产科学分会主任委员。",
+          "source_ids": [
+            "src_d28f0e19a9eca412acb470d9bcca4700"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "position",
+          "text": "据重庆市医学会页面（信息时间较早），其时担任中华医学会围产医学分会候任主任委员，并任中国医师协会妇产科医师分会常务委员、中国医师协会母胎医学专委会副主任委员、中华医学会围产医学分会胎儿医学学组组长、重庆市医师协会围产医师分会会长等。",
+          "source_ids": [
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "expertise",
+          "text": "专业特长为双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠及各种胎儿畸形的处理，属母胎医学方向。",
+          "source_ids": [
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "education_and_career",
+          "text": "医学博士，母胎医学重庆市重点实验室主任；曾获首届医学高层次人才计划“国家杰出医师”、新世纪百千万人才工程国家级人选、国家有突出贡献中青年专家、国家卫健委突出贡献中青年专家、国务院政府特殊津贴专家等荣誉。",
+          "source_ids": [
+            "src_d28f0e19a9eca412acb470d9bcca4700",
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "representative_output",
+          "text": "主编或副主编多部全国统编《妇产科学》教材（5年制第9-10版副主编、8年制第4版副主编、专升本第3-5版主编等），共同主编《难产》《助产》等著作30余部，执笔及参与制定中华医学会指南或专家共识70余部。",
+          "source_ids": [
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_6",
+          "claim_type": "research_direction",
+          "text": "获国家重点研发计划、国家自然科学基金重点项目及面上项目等资助30余项，以第一或通讯作者发表SCI论文200余篇，入选斯坦福大学与Elsevier发布的2022、2023年版全球前2%顶尖科学家榜单。",
+          "source_ids": [
+            "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_d28f0e19a9eca412acb470d9bcca4700",
+        "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+      ]
+    },
+    "review": {
+      "title": "漆洪波 专业背景与交流准备",
+      "abstract": "漆洪波是重庆医科大学附属第一医院副院长，主任医师、二级教授、博士生导师，主要从事妇产科学与母胎医学工作。他在围产医学领域担任多项重要学术职务：中华医学会围产医学分会主任委员、中华医学会妇产科学分会副主任委员、重庆市医学会妇产科学分会主任委员，同时兼任中国医师协会母胎医学专委会副主任委员、中华医学会围产医学分会胎儿医学学组组长等。其专业特长集中在双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠和胎儿畸形的处理。",
+      "keywords": [
+        "副院长，主任医师、二级教授、博士生导师（妇产科/母胎医学方向）"
+      ],
+      "markdown": "漆洪波是重庆医科大学附属第一医院副院长，主任医师、二级教授、博士生导师，主要从事妇产科学与母胎医学工作。他在围产医学领域担任多项重要学术职务：中华医学会围产医学分会主任委员、中华医学会妇产科学分会副主任委员、重庆市医学会妇产科学分会主任委员，同时兼任中国医师协会母胎医学专委会副主任委员、中华医学会围产医学分会胎儿医学学组组长等。其专业特长集中在双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠和胎儿畸形的处理。 [来源 1](<https://www.sciconf.cn/cn/person-detail/376?user_id=bDGIBtITYmnUO_xkM6HHROA_d_d>) [来源 2](<https://www.cqma.cn/fc_detail/92.html>)\n\n他的荣誉包括首届医学高层次人才计划“国家杰出医师”、新世纪百千万人才工程国家级人选、国家有突出贡献中青年专家、国家卫健委突出贡献中青年专家、国务院政府特殊津贴专家等，并入选2022、2023年版全球前2%顶尖科学家榜单。学术产出方面，他主编或副主编多版全国统编《妇产科学》教材，共同主编《难产》《助产》等著作30余部，参与制定中华医学会指南或专家共识70余部，主持国家级科研项目30余项。 [来源 1](<https://www.sciconf.cn/cn/person-detail/376?user_id=bDGIBtITYmnUO_xkM6HHROA_d_d>) [来源 2](<https://www.cqma.cn/fc_detail/92.html>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:19:52.070Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://www.sciconf.cn/cn/person-detail/376?user_id=bDGIBtITYmnUO_xkM6HHROA_d_d",
+        "https://www.cqma.cn/fc_detail/92.html"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "cqma.cn（重庆市医学会）页面将其列为重庆医科大学附属妇女儿童医院院长，此为兼任/既往职务，与请求的附属第一医院副院长职务的当前并存关系未由已读页面直接说明"
+      ]
+    },
+    "predicted_questions": [
+      "漆洪波的主要学术任职是什么？",
+      "他的临床专业方向是什么？",
+      "他在教材和指南方面有哪些代表性工作？",
+      "他获得过哪些主要人才荣誉？",
+      "他目前是否同时在重庆医科大学附属妇女儿童医院任职？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "据会议平台专家页面，他现任中华医学会围产医学分会主任委员、中华医学会妇产科学分会副主任委员、重庆市医学会妇产科学分会主任委员；重庆市医学会页面还列出中国医师协会母胎医学专委会副主任委员等兼职。",
+        "source_ids": [
+          "src_d28f0e19a9eca412acb470d9bcca4700",
+          "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "专业特长为双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠及各种胎儿畸形的处理，属母胎医学方向。",
+        "source_ids": [
+          "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "担任全国统编5年制《妇产科学》第9-10版副主编、8年制第4版副主编、专升本第3-5版主编等，共同主编《难产》《助产》等著作30余部，执笔及参与制定中华医学会指南或专家共识70余部。",
+        "source_ids": [
+          "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "包括首届医学高层次人才计划“国家杰出医师”、新世纪百千万人才工程国家级人选、国家有突出贡献中青年专家、国家卫健委突出贡献中青年专家、国务院政府特殊津贴专家等。",
+        "source_ids": [
+          "src_d28f0e19a9eca412acb470d9bcca4700"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "重庆市医学会页面（信息时间较早）曾列其为重庆医科大学附属妇女儿童医院院长及母胎医学重庆市重点实验室主任，与附属第一医院副院长职务的当前关系未由已读页面直接说明，建议向本人或官方渠道确认其现任职务安排。",
+        "source_ids": [
+          "src_e3b62ba7281aaf8aa4e543e8d8bc7aa2"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "cqma.cn（重庆市医学会）页面将其列为重庆医科大学附属妇女儿童医院院长，此为兼任/既往职务，与请求的附属第一医院副院长职务的当前并存关系未由已读页面直接说明"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_8ec0e2ffbd59432891b69336c08c9539",
+    "run_id": "drr_8ec0e2ffbd59432891b69336c08c9539",
+    "artifacts": [
+      {
+        "artifact_id": "dra_353455e24153421c8eb261764902744b",
+        "kind": "profile",
+        "filename": "漆洪波_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 3449,
+        "sha256": "a7a10c12379cc109f35f59fd9c839de2c6427e68766424f2d4549aa4f7ec373b",
+        "expires_at": "2026-10-11T00:19:52.081Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_353455e24153421c8eb261764902744b/download"
+      },
+      {
+        "artifact_id": "dra_3249f85250f040838927d49229e504f5",
+        "kind": "review",
+        "filename": "漆洪波_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1742,
+        "sha256": "4f33429da2a6d27ac9a8fbb09244fb8c2ab160f80a5c1e8f1c4b3ddd87123d9f",
+        "expires_at": "2026-10-11T00:19:52.081Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_3249f85250f040838927d49229e504f5/download"
+      },
+      {
+        "artifact_id": "dra_35201114744847b8a583de2451e101c9",
+        "kind": "questions",
+        "filename": "漆洪波_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 266,
+        "sha256": "9edea95e43f90bfa615611fb6cfcf6bd325ebf2b92b3b2692f3b6472e9968e17",
+        "expires_at": "2026-10-11T00:19:52.081Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_35201114744847b8a583de2451e101c9/download"
+      },
+      {
+        "artifact_id": "dra_d056e0b710834102a4b3630197e8595b",
+        "kind": "answers",
+        "filename": "漆洪波_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2489,
+        "sha256": "db3656b3f58d529eed3aeda4687f5c2f5ae46cc34f4cf90c772aae25b4f04b1c",
+        "expires_at": "2026-10-11T00:19:52.081Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_d056e0b710834102a4b3630197e8595b/download"
+      }
+    ]
+  },
+  "sha256": "24d7ac2d4499b0607c9b862df7fe4e09d19c494ae040a4b293e06bc0e78b7408",
+  "sizeBytes": 12856,
+  "createdAt": "2026-09-11T00:19:52.081Z",
+  "expiresAt": "2026-10-11T00:19:52.081Z"
+}

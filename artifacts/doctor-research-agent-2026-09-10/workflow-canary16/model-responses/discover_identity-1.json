@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Riemer Slart UMCG nucleaire geneeskunde\",\"purpose\":\"identify Riemer Slart at University Medical Center Groningen nuclear medicine department\"}]}",
+  "usage": {
+    "promptTokens": 1239,
+    "completionTokens": 57,
+    "reasoningTokens": 14,
+    "totalTokens": 1296
+  },
+  "gatewayRequestId": "req-070d2155-2497-45aa-afc4-9e3b60503ece"
+}

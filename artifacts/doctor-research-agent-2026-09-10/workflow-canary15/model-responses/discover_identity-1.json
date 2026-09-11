@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Axel Rominger Inselspital Bern nuclear medicine\",\"purpose\":\"identify the person at the requested hospital and department\"}]}",
+  "usage": {
+    "promptTokens": 1235,
+    "completionTokens": 46,
+    "reasoningTokens": 11,
+    "totalTokens": 1281
+  },
+  "gatewayRequestId": "req-07c0ae58-ae7e-4f52-bb8a-515c3f5d4b33"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.umcg.nl/-/r-slart\",\"find\":\"Nucleair geneeskundige\",\"purpose\":\"verify name, UMCG affiliation, and nuclear medicine role on official hospital page\"},{\"type\":\"read\",\"url\":\"https://www.rug.nl/staff/r.h.j.a.slart/?lang=en\",\"find\":\"Slart\",\"purpose\":\"confirm academic profile and department at University of Groningen\"}]}",
+  "usage": {
+    "promptTokens": 2029,
+    "completionTokens": 94,
+    "reasoningTokens": 0,
+    "totalTokens": 2123
+  },
+  "gatewayRequestId": "req-21f6a2ac-7c9e-4954-94c9-db7688d8219c"
+}

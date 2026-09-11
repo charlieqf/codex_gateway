@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://eanm.org/the-eanm-community/opportunities/young-professionals/eanm-mentorship-programme/\",\"find\":\"Hristova\",\"purpose\":\"find a profile listing Hristova with full name and role at EANM/EARL that may connect 'Iva' and 'Ivalina'\"},{\"type\":\"read\",\"url\":\"https://earl.eanm.org/contacts/\",\"find\":\"Hristova\",\"purpose\":\"EARL contacts page may list Iva(lina) Hristova with her role in the accreditation programme\"}]}",
+  "usage": {
+    "promptTokens": 10316,
+    "completionTokens": 309,
+    "reasoningTokens": 180,
+    "totalTokens": 10625
+  },
+  "gatewayRequestId": "req-7cad0aa8-c181-4326-b0d3-2e2298fdfd92"
+}

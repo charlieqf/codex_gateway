@@ -1,0 +1,292 @@
+{
+  "runId": "drr_ec858509e060448a9fa6cbd833f5dbce",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "Axel Rominger",
+      "hospital": "瑞士伯尔尼大学小岛医院",
+      "department": "核医学科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_f98eeb9b3a45cf46011e9da0fea504ce",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_47de01c79f7957656cc855c8eaa3ae30",
+        "source_type": "official_web",
+        "title": "Prof. Dr. med. Axel Rominger - Nuklearmedizin: Universitätsklinik für Nuklearmedizin",
+        "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+        "accessed_at": "2026-09-11T00:22:47.934Z",
+        "content_sha256": "cc05e27b66b10dc3dcf7693d86506814a6e379d11e4c6d28fc033cca2bf303b2"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。",
+        "自2018年4月起任伯尔尼大学核医学正教授。",
+        "自2019年起兼任上海复旦大学客座教授。"
+      ],
+      "expertise": [
+        "所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。"
+      ],
+      "education_and_career": [
+        "1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。",
+        "2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。",
+        "2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。",
+        "2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。"
+      ],
+      "research_directions": [
+        "其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。"
+      ],
+      "representative_outputs": [
+        "个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "Prof. Dr. med. Axel Rominger · Inselspital, Universitätsspital Bern (Universitätsklinik für Nuklearmedizin) · Nuklearmedizin (Department of Nuclear Medicine), Chairman and Head; Full Professor for Nuclear Medicine at the University of Bern",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "自2018年4月起任伯尔尼大学核医学正教授。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "position",
+          "text": "自2019年起兼任上海复旦大学客座教授。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "education_and_career",
+          "text": "1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "education_and_career",
+          "text": "2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "education_and_career",
+          "text": "2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_6",
+          "claim_type": "education_and_career",
+          "text": "2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_7",
+          "claim_type": "research_direction",
+          "text": "其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_8",
+          "claim_type": "expertise",
+          "text": "所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_9",
+          "claim_type": "representative_output",
+          "text": "个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。",
+          "source_ids": [
+            "src_47de01c79f7957656cc855c8eaa3ae30"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_47de01c79f7957656cc855c8eaa3ae30"
+      ]
+    },
+    "review": {
+      "title": "Axel Rominger 专业背景与交流准备",
+      "abstract": "Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。",
+      "keywords": [
+        "Nuklearmedizin (Department of Nuclear Medicine), Chairman and Head; Full Professor for Nuclear Medicine at the University of Bern"
+      ],
+      "markdown": "Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。 [来源 1](<https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger>)\n\n在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病治疗、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研与教学方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，开展临床试验，并承担伯尔尼大学教学与专科医师培训。 [来源 1](<https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger>)\n\n会面或交流的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH\\-3010 Bern），其办公室电话为\\+41 31 632 26 10，可经电子邮件联系；科室总机为\\+41 31 632 21 11。 [来源 1](<https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:24:07.480Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。",
+        "未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。"
+      ]
+    },
+    "predicted_questions": [
+      "Rominger教授目前的职务是什么？",
+      "他的学术背景和职业路径如何？",
+      "他所在科室的研究方向有哪些？",
+      "如何联系他或找到他的科室？",
+      "他与中国的学术联系是什么？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。",
+        "source_ids": [
+          "src_47de01c79f7957656cc855c8eaa3ae30"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。",
+        "source_ids": [
+          "src_47de01c79f7957656cc855c8eaa3ae30"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。",
+        "source_ids": [
+          "src_47de01c79f7957656cc855c8eaa3ae30"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。",
+        "source_ids": [
+          "src_47de01c79f7957656cc855c8eaa3ae30"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "官方简历显示他自2019年起任上海复旦大学客座教授。",
+        "source_ids": [
+          "src_47de01c79f7957656cc855c8eaa3ae30"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。",
+        "未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_ec858509e060448a9fa6cbd833f5dbce",
+    "run_id": "drr_ec858509e060448a9fa6cbd833f5dbce",
+    "artifacts": [
+      {
+        "artifact_id": "dra_abad9d38f8154e74a69b1ebc99412423",
+        "kind": "profile",
+        "filename": "Axel Rominger_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 4895,
+        "sha256": "bb85ba08ef7ca3589fcd431ee537a02ac7b7047868792b68ace594b3acd205f7",
+        "expires_at": "2026-10-11T00:24:07.490Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_abad9d38f8154e74a69b1ebc99412423/download"
+      },
+      {
+        "artifact_id": "dra_66f39edf136f418eb8587abea053e527",
+        "kind": "review",
+        "filename": "Axel Rominger_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2066,
+        "sha256": "3cdce2190768c3bd112068e020f61dc8caca265caeab8bc701716a5b8fce3fd6",
+        "expires_at": "2026-10-11T00:24:07.490Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_66f39edf136f418eb8587abea053e527/download"
+      },
+      {
+        "artifact_id": "dra_ef3cdd3d8d354739b78cb692809c5e0d",
+        "kind": "questions",
+        "filename": "Axel Rominger_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 223,
+        "sha256": "cfe7425fae5ed5aa371d1a1745786a3017b7e1c0c4b64d739ccecb352471edaa",
+        "expires_at": "2026-10-11T00:24:07.490Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_ef3cdd3d8d354739b78cb692809c5e0d/download"
+      },
+      {
+        "artifact_id": "dra_db9f69a04f2d4326a3d01e362e2cb0f1",
+        "kind": "answers",
+        "filename": "Axel Rominger_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2603,
+        "sha256": "23b1e179dfc3904fe96ca4589843ecffb7134d484337d5331461d7f4198680c0",
+        "expires_at": "2026-10-11T00:24:07.490Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_db9f69a04f2d4326a3d01e362e2cb0f1/download"
+      }
+    ]
+  },
+  "sha256": "4ae6875f1312d52564539910720967b5f868f329d004aa036fe5a5c082c3afa0",
+  "sizeBytes": 13816,
+  "createdAt": "2026-09-11T00:24:07.490Z",
+  "expiresAt": "2026-10-11T00:24:07.490Z"
+}

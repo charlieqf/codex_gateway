@@ -1,0 +1,10 @@
+{
+  "text": "{\"accepted\":false,\"issues\":[\"The requested person is 'Iva Hristova', but no supplied source contains that name; the only matching individual found is 'Ivalina Hristova' on the EANM Executive Office page. No evidence establishes that 'Iva Hristova' and 'Ivalina Hristova' are the same person (e.g., a source using the short form, or a profile linking both names). Evidence linking the requested name to the EANM/EARL accreditation programme identity is needed.\"]}",
+  "usage": {
+    "promptTokens": 4304,
+    "completionTokens": 274,
+    "reasoningTokens": 161,
+    "totalTokens": 4578
+  },
+  "gatewayRequestId": "req-23bea1e3-3d52-4203-83a3-0469e1014bcc"
+}

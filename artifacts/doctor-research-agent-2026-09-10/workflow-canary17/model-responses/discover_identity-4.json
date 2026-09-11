@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://earl.eanm.org/organisational-structure/\",\"find\":\"Hristova\",\"purpose\":\"confirm Iva/Ivalina Hristova's role at EARL and its relation to the EANM accreditation programme\"}]}",
+  "usage": {
+    "promptTokens": 7768,
+    "completionTokens": 164,
+    "reasoningTokens": 103,
+    "totalTokens": 7932
+  },
+  "gatewayRequestId": "req-0261df5f-02ba-4652-9498-f4356efb876c"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger\",\"purpose\":\"verify person, institution, department and role from official hospital profile\"}]}",
+  "usage": {
+    "promptTokens": 2064,
+    "completionTokens": 58,
+    "reasoningTokens": 0,
+    "totalTokens": 2122
+  },
+  "gatewayRequestId": "req-a412cfb2-d460-4661-bc9d-e4e5eb10e3b2"
+}

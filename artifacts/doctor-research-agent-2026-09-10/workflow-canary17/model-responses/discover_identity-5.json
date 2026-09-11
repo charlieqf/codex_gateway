@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Ivalina Hristova\",\"institution\":\"European Association of Nuclear Medicine (EANM) / EANM Forschungs GmbH (EARL)\",\"department\":\"Chief Scientific Officer, EARL (EANM Research Ltd.) – accreditation and research programmes\",\"limitations\":[\"Requested short name \\\"Iva Hristova\\\" was not found verbatim; verified sources give her name as Ivalina Hristova\",\"No formal title was requested and none beyond Chief Scientific Officer was verified\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\",\"explanation\":\"The official EANM Executive Office page lists Ivalina Hristova as Chief Scientific Officer within the EARL section, establishing the person and her role at the EANM/EARL organisation.\"},{\"aspect\":\"department\",\"sourceId\":\"src_a0656494a428d0e7cf19ed9625a0086f\",\"passageId\":\"text_3\",\"explanation\":\"Same official page places her under the EARL unit with the role Chief Scientific Officer, matching the requested accreditation-programme context (EARL runs EANM's accreditation programme).\"},{\"aspect\":\"institution\",\"sourceId\":\"src_93c3dc7645487e403061aaf935001fc9\",\"passageId\":\"text_1\",\"explanation\":\"The EARL organisational structure page, maintained by EANM Forschungs GmbH, states EARL is a 100% daughter of the EANM non-profit Association and that one chief scientific officer oversees and coordinates the EARL projects and teams – linking Ivalina Hristova's role to the EANM accreditation/research initiative.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_07ea7388da34245618636fae13401ec4\",\"passageId\":\"text_1\",\"explanation\":\"The official EARL website states EANM launched EANM Forschungs GmbH (EARL) and that EARL accredits PET/CT scanners, confirming that the EANM/EARL accreditation programme is the institutional context in which the Chief Scientific Officer operates.\"}]}}",
+  "usage": {
+    "promptTokens": 10080,
+    "completionTokens": 565,
+    "reasoningTokens": 83,
+    "totalTokens": 10645
+  },
+  "gatewayRequestId": "req-7fea7b0c-475e-440e-9cde-34cefdf08cdb"
+}

@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"Prof. Dr. med. Axel Rominger\",\"institution\":\"Inselspital, Universitätsspital Bern (Universitätsklinik für Nuklearmedizin)\",\"department\":\"Nuklearmedizin (Department of Nuclear Medicine), Chairman and Head; Full Professor for Nuclear Medicine at the University of Bern\",\"limitations\":[],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\",\"explanation\":\"Official clinic profile page identifies Prof. Dr. med. Axel Rominger (Rominger, Axel, MD, MHBA) as Chairman and Head of the clinic's leadership.\"},{\"aspect\":\"institution\",\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\",\"explanation\":\"Profile gives his contact address at the Department of Nuclear Medicine, Inselspital, Bern University Hospital, CH-3010 Bern, matching the requested hospital (Bern University Hospital Inselspital).\"},{\"aspect\":\"department\",\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\",\"explanation\":\"Page states 'Since 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland', confirming the nuclear medicine specialty and role at the requested institution.\"},{\"aspect\":\"authority\",\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_4\",\"explanation\":\"The page is the official website of the Universitätsklinik für Nuklearmedizin, Inselspital, Universitätsspital Bern (footer: www.nukmed.insel.ch, Insel Gruppe AG), making it an authoritative source for the clinic's own leadership.\"}]}}",
+  "usage": {
+    "promptTokens": 6857,
+    "completionTokens": 420,
+    "reasoningTokens": 13,
+    "totalTokens": 7277
+  },
+  "gatewayRequestId": "req-458da9ff-d0c9-47f5-8a68-d197297d88a4"
+}

@@ -1,0 +1,1248 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_6903a0b399dc526436bb3612772eed8f",
+        "src_865a16c80bc39354dea294c6aaeb1f16"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "674ac2db160b0758cf97f1b3cfb39cc034e0f10615cdc661c5f4f40723694e6a",
+      "calls": 3,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Unexpected token '`', \"```json\n{\"\"... is not valid JSON",
+            "previous_response": "```json\n{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"他是 2026 年由 Elsevier 出版（据 DOI/ISSN 对应 The Lancet Regional Health – Europe）的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究为建模研究,估算欧盟及英国未来可接受放射配体治疗的患者规模。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"type\":\"representative_output\",\"text\":\"该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:其工作方向涉及帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"text\":\"与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究中 WifOR 部分由诺华资助。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"他的具体职位和职能是什么?\",\"answer\":\"他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"question\":\"与他工作最相关的研究成果是什么?\",\"answer\":\"他参与撰写了 2026 年由 Elsevier 出版的建模研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"question\":\"交流时哪些议题与他的职责最贴近?\",\"answer\":\"医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他所在团队还有哪些职能方向?\",\"answer\":\"该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他参与的研究有哪些资助背景?\",\"answer\":\"其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。\",\"该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。\"]}}\n```\n\n编辑说明（要点）：核实了职位、部门、研究署名与研究内容、资助关系、患者池数字均与来源一致；将期刊归属改为依据 DOI/ISSN（Elsevier / lanepe）的措辞而非直接断言；按要求未在 limitations 中重复已验证身份的第三方来源局限；未新增来源之外的事实。"
+          }
+        }
+      ],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "他是 2026 年发表于 The Lancet Regional Health – Europe(Elsevier)的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究估算欧盟及英国未来可接受放射配体治疗的患者规模,并评估医疗体系容量压力。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:他的工作方向是帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表在 The Lancet Regional Health – Europe 的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究由诺华资助(WifOR 部分)。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他的具体职位和职能是什么?",
+            "answer": "他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "与他工作最相关的研究成果是什么?",
+            "answer": "他参与撰写了 2026 年 The Lancet Regional Health – Europe 的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "交流时哪些议题与他的职责最贴近?",
+            "answer": "医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他所在团队还有哪些职能方向?",
+            "answer": "该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他参与的研究有哪些资助背景?",
+            "answer": "其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "其职位信息来自第三方组织架构目录（The Org,标注为 Unverified）,未能直接读取诺华官方或 LinkedIn/RocketReach 页面予以确认。",
+          "除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。",
+          "该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "他是 2026 年由 Elsevier 出版（据 DOI/ISSN 对应 The Lancet Regional Health – Europe）的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究为建模研究,估算欧盟及英国未来可接受放射配体治疗的患者规模。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:其工作方向涉及帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究中 WifOR 部分由诺华资助。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他的具体职位和职能是什么?",
+            "answer": "他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "与他工作最相关的研究成果是什么?",
+            "answer": "他参与撰写了 2026 年由 Elsevier 出版的建模研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "交流时哪些议题与他的职责最贴近?",
+            "answer": "医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他所在团队还有哪些职能方向?",
+            "answer": "该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。",
+            "citations": [
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他参与的研究有哪些资助背景?",
+            "answer": "其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。",
+            "citations": [
+              {
+                "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。",
+          "该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "04b9739c74faafc920df508899f9189f52d2e45569415d50754c4012a0c78377",
+      "searches": [
+        {
+          "query": "Leonhard Schaetz Novartis radioligand therapy",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://rocketreach.co/leonhard-schaetz-email_26985822",
+              "title": "Leonhard Schaetz Email & Phone Number | Novartis ...",
+              "snippet": "Leonhard Schaetz, based in Basel, BS, CH, is currently a International Head Health System Readiness and Partnership Radioligand Therapy (RLT) at Novartis."
+            },
+            {
+              "url": "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_im-happy-to-share-that-im-starting-a-new-activity-7112451875945209857-D1bo",
+              "title": "Leonhard Schaetz's Post",
+              "snippet": "I'm happy to share that I'm starting a new position as Global Head Health System Readiness & Partnership Radioligand Therapy (RLT) at Novartis!"
+            },
+            {
+              "url": "https://www.researchgate.net/scientific-contributions/Leonhard-Schaetz-2175061352",
+              "title": "Leonhard Schaetz's research works | Novartis, Basel and ...",
+              "snippet": "Leonhard Schaetz's 7 research items with 39 citations and 282 reads, including: Estimation of Future Patient Populations Eligible for Radioligand Therapies ..."
+            },
+            {
+              "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11372265/",
+              "title": "177Lu-PSMA (R)Evolution in Cancer Care: Is It Really ... - PMC",
+              "snippet": "Accessed July 18, 2024. 14. Novartis enters agreement to acquire Mariana Oncology, strengthening radioligand therapy pipeline. Novartis website."
+            },
+            {
+              "url": "https://www.sciencedirect.com/science/article/pii/S2666776226001456",
+              "title": "Estimation of Future Patient Populations Eligible for ...",
+              "snippet": "Radioligand therapy (RLT) is a field of precision oncology that utilises a radionuclide-labelled ligand specific to a molecule overexpressed on the surface ..."
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+              "title": "Radioligand Therapy Operations - Novartis",
+              "snippet": "Leonhard Schaetz. International Head Health System Readiness & Partnership Radioligand Therapy (RLT). Achille Carette. Director IT Product Management Advanced ..."
+            },
+            {
+              "url": "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_novartispavilion-rlt-novartispavilion-activity-7183356693227933696-_xQz",
+              "title": "Leonhard Schaetz's Post",
+              "snippet": "Radioligand Therapy #RLT as new treatment modality is emerging as potential game changer for patients living with cancer. More than 200 ..."
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079",
+              "title": "Estimation of future patient populations eligible for radioligand ...",
+              "snippet": "Background The eligible patient population for radioligand therapies (RLTs) has the potential to grow rapidly in the coming years."
+            },
+            {
+              "url": "https://podcasts.apple.com/us/podcast/healthcare-systems-readiness-what-is-limiting-the-rlt/id1755022423?i=1000666945843",
+              "title": "Healthcare Systems Readiness: … - JNM Podcast",
+              "snippet": "Radioligand therapy (RLT) targets cancer cells with radiation while minimizing impact on surrounding healthy tissue."
+            },
+            {
+              "url": "https://jnm.snmjournals.org/content/jnumed/early/2024/08/08/jnumed.124.267951.full.pdf",
+              "title": "177Lu-PSMA (R)Evolution in Cancer Care",
+              "snippet": "For correspondence or reprints, contact Leonhard Schaetz (leonhard. schaetz@novartis.com). Published online Aug. 8, 2024. Immediate Open ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+          "url": "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+          "title": "Novartis - Radioligand Therapy Operations | The Org",
+          "accessedAt": "2026-09-11T00:20:46.404Z",
+          "contentSha256": "fb524e15a86c2201a5140e7d15b0d287fd1ca5e1fb2c0171ed5bb55f7a338750",
+          "untrustedText": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTommaso Messeri\nHead, RLT International Drug Product Operations\nTS\nTherese Stachyra\nSenior Investigator, RLT Oncology\nLM\nLisa Morganti\nAD Radioligand Therapy (RLT) HCS Patient Pathways & Partnerships\nKevin Popp\nOncology Specialist - RLT\nMA\nMarina Emilia Garcia Allievi\nTeam Head RLT Clinical Supply Management (Radio ligand therapies)\nJobs ( 0 )\nNo jobs in this team\nOther teams\nView all teams\nQuality Assurance\n265 people · 0 jobs\n99+\nResearch and Development\n247 people · 0 jobs\n99+\nResearch Sciences\n240 people · 0 jobs\nMM\nAB\n99+\nManagement Operations\n188 people · 0 jobs\n99+\nSales Department\n152 people · 0 jobs\nDG\n99+\nScientific Research\n115 people · 0 jobs\nGM\nCK\n99+\nCompany\nAbout Contact Blog\nBusiness\nSolutions Trust Pricing\nDirectory\nCompanies\nFeatures\nEmployer Branding Professional Networking Job Discovery\nSocial\n© 2026 Orgio, Inc.\nTerms\nPrivacy\nDo not sell my info",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://theorg.com/pricing",
+              "text": "Pricing"
+            },
+            {
+              "url": "https://theorg.com/login",
+              "text": "Log in"
+            },
+            {
+              "url": "https://theorg.com/signup",
+              "text": "Sign up"
+            },
+            {
+              "url": "https://theorg.com/org/novartis",
+              "text": "Novartis"
+            },
+            {
+              "url": "https://theorg.com/org/novartis",
+              "text": "Teams"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/quality-assurance",
+              "text": "Quality Assurance 265 people · 0 jobs 99+"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/research-and-development",
+              "text": "Research and Development 247 people · 0 jobs 99+"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/research-sciences",
+              "text": "Research Sciences 240 people · 0 jobs MM AB 99+"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/management-operations",
+              "text": "Management Operations 188 people · 0 jobs 99+"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/sales-department",
+              "text": "Sales Department 152 people · 0 jobs DG 99+"
+            },
+            {
+              "url": "https://theorg.com/org/novartis/teams/scientific-research",
+              "text": "Scientific Research 115 people · 0 jobs GM CK 99+"
+            },
+            {
+              "url": "https://theorg.com/about",
+              "text": "About"
+            },
+            {
+              "url": "https://theorg.com/contact",
+              "text": "Contact"
+            },
+            {
+              "url": "https://blog.theorg.com/",
+              "text": "Blog"
+            },
+            {
+              "url": "https://theorg.com/solutions",
+              "text": "Solutions"
+            },
+            {
+              "url": "https://theorg.com/trust",
+              "text": "Trust"
+            },
+            {
+              "url": "https://theorg.com/pricing",
+              "text": "Pricing"
+            },
+            {
+              "url": "https://theorg.com/companies",
+              "text": "Companies"
+            },
+            {
+              "url": "https://theorg.com/employer-branding",
+              "text": "Employer Branding"
+            },
+            {
+              "url": "https://theorg.com/professional-networking",
+              "text": "Professional Networking"
+            },
+            {
+              "url": "https://theorg.com/job-discovery",
+              "text": "Job Discovery"
+            },
+            {
+              "url": "https://theorg.com/terms",
+              "text": "Terms"
+            },
+            {
+              "url": "https://theorg.com/privacy",
+              "text": "Privacy"
+            },
+            {
+              "url": "https://theorg.com/do-not-sell",
+              "text": "Do not sell my info"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+          "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079",
+          "title": "JRC Publications",
+          "accessedAt": "2026-09-11T00:21:06.145Z",
+          "contentSha256": "f17d2b76626c52809b920588deae89e1342720950e7a43b85d9ed263e268d4c9",
+          "untrustedText": "JRC Publications\nView author publications\nheader.html\nAn official website of the European Union\nHow do you know?\nAll official European Union website addresses are in the europa.eu domain.\nSee all EU institutions and bodies\nLogin\nEuropean Commission staff only\nJRC Publications\nMenu\nMenu\nClose\nHome\nSearch\nJoint Research Centre\nHelp\nEuropean Commission\n>\nJoint Research Centre\n>\nJRC Publications\n>\nHome\nhandle.jsp\nEstimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study\nBackground\nThe eligible patient population for radioligand therapies (RLTs) has the potential to grow rapidly in the coming years. European healthcare systems may be ill-prepared to provide the additional treatment capacity required on top of current workload. To address this challenge, data on the size of the eligible patient pool and the potential utilisation of RLTs are needed.\nMethods\nThe maximum pool of patients theoretically eligible for RLTs over the next decade was estimated for the 27 EU member states (EU-27) using incidence data, and additionally for France, Germany, Italy, Spain (EU-4) and the UK using prevalence data. Conditions for which RLT are currently authorised, potential expansions of existing authorisations to earlier disease stages, and anticipated authorisations for products in development were analysed.\nFindings\nBetween 2025 and 2035 in the EU-27, the patient pool theoretically eligible for RLTs could increase from 11,000 to 13,000 to approximately 130,000–180,000. A scenario based on preliminary utilisation data suggests that, in the EU-4, 17,000–35,000 patients from this pool could be treated in 2030, increasing to approximately 37,000 patients by 2035.\nInterpretation\nThe expected uptake of RLTs in EU healthcare systems over the coming decade may overwhelm available treatment capacity, even in countries with well-developed nuclear medicine infrastructure. Efforts across all EU countries will be required to ensure adequate patient access to RLTs and to minimise health inequalities in cancer care.\nFunding\nResearch by WifOR was funded by Novartis Pharma AG. JRC research was covered by the European Commission’s Research Framework Programmes budget.\nHOLZWARTH Uwe;\nCIRILLO Roberta;\nGOULART Margarida;\nHERNANDEZ Diego;\nPERISTERIS Platon;\nPOSCHENRIEDER Andreas;\nPAPAIOANNOU Panagiota;\nKANAVOS Panos;\nLA FOUGERE Christian;\nLEONHARD Schaetz;\n2026-06-08\nELSEVIER LTD.\nJRC143079\n2666-7762 (online),\nhttps://www.sciencedirect.com/science/article/pii/S2666776226001456,\nhttps://publications.jrc.ec.europa.eu/repository/handle/JRC143079,\n10.1016/j.lanepe.2026.101733 (online),\nName | Country | City | Type |\nThis document is only visible at the Commission level.\nYou are not authorized to publish or distribute it outside the European Commission.\nThis is a public document. You can share this publication.\nDatasets\nID | Title | Public URL |\nDataset collections\nID | Acronym | Title | Public URL |\nScripts / source codes\nDescription | Public URL |\nAdditional supporting files\nFile name | Description | File type | |\nShow metadata record\nCopy citation url to clipboard\nDownload BibTeX\nShare this page\nX\nFacebook\nLinkedin\nE-mail\nfooter.html\nJRC Publications\nThis site is managed by:\nJoint Research Centre\nAccessibility\nContact us\nContact JRC Publications\nAbout us\nAbout page\nContact the European Commission\nFollow the European Commission on social media\nResources for partners\nLanguage policy\nCookies\nPrivacy statement (JRC Publications)\nLegal notice\nSitemap",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://europa.eu/european-union/contact/institutions-bodies_en",
+              "text": "See all EU institutions and bodies"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/login",
+              "text": "Login"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/handle/",
+              "text": "Menu"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/handle/",
+              "text": "Close"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/home",
+              "text": "Home"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/search",
+              "text": "Search"
+            },
+            {
+              "url": "https://joint-research-centre.ec.europa.eu/",
+              "text": "Joint Research Centre"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/help",
+              "text": "Help"
+            },
+            {
+              "url": "https://joint-research-centre.ec.europa.eu/",
+              "text": "Joint Research Centre"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository",
+              "text": "JRC Publications"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079?mode=full",
+              "text": "Show metadata record"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/example",
+              "text": "X"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/example",
+              "text": "Facebook"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/example",
+              "text": "Linkedin"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/example",
+              "text": "E-mail"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/home",
+              "text": "JRC Publications"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/handle/accessibility",
+              "text": "Accessibility"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/about",
+              "text": "About page"
+            },
+            {
+              "url": "https://ec.europa.eu/info/about-european-commission/contact_en",
+              "text": "Contact the European Commission"
+            },
+            {
+              "url": "https://europa.eu/european-union/contact/social-networks_en",
+              "text": "Follow the European Commission on social media"
+            },
+            {
+              "url": "https://ec.europa.eu/info/resources-partners_en",
+              "text": "Resources for partners"
+            },
+            {
+              "url": "https://ec.europa.eu/info/language-policy_en",
+              "text": "Language policy"
+            },
+            {
+              "url": "https://ec.europa.eu/info/cookies_en",
+              "text": "Cookies"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/assets/JPR_privacy_statement.pdf",
+              "text": "Privacy statement (JRC Publications)"
+            },
+            {
+              "url": "https://ec.europa.eu/info/legal-notice_en",
+              "text": "Legal notice"
+            },
+            {
+              "url": "https://publications.jrc.ec.europa.eu/repository/gsmap",
+              "text": "Sitemap"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://theorg.com/org/novartis/teams/radioligand-therapy-operations": "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+        "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079"
+      },
+      "pageRequests": 8,
+      "modelCalls": 8,
+      "allowedUrls": [
+        "https://rocketreach.co/leonhard-schaetz-email_26985822",
+        "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_im-happy-to-share-that-im-starting-a-new-activity-7112451875945209857-D1bo",
+        "https://www.researchgate.net/scientific-contributions/Leonhard-Schaetz-2175061352",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC11372265/",
+        "https://www.sciencedirect.com/science/article/pii/S2666776226001456",
+        "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+        "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_novartispavilion-rlt-novartispavilion-activity-7183356693227933696-_xQz",
+        "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079",
+        "https://podcasts.apple.com/us/podcast/healthcare-systems-readiness-what-is-limiting-the-rlt/id1755022423?i=1000666945843",
+        "https://jnm.snmjournals.org/content/jnumed/early/2024/08/08/jnumed.124.267951.full.pdf"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "Leonhard Schaetz Novartis radioligand therapy",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://rocketreach.co/leonhard-schaetz-email_26985822",
+                "title": "Leonhard Schaetz Email & Phone Number | Novartis ...",
+                "snippet": "Leonhard Schaetz, based in Basel, BS, CH, is currently a International Head Health System Readiness and Partnership Radioligand Therapy (RLT) at Novartis."
+              },
+              {
+                "url": "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_im-happy-to-share-that-im-starting-a-new-activity-7112451875945209857-D1bo",
+                "title": "Leonhard Schaetz's Post",
+                "snippet": "I'm happy to share that I'm starting a new position as Global Head Health System Readiness & Partnership Radioligand Therapy (RLT) at Novartis!"
+              },
+              {
+                "url": "https://www.researchgate.net/scientific-contributions/Leonhard-Schaetz-2175061352",
+                "title": "Leonhard Schaetz's research works | Novartis, Basel and ...",
+                "snippet": "Leonhard Schaetz's 7 research items with 39 citations and 282 reads, including: Estimation of Future Patient Populations Eligible for Radioligand Therapies ..."
+              },
+              {
+                "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11372265/",
+                "title": "177Lu-PSMA (R)Evolution in Cancer Care: Is It Really ... - PMC",
+                "snippet": "Accessed July 18, 2024. 14. Novartis enters agreement to acquire Mariana Oncology, strengthening radioligand therapy pipeline. Novartis website."
+              },
+              {
+                "url": "https://www.sciencedirect.com/science/article/pii/S2666776226001456",
+                "title": "Estimation of Future Patient Populations Eligible for ...",
+                "snippet": "Radioligand therapy (RLT) is a field of precision oncology that utilises a radionuclide-labelled ligand specific to a molecule overexpressed on the surface ..."
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+                "title": "Radioligand Therapy Operations - Novartis",
+                "snippet": "Leonhard Schaetz. International Head Health System Readiness & Partnership Radioligand Therapy (RLT). Achille Carette. Director IT Product Management Advanced ..."
+              },
+              {
+                "url": "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_novartispavilion-rlt-novartispavilion-activity-7183356693227933696-_xQz",
+                "title": "Leonhard Schaetz's Post",
+                "snippet": "Radioligand Therapy #RLT as new treatment modality is emerging as potential game changer for patients living with cancer. More than 200 ..."
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079",
+                "title": "Estimation of future patient populations eligible for radioligand ...",
+                "snippet": "Background The eligible patient population for radioligand therapies (RLTs) has the potential to grow rapidly in the coming years."
+              },
+              {
+                "url": "https://podcasts.apple.com/us/podcast/healthcare-systems-readiness-what-is-limiting-the-rlt/id1755022423?i=1000666945843",
+                "title": "Healthcare Systems Readiness: … - JNM Podcast",
+                "snippet": "Radioligand therapy (RLT) targets cancer cells with radiation while minimizing impact on surrounding healthy tissue."
+              },
+              {
+                "url": "https://jnm.snmjournals.org/content/jnumed/early/2024/08/08/jnumed.124.267951.full.pdf",
+                "title": "177Lu-PSMA (R)Evolution in Cancer Care",
+                "snippet": "For correspondence or reprints, contact Leonhard Schaetz (leonhard. schaetz@novartis.com). Published online Aug. 8, 2024. Immediate Open ..."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "title": "Novartis - Radioligand Therapy Operations | The Org",
+            "offset": 0,
+            "total_characters": 2075,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "mmaso Messeri\nHead, RLT International Drug Product Operations\nTS\nTherese Stachyra\nSenior Investigator, RLT Oncology\nLM\nLisa Morganti\nAD Radioligand Therapy (RLT) HCS Patient Pathways & Partnerships\nKevin Popp\nOncology Specialist - RLT\nMA\nMarina Emilia Garcia Allievi\nTeam Head RLT Clinical Supply Management (Radio ligand therapies)\nJobs ( 0 )\nNo jobs in this team\nOther teams\nView all teams\nQuality Assurance\n265 people · 0 jobs\n99+\nResearch and Development\n247 people · 0 jobs\n99+\nResearch Sciences\n240 people · 0 jobs\nMM\nAB\n99+\nManagement Operations\n188 people · 0 jobs\n99+\nSales Department\n152 people · 0 jobs\nDG\n99+\nScientific Research\n115 people · 0 jobs\nGM\nCK\n99+\nCompany\nAbout Contact Blog\nBusiness\nSolutions Trust Pricing\nDirectory\nCompanies\nFeatures\nEmployer Branding Professional Networking Job Discovery\nSocial\n© 2026 Orgio, Inc.\nTerms\nPrivacy\nDo not sell my info"
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://theorg.com/org/novartis/teams/radioligand-therapy-operations",
+            "links": [
+              {
+                "url": "https://theorg.com/pricing",
+                "text": "Pricing"
+              },
+              {
+                "url": "https://theorg.com/login",
+                "text": "Log in"
+              },
+              {
+                "url": "https://theorg.com/signup",
+                "text": "Sign up"
+              },
+              {
+                "url": "https://theorg.com/org/novartis",
+                "text": "Novartis"
+              },
+              {
+                "url": "https://theorg.com/org/novartis",
+                "text": "Teams"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/quality-assurance",
+                "text": "Quality Assurance 265 people · 0 jobs 99+"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/research-and-development",
+                "text": "Research and Development 247 people · 0 jobs 99+"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/research-sciences",
+                "text": "Research Sciences 240 people · 0 jobs MM AB 99+"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/management-operations",
+                "text": "Management Operations 188 people · 0 jobs 99+"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/sales-department",
+                "text": "Sales Department 152 people · 0 jobs DG 99+"
+              },
+              {
+                "url": "https://theorg.com/org/novartis/teams/scientific-research",
+                "text": "Scientific Research 115 people · 0 jobs GM CK 99+"
+              },
+              {
+                "url": "https://theorg.com/about",
+                "text": "About"
+              },
+              {
+                "url": "https://theorg.com/contact",
+                "text": "Contact"
+              },
+              {
+                "url": "https://blog.theorg.com/",
+                "text": "Blog"
+              },
+              {
+                "url": "https://theorg.com/solutions",
+                "text": "Solutions"
+              },
+              {
+                "url": "https://theorg.com/trust",
+                "text": "Trust"
+              },
+              {
+                "url": "https://theorg.com/pricing",
+                "text": "Pricing"
+              },
+              {
+                "url": "https://theorg.com/companies",
+                "text": "Companies"
+              },
+              {
+                "url": "https://theorg.com/employer-branding",
+                "text": "Employer Branding"
+              },
+              {
+                "url": "https://theorg.com/professional-networking",
+                "text": "Professional Networking"
+              },
+              {
+                "url": "https://theorg.com/job-discovery",
+                "text": "Job Discovery"
+              },
+              {
+                "url": "https://theorg.com/terms",
+                "text": "Terms"
+              },
+              {
+                "url": "https://theorg.com/privacy",
+                "text": "Privacy"
+              },
+              {
+                "url": "https://theorg.com/do-not-sell",
+                "text": "Do not sell my info"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 24
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11372265/",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://jnm.snmjournals.org/content/jnumed/early/2024/08/08/jnumed.124.267951.full.pdf",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://rocketreach.co/leonhard-schaetz-email_26985822",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.researchgate.net/scientific-contributions/Leonhard-Schaetz-2175061352",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.sciencedirect.com/science/article/pii/S2666776226001456",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "url_not_discovered",
+          "result": "Use a URL from a search result, supplied input or actual page link. Do not invent URLs."
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+            "title": "JRC Publications",
+            "offset": 0,
+            "total_characters": 3523,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "JRC Publications\nView author publications\nheader.html\nAn official website of the European Union\nHow do you know?\nAll official European Union website addresses are in the europa.eu domain.\nSee all EU institutions and bodies\nLogin\nEuropean Commission staff only\nJRC Publications\nMenu\nMenu\nClose\nHome\nSearch\nJoint Research Centre\nHelp\nEuropean Commission\n>\nJoint Research Centre\n>\nJRC Publications\n>\nHome\nhandle.jsp\nEstimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study\nBackground\nThe eligible patient population for radioligand therapies (RLTs) has the potential to grow rapidly in the coming years. European healthcare systems may be ill-prepared to provide the additional treatment capacity required on top of current workload. To address this challenge, data on the size of the eligible patient pool and the potential utilisation of RLTs are needed.\nMethods\nThe maximum pool of patients theoretically eligible for RLTs over the next decade was estimated for the 27 EU member states (EU-27) using incidence data, and additionally for France, Germany, Italy, Spain (EU-4) and the UK using prevalence data. Conditions for which RLT are curr"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "ently authorised, potential expansions of existing authorisations to earlier disease stages, and anticipated authorisations for products in development were analysed.\nFindings\nBetween 2025 and 2035 in the EU-27, the patient pool theoretically eligible for RLTs could increase from 11,000 to 13,000 to approximately 130,000–180,000. A scenario based on preliminary utilisation data suggests that, in the EU-4, 17,000–35,000 patients from this pool could be treated in 2030, increasing to approximately 37,000 patients by 2035.\nInterpretation\nThe expected uptake of RLTs in EU healthcare systems over the coming decade may overwhelm available treatment capacity, even in countries with well-developed nuclear medicine infrastructure. Efforts across all EU countries will be required to ensure adequate patient access to RLTs and to minimise health inequalities in cancer care.\nFunding\nResearch by WifOR was funded by Novartis Pharma AG. JRC research was covered by the European Commission’s Research Framework Programmes budget.\nHOLZWARTH Uwe;\nCIRILLO Roberta;\nGOULART Margarida;\nHERNANDEZ Diego;\nPERISTERIS Platon;\nPOSCHENRIEDER Andreas;\nPAPAIOANNOU Panagiota;\nKANAVOS Panos;\nLA FOUGERE Christian;\nLEO"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "NHARD Schaetz;\n2026-06-08\nELSEVIER LTD.\nJRC143079\n2666-7762 (online),\nhttps://www.sciencedirect.com/science/article/pii/S2666776226001456,\nhttps://publications.jrc.ec.europa.eu/repository/handle/JRC143079,\n10.1016/j.lanepe.2026.101733 (online),\nName | Country | City | Type |\nThis document is only visible at the Commission level.\nYou are not authorized to publish or distribute it outside the European Commission.\nThis is a public document. You can share this publication.\nDatasets\nID | Title | Public URL |\nDataset collections\nID | Acronym | Title | Public URL |\nScripts / source codes\nDescription | Public URL |\nAdditional supporting files\nFile name | Description | File type | |\nShow metadata record\nCopy citation url to clipboard\nDownload BibTeX\nShare this page\nX\nFacebook\nLinkedin\nE-mail\nfooter.html\nJRC Publications\nThis site is managed by:\nJoint Research Centre\nAccessibility\nContact us\nContact JRC Publications\nAbout us\nAbout page\nContact the European Commission\nFollow the European Commission on social media\nResources for partners\nLanguage policy\nCookies\nPrivacy statement (JRC Publications)\nLegal notice\nSitemap"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079",
+            "links": [
+              {
+                "url": "https://europa.eu/european-union/contact/institutions-bodies_en",
+                "text": "See all EU institutions and bodies"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/login",
+                "text": "Login"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/handle/",
+                "text": "Menu"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/handle/",
+                "text": "Close"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/home",
+                "text": "Home"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/search",
+                "text": "Search"
+              },
+              {
+                "url": "https://joint-research-centre.ec.europa.eu/",
+                "text": "Joint Research Centre"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/help",
+                "text": "Help"
+              },
+              {
+                "url": "https://joint-research-centre.ec.europa.eu/",
+                "text": "Joint Research Centre"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository",
+                "text": "JRC Publications"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/handle/JRC143079?mode=full",
+                "text": "Show metadata record"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/example",
+                "text": "X"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/example",
+                "text": "Facebook"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/example",
+                "text": "Linkedin"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/example",
+                "text": "E-mail"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/home",
+                "text": "JRC Publications"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/handle/accessibility",
+                "text": "Accessibility"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/about",
+                "text": "About page"
+              },
+              {
+                "url": "https://ec.europa.eu/info/about-european-commission/contact_en",
+                "text": "Contact the European Commission"
+              },
+              {
+                "url": "https://europa.eu/european-union/contact/social-networks_en",
+                "text": "Follow the European Commission on social media"
+              },
+              {
+                "url": "https://ec.europa.eu/info/resources-partners_en",
+                "text": "Resources for partners"
+              },
+              {
+                "url": "https://ec.europa.eu/info/language-policy_en",
+                "text": "Language policy"
+              },
+              {
+                "url": "https://ec.europa.eu/info/cookies_en",
+                "text": "Cookies"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/assets/JPR_privacy_statement.pdf",
+                "text": "Privacy statement (JRC Publications)"
+              },
+              {
+                "url": "https://ec.europa.eu/info/legal-notice_en",
+                "text": "Legal notice"
+              },
+              {
+                "url": "https://publications.jrc.ec.europa.eu/repository/gsmap",
+                "text": "Sitemap"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 26
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.linkedin.com/posts/leonhard-schaetz-ab1a64a_im-happy-to-share-that-im-starting-a-new-activity-7112451875945209857-D1bo",
+            "kind": "transport_or_source_error"
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "Leonhard Schaetz",
+        "institution": "Novartis",
+        "department": "Radioligand Therapy Operations — International Head Health System Readiness & Partnership Radioligand Therapy (RLT)",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The Novartis Radioligand Therapy Operations team directory lists 'Leonhard Schaetz' with the role 'International Head Health System Readiness & Partnership Radioligand Therapy (RLT)', establishing the person and his role within Novartis's radioligand therapy function."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The same directory entry places Leonhard Schaetz within the 'Novartis' organization's 'Radioligand Therapy Operations' team, supporting the requested hospital/company (诺华 = Novartis)."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The page describes the team as focused on 'the management, strategy, and operational aspects of radioligand therapy products and partnerships', confirming the requested radioligand therapy department (放射配体治疗部门) placement."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+            "quote": "ently authorised, potential expansions of existing authorisations to earlier disease stages, and anticipated authorisations for products in development were analysed.\nFindings\nBetween 2025 and 2035 in the EU-27, the patient pool theoretically eligible for RLTs could increase from 11,000 to 13,000 to approximately 130,000–180,000. A scenario based on preliminary utilisation data suggests that, in the EU-4, 17,000–35,000 patients from this pool could be treated in 2030, increasing to approximately 37,000 patients by 2035.\nInterpretation\nThe expected uptake of RLTs in EU healthcare systems over the coming decade may overwhelm available treatment capacity, even in countries with well-developed nuclear medicine infrastructure. Efforts across all EU countries will be required to ensure adequate patient access to RLTs and to minimise health inequalities in cancer care.\nFunding\nResearch by WifOR was funded by Novartis Pharma AG. JRC research was covered by the European Commission’s Research Framework Programmes budget.\nHOLZWARTH Uwe;\nCIRILLO Roberta;\nGOULART Margarida;\nHERNANDEZ Diego;\nPERISTERIS Platon;\nPOSCHENRIEDER Andreas;\nPAPAIOANNOU Panagiota;\nKANAVOS Panos;\nLA FOUGERE Christian;\nLEO",
+            "explanation": "The JRC (European Commission Joint Research Centre) publication record for 'Estimation of future patient populations eligible for radioligand therapies in the EU and the UK' lists 'LEONHARD Schaetz' among the authors and states 'Research by WifOR was funded by Novartis Pharma AG', independently corroborating Leonhard Schaetz's involvement in Novartis-linked radioligand therapy research."
+          }
+        ],
+        "limitations": [
+          "Novartis-specific employment affiliation confirmed via an unverified third-party org chart (The Org) and a Novartis-funded publication author listing; the RocketReach and LinkedIn confirmations could not be read directly due to access errors."
+        ]
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "9c5785360dde1ced2efbbe62120375284e8d9d3e47e2616301b5789ceb81abe3"
+        },
+        {
+          "kind": "review",
+          "sha256": "007e477d368847360ae121f8c35b00285205016dcba233f95dc497262c9ff35d"
+        },
+        {
+          "kind": "questions",
+          "sha256": "82064c3578057885797b98f45a8c7eed98d5805dcaf65eda4a3c931bf5998270"
+        },
+        {
+          "kind": "answers",
+          "sha256": "5c24463c4d3b72a70a2bd877428511594fbca1cad9832ddb5339d3ecd40a4937"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 2,
+      "discovered_source_count": 10,
+      "fetched_source_count": 2,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_6903a0b399dc526436bb3612772eed8f",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_865a16c80bc39354dea294c6aaeb1f16",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 8,
+        "model_calls_reserved": 8,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The Novartis Radioligand Therapy Operations team directory lists 'Leonhard Schaetz' with the role 'International Head Health System Readiness & Partnership Radioligand Therapy (RLT)', establishing the person and his role within Novartis's radioligand therapy function."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The same directory entry places Leonhard Schaetz within the 'Novartis' organization's 'Radioligand Therapy Operations' team, supporting the requested hospital/company (诺华 = Novartis)."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_6903a0b399dc526436bb3612772eed8f",
+            "quote": "Novartis - Radioligand Therapy Operations | The Org\nPlatform\nEnrich\nPricing\nLog in Sign up\nNovartis\nFollow\nTeams\nRadioligand Therapy Operations\nUnverified\nRadioligand Therapy Operations\n17 people · 0 jobs\nThis department focuses on the management, strategy, and operational aspects of radioligand therapy products and partnerships.\nPeople ( 17 )\nAida Ortola\nDirector, International - Prostate Cancer, RLT\nHeather Curry\nRegional Medical Director-Radioligand Therapy\nMelanie Tunis\nSenior scientist oncology RLT\nAlyssa Wagner\nAssociate Director, Radioligand Therapy Specialist\nAnteneh Tesfaye\nMedical Director for Radioligand therapies (RLT)\nDariusz Brenski\nInternational Medical Affairs Director, RLT (Radioligand Therapy)\nHT\nHirokazu Tsutsui\nSenior RLT Healthcare System Lead / Radio Ligand Therapy Business\nSteven K.\nAssociate Director, Radioligand Therapy Specialist\nBS\nBeejal Shah\nHead Of Commercial Finance: Oncology And Radioligand Therapy (rlt)\nMartina Scionti\nGlobal Head of Supply Chain, Radioligand Therapy (RLT) Platform\nLeonhard Schaetz\nInternational Head Health System Readiness & Partnership Radioligand Therapy (RLT)\nAchille Carette\nDirector IT Product Management Advanced Therapy RLT\nTo",
+            "explanation": "The page describes the team as focused on 'the management, strategy, and operational aspects of radioligand therapy products and partnerships', confirming the requested radioligand therapy department (放射配体治疗部门) placement."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_865a16c80bc39354dea294c6aaeb1f16",
+            "quote": "ently authorised, potential expansions of existing authorisations to earlier disease stages, and anticipated authorisations for products in development were analysed.\nFindings\nBetween 2025 and 2035 in the EU-27, the patient pool theoretically eligible for RLTs could increase from 11,000 to 13,000 to approximately 130,000–180,000. A scenario based on preliminary utilisation data suggests that, in the EU-4, 17,000–35,000 patients from this pool could be treated in 2030, increasing to approximately 37,000 patients by 2035.\nInterpretation\nThe expected uptake of RLTs in EU healthcare systems over the coming decade may overwhelm available treatment capacity, even in countries with well-developed nuclear medicine infrastructure. Efforts across all EU countries will be required to ensure adequate patient access to RLTs and to minimise health inequalities in cancer care.\nFunding\nResearch by WifOR was funded by Novartis Pharma AG. JRC research was covered by the European Commission’s Research Framework Programmes budget.\nHOLZWARTH Uwe;\nCIRILLO Roberta;\nGOULART Margarida;\nHERNANDEZ Diego;\nPERISTERIS Platon;\nPOSCHENRIEDER Andreas;\nPAPAIOANNOU Panagiota;\nKANAVOS Panos;\nLA FOUGERE Christian;\nLEO",
+            "explanation": "The JRC (European Commission Joint Research Centre) publication record for 'Estimation of future patient populations eligible for radioligand therapies in the EU and the UK' lists 'LEONHARD Schaetz' among the authors and states 'Research by WifOR was funded by Novartis Pharma AG', independently corroborating Leonhard Schaetz's involvement in Novartis-linked radioligand therapy research."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "774c12c7defee5f592c53590d6010eba7836e308944b6f034140d7ef80f3cf81",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "62d7bc5fa643052d41f064f120f268908b7fb29e1a660c3a718b13c99c204ab7",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"他是 2026 年发表于 The Lancet Regional Health – Europe(Elsevier)的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究估算欧盟及英国未来可接受放射配体治疗的患者规模,并评估医疗体系容量压力。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"type\":\"representative_output\",\"text\":\"该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:他的工作方向是帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"text\":\"与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表在 The Lancet Regional Health – Europe 的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究由诺华资助(WifOR 部分)。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"他的具体职位和职能是什么?\",\"answer\":\"他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"question\":\"与他工作最相关的研究成果是什么?\",\"answer\":\"他参与撰写了 2026 年 The Lancet Regional Health – Europe 的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"question\":\"交流时哪些议题与他的职责最贴近?\",\"answer\":\"医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]},{\"question\":\"他所在团队还有哪些职能方向?\",\"answer\":\"该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他参与的研究有哪些资助背景?\",\"answer\":\"其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"其职位信息来自第三方组织架构目录（The Org,标注为 Unverified）,未能直接读取诺华官方或 LinkedIn/RocketReach 页面予以确认。\",\"除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。\",\"该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。\"]}",
+            "gatewayRequestId": "req-4a0d0d5b-7118-432f-a6fa-f901ffcd5999",
+            "usage": {
+              "promptTokens": 5544,
+              "completionTokens": 1751,
+              "reasoningTokens": 127,
+              "totalTokens": 7295
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "b92bf3082756a1b8775b55dd3c89f88ed0b0e35979833681d960e66cfbdbe9b8",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "8278d008ebe26b1169959b765ea96fde94cbc679ebc34c0cb3ec28b59ffd117a",
+          "response": {
+            "text": "```json\n{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"他是 2026 年由 Elsevier 出版（据 DOI/ISSN 对应 The Lancet Regional Health – Europe）的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究为建模研究,估算欧盟及英国未来可接受放射配体治疗的患者规模。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"type\":\"representative_output\",\"text\":\"该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:其工作方向涉及帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"text\":\"与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究中 WifOR 部分由诺华资助。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"他的具体职位和职能是什么?\",\"answer\":\"他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"question\":\"与他工作最相关的研究成果是什么?\",\"answer\":\"他参与撰写了 2026 年由 Elsevier 出版的建模研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"question\":\"交流时哪些议题与他的职责最贴近?\",\"answer\":\"医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他所在团队还有哪些职能方向?\",\"answer\":\"该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他参与的研究有哪些资助背景?\",\"answer\":\"其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。\",\"该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。\"]}}\n```\n\n编辑说明（要点）：核实了职位、部门、研究署名与研究内容、资助关系、患者池数字均与来源一致；将期刊归属改为依据 DOI/ISSN（Elsevier / lanepe）的措辞而非直接断言；按要求未在 limitations 中重复已验证身份的第三方来源局限；未新增来源之外的事实。",
+            "gatewayRequestId": "req-d58bdbdc-191e-46a3-91f7-5cf0036788ef",
+            "usage": {
+              "promptTokens": 5711,
+              "completionTokens": 1808,
+              "reasoningTokens": 138,
+              "totalTokens": 7519
+            }
+          }
+        },
+        {
+          "inputSha256": "4aefd974ce26b6b911d6e0d418452a2511075bfae1e94748a423122fbc5c128f",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Leonhard Schaetz 在诺华（Novartis）放射配体治疗（RLT）运营团队担任 International Head Health System Readiness & Partnership Radioligand Therapy（RLT）,即国际医疗卫生体系准备与合作伙伴关系负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"其所在的诺华 Radioligand Therapy Operations 部门聚焦放射配体治疗产品的管理、战略与运营及合作伙伴关系,团队还包括国际医学事务、供应链、临床供应管理等方向的负责人。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"他是 2026 年由 Elsevier 出版（据 DOI/ISSN 对应 The Lancet Regional Health – Europe）的研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》的作者之一;该研究为建模研究,估算欧盟及英国未来可接受放射配体治疗的患者规模。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"type\":\"representative_output\",\"text\":\"该研究由欧洲委员会联合研究中心（JRC）与 WifOR 合作完成,其中 WifOR 部分由诺华制药（Novartis Pharma AG）资助;研究估计 2025–2035 年间 EU-27 理论上符合条件的 RLT 患者池可能从约 1.1万–1.3万 增至约 13万–18万。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"background\":[{\"text\":\"Leonhard Schaetz 是诺华放射配体治疗（RLT）运营团队的国际医疗卫生体系准备与合作伙伴关系负责人（International Head Health System Readiness & Partnership RLT）。这不是一个临床医生职位,而是企业运营与体系协作岗位:其工作方向涉及帮助各国医疗卫生体系为放射配体治疗的可及性、容量和落地做好准备,并与外部伙伴建立合作。其所在团队涵盖国际医学事务、供应链、临床供应管理、患者路径与合作伙伴关系等职能。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"text\":\"与其岗位主题相符,他是 2026 年 JRC 与 WifOR 合作发表的建模研究作者之一,该研究估算了 EU-27、EU-4 及英国未来十年符合 RLT 条件的患者池规模,并指出 RLT 的预期增长可能使现有治疗容量(即便在核医学基础设施较完善的国家)面临压力,需要各国协同努力以保障患者可及并减少肿瘤诊疗中的健康不平等。该研究中 WifOR 部分由诺华资助。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"他的具体职位和职能是什么?\",\"answer\":\"他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"}]},{\"question\":\"与他工作最相关的研究成果是什么?\",\"answer\":\"他参与撰写了 2026 年由 Elsevier 出版的建模研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_2\"}]},{\"question\":\"交流时哪些议题与他的职责最贴近?\",\"answer\":\"医疗卫生体系对 RLT 的准备度(核医学基础设施、治疗容量)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他所在团队还有哪些职能方向?\",\"answer\":\"该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。\",\"citations\":[{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_6903a0b399dc526436bb3612772eed8f\",\"passageId\":\"text_1\"}]},{\"question\":\"他参与的研究有哪些资助背景?\",\"answer\":\"其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。\",\"citations\":[{\"sourceId\":\"src_865a16c80bc39354dea294c6aaeb1f16\",\"passageId\":\"text_1\"}]}],\"limitations\":[\"除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。\",\"该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。\"]}}",
+            "gatewayRequestId": "req-90508e4c-e1ac-4151-a1b8-e73cdf77ef41",
+            "usage": {
+              "promptTokens": 7470,
+              "completionTokens": 1676,
+              "reasoningTokens": 83,
+              "totalTokens": 9146
+            }
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,236 @@
+{
+  "original": {
+    "name": "Iva Hristova",
+    "hospital": "欧洲核医学协会",
+    "department": "认证项目"
+  },
+  "result": {
+    "outcome": "failed",
+    "reason": "resource_budget_exceeded"
+  },
+  "elapsed_ms": 78578,
+  "serpapi_requests": 1,
+  "attempts": [
+    {
+      "lease_generation": 1,
+      "elapsed_ms": 78577,
+      "result": {
+        "outcome": "failed",
+        "reason": "resource_budget_exceeded"
+      }
+    }
+  ],
+  "diagnostic_replay": false,
+  "fresh_case_acceptance_eligible": true,
+  "legacy_calls": 0,
+  "model_requests": 8,
+  "renew_error": null,
+  "checked_artifacts": [],
+  "model_calls": [
+    {
+      "stage": "discover_identity",
+      "attempt": 1,
+      "elapsed_ms": 1519,
+      "gateway_request_id": "req-35055c89-8daa-490c-9309-c796a5c9527f",
+      "response_sha256": "e2de3ae582231154227c8fdec32d3c2fb3594ae2fa95664b6627daed35b35f14",
+      "usage": {
+        "promptTokens": 1231,
+        "completionTokens": 55,
+        "reasoningTokens": 13,
+        "totalTokens": 1286
+      },
+      "telemetry": {
+        "promptChars": 5820,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:26:50.817Z",
+        "clientTotalMs": 1518,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 2,
+      "elapsed_ms": 2343,
+      "gateway_request_id": "req-a8b30d83-d017-4dbf-b256-181ea1a05fe8",
+      "response_sha256": "97e2d7c034bf1e5db98e22be2a194bff9bed491befe5563f782509d77ec5b2b3",
+      "usage": {
+        "promptTokens": 1935,
+        "completionTokens": 113,
+        "reasoningTokens": 0,
+        "totalTokens": 2048
+      },
+      "telemetry": {
+        "promptChars": 8308,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:10.330Z",
+        "clientTotalMs": 2343,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 3,
+      "elapsed_ms": 3749,
+      "gateway_request_id": "req-4f4efad2-112e-4a1d-8c94-aedc680c2400",
+      "response_sha256": "ff69566a5fd2ca664736d040a70e45b5fccb84d7e5b6fbdf2088d7f51e54ad36",
+      "usage": {
+        "promptTokens": 5401,
+        "completionTokens": 165,
+        "reasoningTokens": 121,
+        "totalTokens": 5566
+      },
+      "telemetry": {
+        "promptChars": 21474,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:17.902Z",
+        "clientTotalMs": 3748,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 4,
+      "elapsed_ms": 2909,
+      "gateway_request_id": "req-0261df5f-02ba-4652-9498-f4356efb876c",
+      "response_sha256": "ce2d99449d5f532dc7306896d097a9a3d3d513e119fa4b5c73ddd09ee04cbcbf",
+      "usage": {
+        "promptTokens": 7768,
+        "completionTokens": 164,
+        "reasoningTokens": 103,
+        "totalTokens": 7932
+      },
+      "telemetry": {
+        "promptChars": 29393,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:24.312Z",
+        "clientTotalMs": 2908,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 5,
+      "elapsed_ms": 7107,
+      "gateway_request_id": "req-7fea7b0c-475e-440e-9cde-34cefdf08cdb",
+      "response_sha256": "2febe0c66a366dcc30316fa0aa92251defda5d3e88de3e5ef9e3c26762f41605",
+      "usage": {
+        "promptTokens": 10080,
+        "completionTokens": 565,
+        "reasoningTokens": 83,
+        "totalTokens": 10645
+      },
+      "telemetry": {
+        "promptChars": 37040,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:28.604Z",
+        "clientTotalMs": 7107,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "resolve_identity",
+      "attempt": 6,
+      "elapsed_ms": 5534,
+      "gateway_request_id": "req-23bea1e3-3d52-4203-83a3-0469e1014bcc",
+      "response_sha256": "b3dc6b5a34a9f4069cd492889d17efe1e9fc95059cc38c30c564bbd6dabd0c52",
+      "usage": {
+        "promptTokens": 4304,
+        "completionTokens": 274,
+        "reasoningTokens": 161,
+        "totalTokens": 4578
+      },
+      "telemetry": {
+        "promptChars": 19316,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:35.728Z",
+        "clientTotalMs": 5534,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 7,
+      "elapsed_ms": 8601,
+      "gateway_request_id": "req-719fc3bb-4acb-4908-ae4a-77efdcb6fe3e",
+      "response_sha256": "f2e5e0ce0ab06cfa70bfd103c7956d2ddc7beb3c6e12ba7f9f9a5d2006fa5eda",
+      "usage": {
+        "promptTokens": 10196,
+        "completionTokens": 499,
+        "reasoningTokens": 325,
+        "totalTokens": 10695
+      },
+      "telemetry": {
+        "promptChars": 37536,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:41.283Z",
+        "clientTotalMs": 8600,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    },
+    {
+      "stage": "discover_identity",
+      "attempt": 8,
+      "elapsed_ms": 10836,
+      "gateway_request_id": "req-7cad0aa8-c181-4326-b0d3-2e2298fdfd92",
+      "response_sha256": "4afc990a66e181efb5a7db0ab138cc315c6b94cd809768ac207a0ea835144ae1",
+      "usage": {
+        "promptTokens": 10316,
+        "completionTokens": 309,
+        "reasoningTokens": 180,
+        "totalTokens": 10625
+      },
+      "telemetry": {
+        "promptChars": 37960,
+        "maximumOutputTokens": 3000,
+        "admissionWaitMs": 0,
+        "requestSentAt": "2026-09-11T00:27:51.691Z",
+        "clientTotalMs": 10836,
+        "terminalSource": "provider_response",
+        "cancelRequested": false,
+        "cancelObserved": false
+      }
+    }
+  ],
+  "validation_failures": [],
+  "external_calls": [
+    {
+      "run_id": "drr_e0e08983246f409da758160269fb04f8",
+      "host": "serpapi.com",
+      "query_sha256": "57ee024ae8308a32825f3cf70ccdb27fdebc62169525d11bb09d247b593609bf",
+      "attempt": 1,
+      "duration_ms": 17977,
+      "outcome": "succeeded",
+      "http_status": 200,
+      "error_kind": null,
+      "search_id": "6aa34acd03610a2818689a1a"
+    }
+  ],
+  "budget_failures": [
+    {
+      "runId": "drr_e0e08983246f409da758160269fb04f8",
+      "limit": "identity_investigation"
+    }
+  ],
+  "public_api_or_admission_tested": false
+}

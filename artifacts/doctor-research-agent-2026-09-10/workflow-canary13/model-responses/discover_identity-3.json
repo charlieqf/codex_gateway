@@ -1,0 +1,10 @@
+{
+  "text": "{\"identity\":{\"name\":\"漆洪波\",\"institution\":\"重庆医科大学附属第一医院\",\"department\":\"副院长，主任医师、二级教授、博士生导师（妇产科/母胎医学方向）\",\"limitations\":[\"cqma.cn（重庆市医学会）页面将其列为重庆医科大学附属妇女儿童医院院长，此为兼任/既往职务，与请求的附属第一医院副院长职务的当前并存关系未由已读页面直接说明\"],\"citations\":[{\"aspect\":\"person\",\"sourceId\":\"src_d28f0e19a9eca412acb470d9bcca4700\",\"passageId\":\"text_0\",\"explanation\":\"会议平台专家页面明确列出姓名漆洪波及其在重庆医科大学附属第一医院的身份\"},{\"aspect\":\"institution\",\"sourceId\":\"src_d28f0e19a9eca412acb470d9bcca4700\",\"passageId\":\"text_0\",\"explanation\":\"该页面标题为“漆洪波-重庆医科大学附属第一医院”，正文注明其单位为重庆医科大学附属第一医院，确认与请求医院一致\"},{\"aspect\":\"department\",\"sourceId\":\"src_d28f0e19a9eca412acb470d9bcca4700\",\"passageId\":\"text_0\",\"explanation\":\"页面明确记载“重庆医科大学附属第一医院副院长，主任医师、二级教授、博士生导师”，并载明中华医学会围产医学分会主任委员、妇产科学分会副主任委员，与请求的副院长及妇产、母胎医学方向相符\"},{\"aspect\":\"authority\",\"sourceId\":\"src_e3b62ba7281aaf8aa4e543e8d8bc7aa2\",\"passageId\":\"text_0\",\"explanation\":\"重庆市医学会（其任主任委员的妇产科学分会所属学会）官方页面独立确认同一人的学术身份：二级教授、博士生导师，专业特长为双胎妊娠、胎儿生长受限、前置胎盘等高危妊娠处理，兼任中国医师协会母胎医学专委会副主任委员，佐证其妇产/母胎医学专业方向\"}]}}",
+  "usage": {
+    "promptTokens": 4660,
+    "completionTokens": 430,
+    "reasoningTokens": 0,
+    "totalTokens": 5090
+  },
+  "gatewayRequestId": "req-5c17bfed-457d-49c0-871c-f2e9a8657bb5"
+}

@@ -117,7 +117,29 @@
         "hospital": "重庆医科大学附属第一医院",
         "department": "副院长（妇产、母胎医学方向）"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary13/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 62540,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary13/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 62540,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_03",
@@ -126,7 +148,29 @@
         "hospital": "诺华",
         "department": "放射配体治疗部门"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary14/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 104369,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary14/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 104369,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_04",
@@ -135,7 +179,29 @@
         "hospital": "瑞士伯尔尼大学小岛医院",
         "department": "核医学科"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary15/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 97262,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary15/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 97262,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_05",
@@ -144,7 +210,29 @@
         "hospital": "荷兰格罗宁根大学医学中心",
         "department": "核医学与分子影像科"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary16/result.json",
+          "outcome": "succeeded",
+          "reported_reason": null,
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 108985,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary16/result.json",
+        "outcome": "succeeded",
+        "reported_reason": null,
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 108985,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_06",
@@ -153,7 +241,29 @@
         "hospital": "欧洲核医学协会",
         "department": "认证项目"
       },
-      "full_service_acceptance": "pending"
+      "full_service_acceptance": "pending",
+      "full_worker_attempts": [
+        {
+          "evidence": "workflow-canary17/result.json",
+          "outcome": "failed",
+          "reported_reason": "resource_budget_exceeded",
+          "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+          "elapsed_ms": 78578,
+          "serpapi_requests": 1,
+          "public_api_or_admission_tested": false,
+          "post_probe_fixes_live_verified": false
+        }
+      ],
+      "full_worker_attempt": {
+        "evidence": "workflow-canary17/result.json",
+        "outcome": "failed",
+        "reported_reason": "resource_budget_exceeded",
+        "diagnosed_reason": "Fresh original-input practical workflow; exported source and artifact content review pending.",
+        "elapsed_ms": 78578,
+        "serpapi_requests": 1,
+        "public_api_or_admission_tested": false,
+        "post_probe_fixes_live_verified": false
+      }
     },
     {
       "case_id": "user_07",

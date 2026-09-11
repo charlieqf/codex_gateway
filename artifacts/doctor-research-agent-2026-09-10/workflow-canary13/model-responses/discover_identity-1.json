@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"漆洪波 重庆医科大学附属第一医院 副院长 妇产科\",\"purpose\":\"verify the person, institution, and vice-president/obstetrics role\"}]}",
+  "usage": {
+    "promptTokens": 1238,
+    "completionTokens": 84,
+    "reasoningTokens": 37,
+    "totalTokens": 1322
+  },
+  "gatewayRequestId": "req-24840197-ae32-4471-8a21-e3ec7f45963d"
+}

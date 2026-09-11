@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.sciconf.cn/cn/person-detail/376?user_id=bDGIBtITYmnUO_xkM6HHROA_d_d\",\"purpose\":\"verify 漆洪波 as 副院长 of 重庆医科大学附属第一医院 in obstetrics/maternal-fetal medicine\"},{\"type\":\"read\",\"url\":\"https://www.cqma.cn/fc_detail/92.html\",\"purpose\":\"verify specialty and titles from Chongqing Medical Association directory\"}]}",
+  "usage": {
+    "promptTokens": 2075,
+    "completionTokens": 127,
+    "reasoningTokens": 18,
+    "totalTokens": 2202
+  },
+  "gatewayRequestId": "req-b07b0bd2-f2be-4733-909b-841b74af33ef"
+}

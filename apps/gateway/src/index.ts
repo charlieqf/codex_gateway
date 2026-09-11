@@ -338,6 +338,7 @@ export interface GatewayOptions {
   researchOfficialSourceMode?: "brave" | "direct";
   researchOfficialWebAllowedDomains?: readonly string[];
   researchOfficialIdentityRegistry?: readonly ResearchIdentityRegistryEntry[];
+  researchIdentityAgentEnabled?: boolean;
   upstreamV2Client?: UpstreamV2Client | null;
   tokenBudgetLimiter?: TokenBudgetLimiter;
   planEntitlementStore?: PlanEntitlementStore;
@@ -1144,7 +1145,7 @@ export function buildGateway(options: GatewayOptions = {}) {
       officialSourceMode: researchOfficialSourceMode,
       officialWebAllowedDomains: researchOfficialWebAllowedDomains,
       officialIdentityRegistry: researchOfficialIdentityRegistry,
-      identityAgentEnabled: defaultResearchRuntime?.identityAgentEnabled ?? false,
+      identityAgentEnabled: options.researchIdentityAgentEnabled ?? defaultResearchRuntime?.identityAgentEnabled ?? false,
       now: clock
     });
   }

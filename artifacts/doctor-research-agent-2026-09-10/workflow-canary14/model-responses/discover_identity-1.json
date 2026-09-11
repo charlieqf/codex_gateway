@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"search\",\"query\":\"Leonhard Schaetz Novartis radioligand therapy\",\"purpose\":\"verify person, institution and department\"}]}",
+  "usage": {
+    "promptTokens": 1231,
+    "completionTokens": 34,
+    "reasoningTokens": 0,
+    "totalTokens": 1265
+  },
+  "gatewayRequestId": "req-e7033fbf-6682-46a4-a27b-013920badcdf"
+}

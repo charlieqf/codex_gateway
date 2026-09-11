@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://www.linkedin.com/in/ivalina-hristova-bs-cnmt-rt-ct-15773b21\",\"find\":\"Iva\",\"purpose\":\"look for the short form 'Iva Hristova' linking the requested name to Ivalina Hristova at EANM/EARL\"},{\"type\":\"read\",\"url\":\"https://jnm.snmjournals.org/content/66/supplement_1/251783\",\"find\":\"Hristova\",\"purpose\":\"check author list for name form and EANM/EARL accreditation role\"},{\"type\":\"read\",\"url\":\"https://www.researchgate.net/profile/Ivalina-Hristova\",\"find\":\"Iva\",\"purpose\":\"look for publications or profile text using the short form 'Iva Hristova'\"}]}",
+  "usage": {
+    "promptTokens": 10196,
+    "completionTokens": 499,
+    "reasoningTokens": 325,
+    "totalTokens": 10695
+  },
+  "gatewayRequestId": "req-719fc3bb-4acb-4908-ae4a-77efdcb6fe3e"
+}

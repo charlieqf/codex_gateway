@@ -1,0 +1,335 @@
+{
+  "runId": "drr_96e94e8a7eb64d7a813b3b1ea8391b8c",
+  "schemaVersion": "doctor_research_result.v1",
+  "result": {
+    "doctor": {
+      "name": "Riemer Slart",
+      "hospital": "荷兰格罗宁根大学医学中心",
+      "department": "核医学与分子影像科"
+    },
+    "identity_resolution": {
+      "status": "verified",
+      "confidence": "high",
+      "canonical_identity_id": "dci_1b53be8b480aca197fe8f3d21fe8a388",
+      "matched_by": [
+        "institution",
+        "department"
+      ]
+    },
+    "sources": [
+      {
+        "source_id": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+        "source_type": "official_web",
+        "title": "prof. dr. R.H.J.A. (Riemer) Slart | How to find us | University of Groningen",
+        "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+        "accessed_at": "2026-09-11T00:25:15.145Z",
+        "content_sha256": "0ed249960968aa4f9aae464c1cd33284781d116edbbc413727c446a53ace468a"
+      },
+      {
+        "source_id": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+        "source_type": "official_web",
+        "title": "Slart, Riemer",
+        "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+        "accessed_at": "2026-09-11T00:25:19.515Z",
+        "content_sha256": "ece0a6760ce92d5fc8fb8db95d13bf2a390cfeab6f952b3535c772a07764d1dd"
+      },
+      {
+        "source_id": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+        "source_type": "official_web",
+        "title": "Riemer Slart - Decisive",
+        "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+        "accessed_at": "2026-09-11T00:25:20.950Z",
+        "content_sha256": "4e61b6d0efb15e3c1c57cf54fdbefb638f7b7db650326611e65528b36d459cb1"
+      }
+    ],
+    "profile": {
+      "positions": [
+        "Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。",
+        "自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。",
+        "经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性expertise center和血管炎expertise center的成员。",
+        "自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。",
+        "他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人。"
+      ],
+      "expertise": [
+        "其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。"
+      ],
+      "education_and_career": [
+        "2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。"
+      ],
+      "research_directions": [
+        "他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。",
+        "在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并属于外周动脉疾病组织灌注研究组。"
+      ],
+      "representative_outputs": [
+        "他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。",
+        "获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。",
+        "近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。"
+      ],
+      "claims": [
+        {
+          "claim_id": "clm_practical_identity",
+          "claim_type": "identity",
+          "text": "Riemer Slart (prof. dr. R.H.J.A. Slart) · Universitair Medisch Centrum Groningen (UMCG) · Nuclear Medicine & Molecular Imaging, Medical Imaging Center – nuclear medicine physician",
+          "source_ids": [
+            "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+            "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_0",
+          "claim_type": "position",
+          "text": "Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_1",
+          "claim_type": "position",
+          "text": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_2",
+          "claim_type": "position",
+          "text": "经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性expertise center和血管炎expertise center的成员。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_3",
+          "claim_type": "position",
+          "text": "自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_4",
+          "claim_type": "expertise",
+          "text": "其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。",
+          "source_ids": [
+            "src_a1e22bcaec54faaf5965cd5bfb8d6032"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_5",
+          "claim_type": "education_and_career",
+          "text": "2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_6",
+          "claim_type": "research_direction",
+          "text": "他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_7",
+          "claim_type": "research_direction",
+          "text": "在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并属于外周动脉疾病组织灌注研究组。",
+          "source_ids": [
+            "src_387fca7cb1348aebc4dc0adeb70c8bd4"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_8",
+          "claim_type": "representative_output",
+          "text": "他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_9",
+          "claim_type": "representative_output",
+          "text": "获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。",
+          "source_ids": [
+            "src_387fca7cb1348aebc4dc0adeb70c8bd4"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_10",
+          "claim_type": "representative_output",
+          "text": "近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。",
+          "source_ids": [
+            "src_387fca7cb1348aebc4dc0adeb70c8bd4"
+          ],
+          "verification_status": "verified"
+        },
+        {
+          "claim_id": "clm_practical_11",
+          "claim_type": "position",
+          "text": "他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人。",
+          "source_ids": [
+            "src_4b433e01a2aa2c95bb9350f19f4daa14"
+          ],
+          "verification_status": "verified"
+        }
+      ],
+      "primary_public_source_ids": [
+        "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+        "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+        "src_4b433e01a2aa2c95bb9350f19f4daa14"
+      ]
+    },
+    "review": {
+      "title": "Riemer Slart 专业背景与交流准备",
+      "abstract": "Riemer Slart（prof. dr. R.H.J.A. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。",
+      "keywords": [
+        "Nuclear Medicine & Molecular Imaging, Medical Imaging Center – nuclear medicine physician"
+      ],
+      "markdown": "Riemer Slart（prof\\. dr\\. R\\.H\\.J\\.A\\. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。 [来源 3](<https://www.ngfdecisive.nl/initiators/riemer-slart>)\n\n在学术职务上，他自2019年起任格罗宁根大学“多模态心血管影像”全职教授，自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授，并自2018年起担任荷兰东北部医学影像中心的分子影像医学主任。他在欧洲核医学界担任重要角色：曾任EANM心血管委员会常委兼秘书（2014–2021），现为EANM指南委员会成员及EANM–EACVI/ESC感染与炎症心血管影像工作组主席。 [来源 3](<https://www.ngfdecisive.nl/initiators/riemer-slart>)\n\n其工作重心是心血管多模态影像（核医学、CT、MRI）及其在心脏淀粉样变性、大血管炎、感染与炎症、外周动脉病等疾病中的转化应用。他创立了EURO\\-LEARN平台以提升心脏淀粉样变性核素显像的欧洲认知度，参与多项国际影像指南与建议的制定，并是多项影像研究试验的发起人和主持人。他发表逾420篇同行评审论文，是多个EANM教学项目的授课教师。 [来源 3](<https://www.ngfdecisive.nl/initiators/riemer-slart>) [来源 2](<https://umcgresearch.org/w/r-h-j-a-slart>)",
+      "core_evidence": [],
+      "references": [],
+      "search_report": {
+        "databases": [
+          "public_web"
+        ],
+        "searched_at": "2026-09-11T00:26:23.400Z",
+        "queries": [],
+        "included_count": 0
+      }
+    },
+    "source_coverage": {
+      "literature_sources": [],
+      "profile_sources": [
+        "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+        "https://umcgresearch.org/w/r-h-j-a-slart",
+        "https://www.ngfdecisive.nl/initiators/riemer-slart"
+      ],
+      "cutoff_date": "2026-09-11",
+      "warnings": [
+        "No official UMCG.nl staff profile was directly readable (HTTP 403); department and role confirmed via the UMCG Research portal, the University of Groningen staff profile, and a third-party professional profile.",
+        "其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。"
+      ]
+    },
+    "predicted_questions": [
+      "他在UMCG的具体科室和临床角色是什么？",
+      "他的教授头衔具体是什么？",
+      "他在欧洲学术组织中担任哪些职务？",
+      "他的主要研究方向和临床兴趣是什么？",
+      "他近年有哪些代表性活动或荣誉？"
+    ],
+    "answers": [
+      {
+        "question_index": 1,
+        "answer": "他是UMCG医学影像中心核医学与分子影像科的核医学医师（常任医师），同时具有心脏放射学（CT与CMR）注册资质。",
+        "source_ids": [
+          "src_4b433e01a2aa2c95bb9350f19f4daa14"
+        ]
+      },
+      {
+        "question_index": 2,
+        "answer": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授；自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授。",
+        "source_ids": [
+          "src_4b433e01a2aa2c95bb9350f19f4daa14"
+        ]
+      },
+      {
+        "question_index": 3,
+        "answer": "曾任EANM心血管委员会常委兼秘书（2014–2021），现任EANM指南委员会成员、EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席，2016年加入EULAR大血管炎影像工作组。",
+        "source_ids": [
+          "src_4b433e01a2aa2c95bb9350f19f4daa14"
+        ]
+      },
+      {
+        "question_index": 4,
+        "answer": "心血管多模态影像（核素显像、CT、心脏MRI），尤其在心脏淀粉样变性、大血管炎、感染/炎症影像及外周动脉病组织灌注方面；此外在特文特大学参与含AI的技术医学项目。如需了解其当前具体的临床安排，建议直接与其确认。",
+        "source_ids": [
+          "src_4b433e01a2aa2c95bb9350f19f4daa14",
+          "src_387fca7cb1348aebc4dc0adeb70c8bd4"
+        ]
+      },
+      {
+        "question_index": 5,
+        "answer": "2024年获Zaret-Beller Elite Reviewer Award；2025年3月就心脏淀粉样变性MRI与核素影像作邀请报告；2025年作为组织者签署学术合作谅解备忘录，并赴米兰比可卡大学任访问研究者。近年合作论文发表于Journal of Clinical Virology（2026）和Scientific Reports（2026）。",
+        "source_ids": [
+          "src_387fca7cb1348aebc4dc0adeb70c8bd4"
+        ]
+      }
+    ],
+    "quality": {
+      "status": "passed_with_warnings",
+      "warnings": [
+        "No official UMCG.nl staff profile was directly readable (HTTP 403); department and role confirmed via the UMCG Research portal, the University of Groningen staff profile, and a third-party professional profile.",
+        "其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。"
+      ],
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    },
+    "schema_version": "doctor_research_result.v1",
+    "request_id": "req_research_worker_96e94e8a7eb64d7a813b3b1ea8391b8c",
+    "run_id": "drr_96e94e8a7eb64d7a813b3b1ea8391b8c",
+    "artifacts": [
+      {
+        "artifact_id": "dra_cd04bf4af2314b0dbdde091fa5b006c3",
+        "kind": "profile",
+        "filename": "Riemer Slart_公开资料.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 5199,
+        "sha256": "54c0bf644e57dddbb86ee817b89c64d80f7b4a29c8a512e1d71c945a6fc081a4",
+        "expires_at": "2026-10-11T00:26:23.412Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_cd04bf4af2314b0dbdde091fa5b006c3/download"
+      },
+      {
+        "artifact_id": "dra_e4838b07b6234ad9b167592e4e064a8b",
+        "kind": "review",
+        "filename": "Riemer Slart_专业背景与交流准备.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 1946,
+        "sha256": "6fae9a1f26ed7c83efd099dc93d99abeb041732fd575765c10d44f11c9b06a58",
+        "expires_at": "2026-10-11T00:26:23.412Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_e4838b07b6234ad9b167592e4e064a8b/download"
+      },
+      {
+        "artifact_id": "dra_ab36dd94f2454c3c9e1aa83523d2a8dc",
+        "kind": "questions",
+        "filename": "Riemer Slart_交流问题.txt",
+        "content_type": "text/plain; charset=utf-8",
+        "size_bytes": 252,
+        "sha256": "20de66475213b9286b8d7dfab2a3ee1c1cbee6367574c6321bb8658e5e5afa25",
+        "expires_at": "2026-10-11T00:26:23.412Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_ab36dd94f2454c3c9e1aa83523d2a8dc/download"
+      },
+      {
+        "artifact_id": "dra_205270f0f8e844a084c1a439a9cd4251",
+        "kind": "answers",
+        "filename": "Riemer Slart_参考要点.md",
+        "content_type": "text/markdown; charset=utf-8",
+        "size_bytes": 2424,
+        "sha256": "b4db6142516eea6368db56af831cd03a3c153d309e51ba3d45f54c5843135246",
+        "expires_at": "2026-10-11T00:26:23.412Z",
+        "download_url": "/gateway/research/v1/artifacts/dra_205270f0f8e844a084c1a439a9cd4251/download"
+      }
+    ]
+  },
+  "sha256": "0f51d8b8f73842396323fa7472958ddd7a5858fdd6f74e7eeb555483c1507217",
+  "sizeBytes": 16482,
+  "createdAt": "2026-09-11T00:26:23.412Z",
+  "expiresAt": "2026-10-11T00:26:23.412Z"
+}

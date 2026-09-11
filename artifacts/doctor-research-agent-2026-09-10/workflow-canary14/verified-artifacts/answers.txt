@@ -1,0 +1,40 @@
+# Leonhard Schaetz 交流问题与参考要点
+
+以下是依据公开资料整理的交流准备要点，不代表本人的回答或意见。
+
+## 1. 他的具体职位和职能是什么?
+
+他是诺华 Radioligand Therapy Operations 团队的 International Head Health System Readiness & Partnership RLT,即国际层面的医疗卫生体系准备与合作伙伴关系负责人,属于企业运营/体系协作角色,而非临床医生。
+
+来源: [Novartis \- Radioligand Therapy Operations \| The Org](<https://theorg.com/org/novartis/teams/radioligand-therapy-operations>)
+
+## 2. 与他工作最相关的研究成果是什么?
+
+他参与撰写了 2026 年由 Elsevier 出版的建模研究《Estimation of future patient populations eligible for radioligand therapies in the EU and the UK: a modelling study》,内容为欧盟及英国 RLT 适用患者规模与医疗体系容量的建模估算。
+
+来源: [JRC Publications](<https://publications.jrc.ec.europa.eu/repository/handle/JRC143079>)
+
+## 3. 交流时哪些议题与他的职责最贴近?
+
+医疗卫生体系对 RLT 的准备度\(核医学基础设施、治疗容量\)、国际层面的患者可及性与伙伴合作模式等议题与其职务描述及合作研究的主题直接相关;具体在谈的工作重点和当前计划最好与他本人确认。
+
+来源: [Novartis \- Radioligand Therapy Operations \| The Org](<https://theorg.com/org/novartis/teams/radioligand-therapy-operations>)
+
+## 4. 他所在团队还有哪些职能方向?
+
+该团队还包括国际前列腺癌方向总监、区域医学总监、国际医学事务总监、RLT 平台全球供应链负责人、临床供应管理、患者路径与合作伙伴关系等职能,反映 RLT 从医学事务到供应链运营的完整链条。
+
+来源: [Novartis \- Radioligand Therapy Operations \| The Org](<https://theorg.com/org/novartis/teams/radioligand-therapy-operations>)
+
+## 5. 他参与的研究有哪些资助背景?
+
+其参与的 JRC/WifOR 建模研究中,WifOR 部分由 Novartis Pharma AG 资助,JRC 部分由欧盟委员会研究框架计划预算支持;在引用或讨论该研究结论时应留意这一资助关系。
+
+来源: [JRC Publications](<https://publications.jrc.ec.europa.eu/repository/handle/JRC143079>)
+
+## 信息范围
+
+- Novartis\-specific employment affiliation confirmed via an unverified third\-party org chart \(The Org\) and a Novartis\-funded publication author listing; the RocketReach and LinkedIn confirmations could not be read directly due to access errors\.
+- 除职位与合作研究作者身份外,未检索到其教育背景、职业经历或其他公开履历信息。
+- 该研究作者列表中未显示各作者的具体单位归属,其在论文中的署名单位与诺华职务的对应关系未经直接核实。
+

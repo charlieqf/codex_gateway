@@ -1,0 +1,1840 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_47de01c79f7957656cc855c8eaa3ae30"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "5df50292e264fe97b0f8bd000cfc8ea1ec518be2ac05a9ed3494c5782b8c5da0",
+      "calls": 3,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [
+        {
+          "action": "invalid_response",
+          "result": {
+            "message": "Unexpected non-whitespace character after JSON at position 4893 (line 1 column 4894)",
+            "previous_response": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"自2018年4月起任伯尔尼大学核医学正教授（Full Professor for Nuclear Medicine at the University of Bern）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"position\",\"text\":\"自2019年起兼任中国上海复旦大学客座教授（Visiting Professor）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"1997–2004年在德国弗莱堡阿尔伯特-路德维希大学（Albert-Ludwigs-University Freiburg）接受医学教育并获医学博士学位（2004年博士论文）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成核医学教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年在埃尔朗根-纽伦堡大学获医疗卫生工商管理硕士（MHBA）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院任研究访问学者（Research Fellowship）；2011–2012年在LMU放射学研究所完成MRI专科培训（Fellowship）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"type\":\"education_and_career\",\"text\":\"2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"research_direction\",\"text\":\"其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤的放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描（Szintigraphie）和PET显像等。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"曾获多个个人奖项，包括2011年德国核医学会奖、2011年Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_4\"}]}],\"background\":[{\"text\":\"Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人，同时自2018年4月起担任伯尔尼大学核医学正教授。他的职业生涯主要在德语区学术中心展开：在弗莱堡大学完成医学学习（1997–2004，含神经外科培训）后，赴哈佛医学院做过研究访问学者（2003），随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获得专科资格和教职论文），并在LMU核医学科晋升至第一主诊医师兼副主任，2018年赴伯尔尼任职。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"text\":\"在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验和伯尔尼大学的教学与专科医师培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_5\"}]},{\"text\":\"会面或交流时的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可通过电子邮件联系；科室总机为+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"Rominger教授目前的职务是什么？\",\"answer\":\"他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他的学术背景和职业路径如何？\",\"answer\":\"德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他所在科室的研究重点有哪些？\",\"answer\":\"官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系到他或找到他的科室？\",\"answer\":\"科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"他与中国的学术联系是什么？\",\"answer\":\"官方简历显示他自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]}],\"limitations\":[\"官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。\",\"未检索其个人代表性论文的具体篇目；如需其近期代表性研究成果，可进一步查询PubMed或向本人确认。\"]}]}"
+          }
+        }
+      ],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2018年4月起任伯尔尼大学核医学正教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2019年起兼任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "其所在科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队、放射性药物实验室（Radiopharmacy Lab），并开展临床试验。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "科室临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_4"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "text": "在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病治疗、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研与教学方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，开展临床试验，并承担伯尔尼大学教学与专科医师培训。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_5"
+              }
+            ]
+          },
+          {
+            "text": "会面或交流的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可经电子邮件联系；科室总机为+41 31 632 21 11。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "Rominger教授目前的职务是什么？",
+            "answer": "他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "他的学术背景和职业路径如何？",
+            "answer": "德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "他所在科室的研究方向有哪些？",
+            "answer": "官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何联系他或找到他的科室？",
+            "answer": "科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他与中国的学术联系是什么？",
+            "answer": "官方简历显示他自2019年起任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。",
+          "未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2018年4月起任伯尔尼大学核医学正教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2019年起兼任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_4"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "text": "在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病治疗、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研与教学方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，开展临床试验，并承担伯尔尼大学教学与专科医师培训。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_5"
+              }
+            ]
+          },
+          {
+            "text": "会面或交流的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可经电子邮件联系；科室总机为+41 31 632 21 11。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "Rominger教授目前的职务是什么？",
+            "answer": "他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "他的学术背景和职业路径如何？",
+            "answer": "德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "question": "他所在科室的研究方向有哪些？",
+            "answer": "官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "如何联系他或找到他的科室？",
+            "answer": "科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              },
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他与中国的学术联系是什么？",
+            "answer": "官方简历显示他自2019年起任上海复旦大学客座教授。",
+            "citations": [
+              {
+                "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+                "passageId": "text_2"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。",
+          "未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "f98eeb9b3a45cf46011e9da0fea504ce340f462a72650582212ddae3fe48e430",
+      "searches": [
+        {
+          "query": "Axel Rominger Inselspital Bern nuclear medicine",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+              "title": "Prof. Dr. med. Axel Rominger - Nuklearmedizin",
+              "snippet": "Contact. Departement of Nuclear Medicine Inselspital, Bern University Hospital INO, Etage B, Eingang 33. Freiburgstrasse 18. CH-3010 Bern."
+            },
+            {
+              "url": "https://www.researchgate.net/profile/Axel_Rominger/9",
+              "title": "Axel ROMINGER | Director | Prof. Dr. med.",
+              "snippet": "Department of Nuclear Medicine; Germany. Position. Managing Director ... Inselspital, Universitätsspital Bern. Maurizio Conti. Siemens ..."
+            },
+            {
+              "url": "https://www.nmss.org.sg/nmu2023prof-axel-rominger",
+              "title": "NMU2023::Prof Axel Rominger",
+              "snippet": "Axel Rominger, MD, is full professor at the University of Bern and Chairman of the Dept. of Nuclear Medicine at Inselspital Bern."
+            },
+            {
+              "url": "https://pubmed.ncbi.nlm.nih.gov/39934005/",
+              "title": "The Evolution of Artificial Intelligence in Nuclear Medicine",
+              "snippet": "Nuclear medicine has continuously evolved since its beginnings, constantly improving the diagnosis and treatment of various diseases."
+            },
+            {
+              "url": "https://www.instagram.com/p/DRP7IbFDPgl/",
+              "title": "☢ Nuklearmedizin verändert die Art & Weise, wie ...",
+              "snippet": "... Axel Rominger & sein Team am Inselspital Bern – Universitätsklinik Nuklearmedizin, Insel Gruppe – treiben mit modernster Hybrid-Bildgebung ..."
+            },
+            {
+              "url": "https://e-smi.eu/wp-content/uploads/wp_dndcf7_uploads/BernRecruitment_PhD.pdf",
+              "title": "University Hospital Bern – Department of Nuclear Medicine ...",
+              "snippet": "Prof. Dr. Kuangyu Shi, Prof. Dr. Axel Rominger and PD Dr. Robert Seifert, e-mail: kuangyu.shi@dbmr.unibe.ch, axel.rominger@insel.ch and robert.seifert@unibe.ch."
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1-2",
+              "title": "2024 - Universitätsklinik für Nuklearmedizin",
+              "snippet": "Ryoo, Hyun Gee; Choi, Hongyoon; Shi, Kuangyu; Rominger, Axel; Lee, Dong Young; Lee, Dong Soo (2024). Distinct subtypes of spatial brain metabolism patterns in ..."
+            },
+            {
+              "url": "https://scholar.google.com/citations?user=o4_NNMgAAAAJ&hl=de",
+              "title": "Axel Rominger",
+              "snippet": "Professor of Nuclear Medicine - ‪‪16.375-mal zitiert‬‬ - ‪Nuklearmedizin‬"
+            },
+            {
+              "url": "https://www.medizin.unibe.ch/profiles/university_clinics_inselspital/department_of_nuclear_medicine/index_eng.html",
+              "title": "Profiles: Department of Nuclear Medicine",
+              "snippet": "The Department is one of the largest and most advanced nuclear medicine departments in Switzerland. It offers the entire spectrum of modern nuclear medicine ..."
+            },
+            {
+              "url": "https://centhe.id.uj.edu.pl/documents/152110202/156779994/LOI_Rominger_UniBern.pdf/e9b8e2fc-502c-4514-bc14-26a8ad3fb04c",
+              "title": "Prof. Ph.D. Ewa Lucja Stępień, Head of the Department",
+              "snippet": "Axel Rominger, Klinikdirektor und Chefarzt, Telefon: +41 31 632 26 ... University Hospital Bern, Inselspital, Switzerland."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+          "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+          "title": "Prof. Dr. med. Axel Rominger - Nuklearmedizin: Universitätsklinik für Nuklearmedizin",
+          "accessedAt": "2026-09-11T00:22:47.934Z",
+          "contentSha256": "cc05e27b66b10dc3dcf7693d86506814a6e379d11e4c6d28fc033cca2bf303b2",
+          "untrustedText": "Prof. Dr. med. Axel Rominger - Nuklearmedizin: Universitätsklinik für Nuklearmedizin\nNuklearmedizin: Universitätsklinik für Nuklearmedizin - Navigation\nNuklearmedizin (ALT+0)\nzur Haupt-Navigation (ALT+1)\nzum Seiteninhalt (ALT+2)\nKontakt (ALT+3)\nSitemap (ALT+4)\nSuchresultate (ALT+5)\nAktuelles (ALT+6)\nImpressum (ALT+7)\nNotfall 24h\nServicenavigation\nAktuelles\nJobs\nMedien\nKontakt\nSuche\nSuche\nSuchbegriff eingeben\nSuche absenden\nMenü\nHauptnavigation\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinformationen\nTechnische Ausstattung\nIndikationen (PET/CT)\nRadiopharmazie\nNuklearmedizin und Strahlenschutz\nKontakte\nUnser Angebot\nNuklearmedizinische Therapie\nTherapie gutartiger Schilddrüsenerkrankungen\nTherapie bösartiger Schilddrüsenerkrankungen\nRadiopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nKontakt\nKontakt\nKontaktieren Sie uns\nüber unsere Hauptnummer\n+41 31 632 21 11\nInsel Gruppe\nmyInsel\nBreadcrumbnavigation\nSie befinden sich hier:\nNuklearmedizin: Universitätsklinik für Nuklearmedizin, zur Startseite\nÜber uns\nUnser Team\nKlinikleitung\nProf. Dr. med. Axel Rominger\nProf. Dr. med. Axel Rominger - Chairman and Head\nProf. Rominger, Axel, MD, MHBA\nContact\nDepartement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, Ludwig-Maximilians-University of Munich, Germany\n2005 - 2007 Residency in Neurosurgery, Albert-Ludwigs-University Freiburg, Germany\n2003 Research Fellowship, Harvard Medical School, Boston, USA\nScholarships and Awards\nAs group leader/advisor:\n2016 Travel Scholarship of the Japanese-German Radiological Association (JGRA): Research Elective at Kinki University\nOsaka, Japan (F. Scheiwein)\n2016 Award for the Best Medical Thesis of the Medical Faculty, Ludwig-Maximilians-University Munich (Dr. M. Brendel)\n2015 Steinberg-Krupp Alzheimer Award of the „Deutsche Hirnliga e. V.“ (Dr. M. Brendel)\n2015 Young Investigator Award (Neuroscience) of the Society of Nuclear Medicine, Baltimore, USA (Dr. M. Brendel; 1. Platz)\nPersonally:\n2013 Poster Award at the German Society Meeting, Bremen\n2012 Young Investigator Award (Neuroscience) at the Society of Nuclear Medicine in Miami, USA\n2011 Covidien Award, received at the German Society Meeting, Bregenz, Austria\n2011 Award of the German Society of Nuclear Medicine, received at the German Society Meeting, Bregenz, Austria\n2010 Travel Award at the Society of Nuclear Medicine in Salt Lake City, USA\n2009 Young Investigator Award (Cardiovascular) at the Society of Nuclear Medicine in Toronto, Canada\n2008 Young Investigator Award at the 3rd Congress of Integrated Biomarkers in Seattle, USA\n2003 Scholarship of the Erwin-Riesch Stiftung for Research Fellowship at Harvard Medical School\nnach oben\nFusszeile\nInformationen\nKontakt\nInselspital, Universitätsspital Bern\nUniversitätsklinik für Nuklearmedizin\nRosenbühlgasse 25/27\nCH-3010 Bern\nwww.nukmed.insel.ch\nT: +41 31 632 24 54\nAnreise\nÖffentlicher Verkehr\nParkmöglichkeiten\nSituationsplan Inselspital\nÖffnungszeiten\nMontag - Freitag 7:30 - 17:00 Uhr\nSocial Media\nBluesky\nFacebook\nYoutube\nLinkedIn\nXing\nInstagram\nTikTok\nNotfall 24h\nImpressum\nDisclaimer\nDatenschutz\nSitemap\n&copy; 2026 Insel Gruppe AG\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinformationen\nTechnische Ausstattung\nIndikationen (PET/CT)\nRadiopharmazie\nNuklearmedizin und Strahlenschutz\nKontakte\nUnser Angebot\nNuklearmedizinische Therapie\nTherapie gutartiger Schilddrüsenerkrankungen\nTherapie bösartiger Schilddrüsenerkrankungen\nRadiopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nAktuelles\nJobs\nMedien\nKontakt\nImpressum\nDisclaimer\nDatenschutz\nSitemap",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://nukmed.insel.ch/de/",
+              "text": "Nuklearmedizin (ALT+0)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+              "text": "zur Haupt-Navigation (ALT+1)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+              "text": "zum Seiteninhalt (ALT+2)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/kontakt",
+              "text": "Kontakt (ALT+3)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/sitemap",
+              "text": "Sitemap (ALT+4)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/suchresultate",
+              "text": "Suchresultate (ALT+5)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/aktuelles",
+              "text": "Aktuelles (ALT+6)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/impressum",
+              "text": "Impressum (ALT+7)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/notfall-24h",
+              "text": "Notfall 24h"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/aktuelles",
+              "text": "Aktuelles"
+            },
+            {
+              "url": "https://inselgruppe.ch/de/jobs-und-karriere/offene-stellen?stellen=nuklearmedizin",
+              "text": "Jobs"
+            },
+            {
+              "url": "https://inselgruppe.ch/de/die-insel-gruppe/organisation/direktion-insel-gruppe/stabsbereiche/kommunikation",
+              "text": "Medien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/kontakt",
+              "text": "Kontakt"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen",
+              "text": "Patient:innen und Besucher:innen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen",
+              "text": "Allgemeine Informationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/informationsbroschueren",
+              "text": "Informationsbroschüren"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/nuklearmedizin-und-strahlenschutz",
+              "text": "Nuklearmedizin und Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontinuierliche-verbesserung",
+              "text": "Kontinuierliche Verbesserung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/anreise-lageplan",
+              "text": "Anreise / Lageplan"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung",
+              "text": "Ambulante Behandlung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/an-und-abmeldung-eines-untersuchungstermins",
+              "text": "An- und Abmeldung eines Untersuchungstermins"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/untersuchungsablauf",
+              "text": "Untersuchungsablauf"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung",
+              "text": "Stationäre Behandlung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/allgemeine-informationen",
+              "text": "Allgemeine Informationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/checkliste-tipps-zum-stationaeren-aufenthalt",
+              "text": "Checkliste / Tipps zum stationären Aufenthalt"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/massnahmen-zum-strahlenschutz",
+              "text": "Massnahmen zum Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/spitalaustritt-und-nachsorge",
+              "text": "Spitalaustritt und Nachsorge"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/videos-in-den-medien",
+              "text": "Videos / In den Medien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen",
+              "text": "Zuweisung und Fachinformationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/zuweisung-und-anmeldeformulare",
+              "text": "Zuweisung und Anmeldeformulare"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen",
+              "text": "Fachinformationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/technische-ausstattung",
+              "text": "Technische Ausstattung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/indikationen-petct",
+              "text": "Indikationen (PET/CT)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/radiopharmazie",
+              "text": "Radiopharmazie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/nuklearmedizin-und-strahlenschutz",
+              "text": "Nuklearmedizin und Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot",
+              "text": "Unser Angebot"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie",
+              "text": "Nuklearmedizinische Therapie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-gutartiger-schilddruesenerkrankungen",
+              "text": "Therapie gutartiger Schilddrüsenerkrankungen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-boesartiger-schilddruesenerkrankungen",
+              "text": "Therapie bösartiger Schilddrüsenerkrankungen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiopeptidtherapie-bei-neuroendokrinen-tumoren",
+              "text": "Radiopeptidtherapie bei neuroendokrinen Tumoren"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-vom-prostatakarzinom-psma",
+              "text": "Therapie vom Prostatakarzinom (PSMA)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/xofigo-therapie-bei-knochenmetastasen",
+              "text": "Xofigo-Therapie bei Knochenmetastasen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiosynoviorthese-rso",
+              "text": "Radiosynoviorthese (RSO)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik",
+              "text": "Nuklearmedizinische Diagnostik"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/szintigraphie",
+              "text": "Szintigraphie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/positronen-emissions-tomographie-pet",
+              "text": "Positronen-Emissions-Tomographie (PET)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/therapieambulanz",
+              "text": "Therapieambulanz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung",
+              "text": "Lehre und Forschung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research",
+              "text": "Research"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/lab-for-translational-molecular-neuroimaging-tmn",
+              "text": "Lab for Translational Molecular Neuroimaging (TMN)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/artificial-intelligence-and-translational-theranostics",
+              "text": "Artificial Intelligence and Translational Theranostics"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/radiopharmacy-lab",
+              "text": "Radiopharmacy Lab"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/klinische-studien",
+              "text": "Klinische Studien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung",
+              "text": "Aus- und Weiterbildung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/lehre-an-der-universitaet-bern",
+              "text": "Lehre an der Universität Bern"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/facharztausbildung",
+              "text": "Facharztausbildung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/wahljahr-pj-tertial",
+              "text": "Wahljahr / PJ Tertial"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/radiologiefachpersonen",
+              "text": "Radiologiefachpersonen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications",
+              "text": "Publications"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2025",
+              "text": "2025"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1-2",
+              "text": "2024"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1",
+              "text": "2023"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns",
+              "text": "Über uns"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team",
+              "text": "Unser Team"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung",
+              "text": "Klinikleitung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/aerzteschaft",
+              "text": "Ärzteschaft"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/radiologiefachpersonen",
+              "text": "Radiologiefachpersonen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/administration",
+              "text": "Administration"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/medizinphysik",
+              "text": "Medizinphysik"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/pflege-therapiestation-swan-d",
+              "text": "Pflege (Therapiestation SWAN D)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/forschungsteam-wissenschafliche-mitarbeitende",
+              "text": "Forschungsteam / Wissenschafliche Mitarbeitende"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung-1",
+              "text": "Studienmanagement"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/technische-ausstattung",
+              "text": "Technische Ausstattung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/offene-stellen",
+              "text": "Offene Stellen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/videos-in-den-medien",
+              "text": "Videos / In den Medien"
+            },
+            {
+              "url": "https://inselgruppe.ch/de/",
+              "text": "Insel Gruppe"
+            },
+            {
+              "url": "https://my-insel.ch/",
+              "text": "myInsel"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns",
+              "text": "Über uns"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team",
+              "text": "Unser Team"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung",
+              "text": "Klinikleitung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+              "text": "Contact via E-Mail"
+            },
+            {
+              "url": "https://pubmed.ncbi.nlm.nih.gov/?term=Rominger+A",
+              "text": "Pubmed"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+              "text": "nach oben"
+            },
+            {
+              "url": "https://www.insel.ch/de/",
+              "text": "www.nukmed.insel.ch"
+            },
+            {
+              "url": "https://www.insel.ch/de/patienten-und-besucher/ihr-aufenthalt/anreise",
+              "text": "Öffentlicher Verkehr"
+            },
+            {
+              "url": "https://www.insel.ch/de/patienten-und-besucher/ihr-aufenthalt/anreise/insel-parking",
+              "text": "Parkmöglichkeiten"
+            },
+            {
+              "url": "https://www.insel.ch/de/situationsplan",
+              "text": "Situationsplan Inselspital"
+            },
+            {
+              "url": "https://bsky.app/profile/inselgruppe.bsky.social",
+              "text": "Bluesky"
+            },
+            {
+              "url": "https://www.facebook.com/inselgruppebern/",
+              "text": "Facebook"
+            },
+            {
+              "url": "https://www.youtube.com/channel/UCk5WdNrd8XWv32gC40_NPBA",
+              "text": "Youtube"
+            },
+            {
+              "url": "https://de.linkedin.com/company/inselgruppe/",
+              "text": "LinkedIn"
+            },
+            {
+              "url": "https://www.xing.com/company/inselgruppe",
+              "text": "Xing"
+            },
+            {
+              "url": "https://www.instagram.com/inselgruppebern/",
+              "text": "Instagram"
+            },
+            {
+              "url": "https://www.tiktok.com/@insel_gruppe",
+              "text": "TikTok"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/notfall-24h",
+              "text": "Notfall 24h"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/impressum",
+              "text": "Impressum"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/disclaimer",
+              "text": "Disclaimer"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/datenschutz",
+              "text": "Datenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/sitemap",
+              "text": "Sitemap"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen",
+              "text": "Patient:innen und Besucher:innen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen",
+              "text": "Allgemeine Informationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/informationsbroschueren",
+              "text": "Informationsbroschüren"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/nuklearmedizin-und-strahlenschutz",
+              "text": "Nuklearmedizin und Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontinuierliche-verbesserung",
+              "text": "Kontinuierliche Verbesserung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/anreise-lageplan",
+              "text": "Anreise / Lageplan"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung",
+              "text": "Ambulante Behandlung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/an-und-abmeldung-eines-untersuchungstermins",
+              "text": "An- und Abmeldung eines Untersuchungstermins"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/untersuchungsablauf",
+              "text": "Untersuchungsablauf"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung",
+              "text": "Stationäre Behandlung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/allgemeine-informationen",
+              "text": "Allgemeine Informationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/checkliste-tipps-zum-stationaeren-aufenthalt",
+              "text": "Checkliste / Tipps zum stationären Aufenthalt"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/massnahmen-zum-strahlenschutz",
+              "text": "Massnahmen zum Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/spitalaustritt-und-nachsorge",
+              "text": "Spitalaustritt und Nachsorge"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/videos-in-den-medien",
+              "text": "Videos / In den Medien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen",
+              "text": "Zuweisung und Fachinformationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/zuweisung-und-anmeldeformulare",
+              "text": "Zuweisung und Anmeldeformulare"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen",
+              "text": "Fachinformationen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/technische-ausstattung",
+              "text": "Technische Ausstattung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/indikationen-petct",
+              "text": "Indikationen (PET/CT)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/radiopharmazie",
+              "text": "Radiopharmazie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/nuklearmedizin-und-strahlenschutz",
+              "text": "Nuklearmedizin und Strahlenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot",
+              "text": "Unser Angebot"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie",
+              "text": "Nuklearmedizinische Therapie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-gutartiger-schilddruesenerkrankungen",
+              "text": "Therapie gutartiger Schilddrüsenerkrankungen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-boesartiger-schilddruesenerkrankungen",
+              "text": "Therapie bösartiger Schilddrüsenerkrankungen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiopeptidtherapie-bei-neuroendokrinen-tumoren",
+              "text": "Radiopeptidtherapie bei neuroendokrinen Tumoren"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-vom-prostatakarzinom-psma",
+              "text": "Therapie vom Prostatakarzinom (PSMA)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/xofigo-therapie-bei-knochenmetastasen",
+              "text": "Xofigo-Therapie bei Knochenmetastasen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiosynoviorthese-rso",
+              "text": "Radiosynoviorthese (RSO)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik",
+              "text": "Nuklearmedizinische Diagnostik"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/szintigraphie",
+              "text": "Szintigraphie"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/positronen-emissions-tomographie-pet",
+              "text": "Positronen-Emissions-Tomographie (PET)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/therapieambulanz",
+              "text": "Therapieambulanz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung",
+              "text": "Lehre und Forschung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research",
+              "text": "Research"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/lab-for-translational-molecular-neuroimaging-tmn",
+              "text": "Lab for Translational Molecular Neuroimaging (TMN)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/artificial-intelligence-and-translational-theranostics",
+              "text": "Artificial Intelligence and Translational Theranostics"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/radiopharmacy-lab",
+              "text": "Radiopharmacy Lab"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/klinische-studien",
+              "text": "Klinische Studien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung",
+              "text": "Aus- und Weiterbildung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/lehre-an-der-universitaet-bern",
+              "text": "Lehre an der Universität Bern"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/facharztausbildung",
+              "text": "Facharztausbildung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/wahljahr-pj-tertial",
+              "text": "Wahljahr / PJ Tertial"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/radiologiefachpersonen",
+              "text": "Radiologiefachpersonen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications",
+              "text": "Publications"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2025",
+              "text": "2025"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1-2",
+              "text": "2024"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1",
+              "text": "2023"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns",
+              "text": "Über uns"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team",
+              "text": "Unser Team"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung",
+              "text": "Klinikleitung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/aerzteschaft",
+              "text": "Ärzteschaft"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/radiologiefachpersonen",
+              "text": "Radiologiefachpersonen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/administration",
+              "text": "Administration"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/medizinphysik",
+              "text": "Medizinphysik"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/pflege-therapiestation-swan-d",
+              "text": "Pflege (Therapiestation SWAN D)"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/forschungsteam-wissenschafliche-mitarbeitende",
+              "text": "Forschungsteam / Wissenschafliche Mitarbeitende"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung-1",
+              "text": "Studienmanagement"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/technische-ausstattung",
+              "text": "Technische Ausstattung"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/offene-stellen",
+              "text": "Offene Stellen"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/kontakte",
+              "text": "Kontakte"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/ueber-uns/videos-in-den-medien",
+              "text": "Videos / In den Medien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/aktuelles",
+              "text": "Aktuelles"
+            },
+            {
+              "url": "https://inselgruppe.ch/de/jobs-und-karriere/offene-stellen",
+              "text": "Jobs"
+            },
+            {
+              "url": "https://inselgruppe.ch/de/die-insel-gruppe/organisation/direktion-insel-gruppe/stabsbereiche/kommunikation",
+              "text": "Medien"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/kontakt",
+              "text": "Kontakt"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/impressum",
+              "text": "Impressum"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/disclaimer",
+              "text": "Disclaimer"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/datenschutz",
+              "text": "Datenschutz"
+            },
+            {
+              "url": "https://nukmed.insel.ch/de/sitemap",
+              "text": "Sitemap"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger"
+      },
+      "pageRequests": 1,
+      "modelCalls": 4,
+      "allowedUrls": [
+        "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+        "https://www.researchgate.net/profile/Axel_Rominger/9",
+        "https://www.nmss.org.sg/nmu2023prof-axel-rominger",
+        "https://pubmed.ncbi.nlm.nih.gov/39934005/",
+        "https://www.instagram.com/p/DRP7IbFDPgl/",
+        "https://e-smi.eu/wp-content/uploads/wp_dndcf7_uploads/BernRecruitment_PhD.pdf",
+        "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1-2",
+        "https://scholar.google.com/citations?user=o4_NNMgAAAAJ&hl=de",
+        "https://www.medizin.unibe.ch/profiles/university_clinics_inselspital/department_of_nuclear_medicine/index_eng.html",
+        "https://centhe.id.uj.edu.pl/documents/152110202/156779994/LOI_Rominger_UniBern.pdf/e9b8e2fc-502c-4514-bc14-26a8ad3fb04c"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "Axel Rominger Inselspital Bern nuclear medicine",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+                "title": "Prof. Dr. med. Axel Rominger - Nuklearmedizin",
+                "snippet": "Contact. Departement of Nuclear Medicine Inselspital, Bern University Hospital INO, Etage B, Eingang 33. Freiburgstrasse 18. CH-3010 Bern."
+              },
+              {
+                "url": "https://www.researchgate.net/profile/Axel_Rominger/9",
+                "title": "Axel ROMINGER | Director | Prof. Dr. med.",
+                "snippet": "Department of Nuclear Medicine; Germany. Position. Managing Director ... Inselspital, Universitätsspital Bern. Maurizio Conti. Siemens ..."
+              },
+              {
+                "url": "https://www.nmss.org.sg/nmu2023prof-axel-rominger",
+                "title": "NMU2023::Prof Axel Rominger",
+                "snippet": "Axel Rominger, MD, is full professor at the University of Bern and Chairman of the Dept. of Nuclear Medicine at Inselspital Bern."
+              },
+              {
+                "url": "https://pubmed.ncbi.nlm.nih.gov/39934005/",
+                "title": "The Evolution of Artificial Intelligence in Nuclear Medicine",
+                "snippet": "Nuclear medicine has continuously evolved since its beginnings, constantly improving the diagnosis and treatment of various diseases."
+              },
+              {
+                "url": "https://www.instagram.com/p/DRP7IbFDPgl/",
+                "title": "☢ Nuklearmedizin verändert die Art & Weise, wie ...",
+                "snippet": "... Axel Rominger & sein Team am Inselspital Bern – Universitätsklinik Nuklearmedizin, Insel Gruppe – treiben mit modernster Hybrid-Bildgebung ..."
+              },
+              {
+                "url": "https://e-smi.eu/wp-content/uploads/wp_dndcf7_uploads/BernRecruitment_PhD.pdf",
+                "title": "University Hospital Bern – Department of Nuclear Medicine ...",
+                "snippet": "Prof. Dr. Kuangyu Shi, Prof. Dr. Axel Rominger and PD Dr. Robert Seifert, e-mail: kuangyu.shi@dbmr.unibe.ch, axel.rominger@insel.ch and robert.seifert@unibe.ch."
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/publications/2021-1-2",
+                "title": "2024 - Universitätsklinik für Nuklearmedizin",
+                "snippet": "Ryoo, Hyun Gee; Choi, Hongyoon; Shi, Kuangyu; Rominger, Axel; Lee, Dong Young; Lee, Dong Soo (2024). Distinct subtypes of spatial brain metabolism patterns in ..."
+              },
+              {
+                "url": "https://scholar.google.com/citations?user=o4_NNMgAAAAJ&hl=de",
+                "title": "Axel Rominger",
+                "snippet": "Professor of Nuclear Medicine - ‪‪16.375-mal zitiert‬‬ - ‪Nuklearmedizin‬"
+              },
+              {
+                "url": "https://www.medizin.unibe.ch/profiles/university_clinics_inselspital/department_of_nuclear_medicine/index_eng.html",
+                "title": "Profiles: Department of Nuclear Medicine",
+                "snippet": "The Department is one of the largest and most advanced nuclear medicine departments in Switzerland. It offers the entire spectrum of modern nuclear medicine ..."
+              },
+              {
+                "url": "https://centhe.id.uj.edu.pl/documents/152110202/156779994/LOI_Rominger_UniBern.pdf/e9b8e2fc-502c-4514-bc14-26a8ad3fb04c",
+                "title": "Prof. Ph.D. Ewa Lucja Stępień, Head of the Department",
+                "snippet": "Axel Rominger, Klinikdirektor und Chefarzt, Telefon: +41 31 632 26 ... University Hospital Bern, Inselspital, Switzerland."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "title": "Prof. Dr. med. Axel Rominger - Nuklearmedizin: Universitätsklinik für Nuklearmedizin",
+            "offset": 0,
+            "total_characters": 7146,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Prof. Dr. med. Axel Rominger - Nuklearmedizin: Universitätsklinik für Nuklearmedizin\nNuklearmedizin: Universitätsklinik für Nuklearmedizin - Navigation\nNuklearmedizin (ALT+0)\nzur Haupt-Navigation (ALT+1)\nzum Seiteninhalt (ALT+2)\nKontakt (ALT+3)\nSitemap (ALT+4)\nSuchresultate (ALT+5)\nAktuelles (ALT+6)\nImpressum (ALT+7)\nNotfall 24h\nServicenavigation\nAktuelles\nJobs\nMedien\nKontakt\nSuche\nSuche\nSuchbegriff eingeben\nSuche absenden\nMenü\nHauptnavigation\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinformationen\nTechnische Ausstattung\nIndikationen (PET/CT)\nRadiopharmazie\nNuklearmedizin und Strahlenschutz\nKontakte\nUnser Angebot\nNuklearmedizinische Therapie\nTherapie gutartiger Schilddrüsenerkrankungen\nTherapie bösartiger Schilddrüsenerkrankungen\nRa"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "diopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nKontakt\nKontakt\nKontaktieren Sie uns\nüber unsere Hauptnummer\n+41 31 632 21 11\nInsel Gruppe\nmyInsel\nBreadcrumbnavigation\nSie befinden sich hier:\nNuklearmedizin: Universitätsklinik für Nuklearmedizin, zur Startseite\nÜber uns\nUnser Team\nKlinikleitung\nProf. Dr. med. Axel Rominger\nProf. Dr. med. Axel Rominger - Chairman and Head\nProf. Rominger, Axel, MD, MHBA\nContact\nDepart"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "ement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, "
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "Ludwig-Maximilians-University of Munich, Germany\n2005 - 2007 Residency in Neurosurgery, Albert-Ludwigs-University Freiburg, Germany\n2003 Research Fellowship, Harvard Medical School, Boston, USA\nScholarships and Awards\nAs group leader/advisor:\n2016 Travel Scholarship of the Japanese-German Radiological Association (JGRA): Research Elective at Kinki University\nOsaka, Japan (F. Scheiwein)\n2016 Award for the Best Medical Thesis of the Medical Faculty, Ludwig-Maximilians-University Munich (Dr. M. Brendel)\n2015 Steinberg-Krupp Alzheimer Award of the „Deutsche Hirnliga e. V.“ (Dr. M. Brendel)\n2015 Young Investigator Award (Neuroscience) of the Society of Nuclear Medicine, Baltimore, USA (Dr. M. Brendel; 1. Platz)\nPersonally:\n2013 Poster Award at the German Society Meeting, Bremen\n2012 Young Investigator Award (Neuroscience) at the Society of Nuclear Medicine in Miami, USA\n2011 Covidien Award, received at the German Society Meeting, Bregenz, Austria\n2011 Award of the German Society of Nuclear Medicine, received at the German Society Meeting, Bregenz, Austria\n2010 Travel Award at the Society of Nuclear Medicine in Salt Lake City, USA\n2009 Young Investigator Award (Cardiovascular) at the Soc"
+              },
+              {
+                "passageId": "text_4",
+                "offset": 4800,
+                "quote": "iety of Nuclear Medicine in Toronto, Canada\n2008 Young Investigator Award at the 3rd Congress of Integrated Biomarkers in Seattle, USA\n2003 Scholarship of the Erwin-Riesch Stiftung for Research Fellowship at Harvard Medical School\nnach oben\nFusszeile\nInformationen\nKontakt\nInselspital, Universitätsspital Bern\nUniversitätsklinik für Nuklearmedizin\nRosenbühlgasse 25/27\nCH-3010 Bern\nwww.nukmed.insel.ch\nT: +41 31 632 24 54\nAnreise\nÖffentlicher Verkehr\nParkmöglichkeiten\nSituationsplan Inselspital\nÖffnungszeiten\nMontag - Freitag 7:30 - 17:00 Uhr\nSocial Media\nBluesky\nFacebook\nYoutube\nLinkedIn\nXing\nInstagram\nTikTok\nNotfall 24h\nImpressum\nDisclaimer\nDatenschutz\nSitemap\n&copy; 2026 Insel Gruppe AG\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinfor"
+              },
+              {
+                "passageId": "text_5",
+                "offset": 6000,
+                "quote": "mationen\nTechnische Ausstattung\nIndikationen (PET/CT)\nRadiopharmazie\nNuklearmedizin und Strahlenschutz\nKontakte\nUnser Angebot\nNuklearmedizinische Therapie\nTherapie gutartiger Schilddrüsenerkrankungen\nTherapie bösartiger Schilddrüsenerkrankungen\nRadiopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nAktuelles\nJobs\nMedien\nKontakt\nImpressum\nDisclaimer\nDatenschutz\nSitemap"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+            "links": [
+              {
+                "url": "https://nukmed.insel.ch/de/",
+                "text": "Nuklearmedizin (ALT+0)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+                "text": "zur Haupt-Navigation (ALT+1)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/ueber-uns/unser-team/klinikleitung/prof-dr-med-axel-rominger",
+                "text": "zum Seiteninhalt (ALT+2)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/kontakt",
+                "text": "Kontakt (ALT+3)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/sitemap",
+                "text": "Sitemap (ALT+4)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/suchresultate",
+                "text": "Suchresultate (ALT+5)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/aktuelles",
+                "text": "Aktuelles (ALT+6)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/impressum",
+                "text": "Impressum (ALT+7)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/notfall-24h",
+                "text": "Notfall 24h"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/aktuelles",
+                "text": "Aktuelles"
+              },
+              {
+                "url": "https://inselgruppe.ch/de/jobs-und-karriere/offene-stellen?stellen=nuklearmedizin",
+                "text": "Jobs"
+              },
+              {
+                "url": "https://inselgruppe.ch/de/die-insel-gruppe/organisation/direktion-insel-gruppe/stabsbereiche/kommunikation",
+                "text": "Medien"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/kontakt",
+                "text": "Kontakt"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen",
+                "text": "Patient:innen und Besucher:innen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen",
+                "text": "Allgemeine Informationen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/informationsbroschueren",
+                "text": "Informationsbroschüren"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/nuklearmedizin-und-strahlenschutz",
+                "text": "Nuklearmedizin und Strahlenschutz"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontinuierliche-verbesserung",
+                "text": "Kontinuierliche Verbesserung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/anreise-lageplan",
+                "text": "Anreise / Lageplan"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/allgemeine-informationen/kontakte",
+                "text": "Kontakte"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung",
+                "text": "Ambulante Behandlung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/an-und-abmeldung-eines-untersuchungstermins",
+                "text": "An- und Abmeldung eines Untersuchungstermins"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/ambulante-behandlung/untersuchungsablauf",
+                "text": "Untersuchungsablauf"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung",
+                "text": "Stationäre Behandlung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/allgemeine-informationen",
+                "text": "Allgemeine Informationen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/checkliste-tipps-zum-stationaeren-aufenthalt",
+                "text": "Checkliste / Tipps zum stationären Aufenthalt"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/massnahmen-zum-strahlenschutz",
+                "text": "Massnahmen zum Strahlenschutz"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/stationaere-behandlung/spitalaustritt-und-nachsorge",
+                "text": "Spitalaustritt und Nachsorge"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/patientinnen-und-besucherinnen/videos-in-den-medien",
+                "text": "Videos / In den Medien"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen",
+                "text": "Zuweisung und Fachinformationen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/zuweisung-und-anmeldeformulare",
+                "text": "Zuweisung und Anmeldeformulare"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen",
+                "text": "Fachinformationen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/technische-ausstattung",
+                "text": "Technische Ausstattung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/indikationen-petct",
+                "text": "Indikationen (PET/CT)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/radiopharmazie",
+                "text": "Radiopharmazie"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/fachinformationen/nuklearmedizin-und-strahlenschutz",
+                "text": "Nuklearmedizin und Strahlenschutz"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/zuweisung-und-fachinformationen/kontakte",
+                "text": "Kontakte"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot",
+                "text": "Unser Angebot"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie",
+                "text": "Nuklearmedizinische Therapie"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-gutartiger-schilddruesenerkrankungen",
+                "text": "Therapie gutartiger Schilddrüsenerkrankungen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-boesartiger-schilddruesenerkrankungen",
+                "text": "Therapie bösartiger Schilddrüsenerkrankungen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiopeptidtherapie-bei-neuroendokrinen-tumoren",
+                "text": "Radiopeptidtherapie bei neuroendokrinen Tumoren"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/therapie-vom-prostatakarzinom-psma",
+                "text": "Therapie vom Prostatakarzinom (PSMA)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/xofigo-therapie-bei-knochenmetastasen",
+                "text": "Xofigo-Therapie bei Knochenmetastasen"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-therapie/radiosynoviorthese-rso",
+                "text": "Radiosynoviorthese (RSO)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik",
+                "text": "Nuklearmedizinische Diagnostik"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/szintigraphie",
+                "text": "Szintigraphie"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/positronen-emissions-tomographie-pet",
+                "text": "Positronen-Emissions-Tomographie (PET)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/unser-angebot/nuklearmedizinische-diagnostik/therapieambulanz",
+                "text": "Therapieambulanz"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung",
+                "text": "Lehre und Forschung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research",
+                "text": "Research"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/lab-for-translational-molecular-neuroimaging-tmn",
+                "text": "Lab for Translational Molecular Neuroimaging (TMN)"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/artificial-intelligence-and-translational-theranostics",
+                "text": "Artificial Intelligence and Translational Theranostics"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/research/radiopharmacy-lab",
+                "text": "Radiopharmacy Lab"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/klinische-studien",
+                "text": "Klinische Studien"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung",
+                "text": "Aus- und Weiterbildung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/lehre-an-der-universitaet-bern",
+                "text": "Lehre an der Universität Bern"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/facharztausbildung",
+                "text": "Facharztausbildung"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/wahljahr-pj-tertial",
+                "text": "Wahljahr / PJ Tertial"
+              },
+              {
+                "url": "https://nukmed.insel.ch/de/lehre-und-forschung/aus-und-weiterbildung/radiologiefachpersonen",
+                "text": "Radiologiefachpersonen"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 175
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "Prof. Dr. med. Axel Rominger",
+        "institution": "Inselspital, Universitätsspital Bern (Universitätsklinik für Nuklearmedizin)",
+        "department": "Nuklearmedizin (Department of Nuclear Medicine), Chairman and Head; Full Professor for Nuclear Medicine at the University of Bern",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "diopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nKontakt\nKontakt\nKontaktieren Sie uns\nüber unsere Hauptnummer\n+41 31 632 21 11\nInsel Gruppe\nmyInsel\nBreadcrumbnavigation\nSie befinden sich hier:\nNuklearmedizin: Universitätsklinik für Nuklearmedizin, zur Startseite\nÜber uns\nUnser Team\nKlinikleitung\nProf. Dr. med. Axel Rominger\nProf. Dr. med. Axel Rominger - Chairman and Head\nProf. Rominger, Axel, MD, MHBA\nContact\nDepart",
+            "explanation": "Official clinic profile page identifies Prof. Dr. med. Axel Rominger (Rominger, Axel, MD, MHBA) as Chairman and Head of the clinic's leadership."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "ement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, ",
+            "explanation": "Profile gives his contact address at the Department of Nuclear Medicine, Inselspital, Bern University Hospital, CH-3010 Bern, matching the requested hospital (Bern University Hospital Inselspital)."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "ement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, ",
+            "explanation": "Page states 'Since 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland', confirming the nuclear medicine specialty and role at the requested institution."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "iety of Nuclear Medicine in Toronto, Canada\n2008 Young Investigator Award at the 3rd Congress of Integrated Biomarkers in Seattle, USA\n2003 Scholarship of the Erwin-Riesch Stiftung for Research Fellowship at Harvard Medical School\nnach oben\nFusszeile\nInformationen\nKontakt\nInselspital, Universitätsspital Bern\nUniversitätsklinik für Nuklearmedizin\nRosenbühlgasse 25/27\nCH-3010 Bern\nwww.nukmed.insel.ch\nT: +41 31 632 24 54\nAnreise\nÖffentlicher Verkehr\nParkmöglichkeiten\nSituationsplan Inselspital\nÖffnungszeiten\nMontag - Freitag 7:30 - 17:00 Uhr\nSocial Media\nBluesky\nFacebook\nYoutube\nLinkedIn\nXing\nInstagram\nTikTok\nNotfall 24h\nImpressum\nDisclaimer\nDatenschutz\nSitemap\n&copy; 2026 Insel Gruppe AG\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinfor",
+            "explanation": "The page is the official website of the Universitätsklinik für Nuklearmedizin, Inselspital, Universitätsspital Bern (footer: www.nukmed.insel.ch, Insel Gruppe AG), making it an authoritative source for the clinic's own leadership."
+          }
+        ],
+        "limitations": []
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "bb85ba08ef7ca3589fcd431ee537a02ac7b7047868792b68ace594b3acd205f7"
+        },
+        {
+          "kind": "review",
+          "sha256": "3cdce2190768c3bd112068e020f61dc8caca265caeab8bc701716a5b8fce3fd6"
+        },
+        {
+          "kind": "questions",
+          "sha256": "cfe7425fae5ed5aa371d1a1745786a3017b7e1c0c4b64d739ccecb352471edaa"
+        },
+        {
+          "kind": "answers",
+          "sha256": "23b1e179dfc3904fe96ca4589843ecffb7134d484337d5331461d7f4198680c0"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 1,
+      "discovered_source_count": 10,
+      "fetched_source_count": 1,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_47de01c79f7957656cc855c8eaa3ae30",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 1,
+        "model_calls_reserved": 4,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "diopeptidtherapie bei neuroendokrinen Tumoren\nTherapie vom Prostatakarzinom (PSMA)\nXofigo-Therapie bei Knochenmetastasen\nRadiosynoviorthese (RSO)\nNuklearmedizinische Diagnostik\nSzintigraphie\nPositronen-Emissions-Tomographie (PET)\nTherapieambulanz\nLehre und Forschung\nResearch\nLab for Translational Molecular Neuroimaging (TMN)\nArtificial Intelligence and Translational Theranostics\nRadiopharmacy Lab\nKlinische Studien\nAus- und Weiterbildung\nLehre an der Universität Bern\nFacharztausbildung\nWahljahr / PJ Tertial\nRadiologiefachpersonen\nPublications\n2025\n2024\n2023\nÜber uns\nUnser Team\nKlinikleitung\nÄrzteschaft\nRadiologiefachpersonen\nAdministration\nMedizinphysik\nPflege (Therapiestation SWAN D)\nForschungsteam / Wissenschafliche Mitarbeitende\nStudienmanagement\nTechnische Ausstattung\nOffene Stellen\nKontakte\nVideos / In den Medien\nKontakt\nKontakt\nKontaktieren Sie uns\nüber unsere Hauptnummer\n+41 31 632 21 11\nInsel Gruppe\nmyInsel\nBreadcrumbnavigation\nSie befinden sich hier:\nNuklearmedizin: Universitätsklinik für Nuklearmedizin, zur Startseite\nÜber uns\nUnser Team\nKlinikleitung\nProf. Dr. med. Axel Rominger\nProf. Dr. med. Axel Rominger - Chairman and Head\nProf. Rominger, Axel, MD, MHBA\nContact\nDepart",
+            "explanation": "Official clinic profile page identifies Prof. Dr. med. Axel Rominger (Rominger, Axel, MD, MHBA) as Chairman and Head of the clinic's leadership."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "ement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, ",
+            "explanation": "Profile gives his contact address at the Department of Nuclear Medicine, Inselspital, Bern University Hospital, CH-3010 Bern, matching the requested hospital (Bern University Hospital Inselspital)."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "ement of Nuclear Medicine\nInselspital, Bern University Hospital\nINO, Etage B, Eingang 33\nFreiburgstrasse 18\nCH-3010 Bern\nContact via E-Mail\n+41 31 632 26 10\nPublications\nPubmed\nAcademic appointments\nSince 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland\nSince 2019 Visiting Professor at Fudan University, Shanghai, China\nEducation\n1997-2004 Medical training at Albert-Ludwigs-University Freiburg, Germany\nDegree: MD\nAcademice Degrees / Board Certification\n2017 Master in Health Business Administration (MHBA) at Friedrich-Alexander University Erlangen-Nürnberg\n2015 außerplanmäßige Professur, LMU Munich\n2011 Habilitation (Venia legendi) in Nuclear Medicine, LMU München\n2011 Board certification in Nuclear Medicine\n2004 Doctoral Thesis in Human Medicine at Albert-Ludwigs-University Freiburg\nPrevious Professional Positions\n2013 -2018 First Consultant and Vice Director of the Department of Nuclear Medicine, Ludwig-Maximilians-University Munich,\nGermany (Director: Prof. Dr. P. Bartenstein)\n2011 - 2012 Fellowship MRI, Radiological Institute, Ludwig-Maximilians-University Munich, Germany\n2007 - 2011 Residency in Nuclear Medicine, Department of Nuclear Medicine, ",
+            "explanation": "Page states 'Since 04/2018 Full Professor for Nuclear Medicine at the University of Bern, Switzerland', confirming the nuclear medicine specialty and role at the requested institution."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_47de01c79f7957656cc855c8eaa3ae30",
+            "quote": "iety of Nuclear Medicine in Toronto, Canada\n2008 Young Investigator Award at the 3rd Congress of Integrated Biomarkers in Seattle, USA\n2003 Scholarship of the Erwin-Riesch Stiftung for Research Fellowship at Harvard Medical School\nnach oben\nFusszeile\nInformationen\nKontakt\nInselspital, Universitätsspital Bern\nUniversitätsklinik für Nuklearmedizin\nRosenbühlgasse 25/27\nCH-3010 Bern\nwww.nukmed.insel.ch\nT: +41 31 632 24 54\nAnreise\nÖffentlicher Verkehr\nParkmöglichkeiten\nSituationsplan Inselspital\nÖffnungszeiten\nMontag - Freitag 7:30 - 17:00 Uhr\nSocial Media\nBluesky\nFacebook\nYoutube\nLinkedIn\nXing\nInstagram\nTikTok\nNotfall 24h\nImpressum\nDisclaimer\nDatenschutz\nSitemap\n&copy; 2026 Insel Gruppe AG\nPatient:innen und Besucher:innen\nAllgemeine Informationen\nInformationsbroschüren\nNuklearmedizin und Strahlenschutz\nKontinuierliche Verbesserung\nAnreise / Lageplan\nKontakte\nAmbulante Behandlung\nAn- und Abmeldung eines Untersuchungstermins\nUntersuchungsablauf\nStationäre Behandlung\nAllgemeine Informationen\nCheckliste / Tipps zum stationären Aufenthalt\nMassnahmen zum Strahlenschutz\nSpitalaustritt und Nachsorge\nVideos / In den Medien\nZuweisung und Fachinformationen\nZuweisung und Anmeldeformulare\nFachinfor",
+            "explanation": "The page is the official website of the Universitätsklinik für Nuklearmedizin, Inselspital, Universitätsspital Bern (footer: www.nukmed.insel.ch, Insel Gruppe AG), making it an authoritative source for the clinic's own leadership."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "085cbb4cca11373409bf12cec371ec171deaf0fd5d67c5ceb0f3aa6a8c4df0b5",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "d95aef1bb3355cf6575a5e0e3c72571a3a12697ae735ca646fb71101bfbd5722",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"自2018年4月起任伯尔尼大学核医学正教授（Full Professor for Nuclear Medicine at the University of Bern）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"position\",\"text\":\"自2019年起兼任中国上海复旦大学客座教授（Visiting Professor）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"1997–2004年在德国弗莱堡阿尔伯特-路德维希大学（Albert-Ludwigs-University Freiburg）接受医学教育并获医学博士学位（2004年博士论文）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成核医学教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年在埃尔朗根-纽伦堡大学获医疗卫生工商管理硕士（MHBA）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院任研究访问学者（Research Fellowship）；2011–2012年在LMU放射学研究所完成MRI专科培训（Fellowship）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"type\":\"education_and_career\",\"text\":\"2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"research_direction\",\"text\":\"其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤的放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描（Szintigraphie）和PET显像等。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"曾获多个个人奖项，包括2011年德国核医学会奖、2011年Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_4\"}]}],\"background\":[{\"text\":\"Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人，同时自2018年4月起担任伯尔尼大学核医学正教授。他的职业生涯主要在德语区学术中心展开：在弗莱堡大学完成医学学习（1997–2004，含神经外科培训）后，赴哈佛医学院做过研究访问学者（2003），随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获得专科资格和教职论文），并在LMU核医学科晋升至第一主诊医师兼副主任，2018年赴伯尔尼任职。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"text\":\"在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验和伯尔尼大学的教学与专科医师培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_5\"}]},{\"text\":\"会面或交流时的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可通过电子邮件联系；科室总机为+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"Rominger教授目前的职务是什么？\",\"answer\":\"他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他的学术背景和职业路径如何？\",\"answer\":\"德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他所在科室的研究重点有哪些？\",\"answer\":\"官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系到他或找到他的科室？\",\"answer\":\"科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"他与中国的学术联系是什么？\",\"answer\":\"官方简历显示他自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]}],\"limitations\":[\"官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。\",\"未检索其个人代表性论文的具体篇目；如需其近期代表性研究成果，可进一步查询PubMed或向本人确认。\"]}]}",
+            "gatewayRequestId": "req-fe1f767f-905f-4b93-91d7-de896fe29587",
+            "usage": {
+              "promptTokens": 6262,
+              "completionTokens": 2257,
+              "reasoningTokens": 11,
+              "totalTokens": 8519
+            }
+          }
+        },
+        {
+          "inputSha256": "4c837b650096ef85bd9a6ed9f5d14caf884ee77ba03a074d939eabf09a58a6ba",
+          "response": {
+            "text": "{\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"position\",\"text\":\"自2019年起兼任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"type\":\"education_and_career\",\"text\":\"2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"research_direction\",\"text\":\"其所在科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队、放射性药物实验室（Radiopharmacy Lab），并开展临床试验。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"科室临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_4\"}]}],\"background\":[{\"text\":\"Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"text\":\"在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病治疗、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研与教学方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，开展临床试验，并承担伯尔尼大学教学与专科医师培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_5\"}]},{\"text\":\"会面或交流的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可经电子邮件联系；科室总机为+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"Rominger教授目前的职务是什么？\",\"answer\":\"他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他的学术背景和职业路径如何？\",\"answer\":\"德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他所在科室的研究方向有哪些？\",\"answer\":\"官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系他或找到他的科室？\",\"answer\":\"科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"他与中国的学术联系是什么？\",\"answer\":\"官方简历显示他自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]}],\"limitations\":[\"官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。\",\"未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。\"]}",
+            "gatewayRequestId": "req-3eeb328f-d055-4d57-9cfc-e207f7dc7906",
+            "usage": {
+              "promptTokens": 8619,
+              "completionTokens": 2243,
+              "reasoningTokens": 18,
+              "totalTokens": 10862
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "2db10117f1a2867514c0f3632efc74557dd31ad7bc831cd5a03806ae8ca5edc9",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "ee86645973dca441aef5ae0cf21de1d06f188147c3dff4758c611d3fa2d78702",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Axel Rominger教授（Prof. Dr. med., MD, MHBA）现任瑞士伯尔尼大学医院（Inselspital）核医学科主任兼科负责人（Chairman and Head）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"position\",\"text\":\"自2019年起兼任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"1997–2004年在德国弗莱堡阿尔伯特-路德维希大学接受医学教育并获医学博士学位（2004年博士论文）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2007–2011年在慕尼黑大学（LMU）完成核医学住院医师培训，2011年获核医学专科医师资格并在LMU完成教职论文（Habilitation），2015年在LMU获编外教授（außerplanmäßige Professur）资格，2017年获埃尔朗根-纽伦堡大学医疗卫生工商管理硕士（MHBA）。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"education_and_career\",\"text\":\"2005–2007年在弗莱堡大学接受神经外科住院医师培训；2003年在美国哈佛医学院做研究访问学者；2011–2012年在LMU放射学研究所完成MRI专科培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"type\":\"education_and_career\",\"text\":\"2013–2018年任慕尼黑大学核医学科第一主诊医师兼副主任（First Consultant and Vice Director，时任主任为Prof. Dr. P. Bartenstein），2018年转任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"type\":\"research_direction\",\"text\":\"其所在科室设有转化分子神经影像实验室（Lab for Translational Molecular Neuroimaging, TMN）、人工智能与转化诊疗（Artificial Intelligence and Translational Theranostics）团队以及放射性药物实验室（Radiopharmacy Lab），并开展临床试验。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"所在科室的临床服务涵盖核医学治疗与诊断，包括神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术（RSO）、闪烁扫描及PET显像，并设治疗门诊。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"个人曾获奖项包括2011年德国核医学会奖与Covidien奖、2012年美国核医学会（迈阿密）神经科学青年研究者奖、2013年德国核医学会（不来梅）壁报奖等；2003年获Erwin-Riesch基金会奖学金赴哈佛医学院研究。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_4\"}]}],\"background\":[{\"text\":\"Axel Rominger教授是瑞士伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起担任伯尔尼大学核医学正教授。他的职业路径主要在德语区学术中心：在弗莱堡大学完成医学学习（1997–2004，其间含神经外科培训经历），2003年赴哈佛医学院做研究访问，随后在慕尼黑大学（LMU）完成核医学专科培训（2011年获专科资格和教职论文），2013–2018年任LMU核医学科第一主诊医师兼副主任，2018年起任职伯尔尼。他还于2017年取得医疗卫生工商管理硕士（MHBA），自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_3\"}]},{\"text\":\"在其领导下，伯尔尼核医学科的临床服务覆盖治疗与诊断两大板块，包括甲状腺疾病治疗、神经内分泌肿瘤放射肽治疗、前列腺癌PSMA治疗、骨转移Xofigo治疗、放射性滑膜切除术，以及闪烁扫描和PET显像，并设有治疗门诊。科研与教学方面，科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，开展临床试验，并承担伯尔尼大学教学与专科医师培训。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_5\"}]},{\"text\":\"会面或交流的实用信息：科室位于伯尔尼Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern），其办公室电话为+41 31 632 26 10，可经电子邮件联系；科室总机为+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]}],\"qa\":[{\"question\":\"Rominger教授目前的职务是什么？\",\"answer\":\"他是伯尔尼大学医院（Inselspital）核医学科的主任兼负责人（Chairman and Head），并自2018年4月起任伯尔尼大学核医学正教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他的学术背景和职业路径如何？\",\"answer\":\"德国弗莱堡大学医学教育（1997–2004），2003年哈佛医学院研究访问，2007–2011年LMU核医学住院医师培训，2011年获专科资格及教职论文，2015年LMU编外教授，2013–2018年任LMU核医学科第一主诊医师兼副主任，2017年获MHBA学位，2018年起任伯尔尼现职。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]},{\"question\":\"他所在科室的研究方向有哪些？\",\"answer\":\"官方页面列出科室设有转化分子神经影像实验室（TMN）、人工智能与转化诊疗团队、放射性药物实验室，并开展临床试验；具体研究项目的最新情况建议与其团队直接确认。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"如何联系他或找到他的科室？\",\"answer\":\"科室位于Inselspital的INO楼B层（33号入口，Freiburgstrasse 18，CH-3010 Bern）；其办公室电话+41 31 632 26 10，可经电子邮件联系；科室总机+41 31 632 21 11。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"},{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_1\"}]},{\"question\":\"他与中国的学术联系是什么？\",\"answer\":\"官方简历显示他自2019年起任上海复旦大学客座教授。\",\"citations\":[{\"sourceId\":\"src_47de01c79f7957656cc855c8eaa3ae30\",\"passageId\":\"text_2\"}]}],\"limitations\":[\"官方简历为德文页面，部分经历以德文学术头衔表述（如außerplanmäßige Professur），此处按通常含义译出。\",\"未检索其代表性论文的具体篇目；如需其近期研究成果，可查询PubMed或向本人确认。\"]}}",
+            "gatewayRequestId": "req-f88e7e71-576f-4ab8-bbc1-687a70e3813a",
+            "usage": {
+              "promptTokens": 9368,
+              "completionTokens": 2274,
+              "reasoningTokens": 27,
+              "totalTokens": 11642
+            }
+          }
+        }
+      ]
+    }
+  }
+]

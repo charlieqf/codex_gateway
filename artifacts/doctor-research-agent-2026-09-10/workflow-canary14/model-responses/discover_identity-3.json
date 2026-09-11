@@ -1,0 +1,10 @@
+{
+  "text": "{\"actions\":[{\"type\":\"read\",\"url\":\"https://jnm.snmjournals.org/content/jnumed/early/2024/08/08/jnumed.124.267951.full.pdf\",\"find\":\"Schaetz\",\"purpose\":\"confirm author affiliation with Novartis for Leonhard Schaetz\"},{\"type\":\"read\",\"url\":\"https://rocketreach.co/leonhard-schaetz-email_26985822\",\"find\":\"Novartis\",\"purpose\":\"corroborate employer and role from a second source\"}]}",
+  "usage": {
+    "promptTokens": 3412,
+    "completionTokens": 113,
+    "reasoningTokens": 0,
+    "totalTokens": 3525
+  },
+  "gatewayRequestId": "req-e4e0870f-2fe3-4aaa-ab32-dad485af4d93"
+}

@@ -1,0 +1,2386 @@
+[
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_profile_sources_checkpoint.v1",
+      "source_ids": [
+        "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+        "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+        "src_4b433e01a2aa2c95bb9350f19f4daa14"
+      ]
+    }
+  },
+  {
+    "stage": "collect_profile_evidence",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_practical_profile.v1",
+      "inputSha256": "32aee2609fb72bcabb9c60868f9b61629d59e3f5c9c449524a96e8102809888b",
+      "calls": 2,
+      "pageReads": 0,
+      "pages": [],
+      "searches": [],
+      "publications": [],
+      "observations": [],
+      "candidate": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性 expertise center 和血管炎 expertise center 的成员。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。",
+            "citations": [
+              {
+                "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并领导外周动脉疾病组织灌注研究组。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人之一。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Riemer Slart（prof. dr. R.H.J.A. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "在学术职务上，他自2019年起任格罗宁根大学“多模态心血管影像”全职教授，自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授，并自2018年起担任荷兰东北部医学影像中心的分子影像医学主任。他在欧洲核医学界担任重要角色：曾任EANM心血管委员会常委兼秘书（2014–2021），现为EANM指南委员会成员及EANM–EACVI/ESC感染与炎症心血管影像工作组主席。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "其工作重心是心血管多模态影像（核医学、CT、MRI）及其在心脏淀粉样变性、大血管炎、感染与炎症、外周动脉病等疾病中的转化应用。他创立了EURO-LEARN平台以提升心脏淀粉样变性核素显像的欧洲认知度，参与多项国际影像指南与建议的制定，并领导多项影像研究试验。他发表逾420篇同行评审论文，是多个EANM教学项目的授课教师。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他在UMCG的具体科室和临床角色是什么？",
+            "answer": "他是UMCG医学影像中心核医学与分子影像科的核医学医师（常任医师），同时具有心脏放射学（CT与CMR）注册资质。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他的教授头衔具体是什么？",
+            "answer": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授；自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在欧洲学术组织中担任哪些职务？",
+            "answer": "曾任EANM心血管委员会常委兼秘书（2014–2021），现任EANM指南委员会成员、EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席，2016年加入EULAR大血管炎影像工作组。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他的主要研究方向和临床兴趣是什么？",
+            "answer": "心血管多模态影像（核素显像、CT、心脏MRI），尤其在心脏淀粉样变性、大血管炎、感染/炎症影像及外周动脉病组织灌注方面；此外在特文特大学参与含AI的技术医学项目。如需了解其当前具体的临床安排，建议直接与其确认。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "question": "他近年有哪些代表性活动或荣誉？",
+            "answer": "2024年获Zaret-Beller Elite Reviewer Award；2025年3月就心脏淀粉样变性MRI与核素影像作邀请报告；2025年作为组织者签署学术合作谅解备忘录，并赴米兰比可卡大学任访问研究者。近年合作论文发表于Journal of Clinical Virology（2026）和Scientific Reports（2026）。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_2"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "UMCG医院官网的正式员工页面无法直接访问（HTTP 403），身份信息经由UMCG Research门户、格罗宁根大学员工页面及第三方专业页面交叉确认。",
+          "其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。"
+        ]
+      },
+      "approved": {
+        "facts": [
+          {
+            "type": "position",
+            "text": "Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性expertise center和血管炎expertise center的成员。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "expertise",
+            "text": "其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。",
+            "citations": [
+              {
+                "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "education_and_career",
+            "text": "2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "research_direction",
+            "text": "在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并属于外周动脉疾病组织灌注研究组。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_2"
+              }
+            ]
+          },
+          {
+            "type": "representative_output",
+            "text": "近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "type": "position",
+            "text": "他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          }
+        ],
+        "background": [
+          {
+            "text": "Riemer Slart（prof. dr. R.H.J.A. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "text": "在学术职务上，他自2019年起任格罗宁根大学“多模态心血管影像”全职教授，自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授，并自2018年起担任荷兰东北部医学影像中心的分子影像医学主任。他在欧洲核医学界担任重要角色：曾任EANM心血管委员会常委兼秘书（2014–2021），现为EANM指南委员会成员及EANM–EACVI/ESC感染与炎症心血管影像工作组主席。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "text": "其工作重心是心血管多模态影像（核医学、CT、MRI）及其在心脏淀粉样变性、大血管炎、感染与炎症、外周动脉病等疾病中的转化应用。他创立了EURO-LEARN平台以提升心脏淀粉样变性核素显像的欧洲认知度，参与多项国际影像指南与建议的制定，并是多项影像研究试验的发起人和主持人。他发表逾420篇同行评审论文，是多个EANM教学项目的授课教师。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          }
+        ],
+        "qa": [
+          {
+            "question": "他在UMCG的具体科室和临床角色是什么？",
+            "answer": "他是UMCG医学影像中心核医学与分子影像科的核医学医师（常任医师），同时具有心脏放射学（CT与CMR）注册资质。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他的教授头衔具体是什么？",
+            "answer": "自2019年起任格罗宁根大学“多模态心血管影像”全职教授；自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              }
+            ]
+          },
+          {
+            "question": "他在欧洲学术组织中担任哪些职务？",
+            "answer": "曾任EANM心血管委员会常委兼秘书（2014–2021），现任EANM指南委员会成员、EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席，2016年加入EULAR大血管炎影像工作组。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_0"
+              },
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              }
+            ]
+          },
+          {
+            "question": "他的主要研究方向和临床兴趣是什么？",
+            "answer": "心血管多模态影像（核素显像、CT、心脏MRI），尤其在心脏淀粉样变性、大血管炎、感染/炎症影像及外周动脉病组织灌注方面；此外在特文特大学参与含AI的技术医学项目。如需了解其当前具体的临床安排，建议直接与其确认。",
+            "citations": [
+              {
+                "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_3"
+              }
+            ]
+          },
+          {
+            "question": "他近年有哪些代表性活动或荣誉？",
+            "answer": "2024年获Zaret-Beller Elite Reviewer Award；2025年3月就心脏淀粉样变性MRI与核素影像作邀请报告；2025年作为组织者签署学术合作谅解备忘录，并赴米兰比可卡大学任访问研究者。近年合作论文发表于Journal of Clinical Virology（2026）和Scientific Reports（2026）。",
+            "citations": [
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_1"
+              },
+              {
+                "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+                "passageId": "text_2"
+              }
+            ]
+          }
+        ],
+        "limitations": [
+          "其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。"
+        ]
+      }
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_stage_checkpoint.v1",
+      "state": "started"
+    }
+  },
+  {
+    "stage": "discover_identity",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_identity_investigation.v1",
+      "inputSha256": "1b53be8b480aca197fe8f3d21fe8a38824031b84da75929d5323b5037f3a8ea9",
+      "searches": [
+        {
+          "query": "Riemer Slart UMCG nucleaire geneeskunde",
+          "status": "succeeded",
+          "results": [
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "title": "prof. dr. R.H.J.A. (Riemer) Slart",
+              "snippet": "(Riemer) Slart. Profile picture of prof. dr. R.H.J.A. (Riemer) Slart. Faculty of Medical Sciences. Telephone: E-mail: r.h.j.a.slart@umcg.nl."
+            },
+            {
+              "url": "https://www.researchgate.net/profile/Riemer-Slart/6",
+              "title": "Riemer SLART | Nuclear Medicine Physician UMCG, ...",
+              "snippet": "Riemer SLART, Nuclear Medicine Physician UMCG, Clinical professor Molecular Imaging University of Twente | Cited by 19169 | of University of Groningen, ..."
+            },
+            {
+              "url": "https://scholar.google.com/citations?user=pve78gsAAAAJ&hl=nl",
+              "title": "Riemer Slart",
+              "snippet": "Riemer Slart Riemer Slart UMCG ・ recommendations for the use of imaging in large vessel vasculitis in clinical practice ・ nuclear medicine and molecular ..."
+            },
+            {
+              "url": "https://www.linkedin.com/posts/andor-glaudemans-76788a30_article-of-the-month-from-the-departments-activity-7445414242234785792-Llaj",
+              "title": "Andor Glaudemans' Post",
+              "snippet": "Article of the month! From the departments of Nucleaire Geneeskunde en Moleculaire Beeldvorming and Rheumatology of the UMCG. Riemer Slart"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+              "title": "Riemer Slart - Decisive",
+              "snippet": "Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging ..."
+            },
+            {
+              "url": "https://www.nmss.org.sg/prof-riemer-hja-slart",
+              "title": "Prof Riemer H.J.A. Slart",
+              "snippet": "Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging ..."
+            },
+            {
+              "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+              "title": "Riemer Slart",
+              "snippet": "Nuclear medicine physician. Riemer Slart Nuclear medicine physician ・ post-transplant diabetes 2026, Basic and Translational Research and Imaging Methodology ..."
+            },
+            {
+              "url": "https://pubmed.ncbi.nlm.nih.gov/35384463/",
+              "title": "A new colleague in nuclear medicine, the clinical ...",
+              "snippet": "Riemer H J A Slart 1 2. Medical Imaging Centre, Department of Nuclear Medicine and Molecular Imaging (EB50), University Medical Center Groningen, Section of ..."
+            },
+            {
+              "url": "https://www.umcg.nl/-/r-slart",
+              "title": "Prof. dr. Riemer Slart Nucleair geneeskundige - Groningen",
+              "snippet": "Nucleair geneeskundige. Aandachtsgebied: translationeel multimodale cardiovasculaire beeldvorming, total-body PET/CT, en DEXA."
+            },
+            {
+              "url": "https://www.doen-congressen.nl/riemer-slart/",
+              "title": "Riemer Slart - Nucleair geneeskundige",
+              "snippet": "Sinds 2001 is hij als nucleair geneeskundige verbonden aan de afdeling Nucleaire Geneeskunde & Moleculaire Beeldvorming van het Medisch Beeldvormend Centrum van ..."
+            }
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+          "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+          "title": "prof. dr. R.H.J.A. (Riemer) Slart | How to find us | University of Groningen",
+          "accessedAt": "2026-09-11T00:25:15.145Z",
+          "contentSha256": "0ed249960968aa4f9aae464c1cd33284781d116edbbc413727c446a53ace468a",
+          "untrustedText": "prof. dr. R.H.J.A. (Riemer) Slart | How to find us | University of Groningen\nSkip to Content Skip to Navigation\nfounded in 1614 - top 100 university\nClose\nMenu and search\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nSearch page\nSearch Search Search\nHome\nEducation\nEducation\nApplication, registration and tuition fees\nBachelors\nMasters\nPre-master programmes\nPhD programmes\nExchange\nSummer / Winter schools\nKnowledge and learning\nResearch\nResearch\nResearch themes\nResearch centres and institutes\nPhD programmes\nFind research and researchers\nPodcasts\nResearch videos\nOpen Science\nResearch Support Portal\nLibrary\nSociety/business\nSociety/business\nKnowledge and learning\nCollaborating with the UG\nYoung talent\nSchools for Science & Society\nAlumni\nAlumni\nFor alumni\nAbout alumni\nMagazine Broerstraat 5\nSupport research and education\nUpdate your information\nContact\nNews\nMagazine\nNews overview\nLatest news\nAbout us\nAbout us\nLatest news\nProfile\nPolicy and strategy\nOrganization\nWorking at the University of Groningen\nContact and practical matters\nSearch\nAbout us\nPractical matters\nHow to find us\nprof. dr. R.H.J.A. (Riemer) Slart\nHOME\nEducation\nResearch\nSociety/business\nAlumni\nNews\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLanguage Centre\nCollaborating with the UG\nCenter for Information Technology\nUniversity Museum\nCareer Services\nStudium Generale\nSchools for Science & Society\nAlumni\nAlumni\nAlumni\nAlumni Activities\nMagazine Broerstraat 5\nUpdate your information\nSupport research and education\nAbout us\nAbout us\nAbout us\nHow to find us\nJob opportunities\nFaculty of Economics and Business\nFaculty of Behavioural and Social Sciences\nFaculty of Religion, Culture and Society\nFaculty of Arts\nFaculty of Medical Sciences\nFaculty of Law\nFaculty of Spatial Sciences\nFaculty of Philosophy\nFaculty of Science and Engineering\nUniversity College Groningen\nCampus Frysl&acirc;n\nUniversity Services\nFacility Management\nCorporate Communication\nCalendar\nDisclaimer & Copyright Privacy Cookies Login\nEssential\nProvides basic functions and uses anonymized cookies.\nStandard\nProvides optimal operation and uses video cookies, among others.\nComplete\nProvides personalized content and uses marketing cookies.\nSet your cookie preferences. Read our privacy and cookie disclaimer for more information.",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "text": "Skip to Content"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "text": "Skip to Navigation"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "text": "Close"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "text": "Menu and search"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/contact/",
+              "text": "Contact"
+            },
+            {
+              "url": "https://myuniversity.rug.nl/infonet/medewerkers/dashboard/",
+              "text": "My University"
+            },
+            {
+              "url": "https://brightspace.rug.nl/",
+              "text": "Student Portal"
+            },
+            {
+              "url": "https://www.rug.nl/search/",
+              "text": "Search page"
+            },
+            {
+              "url": "https://www.rug.nl/",
+              "text": "Home"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Education"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Education"
+            },
+            {
+              "url": "https://www.rug.nl/education/application-enrolment-tuition-fees/",
+              "text": "Application, registration and tuition fees"
+            },
+            {
+              "url": "https://www.rug.nl/education/bachelor/",
+              "text": "Bachelors"
+            },
+            {
+              "url": "https://www.rug.nl/education/master/",
+              "text": "Masters"
+            },
+            {
+              "url": "https://www.rug.nl/education/master/nederlandse-studenten/studiekeuze-en-voorlichting/pre-master/",
+              "text": "Pre-master programmes"
+            },
+            {
+              "url": "https://www.rug.nl/education/phd-programmes/",
+              "text": "PhD programmes"
+            },
+            {
+              "url": "https://www.rug.nl/education/exchange/",
+              "text": "Exchange"
+            },
+            {
+              "url": "https://www.rug.nl/education/summer-winter-schools/",
+              "text": "Summer / Winter schools"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/knowledge-and-learning/",
+              "text": "Knowledge and learning"
+            },
+            {
+              "url": "https://www.rug.nl/research/",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.rug.nl/research/",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.rug.nl/research/researchthemes/",
+              "text": "Research themes"
+            },
+            {
+              "url": "https://www.rug.nl/research/onderzoekscentra-en-instituten/",
+              "text": "Research centres and institutes"
+            },
+            {
+              "url": "https://www.rug.nl/education/phd-programmes/",
+              "text": "PhD programmes"
+            },
+            {
+              "url": "https://www.rug.nl/research/research-portal",
+              "text": "Find research and researchers"
+            },
+            {
+              "url": "https://www.rug.nl/research/podcasts/university-of-groningen-podcasts",
+              "text": "Podcasts"
+            },
+            {
+              "url": "https://www.rug.nl/research/video-slider/",
+              "text": "Research videos"
+            },
+            {
+              "url": "https://www.rug.nl/research/openscience/",
+              "text": "Open Science"
+            },
+            {
+              "url": "https://www.rug.nl/research/research-support-portal/",
+              "text": "Research Support Portal"
+            },
+            {
+              "url": "https://www.rug.nl/library/",
+              "text": "Library"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/business"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/business"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/knowledge-and-learning/",
+              "text": "Knowledge and learning"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/collaborating-with-the-university-of-groningen/",
+              "text": "Collaborating with the UG"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/young-talent/",
+              "text": "Young talent"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/schools-for-science-society/",
+              "text": "Schools for Science & Society"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/for-alumni/",
+              "text": "For alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/about-alumni/",
+              "text": "About alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/magazines-and-newsletters/",
+              "text": "Magazine Broerstraat 5"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/support-research-and-education/",
+              "text": "Support research and education"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/magazines-and-newsletters/broerstraat-5/wijzigingen-doorgeven-registratie-en-abonnementen",
+              "text": "Update your information"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/contact/",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.rug.nl/magazine/",
+              "text": "News"
+            },
+            {
+              "url": "https://www.rug.nl/magazine/",
+              "text": "Magazine"
+            },
+            {
+              "url": "https://www.rug.nl/news/",
+              "text": "News overview"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/latest-news/",
+              "text": "Latest news"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/latest-news/",
+              "text": "Latest news"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/profile/",
+              "text": "Profile"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/policy-and-strategy/",
+              "text": "Policy and strategy"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/organization/",
+              "text": "Organization"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/work-with-us/",
+              "text": "Working at the University of Groningen"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/contact/",
+              "text": "Contact and practical matters"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/practical-matters/",
+              "text": "Practical matters"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/practical-matters/how-to-find-us",
+              "text": "How to find us"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/",
+              "text": "prof. dr. R.H.J.A. (Riemer) Slart"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+              "text": "HOME"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Education"
+            },
+            {
+              "url": "https://www.rug.nl/research/",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/business"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/magazine/",
+              "text": "News"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/",
+              "text": "Profile"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/research",
+              "text": "Research"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/contact/",
+              "text": "Contact"
+            },
+            {
+              "url": "https://myuniversity.rug.nl/infonet/!navigate?loc=VA6Y7Vr0f90OOyBRDLOrLVQOw%2BlQ2PZ71v9iuLA86XY%3D",
+              "text": "My University"
+            },
+            {
+              "url": "https://brightspace.rug.nl/",
+              "text": "Student Portal"
+            },
+            {
+              "url": "https://www.rug.nl/staff/departments/10364",
+              "text": "Faculty of Medical Sciences"
+            },
+            {
+              "url": "https://orcid.org/0000-0002-5565-1164",
+              "text": "ORCID"
+            },
+            {
+              "url": "https://research.rug.nl/en/persons/riemer-slart/",
+              "text": "Research Portal"
+            },
+            {
+              "url": "https://www.rug.nl/staff/disciplines?discipline=Medicine%2C+Research+%26+Experimental",
+              "text": "Medicine, Research & Experimental"
+            },
+            {
+              "url": "https://www.rug.nl/staff/disciplines?discipline=Cardiac+%26+Cardiovascular+Systems",
+              "text": "Cardiac & Cardiovascular Systems"
+            },
+            {
+              "url": "https://www.rug.nl/staff/disciplines?discipline=Radiology%2C+Nuclear+Medicine+%26+Medical+Imaging",
+              "text": "Radiology, Nuclear Medicine & Medical Imaging"
+            },
+            {
+              "url": "https://www.rug.nl/staff/departments/10364",
+              "text": "Faculty of Medical Sciences"
+            },
+            {
+              "url": "https://www.rug.nl/staff/departments/10364",
+              "text": "Faculty of Medical Sciences"
+            },
+            {
+              "url": "https://www.facebook.com/universityofgroningen",
+              "text": "Facebook Page University of Groningen"
+            },
+            {
+              "url": "https://www.linkedin.com/school/rijksuniversiteit-groningen/",
+              "text": "LinkedIn Page University of Groningen"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/latest-news/press-information/rss-feeds",
+              "text": "RSS-feed University of Groningen"
+            },
+            {
+              "url": "https://www.instagram.com/universityofgroningen/",
+              "text": "Instagram account University of Groningen"
+            },
+            {
+              "url": "https://www.youtube.com/universityGroningen",
+              "text": "YouTube channel University of Groningen"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Prospective students"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Prospective students"
+            },
+            {
+              "url": "https://www.rug.nl/education/",
+              "text": "Prospective students"
+            },
+            {
+              "url": "https://www.rug.nl/education/events/",
+              "text": "Information events for prospective students"
+            },
+            {
+              "url": "https://www.rug.nl/bachelors/",
+              "text": "Bachelor's degree programmes"
+            },
+            {
+              "url": "https://www.rug.nl/education/master/",
+              "text": "Master's degree programmes"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/scholierenacademie/",
+              "text": "Scholierenacademie"
+            },
+            {
+              "url": "https://www.rug.nl/education/summer-winter-schools/",
+              "text": "Summer Schools"
+            },
+            {
+              "url": "https://www.rug.nl/education/honours-college/",
+              "text": "Honours College"
+            },
+            {
+              "url": "https://www.rug.nl/education/phd-programmes/",
+              "text": "PhD programmes"
+            },
+            {
+              "url": "https://www.rug.nl/education/faq/",
+              "text": "Frequently asked questions"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/Business"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/Business"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/",
+              "text": "Society/Business"
+            },
+            {
+              "url": "https://www.rug.nl/library/",
+              "text": "University of Groningen Library"
+            },
+            {
+              "url": "https://research.rug.nl/en/persons/",
+              "text": "Find an expert"
+            },
+            {
+              "url": "https://www.rug.nl/language-centre/",
+              "text": "Language Centre"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/collaborating-with-the-university-of-groningen/",
+              "text": "Collaborating with the UG"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/center-for-information-technology/",
+              "text": "Center for Information Technology"
+            },
+            {
+              "url": "https://www.rug.nl/museum/",
+              "text": "University Museum"
+            },
+            {
+              "url": "https://www.rug.nl/careerservices/",
+              "text": "Career Services"
+            },
+            {
+              "url": "https://sggroningen.nl/",
+              "text": "Studium Generale"
+            },
+            {
+              "url": "https://www.rug.nl/society-business/schools-for-science-society/",
+              "text": "Schools for Science & Society"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/",
+              "text": "Alumni"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/news-events/events/",
+              "text": "Alumni Activities"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/magazines-and-newsletters/",
+              "text": "Magazine Broerstraat 5"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/update-your-information/",
+              "text": "Update your information"
+            },
+            {
+              "url": "https://www.rug.nl/alumni/support-research-and-education/",
+              "text": "Support research and education"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/",
+              "text": "About us"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/practical-matters/how-to-find-us",
+              "text": "How to find us"
+            },
+            {
+              "url": "https://werkenbij.rug.nl/en/all-vacancies/",
+              "text": "Job opportunities"
+            },
+            {
+              "url": "https://www.rug.nl/feb/",
+              "text": "Faculty of Economics and Business"
+            },
+            {
+              "url": "https://www.rug.nl/gmw/",
+              "text": "Faculty of Behavioural and Social Sciences"
+            },
+            {
+              "url": "https://www.rug.nl/rcs/",
+              "text": "Faculty of Religion, Culture and Society"
+            },
+            {
+              "url": "https://www.rug.nl/let/",
+              "text": "Faculty of Arts"
+            },
+            {
+              "url": "https://www.rug.nl/umcg/",
+              "text": "Faculty of Medical Sciences"
+            },
+            {
+              "url": "https://www.rug.nl/rechten/",
+              "text": "Faculty of Law"
+            },
+            {
+              "url": "https://www.rug.nl/frw/",
+              "text": "Faculty of Spatial Sciences"
+            },
+            {
+              "url": "https://www.rug.nl/filosofie/",
+              "text": "Faculty of Philosophy"
+            },
+            {
+              "url": "https://www.rug.nl/fse/",
+              "text": "Faculty of Science and Engineering"
+            },
+            {
+              "url": "https://www.rug.nl/ucg/",
+              "text": "University College Groningen"
+            },
+            {
+              "url": "https://www.rug.nl/cf/",
+              "text": "Campus Frysl&acirc;n"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/organization/university-services/",
+              "text": "University Services"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/organization/service-departments/facilitaire-organisatie",
+              "text": "Facility Management"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/organization/university-services/communication",
+              "text": "Corporate Communication"
+            },
+            {
+              "url": "https://www.rug.nl/about-ug/latest-news/events/calendar/",
+              "text": "Calendar"
+            },
+            {
+              "url": "https://www.rug.nl/info/disclaimer-copyright",
+              "text": "Disclaimer & Copyright"
+            },
+            {
+              "url": "https://www.rug.nl/info/privacy",
+              "text": "Privacy"
+            },
+            {
+              "url": "https://www.rug.nl/info/cookies",
+              "text": "Cookies"
+            },
+            {
+              "url": "https://www.rug.nl/staff/r.h.j.a.slart/!sso",
+              "text": "Login"
+            },
+            {
+              "url": "https://www.rug.nl/info/privacy",
+              "text": "privacy"
+            },
+            {
+              "url": "https://www.rug.nl/info/cookies",
+              "text": "cookie disclaimer"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+          "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+          "title": "Slart, Riemer",
+          "accessedAt": "2026-09-11T00:25:19.515Z",
+          "contentSha256": "ece0a6760ce92d5fc8fb8db95d13bf2a390cfeab6f952b3535c772a07764d1dd",
+          "untrustedText": "Slart, Riemer\nTo main content\nTo main navigation\nCookies\nCookie settings\nYou can set your preferences for social media and targeted advertising cookies here. We always place functional cookies and analytical cookies. Functional cookies are necessary for the site to work properly. With analytical cookies we collect anonymous data about the use of our site. With that information, the site can be further improved so that it is easier for you to find what you are looking for.\nRead more about our cookie policy.\nFunctional cookies\nWe always place functional cookies because they ensure that the site works properly and is secure. Your consent is not required for these cookies. You cannot disable functional cookies.\nAnalytical cookies\nThese allow us to see how the website is used. With that information we can improve the site. We see with which device you visit the site, from which site you come to our site and which pages you visit. However, you remain anonymous, we do not see who you are and are therefore allowed to place these cookies without permission. You can, however, refuse the use of these cookies via your browser settings.\nSocial media cookies\nWe place social media cookies, for example, when you watch YouTube videos, Twitter feeds or listen to Spotify podcasts. You will not be able to view this content if you do not accept social media cookies.\nTracking cookies\nTracking cookies are used to measure our marketing activities on Google, Facebook and LinkedIn. We are also able to show targeted or personalized advertisements on our website or other websites.\nSave\nAccept all\nRead aloud\nSearch\nMenu\nNavigation\nHome\nNews\nEvents\nInstitutes\nDepartments\nCohorts\nFacilities\nAbout UMCG Research\nHome\nresearchers\nRiemer Slart\nNuclear medicine physician\nProfile\nNuclear medicine physician\nContact information\nDiscover our research\npublication\nDonor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study\n2026, Journal of Clinical Virology\npublication\nTriglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes\n2026, Scientific Reports\nAll publications\nActivities\nWorkshop MRI and nuclear imaging in cardiac amyloidosis. Riemer Slart (Invited speaker) 6-Mar-2025 Professional or public presentation > Professional\nMemorandum of Understanding agreement on academic cooperation Riemer Slart (Organiser) 2025 Organising and contributing to an event > Academic\nMemorandum of Understanding agreement on academic cooperation Riemer Slart (Organiser) 2025 Organising and contributing to an event > Academic\nThema: Beperken van de Impact van Infectieziekten voor Individu en Samenleving. Riemer Slart (Consultant) 2025 Consultancy > Professional\nUniversity of Milano - Bicocca Riemer Slart (Visiting researcher) 2025 Visiting an external institution > Academic\nAll activities\nPrizes\nZaret-Beller Elite Reviewer Award Riemer Slart, 2024 Professional\nFrans J Th Wackers Award for Best Clinical Paper Hilde Hop, Stefanie de Boer, Melanie Reijrink, Pieter Willem Kamphuisen, Martin de Borst, Robert Pol, Clark Zeebregts, Jan-Luuk Hillebrands, Riemer Slart, Hendrikus Boersma, Janine Doorduin, Udo Mulder, 2020 Academic\nPublication Price 2018 for established researchers , David Vallez Garcia, Hannie Kuipers, Jan Willem Elting, , Wim Krijnen, Henk Groen, Antoon Willemsen, Peter Jan Laar, van, Fijanne Strijkert, Gert Luurtsema, Riemer Slart, Ralf Westerhuis, Ron Gansevoort, Carolus Gaillard, Casper Franssen, Mar-2019 Academic\nTop 5 best publications in 2018 by the Journal of the American Society of Nephrology , David Vallez Garcia, Hannie Kuipers, Jan Willem Elting, , Wim Krijnen, Henk Groen, Antoon Willemsen, Peter Jan Laar, van, Fijanne Strijkert, Gert Luurtsema, Riemer Slart, Ralf Westerhuis, Ron Gansevoort, Carolus Gaillard, Casper Franssen, 2019 Academic\nAll prizes\nPart of\nBRIDGE - Basic and Translational Research and Imaging Methodology Development in Groningen | Programme\nCVC - Cardiovascular Center | Programme\nTRIGR - Translational Immunology Groningen | Programme\nVASC - Vascular Medicine | Programme\nMedical Imaging Center (MIC) | Facility\nTissue perfusion of patients with peripheral artery disease | Group\nContact\n+31 50 361 35 41\n0000-0002-5565-1164\nHidden\nTo top\nFooter navigatie\nUMCG Research\nInstitutes\nProgrammes\nDepartments\nCohorts and Biobanks\nFacilities\nResearchers\nResearchers\nGroups\nProjects\nResearch Support\nAbout UMCG\nResearch News\nAbout UMCG Research\nThe University Medical Center\nFollow UMCG on\nLinkedin\nInstagram\nTikTok\nYouTube\nAbout the site\nPrivacy\nDisclaimer\nAccessibility\nCookies\nCoordinated Vulnerability Disclosure",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+              "text": "To main content"
+            },
+            {
+              "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+              "text": "To main navigation"
+            },
+            {
+              "url": "https://umcgresearch.org/cookies",
+              "text": "cookie policy."
+            },
+            {
+              "url": "https://app.readspeaker.com/cgi-bin/rsent?customerid=5280&lang=en_uk&readid=content&url=https%3A%2F%2Fumcgresearch.org%2Fw%2Fr-h-j-a-slart%3Freadspeaker%3dtrue",
+              "text": "Read aloud"
+            },
+            {
+              "url": "https://umcgresearch.org/home",
+              "text": "Home"
+            },
+            {
+              "url": "https://umcgresearch.org/news",
+              "text": "News"
+            },
+            {
+              "url": "https://umcgresearch.org/events",
+              "text": "Events"
+            },
+            {
+              "url": "https://umcgresearch.org/institutes",
+              "text": "Institutes"
+            },
+            {
+              "url": "https://umcgresearch.org/departments",
+              "text": "Departments"
+            },
+            {
+              "url": "https://umcgresearch.org/cohorts",
+              "text": "Cohorts"
+            },
+            {
+              "url": "https://umcgresearch.org/facilities",
+              "text": "Facilities"
+            },
+            {
+              "url": "https://umcgresearch.org/about-umcg-research",
+              "text": "About UMCG Research"
+            },
+            {
+              "url": "https://umcgresearch.org/",
+              "text": "Home"
+            },
+            {
+              "url": "https://umcgresearch.org/researchers",
+              "text": "researchers"
+            },
+            {
+              "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+              "text": "Contact information"
+            },
+            {
+              "url": "https://research.rug.nl/en/publications/06ef48cb-0bef-424f-8e99-0518e7e39e23",
+              "text": "publication Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study 2026, Journal of Cli"
+            },
+            {
+              "url": "https://research.rug.nl/en/publications/17a9d292-1baa-441a-b1ff-bdd06132c8a1",
+              "text": "publication Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes 2026, Scientific Reports"
+            },
+            {
+              "url": "https://research.rug.nl/en/persons/riemer-slart/publications/",
+              "text": "All publications"
+            },
+            {
+              "url": "https://research.rug.nl/en/activities/7a5807dc-4380-40da-9d0a-1120b2358d73",
+              "text": "Workshop MRI and nuclear imaging in cardiac amyloidosis."
+            },
+            {
+              "url": "https://research.rug.nl/en/activities/80630fa3-1366-4702-9618-2759f67ebabd",
+              "text": "Memorandum of Understanding agreement on academic cooperation"
+            },
+            {
+              "url": "https://research.rug.nl/en/activities/6a85e97d-d289-4aa1-82e4-e7758380541d",
+              "text": "Memorandum of Understanding agreement on academic cooperation"
+            },
+            {
+              "url": "https://research.rug.nl/en/activities/8177d663-cdfc-44a9-a23a-1ec0be1b0438",
+              "text": "Thema: Beperken van de Impact van Infectieziekten voor Individu en Samenleving."
+            },
+            {
+              "url": "https://research.rug.nl/en/activities/297df82e-b6d7-492d-893e-e19d96757dae",
+              "text": "University of Milano - Bicocca"
+            },
+            {
+              "url": "https://research.rug.nl/en/persons/riemer-slart/activities/",
+              "text": "All activities"
+            },
+            {
+              "url": "https://research.rug.nl/en/prizes/67179a42-f89d-430f-bd37-2790192dea15",
+              "text": "Zaret-Beller Elite Reviewer Award"
+            },
+            {
+              "url": "https://research.rug.nl/en/prizes/732cb35c-403f-49ef-84eb-c469a20621e4",
+              "text": "Frans J Th Wackers Award for Best Clinical Paper"
+            },
+            {
+              "url": "https://research.rug.nl/en/prizes/aa295b0a-a067-4440-91e4-04f51d17aa06",
+              "text": "Publication Price 2018 for established researchers"
+            },
+            {
+              "url": "https://research.rug.nl/en/prizes/74302302-87ce-4b3a-8b86-15da2acfa884",
+              "text": "Top 5 best publications in 2018 by the Journal of the American Society of Nephrology"
+            },
+            {
+              "url": "https://research.rug.nl/en/persons/riemer-slart/prizes/",
+              "text": "All prizes"
+            },
+            {
+              "url": "https://umcgresearch.org/w/bridge",
+              "text": "BRIDGE - Basic and Translational Research and Imaging Methodology Development in Groningen"
+            },
+            {
+              "url": "https://umcgresearch.org/w/cvc",
+              "text": "CVC - Cardiovascular Center"
+            },
+            {
+              "url": "https://umcgresearch.org/w/trigr",
+              "text": "TRIGR - Translational Immunology Groningen"
+            },
+            {
+              "url": "https://umcgresearch.org/w/vasc",
+              "text": "VASC - Vascular Medicine"
+            },
+            {
+              "url": "https://umcgresearch.org/w/mic",
+              "text": "Medical Imaging Center (MIC)"
+            },
+            {
+              "url": "https://umcgresearch.org/w/tissue-perfusion-of-patients-with-peripheral-artery-disease",
+              "text": "Tissue perfusion of patients with peripheral artery disease"
+            },
+            {
+              "url": "https://orcid.org/0000-0002-5565-1164",
+              "text": "0000-0002-5565-1164"
+            },
+            {
+              "url": "https://umcgresearch.org/institutes",
+              "text": "Institutes"
+            },
+            {
+              "url": "https://umcgresearch.org/programmes",
+              "text": "Programmes"
+            },
+            {
+              "url": "https://umcgresearch.org/departments",
+              "text": "Departments"
+            },
+            {
+              "url": "https://umcgresearch.org/cohorts",
+              "text": "Cohorts and Biobanks"
+            },
+            {
+              "url": "https://umcgresearch.org/facilities",
+              "text": "Facilities"
+            },
+            {
+              "url": "https://umcgresearch.org/researchers",
+              "text": "Researchers"
+            },
+            {
+              "url": "https://umcgresearch.org/research-groups",
+              "text": "Groups"
+            },
+            {
+              "url": "https://umcgresearch.org/researchprojects",
+              "text": "Projects"
+            },
+            {
+              "url": "https://umcgresearch.org/w/research-support-umcg",
+              "text": "Research Support"
+            },
+            {
+              "url": "https://umcgresearch.org/news",
+              "text": "Research News"
+            },
+            {
+              "url": "https://umcgresearch.org/about-umcg-research",
+              "text": "About UMCG Research"
+            },
+            {
+              "url": "https://www.umcg.nl/",
+              "text": "The University Medical Center"
+            },
+            {
+              "url": "https://www.linkedin.com/company/umcg-research/",
+              "text": "Linkedin"
+            },
+            {
+              "url": "https://www.instagram.com/umcgresearch/",
+              "text": "Instagram"
+            },
+            {
+              "url": "https://www.tiktok.com/discover/umcg-groningen",
+              "text": "TikTok"
+            },
+            {
+              "url": "https://www.youtube.com/@umcgresearch",
+              "text": "YouTube"
+            },
+            {
+              "url": "https://umcgresearch.org/privacy",
+              "text": "Privacy"
+            },
+            {
+              "url": "https://umcgresearch.org/disclaimer",
+              "text": "Disclaimer"
+            },
+            {
+              "url": "https://umcgresearch.org/accessibility",
+              "text": "Accessibility"
+            },
+            {
+              "url": "https://umcgresearch.org/cookies",
+              "text": "Cookies"
+            },
+            {
+              "url": "https://umcgresearch.org/w/coordinated-vulnerability-disclosure",
+              "text": "Coordinated Vulnerability Disclosure"
+            }
+          ]
+        },
+        {
+          "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+          "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+          "title": "Riemer Slart - Decisive",
+          "accessedAt": "2026-09-11T00:25:20.950Z",
+          "contentSha256": "4e61b6d0efb15e3c1c57cf54fdbefb638f7b7db650326611e65528b36d459cb1",
+          "untrustedText": "Riemer Slart - Decisive\nSkip to main content\nHome\nUpdates\nNews\nInitiators\nContact\nHome\nUpdates\nNews\nInitiators\nContact\nRiemer Slart\nEmployer:\nUMC Groningen\nRole:\nInitiator\nInstitute:\nUMC Groningen\nFunction:\nProfessor\nRiemer Slart is full professor “Multimodality Cardiovascular Imaging” at the University of Groningen (RUG) since 2019 and part-time clinical full professor “Translational Molecular Imaging” at the University of Twente (UT), Enschede, the Netherlands since 2014.\nSince 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG. After a 2 year cross-over training he is registered now as well in cardiac radiology (CT & CMR). He is member of the Amyloidosis Center of Expertise and the Vasculitis Expertise Center of the Netherlands.\nFrom 2014-2021 he was board member and secretary of the European Association of Nuclear Medicine (EANM) Cardiovascular Committee and currently he is member of the EANM Guideline Council. In 2016 he became member of the imaging working group large vessel vasculitis of the EULAR and in 2018 Chair of the working group Cardiovascular Imaging in infections and inflammation (4Is), a collaboration between the EANM and the EACVI/ESC. He is medical director of Molecular Imaging of the Center of Medical Imaging North-East Netherlands since 2018.\nRiemer Slart is teacher in cardiovascular imaging at the European School of Molecular Imaging & Therapy (ESMIT) of the EANM, at the EULVIC for rheumatologists and other teaching & training projects. He organized internships for the IAEA at his department in Groningen, to train technologists, physicians and clinical physicists in nuclear cardiology imaging, and is the founder of EURO-LEARN web platform . The European Increasing Awareness of Nuclear Scintigraphy in Cardiac Amyloidosis with support of the EANM/ESMIT and EACVI. At the University of Twente he is involved in several technical medicine projects, including AI, teaching in Technical Medicine curriculum, and bridging the clinic with technical needs & developments.\nHe is author of > 420 peer-reviewed publications in mainly Q1 international journals, contributed in 30 book chapters/book, and is Associate Editor & Editorial board-member of 6 scientific journals. He serves as a peer reviewer for more than a dozen scientific journals. He is involved in several international recommendations/guidelines in molecular imaging and initiator and conductor of several imaging research trials and international oriented.\nDECISIVE\nDUTCH MEDICAL ISOTOPES SAVE LIVES\nContact",
+          "discoveryKinds": [
+            "doctor_identity"
+          ],
+          "navigationLinks": [
+            {
+              "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+              "text": "Skip to main content"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/",
+              "text": "Home"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/updates",
+              "text": "Updates"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/initiators",
+              "text": "Initiators"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/contact",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/",
+              "text": "Home"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/updates",
+              "text": "Updates"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/news",
+              "text": "News"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/initiators",
+              "text": "Initiators"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/contact",
+              "text": "Contact"
+            },
+            {
+              "url": "https://www.cmi-nen.nl/",
+              "text": "Molecular Imaging of the Center of Medical Imaging North-East Netherlands"
+            },
+            {
+              "url": "https://eurolearn.eanm.org/",
+              "text": "EURO-LEARN web platform"
+            },
+            {
+              "url": "https://www.ngfdecisive.nl/contact",
+              "text": "Contact"
+            }
+          ]
+        }
+      ],
+      "pageAliases": {
+        "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+        "https://umcgresearch.org/w/r-h-j-a-slart": "https://umcgresearch.org/w/r-h-j-a-slart",
+        "https://www.ngfdecisive.nl/initiators/riemer-slart": "https://www.ngfdecisive.nl/initiators/riemer-slart"
+      },
+      "pageRequests": 4,
+      "modelCalls": 5,
+      "allowedUrls": [
+        "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+        "https://www.researchgate.net/profile/Riemer-Slart/6",
+        "https://scholar.google.com/citations?user=pve78gsAAAAJ&hl=nl",
+        "https://www.linkedin.com/posts/andor-glaudemans-76788a30_article-of-the-month-from-the-departments-activity-7445414242234785792-Llaj",
+        "https://www.ngfdecisive.nl/initiators/riemer-slart",
+        "https://www.nmss.org.sg/prof-riemer-hja-slart",
+        "https://umcgresearch.org/w/r-h-j-a-slart",
+        "https://pubmed.ncbi.nlm.nih.gov/35384463/",
+        "https://www.umcg.nl/-/r-slart",
+        "https://www.doen-congressen.nl/riemer-slart/"
+      ],
+      "observations": [
+        {
+          "action": "search",
+          "result": {
+            "query": "Riemer Slart UMCG nucleaire geneeskunde",
+            "status": "succeeded",
+            "results": [
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+                "title": "prof. dr. R.H.J.A. (Riemer) Slart",
+                "snippet": "(Riemer) Slart. Profile picture of prof. dr. R.H.J.A. (Riemer) Slart. Faculty of Medical Sciences. Telephone: E-mail: r.h.j.a.slart@umcg.nl."
+              },
+              {
+                "url": "https://www.researchgate.net/profile/Riemer-Slart/6",
+                "title": "Riemer SLART | Nuclear Medicine Physician UMCG, ...",
+                "snippet": "Riemer SLART, Nuclear Medicine Physician UMCG, Clinical professor Molecular Imaging University of Twente | Cited by 19169 | of University of Groningen, ..."
+              },
+              {
+                "url": "https://scholar.google.com/citations?user=pve78gsAAAAJ&hl=nl",
+                "title": "Riemer Slart",
+                "snippet": "Riemer Slart Riemer Slart UMCG ・ recommendations for the use of imaging in large vessel vasculitis in clinical practice ・ nuclear medicine and molecular ..."
+              },
+              {
+                "url": "https://www.linkedin.com/posts/andor-glaudemans-76788a30_article-of-the-month-from-the-departments-activity-7445414242234785792-Llaj",
+                "title": "Andor Glaudemans' Post",
+                "snippet": "Article of the month! From the departments of Nucleaire Geneeskunde en Moleculaire Beeldvorming and Rheumatology of the UMCG. Riemer Slart"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+                "title": "Riemer Slart - Decisive",
+                "snippet": "Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging ..."
+              },
+              {
+                "url": "https://www.nmss.org.sg/prof-riemer-hja-slart",
+                "title": "Prof Riemer H.J.A. Slart",
+                "snippet": "Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging ..."
+              },
+              {
+                "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+                "title": "Riemer Slart",
+                "snippet": "Nuclear medicine physician. Riemer Slart Nuclear medicine physician ・ post-transplant diabetes 2026, Basic and Translational Research and Imaging Methodology ..."
+              },
+              {
+                "url": "https://pubmed.ncbi.nlm.nih.gov/35384463/",
+                "title": "A new colleague in nuclear medicine, the clinical ...",
+                "snippet": "Riemer H J A Slart 1 2. Medical Imaging Centre, Department of Nuclear Medicine and Molecular Imaging (EB50), University Medical Center Groningen, Section of ..."
+              },
+              {
+                "url": "https://www.umcg.nl/-/r-slart",
+                "title": "Prof. dr. Riemer Slart Nucleair geneeskundige - Groningen",
+                "snippet": "Nucleair geneeskundige. Aandachtsgebied: translationeel multimodale cardiovasculaire beeldvorming, total-body PET/CT, en DEXA."
+              },
+              {
+                "url": "https://www.doen-congressen.nl/riemer-slart/",
+                "title": "Riemer Slart - Nucleair geneeskundige",
+                "snippet": "Sinds 2001 is hij als nucleair geneeskundige verbonden aan de afdeling Nucleaire Geneeskunde & Moleculaire Beeldvorming van het Medisch Beeldvormend Centrum van ..."
+              }
+            ]
+          }
+        },
+        {
+          "action": "read_failed",
+          "result": {
+            "url": "https://www.umcg.nl/-/r-slart",
+            "kind": "http_error",
+            "http_status": 403
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "title": "prof. dr. R.H.J.A. (Riemer) Slart | How to find us | University of Groningen",
+            "offset": 0,
+            "total_characters": 3454,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "prof. dr. R.H.J.A. (Riemer) Slart | How to find us | University of Groningen\nSkip to Content Skip to Navigation\nfounded in 1614 - top 100 university\nClose\nMenu and search\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nSearch page\nSearch Search Search\nHome\nEducation\nEducation\nApplication, registration and tuition fees\nBachelors\nMasters\nPre-master programmes\nPhD programmes\nExchange\nSummer / Winter schools\nKnowledge and learning\nResearch\nResearch\nResearch themes\nResearch centres and institutes\nPhD programmes\nFind research and researchers\nPodcasts\nResearch videos\nOpen Science\nResearch Support Portal\nLibrary\nSociety/business\nSociety/business\nKnowledge and learning\nCollaborating with the UG\nYoung talent\nSchools for Science & Society\nAlumni\nAlumni\nFor alumni\nAbout alumni\nMagazine Broerstraat 5\nSupport research and education\nUpdate your information\nContact\nNews\nMagazine\nNews overview\nLatest news\nAbout us\nAbout us\nLatest news\nProfile\nPolicy and strategy\nOrganization\nWorking at the University of Groningen\nContact and practical matters\nSearch\nAbout us\nPractical matters\nHow to find us\nprof. dr. R.H.J.A. (Riemer) Slart\nHOME\nEducation\nResearch\nSociety/business\nAlumni\nNews"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLang"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "uage Centre\nCollaborating with the UG\nCenter for Information Technology\nUniversity Museum\nCareer Services\nStudium Generale\nSchools for Science & Society\nAlumni\nAlumni\nAlumni\nAlumni Activities\nMagazine Broerstraat 5\nUpdate your information\nSupport research and education\nAbout us\nAbout us\nAbout us\nHow to find us\nJob opportunities\nFaculty of Economics and Business\nFaculty of Behavioural and Social Sciences\nFaculty of Religion, Culture and Society\nFaculty of Arts\nFaculty of Medical Sciences\nFaculty of Law\nFaculty of Spatial Sciences\nFaculty of Philosophy\nFaculty of Science and Engineering\nUniversity College Groningen\nCampus Frysl&acirc;n\nUniversity Services\nFacility Management\nCorporate Communication\nCalendar\nDisclaimer & Copyright Privacy Cookies Login\nEssential\nProvides basic functions and uses anonymized cookies.\nStandard\nProvides optimal operation and uses video cookies, among others.\nComplete\nProvides personalized content and uses marketing cookies.\nSet your cookie preferences. Read our privacy and cookie disclaimer for more information."
+              }
+            ],
+            "more_text": false,
+            "find_matched": true,
+            "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+            "links": [
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+                "text": "Skip to Content"
+              },
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+                "text": "Skip to Navigation"
+              },
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+                "text": "Close"
+              },
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/?lang=en",
+                "text": "Menu and search"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/contact/",
+                "text": "Contact"
+              },
+              {
+                "url": "https://myuniversity.rug.nl/infonet/medewerkers/dashboard/",
+                "text": "My University"
+              },
+              {
+                "url": "https://brightspace.rug.nl/",
+                "text": "Student Portal"
+              },
+              {
+                "url": "https://www.rug.nl/search/",
+                "text": "Search page"
+              },
+              {
+                "url": "https://www.rug.nl/",
+                "text": "Home"
+              },
+              {
+                "url": "https://www.rug.nl/education/",
+                "text": "Education"
+              },
+              {
+                "url": "https://www.rug.nl/education/",
+                "text": "Education"
+              },
+              {
+                "url": "https://www.rug.nl/education/application-enrolment-tuition-fees/",
+                "text": "Application, registration and tuition fees"
+              },
+              {
+                "url": "https://www.rug.nl/education/bachelor/",
+                "text": "Bachelors"
+              },
+              {
+                "url": "https://www.rug.nl/education/master/",
+                "text": "Masters"
+              },
+              {
+                "url": "https://www.rug.nl/education/master/nederlandse-studenten/studiekeuze-en-voorlichting/pre-master/",
+                "text": "Pre-master programmes"
+              },
+              {
+                "url": "https://www.rug.nl/education/phd-programmes/",
+                "text": "PhD programmes"
+              },
+              {
+                "url": "https://www.rug.nl/education/exchange/",
+                "text": "Exchange"
+              },
+              {
+                "url": "https://www.rug.nl/education/summer-winter-schools/",
+                "text": "Summer / Winter schools"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/knowledge-and-learning/",
+                "text": "Knowledge and learning"
+              },
+              {
+                "url": "https://www.rug.nl/research/",
+                "text": "Research"
+              },
+              {
+                "url": "https://www.rug.nl/research/",
+                "text": "Research"
+              },
+              {
+                "url": "https://www.rug.nl/research/researchthemes/",
+                "text": "Research themes"
+              },
+              {
+                "url": "https://www.rug.nl/research/onderzoekscentra-en-instituten/",
+                "text": "Research centres and institutes"
+              },
+              {
+                "url": "https://www.rug.nl/education/phd-programmes/",
+                "text": "PhD programmes"
+              },
+              {
+                "url": "https://www.rug.nl/research/research-portal",
+                "text": "Find research and researchers"
+              },
+              {
+                "url": "https://www.rug.nl/research/podcasts/university-of-groningen-podcasts",
+                "text": "Podcasts"
+              },
+              {
+                "url": "https://www.rug.nl/research/video-slider/",
+                "text": "Research videos"
+              },
+              {
+                "url": "https://www.rug.nl/research/openscience/",
+                "text": "Open Science"
+              },
+              {
+                "url": "https://www.rug.nl/research/research-support-portal/",
+                "text": "Research Support Portal"
+              },
+              {
+                "url": "https://www.rug.nl/library/",
+                "text": "Library"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/",
+                "text": "Society/business"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/",
+                "text": "Society/business"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/knowledge-and-learning/",
+                "text": "Knowledge and learning"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/collaborating-with-the-university-of-groningen/",
+                "text": "Collaborating with the UG"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/young-talent/",
+                "text": "Young talent"
+              },
+              {
+                "url": "https://www.rug.nl/society-business/schools-for-science-society/",
+                "text": "Schools for Science & Society"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/",
+                "text": "Alumni"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/",
+                "text": "Alumni"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/for-alumni/",
+                "text": "For alumni"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/about-alumni/",
+                "text": "About alumni"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/magazines-and-newsletters/",
+                "text": "Magazine Broerstraat 5"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/support-research-and-education/",
+                "text": "Support research and education"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/magazines-and-newsletters/broerstraat-5/wijzigingen-doorgeven-registratie-en-abonnementen",
+                "text": "Update your information"
+              },
+              {
+                "url": "https://www.rug.nl/alumni/contact/",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.rug.nl/magazine/",
+                "text": "News"
+              },
+              {
+                "url": "https://www.rug.nl/magazine/",
+                "text": "Magazine"
+              },
+              {
+                "url": "https://www.rug.nl/news/",
+                "text": "News overview"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/latest-news/",
+                "text": "Latest news"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/",
+                "text": "About us"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/",
+                "text": "About us"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/latest-news/",
+                "text": "Latest news"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/profile/",
+                "text": "Profile"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/policy-and-strategy/",
+                "text": "Policy and strategy"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/organization/",
+                "text": "Organization"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/work-with-us/",
+                "text": "Working at the University of Groningen"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/contact/",
+                "text": "Contact and practical matters"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/",
+                "text": "About us"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/practical-matters/",
+                "text": "Practical matters"
+              },
+              {
+                "url": "https://www.rug.nl/about-ug/practical-matters/how-to-find-us",
+                "text": "How to find us"
+              },
+              {
+                "url": "https://www.rug.nl/staff/r.h.j.a.slart/",
+                "text": "prof. dr. R.H.J.A. (Riemer) Slart"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 141
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+            "title": "Slart, Riemer",
+            "offset": 0,
+            "total_characters": 4737,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Slart, Riemer\nTo main content\nTo main navigation\nCookies\nCookie settings\nYou can set your preferences for social media and targeted advertising cookies here. We always place functional cookies and analytical cookies. Functional cookies are necessary for the site to work properly. With analytical cookies we collect anonymous data about the use of our site. With that information, the site can be further improved so that it is easier for you to find what you are looking for.\nRead more about our cookie policy.\nFunctional cookies\nWe always place functional cookies because they ensure that the site works properly and is secure. Your consent is not required for these cookies. You cannot disable functional cookies.\nAnalytical cookies\nThese allow us to see how the website is used. With that information we can improve the site. We see with which device you visit the site, from which site you come to our site and which pages you visit. However, you remain anonymous, we do not see who you are and are therefore allowed to place these cookies without permission. You can, however, refuse the use of these cookies via your browser settings.\nSocial media cookies\nWe place social media cookies, for ex"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "ample, when you watch YouTube videos, Twitter feeds or listen to Spotify podcasts. You will not be able to view this content if you do not accept social media cookies.\nTracking cookies\nTracking cookies are used to measure our marketing activities on Google, Facebook and LinkedIn. We are also able to show targeted or personalized advertisements on our website or other websites.\nSave\nAccept all\nRead aloud\nSearch\nMenu\nNavigation\nHome\nNews\nEvents\nInstitutes\nDepartments\nCohorts\nFacilities\nAbout UMCG Research\nHome\nresearchers\nRiemer Slart\nNuclear medicine physician\nProfile\nNuclear medicine physician\nContact information\nDiscover our research\npublication\nDonor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study\n2026, Journal of Clinical Virology\npublication\nTriglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes\n2026, Scientific Reports\nAll publications\nActivities\nWorkshop MRI and nuclear imaging in cardiac amyloidosis. Riemer Slart (Invited speaker) 6-Mar-2025 Professional or public presentation > Profession"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "al\nMemorandum of Understanding agreement on academic cooperation Riemer Slart (Organiser) 2025 Organising and contributing to an event > Academic\nMemorandum of Understanding agreement on academic cooperation Riemer Slart (Organiser) 2025 Organising and contributing to an event > Academic\nThema: Beperken van de Impact van Infectieziekten voor Individu en Samenleving. Riemer Slart (Consultant) 2025 Consultancy > Professional\nUniversity of Milano - Bicocca Riemer Slart (Visiting researcher) 2025 Visiting an external institution > Academic\nAll activities\nPrizes\nZaret-Beller Elite Reviewer Award Riemer Slart, 2024 Professional\nFrans J Th Wackers Award for Best Clinical Paper Hilde Hop, Stefanie de Boer, Melanie Reijrink, Pieter Willem Kamphuisen, Martin de Borst, Robert Pol, Clark Zeebregts, Jan-Luuk Hillebrands, Riemer Slart, Hendrikus Boersma, Janine Doorduin, Udo Mulder, 2020 Academic\nPublication Price 2018 for established researchers , David Vallez Garcia, Hannie Kuipers, Jan Willem Elting, , Wim Krijnen, Henk Groen, Antoon Willemsen, Peter Jan Laar, van, Fijanne Strijkert, Gert Luurtsema, Riemer Slart, Ralf Westerhuis, Ron Gansevoort, Carolus Gaillard, Casper Franssen, Mar-2019 Aca"
+              },
+              {
+                "passageId": "text_3",
+                "offset": 3600,
+                "quote": "demic\nTop 5 best publications in 2018 by the Journal of the American Society of Nephrology , David Vallez Garcia, Hannie Kuipers, Jan Willem Elting, , Wim Krijnen, Henk Groen, Antoon Willemsen, Peter Jan Laar, van, Fijanne Strijkert, Gert Luurtsema, Riemer Slart, Ralf Westerhuis, Ron Gansevoort, Carolus Gaillard, Casper Franssen, 2019 Academic\nAll prizes\nPart of\nBRIDGE - Basic and Translational Research and Imaging Methodology Development in Groningen | Programme\nCVC - Cardiovascular Center | Programme\nTRIGR - Translational Immunology Groningen | Programme\nVASC - Vascular Medicine | Programme\nMedical Imaging Center (MIC) | Facility\nTissue perfusion of patients with peripheral artery disease | Group\nContact\n+31 50 361 35 41\n0000-0002-5565-1164\nHidden\nTo top\nFooter navigatie\nUMCG Research\nInstitutes\nProgrammes\nDepartments\nCohorts and Biobanks\nFacilities\nResearchers\nResearchers\nGroups\nProjects\nResearch Support\nAbout UMCG\nResearch News\nAbout UMCG Research\nThe University Medical Center\nFollow UMCG on\nLinkedin\nInstagram\nTikTok\nYouTube\nAbout the site\nPrivacy\nDisclaimer\nAccessibility\nCookies\nCoordinated Vulnerability Disclosure"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+            "links": [
+              {
+                "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+                "text": "To main content"
+              },
+              {
+                "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+                "text": "To main navigation"
+              },
+              {
+                "url": "https://umcgresearch.org/cookies",
+                "text": "cookie policy."
+              },
+              {
+                "url": "https://app.readspeaker.com/cgi-bin/rsent?customerid=5280&lang=en_uk&readid=content&url=https%3A%2F%2Fumcgresearch.org%2Fw%2Fr-h-j-a-slart%3Freadspeaker%3dtrue",
+                "text": "Read aloud"
+              },
+              {
+                "url": "https://umcgresearch.org/home",
+                "text": "Home"
+              },
+              {
+                "url": "https://umcgresearch.org/news",
+                "text": "News"
+              },
+              {
+                "url": "https://umcgresearch.org/events",
+                "text": "Events"
+              },
+              {
+                "url": "https://umcgresearch.org/institutes",
+                "text": "Institutes"
+              },
+              {
+                "url": "https://umcgresearch.org/departments",
+                "text": "Departments"
+              },
+              {
+                "url": "https://umcgresearch.org/cohorts",
+                "text": "Cohorts"
+              },
+              {
+                "url": "https://umcgresearch.org/facilities",
+                "text": "Facilities"
+              },
+              {
+                "url": "https://umcgresearch.org/about-umcg-research",
+                "text": "About UMCG Research"
+              },
+              {
+                "url": "https://umcgresearch.org/",
+                "text": "Home"
+              },
+              {
+                "url": "https://umcgresearch.org/researchers",
+                "text": "researchers"
+              },
+              {
+                "url": "https://umcgresearch.org/w/r-h-j-a-slart",
+                "text": "Contact information"
+              },
+              {
+                "url": "https://research.rug.nl/en/publications/06ef48cb-0bef-424f-8e99-0518e7e39e23",
+                "text": "publication Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study 2026, Journal of Cli"
+              },
+              {
+                "url": "https://research.rug.nl/en/publications/17a9d292-1baa-441a-b1ff-bdd06132c8a1",
+                "text": "publication Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes 2026, Scientific Reports"
+              },
+              {
+                "url": "https://research.rug.nl/en/persons/riemer-slart/publications/",
+                "text": "All publications"
+              },
+              {
+                "url": "https://research.rug.nl/en/activities/7a5807dc-4380-40da-9d0a-1120b2358d73",
+                "text": "Workshop MRI and nuclear imaging in cardiac amyloidosis."
+              },
+              {
+                "url": "https://research.rug.nl/en/activities/80630fa3-1366-4702-9618-2759f67ebabd",
+                "text": "Memorandum of Understanding agreement on academic cooperation"
+              },
+              {
+                "url": "https://research.rug.nl/en/activities/6a85e97d-d289-4aa1-82e4-e7758380541d",
+                "text": "Memorandum of Understanding agreement on academic cooperation"
+              },
+              {
+                "url": "https://research.rug.nl/en/activities/8177d663-cdfc-44a9-a23a-1ec0be1b0438",
+                "text": "Thema: Beperken van de Impact van Infectieziekten voor Individu en Samenleving."
+              },
+              {
+                "url": "https://research.rug.nl/en/activities/297df82e-b6d7-492d-893e-e19d96757dae",
+                "text": "University of Milano - Bicocca"
+              },
+              {
+                "url": "https://research.rug.nl/en/persons/riemer-slart/activities/",
+                "text": "All activities"
+              },
+              {
+                "url": "https://research.rug.nl/en/prizes/67179a42-f89d-430f-bd37-2790192dea15",
+                "text": "Zaret-Beller Elite Reviewer Award"
+              },
+              {
+                "url": "https://research.rug.nl/en/prizes/732cb35c-403f-49ef-84eb-c469a20621e4",
+                "text": "Frans J Th Wackers Award for Best Clinical Paper"
+              },
+              {
+                "url": "https://research.rug.nl/en/prizes/aa295b0a-a067-4440-91e4-04f51d17aa06",
+                "text": "Publication Price 2018 for established researchers"
+              },
+              {
+                "url": "https://research.rug.nl/en/prizes/74302302-87ce-4b3a-8b86-15da2acfa884",
+                "text": "Top 5 best publications in 2018 by the Journal of the American Society of Nephrology"
+              },
+              {
+                "url": "https://research.rug.nl/en/persons/riemer-slart/prizes/",
+                "text": "All prizes"
+              },
+              {
+                "url": "https://umcgresearch.org/w/bridge",
+                "text": "BRIDGE - Basic and Translational Research and Imaging Methodology Development in Groningen"
+              },
+              {
+                "url": "https://umcgresearch.org/w/cvc",
+                "text": "CVC - Cardiovascular Center"
+              },
+              {
+                "url": "https://umcgresearch.org/w/trigr",
+                "text": "TRIGR - Translational Immunology Groningen"
+              },
+              {
+                "url": "https://umcgresearch.org/w/vasc",
+                "text": "VASC - Vascular Medicine"
+              },
+              {
+                "url": "https://umcgresearch.org/w/mic",
+                "text": "Medical Imaging Center (MIC)"
+              },
+              {
+                "url": "https://umcgresearch.org/w/tissue-perfusion-of-patients-with-peripheral-artery-disease",
+                "text": "Tissue perfusion of patients with peripheral artery disease"
+              },
+              {
+                "url": "https://orcid.org/0000-0002-5565-1164",
+                "text": "0000-0002-5565-1164"
+              },
+              {
+                "url": "https://umcgresearch.org/institutes",
+                "text": "Institutes"
+              },
+              {
+                "url": "https://umcgresearch.org/programmes",
+                "text": "Programmes"
+              },
+              {
+                "url": "https://umcgresearch.org/departments",
+                "text": "Departments"
+              },
+              {
+                "url": "https://umcgresearch.org/cohorts",
+                "text": "Cohorts and Biobanks"
+              },
+              {
+                "url": "https://umcgresearch.org/facilities",
+                "text": "Facilities"
+              },
+              {
+                "url": "https://umcgresearch.org/researchers",
+                "text": "Researchers"
+              },
+              {
+                "url": "https://umcgresearch.org/research-groups",
+                "text": "Groups"
+              },
+              {
+                "url": "https://umcgresearch.org/researchprojects",
+                "text": "Projects"
+              },
+              {
+                "url": "https://umcgresearch.org/w/research-support-umcg",
+                "text": "Research Support"
+              },
+              {
+                "url": "https://umcgresearch.org/news",
+                "text": "Research News"
+              },
+              {
+                "url": "https://umcgresearch.org/about-umcg-research",
+                "text": "About UMCG Research"
+              },
+              {
+                "url": "https://www.umcg.nl/",
+                "text": "The University Medical Center"
+              },
+              {
+                "url": "https://www.linkedin.com/company/umcg-research/",
+                "text": "Linkedin"
+              },
+              {
+                "url": "https://www.instagram.com/umcgresearch/",
+                "text": "Instagram"
+              },
+              {
+                "url": "https://www.tiktok.com/discover/umcg-groningen",
+                "text": "TikTok"
+              },
+              {
+                "url": "https://www.youtube.com/@umcgresearch",
+                "text": "YouTube"
+              },
+              {
+                "url": "https://umcgresearch.org/privacy",
+                "text": "Privacy"
+              },
+              {
+                "url": "https://umcgresearch.org/disclaimer",
+                "text": "Disclaimer"
+              },
+              {
+                "url": "https://umcgresearch.org/accessibility",
+                "text": "Accessibility"
+              },
+              {
+                "url": "https://umcgresearch.org/cookies",
+                "text": "Cookies"
+              },
+              {
+                "url": "https://umcgresearch.org/w/coordinated-vulnerability-disclosure",
+                "text": "Coordinated Vulnerability Disclosure"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 57
+          }
+        },
+        {
+          "action": "read",
+          "result": {
+            "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+            "title": "Riemer Slart - Decisive",
+            "offset": 0,
+            "total_characters": 2636,
+            "citation_passages": [
+              {
+                "passageId": "text_0",
+                "offset": 0,
+                "quote": "Riemer Slart - Decisive\nSkip to main content\nHome\nUpdates\nNews\nInitiators\nContact\nHome\nUpdates\nNews\nInitiators\nContact\nRiemer Slart\nEmployer:\nUMC Groningen\nRole:\nInitiator\nInstitute:\nUMC Groningen\nFunction:\nProfessor\nRiemer Slart is full professor “Multimodality Cardiovascular Imaging” at the University of Groningen (RUG) since 2019 and part-time clinical full professor “Translational Molecular Imaging” at the University of Twente (UT), Enschede, the Netherlands since 2014.\nSince 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG. After a 2 year cross-over training he is registered now as well in cardiac radiology (CT & CMR). He is member of the Amyloidosis Center of Expertise and the Vasculitis Expertise Center of the Netherlands.\nFrom 2014-2021 he was board member and secretary of the European Association of Nuclear Medicine (EANM) Cardiovascular Committee and currently he is member of the EANM Guideline Council. In 2016 he became member of the imaging working group large vessel vasculitis of the EULAR and in 2018 Chair of the working group Cardiovascular Imagi"
+              },
+              {
+                "passageId": "text_1",
+                "offset": 1200,
+                "quote": "ng in infections and inflammation (4Is), a collaboration between the EANM and the EACVI/ESC. He is medical director of Molecular Imaging of the Center of Medical Imaging North-East Netherlands since 2018.\nRiemer Slart is teacher in cardiovascular imaging at the European School of Molecular Imaging & Therapy (ESMIT) of the EANM, at the EULVIC for rheumatologists and other teaching & training projects. He organized internships for the IAEA at his department in Groningen, to train technologists, physicians and clinical physicists in nuclear cardiology imaging, and is the founder of EURO-LEARN web platform . The European Increasing Awareness of Nuclear Scintigraphy in Cardiac Amyloidosis with support of the EANM/ESMIT and EACVI. At the University of Twente he is involved in several technical medicine projects, including AI, teaching in Technical Medicine curriculum, and bridging the clinic with technical needs & developments.\nHe is author of > 420 peer-reviewed publications in mainly Q1 international journals, contributed in 30 book chapters/book, and is Associate Editor & Editorial board-member of 6 scientific journals. He serves as a peer reviewer for more than a dozen scientific jou"
+              },
+              {
+                "passageId": "text_2",
+                "offset": 2400,
+                "quote": "rnals. He is involved in several international recommendations/guidelines in molecular imaging and initiator and conductor of several imaging research trials and international oriented.\nDECISIVE\nDUTCH MEDICAL ISOTOPES SAVE LIVES\nContact"
+              }
+            ],
+            "more_text": false,
+            "find_matched": null,
+            "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+            "links": [
+              {
+                "url": "https://www.ngfdecisive.nl/initiators/riemer-slart",
+                "text": "Skip to main content"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/",
+                "text": "Home"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/updates",
+                "text": "Updates"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/news",
+                "text": "News"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/initiators",
+                "text": "Initiators"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/contact",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/",
+                "text": "Home"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/updates",
+                "text": "Updates"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/news",
+                "text": "News"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/initiators",
+                "text": "Initiators"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/contact",
+                "text": "Contact"
+              },
+              {
+                "url": "https://www.cmi-nen.nl/",
+                "text": "Molecular Imaging of the Center of Medical Imaging North-East Netherlands"
+              },
+              {
+                "url": "https://eurolearn.eanm.org/",
+                "text": "EURO-LEARN web platform"
+              },
+              {
+                "url": "https://www.ngfdecisive.nl/contact",
+                "text": "Contact"
+              }
+            ],
+            "links_offset": 0,
+            "total_links": 14
+          }
+        }
+      ],
+      "reviewedIdentity": {
+        "name": "Riemer Slart (prof. dr. R.H.J.A. Slart)",
+        "institution": "Universitair Medisch Centrum Groningen (UMCG)",
+        "department": "Nuclear Medicine & Molecular Imaging, Medical Imaging Center – nuclear medicine physician",
+        "citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+            "quote": "ample, when you watch YouTube videos, Twitter feeds or listen to Spotify podcasts. You will not be able to view this content if you do not accept social media cookies.\nTracking cookies\nTracking cookies are used to measure our marketing activities on Google, Facebook and LinkedIn. We are also able to show targeted or personalized advertisements on our website or other websites.\nSave\nAccept all\nRead aloud\nSearch\nMenu\nNavigation\nHome\nNews\nEvents\nInstitutes\nDepartments\nCohorts\nFacilities\nAbout UMCG Research\nHome\nresearchers\nRiemer Slart\nNuclear medicine physician\nProfile\nNuclear medicine physician\nContact information\nDiscover our research\npublication\nDonor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study\n2026, Journal of Clinical Virology\npublication\nTriglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes\n2026, Scientific Reports\nAll publications\nActivities\nWorkshop MRI and nuclear imaging in cardiac amyloidosis. Riemer Slart (Invited speaker) 6-Mar-2025 Professional or public presentation > Profession",
+            "explanation": "The official UMCG Research portal lists researcher 'Riemer Slart' with role 'Nuclear medicine physician', establishing the person at the requested institution."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "quote": "\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLang",
+            "explanation": "The University of Groningen staff page lists 'prof. dr. R.H.J.A. (Riemer) Slart' in the Faculty of Medical Sciences with an umcg.nl email address, linking him to the University Medical Center Groningen."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+            "quote": "Riemer Slart - Decisive\nSkip to main content\nHome\nUpdates\nNews\nInitiators\nContact\nHome\nUpdates\nNews\nInitiators\nContact\nRiemer Slart\nEmployer:\nUMC Groningen\nRole:\nInitiator\nInstitute:\nUMC Groningen\nFunction:\nProfessor\nRiemer Slart is full professor “Multimodality Cardiovascular Imaging” at the University of Groningen (RUG) since 2019 and part-time clinical full professor “Translational Molecular Imaging” at the University of Twente (UT), Enschede, the Netherlands since 2014.\nSince 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG. After a 2 year cross-over training he is registered now as well in cardiac radiology (CT & CMR). He is member of the Amyloidosis Center of Expertise and the Vasculitis Expertise Center of the Netherlands.\nFrom 2014-2021 he was board member and secretary of the European Association of Nuclear Medicine (EANM) Cardiovascular Committee and currently he is member of the EANM Guideline Council. In 2016 he became member of the imaging working group large vessel vasculitis of the EULAR and in 2018 Chair of the working group Cardiovascular Imagi",
+            "explanation": "Professional profile states: 'Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG', matching the requested 核医学与分子影像科 at UMCG."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "quote": "\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLang",
+            "explanation": "The University of Groningen official staff directory is an authoritative institutional source for this person's name, faculty affiliation, and contact details."
+          }
+        ],
+        "limitations": [
+          "No official UMCG.nl staff profile was directly readable (HTTP 403); department and role confirmed via the UMCG Research portal, the University of Groningen staff profile, and a third-party professional profile."
+        ]
+      }
+    }
+  },
+  {
+    "stage": "generate_answers",
+    "checkpoint_version": 1,
+    "payload": {
+      "answer_count": 5
+    }
+  },
+  {
+    "stage": "generate_questions",
+    "checkpoint_version": 1,
+    "payload": {
+      "question_count": 5
+    }
+  },
+  {
+    "stage": "render_artifacts",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_artifact_checkpoint.v1",
+      "artifact_hashes": [
+        {
+          "kind": "profile",
+          "sha256": "54c0bf644e57dddbb86ee817b89c64d80f7b4a29c8a512e1d71c945a6fc081a4"
+        },
+        {
+          "kind": "review",
+          "sha256": "6fae9a1f26ed7c83efd099dc93d99abeb041732fd575765c10d44f11c9b06a58"
+        },
+        {
+          "kind": "questions",
+          "sha256": "20de66475213b9286b8d7dfab2a3ee1c1cbee6367574c6321bb8658e5e5afa25"
+        },
+        {
+          "kind": "answers",
+          "sha256": "b4db6142516eea6368db56af831cd03a3c153d309e51ba3d45f54c5843135246"
+        }
+      ]
+    }
+  },
+  {
+    "stage": "resolve_identity",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_identity_checkpoint.v1",
+      "official_source_count": 3,
+      "discovered_source_count": 10,
+      "fetched_source_count": 3,
+      "source_failures": [],
+      "source_decisions": [
+        {
+          "source_id": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+          "reason": "agent_verified_relationship"
+        },
+        {
+          "source_id": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+          "reason": "agent_verified_relationship"
+        }
+      ],
+      "hospital_official_domain_count": 0,
+      "hospital_domain_matched_source_count": 0,
+      "hospital_alias_candidate_count": 0,
+      "hospital_alias_matched_source_count": 0,
+      "hospital_alias_ambiguous": false,
+      "orcid_resolved": false,
+      "agent": {
+        "outcome": "resolved",
+        "reason": null,
+        "search_requests_reserved": 1,
+        "search_responses_recorded": 1,
+        "page_requests_reserved": 4,
+        "model_calls_reserved": 5,
+        "evidence_citations": [
+          {
+            "aspect": "person",
+            "sourceId": "src_387fca7cb1348aebc4dc0adeb70c8bd4",
+            "quote": "ample, when you watch YouTube videos, Twitter feeds or listen to Spotify podcasts. You will not be able to view this content if you do not accept social media cookies.\nTracking cookies\nTracking cookies are used to measure our marketing activities on Google, Facebook and LinkedIn. We are also able to show targeted or personalized advertisements on our website or other websites.\nSave\nAccept all\nRead aloud\nSearch\nMenu\nNavigation\nHome\nNews\nEvents\nInstitutes\nDepartments\nCohorts\nFacilities\nAbout UMCG Research\nHome\nresearchers\nRiemer Slart\nNuclear medicine physician\nProfile\nNuclear medicine physician\nContact information\nDiscover our research\npublication\nDonor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study\n2026, Journal of Clinical Virology\npublication\nTriglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes\n2026, Scientific Reports\nAll publications\nActivities\nWorkshop MRI and nuclear imaging in cardiac amyloidosis. Riemer Slart (Invited speaker) 6-Mar-2025 Professional or public presentation > Profession",
+            "explanation": "The official UMCG Research portal lists researcher 'Riemer Slart' with role 'Nuclear medicine physician', establishing the person at the requested institution."
+          },
+          {
+            "aspect": "institution",
+            "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "quote": "\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLang",
+            "explanation": "The University of Groningen staff page lists 'prof. dr. R.H.J.A. (Riemer) Slart' in the Faculty of Medical Sciences with an umcg.nl email address, linking him to the University Medical Center Groningen."
+          },
+          {
+            "aspect": "department",
+            "sourceId": "src_4b433e01a2aa2c95bb9350f19f4daa14",
+            "quote": "Riemer Slart - Decisive\nSkip to main content\nHome\nUpdates\nNews\nInitiators\nContact\nHome\nUpdates\nNews\nInitiators\nContact\nRiemer Slart\nEmployer:\nUMC Groningen\nRole:\nInitiator\nInstitute:\nUMC Groningen\nFunction:\nProfessor\nRiemer Slart is full professor “Multimodality Cardiovascular Imaging” at the University of Groningen (RUG) since 2019 and part-time clinical full professor “Translational Molecular Imaging” at the University of Twente (UT), Enschede, the Netherlands since 2014.\nSince 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG. After a 2 year cross-over training he is registered now as well in cardiac radiology (CT & CMR). He is member of the Amyloidosis Center of Expertise and the Vasculitis Expertise Center of the Netherlands.\nFrom 2014-2021 he was board member and secretary of the European Association of Nuclear Medicine (EANM) Cardiovascular Committee and currently he is member of the EANM Guideline Council. In 2016 he became member of the imaging working group large vessel vasculitis of the EULAR and in 2018 Chair of the working group Cardiovascular Imagi",
+            "explanation": "Professional profile states: 'Since 2001 he is permanent medical staff member as nuclear medicine physician of the Department of Nuclear Medicine & Molecular Imaging of the Medical Imaging Center at the UMCG', matching the requested 核医学与分子影像科 at UMCG."
+          },
+          {
+            "aspect": "authority",
+            "sourceId": "src_a1e22bcaec54faaf5965cd5bfb8d6032",
+            "quote": "\nAbout us\nprof. dr. R.H.J.A. (Riemer) Slart\nProfile\nResearch\nContact\nMy University\nStudent Portal\nNederlands English\nContrast modus\nprof. dr. R.H.J.A. (Riemer) Slart\nFaculty of Medical Sciences\nTelephone:\nE-mail:\nr.h.j.a.slart umcg.nl\nORCID\nResearch Portal\nField/Discipline\nMedicine, Research & Experimental\nCardiac & Cardiovascular Systems\nRadiology, Nuclear Medicine & Medical Imaging\nExpertise\nCardiovasculair\nBotdichtheid\nOther positions\nUTwente, vakgroep BMPI\nLast modified: 24 March 2026 07.38 a.m.\nContact information\nFaculty of Medical Sciences\nFaculty of Medical Sciences\nAntonius Deusinglaan 1\n9713 AV Groningen\nThe Netherlands\nFollow the UG\nFacebook Page University of Groningen\nLinkedIn Page University of Groningen\nRSS-feed University of Groningen\nInstagram account University of Groningen\nYouTube channel University of Groningen\nProspective students\nProspective students\nProspective students\nInformation events for prospective students\nBachelor's degree programmes\nMaster's degree programmes\nScholierenacademie\nSummer Schools\nHonours College\nPhD programmes\nFrequently asked questions\nSociety/Business\nSociety/Business\nSociety/Business\nUniversity of Groningen Library\nFind an expert\nLang",
+            "explanation": "The University of Groningen official staff directory is an authoritative institutional source for this person's name, faculty affiliation, and contact details."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_practical_profile.v1",
+      "output_sha256": "624a60300b86ee3787fc2437291208ca64a053d67e341280543fac56a3578772",
+      "publication_count": 0
+    }
+  },
+  {
+    "stage": "synthesize_review",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "1d14c6e1049aa408b42c41cf69db48f0305f0e564920eff4f31242e071119ec7",
+          "response": {
+            "text": "```json\n{\n  \"draft\": {\n    \"facts\": [\n      {\n        \"type\": \"position\",\n        \"text\": \"Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"type\": \"position\",\n        \"text\": \"自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"type\": \"position\",\n        \"text\": \"经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性 expertise center 和血管炎 expertise center 的成员。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"type\": \"position\",\n        \"text\": \"自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"expertise\",\n        \"text\": \"其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。\",\n        \"citations\": [{\"sourceId\": \"src_a1e22bcaec54faaf5965cd5bfb8d6032\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"education_and_career\",\n        \"text\": \"2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}, {\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"research_direction\",\n        \"text\": \"他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"research_direction\",\n        \"text\": \"在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并领导外周动脉疾病组织灌注研究组。\",\n        \"citations\": [{\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_3\"}]\n      },\n      {\n        \"type\": \"representative_output\",\n        \"text\": \"他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"representative_output\",\n        \"text\": \"获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。\",\n        \"citations\": [{\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_2\"}]\n      },\n      {\n        \"type\": \"representative_output\",\n        \"text\": \"近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。\",\n        \"citations\": [{\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"type\": \"position\",\n        \"text\": \"他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人之一。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      }\n    ],\n    \"background\": [\n      {\n        \"text\": \"Riemer Slart（prof. dr. R.H.J.A. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"text\": \"在学术职务上，他自2019年起任格罗宁根大学“多模态心血管影像”全职教授，自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授，并自2018年起担任荷兰东北部医学影像中心的分子影像医学主任。他在欧洲核医学界担任重要角色：曾任EANM心血管委员会常委兼秘书（2014–2021），现为EANM指南委员会成员及EANM–EACVI/ESC感染与炎症心血管影像工作组主席。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}, {\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"text\": \"其工作重心是心血管多模态影像（核医学、CT、MRI）及其在心脏淀粉样变性、大血管炎、感染与炎症、外周动脉病等疾病中的转化应用。他创立了EURO-LEARN平台以提升心脏淀粉样变性核素显像的欧洲认知度，参与多项国际影像指南与建议的制定，并领导多项影像研究试验。他发表逾420篇同行评审论文，是多个EANM教学项目的授课教师。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}, {\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_3\"}]\n      }\n    ],\n    \"qa\": [\n      {\n        \"question\": \"他在UMCG的具体科室和临床角色是什么？\",\n        \"answer\": \"他是UMCG医学影像中心核医学与分子影像科的核医学医师（常任医师），同时具有心脏放射学（CT与CMR）注册资质。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"question\": \"他的教授头衔具体是什么？\",\n        \"answer\": \"自2019年起任格罗宁根大学“多模态心血管影像”全职教授；自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}]\n      },\n      {\n        \"question\": \"他在欧洲学术组织中担任哪些职务？\",\n        \"answer\": \"曾任EANM心血管委员会常委兼秘书（2014–2021），现任EANM指南委员会成员、EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席，2016年加入EULAR大血管炎影像工作组。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_0\"}, {\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}]\n      },\n      {\n        \"question\": \"他的主要研究方向和临床兴趣是什么？\",\n        \"answer\": \"心血管多模态影像（核素显像、CT、心脏MRI），尤其在心脏淀粉样变性、大血管炎、感染/炎症影像及外周动脉病组织灌注方面；此外在特文特大学参与含AI的技术医学项目。如需了解其当前具体的临床安排，建议直接与其确认。\",\n        \"citations\": [{\"sourceId\": \"src_4b433e01a2aa2c95bb9350f19f4daa14\", \"passageId\": \"text_1\"}, {\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_3\"}]\n      },\n      {\n        \"question\": \"他近年有哪些代表性活动或荣誉？\",\n        \"answer\": \"2024年获Zaret-Beller Elite Reviewer Award；2025年3月就心脏淀粉样变性MRI与核素影像作邀请报告；2025年作为组织者签署学术合作谅解备忘录，并赴米兰比可卡大学任访问研究者。近年合作论文发表于Journal of Clinical Virology（2026）和Scientific Reports（2026）。\",\n        \"citations\": [{\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_1\"}, {\"sourceId\": \"src_387fca7cb1348aebc4dc0adeb70c8bd4\", \"passageId\": \"text_2\"}]\n      }\n    ],\n    \"limitations\": [\n      \"UMCG医院官网的正式员工页面无法直接访问（HTTP 403），身份信息经由UMCG Research门户、格罗宁根大学员工页面及第三方专业页面交叉确认。\",\n      \"其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。\"\n    ]\n  }\n}\n```",
+            "gatewayRequestId": "req-9ca042c5-66ce-4c7e-a43a-7ac5c4808b5c",
+            "usage": {
+              "promptTokens": 7729,
+              "completionTokens": 2871,
+              "reasoningTokens": 11,
+              "totalTokens": 10600
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "stage": "validate_input",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_input_checkpoint.v1",
+      "input_sha256": "3e5248c7932c629b14d174f571aab8a98e330c60f095c7bb3f1b795c54bebee5",
+      "content_policy": "doctor_practical_profile.v1"
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1,
+    "payload": {
+      "schema_version": "doctor_research_quality_checkpoint.v1",
+      "checks": [
+        "doctor_practical_profile.v1",
+        "doctor_identity_resolution",
+        "practical_profile_fact_review",
+        "claim_source_closure",
+        "five_question_answer_contract"
+      ]
+    }
+  },
+  {
+    "stage": "validate_outputs",
+    "checkpoint_version": 1000,
+    "payload": {
+      "version": "doctor_generation_responses.v1",
+      "entries": [
+        {
+          "inputSha256": "e83131f407c063a123c4fd0c6cac3d4fff0762b591103a924840ce88bdccf8c9",
+          "response": {
+            "text": "{\"approved\":true,\"draft\":{\"facts\":[{\"type\":\"position\",\"text\":\"Riemer Slart（prof. dr. R.H.J.A. Slart）自2001年起任荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的常任医师（核医学医师）。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"自2019年起任格罗宁根大学“多模态心血管影像”全职教授，并自2014年起兼任特文特大学（UT）“转化分子影像”部分时间临床全职教授。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"经两年交叉培训后，他同时注册为心脏放射学（CT与心脏磁共振CMR）专科医师；他是荷兰淀粉样变性expertise center和血管炎expertise center的成员。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"type\":\"position\",\"text\":\"自2018年起担任荷兰东北部医学影像中心（Center of Medical Imaging North-East Netherlands）分子影像医学主任。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"type\":\"expertise\",\"text\":\"其学术领域涵盖实验医学研究、心血管系统以及放射学、核医学与医学影像；专业方向包括心血管影像与骨密度等。\",\"citations\":[{\"sourceId\":\"src_a1e22bcaec54faaf5965cd5bfb8d6032\",\"passageId\":\"text_1\"}]},{\"type\":\"education_and_career\",\"text\":\"2014–2021年担任欧洲核医学协会（EANM）心血管委员会常委兼秘书，现为EANM指南委员会成员；2016年加入EULAR大血管炎影像工作组，2018年起任EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"他在EANM的欧洲分子影像与治疗学校（ESMIT）教授心血管影像课程，在EULVIC为风湿科医师授课，并曾为国际原子能机构（IAEA）在其格罗宁根科室组织核心脏病学影像培训实习；他创立了EURO-LEARN网络平台，用于提升欧洲对心脏淀粉样变性核素显像的认知。在特文特大学，他参与包括人工智能在内的多项技术医学项目，致力于连接临床与技术需求。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"type\":\"research_direction\",\"text\":\"在UMCG，他参与BRIDGE（格罗宁根基础与转化研究及影像方法学开发）、心血管中心（CVC）、转化免疫学（TRIGR）、血管医学（VASC）等研究项目，并属于外周动脉疾病组织灌注研究组。\",\"citations\":[{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_3\"}]},{\"type\":\"representative_output\",\"text\":\"他发表逾420篇同行评审论文（主要为Q1期刊），参与撰写30个书籍章节/著作，担任6种科学期刊的副主编或编委。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"type\":\"representative_output\",\"text\":\"获奖包括2024年Zaret-Beller Elite Reviewer Award，2020年Frans J Th Wackers最佳临床论文奖（合作者身份），以及2018/2019年面向资深研究者的Publication Prize和JASN 2018年度Top 5论文（合作者身份）。\",\"citations\":[{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_2\"}]},{\"type\":\"representative_output\",\"text\":\"近年代表论文包括2026年发表于Journal of Clinical Virology的《Donor anti-cytomegalovirus IgG titer and risk of cytomegalovirus infection after D+R- kidney transplantation, results from the TransplantLines Biobank and Cohort Study》，以及2026年发表于Scientific Reports的《Triglyceride-rich lipoprotein cholesterol is elevated in liver transplant recipients and associated with post-transplant diabetes》。2025年3月他曾就心脏淀粉样变性的MRI与核素影像作邀请报告。\",\"citations\":[{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_1\"}]},{\"type\":\"position\",\"text\":\"他还是荷兰同位素倡议平台DECISIVE（Dutch Medical Isotopes Save Lives）的发起人。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]}],\"background\":[{\"text\":\"Riemer Slart（prof. dr. R.H.J.A. Slart）是荷兰格罗宁根大学医学中心（UMCG）医学影像中心核医学与分子影像科的核医学医师，自2001年起在该科担任常任医师。他同时具有心脏放射学（CT与心脏磁共振）注册资质，是荷兰淀粉样变性和血管炎两个国家级expertise center的成员。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"text\":\"在学术职务上，他自2019年起任格罗宁根大学“多模态心血管影像”全职教授，自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授，并自2018年起担任荷兰东北部医学影像中心的分子影像医学主任。他在欧洲核医学界担任重要角色：曾任EANM心血管委员会常委兼秘书（2014–2021），现为EANM指南委员会成员及EANM–EACVI/ESC感染与炎症心血管影像工作组主席。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"text\":\"其工作重心是心血管多模态影像（核医学、CT、MRI）及其在心脏淀粉样变性、大血管炎、感染与炎症、外周动脉病等疾病中的转化应用。他创立了EURO-LEARN平台以提升心脏淀粉样变性核素显像的欧洲认知度，参与多项国际影像指南与建议的制定，并是多项影像研究试验的发起人和主持人。他发表逾420篇同行评审论文，是多个EANM教学项目的授课教师。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_3\"}]}],\"qa\":[{\"question\":\"他在UMCG的具体科室和临床角色是什么？\",\"answer\":\"他是UMCG医学影像中心核医学与分子影像科的核医学医师（常任医师），同时具有心脏放射学（CT与CMR）注册资质。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"question\":\"他的教授头衔具体是什么？\",\"answer\":\"自2019年起任格罗宁根大学“多模态心血管影像”全职教授；自2014年起兼任特文特大学“转化分子影像”部分时间临床全职教授。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"}]},{\"question\":\"他在欧洲学术组织中担任哪些职务？\",\"answer\":\"曾任EANM心血管委员会常委兼秘书（2014–2021），现任EANM指南委员会成员、EANM与EACVI/ESC合作的感染与炎症心血管影像（4Is）工作组主席，2016年加入EULAR大血管炎影像工作组。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_0\"},{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"}]},{\"question\":\"他的主要研究方向和临床兴趣是什么？\",\"answer\":\"心血管多模态影像（核素显像、CT、心脏MRI），尤其在心脏淀粉样变性、大血管炎、感染/炎症影像及外周动脉病组织灌注方面；此外在特文特大学参与含AI的技术医学项目。如需了解其当前具体的临床安排，建议直接与其确认。\",\"citations\":[{\"sourceId\":\"src_4b433e01a2aa2c95bb9350f19f4daa14\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_3\"}]},{\"question\":\"他近年有哪些代表性活动或荣誉？\",\"answer\":\"2024年获Zaret-Beller Elite Reviewer Award；2025年3月就心脏淀粉样变性MRI与核素影像作邀请报告；2025年作为组织者签署学术合作谅解备忘录，并赴米兰比可卡大学任访问研究者。近年合作论文发表于Journal of Clinical Virology（2026）和Scientific Reports（2026）。\",\"citations\":[{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_1\"},{\"sourceId\":\"src_387fca7cb1348aebc4dc0adeb70c8bd4\",\"passageId\":\"text_2\"}]}],\"limitations\":[\"其具体教育经历（如医学院、博士学位授予机构与年份）在已读来源中未提供。\"]}}",
+            "gatewayRequestId": "req-6fc3579e-be57-4445-8a62-a4e51efa93f3",
+            "usage": {
+              "promptTokens": 7854,
+              "completionTokens": 2681,
+              "reasoningTokens": 182,
+              "totalTokens": 10535
+            }
+          }
+        }
+      ]
+    }
+  }
+]

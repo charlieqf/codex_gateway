@@ -89,6 +89,29 @@ describe("Evidence-driven identity investigator (offline tools and scripted mode
     expect(() => validateConclusion({ ...proposal, limitations: [123] }, [profile])).toThrow("Identity limitations");
   });
 
+  it.each([true, false])("keeps the published name and qualified match subject to agent review (accepted: %s)", async accepted => {
+    const published = { ...profile, untrustedText: "Example University Hospital official staff. Samuel Example leads Cardiology." };
+    const limitation = "The input short form was matched by institution and role; the source publishes the full name only.";
+    const proposal = { ...conclusion(published), name: "Samuel Example", limitations: [limitation] };
+    const generate = scripted([
+      { actions: [{ type: "search", query: "Sam Example Example University Hospital" }] },
+      { actions: [{ type: "read", url: published.url }] }, { identity: proposal },
+      accepted ? { accepted: true, issues: [] } : { accepted: false, issues: ["A competing candidate remains unresolved."] },
+      { unresolved: "conflicting_evidence" }
+    ]);
+    const result = await investigateDoctorIdentity({ doctor: { ...doctor, name: "Sam Example" }, dependencies: {
+      search: async () => [{ url: published.url, title: published.title, snippet: "" }], read: async () => published,
+      generate, save: async () => {}, signal: new AbortController().signal
+    } });
+    expect(result.outcome).toBe(accepted ? "resolved" : "unresolved");
+    if (result.outcome === "resolved") expect(result.identity).toMatchObject({ name: "Samuel Example", limitations: [limitation] });
+    else expect(result.state.reviewedIdentity).toBeNull();
+    const review = JSON.parse((generate.mock.calls[3] as unknown as [{ prompt: string }])[0].prompt);
+    expect(review.requested.name).toBe("Sam Example");
+    expect(review.proposed_identity.name).toBe("Samuel Example");
+    expect(review.sources[0].passages.join(" ")).toContain(published.untrustedText);
+  });
+
   it("lets a rejected relationship lead to actual-link navigation and new evidence", async () => {
     const generate = scripted([
       searchAction, readAction, { identity: conclusion(directory) },
