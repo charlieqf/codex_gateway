@@ -5,6 +5,7 @@ export function publicTokenPolicy(policy: TokenLimitPolicy) {
     tokensPerMinute: policy.tokensPerMinute,
     tokensPerDay: policy.tokensPerDay,
     tokensPerMonth: policy.tokensPerMonth,
+    tokensTotal: policy.tokensTotal,
     maxPromptTokensPerRequest: policy.maxPromptTokensPerRequest,
     maxTotalTokensPerRequest: policy.maxTotalTokensPerRequest
   };
@@ -22,7 +23,8 @@ export function publicTokenUsage(usage: TokenUsageSnapshot) {
         entitlement_id: usage.freeAllowance.entitlementId,
         plan_id: usage.freeAllowance.planId,
         day: publicTokenWindow(usage.freeAllowance.day),
-        month: publicTokenWindow(usage.freeAllowance.month)
+        month: publicTokenWindow(usage.freeAllowance.month),
+        ...(usage.freeAllowance.total ? { total: publicTokenWindow(usage.freeAllowance.total) } : {})
       }
     } : {})
   };

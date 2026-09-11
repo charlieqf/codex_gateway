@@ -6960,6 +6960,7 @@ describe("Research Worker controlled-beta workflow", () => {
         tokensPerMinute: null,
         tokensPerDay: null,
         tokensPerMonth: null,
+    tokensTotal: null,
         maxPromptTokensPerRequest: null,
         maxTotalTokensPerRequest: null,
         reserveTokensPerRequest: 0,

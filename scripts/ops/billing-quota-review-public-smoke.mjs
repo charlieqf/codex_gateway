@@ -65,7 +65,7 @@ try {
   const paidId = monthly.entitlement.id;
   const initial = await history();
   const freeId = initial.free_allowance.id;
-  assert.equal(initial.free_allowance.plan_id, "plan_free_daily_100k_v1");
+  assert.equal(initial.free_allowance.plan_id, "plan_free_once_1m_v1");
   assert.equal(initial.current.id, paidId);
   const future = await event("renew", { event_type: "renew", plan_id: "plan_paid_monthly_v1",
     period_kind: "monthly", period_start: end.toISOString(), period_end: nextEnd.toISOString() });
@@ -121,7 +121,7 @@ try {
   assert.equal(annual.day.limit, 6000000); assert.equal(annual.month.limit, 200000000);
   assert.equal(annual.month.remaining, 200000000);
   assert.equal(annual.free_allowance.entitlement_id, freeId);
-  assert.equal(annual.free_allowance.day.used, 0);
+  assert.equal(annual.free_allowance.total.used, 0);
   report.billing = { default_cancel_targets_current_paused: true, scheduled_renewal_preserved: true,
     future_cancel_requires_id: true, completed_reset: true, yearly_daily_monthly_limits: true, same_free_entitlement: true };
 

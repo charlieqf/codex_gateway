@@ -2308,6 +2308,7 @@ function tokenPolicyFromOptions(
     tokensPerMinute: nullableOptionOrExisting(options.tokensPerMinute, existing?.tokensPerMinute ?? null),
     tokensPerDay: nullableOptionOrExisting(options.tokensPerDay, existing?.tokensPerDay ?? null),
     tokensPerMonth: nullableOptionOrExisting(options.tokensPerMonth, existing?.tokensPerMonth ?? null),
+    tokensTotal: existing?.tokensTotal ?? null,
     maxPromptTokensPerRequest: nullableOptionOrExisting(
       options.maxPromptTokens,
       existing?.maxPromptTokensPerRequest ?? null

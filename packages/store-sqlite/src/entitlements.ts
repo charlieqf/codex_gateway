@@ -29,7 +29,7 @@ import {
   cancelScheduled
 } from "./entitlement-transitions.js";
 import { runInTransaction } from "./sql.js";
-import { ensureFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
+import { recoverReplacedFreeAllowance, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
 
 export interface EntitlementStoreDependencies {
   getPlan(id: string): Plan | null;
@@ -280,7 +280,7 @@ function insertFromPlan(
     ).run(entitlement.id, replacedEntitlementId);
   }
 
-  if (isRetailPaidPlan(plan.id)) ensureFreeAllowance(db, input.subjectId, now);
+  if (isRetailPaidPlan(plan.id)) recoverReplacedFreeAllowance(db, input.subjectId, now);
   return entitlement;
 }
 

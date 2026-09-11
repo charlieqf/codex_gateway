@@ -216,9 +216,9 @@ Content-Type: application/json
 注意：
 
 - 响应是上述嵌套结构：账户 ID 为 `subject.id`，Key 为 `credential.key`，有效期字段为 `credential.expires_at`。不返回顶层 `subject_id`、`key` 或 `expired_at`；Key 前缀为 `cgu_live_*`。收费侧可以自行封装返回结构，但应从这些字段准确映射，不能把 `credential.id` 当作账户 ID。
-- 提供 phone 或沿用 resolve 的手机号新开户，在同一事务中准备 Subject、Key、`plan_free_daily_100k_v1` 免费权益和 Phone identity。成功返回 200 后，Desktop 可以走手机号 v1 登录，无需人工登记或单独发放免费额度。旧版 `plan_free_daily_10k_v1`、`plan_free_daily_1m_v1` 继续保留供既有权益使用，不批量迁移老用户。
+- 提供 phone 或沿用 resolve 的手机号新开户，在同一事务中准备 Subject、Key、`plan_free_once_1m_v1` 免费权益和 Phone identity。成功返回 200 后，Desktop 可以走手机号 v1 登录，无需人工登记或单独发放免费额度。旧版 `plan_free_daily_*` 权益由迁移转为一次性模型，存量已用量结转。
 - 提供 phone 匹配到既有账户时，会建立外部身份关联，沿用旧规范返回 `409 subject_already_exists`；按第 4.2 节 provider/external_user_id 查询取回原 `subject.id`。不会再建账户、轮换 Key 或改动原权益。
-- 新开户免费额度设为每天累计 100,000 token，沿用 UTC 00:00 日窗口；重复开户、登录不重置额度。额度以已发放权益快照为准，既有用户不受默认值调整影响。首次从免费转付费使用 `purchase` + `replace_current=true`，不对无期末的免费权益使用 `renew`。
+- 新开户免费额度为一次性 1,000,000 token（`tokens_total`），不随 UTC 日窗口重置；用完后须购买月付或年付。重复开户、登录不重置或补发额度。额度以已发放权益快照为准；存量每日版权益已按迁移规则转为一次性并结转历史用量。首次从免费转付费使用 `purchase` + `replace_current=true`，不对无期末的免费权益使用 `renew`。免费耗尽后的模型请求返回 `429 free_quota_exhausted`（无 `retry_after`），Desktop 应提示购买套餐。
 - `credential.key` 只在首次成功响应里返回一次。
 - 同一 `Idempotency-Key` replay 时只返回 `key_prefix`，不会再次返回 `credential.key` 原文。
 - 收费侧若需保管完整 Key，应在首次响应后立即安全持久化；后续步骤失败不重新 create。Desktop 可通过已准备的手机号登录和 bootstrap 取回当前 Key；收费侧后台若需恢复遗失的完整 Key，沿用受控轮换流程。

@@ -5,7 +5,7 @@ import {
   tableExists
 } from "./sqlite-managed.js";
 import type { SqliteStoreLogger } from "./types.js";
-import { ensureFreeAllowance, paidPlanSql } from "./free-allowance.js";
+import { migrateDailyFreeAllowancesToOnce, paidPlanSql, recoverReplacedFreeAllowance } from "./free-allowance.js";
 
 export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogger): void {
   db.exec(`
@@ -1040,8 +1040,45 @@ export function migrateGatewaySchema(db: DatabaseSync, logger?: SqliteStoreLogge
         AND (period_end IS NULL OR period_end > ?)
         AND subject_id IN (SELECT id FROM subjects WHERE state = 'active')`)
       .all(now.toISOString()) as Array<{ subject_id: string }>;
-    for (const row of paid) ensureFreeAllowance(db, row.subject_id, now);
+    for (const row of paid) recoverReplacedFreeAllowance(db, row.subject_id, now);
   }, logger);
+
+  applyMigration(
+    db,
+    30,
+    () => {
+      // The lifetime "period" window for one-off Free allowances requires the
+      // window-kind CHECK to accept it; SQLite cannot ALTER a CHECK, so the
+      // table is rebuilt with identical data plus the widened constraint.
+      if (tableExists(db, "entitlement_token_windows")) {
+        db.exec(`CREATE TABLE entitlement_token_windows_new (
+            entitlement_id TEXT NOT NULL,
+            window_kind TEXT NOT NULL CHECK (window_kind IN ('minute', 'day', 'month', 'period')),
+            window_start TEXT NOT NULL,
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            cached_prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            estimated_tokens INTEGER NOT NULL DEFAULT 0,
+            requests INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(entitlement_id, window_kind, window_start),
+            FOREIGN KEY(entitlement_id) REFERENCES entitlements(id)
+          )`);
+        db.exec(`INSERT INTO entitlement_token_windows_new
+          SELECT entitlement_id, window_kind, window_start, prompt_tokens, completion_tokens,
+            total_tokens, cached_prompt_tokens, estimated_tokens, requests, updated_at
+          FROM entitlement_token_windows`);
+        db.exec("DROP TABLE entitlement_token_windows");
+        db.exec("ALTER TABLE entitlement_token_windows_new RENAME TO entitlement_token_windows");
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_entitlement_token_windows_kind
+          ON entitlement_token_windows(entitlement_id, window_kind, window_start DESC)`);
+      }
+      const result = migrateDailyFreeAllowancesToOnce(db, new Date());
+      logger?.info(JSON.stringify({ migration: 30, free_allowances_migrated: result.migrated }));
+    },
+    logger
+  );
 }
 
 export function migrateClientEventsSchema(db: DatabaseSync): void {

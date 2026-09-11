@@ -169,6 +169,7 @@ describe("access credentials", () => {
           tokensPerMinute: 100_000,
           tokensPerDay: 5_000_000,
           tokensPerMonth: 100_000_000,
+    tokensTotal: null,
           maxPromptTokensPerRequest: 200_000,
           maxTotalTokensPerRequest: 300_000,
           reserveTokensPerRequest: 0,

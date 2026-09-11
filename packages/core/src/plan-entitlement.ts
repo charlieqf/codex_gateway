@@ -137,6 +137,7 @@ export function mergeEntitlementTokenPolicy(
     "tokensPerMinute",
     "tokensPerDay",
     "tokensPerMonth",
+    "tokensTotal",
     "maxPromptTokensPerRequest",
     "maxTotalTokensPerRequest"
   ] as const) {

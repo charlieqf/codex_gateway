@@ -432,6 +432,7 @@ function createFixture() {
       tokensPerMinute: null,
       tokensPerDay: null,
       tokensPerMonth: null,
+    tokensTotal: null,
       maxPromptTokensPerRequest: null,
       maxTotalTokensPerRequest: null,
       reserveTokensPerRequest: 0,

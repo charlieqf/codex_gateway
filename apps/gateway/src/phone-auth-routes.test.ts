@@ -92,8 +92,9 @@ describe("internal phone auth v1 routes", () => {
       const current = await fixture.app.inject({ url: "/gateway/credentials/current",
         headers: { ...versionHeader, authorization: `Bearer ${resolver.json().codex_gateway.api_key}` } });
       expect(current.statusCode).toBe(200);
-      expect(current.json().credential.token.tokensPerDay).toBe(100_000);
-      expect(fixture.store.listEntitlements({ subjectId: created.json().subject.id })[0]?.policySnapshot.tokensPerDay).toBe(100_000);
+      expect(current.json().credential.token.tokensPerDay).toBeNull();
+      expect(current.json().credential.token.tokensTotal).toBe(1_000_000);
+      expect(fixture.store.listEntitlements({ subjectId: created.json().subject.id })[0]?.policySnapshot.tokensTotal).toBe(1_000_000);
       const unknown = await fixture.app.inject({ method: "POST", url: "/gateway/auth/v1/login/start", headers: versionHeader,
         payload: { phone: "13700137000", client: "medevidence-desktop", device_id: "temporary-route-device", contract_version: 1 } });
       expect(unknown.json().error.code).toBe("phone_not_registered");
@@ -1158,6 +1159,7 @@ function createFixture(
       tokensPerMinute: null,
       tokensPerDay: null,
       tokensPerMonth: null,
+      tokensTotal: null,
       maxPromptTokensPerRequest: null,
       maxTotalTokensPerRequest: null,
       reserveTokensPerRequest: 0,

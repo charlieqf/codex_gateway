@@ -26,12 +26,12 @@ const store = createSqliteStore({ path: ":memory:" });
 store.upsertSubject({ id: "subj_quota_smoke", label: "Synthetic", state: "active", createdAt: now });
 const issued = issueAccessCredential({ subjectId: "subj_quota_smoke", label: "Synthetic", scope: "code", expiresAt: new Date("2030-01-01Z"), now });
 store.insertAccessCredential(issued.record);
-const policy = { tokensPerMinute: 300000, tokensPerDay: 10000, tokensPerMonth: null,
+const policy = { tokensPerMinute: 300000, tokensPerDay: null, tokensPerMonth: null, tokensTotal: 10000,
   maxPromptTokensPerRequest: null, maxTotalTokensPerRequest: null, reserveTokensPerRequest: 0, missingUsageCharge: "none" };
-store.createPlan({ id: "plan_free_daily_10k_v1", displayName: "Free", scopeAllowlist: ["code"], policy });
+store.createPlan({ id: "plan_free_once_fixture_v1", displayName: "Free", scopeAllowlist: ["code"], policy });
 store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
   policy: { ...policy, tokensPerDay: 100000, tokensPerMonth: 200000 } });
-const free = store.grantEntitlement({ subjectId: issued.record.subjectId, planId: "plan_free_daily_10k_v1", periodKind: "unlimited", now });
+const free = store.grantEntitlement({ subjectId: issued.record.subjectId, planId: "plan_free_once_fixture_v1", periodKind: "unlimited", now });
 const app = buildGateway({ authMode: "credential", sessionStore: store, observationStore: store, logger: false,
   billingAdminToken: "synthetic-billing-admin-token", now: () => now,
   provider: { kind: "fake", async health() { return { state: "healthy", checkedAt: now }; },
@@ -67,7 +67,7 @@ try {
   const usage = current.json().token_usage;
   assert.equal(usage.accounting_mode, "free_then_paid_v1");
   assert.equal(usage.free_allowance.entitlement_id, free.id);
-  assert.equal(usage.free_allowance.day.used, 10000);
+  assert.equal(usage.free_allowance.total.used, 10000);
   assert.equal(usage.day.used, 70000);
   assert.equal(usage.month.used, 70000);
   const account = await app.inject({ method: "GET", url: `/gateway/admin/billing/v1/users/${issued.record.subjectId}/entitlements`, headers: billingHeaders });

@@ -2546,6 +2546,7 @@ describe("gateway phase 1 routes", () => {
       tokensPerMinute: null,
       tokensPerDay: 100,
       tokensPerMonth: 1_000,
+    tokensTotal: null,
       maxPromptTokensPerRequest: null,
       maxTotalTokensPerRequest: null,
       reserveTokensPerRequest: 0,
@@ -2689,9 +2690,11 @@ describe("gateway phase 1 routes", () => {
     // Pin a small Free allowance so the pending reservation must reach the paid
     // ledger; the production default in phoneSignupFreePlan stays out of scope.
     const freeTemplate = phoneSignupFreePlan(now);
-    store.createPlan({ ...freeTemplate, policy: { ...freeTemplate.policy, tokensPerDay: 10_000 } });
+    store.createPlan({ ...freeTemplate, id: "plan_free_once_fixture_v1",
+      policy: { ...freeTemplate.policy, tokensTotal: 10_000 } });
     store.createPlan({ id: "plan_paid_monthly_v1", displayName: "Monthly", scopeAllowlist: ["code"],
       policy: unrestrictedTokenPolicy(), now });
+    store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_free_once_fixture_v1", periodKind: "unlimited", now });
     const paid = store.grantEntitlement({ subjectId: "subj_dev", planId: "plan_paid_monthly_v1", periodKind: "one_off",
       periodStart: now, periodEnd: new Date("2026-10-11T01:00:00Z"), now });
     const limiter = createSqliteTokenBudgetLimiter({ db: store.database });
@@ -2836,9 +2839,9 @@ describe("gateway phase 1 routes", () => {
         headers: { authorization: "Bearer billing-admin-token-1234567890" }
       });
       expect(plans.statusCode).toBe(200);
-      expect(plans.json().plans[0]).toMatchObject({
-        id: `plan_billing_env_fallback_${mode}_v1`
-      });
+      expect(plans.json().plans).toEqual([
+        expect.objectContaining({ id: `plan_billing_env_fallback_${mode}_v1` })
+      ]);
       await app.close();
     }
   });
@@ -2909,9 +2912,9 @@ describe("gateway phase 1 routes", () => {
       headers: { authorization: `Bearer ${billingToken.token}` }
     });
     expect(plans.statusCode).toBe(200);
-    expect(plans.json().plans[0]).toMatchObject({
-      id: "plan_billing_tracking_v1"
-    });
+    expect(plans.json().plans).toEqual([
+      expect.objectContaining({ id: "plan_billing_tracking_v1" })
+    ]);
 
     await app.close();
   });
@@ -3363,6 +3366,7 @@ describe("gateway phase 1 routes", () => {
           tokensPerMinute: 1_000,
           tokensPerDay: 10_000,
           tokensPerMonth: null,
+    tokensTotal: null,
           maxPromptTokensPerRequest: 500,
           maxTotalTokensPerRequest: 1_000,
           reserveTokensPerRequest: 100,
@@ -3402,6 +3406,7 @@ describe("gateway phase 1 routes", () => {
       tokensPerMinute: 300_000,
       tokensPerDay: 10_000,
       tokensPerMonth: null,
+    tokensTotal: null,
       maxPromptTokensPerRequest: 500,
       maxTotalTokensPerRequest: 1_000
     });
@@ -4068,6 +4073,7 @@ describe("gateway phase 1 routes", () => {
         tokensPerMinute: 1000,
         tokensPerDay: 10000,
         tokensPerMonth: 100000,
+    tokensTotal: null,
         maxPromptTokensPerRequest: 2000,
         maxTotalTokensPerRequest: 4000,
         reserveTokensPerRequest: 100,
@@ -11428,6 +11434,7 @@ describe("gateway phase 1 routes", () => {
             tokensPerMinute: null,
             tokensPerDay: null,
             tokensPerMonth: null,
+    tokensTotal: null,
             maxPromptTokensPerRequest: null,
             maxTotalTokensPerRequest: null,
             reserveTokensPerRequest: 100,
@@ -15290,6 +15297,7 @@ describe("gateway phase 1 routes", () => {
         tokensPerMinute: 1_000,
         tokensPerDay: 10_000,
         tokensPerMonth: null,
+    tokensTotal: null,
         maxPromptTokensPerRequest: 500,
         maxTotalTokensPerRequest: 1_000,
         reserveTokensPerRequest: 100,
@@ -15344,6 +15352,7 @@ describe("gateway phase 1 routes", () => {
           tokensPerMinute: 300_000,
           tokensPerDay: 10_000,
           tokensPerMonth: null,
+    tokensTotal: null,
           maxPromptTokensPerRequest: 500,
           maxTotalTokensPerRequest: 1_000
         }
@@ -15411,6 +15420,7 @@ describe("gateway phase 1 routes", () => {
             tokensPerMinute: 1,
             tokensPerDay: 1,
             tokensPerMonth: null,
+    tokensTotal: null,
             maxPromptTokensPerRequest: null,
             maxTotalTokensPerRequest: null,
             reserveTokensPerRequest: 10,
@@ -15433,6 +15443,7 @@ describe("gateway phase 1 routes", () => {
           tokensPerMinute: null,
           tokensPerDay: 10_000,
           tokensPerMonth: null,
+    tokensTotal: null,
           maxPromptTokensPerRequest: null,
           maxTotalTokensPerRequest: null,
           reserveTokensPerRequest: 0,
@@ -15779,6 +15790,7 @@ describe("gateway phase 1 routes", () => {
         tokensPerMinute: null,
         tokensPerDay: 10_000,
         tokensPerMonth: null,
+    tokensTotal: null,
         maxPromptTokensPerRequest: null,
         maxTotalTokensPerRequest: null,
         reserveTokensPerRequest: 0,
@@ -15836,6 +15848,7 @@ describe("gateway phase 1 routes", () => {
           tokensPerMinute: null,
           tokensPerDay: null,
           tokensPerMonth: null,
+    tokensTotal: null,
           maxPromptTokensPerRequest: null,
           maxTotalTokensPerRequest: 10,
           reserveTokensPerRequest: 100,
@@ -15914,6 +15927,7 @@ describe("gateway phase 1 routes", () => {
           tokensPerMinute: null,
           tokensPerDay: null,
           tokensPerMonth: null,
+    tokensTotal: null,
           maxPromptTokensPerRequest: null,
           maxTotalTokensPerRequest: null,
           reserveTokensPerRequest: 100,
@@ -16300,6 +16314,7 @@ function unrestrictedTokenPolicy() {
     tokensPerMinute: null,
     tokensPerDay: null,
     tokensPerMonth: null,
+    tokensTotal: null,
     maxPromptTokensPerRequest: null,
     maxTotalTokensPerRequest: null,
     reserveTokensPerRequest: 0,

@@ -368,14 +368,24 @@ function dashboardWarnings(
   return warnings;
 }
 
-function hasExhaustedWindow(usage: PublicTokenUsage | null): boolean {
+export function hasExhaustedWindow(usage: PublicTokenUsage | null): boolean {
   if (!usage) {
     return false;
   }
   if (usage.minute.remaining === 0) return true;
-  const primaryExhausted = [usage.day, usage.month].some((window) => window.remaining === 0);
+  // Exhausted means every constrained window is at zero: a paid user with an
+  // unspent one-off Free allowance still has quota, while a pure Free user
+  // whose lifetime allowance is spent has none even though day/month limits
+  // are null.
+  const constrained: Array<{ remaining: number | null }> = [usage.day, usage.month];
   const free = usage.free_allowance;
-  return primaryExhausted && (!free || [free.day, free.month].some((window) => window.remaining === 0));
+  if (free?.total) {
+    constrained.push(free.total);
+  } else if (free) {
+    constrained.push(free.day, free.month);
+  }
+  return constrained.some((window) => window.remaining === 0) &&
+    constrained.every((window) => window.remaining === null || window.remaining === 0);
 }
 
 function summarizeUsageRows(rows: RequestUsageReportRow[]): UsageSummary {
@@ -556,6 +566,7 @@ function rateLimitLabel(kind: RateLimitKind | null): string {
     token_minute: "分钟 token",
     token_day: "日 token",
     token_month: "月 token",
+    token_total: "累计 token",
     token_request_prompt: "单请求 prompt token",
     token_request_total: "单请求总 token",
     research_control_read_minute: "Research 分钟读取",
@@ -1341,6 +1352,7 @@ function renderQuotaDashboardDocument(input: {
       const free = user.token_usage.free_allowance;
       return '<div class="quota-stack">' +
         renderWindow("分钟", user.token_usage.minute) +
+        (free && free.total ? renderWindow("免费累计", free.total) : '') +
         (free ? renderWindow("免费日", free.day) : '') +
         renderWindow(free ? "付费日" : "日", user.token_usage.day) +
         renderWindow(free ? "付费周期" : "周期", user.token_usage.month) +
@@ -1409,6 +1421,7 @@ function renderQuotaDashboardDocument(input: {
         token_minute: "分钟 token",
         token_day: "日 token",
         token_month: "月 token",
+        token_total: "累计 token",
         token_request_prompt: "单请求 prompt token",
         token_request_total: "单请求总 token",
         research_control_read_minute: "Research 分钟读取",

@@ -1,20 +1,22 @@
 import { defaultFeaturePolicy } from "./feature-policy.js";
 import type { CreatePlanInput } from "./plan-entitlement.js";
 
-// New grants use a separate plan; existing 10k/day and 1M/day grants keep their snapshots.
-export const phoneSignupFreePlanId = "plan_free_daily_100k_v1";
+// New grants use a one-off lifetime allowance; existing daily grants keep
+// their snapshots and are migrated separately to the lifetime window model.
+export const phoneSignupFreePlanId = "plan_free_once_1m_v1";
 
-/** The existing token ledger uses UTC days (08:00 China time). */
+/** One million tokens for the account's lifetime; it never resets. */
 export function phoneSignupFreePlan(now: Date): CreatePlanInput {
   return {
     id: phoneSignupFreePlanId,
-    displayName: "Free · 100,000 tokens/day",
+    displayName: "Free · 1,000,000 tokens once",
     scopeAllowlist: ["code"],
     featurePolicy: defaultFeaturePolicy(),
     policy: {
       tokensPerMinute: 300_000,
-      tokensPerDay: 100_000,
+      tokensPerDay: null,
       tokensPerMonth: null,
+      tokensTotal: 1_000_000,
       maxPromptTokensPerRequest: null,
       maxTotalTokensPerRequest: null,
       reserveTokensPerRequest: 0,

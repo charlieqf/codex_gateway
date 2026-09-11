@@ -3120,6 +3120,7 @@ function publicTokenPolicy(policy: TokenLimitPolicy) {
     tokens_per_minute: policy.tokensPerMinute,
     tokens_per_day: policy.tokensPerDay,
     tokens_per_month: policy.tokensPerMonth,
+    tokens_total: policy.tokensTotal,
     max_prompt_tokens_per_request: policy.maxPromptTokensPerRequest,
     max_total_tokens_per_request: policy.maxTotalTokensPerRequest
   };

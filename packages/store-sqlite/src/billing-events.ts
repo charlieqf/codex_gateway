@@ -30,7 +30,7 @@ import * as plansStore from "./plans.js";
 import * as requestEvents from "./request-events.js";
 import { rowToEntitlement } from "./row-mappers.js";
 import * as subjectsStore from "./subjects.js";
-import { activeFreeAllowance, ensureFreeAllowance, freePlanSql, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
+import { activeFreeAllowance, recoverReplacedFreeAllowance, freePlanSql, isFreeAllowance, isRetailPaidPlan } from "./free-allowance.js";
 import { activeForSubjectInTransaction } from "./entitlement-transitions.js";
 import { runInTransaction } from "./sql.js";
 
@@ -355,7 +355,7 @@ function applyEntitlementChange(
     }
 
     const entitlement = insertEntitlementFromPlan(db, plan, input, period, now);
-    if (isRetailPaidPlan(plan.id)) ensureFreeAllowance(db, input.subjectId, now);
+    if (isRetailPaidPlan(plan.id)) recoverReplacedFreeAllowance(db, input.subjectId, now);
     insertTransitionAudit(
       db,
       input.eventType === "renew" ? "entitlement-renew" : "entitlement-grant",

@@ -194,9 +194,19 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
       const free = this.freeAllowanceFor(input, now);
       const freeWindows = windowBoundaries(now);
-      const freeReserved = free ? Math.min(reservedTokens,
-        this.freeRemaining(input.subjectId, free.id, free.policySnapshot, freeWindows.day, freeWindows.month, now)) : 0;
-      const paidReserved = reservedTokens - freeReserved;
+      const freeTotalLimit = free?.policySnapshot.tokensTotal ?? null;
+      // A request whose entitlement IS the one-off Free allowance spends that
+      // lifetime window directly; a paid request borrows from it first.
+      const primary = entitlementId ? getEntitlement(this.db, entitlementId) : null;
+      const primaryIsOnceFree = primary !== null && primary.id === free?.id && freeTotalLimit !== null;
+      const freeRemaining = free
+        ? (freeTotalLimit !== null
+            ? this.windowRemaining(input.subjectId, free.id, "period", free.periodStart, freeTotalLimit, now)
+            : this.freeRemaining(input.subjectId, free.id, free.policySnapshot,
+                freeWindows.day, freeWindows.month, now))
+        : 0;
+      const freeReserved = free ? Math.min(reservedTokens, freeRemaining) : 0;
+      const paidReserved = primaryIsOnceFree ? 0 : reservedTokens - freeReserved;
 
       const minuteRejected = this.windowRejection({
         subjectId: input.subjectId,
@@ -210,6 +220,22 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       });
       if (minuteRejected) {
         return minuteRejected;
+      }
+
+      // A Free-only request must fit ENTIRELY within the remaining one-off
+      // allowance: there is no paid ledger to absorb the excess, and the
+      // allowance never resets, so surface the dedicated upgrade code with no
+      // retry hint instead of letting the request overshoot the balance.
+      if (free && freeTotalLimit !== null && entitlementId === free.id && freeRemaining < reservedTokens) {
+        return tokenRejection("token_total",
+          "Free token allowance exhausted: purchase a monthly or yearly plan to continue.",
+          undefined, {
+            scope: "entitlement",
+            window: "request",
+            limit: freeTotalLimit,
+            used: freeTotalLimit - freeRemaining,
+            requested: reservedTokens
+          }, "free_quota_exhausted");
       }
 
       const dayRejected = free && paidReserved === 0 ? null : this.windowRejection({
@@ -237,7 +263,8 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         now
       });
       if (monthRejected) {
-        if (free && free.policySnapshot.tokensPerDay !== null && free.policySnapshot.tokensPerDay > 0 &&
+        if (free && freeTotalLimit === null &&
+          free.policySnapshot.tokensPerDay !== null && free.policySnapshot.tokensPerDay > 0 &&
           free.policySnapshot.tokensPerMonth === null) {
           return tokenRejection(monthRejected.limitKind, monthRejected.error.message,
             Math.min(monthRejected.error.retryAfterSeconds ?? Infinity,
@@ -274,9 +301,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       });
 
       if (free) {
+        const freePeriodStart = freeTotalLimit !== null ? free.periodStart : freeWindows.month;
         this.db.prepare(`UPDATE token_reservations SET free_entitlement_id = ?, free_reserved_tokens = ?,
           free_policy_snapshot_json = ?, free_month_window_start = ? WHERE id = ?`)
-          .run(free.id, freeReserved, JSON.stringify(free.policySnapshot), freeWindows.month.toISOString(), reservationId);
+          .run(free.id, freeReserved, JSON.stringify(free.policySnapshot), freePeriodStart.toISOString(), reservationId);
       }
       return { ok: true, reservationId };
     });
@@ -397,7 +425,10 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
         day: this.readUsageWindow(input.subjectId, free.id, "day", freeWindows.day,
           windowEnd("day", freeWindows.day), free.policySnapshot.tokensPerDay, now),
         month: this.readUsageWindow(input.subjectId, free.id, "month", freeWindows.month,
-          windowEnd("month", freeWindows.month), free.policySnapshot.tokensPerMonth, now)
+          windowEnd("month", freeWindows.month), free.policySnapshot.tokensPerMonth, now),
+        ...(free.policySnapshot.tokensTotal !== null ? { total: this.readUsageWindow(
+          input.subjectId, free.id, "period", free.periodStart, new Date(8640000000000000),
+          free.policySnapshot.tokensTotal, now) } : {})
       } } : {}),
       month: this.readUsageWindow(
         input.subjectId,
@@ -577,14 +608,30 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       let paidUsage = final;
       if (row.free_entitlement_id && row.free_policy_snapshot_json && row.free_month_window_start) {
         const freePolicy = validateTokenPolicy(JSON.parse(row.free_policy_snapshot_json));
-        freeTokens = Math.min(final.totalTokens, this.freeRemaining(row.subject_id,
-          row.free_entitlement_id, freePolicy, row.day_window_start, row.free_month_window_start, now));
-        const freeUsage = portionOfUsage(final, freeTokens);
-        paidUsage = subtractUsage(final, freeUsage);
-        for (const [kind, start] of [
-          ["minute", row.minute_window_start], ["day", row.day_window_start], ["month", row.free_month_window_start]
-        ] as const) {
-          this.addUsageToWindow(row.subject_id, row.free_entitlement_id, kind, start, freeUsage, now);
+        const freeEntitlement = getEntitlement(this.db, row.free_entitlement_id);
+        if (freePolicy.tokensTotal !== null && freeEntitlement) {
+          // One-off allowance: a single lifetime window, never reset. When the
+          // request's own entitlement is the allowance, the complete-usage
+          // minute ledger above already covers it; only add the period window.
+          freeTokens = Math.min(final.totalTokens, this.windowRemaining(row.subject_id,
+            row.free_entitlement_id, "period", freeEntitlement.periodStart, freePolicy.tokensTotal, now));
+          const freeUsage = portionOfUsage(final, freeTokens);
+          paidUsage = subtractUsage(final, freeUsage);
+          if (row.entitlement_id !== row.free_entitlement_id) {
+            this.addUsageToWindow(row.subject_id, row.free_entitlement_id, "minute", row.minute_window_start, freeUsage, now);
+          }
+          this.addUsageToWindow(row.subject_id, row.free_entitlement_id, "period",
+            freeEntitlement.periodStart.toISOString(), freeUsage, now);
+        } else {
+          freeTokens = Math.min(final.totalTokens, this.freeRemaining(row.subject_id,
+            row.free_entitlement_id, freePolicy, row.day_window_start, row.free_month_window_start, now));
+          const freeUsage = portionOfUsage(final, freeTokens);
+          paidUsage = subtractUsage(final, freeUsage);
+          for (const [kind, start] of [
+            ["minute", row.minute_window_start], ["day", row.day_window_start], ["month", row.free_month_window_start]
+          ] as const) {
+            this.addUsageToWindow(row.subject_id, row.free_entitlement_id, kind, start, freeUsage, now);
+          }
         }
       }
       const primary = row.entitlement_id ? getEntitlement(this.db, row.entitlement_id) : null;
@@ -716,8 +763,14 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
 
   private freeAllowanceFor(input: { subjectId: string; entitlementId?: string | null; scope?: Scope }, now: Date): Entitlement | null {
     if (!input.entitlementId) return null;
-    const paid = getEntitlement(this.db, input.entitlementId);
-    if (!paid || paid.subjectId !== input.subjectId || !isRetailPaidPlan(paid.planId)) return null;
+    const primary = getEntitlement(this.db, input.entitlementId);
+    if (!primary || primary.subjectId !== input.subjectId) return null;
+    // A paid request borrows from the base Free allowance; a Free-only request
+    // against a one-off allowance spends that lifetime window itself.
+    if (primary.policySnapshot.tokensTotal !== null && isFreeAllowance(primary) && primary.state === "active") {
+      return primary;
+    }
+    if (!isRetailPaidPlan(primary.planId)) return null;
     const free = activeFreeAllowance(this.db, input.subjectId, now);
     return free && (!input.scope || free.scopeAllowlist.includes(input.scope)) ? free : null;
   }
@@ -753,10 +806,18 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
       this.windowUsed(subjectId, entitlementId, kind, start) - this.activeReserved(subjectId, entitlementId, kind, start, now))));
   }
 
+  /** Remaining capacity of a non-rolling window, e.g. a one-off Free allowance. */
+  private windowRemaining(subjectId: string, entitlementId: string,
+    kind: "period", windowStart: Date, limit: number, now: Date): number {
+    return Math.max(0, limit -
+      this.windowUsed(subjectId, entitlementId, kind, windowStart) -
+      this.activeReserved(subjectId, entitlementId, kind, windowStart, now, "free"));
+  }
+
   private windowRejection(input: {
     subjectId: string;
     entitlementId: string | null;
-    kind: "minute" | "day" | "month";
+    kind: "minute" | "day" | "month" | "period";
     windowStart: Date;
     windowEnd: Date;
     limit: number | null;
@@ -800,14 +861,14 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private readUsageWindow(
     subjectId: string,
     entitlementId: string | null,
-    kind: "minute" | "day" | "month",
+    kind: "minute" | "day" | "month" | "period",
     windowStart: Date,
     windowEnd: Date,
     limit: number | null,
     now: Date
   ) {
     const used = this.windowUsed(subjectId, entitlementId, kind, windowStart);
-    const reserved = this.activeReserved(subjectId, entitlementId, kind, windowStart, now);
+    const reserved = this.activeReserved(subjectId, entitlementId, kind, windowStart, now, kind === "period" ? "free" : "primary");
     return {
       limit,
       used,
@@ -821,7 +882,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private windowUsed(
     subjectId: string,
     entitlementId: string | null,
-    kind: "minute" | "day" | "month",
+    kind: "minute" | "day" | "month" | "period",
     windowStart: Date | string
   ): number {
     const row = entitlementId
@@ -849,20 +910,26 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private activeReserved(
     subjectId: string,
     entitlementId: string | null,
-    kind: "minute" | "day" | "month",
+    kind: "minute" | "day" | "month" | "period",
     windowStart: Date | string,
-    now: Date
+    now: Date,
+    ledger: "primary" | "free" = "primary"
   ): number {
-    const column = `${kind}_window_start`;
+    // The lifetime Free window shares the reservation's free_month_window_start
+    // column, which stores the allowance window start for both semantics.
+    const column = kind === "period" ? "free_month_window_start" : `${kind}_window_start`;
+    // The free ledger always counts free_reserved_tokens; the primary ledger
+    // for a shared request counts only its paid share.
+    const share = kind === "minute" || ledger === "free" ? "reserved_tokens" : "reserved_tokens - free_reserved_tokens";
     const row = entitlementId
       ? (this.db
           .prepare(
             `SELECT COALESCE(SUM(CASE WHEN entitlement_id = ?
-               THEN ${kind === "minute" ? "reserved_tokens" : "reserved_tokens - free_reserved_tokens"}
+               THEN ${share}
                ELSE free_reserved_tokens END), 0) AS reserved
              FROM token_reservations
              WHERE ((entitlement_id = ? AND ${column} = ?)
-               OR (free_entitlement_id = ? AND ${kind === "month" ? "free_month_window_start" : column} = ?))
+               OR (free_entitlement_id = ? AND ${kind === "month" || kind === "period" ? "free_month_window_start" : column} = ?))
                AND kind = 'reservation'
                AND finalized_at IS NULL
                AND expires_at IS NOT NULL
@@ -892,7 +959,7 @@ export class SqliteTokenBudgetLimiter implements TokenBudgetLimiter {
   private addUsageToWindow(
     subjectId: string,
     entitlementId: string | null,
-    kind: "minute" | "day" | "month",
+    kind: "minute" | "day" | "month" | "period",
     windowStart: string,
     usage: FinalUsage,
     now: Date
@@ -1192,14 +1259,15 @@ function tokenRejection(
   limitKind: LimitKind,
   message: string,
   retryAfterSeconds?: number,
-  details?: LimitDetails
+  details?: LimitDetails,
+  errorCode: "rate_limited" | "free_quota_exhausted" = "rate_limited"
 ): LimitRejection {
   return {
     ok: false,
     limitKind,
     details,
     error: new GatewayError({
-      code: "rate_limited",
+      code: errorCode,
       message,
       httpStatus: 429,
       retryAfterSeconds
@@ -1289,7 +1357,7 @@ function windowBoundaries(
   };
 }
 
-function windowEnd(kind: "minute" | "day" | "month", start: Date): Date {
+function windowEnd(kind: "minute" | "day" | "month" | "period", start: Date): Date {
   if (kind === "minute") {
     return new Date(start.getTime() + 60_000);
   }

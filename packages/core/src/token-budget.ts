@@ -14,6 +14,8 @@ export interface TokenLimitPolicy {
   tokensPerMinute: number | null;
   tokensPerDay: number | null;
   tokensPerMonth: number | null;
+  /** One-off allowance for the whole entitlement period; never resets. */
+  tokensTotal: number | null;
   maxPromptTokensPerRequest: number | null;
   maxTotalTokensPerRequest: number | null;
   reserveTokensPerRequest: number;
@@ -27,6 +29,7 @@ export type LimitKind =
   | "token_minute"
   | "token_day"
   | "token_month"
+  | "token_total"
   | "token_request_prompt"
   | "token_request_total"
   | "research_control_read_minute"
@@ -77,6 +80,7 @@ export type LimitWindow =
   | "minute"
   | "day"
   | "month"
+  | "period"
   | "rolling_30_days"
   | "concurrency"
   | "request";
@@ -166,6 +170,8 @@ export interface TokenUsageSnapshot {
     planId: string;
     day: WindowSnapshot;
     month: WindowSnapshot;
+    /** One-off lifetime window; present only for tokensTotal allowances. */
+    total?: WindowSnapshot;
   };
 }
 
@@ -208,6 +214,8 @@ export function validateTokenPolicy(policy: TokenLimitPolicy): TokenLimitPolicy 
       tokensPerMinute === null ? null : Math.max(tokensPerMinute, minimumTokensPerMinute),
     tokensPerDay: nullableNonNegativeInteger(policy.tokensPerDay, "tokensPerDay"),
     tokensPerMonth: nullableNonNegativeInteger(policy.tokensPerMonth, "tokensPerMonth"),
+    // Older stored policies predate the one-off allowance field; absent means unlimited.
+    tokensTotal: nullableNonNegativeInteger(policy.tokensTotal ?? null, "tokensTotal"),
     maxPromptTokensPerRequest: nullableNonNegativeInteger(
       policy.maxPromptTokensPerRequest,
       "maxPromptTokensPerRequest"
