@@ -28,6 +28,7 @@ documents.
 | Billing operator console | [Real User Issue Web Console](./real-user-issue-web-console.md) |
 | Independent Free/paid balances, cancellation target and reset conflicts | [Quota Contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md), [2026-09-11 Fix Release](./r760-quota-review-fixes-release-2026-09-11.zh-CN.md) |
 | One-off 1M Free allowance replacing daily resets; free_quota_exhausted upgrade code | [Contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md) |
+| One-off Free release on R760 (schema 30, migrated daily grants, paid template limits applied) | [2026-09-11 Free Once Release](./r760-free-once-release-2026-09-11.zh-CN.md) |
 | Paid plan quota adjustment: monthly 150M/month; yearly 6M/day plus 200M per UTC calendar month, no yearly cap | [2026-09-11 Adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md) |
 | Internal phone authentication | [Internal Phone Auth v1](./internal-phone-auth-v1.zh-CN.md) |
 | Temporary new-user daily 10k free quota; existing grants unchanged | [2026-09-10 Release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md) |

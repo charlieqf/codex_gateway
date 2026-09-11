@@ -16,6 +16,17 @@ const externalId = `medevidence_test_${run}`;
 const report = { checked_at: new Date().toISOString(), checks: [], cleanup: [] };
 let subjectId, key, modelTask, failure;
 
+// The synthetic account signs up with an unused phone so it receives the
+// one-off Free allowance at creation; paid purchases no longer grant one.
+function unusedPhone() {
+  for (let i = 0; i < 100; i++) {
+    const value = `199${String(Math.floor(Math.random() * 100_000_000)).padStart(8, "0")}`;
+    if (!db.prepare("SELECT 1 FROM subjects WHERE phone_number IN (?, ?)").get(value, `+86${value}`) &&
+        !db.prepare("SELECT 1 FROM external_subject_registrations WHERE phone_number = ?").get(`+86${value}`)) return value;
+  }
+  throw new Error("Cannot reserve a distinct smoke phone");
+}
+
 async function call(path, { method = "GET", token = admin, body, event, status = 200 } = {}) {
   const response = await fetch(origin + path, {
     method, headers: {
@@ -50,7 +61,7 @@ const reset = async (status) => (await call(`/gateway/admin/billing/v1/users/${s
 try {
   await call("/gateway/health", { token: null });
   const created = (await call("/gateway/admin/billing/v1/subjects", {
-    method: "POST", event: `${run}:create`, body: { provider, external_user_id: externalId,
+    method: "POST", event: `${run}:create`, body: { provider, external_user_id: externalId, phone: unusedPhone(),
       display_name: "Gateway quota review smoke", scope_allowlist: ["code"], metadata: { signup_source: run } }
   })).json;
   subjectId = created.subject.id; key = created.credential.key;
@@ -98,7 +109,8 @@ try {
   assert.equal(ledger.final_total_tokens, total);
   assert.equal(ledger.final_free_tokens + ledger.final_paid_tokens, total);
   const freeCurrent = (await call("/gateway/credentials/current", { token: runtimeKey })).json;
-  assert.equal(freeCurrent.token_usage.day.used, ledger.final_free_tokens);
+  // The one-off allowance books its share into the lifetime window, not a day window.
+  assert.equal(freeCurrent.token_usage.free_allowance.total.used, ledger.final_free_tokens);
   report.settlement = { subject_id: subjectId, request_id: outcome.value.requestId, total_tokens: total,
     free_tokens: ledger.final_free_tokens, paid_tokens: ledger.final_paid_tokens, reset_conflict: true, late_usage_preserved: true };
 
@@ -121,7 +133,8 @@ try {
   assert.equal(annual.day.limit, 6000000); assert.equal(annual.month.limit, 200000000);
   assert.equal(annual.month.remaining, 200000000);
   assert.equal(annual.free_allowance.entitlement_id, freeId);
-  assert.equal(annual.free_allowance.total.used, 0);
+  // A day-window reset never touches the lifetime window: the earlier free share stays spent.
+  assert.equal(annual.free_allowance.total.used, ledger.final_free_tokens);
   report.billing = { default_cancel_targets_current_paused: true, scheduled_renewal_preserved: true,
     future_cancel_requires_id: true, completed_reset: true, yearly_daily_monthly_limits: true, same_free_entitlement: true };
 
@@ -137,6 +150,9 @@ try {
   try {
     subjectId ??= db.prepare("SELECT id FROM subjects WHERE external_provider = ? AND external_user_id = ?").get(provider, externalId)?.id;
     if (subjectId) {
+      if (db.prepare("SELECT 1 FROM phone_auth_identities WHERE subject_id = ?").get(subjectId)) {
+        await call(`/gateway/admin/billing/v1/phone-auth-identities/${subjectId}`, { method: "PATCH", body: { state: "disabled" } });
+      }
       await call(`/gateway/admin/billing/v1/subjects/${subjectId}/disable`, { method: "POST", body: { reason: run }, event: `${run}:disable` });
       const credentials = db.prepare("SELECT COUNT(*) AS count FROM access_credentials WHERE subject_id = ? AND revoked_at IS NULL").get(subjectId).count;
       const unfinished = db.prepare("SELECT COUNT(*) AS count FROM token_reservations WHERE subject_id = ? AND finalized_at IS NULL").get(subjectId).count;

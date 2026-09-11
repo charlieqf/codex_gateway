@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-10 22:23 UTC (2026-09-11 Sydney: quota review fixes, public Billing/model smoke, databases; pre-existing Research maintenance outage recorded below).
+Last verified: 2026-09-11 10:43 UTC (2026-09-11 Sydney evening: one-off Free release on main, paid template limits, public Billing/model smoke, databases).
 
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
@@ -21,9 +21,10 @@ history retain implementation evidence; do not append incident history here.
 Gateway and Compose verification on 2026-09-11 Sydney; local inference verification on 2026-09-06:
 
 - `current`:
-  `77c6404fe5884f360a9b68fceb30fcaec13cd2e9`
+  `45465ee13ebf7b629e24821385b5bc064b6423f2` (verified remote `main` head)
 - `previous`:
-  `9627d4f263a97b10a38bfcc12f52867b8f9df824`
+  `99f5a1d1743f25d2670601dd585850bb3d5790fd` (Research practical-profile release directory)
+- Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
 - Research Worker and Research LLM Gateway: healthy, without published host ports
@@ -34,11 +35,21 @@ Gateway and Compose verification on 2026-09-11 Sydney; local inference verificat
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `77c6404`, schema 29; Research Worker remains on the existing runtime with
-Doctor Research Skill `1.6.119`. Three overseas doctors with the original Chinese institution inputs
-and one Chinese doctor passed public execution and all 16 artifact downloads.
-Results retain source and literature quality warnings. Release evidence:
-[Doctor Search overseas repair](../research/doctor-research/overseas-doctor-release-2026-09-07.zh-CN.md).
+Gateway runs `45465ee`, schema 30, deployed 2026-09-11 10:37 UTC from `main` on top of
+the previously running Gateway runtime layers. New signups receive the one-off
+`plan_free_once_1m_v1` allowance (1,000,000 tokens for the account lifetime, no reset,
+no re-grant on purchase); the 25 active daily Free grants were migrated in place with
+their month-window usage carried over once. The paid templates now read monthly
+5M/day and 150M per billing period, yearly 6M/day and 200M per UTC calendar month;
+existing paid snapshots are unchanged. Old images cannot be rolled back after schema 30.
+See the [one-off Free release](./r760-free-once-release-2026-09-11.zh-CN.md) and the
+[Free contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md).
+Research Worker runs `99f5a1d` (`research-practical-99f5a1d1743f`, Doctor Research
+practical profiles) and the private Research LLM Gateway runs `2126e7c`; both were
+unchanged by this release and remain healthy with zero restarts. The earlier
+[repair report](./doctor-research-discovery-repair-2026-09-10.zh-CN.md) and
+[generalization audit](./doctor-research-generalization-audit-2026-09-10.zh-CN.md)
+describe the diagnostic history before the practical-profile flow.
 
 The [timeout observability release](./r760-timeout-observability-release-2026-09-08.zh-CN.md)
 preserves interrupted stream progress and classifies header/body read timeouts.
@@ -51,9 +62,10 @@ directly enables account linking and atomic new-phone provisioning with a
 daily free entitlement and phone enrollment; the optional two-step
 flow remains supported. Legacy requests without phone or prior resolve retain
 original Billing behavior. Desktop reuses phone-auth v1 after external SMS login;
-external-token v2 is withdrawn. The current schema 29 also supports independent Free/paid accounting.
+external-token v2 is withdrawn. The current schema 30 also supports independent Free/paid accounting.
 The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
-temporarily sets new signups to `plan_free_daily_10k_v1` (10,000 tokens/day).
+temporarily set new signups to `plan_free_daily_10k_v1` (10,000 tokens/day); that daily
+default is superseded by the one-off allowance above.
 Existing 1M/day and other grants retain their original Plans, keys and snapshots.
 
 `plan_paid_yearly_v1` was created on 2026-09-10 at 11:07 UTC and verified through

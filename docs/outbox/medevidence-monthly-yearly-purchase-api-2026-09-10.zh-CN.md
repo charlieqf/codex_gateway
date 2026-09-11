@@ -11,9 +11,12 @@
 
 | 产品 | plan_id | token 总量策略 | 支付事件周期 |
 | --- | --- | --- | --- |
-| Free | plan_free_daily_10k_v1 | 新用户每日 10,000 token；无额外月总量上限 | 免费开户流程发放 |
-| 月付 | plan_paid_monthly_v1 | 付费模板每日 5,000,000、每月 50,000,000 token，基础 Free 独立保留 | monthly，明确一个月起止时间 |
-| 年付 | plan_paid_yearly_v1 | 无每日、每月或年度累计 token 上限 | one_off，明确一年起止时间 |
+| Free | plan_free_once_1m_v1 | 注册时一次性 1,000,000 token（`tokens_total`），终身有效、不重置、不补发；用完返回 `429 free_quota_exhausted` | 免费开户流程发放（2026-09-11 起） |
+| 月付 | plan_paid_monthly_v1 | 付费模板每日 5,000,000、每计费周期 150,000,000 token，注册时的一次性 Free 独立保留 | monthly，明确一个月起止时间 |
+| 年付 | plan_paid_yearly_v1 | 每日 6,000,000、每 UTC 自然月 200,000,000 token，年度总量不设上限 | one_off，明确一年起止时间 |
+
+> 2026-09-11 更新：上表为当前生效值，见[免费额度一次性化合同 v2](./medevidence-free-once-quota-contract-2026-09-11.zh-CN.md)
+> 与[付费额度调整记录](../operations/medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)。下文中关于每日 Free 的描述为历史说明。
 
 月付和年付都允许首次购买；续费是同一产品的后续权益事件，不是另一个对外等级。
 年付显示名为 MedCode Pro Yearly，状态 active；功能范围沿用月付的 chat、tools、image_generation。
