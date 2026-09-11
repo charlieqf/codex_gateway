@@ -79,7 +79,8 @@ if mode == 'prepare':
             assert not target.exists() and not target.is_symlink()
             target.symlink_to(p.resolve())
     for p in [override,pathlib.Path(state['compose_env'])]:
-        assert stat.S_IMODE(p.stat().st_mode)&0o007==0
+        assert p.stat().st_uid==0 and stat.S_IMODE(p.stat().st_mode)&0o022==0
+        if p.suffix=='.env': assert stat.S_IMODE(p.stat().st_mode)&0o077==0
         shutil.copy2(p,backup/p.name); os.chmod(backup/p.name,0o600)
         assert sha(p)==sha(backup/p.name)
     for p in worker['Mounts']+gateway['Mounts']:
