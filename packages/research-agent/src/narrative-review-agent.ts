@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DoctorResearchModelDraft } from "./contracts.js";
+import { parseModelJson } from "./model-json.js";
 import { countReviewContractContent } from "./review-contract-policy.js";
 import { ResearchModelClientError } from "./model-client.js";
 
@@ -93,10 +94,10 @@ const checkNames = ["citations", "numerical_claims", "evidence_scope", "coherenc
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(item => typeof item === "string");
 
+// A malformed decision is a downgrade signal, not a failure: the caller
+// re-asks or repairs instead of aborting the run.
 function parseDecision(text: string): unknown {
-  const trimmed = text.trim();
-  const singleFence = /^```(?:json)?\s*\n([\s\S]*?)\n```$/u.exec(trimmed);
-  try { return JSON.parse(singleFence?.[1] ?? trimmed); } catch { return null; }
+  try { return parseModelJson(text); } catch { return null; }
 }
 
 const sourceAuditSystem = [

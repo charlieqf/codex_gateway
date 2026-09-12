@@ -4,6 +4,7 @@ import { investigationTimingGuidance, type InvestigationTiming } from "./investi
 import type { DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource, ResearchWebCandidate } from "./adapters.js";
 import { ResearchExternalServiceError, ResearchHttpError, ResearchSourceFormatError } from "./safe-http.js";
+import { parseModelJsonObject } from "./model-json.js";
 
 export interface IdentityCitation {
   aspect: "person" | "institution" | "department" | "authority";
@@ -359,9 +360,7 @@ export function validateConclusion(value: unknown, pages: readonly FrozenOfficia
 }
 
 function parseObject(text: string): Record<string, unknown> {
-  const value: unknown = JSON.parse(text.trim().replace(/^```(?:json)?\s*/u, "").replace(/\s*```$/u, ""));
-  if (!isObject(value)) throw new Error("Expected JSON object.");
-  return value;
+  return parseModelJsonObject(text);
 }
 function isObject(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function boundedString(value: unknown, minimum: number, maximum: number): value is string { return typeof value === "string" && value.trim().length >= minimum && value.length <= maximum; }

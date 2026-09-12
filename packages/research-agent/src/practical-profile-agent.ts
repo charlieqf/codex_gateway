@@ -3,6 +3,7 @@ import type { DoctorResearchRunInput } from "@codex-gateway/core";
 import type { FrozenOfficialSource, FrozenPublicationMetadata } from "./adapters.js";
 import type { InvestigatedIdentity } from "./identity-investigator.js";
 import { investigationTimingGuidance, type InvestigationTiming } from "./investigation-timing.js";
+import { parseModelJson } from "./model-json.js";
 import { sourcePassages } from "./source-passages.js";
 
 export const practicalProfilePolicy = Object.freeze({
@@ -250,15 +251,15 @@ const bytes = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 const unique = <T>(items: T[], key: (item: T) => string) => [...new Map(items.map(item => [key(item), item])).values()];
 const failureName = (error: unknown) => error instanceof Error ? error.name : "ExternalRequestError";
 function parse(text: string): Record<string, unknown> {
-  const trimmed = text.trim();
-  const fence = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\s*```$/u.exec(trimmed);
-  const candidate = (fence?.[1] ?? trimmed).trim();
   let value: unknown;
-  try { value = JSON.parse(candidate); }
+  try { value = parseModelJson(text); }
   catch (error) {
     // A complete, valid draft object can arrive without its outer envelope's
     // final brace. Recover only this exact envelope; never fill draft content,
     // edit strings, infer approval, or choose between multiple JSON values.
+    const candidate = text.trim()
+      .replace(/^```(?:json)?[ \t]*\r?\n/u, "")
+      .replace(/[ \t]*\r?\n?```$/u, "");
     const envelope = /^\{\s*"draft"\s*:\s*(\{[\s\S]*\})$/u.exec(candidate);
     if (!envelope) throw error;
     value = { draft: JSON.parse(envelope[1]!) };

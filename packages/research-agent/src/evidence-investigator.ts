@@ -5,6 +5,7 @@ import type { FrozenOfficialSource, FrozenPublicationMetadata } from "./adapters
 import type { InvestigatedIdentity } from "./identity-investigator.js";
 import { reviewContractPolicy } from "./review-contract-policy.js";
 import { ResearchExternalServiceError, ResearchHttpError } from "./safe-http.js";
+import { parseModelJsonObject } from "./model-json.js";
 import { sourcePassages } from "./source-passages.js";
 
 export interface EvidenceCitation { sourceId: string; quote: string }
@@ -544,7 +545,7 @@ function citationPassages(text: string, citations: EvidenceCitation[]): string[]
 function normalize(value: string): string { return value.normalize("NFKC").replace(/\s+/gu, " ").trim(); }
 function object(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function string(value: unknown, min: number, max: number): value is string { return typeof value === "string" && value.trim().length >= min && value.length <= max; }
-function parse(text: string): Record<string, unknown> { const value: unknown = JSON.parse(text.trim().replace(/^```(?:json)?\s*/u, "").replace(/\s*```$/u, "")); if (!object(value)) throw new SyntaxError("Expected JSON object."); return value; }
+function parse(text: string): Record<string, unknown> { return parseModelJsonObject(text); }
 function bytes(value: unknown): number { return Buffer.byteLength(JSON.stringify(value), "utf8"); }
 function failure(error: unknown): string { return error instanceof ResearchHttpError ? `http_${error.statusCode}` : error instanceof ResearchExternalServiceError ? error.kind : error instanceof DOMException && error.name === "TimeoutError" ? "timeout" : "transport_or_source_error"; }
 function validatePolicy(policy: EvidenceInvestigationPolicy) {

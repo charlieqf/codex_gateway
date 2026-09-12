@@ -59,30 +59,30 @@ synthetic body-timeout tests passed during that release.
 The [Billing compatibility release](./r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)
 preserves May's POST /subjects contract and makes resolve optional. Passing phone
 directly enables account linking and atomic new-phone provisioning with a
-daily free entitlement and phone enrollment; the optional two-step
+one-off free entitlement and phone enrollment; the optional two-step
 flow remains supported. Legacy requests without phone or prior resolve retain
 original Billing behavior. Desktop reuses phone-auth v1 after external SMS login;
 external-token v2 is withdrawn. The current schema 30 also supports independent Free/paid accounting.
-The [2026-09-10 free-quota release](./r760-phone-signup-free-10k-release-2026-09-10.zh-CN.md)
-temporarily set new signups to `plan_free_daily_10k_v1` (10,000 tokens/day); that daily
-default is superseded by the one-off allowance above.
-Existing 1M/day and other grants retain their original Plans, keys and snapshots.
+The temporary `plan_free_daily_10k_v1` default and all earlier daily Free grants
+were superseded by the one-off allowance above: the 25 active daily allowances
+were migrated to `plan_free_once_1m_v1` with their month-window usage carried
+over once; cancelled/expired historical grants keep their original snapshots.
 
-`plan_paid_yearly_v1` was created on 2026-09-10 at 11:07 UTC and verified through
-the public Billing catalog. It has no daily/monthly token total cap and retains
-the existing monthly Plan's capabilities and technical request/rate limits.
-Annual purchases use Billing `one_off` with explicit one-year start/end dates;
-the monthly Plan remains at 5M/day and 50M/month. See the
-[monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
+Current paid templates (updated 2026-09-11 10:41 UTC, see the
+[paid quota adjustment](./medevidence-plan-quota-adjustment-2026-09-11.zh-CN.md)):
+`plan_paid_monthly_v1` is 5M/day and 150M per billing-period month;
+`plan_paid_yearly_v1` is 6M/day and 200M per UTC calendar month with no yearly
+cap. Annual purchases use Billing `one_off` with explicit one-year start/end
+dates; monthly purchases anchor their month window to the billing period. See
+the [monthly/yearly purchase handoff](../outbox/medevidence-monthly-yearly-purchase-api-2026-09-10.zh-CN.md),
 including outstanding credential-expiry coverage before full annual-payment acceptance.
-The [Free/paid accounting release](./r760-free-paid-quota-release-2026-09-10.zh-CN.md)
-retains the user's Free daily allowance alongside monthly/yearly paid quota,
-reserves and settles free tokens first, and keeps the base Free entitlement at
-paid expiry. Purchasing with `replace_current=true` preserves Free. Four existing
-paid-only accounts received a 10K/day base allowance; all pre-existing control
-rows, paid snapshots and historical usage are preserved. Public Billing reads
-verified all four. Client display fields are in the
-[Free/paid quota contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md).
+The Free/paid dual-ledger accounting from the
+[Free/paid accounting release](./r760-free-paid-quota-release-2026-09-10.zh-CN.md)
+still applies: paid requests borrow the remaining one-off Free first, and the
+base Free entitlement survives paid expiry and `replace_current=true` purchases.
+Client display fields are in the
+[Free/paid quota contract](../outbox/medevidence-free-paid-quota-contract-2026-09-10.zh-CN.md)
+as amended by the [one-off contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md).
 Do not roll back directly to a program that assumes one active entitlement;
 recovery must preserve and understand both ledgers.
 

@@ -20,7 +20,7 @@ MedEvidence 负责模型访问账号、opaque key、套餐、权益、能力开�
 
 - 收费/充值团队拥有注册页、登录、找回密码、支付页、订单状态机和退款流程。
 - 收费/充值团队后端通过服务端接口调用 MedEvidence，不允许客户端直接调用后台接口。
-- 手机号登录后，身份／收费后端可直接调用 `POST /subjects` 并带 phone；Gateway 内部关联既有账户或为新账户准备 Key、每日免费权益及手机号登录身份。2026-09-10 起新开户临时默认每日 1 万 token；此前已发放的每日 100 万 token 和其他既有权益保持不变。旧的不带 phone 的 Billing 开户仍返回 `subject.id` 和 opaque `credential.key`（`cgu_live_*`），权益继续沿用原支付事件流程。
+- 手机号登录后，身份／收费后端可直接调用 `POST /subjects` 并带 phone；Gateway 内部关联既有账户或为新账户准备 Key、一次性免费权益及手机号登录身份。2026-09-11 起新开户默认一次性 1,000,000 token（`plan_free_once_1m_v1`，终身有效、不重置、不补发）；此前已发放的每日版权益已随迁移转为一次性模型并结转历史用量。旧的不带 phone 的 Billing 开户仍返回 `subject.id` 和 opaque `credential.key`（`cgu_live_*`），权益继续沿用原支付事件流程。
 - Desktop 完成外部短信登录后，用既有 Gateway 手机号 v1 登录和 bootstrap 领取当前 `cgu_live_*`。外部短信会话与 Gateway Phone Session 分别保存；外部会话用于身份／支付接口。MedEvidence 后端完成模型凭据校验和请求路由。
 - 付费状态以收费系统订单为准；模型是否可用，以 MedEvidence 返回的 entitlement / quota 状态为准。
 
