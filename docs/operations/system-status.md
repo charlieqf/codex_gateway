@@ -35,8 +35,12 @@ Gateway and Compose verification on 2026-09-11 Sydney; local inference verificat
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `45465ee`, schema 30, deployed 2026-09-11 10:37 UTC from `main` on top of
-the previously running Gateway runtime layers. New signups receive the one-off
+Gateway runs `0bfb985`, schema 30, deployed 2026-09-12 02:38 UTC from `main` (model-JSON
+unification and documentation corrections; gateway/core/store-sqlite runtime unchanged from
+the one-off Free release below) on top of `45465ee` — see the
+[deployment alignment record](./r760-main-alignment-0bfb985-2026-09-12.zh-CN.md).
+The Research Worker runs the same revision with the practical-profile workflow.
+New signups receive the one-off
 `plan_free_once_1m_v1` allowance (1,000,000 tokens for the account lifetime, no reset,
 no re-grant on purchase); the 25 active daily Free grants were migrated in place with
 their month-window usage carried over once. The paid templates now read monthly
@@ -44,9 +48,8 @@ their month-window usage carried over once. The paid templates now read monthly
 existing paid snapshots are unchanged. Old images cannot be rolled back after schema 30.
 See the [one-off Free release](./r760-free-once-release-2026-09-11.zh-CN.md) and the
 [Free contract v2](../outbox/medevidence-free-once-quota-contract-2026-09-11.zh-CN.md).
-Research Worker runs `99f5a1d` (`research-practical-99f5a1d1743f`, Doctor Research
-practical profiles) and the private Research LLM Gateway runs `2126e7c`; both were
-unchanged by this release and remain healthy with zero restarts. The earlier
+The private Research LLM Gateway runs `2126e7c`; it was
+unchanged by this release and remains healthy with zero restarts. The earlier
 [repair report](./doctor-research-discovery-repair-2026-09-10.zh-CN.md) and
 [generalization audit](./doctor-research-generalization-audit-2026-09-10.zh-CN.md)
 describe the diagnostic history before the practical-profile flow.
