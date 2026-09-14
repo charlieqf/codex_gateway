@@ -55,7 +55,8 @@ assert candidate['Config']['Labels']['org.opencontainers.image.revision']==rev
 state['candidate_image_id']=candidate['Id']
 buildlog=root/'staging'/rev/'build.log'
 shutil.copy2(buildlog,backup/'build.log')
-assert 'exporting to image' in buildlog.read_text(errors='replace'),'Completed build log required'
+buildtext=buildlog.read_text(errors='replace')
+assert ('exporting to image' in buildtext or ('Successfully built' in buildtext and 'Successfully tagged' in buildtext)), 'Completed build log required'
 
 original=override.read_text()
 pattern=r'(?ms)^  gateway:\s*\n.*?(?=^  [A-Za-z0-9_-]+:\s*\n|^[^\s#][^\n]*:\s*\n|\Z)'
