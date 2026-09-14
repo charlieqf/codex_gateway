@@ -4,9 +4,12 @@ import {
   normalizeMainlandChinaPhone,
   type ClaimExternalSubjectInput,
   type ExternalSubjectResolution,
-  type ResolveExternalSubjectInput
+  type ResolveExternalSubjectInput,
+  type ResolveExternalSubjectOptions,
+  type Subject
 } from "@codex-gateway/core";
 import * as subjects from "./subjects.js";
+import * as phoneAuth from "./phone-auth.js";
 import { runInTransaction } from "./sql.js";
 
 interface Registration {
@@ -25,7 +28,7 @@ export function registration(db: DatabaseSync, provider: string, externalUserId:
     WHERE provider = ? AND external_user_id = ?`).get(provider, externalUserId) as Registration | undefined ?? null;
 }
 
-export function resolve(db: DatabaseSync, input: ResolveExternalSubjectInput): ExternalSubjectResolution {
+export function resolve(db: DatabaseSync, input: ResolveExternalSubjectInput, options: ResolveExternalSubjectOptions = {}): ExternalSubjectResolution {
   const phone = normalizeMainlandChinaPhone(input.phone);
   if (!phone) {
     throw new GatewayError({ code: "invalid_request", message: "A supported phone number is required.", httpStatus: 400 });
@@ -35,7 +38,7 @@ export function resolve(db: DatabaseSync, input: ResolveExternalSubjectInput): E
     const existing = subjects.getByExternal(db, input.provider, input.externalUserId);
     if (existing) {
       if (existing.state !== "active") throw disabled();
-      return { status: "linked", subject: existing };
+      return { status: "linked", subject: enrollLinkedSubject(db, existing, phone, input, options) };
     }
     const prior = registration(db, input.provider, input.externalUserId);
     if (prior) {
@@ -72,8 +75,37 @@ export function resolve(db: DatabaseSync, input: ResolveExternalSubjectInput): E
           input.provider, input.externalUserId, phone, subject ? "linked" : "ready",
           subject?.id ?? null, input.requestId, timestamp, timestamp
         );
-    return { status: subject ? "linked" : "create_ready", subject };
+    return { status: subject ? "linked" : "create_ready",
+      subject: subject ? enrollLinkedSubject(db, subject, phone, input, options) : null };
   });
+}
+
+function enrollLinkedSubject(
+  db: DatabaseSync, subject: Subject, phone: string,
+  input: ResolveExternalSubjectInput, options: ResolveExternalSubjectOptions
+): Subject {
+  if (!options.prepareLinkedPhoneIdentity) return subject;
+  // An established phone is never changed by SMS association or account creation.
+  if (subject.phoneNumber && normalizeMainlandChinaPhone(subject.phoneNumber) !== phone) throw conflict();
+  if (subjects.list(db, { includeArchived:true }).some(
+    candidate => candidate.id !== subject.id && normalizeMainlandChinaPhone(candidate.phoneNumber ?? "") === phone
+  )) throw conflict();
+  if (db.prepare(`SELECT 1 FROM external_subject_registrations
+    WHERE phone_number=? AND (subject_id IS NULL OR subject_id!=?)`).get(phone,subject.id)) throw conflict();
+  const prior = registration(db,input.provider,input.externalUserId);
+  if (prior && prior.phone_number !== phone) throw conflict();
+  const preparedSubject = subject.phoneNumber ? subject : { ...subject,phoneNumber:phone };
+  const enrollment = options.prepareLinkedPhoneIdentity(preparedSubject);
+  if (enrollment.subjectId !== subject.id) throw conflict();
+  // Runtime validation happened before contact changes; every write below rolls back together.
+  if (!subject.phoneNumber) subjects.update(db,subject.id,{phoneNumber:phone});
+  phoneAuth.enrollExistingIdentityInTransaction(db,enrollment);
+  if (!subject.phoneNumber) phoneAuth.recordAudit(db, {
+    requestId:input.requestId,action:"prepare_identity",phoneHash:enrollment.phoneHash,
+    subjectId:subject.id,sessionId:null,authMethod:null,outcome:"ok",
+    reasonCode:"billing_subject_phone_registered",now:input.now ?? new Date()
+  });
+  return preparedSubject;
 }
 
 export function claimCreate(db: DatabaseSync, input: ClaimExternalSubjectInput): string {

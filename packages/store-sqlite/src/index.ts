@@ -26,6 +26,7 @@ import {
   type ExternalIdentityKey,
   type ExternalSubjectResolution,
   type ResolveExternalSubjectInput,
+  type ResolveExternalSubjectOptions,
   type AdminAuditEventRecord,
   type ApplyBillingEntitlementEventInput,
   type ApplyBillingEntitlementEventResult,
@@ -389,8 +390,8 @@ export class SqliteGatewayStore implements GatewayStore {
     return externalIdentities.registration(this.db, identity.provider, identity.externalUserId)?.state ?? null;
   }
 
-  resolveExternalSubject(input: ResolveExternalSubjectInput): ExternalSubjectResolution {
-    return externalIdentities.resolve(this.db, input);
+  resolveExternalSubject(input: ResolveExternalSubjectInput, options?: ResolveExternalSubjectOptions): ExternalSubjectResolution {
+    return externalIdentities.resolve(this.db, input, options);
   }
 
   claimExternalSubjectCreate(input: ClaimExternalSubjectInput): string {

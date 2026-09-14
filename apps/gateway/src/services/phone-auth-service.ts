@@ -20,6 +20,7 @@ import {
   verifyAccessCredentialToken,
   verifyUnifiedClientKeyToken,
   type CredentialAuthStore,
+  type EnrollExistingPhoneAuthIdentityInput,
   type PhoneAuthAuditAction,
   type PhoneAuthAuditInput,
   type PhoneAuthIdentity,
@@ -29,6 +30,7 @@ import {
   type PhoneAuthStore,
   type PreparePhoneAuthIdentityInput,
   type PlanEntitlementStore,
+  type Subject,
   type UnifiedClientKeyRecord,
   type UnifiedClientKeyStore
 } from "@codex-gateway/core";
@@ -256,6 +258,30 @@ export class PhoneAuthService {
       throw invalidRequest();
     }
     return phoneLookupHash(normalized, this.requiredPhoneLookupSecret());
+  }
+
+  /** Called under the Billing association lock; validates without changing keys or entitlements. */
+  linkedIdentityPreparation(subject: Subject, requestId: string, now: Date): EnrollExistingPhoneAuthIdentityInput {
+    if (this.mode !== "transition") throw new GatewayError({code:"service_unavailable",message:"Phone enrollment is not configured.",httpStatus:503});
+    if (subject.state !== "active") throw accountDisabled();
+    const phone = normalizeMainlandChinaPhone(subject.phoneNumber ?? "");
+    if (!phone) throw invalidRequest();
+    const phoneHash = this.phoneHash(phone);
+    const byPhone = this.store.getPhoneAuthIdentityByPhoneHash(phoneHash);
+    const bySubject = this.store.getPhoneAuthIdentityBySubjectId(subject.id);
+    if ((byPhone && byPhone.subjectId !== subject.id) || (bySubject && bySubject.phoneHash !== phoneHash)) throw phoneIdentityConflict();
+    if (bySubject && bySubject.state !== "active") throw phoneLoginDisabled();
+    const keys = this.unifiedKeyStore.listUnifiedClientKeys({subjectId:subject.id}).filter(key => key.isCurrent);
+    const key = keys[0];
+    if (keys.length !== 1 || !key || key.credentialClass !== "desktop" || key.revokedAt ||
+        key.expiresAt.getTime() <= now.getTime() || !key.tokenCiphertext ||
+        (bySubject && bySubject.unifiedKeyId !== key.id)) throw accountMigrationRequired();
+    this.recoverUnifiedKey(key);
+    this.requireRuntimeBundle(key,now,true);
+    // Enrollment is independent of payment. Login retains its normal entitlement checks.
+    return {phoneHash,phoneCiphertext:bySubject?.phoneCiphertext ?? encryptSecret(phone,
+      requiredSecret(this.phoneEncryptionSecret,"phone encryption")),subjectId:subject.id,
+      unifiedKeyId:key.id,requestId,now};
   }
 
   prepareIdentity(input: PreparePhoneAuthInput): PhoneAuthIdentity {

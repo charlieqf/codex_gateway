@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   GatewayError,
   type CreatePhoneAuthSessionInput,
+  type EnrollExistingPhoneAuthIdentityInput,
   type PhoneAuthAuditInput,
   type PhoneAuthIdentity,
   type PhoneAuthIdentityState,
@@ -22,6 +23,40 @@ export function prepareIdentity(
   input: PreparePhoneAuthIdentityInput
 ): PhoneAuthIdentity {
   return runInTransaction(db, "BEGIN IMMEDIATE", () => prepareIdentityInTransaction(db, input));
+}
+
+/** Caller holds the association write lock. Never rotate keys or revive identities. */
+export function enrollExistingIdentityInTransaction(
+  db: DatabaseSync,
+  input: EnrollExistingPhoneAuthIdentityInput
+): PhoneAuthIdentity {
+  const key = db.prepare(`SELECT 1 FROM unified_client_keys k
+    JOIN subjects s ON s.id=k.subject_id
+    JOIN access_credentials c ON c.id=k.codex_credential_id AND c.subject_id=k.subject_id
+    WHERE k.id=? AND k.subject_id=? AND s.state='active' AND k.is_current=1
+      AND k.credential_class='desktop' AND k.token_ciphertext IS NOT NULL
+      AND k.revoked_at IS NULL AND k.expires_at>? AND c.revoked_at IS NULL
+      AND c.expires_at>? AND c.credential_class='desktop' AND c.scope='code'`).get(
+        input.unifiedKeyId, input.subjectId, input.now.toISOString(), input.now.toISOString());
+  if (!key) throw new GatewayError({ code:"account_migration_required", message:"Current desktop key is not ready for phone enrollment.", httpStatus:409 });
+  const byPhone = getIdentityByPhoneHash(db, input.phoneHash);
+  const bySubject = getIdentityBySubjectId(db, input.subjectId);
+  if ((byPhone && byPhone.subjectId !== input.subjectId) || (bySubject && bySubject.phoneHash !== input.phoneHash)) {
+    throw new GatewayError({ code:"phone_identity_conflict", message:"Phone identity conflicts with an existing subject.", httpStatus:409 });
+  }
+  if (bySubject) {
+    if (bySubject.state !== "active") throw new GatewayError({ code:"phone_login_disabled", message:"Phone login is disabled.", httpStatus:403 });
+    if (bySubject.unifiedKeyId !== input.unifiedKeyId) throw new GatewayError({ code:"account_migration_required", message:"Phone identity does not reference the current key.", httpStatus:409 });
+    return bySubject;
+  }
+  db.prepare(`INSERT INTO phone_auth_identities
+    (phone_hash,phone_ciphertext,subject_id,unified_key_id,state,created_at,updated_at)
+    VALUES (?,?,?,?,'active',?,?)`).run(input.phoneHash,input.phoneCiphertext,input.subjectId,
+      input.unifiedKeyId,input.now.toISOString(),input.now.toISOString());
+  insertAudit(db, { requestId:input.requestId, action:"prepare_identity", phoneHash:input.phoneHash,
+    subjectId:input.subjectId, sessionId:null, authMethod:null, outcome:"ok",
+    reasonCode:"billing_existing_subject_enrolled", now:input.now });
+  return mustIdentityByPhoneHash(db,input.phoneHash);
 }
 
 /** Caller owns the write transaction, e.g. atomic subject signup. */

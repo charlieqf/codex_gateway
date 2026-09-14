@@ -76,6 +76,10 @@ export interface PreparePhoneAuthIdentityInput {
   now: Date;
 }
 
+/** Insert-only enrollment using an already validated, recoverable current key. */
+export type EnrollExistingPhoneAuthIdentityInput = Pick<PreparePhoneAuthIdentityInput,
+  "phoneHash" | "phoneCiphertext" | "subjectId" | "unifiedKeyId" | "requestId" | "now">;
+
 export interface CreatePhoneAuthSessionInput {
   session: PhoneAuthSession;
   refreshToken: PhoneAuthRefreshTokenRecord;

@@ -32,6 +32,7 @@ import {
   type BillingUsageReportResult,
   type Entitlement,
   type ExternalIdentityStore,
+  type ResolveExternalSubjectOptions,
   type PeriodKind,
   type Plan,
   type PlanEntitlementStore,
@@ -280,7 +281,7 @@ export function registerBillingAdminRoutes(
         const result = options.externalIdentityStore.resolveExternalSubject({
           provider: options.externalIdentityProvider, externalUserId: body.external_user_id,
           phone: body.phone, requestId: request.id, now: billingNow(options)
-        });
+        }, linkedPhoneOptions(options, request.id));
         return billingSecurityHeaders(reply).send({
           status: result.status,
           subject: result.subject ? { id: result.subject.id, state: result.subject.state } : null,
@@ -332,7 +333,7 @@ export function registerBillingAdminRoutes(
           options.externalIdentityStore.resolveExternalSubject({
             provider: parsed.provider, externalUserId: parsed.externalUserId,
             phone: parsed.phone, requestId: request.id, now: billingNow(options)
-          });
+          }, linkedPhoneOptions(options, request.id));
         }
         if (options.billingStore.getBillingSubjectByExternal(parsed.provider, parsed.externalUserId)) {
           return sendBillingError(
@@ -3045,6 +3046,17 @@ async function provisionBillingSubject(
     now
   });
   return { result, token: result.idempotentReplay ? null : unified.token };
+}
+
+function linkedPhoneOptions(options: BillingAdminRouteOptions, requestId: string): ResolveExternalSubjectOptions {
+  return {
+    prepareLinkedPhoneIdentity: subject => {
+      if (!options.phoneAuthService || options.phoneAuthService.mode !== "transition") {
+        throw serviceUnavailable("Phone enrollment is not configured.");
+      }
+      return options.phoneAuthService.linkedIdentityPreparation(subject, requestId, billingNow(options));
+    }
+  };
 }
 
 function publicCreateSubjectResult(result: CreateBillingSubjectResult, key: string | null) {

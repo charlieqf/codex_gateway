@@ -1,5 +1,7 @@
 # MedEvidence 短信／临时登录：Gateway 联调说明
 
+2026-09-14 补充（代码完成，尚未部署）：旧账号关联将补齐缺失手机号及 Phone identity，复用有效当前 Key，保留权益和用量；手机号冲突、停用身份、运行时 Key 不可恢复会明确报错。直接带 phone 开户仍保留旧账号 409 查询恢复合同，resolve 仍可选。详见[历史账号补登记修复回执](./medevidence-sms-login-phone-enrollment-fix-receipt-2026-09-14.zh-CN.md)。
+
 2026-09-09。兼容修订已部署 R760，提交 27f10d9：取消 resolve 强制前置，兼容 5 月原样开户，公网验收通过。见[兼容修订上线记录](../operations/r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)。先前 63c818f 的两步开户验收见[历史上线记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
 本文是本轮联调入口。先前 medevidence-sms-runtime-v2 外部 token 换 Key 候选合同已撤回，客户端使用现有手机号 v1 合同。
@@ -51,7 +53,7 @@ Phone Session 的 auth_method 仍为 transition_phone_only；Desktop 可记录 U
 
 以下接口仅供服务端使用，复用既有 Authorization: Bearer <Billing Admin 凭据>。管理凭据不分发给 Desktop。
 
-映射约定：provider=medevidence_billing；APP_ENV=prod 时 external_user_id=str(user_id)，其他环境为 medevidence_test_{user_id}。
+映射约定：provider=medevidence_billing；当前只有一个业务环境，external_user_id 复用身份后台已经保存的稳定用户标识。不要为补登记增加环境前缀或更换既有 external_user_id，以免重复开户。
 
 推荐：直接 POST /gateway/admin/billing/v1/subjects，沿用 Authorization、Content-Type 和 Idempotency-Key，请求体：
 

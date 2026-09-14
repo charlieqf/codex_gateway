@@ -102,6 +102,171 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(lookup.json().subject.id).toBe(old.subject.id);
     expect((await f.create("21")).json().error.code).toBe("subject_already_exists");
     expect(f.createUser).not.toHaveBeenCalled();
+    const session = f.phoneAuth.login({phone:"13800138000",deviceId:"linked-old-device",requestId:"linked-old-login"});
+    expect(f.phoneAuth.bootstrap(session.access_token,"linked-old-bootstrap").unified_key.key).toBe(old.unified.token);
+  });
+
+  it("enrolls a legacy Billing subject atomically and preserves keys, entitlement snapshots and usage", async () => {
+    const f = fixture();
+    const created = await f.create("legacy-registered");
+    expect(created.statusCode).toBe(200);
+    const {subject,credential} = created.json();
+    const grant = f.pay(subject.id);
+    const beforeSubject = f.store.getSubject(subject.id)!;
+    const keys = f.store.listUnifiedClientKeys({subjectId:subject.id});
+    const credentials = f.store.listAccessCredentials({subjectId:subject.id});
+    const limiter = new SqliteTokenBudgetLimiter({db:f.store.database});
+    const reservation = await limiter.acquire({requestId:"legacy-used",credentialId:keys[0]!.codexCredentialId,
+      subjectId:subject.id,entitlementId:grant.id,scope:"code",upstreamAccountId:null,provider:null,
+      policy:grant.policySnapshot,estimatedPromptTokens:400,now});
+    expect(reservation.ok).toBe(true);
+    if (!reservation.ok) throw new Error("Reservation failed");
+    await limiter.finalize({reservationId:reservation.reservationId,usage:{promptTokens:300,completionTokens:100,totalTokens:400},now});
+    const usage = f.store.database.prepare("SELECT * FROM entitlement_token_windows ORDER BY window_kind,window_start").all();
+    const response = await f.resolve("legacy-registered");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({status:"linked",subject:{id:subject.id}});
+    expect(response.json().credential).toBeUndefined();
+    expect(f.store.getSubject(subject.id)).toEqual({...beforeSubject,phoneNumber:"+8613800138000"});
+    expect(f.store.listUnifiedClientKeys({subjectId:subject.id})).toEqual(keys);
+    expect(f.store.listAccessCredentials({subjectId:subject.id})).toEqual(credentials);
+    expect(f.store.listEntitlements({subjectId:subject.id})).toEqual([grant]);
+    expect(f.store.database.prepare("SELECT * FROM entitlement_token_windows ORDER BY window_kind,window_start").all()).toEqual(usage);
+    const identity = f.store.getPhoneAuthIdentityBySubjectId(subject.id)!;
+    const audit = f.store.database.prepare("SELECT * FROM phone_auth_audit_events WHERE subject_id=? ORDER BY id").all(subject.id);
+    expect(audit).toHaveLength(2);
+    expect((await f.resolve("legacy-registered")).statusCode).toBe(200);
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subject.id)).toEqual(identity);
+    expect(f.store.database.prepare("SELECT * FROM phone_auth_audit_events WHERE subject_id=? ORDER BY id").all(subject.id)).toEqual(audit);
+    const session = f.phoneAuth.login({phone:"13800138000",deviceId:"legacy-recovered-device",requestId:"legacy-recovered-login"});
+    expect(f.phoneAuth.bootstrap(session.access_token,"legacy-recovered-bootstrap").unified_key.key).toBe(credential.key);
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("enrolls through direct create's existing-subject 409 without issuing a replacement key", async () => {
+    const f = fixture();
+    const original = await f.create("legacy-direct");
+    const {subject,credential} = original.json();
+    f.pay(subject.id);
+    const result = await f.create("legacy-direct","link:legacy-direct","13800138000");
+    expect(result.statusCode).toBe(409);
+    expect(result.json().error.code).toBe("subject_already_exists");
+    const session = f.phoneAuth.login({phone:"13800138000",deviceId:"direct-device",requestId:"direct-login"});
+    expect(f.phoneAuth.bootstrap(session.access_token,"direct-bootstrap").unified_key.key).toBe(credential.key);
+    expect(f.store.listSubjects()).toHaveLength(1);
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+    expect((await f.create("legacy-direct","signup:legacy-direct","13800138000")).json().error.code).toBe("idempotency_conflict");
+  });
+
+  it("does not grant free or paid access while enrolling an existing subject without an entitlement", async () => {
+    const f = fixture();
+    const original = await f.create("legacy-unpaid");
+    const subjectId = original.json().subject.id;
+    expect((await f.resolve("legacy-unpaid")).statusCode).toBe(200);
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)?.state).toBe("active");
+    expect(f.store.listEntitlements({subjectId})).toEqual([]);
+    expect(() => f.phoneAuth.login({phone:"13800138000",deviceId:"unpaid-device",requestId:"unpaid-login"})).toThrowError(
+      expect.objectContaining({code:"capability_not_allowed"}));
+  });
+
+  it.each([
+    ["expired key", "UPDATE unified_client_keys SET expires_at='2026-09-08T00:00:00.000Z'"],
+    ["revoked key", "UPDATE unified_client_keys SET revoked_at='2026-09-08T00:00:00.000Z'"],
+    ["no current key", "UPDATE unified_client_keys SET is_current=0"],
+    ["non-Desktop key", "UPDATE unified_client_keys SET credential_class='unknown'"],
+    ["unrecoverable key", "UPDATE unified_client_keys SET token_ciphertext=NULL"],
+    ["corrupt recovery", "UPDATE unified_client_keys SET token_ciphertext='corrupt'"],
+    ["corrupt upstream key", "UPDATE unified_client_keys SET medevidence_key_ciphertext='corrupt'"],
+    ["revoked backing", "UPDATE access_credentials SET revoked_at='2026-09-08T00:00:00.000Z'"],
+    ["expired backing", "UPDATE access_credentials SET expires_at='2026-09-08T00:00:00.000Z'"],
+    ["non-Desktop backing", "UPDATE access_credentials SET credential_class='unknown'"],
+    ["restricted models", "UPDATE access_credentials SET allowed_public_models_json='[\"goldencode-local\"]'"]
+  ])("leaves the original subject untouched when enrollment finds %s", async (_name,sql) => {
+    const f = fixture();
+    const original = await f.create("legacy-invalid");
+    const subjectId = original.json().subject.id;
+    f.store.database.exec(sql);
+    const before = f.store.getSubject(subjectId);
+    const keys = f.store.listUnifiedClientKeys();
+    const response = await f.resolve("legacy-invalid");
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("account_migration_required");
+    expect(f.store.getSubject(subjectId)).toEqual(before);
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)).toBeNull();
+    expect(f.store.listUnifiedClientKeys()).toEqual(keys);
+    expect(f.store.database.prepare("SELECT COUNT(*) AS n FROM phone_auth_audit_events").get()).toEqual({n:0});
+    expect(f.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("rolls back the contact, identity and external association when the enrollment audit fails", async () => {
+    const f = fixture();
+    const old = f.seed();
+    const before = f.store.getSubject(old.subject.id);
+    f.store.database.exec("CREATE TRIGGER fail_enrollment_audit BEFORE INSERT ON phone_auth_audit_events BEGIN SELECT RAISE(ABORT,'audit unavailable'); END");
+    expect((await f.resolve("legacy-audit-failure")).statusCode).toBe(503);
+    expect(f.store.getSubject(old.subject.id)).toEqual(before);
+    expect(f.store.getPhoneAuthIdentityBySubjectId(old.subject.id)).toBeNull();
+    expect(f.store.getSubjectByExternalIdentity({provider,externalUserId:"legacy-audit-failure"})).toBeNull();
+    expect(f.store.getExternalSubjectRegistrationState({provider,externalUserId:"legacy-audit-failure"})).toBeNull();
+    expect(f.store.listUnifiedClientKeys()).toEqual([old.unified.record]);
+    const created = await f.create("legacy-no-phone");
+    const subjectId = created.json().subject.id;
+    expect((await f.resolve("legacy-no-phone","13900139000")).statusCode).toBe(503);
+    expect(f.store.getSubject(subjectId)?.phoneNumber).toBeNull();
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)).toBeNull();
+  });
+
+  it("does not revive a disabled phone identity or account", async () => {
+    const f = fixture();
+    const old = f.seed();
+    await f.resolve("disabled-identity");
+    f.phoneAuth.setIdentityState(old.subject.id,"disabled","disable-phone");
+    const identity = f.store.getPhoneAuthIdentityBySubjectId(old.subject.id);
+    expect((await f.resolve("disabled-identity")).json().error.code).toBe("phone_login_disabled");
+    expect(f.store.getPhoneAuthIdentityBySubjectId(old.subject.id)).toEqual(identity);
+    f.store.setSubjectState(old.subject.id,"disabled");
+    expect((await f.resolve("disabled-identity")).json().error.code).toBe("account_disabled");
+  });
+
+  it("refuses to register a legacy subject with another subject's or pending signup's phone", async () => {
+    const f = fixture();
+    const original = await f.create("legacy-conflict");
+    const subjectId = original.json().subject.id;
+    f.seed("other-owner","13800138000");
+    expect((await f.resolve("legacy-conflict")).json().error.code).toBe("identity_conflict");
+    expect((await f.resolve("pending-owner","13900139000")).json().status).toBe("create_ready");
+    expect((await f.resolve("legacy-conflict","13900139000")).json().error.code).toBe("identity_conflict");
+    expect(f.store.getSubject(subjectId)?.phoneNumber).toBeNull();
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)).toBeNull();
+  });
+
+  it("refuses a phone already owned by an identity even if its Subject contact is missing", async () => {
+    const f = fixture();
+    const owner = f.seed();
+    expect((await f.resolve("phone-owner")).statusCode).toBe(200);
+    f.store.updateSubject(owner.subject.id,{phoneNumber:null});
+    const original = await f.create("legacy-phone-collision");
+    const subjectId = original.json().subject.id;
+    const response = await f.resolve("legacy-phone-collision");
+    // The external reservation also guards this phone; either guard must reject before changes.
+    expect(response.statusCode).toBe(409);
+    expect(f.store.getSubject(subjectId)?.phoneNumber).toBeNull();
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)).toBeNull();
+    expect(f.store.getPhoneAuthIdentityByPhoneHash(f.phoneAuth.phoneHash("13800138000"))?.subjectId).toBe(owner.subject.id);
+  });
+
+  it("does not bind a second phone to a Subject whose identity survived loss of contact metadata", async () => {
+    const f = fixture();
+    const original = await f.create("legacy-changed-phone");
+    const subjectId = original.json().subject.id;
+    await f.resolve("legacy-changed-phone");
+    f.store.updateSubject(subjectId,{phoneNumber:null});
+    const identity = f.store.getPhoneAuthIdentityBySubjectId(subjectId);
+    const response = await f.resolve("legacy-changed-phone","13900139000");
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("phone_identity_conflict");
+    expect(f.store.getSubject(subjectId)?.phoneNumber).toBeNull();
+    expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)).toEqual(identity);
   });
 
   it("atomically creates a nameless phone account, free grant and recoverable key ready for login", async () => {
@@ -157,7 +322,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const paid = f.store.grantEntitlement({ subjectId, planId: "plan_test", periodKind: "unlimited", replace: true, now });
     f.phoneAuth.setIdentityState(subjectId, "disabled", "operator-disable");
     expect((await f.create("22")).json().idempotent_replay).toBe(true);
-    expect((await f.resolve("22")).json().status).toBe("linked");
+    expect((await f.resolve("22")).json().error.code).toBe("phone_login_disabled");
     expect(f.store.getPhoneAuthIdentityBySubjectId(subjectId)?.state).toBe("disabled");
     expect(f.store.entitlementAccessForSubject(subjectId, now)).toMatchObject({ entitlement: { id: paid.id, planId: "plan_test" } });
   });
@@ -374,12 +539,13 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     expect(f.createUser).not.toHaveBeenCalled();
   });
 
-  it("keeps the stable external association when a caller presents another phone", async () => {
+  it("rejects another phone while preserving the stable external association", async () => {
     const f = fixture();
     f.seed("subj_one");
     f.seed("subj_two", "13900139000");
     await f.resolve("21");
-    expect((await f.resolve("21", "13900139000")).json().subject.id).toBe("subj_one");
+    expect((await f.resolve("21", "13900139000")).json().error.code).toBe("identity_conflict");
+    expect(f.store.getSubjectByExternalIdentity({ provider, externalUserId:"21" })?.id).toBe("subj_one");
     expect(f.store.getSubjectByExternalIdentity({ provider: "another_environment", externalUserId: "21" })).toBeNull();
   });
 
@@ -439,7 +605,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const f = fixture();
     const old = f.seed();
     f.pay(old.subject.id);
-    f.store.preparePhoneAuthIdentity({ phoneHash: "hmac-sha256:test", phoneCiphertext: "test-encrypted-phone", subjectId: old.subject.id,
+    f.store.preparePhoneAuthIdentity({ phoneHash: f.phoneAuth.phoneHash("13800138000"), phoneCiphertext: "test-encrypted-phone", subjectId: old.subject.id,
       unifiedKeyId: old.unified.record.id, unifiedKeyTokenCiphertext: old.unified.record.tokenCiphertext!,
       unifiedKeyMetadata: old.unified.record.metadata!, backingAllowedPublicModels: ["goldencode"], requestId: "prepare", now });
     await f.resolve("21");
@@ -451,7 +617,7 @@ describe("Billing phone-account coordination and key lifecycle", () => {
     const current = f.store.listUnifiedClientKeys({ subjectId: old.subject.id }).find(key => key.isCurrent)!;
     expect(decryptSecret(current.tokenCiphertext!, recoverySecret)).toBe(rotated.json().credential.key);
     expect(rotated.json().credential.key).not.toBe(old.unified.token);
-    expect(f.store.getPhoneAuthIdentityByPhoneHash("hmac-sha256:test")?.unifiedKeyId).toBe(rotated.json().credential.id);
+    expect(f.store.getPhoneAuthIdentityByPhoneHash(f.phoneAuth.phoneHash("13800138000"))?.unifiedKeyId).toBe(rotated.json().credential.id);
     expect(f.store.getUnifiedClientKeyByPrefix(old.unified.record.prefix)).toMatchObject({ isCurrent: false, revokedAt: null, expiresAt: new Date(now.getTime() + 60_000) });
     expect((await f.app.inject(request)).json().credential.key).toBeUndefined();
   });

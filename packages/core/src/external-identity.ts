@@ -1,4 +1,5 @@
 import type { Subject } from "./types.js";
+import type { EnrollExistingPhoneAuthIdentityInput } from "./phone-auth.js";
 
 export interface ExternalIdentityKey {
   provider: string;
@@ -17,6 +18,11 @@ export interface ExternalSubjectResolution {
   subject: Subject | null;
 }
 
+export interface ResolveExternalSubjectOptions {
+  /** Synchronous, read-only preparation under the association transaction's lock. */
+  prepareLinkedPhoneIdentity?: (subject: Subject) => EnrollExistingPhoneAuthIdentityInput;
+}
+
 export interface ClaimExternalSubjectInput extends ExternalIdentityKey {
   idempotencyKey: string;
   payloadHash: string;
@@ -26,7 +32,7 @@ export interface ClaimExternalSubjectInput extends ExternalIdentityKey {
 export interface ExternalIdentityStore {
   getSubjectByExternalIdentity(identity: ExternalIdentityKey): Subject | null;
   getExternalSubjectRegistrationState(identity: ExternalIdentityKey): "ready" | "creating" | "linked" | null;
-  resolveExternalSubject(input: ResolveExternalSubjectInput): ExternalSubjectResolution;
+  resolveExternalSubject(input: ResolveExternalSubjectInput, options?: ResolveExternalSubjectOptions): ExternalSubjectResolution;
   /** Reserve the business event before upstream provisioning; retries reuse it. */
   claimExternalSubjectCreate(input: ClaimExternalSubjectInput): string;
 }
