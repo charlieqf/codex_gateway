@@ -83,11 +83,13 @@ assert effective['services']['gateway']['image']==image
 dbpath=pathlib.Path(mounts['/var/lib/codex-gateway'])/'gateway.db'
 with readonly(dbpath) as db:
     assert db.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0]==30
-    for attempt in range(21):
+    last_pending=None
+    for attempt in range(151):
         pending=db.execute('SELECT COUNT(*) FROM token_reservations WHERE finalized_at IS NULL').fetchone()[0]
         if pending==0: break
-        if attempt==20: raise RuntimeError('Active requests remain; no activation performed')
-        emit(event='waiting_for_requests',pending=pending);time.sleep(2)
+        if attempt==150: raise RuntimeError('Active requests remain; no activation performed')
+        if pending!=last_pending or attempt%15==0: emit(event='waiting_for_requests',pending=pending)
+        last_pending=pending;time.sleep(2)
 state['cutover_started_at']=datetime.datetime.now(datetime.timezone.utc).isoformat();write_state()
 changed=False
 try:
