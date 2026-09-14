@@ -1,0 +1,35 @@
+{
+  "nodes": {
+    "b": {
+      "vision_count": 20,
+      "vision_passed": 20,
+      "exit_ip_hash": "59cf3568bfb7d910",
+      "duration_p50_ms": 1672.0,
+      "duration_max_ms": 6699,
+      "eight_image_cases": 5,
+      "large_body_cases": 5,
+      "json_cases": 5,
+      "sse_cases": 15
+    },
+    "c": {
+      "vision_count": 20,
+      "vision_passed": 20,
+      "exit_ip_hash": "341c04658a3eabcf",
+      "duration_p50_ms": 1630.5,
+      "duration_max_ms": 4284,
+      "eight_image_cases": 5,
+      "large_body_cases": 5,
+      "json_cases": 5,
+      "sse_cases": 15
+    }
+  },
+  "scope": "synthetic direct-provider probes through fixed private canary proxies; no customer data",
+  "route_primary_passed": true,
+  "route_failover_passed": true,
+  "actual_primary_node": "egress_2d8b4a65ca0a",
+  "actual_backup_node": "egress_3b19a87bf0ae",
+  "reload_stream_passed": true,
+  "provider_independence": "different exit IPs verified; provider/ASN independence not established",
+  "initial_text_fixture": "6 initial requests completed but failed content validation; excluded from acceptance; replaced font-dependent chart with geometric fixture",
+  "candidate_config_sha256": "9a8823dc3023ee6da9eadb2cd39fea6f25852af572175be85e21c49b826e4623"
+}
