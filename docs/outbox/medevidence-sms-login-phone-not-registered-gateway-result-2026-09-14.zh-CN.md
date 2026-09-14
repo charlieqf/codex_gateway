@@ -1,6 +1,6 @@
 # 短信登录后 phone_not_registered：Gateway 调查回执
 
-后续代码状态：历史账号补登记分支已修复，构建及 459 项回归通过，尚未部署。见[修复回执](./medevidence-sms-login-phone-enrollment-fix-receipt-2026-09-14.zh-CN.md)。下文保留调查时线上版本的证据和结论。
+后续上线状态：历史账号补登记分支已于北京时间 2026-09-14 16:22:34 部署，运行提交 `892a76d`；固定提交构建、623 项测试、公网 24 项接口检查和实际模型调用通过。见[修复回执](./medevidence-sms-login-phone-enrollment-fix-receipt-2026-09-14.zh-CN.md)及[上线记录](../operations/r760-phone-enrollment-release-2026-09-14.zh-CN.md)。下文保留调查时线上版本的证据和结论，不表示原报障账号已恢复。
 
 2026-09-14。对应[客户端联合核查单](../../../medevidence-opencode-stable/docs/outbox/medevidence-sms-login-phone-not-registered-2026-09-14.zh-CN.md)。本文时间说明使用北京时间，证据 JSON 使用 UTC。
 

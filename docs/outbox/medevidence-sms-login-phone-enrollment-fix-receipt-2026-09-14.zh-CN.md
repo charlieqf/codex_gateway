@@ -1,6 +1,6 @@
 # 历史账号手机号补登记：Gateway 修复回执
 
-2026-09-14。**代码已修复，构建及 459 项相关回归通过；尚未部署 R760，未修改线上账号。** 对应[调查回执](./medevidence-sms-login-phone-not-registered-gateway-result-2026-09-14.zh-CN.md)。
+2026-09-14。**已于北京时间 16:22:34 部署 R760，运行提交 `892a76d`；固定提交构建、623 项测试及公网 24 项接口检查通过。** 原 Key 登录、bootstrap 和实际模型调用已验收。见[上线记录](../operations/r760-phone-enrollment-release-2026-09-14.zh-CN.md)及[调查回执](./medevidence-sms-login-phone-not-registered-gateway-result-2026-09-14.zh-CN.md)。
 
 ## 修复后的行为
 
@@ -26,7 +26,11 @@
 
 ## 验证
 
-开发工作区 `npm run build` 通过。9 个文件共 459 项关联测试全部通过，见[机器可读结果](../../artifacts/sms-login-pending-20260914/fix-regression.json)。该次检查包含工作区中的独立年付修复；本次手机号发布会从固定提交重新构建并验证，最终结果以发布记录为准。
+最终发布从固定提交 `892a76d` 的 Git 归档构建，Linux `npm ci`、`npm run build`、20 个文件共 623 项测试及 Free/paid 编译产物 smoke 通过，见[构建摘要](../../artifacts/sms-login-pending-20260914/release/build-summary.json)。
+
+公网验收覆盖 resolve 和直接带 phone 开户两条历史账号路径：补登记后返回原 Subject、原 Key；登录及 bootstrap 成功；重复关联幂等；冲突返回 409；原权益及用量保持不变。24 项 HTTP 检查全部通过，`goldencode` 实际请求返回 200，结算 135 token。两个合成测试账号已停用，活动凭据、会话和未结算预留均为 0。见[公网验收](../../artifacts/sms-login-pending-20260914/release/public-smoke.json)及[部署后审计](../../artifacts/sms-login-pending-20260914/release/final-audit.json)。
+
+此前开发工作区 `npm run build` 和 459 项关联测试也通过，见[开发阶段结果](../../artifacts/sms-login-pending-20260914/fix-regression.json)。该次检查包含独立年付修复；本次发布只包含手机号补登记修复，年付改动未随本次发布上线。
 
 验证覆盖：旧式 Billing 账号补手机号、已有手机号补 identity、直接开户的 409 恢复路径、原 Key 登录及 bootstrap、原权益和已消费用量保持不变、重复关联、11 类 Key/运行时异常、停用身份/账号、手机号及待开户冲突、审计失败全事务回滚，以及既有新用户开户、Phone Auth、Billing、额度和 Gateway 路由回归。
 
@@ -35,13 +39,13 @@ npm run build
 npx vitest run apps/gateway/src/billing-identity-coordination.test.ts apps/gateway/src/phone-auth-routes.test.ts apps/gateway/src/services/phone-auth-service.test.ts apps/gateway/src/index.test.ts packages/store-sqlite/src/index.test.ts packages/store-sqlite/src/phone-auth.test.ts packages/store-sqlite/src/free-paid-quota.test.ts
 ```
 
-测试使用本地 SQLite 和测试凭据，没有使用真实用户账号、短信或生产模型额度。
+上述开发回归使用本地 SQLite 和测试凭据；上线公网验收使用专门创建的合成账号，消耗 135 token，没有向真实用户发送短信或修改其账号权益。
 
 ## 本案恢复边界
 
 本次修复处理已确认的历史账号登记缺口。截图请求对应的目标号码在调查快照中没有 Phone identity，且连续失败时段未见 Gateway 开户/关联入站；没有证据证明该用户一定属于上述历史账号分支。
 
-因此上线后仍需身份后台实际发起正确关联或开户请求。Gateway 无法从公开登录失败的手机号哈希推断外部 user_id，也不会在公开 `login/start` 中自动开户。真实账号恢复后，应由客户端验证登录、bootstrap、实际请求和用量归属。
+因此身份后台仍需实际发起正确关联或开户请求。Gateway 无法从公开登录失败的手机号哈希推断外部 user_id，也不会在公开 `login/start` 中自动开户。真实账号恢复后，应由客户端验证登录、bootstrap、实际请求和用量归属；公网合成账号验收不代表原报障账号已经恢复。
 
 调查阶段的 `reproduce-legacy-link.mjs` 和 `legacy-link-reproduction.json` 保留为修复前证据；其断言预期是旧错误行为，修复后应以本回执的回归结果为准。
 

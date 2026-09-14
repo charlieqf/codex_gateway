@@ -1,0 +1,41 @@
+{
+  "revision": "892a76dc12486b400a5d42ce565bcf7f6cebe2a3",
+  "old_current": "/opt/codex-gateway-r760/releases/0bfb98589bb90ef2315e3321866d12bd21ab6fcf",
+  "old_previous": "/opt/codex-gateway-r760/releases/45465ee13ebf7b629e24821385b5bc064b6423f2",
+  "old_image_id": "sha256:d54c3176bebdc36d4ff95cd6cc83b0d196369f233b80ac6a38042b3d0c8f339c",
+  "old_image_tag": "codex-gateway-research-practical:0bfb98589bb90ef2315e3321866d12bd21ab6fcf",
+  "candidate_image_id": "sha256:b7035f500f503636ffeb6e9daa3b1c6e71d3726ae8277f7bb41401f84738afaf",
+  "prepared_at": "2026-09-14T08:09:12.686757+00:00",
+  "cutover_started_at": "2026-09-14T08:22:24.308402+00:00",
+  "deployed_at": "2026-09-14T08:22:34.605528+00:00",
+  "gateway_started_at": "2026-09-14T08:22:28.20713427Z",
+  "backup_databases": {
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 24289280,
+      "sha256": "104e0dc65fa2b8e44daa1805bdc1ca1dc35fb777fa0f0e154955bb20bac8d92c"
+    },
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 312098816,
+      "sha256": "42e6c6b1a43b0f4f8e92789249ae60665ebbf0e372f691f927df82e84e3eee97"
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 1381646336,
+      "sha256": "200edbcbb00a0855683e9a6f4a587642f0b0679bac6c196e0ec9edf39b627d95"
+    }
+  },
+  "pre_cutover_backup_sha256": "4763209cd29a818db920cdd0969e98020bfeee2f9a1136c38f5190e53802ac55",
+  "requests_pending_before_stop": [
+    "req-144ddfdc-f949-4b32-ba0c-cc7977a33f5d",
+    "req-cb6fd87b-f891-40ad-95c8-3208465ddf8f"
+  ],
+  "restart_with_active_requests": true,
+  "other_containers_unchanged": true,
+  "operator_script_revision": "06f9c6c6f67d95f9ee24a1472c34b06c768c5bca",
+  "source_archive_sha256": "bb82d316e5a26914b7aab42c8183dcf6fab956af0a38e36816a502ee58382a7a"
+}

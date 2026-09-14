@@ -1,0 +1,165 @@
+{
+  "checked_at": "2026-09-14T08:23:11.192Z",
+  "checks": [
+    {
+      "path": "/gateway/health",
+      "status": 200,
+      "request_id": "req-7ea37c01-f64e-4ecf-b7f3-4bd186a428ad"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects",
+      "status": 200,
+      "request_id": "req-b71013b8-069a-42e7-81bc-b79bc1531aa4"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/entitlement-events",
+      "status": 200,
+      "request_id": "req-31d23a61-50d0-4cc2-8c9c-7d0a1e2c968c"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/resolve",
+      "status": 200,
+      "request_id": "req-64312338-a547-42e9-94c3-13da9941268e"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/resolve",
+      "status": 200,
+      "request_id": "req-e1e25308-35aa-48cd-b1d5-31309498481b"
+    },
+    {
+      "path": "/gateway/auth/v1/login/start",
+      "status": 200,
+      "request_id": "req-5928f7eb-87da-45e5-b7c6-062c82709080"
+    },
+    {
+      "path": "/gateway/auth/v1/session/bootstrap",
+      "status": 200,
+      "request_id": "req-7676922c-c47e-4c1d-8f4f-81b5ee259766"
+    },
+    {
+      "path": "/gateway/unified-keys/resolve",
+      "status": 200,
+      "request_id": "req-85a1e370-2a77-498d-9b4c-a9d8133b56fe"
+    },
+    {
+      "path": "/gateway/credentials/current",
+      "status": 200,
+      "request_id": "req-917ac38c-c3ea-4fc0-a6d3-d8fa791296cf"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "request_id": "req-9a6dcb61-c38f-4f7e-bd9f-2293a0008292"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/resolve",
+      "status": 409,
+      "request_id": "req-d2061d77-676e-43ce-afd0-d49554348570",
+      "error_code": "identity_conflict"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects",
+      "status": 200,
+      "request_id": "req-520a2374-81e8-43f5-8f3d-dc13e7d46aef"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/entitlement-events",
+      "status": 200,
+      "request_id": "req-6018b7aa-8f8e-49a2-8d5f-da390e24f9f9"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects",
+      "status": 409,
+      "request_id": "req-52373a8c-653e-48b0-b9b0-2871672dd023",
+      "error_code": "subject_already_exists"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/resolve",
+      "status": 200,
+      "request_id": "req-5e6abaf5-e8cb-4cb0-9bf1-016fa51b97c5"
+    },
+    {
+      "path": "/gateway/auth/v1/login/start",
+      "status": 200,
+      "request_id": "req-510fc3f4-ba60-4430-bf1f-e952e7f113c8"
+    },
+    {
+      "path": "/gateway/auth/v1/session/bootstrap",
+      "status": 200,
+      "request_id": "req-423e9a2e-b1ed-4d88-8039-ef175f3df156"
+    },
+    {
+      "path": "/gateway/unified-keys/resolve",
+      "status": 200,
+      "request_id": "req-760070f9-73e5-4b57-89ca-5c07a693b504"
+    },
+    {
+      "path": "/gateway/credentials/current",
+      "status": 200,
+      "request_id": "req-30642e0e-b6dc-4c8c-98ce-760a0f2347ff"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/resolve",
+      "status": 409,
+      "request_id": "req-3770abc3-b9dd-4b97-b563-1a50a1acca03",
+      "error_code": "identity_conflict"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/phone-auth-identities/subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+      "status": 200,
+      "request_id": "req-e4b9d939-4b25-4d26-b19b-7fa335af5e42"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/subj_MvEiqJTLPSbEoH2HeR7ihsaD/disable",
+      "status": 200,
+      "request_id": "req-5f43c18a-0c60-4573-a3ca-c48881265e3d"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/phone-auth-identities/subj_5ksdF6Iy1ItPLIk4ypA08YvW",
+      "status": 200,
+      "request_id": "req-b20069e9-61c5-4b19-987f-cccbb89380c7"
+    },
+    {
+      "path": "/gateway/admin/billing/v1/subjects/subj_5ksdF6Iy1ItPLIk4ypA08YvW/disable",
+      "status": 200,
+      "request_id": "req-517fa875-5016-4ffe-a3e8-be785be69436"
+    }
+  ],
+  "accounts": [
+    {
+      "kind": "resolve",
+      "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+      "enrolled": true,
+      "original_key_preserved": true,
+      "login_bootstrap": true
+    },
+    {
+      "kind": "direct",
+      "subject_id": "subj_5ksdF6Iy1ItPLIk4ypA08YvW",
+      "enrolled": true,
+      "original_key_preserved": true,
+      "login_bootstrap": true
+    }
+  ],
+  "cleanup": [
+    {
+      "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+      "disabled": true,
+      "active_credentials": 0,
+      "unfinished_reservations": 0,
+      "active_sessions": 0
+    },
+    {
+      "subject_id": "subj_5ksdF6Iy1ItPLIk4ypA08YvW",
+      "disabled": true,
+      "active_credentials": 0,
+      "unfinished_reservations": 0,
+      "active_sessions": 0
+    }
+  ],
+  "model_usage": {
+    "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+    "finalized_tokens": 135
+  },
+  "assertions": "passed"
+}

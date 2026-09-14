@@ -1,0 +1,119 @@
+{
+  "checked_at": "2026-09-14T08:23:42.941617+00:00",
+  "revision": "892a76dc12486b400a5d42ce565bcf7f6cebe2a3",
+  "image_id": "sha256:b7035f500f503636ffeb6e9daa3b1c6e71d3726ae8277f7bb41401f84738afaf",
+  "health": "healthy",
+  "restarts": 0,
+  "configuration_unchanged_except_gateway_image": true,
+  "other_services": {
+    "codex_gateway_r760-research-worker-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-llm-gateway-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-maintenance-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-mihomo-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "qwen38-fp8-local": {
+      "unchanged": true,
+      "health": "healthy"
+    }
+  },
+  "databases": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "schema": 30,
+  "smoke": {
+    "assertions": "passed",
+    "http_checks": 24,
+    "accounts": [
+      {
+        "kind": "resolve",
+        "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+        "enrolled": true,
+        "original_key_preserved": true,
+        "login_bootstrap": true
+      },
+      {
+        "kind": "direct",
+        "subject_id": "subj_5ksdF6Iy1ItPLIk4ypA08YvW",
+        "enrolled": true,
+        "original_key_preserved": true,
+        "login_bootstrap": true
+      }
+    ],
+    "model_usage": {
+      "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+      "finalized_tokens": 135
+    }
+  },
+  "cleanup": [
+    {
+      "subject_id": "subj_MvEiqJTLPSbEoH2HeR7ihsaD",
+      "disabled": true,
+      "active_credentials": 0,
+      "unfinished_reservations": 0,
+      "active_sessions": 0
+    },
+    {
+      "subject_id": "subj_5ksdF6Iy1ItPLIk4ypA08YvW",
+      "disabled": true,
+      "active_credentials": 0,
+      "unfinished_reservations": 0,
+      "active_sessions": 0
+    }
+  ],
+  "preexisting_control_rows": {
+    "subjects": {
+      "checked": 970,
+      "changed": 0
+    },
+    "access_credentials": {
+      "checked": 979,
+      "changed": 0
+    },
+    "unified_client_keys": {
+      "checked": 480,
+      "changed": 0
+    },
+    "plans": {
+      "checked": 16,
+      "changed": 0
+    },
+    "entitlements": {
+      "checked": 643,
+      "changed": 0
+    },
+    "phone_auth_identities": {
+      "checked": 264,
+      "changed": 0
+    }
+  },
+  "public_health": "ready",
+  "log_counts": {
+    "fatal": 0,
+    "error": 0,
+    "uncaught": 0,
+    "unhandled": 0
+  },
+  "assertions": "passed"
+}

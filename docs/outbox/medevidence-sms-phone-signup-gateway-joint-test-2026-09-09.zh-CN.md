@@ -1,6 +1,6 @@
 # MedEvidence 短信／临时登录：Gateway 联调说明
 
-2026-09-14 补充（代码完成，尚未部署）：旧账号关联将补齐缺失手机号及 Phone identity，复用有效当前 Key，保留权益和用量；手机号冲突、停用身份、运行时 Key 不可恢复会明确报错。直接带 phone 开户仍保留旧账号 409 查询恢复合同，resolve 仍可选。详见[历史账号补登记修复回执](./medevidence-sms-login-phone-enrollment-fix-receipt-2026-09-14.zh-CN.md)。
+2026-09-14 补充（北京时间 16:22:34 已部署，`892a76d`）：旧账号关联会补齐缺失手机号及 Phone identity，复用有效当前 Key，保留权益和用量；手机号冲突、停用身份、运行时 Key 不可恢复会明确报错。直接带 phone 开户仍保留旧账号 409 查询恢复合同，resolve 仍可选。623 项测试、公网 24 项接口检查及实际模型调用通过。详见[历史账号补登记修复回执](./medevidence-sms-login-phone-enrollment-fix-receipt-2026-09-14.zh-CN.md)及[上线记录](../operations/r760-phone-enrollment-release-2026-09-14.zh-CN.md)。
 
 2026-09-09。兼容修订已部署 R760，提交 27f10d9：取消 resolve 强制前置，兼容 5 月原样开户，公网验收通过。见[兼容修订上线记录](../operations/r760-billing-create-compatibility-release-2026-09-09.zh-CN.md)。先前 63c818f 的两步开户验收见[历史上线记录](../operations/r760-phone-signup-release-2026-09-09.zh-CN.md)。
 
