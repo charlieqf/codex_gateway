@@ -11,6 +11,8 @@ import yaml
 
 rev = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', rev)
+assert len(sys.argv)==2 or sys.argv[2:]==['--restart-with-active-requests']
+restart_with_active_requests = len(sys.argv)==3
 root = pathlib.Path('/opt/codex-gateway-r760')
 release = root/'releases'/rev
 backup = root/'backups'/('phone-signup-'+rev[:12])
@@ -87,6 +89,9 @@ with readonly(dbpath) as db:
     for attempt in range(151):
         pending=db.execute('SELECT COUNT(*) FROM token_reservations WHERE finalized_at IS NULL').fetchone()[0]
         if pending==0: break
+        if restart_with_active_requests:
+            emit(event='authorized_service_restart_with_active_requests',pending=pending)
+            break
         if attempt==150: raise RuntimeError('Active requests remain; no activation performed')
         if pending!=last_pending or attempt%15==0: emit(event='waiting_for_requests',pending=pending)
         last_pending=pending;time.sleep(2)
@@ -99,6 +104,9 @@ try:
     with readonly(fresh) as db:
         assert db.execute('PRAGMA quick_check').fetchone()[0]=='ok' and not db.execute('PRAGMA foreign_key_check').fetchall()
     state['pre_cutover_backup_sha256']=sha(fresh);write_state();emit(event='cutover_backup_verified')
+    with readonly(dbpath) as db:
+        state['requests_pending_before_stop']=[row[0] for row in db.execute('SELECT request_id FROM token_reservations WHERE finalized_at IS NULL')]
+    state['restart_with_active_requests']=restart_with_active_requests;write_state()
     command(['docker','stop','--time','30',container])
     changed=True
     temp=override.with_suffix('.phone-enrollment.tmp');assert not temp.exists()
