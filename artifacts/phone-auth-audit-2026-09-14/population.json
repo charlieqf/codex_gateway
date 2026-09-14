@@ -1,0 +1,236 @@
+{
+  "inspected_at_utc": "2026-09-14T04:14:10.276Z",
+  "since3": "2026-09-11T04:14:10.276Z",
+  "since30": "2026-08-15T04:14:10.276Z",
+  "totals": {
+    "subjects": 967,
+    "active_subjects": 303,
+    "valid_phone_subjects": 262,
+    "distinct_valid_phones": 262,
+    "identities": 261,
+    "active_identities": 248,
+    "duplicate_phone_groups": 0,
+    "duplicate_subjects": 0,
+    "active_identities_in_duplicate_groups": 0
+  },
+  "duplicate_groups": [],
+  "auth_last3days": [
+    {
+      "action": "account_current",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 1488,
+      "subjects": 30,
+      "first": "2026-09-11T04:16:07.948Z",
+      "latest": "2026-09-14T04:13:36.509Z"
+    },
+    {
+      "action": "bootstrap",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 1492,
+      "subjects": 30,
+      "first": "2026-09-11T04:16:07.893Z",
+      "latest": "2026-09-14T04:13:36.359Z"
+    },
+    {
+      "action": "identity_state",
+      "outcome": "ok",
+      "reason_code": "disabled",
+      "count": 5,
+      "subjects": 5,
+      "first": "2026-09-11T10:37:49.412Z",
+      "latest": "2026-09-12T02:44:02.830Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "phone_identity_conflict",
+      "count": 2,
+      "subjects": 1,
+      "first": "2026-09-14T02:40:00.476Z",
+      "latest": "2026-09-14T02:40:19.657Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "phone_not_registered",
+      "count": 7,
+      "subjects": 0,
+      "first": "2026-09-11T05:05:55.758Z",
+      "latest": "2026-09-14T03:28:48.076Z"
+    },
+    {
+      "action": "login",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 31,
+      "subjects": 17,
+      "first": "2026-09-11T05:05:57.370Z",
+      "latest": "2026-09-14T04:05:20.474Z"
+    },
+    {
+      "action": "logout",
+      "outcome": "ok",
+      "reason_code": "logout",
+      "count": 19,
+      "subjects": 7,
+      "first": "2026-09-11T05:03:27.810Z",
+      "latest": "2026-09-14T04:05:20.574Z"
+    },
+    {
+      "action": "prepare_identity",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 10,
+      "subjects": 10,
+      "first": "2026-09-11T05:05:56.120Z",
+      "latest": "2026-09-14T03:28:48.323Z"
+    },
+    {
+      "action": "refresh",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 1391,
+      "subjects": 24,
+      "first": "2026-09-11T04:16:07.811Z",
+      "latest": "2026-09-14T04:13:36.230Z"
+    }
+  ],
+  "auth_last30days": [
+    {
+      "action": "account_current",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 8741,
+      "subjects": 79,
+      "first": "2026-08-21T22:20:42.592Z",
+      "latest": "2026-09-14T04:13:36.509Z"
+    },
+    {
+      "action": "bootstrap",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 8756,
+      "subjects": 79,
+      "first": "2026-08-21T22:20:42.251Z",
+      "latest": "2026-09-14T04:13:36.359Z"
+    },
+    {
+      "action": "identity_state",
+      "outcome": "ok",
+      "reason_code": "active",
+      "count": 6,
+      "subjects": 2,
+      "first": "2026-08-21T22:17:27.286Z",
+      "latest": "2026-08-22T05:30:07.801Z"
+    },
+    {
+      "action": "identity_state",
+      "outcome": "ok",
+      "reason_code": "disabled",
+      "count": 19,
+      "subjects": 13,
+      "first": "2026-08-21T22:15:58.510Z",
+      "latest": "2026-09-12T02:44:02.830Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "auth_rate_limited",
+      "count": 7,
+      "subjects": 0,
+      "first": "2026-08-21T06:05:13.033Z",
+      "latest": "2026-09-11T01:36:10.666Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "phone_identity_conflict",
+      "count": 2,
+      "subjects": 1,
+      "first": "2026-09-14T02:40:00.476Z",
+      "latest": "2026-09-14T02:40:19.657Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "phone_login_disabled",
+      "count": 2,
+      "subjects": 1,
+      "first": "2026-08-21T22:20:45.277Z",
+      "latest": "2026-09-07T05:20:42.030Z"
+    },
+    {
+      "action": "login",
+      "outcome": "error",
+      "reason_code": "phone_not_registered",
+      "count": 92,
+      "subjects": 0,
+      "first": "2026-08-21T22:21:06.135Z",
+      "latest": "2026-09-14T03:28:48.076Z"
+    },
+    {
+      "action": "login",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 413,
+      "subjects": 81,
+      "first": "2026-08-21T22:20:41.894Z",
+      "latest": "2026-09-14T04:05:20.474Z"
+    },
+    {
+      "action": "logout",
+      "outcome": "ok",
+      "reason_code": "logout",
+      "count": 207,
+      "subjects": 40,
+      "first": "2026-08-21T22:20:43.614Z",
+      "latest": "2026-09-14T04:05:20.574Z"
+    },
+    {
+      "action": "prepare_identity",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 261,
+      "subjects": 261,
+      "first": "2026-08-21T22:12:33.869Z",
+      "latest": "2026-09-14T03:28:48.323Z"
+    },
+    {
+      "action": "refresh",
+      "outcome": "error",
+      "reason_code": "refresh_token_replay",
+      "count": 5,
+      "subjects": 3,
+      "first": "2026-08-21T22:20:43.275Z",
+      "latest": "2026-09-01T14:20:12.906Z"
+    },
+    {
+      "action": "refresh",
+      "outcome": "ok",
+      "reason_code": null,
+      "count": 7896,
+      "subjects": 54,
+      "first": "2026-08-21T22:20:42.927Z",
+      "latest": "2026-09-14T04:13:36.230Z"
+    }
+  ],
+  "same_banner_errors_retained_history": [
+    {
+      "subject_id": "subj_doQrJLEmDvEchET2tS9NknLN",
+      "action": "login",
+      "reason_code": "phone_identity_conflict",
+      "count": 2,
+      "first": "2026-09-14T02:40:00.476Z",
+      "latest": "2026-09-14T02:40:19.657Z",
+      "name": "范银星"
+    }
+  ],
+  "audit_retained_range": {
+    "count": 26407,
+    "first": "2026-08-21T06:05:13.033Z",
+    "latest": "2026-09-14T04:13:36.509Z"
+  },
+  "failed_issuance_disabled_with_phone": []
+}

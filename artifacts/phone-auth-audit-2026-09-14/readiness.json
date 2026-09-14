@@ -1,0 +1,9 @@
+{
+  "inspected_at_utc": "2026-09-14T04:16:20.215Z",
+  "active_identities_checked": 248,
+  "counts": {
+    "identity_and_runtime_ready": 248
+  },
+  "problems": [],
+  "limit": "Deployed identity and runtime readiness checks only; entitlement evaluation is deliberately not executed because it may write state transitions. No login sessions created."
+}
