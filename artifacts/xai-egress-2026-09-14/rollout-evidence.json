@@ -1,0 +1,360 @@
+{
+  "post_deploy": {
+    "utc": "2026-09-14T03:03:35.525636+00:00",
+    "applied_at": "2026-09-14T03:01:13.084799+00:00",
+    "source_revision": "9fa13d29b292d3d5844707f1a6e4ec223ece6983",
+    "config_sha256": "9a8823dc3023ee6da9eadb2cd39fea6f25852af572175be85e21c49b826e4623",
+    "backup_config_verified": true,
+    "target_mode": "0o400",
+    "target_owner": "999:999",
+    "rule_first": "DOMAIN,api.x.ai,XAI-EGRESS",
+    "group": {
+      "name": "XAI-EGRESS",
+      "type": "fallback",
+      "url": "https://api.x.ai/v1/models",
+      "expected-status": 401,
+      "interval": 60,
+      "timeout": 5000,
+      "lazy": false
+    },
+    "leaf_nodes": [
+      "egress_2d8b4a65ca0a",
+      "egress_3b19a87bf0ae"
+    ],
+    "controller_configured": false,
+    "static_manifest_verified": true,
+    "services": [
+      {
+        "name": "codex_gateway_r760-research-worker-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-gateway-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-research-llm-gateway-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-web-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-browser-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 1
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-gateway-proxy-1",
+        "same_container": true,
+        "state": "running",
+        "health": null,
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-research-maintenance-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "qwen38-fp8-local",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-mihomo-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      }
+    ],
+    "proxy_published_ports": false,
+    "xai_connections_after_apply_by_node": {
+      "egress_2d8b4a65ca0a": 10
+    },
+    "gateway_observation": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "events": [
+        {
+          "upstream_runtime": null,
+          "status": "ok",
+          "error_code": null,
+          "count": 19
+        },
+        {
+          "upstream_runtime": "xai",
+          "status": "ok",
+          "error_code": null,
+          "count": 3
+        }
+      ]
+    }
+  },
+  "after_cleanup": {
+    "utc": "2026-09-14T03:07:33.637725+00:00",
+    "applied_at": "2026-09-14T03:01:13.084799+00:00",
+    "source_revision": "9fa13d29b292d3d5844707f1a6e4ec223ece6983",
+    "config_sha256": "9a8823dc3023ee6da9eadb2cd39fea6f25852af572175be85e21c49b826e4623",
+    "backup_config_verified": true,
+    "target_mode": "0o400",
+    "target_owner": "999:999",
+    "rule_first": "DOMAIN,api.x.ai,XAI-EGRESS",
+    "group": {
+      "name": "XAI-EGRESS",
+      "type": "fallback",
+      "url": "https://api.x.ai/v1/models",
+      "expected-status": 401,
+      "interval": 60,
+      "timeout": 5000,
+      "lazy": false
+    },
+    "leaf_nodes": [
+      "egress_2d8b4a65ca0a",
+      "egress_3b19a87bf0ae"
+    ],
+    "controller_configured": false,
+    "static_manifest_verified": true,
+    "services": [
+      {
+        "name": "codex_gateway_r760-research-worker-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-gateway-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-research-llm-gateway-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-web-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-browser-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 1
+      },
+      {
+        "name": "goldencode-vessel-v90d008015990309f-gateway-proxy-1",
+        "same_container": true,
+        "state": "running",
+        "health": null,
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-research-maintenance-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "qwen38-fp8-local",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      },
+      {
+        "name": "codex_gateway_r760-mihomo-1",
+        "same_container": true,
+        "state": "running",
+        "health": "healthy",
+        "restarts": 0
+      }
+    ],
+    "proxy_published_ports": false,
+    "xai_connections_after_apply_by_node": {
+      "egress_2d8b4a65ca0a": 10
+    },
+    "gateway_observation": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "events": [
+        {
+          "upstream_runtime": null,
+          "status": "ok",
+          "error_code": null,
+          "count": 21
+        },
+        {
+          "upstream_runtime": "tencent",
+          "status": "ok",
+          "error_code": null,
+          "count": 2
+        },
+        {
+          "upstream_runtime": "xai",
+          "status": "ok",
+          "error_code": null,
+          "count": 3
+        }
+      ]
+    }
+  },
+  "production_direct_provider_probes": [
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:18.742Z",
+      "kind": "transport",
+      "method": "HEAD",
+      "status": 401,
+      "duration_ms": 398
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:19.080Z",
+      "kind": "transport",
+      "method": "GET",
+      "status": 401,
+      "duration_ms": 337
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:19.265Z",
+      "kind": "exit_identity",
+      "scope": "non_xai_domain_route",
+      "status": 200,
+      "exit_ip_hash": "ef4778f8b5065980",
+      "country": "JP"
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:20.203Z",
+      "kind": "vision",
+      "index": 0,
+      "model": "grok-4.5",
+      "stream": true,
+      "image_count": 1,
+      "request_bytes": 7052,
+      "status": 200,
+      "headers_ms": 433,
+      "first_byte_ms": 852,
+      "duration_ms": 854,
+      "response_bytes": 1086,
+      "finish_reason": "stop",
+      "complete": true,
+      "answer_correct": true,
+      "fixture_sha256": "dfb40f92543e4517",
+      "synthetic_answer": "red",
+      "total_tokens": 819
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:22.013Z",
+      "kind": "vision",
+      "index": 1,
+      "model": "grok-4.5",
+      "stream": true,
+      "image_count": 8,
+      "request_bytes": 54386,
+      "status": 200,
+      "headers_ms": 638,
+      "first_byte_ms": 1019,
+      "duration_ms": 1809,
+      "response_bytes": 7985,
+      "finish_reason": "stop",
+      "complete": true,
+      "answer_correct": true,
+      "fixture_sha256": "dfb40f92543e4517",
+      "synthetic_answer": "red",
+      "total_tokens": 3005
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:23.279Z",
+      "kind": "vision",
+      "index": 2,
+      "model": "grok-4.5",
+      "stream": true,
+      "image_count": 1,
+      "request_bytes": 477288,
+      "status": 200,
+      "headers_ms": 824,
+      "first_byte_ms": 1258,
+      "duration_ms": 1260,
+      "response_bytes": 1086,
+      "finish_reason": "stop",
+      "complete": true,
+      "answer_correct": true,
+      "fixture_sha256": "ca4f9d291a2b652b",
+      "synthetic_answer": "red",
+      "total_tokens": 919
+    },
+    {
+      "alias": "production",
+      "phase": "post-deploy",
+      "utc": "2026-09-14T03:02:23.961Z",
+      "kind": "vision",
+      "index": 3,
+      "model": "grok-4.5",
+      "stream": false,
+      "image_count": 1,
+      "request_bytes": 7013,
+      "status": 200,
+      "headers_ms": 680,
+      "first_byte_ms": null,
+      "duration_ms": 682,
+      "response_bytes": 0,
+      "finish_reason": "stop",
+      "complete": true,
+      "answer_correct": true,
+      "fixture_sha256": "dfb40f92543e4517",
+      "synthetic_answer": "red",
+      "total_tokens": 819
+    }
+  ],
+  "cleanup": {
+    "action": "cleanup",
+    "containers_removed": 4,
+    "protected_workspace_removed": true
+  },
+  "public_health": {
+    "utc": "2026-09-14T03:07:29.6768264Z",
+    "status": 200,
+    "state": "ready"
+  }
+}

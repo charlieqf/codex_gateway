@@ -1,6 +1,6 @@
 # R760 Mihomo Image Egress
 
-Last updated: 2026-08-06
+Last updated: 2026-09-14 (xAI dedicated egress; older validation below remains dated).
 
 This runbook covers the dedicated R760 image-egress proxy. It is infrastructure
 for the public Gateway, not a fifth Doctor Research business service and not a
@@ -24,6 +24,14 @@ Private Cloudflare R2 vision asset endpoint
   -> direct connection, never Mihomo
 ```
 
+Since 2026-09-14, `api.x.ai` matches the first rule
+`DOMAIN,api.x.ai,XAI-EGRESS`. This dedicated fallback group references two tested
+leaf nodes in priority order and probes `https://api.x.ai/v1/models` with HEAD,
+expected status 401, every 60 seconds, timeout 5000 ms, `lazy: false`.
+The leaves have different measured exit IPs; provider/ASN independence is not
+established. Other domains retain their existing routing. See the
+[rollout and rollback evidence](./xai-egress-rollout-2026-09-14.zh-CN.md).
+
 The Mihomo container publishes no host port. Do not add `ports`, bind host
 `7890/7891/9090`, or expose a controller. The public Gateway is the only
 application container with proxy variables. `research-llm-gateway`,
@@ -44,7 +52,7 @@ version:    Mihomo Meta v1.19.23, linux amd64
 The binary SHA-256 is
 `ebac72f8a866ebb599ba451d6516fe3f7ae9075c3b9de1ed2be5a6dd706e9c6e`.
 The R760-derived config SHA-256 is
-`59901802e7be8e502e15f0e7f6f672c352ffbf0f209cc56447612f2ddf4c451f`.
+`9a8823dc3023ee6da9eadb2cd39fea6f25852af572175be85e21c49b826e4623`.
 Do not print or commit the config: it contains 32 embedded proxy nodes and their
 credentials. There is no online `proxy-provider`, so the installed snapshot
 does not auto-refresh a subscription.
@@ -179,6 +187,13 @@ to their pre-probe hashes before the production restart; subsequent cache and
 GeoIP changes are normal runtime state and are not part of the static manifest.
 
 ## Rollback
+
+For the 2026-09-14 xAI route change, use the config-only rollback in the
+[dated rollout record](./xai-egress-rollout-2026-09-14.zh-CN.md). Its verified
+protected backup is `/data/codex-gateway-r760/backups/xai-egress-20260914`.
+It restores the old proxy config and static manifest and sends SIGHUP to the
+existing Mihomo process; it does not roll back Gateway code or credentials.
+The older whole-proxy rollback below applies only to its historical change.
 
 The pre-change protected Gateway files are under:
 

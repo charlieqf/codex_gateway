@@ -2,6 +2,12 @@
 
 Last verified: 2026-09-11 10:43 UTC (2026-09-11 Sydney evening: one-off Free release on main, paid template limits, public Billing/model smoke, databases).
 
+xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
+`api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
+health checks every 60 seconds, no public proxy/controller ports. Config-only
+SIGHUP rollout; Gateway/Mihomo/Research/Qwen containers unchanged and healthy.
+See the [xAI egress rollout](./xai-egress-rollout-2026-09-14.zh-CN.md).
+
 This file contains current operational state only. Dated release reports and Git
 history retain implementation evidence; do not append incident history here.
 
