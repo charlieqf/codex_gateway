@@ -126,6 +126,16 @@ export function desktopVersionGateError(
   return null;
 }
 
+export function needsMedevidenceIdentityFallback(
+  request: FastifyRequest,
+  credentialClass: CredentialClass | undefined
+): boolean {
+  return (
+    credentialClass === "unknown" &&
+    readHeader(request, desktopVersionHeader) === null
+  );
+}
+
 export function sendDesktopVersionGateError(
   request: FastifyRequest,
   reply: FastifyReply,

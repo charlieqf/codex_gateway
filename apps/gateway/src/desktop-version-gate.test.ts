@@ -5,6 +5,7 @@ import {
   compareStrictSemVer,
   desktopVersionGateError,
   isPhoneSessionRoute,
+  needsMedevidenceIdentityFallback,
   resolveDesktopVersionGate,
   shouldGateDesktopRoute,
   type DesktopVersionGate
@@ -136,6 +137,22 @@ describe("Desktop version gate", () => {
         true
       )
     ).toBeNull();
+  });
+
+  it("looks up Phone identity only for the legacy unknown-class edge", () => {
+    const missing = requestWithVersion(undefined, "POST", "/v1/responses");
+    const explicit = requestWithVersion(
+      "9.9.9-fixture.1",
+      "POST",
+      "/v1/responses"
+    );
+    expect(needsMedevidenceIdentityFallback(missing, "unknown")).toBe(true);
+    expect(needsMedevidenceIdentityFallback(explicit, "unknown")).toBe(false);
+    for (const credentialClass of ["desktop", "service", "operator"] as const) {
+      expect(
+        needsMedevidenceIdentityFallback(missing, credentialClass)
+      ).toBe(false);
+    }
   });
 
   it("uses one route policy source for every gate mode", () => {
