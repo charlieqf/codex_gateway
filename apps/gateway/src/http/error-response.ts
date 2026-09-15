@@ -49,6 +49,12 @@ export function gatewayErrorMetadata(
     error.retryAfterSeconds ?? (isRateLimited && error.httpStatus === 429 ? null : undefined);
 
   return {
+    ...(error.toolValidationDetails ? {
+      tool_validation_contract_version: 1,
+      tool_validation: { ...error.toolValidationDetails },
+      retry_contract_version: 1,
+      automatic_retry_allowed: false
+    } : {}),
     ...(context.visionRecovery ? {
       vision_recovery_contract_version: 1,
       vision_recovery: context.visionRecovery

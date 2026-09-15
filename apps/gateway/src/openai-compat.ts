@@ -1,4 +1,4 @@
-import { Ajv } from "ajv";
+import { Ajv, type ErrorObject } from "ajv";
 import { Ajv2019 } from "ajv/dist/2019.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { validateVisionInputLimits, visionInputLimitError, visionMaximumImageBytes } from "./services/vision-input-policy.js";
@@ -953,6 +953,14 @@ function validateAgainstToolSchema(
   tool: OpenAIChatToolDefinition,
   value: unknown
 ): string | null {
+  return toolArgumentValidation(tool, value)?.message ?? null;
+}
+
+/** Retain all errors; callers must never infer a sole failure from the first one. */
+export function toolArgumentValidation(
+  tool: OpenAIChatToolDefinition,
+  value: unknown
+): { message: string; errors: ErrorObject[] } | null {
   const schema = tool.function.parameters ?? {
     type: "object",
     additionalProperties: true
@@ -962,7 +970,10 @@ function validateAgainstToolSchema(
   if (validate(value)) {
     return null;
   }
-  return validator.errorsText(validate.errors, { separator: "; " });
+  return {
+    message: validator.errorsText(validate.errors, { separator: "; " }),
+    errors: (validate.errors ?? []).map((error) => ({ ...error, params: { ...error.params } }))
+  };
 }
 
 function forcedToolChoiceName(toolChoice: ChatCompletionToolChoice): string | null {

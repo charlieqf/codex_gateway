@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "capability": "write-delivery-v1",
+  "tool_name": "write_delivery_v1",
+  "schema_file": "write-delivery-v1.parameters.schema.json",
+  "schema_sha256": "57b561afab26d73faa7f91908d35195767162fa3cc734ab547faf02b5df9fa11",
+  "limits": {
+    "chunk_utf16_units": 4000,
+    "chunk_json_utf8_bytes": 32768,
+    "chunk_count": 256,
+    "payload_utf8_bytes": 1048576,
+    "arguments_utf8_bytes": 8388608,
+    "response_body_bytes": 12582912
+  }
+}

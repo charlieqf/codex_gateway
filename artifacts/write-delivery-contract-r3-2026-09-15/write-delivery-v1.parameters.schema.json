@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "R2 draft only; not a deployed contract. Byte limits, UTF-16 limits and cross-field checks are mandatory outside JSON Schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "delivery_id",
+    "original_tool_call_id",
+    "original_tool_name",
+    "original_arguments",
+    "operation",
+    "payload_utf8_bytes",
+    "payload_sha256",
+    "transport_chunk_count",
+    "chunks"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "delivery_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "original_tool_call_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "original_tool_name": {
+      "const": "write"
+    },
+    "original_arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "filePath"
+      ],
+      "properties": {
+        "filePath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        },
+        "mode": {
+          "enum": [
+            "overwrite",
+            "append"
+          ]
+        },
+        "chunk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "index"
+          ],
+          "properties": {
+            "index": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        }
+      }
+    },
+    "operation": {
+      "enum": [
+        "overwrite",
+        "append"
+      ]
+    },
+    "payload_utf8_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1048576
+    },
+    "payload_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "transport_chunk_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 256
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transport_chunk_index",
+          "offset_bytes",
+          "content"
+        ],
+        "properties": {
+          "transport_chunk_index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "offset_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1048576
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        }
+      }
+    }
+  }
+}
+

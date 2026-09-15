@@ -1,0 +1,31 @@
+{
+  "error": {
+    "message": "Tool 'write' arguments invalid: data/content must NOT have more than 12000 characters",
+    "type": "server_error",
+    "code": "tool_call_validation_failed",
+    "param": null,
+    "retryable": false,
+    "request_id": "req-limit-example",
+    "contract_version": 1,
+    "failure_kind": "schema_mismatch",
+    "transformed_retry_allowed": false,
+    "recommended_action": "use_bounded_file_write",
+    "retry_contract_version": 1,
+    "automatic_retry_allowed": false,
+    "tool_validation_contract_version": 1,
+    "tool_validation": {
+      "kind": "content_too_long",
+      "tool_name": "write",
+      "keyword": "maxLength",
+      "instance_path": "/content",
+      "schema_path": "#/properties/content/maxLength",
+      "limit_code_points": 12000,
+      "actual_code_points": 14000,
+      "actual_utf16_units": 14000,
+      "actual_utf8_bytes": 14000,
+      "gateway_retry_attempted": false,
+      "remaining_budget_ms": 277000,
+      "stop_reason": "write_delivery_not_negotiated"
+    }
+  }
+}

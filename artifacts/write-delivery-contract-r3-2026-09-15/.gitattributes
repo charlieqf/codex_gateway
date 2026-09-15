@@ -1,0 +1,3 @@
+write-delivery-v1.parameters.schema.json -text whitespace=-blank-at-eof
+delivery-manifest.schema.json -text whitespace=-blank-at-eof
+success.sse -text whitespace=-blank-at-eof

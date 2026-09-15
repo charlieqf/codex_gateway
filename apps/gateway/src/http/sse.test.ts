@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GatewayError } from "@codex-gateway/core";
 import type { FastifyReply } from "fastify";
 import { setupSseResponse } from "./sse.js";
@@ -10,6 +10,7 @@ class FakeRawReply extends EventEmitter {
   readonly headers = new Map<string, string>();
   writes: string[] = [];
   failOnWrite: number | null = null;
+  writableNeedDrain = false;
 
   setHeader(name: string, value: string): void {
     this.headers.set(name.toLowerCase(), value);
@@ -20,7 +21,7 @@ class FakeRawReply extends EventEmitter {
       throw new Error("synthetic write failure");
     }
     this.writes.push(chunk);
-    return true;
+    return !this.writableNeedDrain;
   }
 
   end(): void {
@@ -37,6 +38,33 @@ function createReply(raw = new FakeRawReply()): FastifyReply {
 }
 
 describe("setupSseResponse", () => {
+  it("defers the S heartbeat without changing ordinary heartbeat timing", () => {
+    vi.useFakeTimers();
+    const ordinary = new FakeRawReply(), delivery = new FakeRawReply();
+    const first = setupSseResponse(createReply(ordinary));
+    const second = setupSseResponse(createReply(delivery), { deferHeartbeat: true });
+    try {
+      vi.advanceTimersByTime(26000);
+      expect(ordinary.writes).toEqual([":ping\n\n"]);
+      expect(delivery.writes).toEqual([]);
+      expect(second.writeData({ valid: true })).toBe(true);
+    } finally { first.end(); second.end(); vi.useRealTimers(); }
+  });
+  it.each(["drain", "abort", "close"])("honors %s while S waits for backpressure", async (event) => {
+    const raw = new FakeRawReply(); raw.writableNeedDrain = true;
+    const sse = setupSseResponse(createReply(raw), { deferHeartbeat: true });
+    const controller = new AbortController();
+    let finished = false;
+    const pending = sse.writeDataAsync({ payload: "bounded" }, controller.signal).then((ok) => { finished = true; return ok; });
+    await Promise.resolve(); expect(finished).toBe(false);
+    if (event === "drain") { raw.writableNeedDrain = false; raw.emit("drain"); }
+    if (event === "abort") controller.abort();
+    if (event === "close") raw.emit("close");
+    expect(await pending).toBe(event === "drain");
+    expect(raw.listenerCount("drain")).toBe(0);
+    expect(raw.listenerCount("error")).toBe(0);
+    sse.end();
+  });
   it("aborts the SSE signal when a write fails", () => {
     const raw = new FakeRawReply();
     raw.failOnWrite = 2;

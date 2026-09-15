@@ -1,0 +1,11 @@
+data: {"id":"chatcmpl-example","object":"chat.completion.chunk","created":1789430400,"model":"goldencode","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call-example-1","type":"function","function":{"name":"write_delivery_v1","arguments":"{\"version\":1,\"delivery_id\":\"delivery-example-1\",\"original_tool_call_id\":\"call-example-1\",\"original_tool_name\":\"write\",\"original_arguments\":{\"filePath\":\"C:/workspace/example.txt\"},\"operation\":\"overwrite\",\"payload_utf8_bytes\":3,\"payloa"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-example","object":"chat.completion.chunk","created":1789430400,"model":"goldencode","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"d_sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\",\"transport_chunk_count\":2,\"chunks\":[{\"transport_chunk_index\":0,\"offset_bytes\":0,\"content\":\"ab\"},{\"transport_chunk_index\":1,\"offset_bytes\":2,\"content\":\"c\"}]}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-example","object":"chat.completion.chunk","created":1789430400,"model":"goldencode","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl-example","object":"chat.completion.chunk","created":1789430400,"model":"goldencode","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+
+data: [DONE]
+
+

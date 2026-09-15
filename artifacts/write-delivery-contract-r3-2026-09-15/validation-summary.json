@@ -1,0 +1,46 @@
+{
+  "schema_sha256": "57b561afab26d73faa7f91908d35195767162fa3cc734ab547faf02b5df9fa11",
+  "protocol_checks": {
+    "passed": 60,
+    "script": "verify-fixtures.mjs",
+    "padded_arguments": {
+      "arguments_utf8_bytes": 8389074,
+      "response_body_bytes": 8390022,
+      "response_below_12MiB": true,
+      "manifest_hash_valid": true,
+      "result": "rejected_before_JSON_parse"
+    }
+  },
+  "sdk_probe": {
+    "scope": "Offline real AI SDK + OpenAI-compatible provider + current MedcodeStream + loopback HTTP; synthetic responses and acknowledgement-only tools",
+    "requests": 7,
+    "bodyByteIdentical": true,
+    "wireTools": [
+      "write",
+      "read"
+    ],
+    "textBeforeEOF": [
+      true,
+      true,
+      true
+    ],
+    "localReceiverExecutions": 1,
+    "receiverToolResults": 1,
+    "untrustedReceiverExecutions": 0,
+    "ordinaryMultipleTools": [
+      "write",
+      "read"
+    ],
+    "actualGatewayBodyParserChecked": true,
+    "notCovered": [
+      "production response adapter",
+      "TLS/header trust",
+      "old Gateway HTTP middleware",
+      "real provider",
+      "filesystem",
+      "crash recovery",
+      "native runtime",
+      "load/performance"
+    ]
+  }
+}

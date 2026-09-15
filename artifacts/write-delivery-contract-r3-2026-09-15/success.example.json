@@ -1,0 +1,346 @@
+{
+  "status": "R3 A/S development contract; abc is a protocol illustration, not a real oversize recovery or deployment claim",
+  "limits": {
+    "chunk_utf16_units": 4000,
+    "chunk_json_utf8_bytes": 32768,
+    "chunk_count": 256,
+    "payload_utf8_bytes": 1048576,
+    "arguments_utf8_bytes": 8388608,
+    "response_body_bytes": 12582912
+  },
+  "request_headers": {
+    "X-MedCode-Client-Capabilities": "write-delivery-v1",
+    "X-MedCode-Write-Delivery-Version": "1",
+    "X-MedCode-Write-Delivery-Schema-SHA256": "57b561afab26d73faa7f91908d35195767162fa3cc734ab547faf02b5df9fa11",
+    "X-MedCode-Write-Delivery-Nonce": "MTIzNDU2Nzg5MGFiY2RlZg",
+    "X-MedCode-Write-Delivery-Limits": "eyJjaHVua191dGYxNl91bml0cyI6NDAwMCwiY2h1bmtfanNvbl91dGY4X2J5dGVzIjozMjc2OCwiY2h1bmtfY291bnQiOjI1NiwicGF5bG9hZF91dGY4X2J5dGVzIjoxMDQ4NTc2LCJhcmd1bWVudHNfdXRmOF9ieXRlcyI6ODM4ODYwOCwicmVzcG9uc2VfYm9keV9ieXRlcyI6MTI1ODI5MTJ9",
+    "X-MedCode-Client-Session-Id": "ses-contract-example",
+    "X-MedCode-Client-Turn-Id": "turn-contract-example"
+  },
+  "sdk_registered_tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "write",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "filePath",
+            "content"
+          ],
+          "properties": {
+            "filePath": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string",
+              "maxLength": 12000
+            },
+            "mode": {
+              "enum": [
+                "overwrite",
+                "append"
+              ]
+            },
+            "chunk": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "write_delivery_v1",
+        "description": "Local SDK receiver only; excluded from activeTools and every ordinary HTTP tools array.",
+        "parameters": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$comment": "R2 draft only; not a deployed contract. Byte limits, UTF-16 limits and cross-field checks are mandatory outside JSON Schema.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "delivery_id",
+            "original_tool_call_id",
+            "original_tool_name",
+            "original_arguments",
+            "operation",
+            "payload_utf8_bytes",
+            "payload_sha256",
+            "transport_chunk_count",
+            "chunks"
+          ],
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "delivery_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "original_tool_call_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "original_tool_name": {
+              "const": "write"
+            },
+            "original_arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "filePath"
+              ],
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 32768
+                },
+                "mode": {
+                  "enum": [
+                    "overwrite",
+                    "append"
+                  ]
+                },
+                "chunk": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "index"
+                  ],
+                  "properties": {
+                    "index": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2147483647
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              }
+            },
+            "operation": {
+              "enum": [
+                "overwrite",
+                "append"
+              ]
+            },
+            "payload_utf8_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1048576
+            },
+            "payload_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "transport_chunk_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "chunks": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "transport_chunk_index",
+                  "offset_bytes",
+                  "content"
+                ],
+                "properties": {
+                  "transport_chunk_index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  },
+                  "offset_bytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1048576
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "sdk_active_tools": [
+    "write"
+  ],
+  "request_body": {
+    "model": "goldencode",
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Synthetic file delivery contract example."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "write",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "filePath",
+              "content"
+            ],
+            "properties": {
+              "filePath": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string",
+                "maxLength": 12000
+              },
+              "mode": {
+                "enum": [
+                  "overwrite",
+                  "append"
+                ]
+              },
+              "chunk": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "index"
+                ],
+                "properties": {
+                  "index": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto"
+  },
+  "schema_registry": {
+    "version": 1,
+    "capability": "write-delivery-v1",
+    "tool_name": "write_delivery_v1",
+    "schema_file": "write-delivery-v1.parameters.schema.json",
+    "schema_sha256": "57b561afab26d73faa7f91908d35195767162fa3cc734ab547faf02b5df9fa11",
+    "limits": {
+      "chunk_utf16_units": 4000,
+      "chunk_json_utf8_bytes": 32768,
+      "chunk_count": 256,
+      "payload_utf8_bytes": 1048576,
+      "arguments_utf8_bytes": 8388608,
+      "response_body_bytes": 12582912
+    }
+  },
+  "request_context": {
+    "url": "https://goldencode.instmarket.com.au:1443/v1/chat/completions",
+    "subject_id": "subj-contract-fixture"
+  },
+  "response_context": {
+    "url": "https://goldencode.instmarket.com.au:1443/v1/chat/completions",
+    "status": 200
+  },
+  "trust_context": {
+    "origin": "https://goldencode.instmarket.com.au:1443",
+    "subject_id": "subj-contract-fixture",
+    "client_session_id": "ses-contract-example",
+    "client_turn_id": "turn-contract-example"
+  },
+  "response_headers": {
+    "Content-Type": "text/event-stream",
+    "X-Request-Id": "req-contract-example-1",
+    "X-MedCode-Accepted-Capabilities": "write-delivery-v1",
+    "X-MedCode-Accepted-Write-Delivery-Version": "1",
+    "X-MedCode-Accepted-Write-Delivery-Limits": "eyJjaHVua191dGYxNl91bml0cyI6NDAwMCwiY2h1bmtfanNvbl91dGY4X2J5dGVzIjozMjc2OCwiY2h1bmtfY291bnQiOjI1NiwicGF5bG9hZF91dGY4X2J5dGVzIjoxMDQ4NTc2LCJhcmd1bWVudHNfdXRmOF9ieXRlcyI6ODM4ODYwOCwicmVzcG9uc2VfYm9keV9ieXRlcyI6MTI1ODI5MTJ9",
+    "X-MedCode-Write-Delivery-Manifest": "eyJ2ZXJzaW9uIjoxLCJyZXF1ZXN0X2lkIjoicmVxLWNvbnRyYWN0LWV4YW1wbGUtMSIsInJlcXVlc3Rfbm9uY2UiOiJNVEl6TkRVMk56ZzVNR0ZpWTJSbFpnIiwiY2xpZW50X3Nlc3Npb25faWQiOiJzZXMtY29udHJhY3QtZXhhbXBsZSIsImNsaWVudF90dXJuX2lkIjoidHVybi1jb250cmFjdC1leGFtcGxlIiwiZGVsaXZlcnlfaWQiOiJkZWxpdmVyeS1leGFtcGxlLTEiLCJ0b29sX2NhbGxfaWQiOiJjYWxsLWV4YW1wbGUtMSIsInRvb2xfbmFtZSI6IndyaXRlX2RlbGl2ZXJ5X3YxIiwiYXJndW1lbnRzX3NoYTI1NiI6IjFhMzAxYWExM2FkMDVmOTk3YzJhNTA2NjkxMjU4Mzg0OGJmYzI5YjEyYTA3Y2MwNjYyY2M1MzUwMGI4ZjUyN2UifQ"
+  },
+  "manifest": {
+    "version": 1,
+    "request_id": "req-contract-example-1",
+    "request_nonce": "MTIzNDU2Nzg5MGFiY2RlZg",
+    "client_session_id": "ses-contract-example",
+    "client_turn_id": "turn-contract-example",
+    "delivery_id": "delivery-example-1",
+    "tool_call_id": "call-example-1",
+    "tool_name": "write_delivery_v1",
+    "arguments_sha256": "1a301aa13ad05f997c2a5066912583848bfc29b12a07cc0662cc53500b8f527e"
+  },
+  "envelope": {
+    "version": 1,
+    "delivery_id": "delivery-example-1",
+    "original_tool_call_id": "call-example-1",
+    "original_tool_name": "write",
+    "original_arguments": {
+      "filePath": "C:/workspace/example.txt"
+    },
+    "operation": "overwrite",
+    "payload_utf8_bytes": 3,
+    "payload_sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "transport_chunk_count": 2,
+    "chunks": [
+      {
+        "transport_chunk_index": 0,
+        "offset_bytes": 0,
+        "content": "ab"
+      },
+      {
+        "transport_chunk_index": 1,
+        "offset_bytes": 2,
+        "content": "c"
+      }
+    ]
+  },
+  "arguments_string": "{\"version\":1,\"delivery_id\":\"delivery-example-1\",\"original_tool_call_id\":\"call-example-1\",\"original_tool_name\":\"write\",\"original_arguments\":{\"filePath\":\"C:/workspace/example.txt\"},\"operation\":\"overwrite\",\"payload_utf8_bytes\":3,\"payload_sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\",\"transport_chunk_count\":2,\"chunks\":[{\"transport_chunk_index\":0,\"offset_bytes\":0,\"content\":\"ab\"},{\"transport_chunk_index\":1,\"offset_bytes\":2,\"content\":\"c\"}]}",
+  "upstream_usage_example": {
+    "prompt_tokens": 10,
+    "completion_tokens": 5,
+    "total_tokens": 15
+  }
+}

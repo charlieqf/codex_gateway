@@ -121,6 +121,23 @@ export interface GatewayImageLimitDetails {
   actual: number | null;
 }
 
+/** Non-content facts for the narrowly supported ordinary write length failure. */
+export interface ToolValidationDetails {
+  kind: "content_too_long";
+  tool_name: "write";
+  keyword: "maxLength";
+  instance_path: "/content";
+  schema_path: "#/properties/content/maxLength";
+  limit_code_points: number;
+  actual_code_points: number;
+  actual_utf16_units: number;
+  actual_utf8_bytes: number;
+  arguments_utf8_bytes: number;
+  gateway_retry_attempted: boolean;
+  remaining_budget_ms: number | null;
+  stop_reason: string;
+}
+
 export class GatewayError extends Error {
   readonly code: GatewayErrorCode;
   readonly httpStatus: number;
@@ -138,6 +155,7 @@ export class GatewayError extends Error {
   readonly supportedValues?: readonly string[];
   readonly contextWindowDetails?: GatewayContextWindowDetails;
   readonly imageLimitDetails?: GatewayImageLimitDetails;
+  readonly toolValidationDetails?: ToolValidationDetails;
 
   constructor(input: {
     code: GatewayErrorCode;
@@ -157,6 +175,7 @@ export class GatewayError extends Error {
     supportedValues?: readonly string[];
     contextWindowDetails?: GatewayContextWindowDetails;
     imageLimitDetails?: GatewayImageLimitDetails;
+    toolValidationDetails?: ToolValidationDetails;
   }) {
     super(input.message);
     this.name = "GatewayError";
@@ -176,6 +195,7 @@ export class GatewayError extends Error {
     this.supportedValues = input.supportedValues;
     this.contextWindowDetails = input.contextWindowDetails;
     this.imageLimitDetails = input.imageLimitDetails;
+    this.toolValidationDetails = input.toolValidationDetails;
   }
 }
 
