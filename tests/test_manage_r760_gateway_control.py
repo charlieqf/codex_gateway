@@ -61,6 +61,32 @@ class ManageR760GatewayControlTests(unittest.TestCase):
                 ):
                     MODULE.validate_admin_args(bad)
 
+    def test_medevidence_access_recovery_validation(self) -> None:
+        command = MODULE.RESTORE_MEDEVIDENCE_ACCESS_COMMAND
+        expected = [
+            command,
+            "subject-1",
+            "--reason",
+            "customer login recovery",
+            "--resume-entitlement",
+            "entitlement-1",
+        ]
+        self.assertEqual(MODULE.validate_admin_args(expected), (command, None))
+        self.assertEqual(
+            MODULE.recovery_check_args(expected),
+            [command, "subject-1", "--resume-entitlement", "entitlement-1"],
+        )
+        for bad in (
+            [command, "subject-1"],
+            [command, "bad subject!", "--reason", "recovery"],
+            [command, "subject-1", "--reason", ""],
+            [command, "subject-1", "--apply", "yes"],
+            [command, "subject-1", "--reason", "one", "--reason", "two"],
+        ):
+            with self.subTest(command=bad):
+                with self.assertRaises(MODULE.ManagementError):
+                    MODULE.validate_admin_args(bad)
+
     def test_user_rpm_plan_only_selects_below_minimum_reenableable_user_keys(self) -> None:
         inventory = {
             "credentials": [
@@ -132,6 +158,55 @@ class ManageR760GatewayControlTests(unittest.TestCase):
         self.assertEqual(result["authority_mode"], "r760_only")
         self.assertEqual(result["updated_credentials"], 1)
         self.assertEqual(result["post_write"]["credentials_below_minimum"], 0)
+
+    def test_medevidence_recovery_checks_then_backs_up_and_applies(self) -> None:
+        command = MODULE.RESTORE_MEDEVIDENCE_ACCESS_COMMAND
+        args = SimpleNamespace(
+            admin_args=[command, "subject-1", "--reason", "support recovery"],
+            what_if=False,
+            timeout_seconds=60,
+            backup_root="/backup",
+            r760_host="r760",
+            r760_user="root",
+            r760_ssh_key="r760-key",
+            r760_container="r760-gateway",
+            r760_port=7723,
+        )
+        order: list[str] = []
+
+        def admin(_endpoint, admin_args, **_kwargs):
+            if "--apply" in admin_args:
+                order.append("write")
+                return {"apply": True, "actions": ["subject_activated"]}
+            order.append("check")
+            return {"apply": False, "recovery": {"ready": order.count("check") > 1}}
+
+        def inspect(*_args, **_kwargs):
+            order.append("inspect")
+            return {"migration": 26, "integrity": {"quick_check": "ok", "foreign_key_violations": 0}}
+
+        with (
+            mock.patch.object(MODULE, "run_remote_admin", side_effect=admin),
+            mock.patch.object(MODULE, "install_helper", side_effect=lambda *_args, **_kwargs: order.append("install")),
+            mock.patch.object(MODULE, "run_helper_json", side_effect=inspect),
+            mock.patch.object(
+                MODULE,
+                "create_target_backup",
+                side_effect=lambda *_args, **_kwargs: order.append("backup") or {
+                    "backup_path": "/backup/r760.db",
+                    "sha256": "a" * 64,
+                    "integrity": {"quick_check": "ok", "foreign_key_violations": 0},
+                },
+            ),
+            mock.patch.object(MODULE, "remove_helper_best_effort", side_effect=lambda *_args, **_kwargs: order.append("cleanup")),
+        ):
+            result = MODULE.execute(args)
+
+        self.assertEqual(
+            order,
+            ["check", "install", "inspect", "backup", "write", "inspect", "check", "cleanup"],
+        )
+        self.assertTrue(result["post_write"]["recovery"]["ready"])
 
 
 def credential(prefix: str, rpm: int, status: str, credential_class: str, *, revoked: bool = False):

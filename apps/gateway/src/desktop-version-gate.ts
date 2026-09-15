@@ -4,8 +4,13 @@ import { markGatewayError } from "./http/observation.js";
 import { GatewayError } from "@codex-gateway/core";
 
 export const desktopVersionHeader = "x-medevidence-client-version";
+export const legacyDesktopVersionHeader = "x-medcode-client-app-version";
 
-export type DesktopVersionGateMode = "disabled" | "auth_only" | "all";
+export type DesktopVersionGateMode =
+  | "disabled"
+  | "auth_only"
+  | "medevidence_all"
+  | "all";
 
 export interface DesktopVersionGate {
   mode: DesktopVersionGateMode;
@@ -35,9 +40,14 @@ export function resolveDesktopVersionGate(
   env: NodeJS.ProcessEnv
 ): DesktopVersionGate {
   const mode = env.GATEWAY_DESKTOP_VERSION_GATE?.trim() || "disabled";
-  if (mode !== "disabled" && mode !== "auth_only" && mode !== "all") {
+  if (
+    mode !== "disabled" &&
+    mode !== "auth_only" &&
+    mode !== "medevidence_all" &&
+    mode !== "all"
+  ) {
     throw new Error(
-      "GATEWAY_DESKTOP_VERSION_GATE must be disabled, auth_only or all; the legacy enabled value is invalid."
+      "GATEWAY_DESKTOP_VERSION_GATE must be disabled, auth_only, medevidence_all or all; the legacy enabled value is invalid."
     );
   }
   if (mode === "disabled") {
@@ -47,13 +57,13 @@ export function resolveDesktopVersionGate(
   const minimumVersion = env.GATEWAY_MINIMUM_DESKTOP_VERSION?.trim() ?? "";
   if (!parseStrictSemVer(minimumVersion)) {
     throw new Error(
-      "GATEWAY_MINIMUM_DESKTOP_VERSION must be a strict SemVer when the Desktop version gate is auth_only or all."
+      "GATEWAY_MINIMUM_DESKTOP_VERSION must be a strict SemVer when the Desktop version gate is auth_only, medevidence_all or all."
     );
   }
   const downloadUrl = env.GATEWAY_DESKTOP_DOWNLOAD_URL?.trim() ?? "";
   if (!isAbsoluteHttpsUrl(downloadUrl)) {
     throw new Error(
-      "GATEWAY_DESKTOP_DOWNLOAD_URL must be an absolute HTTPS URL when the Desktop version gate is auth_only or all."
+      "GATEWAY_DESKTOP_DOWNLOAD_URL must be an absolute HTTPS URL when the Desktop version gate is auth_only, medevidence_all or all."
     );
   }
   return { mode, minimumVersion, downloadUrl };
@@ -63,9 +73,13 @@ export function assertPhoneAuthVersionGateCompatibility(
   phoneAuthMode: PhoneAuthMode,
   versionGateMode: DesktopVersionGateMode
 ): void {
-  if (phoneAuthMode === "transition" && versionGateMode !== "auth_only") {
+  if (
+    phoneAuthMode === "transition" &&
+    versionGateMode !== "auth_only" &&
+    versionGateMode !== "medevidence_all"
+  ) {
     throw new Error(
-      "Phone auth transition mode requires GATEWAY_DESKTOP_VERSION_GATE=auth_only."
+      "Phone auth transition mode requires GATEWAY_DESKTOP_VERSION_GATE=auth_only or medevidence_all."
     );
   }
 }
@@ -73,16 +87,31 @@ export function assertPhoneAuthVersionGateCompatibility(
 export function desktopVersionGateError(
   request: FastifyRequest,
   gate: DesktopVersionGate,
-  credentialClass?: CredentialClass
+  credentialClass?: CredentialClass,
+  knownMedevidenceSubject = false
 ): GatewayError | null {
+  const phoneSessionRoute = isPhoneSessionRoute(request.method, request.url);
+  const explicitMedevidenceVersion = readHeader(
+    request,
+    desktopVersionHeader
+  );
   if (
     !shouldGateDesktopRoute(gate.mode, request.method, request.url) ||
-    (gate.mode === "all" && isVersionGateExempt(credentialClass))
+    ((gate.mode === "all" || gate.mode === "medevidence_all") &&
+      isVersionGateExempt(credentialClass)) ||
+    (gate.mode === "medevidence_all" &&
+      !phoneSessionRoute &&
+      credentialClass !== "desktop" &&
+      !knownMedevidenceSubject &&
+      explicitMedevidenceVersion === null)
   ) {
     return null;
   }
-  const received = request.headers[desktopVersionHeader];
-  const version = typeof received === "string" ? received : null;
+  const version =
+    explicitMedevidenceVersion ??
+    (gate.mode === "medevidence_all"
+      ? readHeader(request, legacyDesktopVersionHeader)
+      : null);
   if (
     !version ||
     !gate.minimumVersion ||
@@ -225,6 +254,11 @@ function parseStrictSemVer(value: string): ParsedSemVer | null {
 
 function isVersionGateExempt(value: CredentialClass | undefined): boolean {
   return value === "service" || value === "operator";
+}
+
+function readHeader(request: FastifyRequest, name: string): string | null {
+  const value = request.headers[name];
+  return typeof value === "string" ? value : null;
 }
 
 function isVisionAssetOperation(method: string, path: string): boolean {

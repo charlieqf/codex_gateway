@@ -11,8 +11,15 @@ import yaml
 
 rev = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', rev)
-assert len(sys.argv)==2 or sys.argv[2:]==['--restart-with-active-requests']
-restart_with_active_requests = len(sys.argv)==3
+arguments=set(sys.argv[2:])
+assert len(arguments)==len(sys.argv[2:]) and arguments <= {'--restart-with-active-requests','--medevidence-min-beta76'}
+restart_with_active_requests = '--restart-with-active-requests' in arguments
+activate_medevidence_minimum = '--medevidence-min-beta76' in arguments
+flags = ({
+    'GATEWAY_DESKTOP_VERSION_GATE':'medevidence_all',
+    'GATEWAY_MINIMUM_DESKTOP_VERSION':'2.0.0-beta.76',
+    'GATEWAY_DESKTOP_DOWNLOAD_URL':'https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe',
+} if activate_medevidence_minimum else {})
 root = pathlib.Path('/opt/codex-gateway-r760')
 release = root/'releases'/rev
 backup = root/'backups'/('phone-signup-'+rev[:12])
@@ -48,6 +55,9 @@ def readonly(path):
 meta=inspect(container)
 assert meta['Id']==state['old_container_id'] and str((root/'current').resolve())==state['old_current']
 assert env_sha(meta)==state['env_sha256']
+expected_env=dict(item.split('=',1) for item in meta['Config']['Env'])
+expected_env.update(flags)
+expected_env_sha=hashlib.sha256('\n'.join(sorted(k+'='+v for k,v in expected_env.items())).encode()).hexdigest()
 for path,digest in state['config_sha256'].items(): assert sha(path)==digest,'Configuration changed since prepare'
 for name,identity in state['others'].items(): assert inspect(name)['Id']==identity
 for name in ['compose.azure.yml','compose.research-production.yml']:
@@ -65,8 +75,17 @@ pattern=r'(?ms)^  gateway:\s*\n.*?(?=^  [A-Za-z0-9_-]+:\s*\n|^[^\s#][^\n]*:\s*\n
 match=re.search(pattern,original);assert match
 block,count=re.subn(r'(?m)^    image:.*$',lambda _: '    image: '+image,match.group())
 assert count==1
+if flags:
+    environment=yaml.safe_load(block).get('gateway',{}).get('environment',{}) or {}
+    assert not set(flags)&set(environment), 'Version-gate flags already exist in the override'
+    env_lines=''.join('      '+key+': "'+value+'"\n' for key,value in flags.items())
+    if re.search(r'(?m)^    environment:\s*$',block):
+        block=re.sub(r'(?m)^    environment:\s*$',lambda _: '    environment:\n'+env_lines.rstrip('\n'),block,count=1)
+    else:
+        block=block.rstrip('\n')+'\n    environment:\n'+env_lines
 proposed=original[:match.start()]+block+original[match.end():]
 expected=yaml.safe_load(original);expected['services']['gateway']['image']=image
+expected['services']['gateway'].setdefault('environment',{}).update(flags)
 assert yaml.safe_load(proposed)==expected
 proposed_path=backup/'proposed.override.yml';proposed_path.write_text(proposed)
 command(compose(proposed_path)+['config','--quiet'])
@@ -82,6 +101,7 @@ for item in effective['services']['gateway'].get('secrets',[]):
         destination.parent.mkdir(mode=0o700,exist_ok=True);destination.symlink_to(source.resolve())
     assert destination.resolve()==source.resolve()
 assert effective['services']['gateway']['image']==image
+for key,value in flags.items(): assert effective['services']['gateway']['environment'][key]==value
 dbpath=pathlib.Path(mounts['/var/lib/codex-gateway'])/'gateway.db'
 with readonly(dbpath) as db:
     assert db.execute('SELECT MAX(version) FROM schema_migrations').fetchone()[0]==30
@@ -114,17 +134,20 @@ try:
     command(compose(override)+['up','-d','--no-deps','--no-build','--force-recreate','--wait','--wait-timeout','120','gateway'])
     current=inspect(container)
     assert current['Image']==candidate['Id'] and current['RestartCount']==0 and current['State']['Health']['Status']=='healthy'
-    assert env_sha(current)==state['env_sha256'] and current['HostConfig']['PortBindings']==meta['HostConfig']['PortBindings']
+    assert env_sha(current)==expected_env_sha and current['HostConfig']['PortBindings']==meta['HostConfig']['PortBindings']
     for name,identity in state['others'].items(): assert inspect(name)['Id']==identity
     with urllib.request.urlopen('https://goldencode.instmarket.com.au:1443/gateway/health',timeout=20) as response:
         assert json.load(response)['state']=='ready'
     point('previous',state['old_current']);point('current',str(release))
     state.update(deployed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),gateway_started_at=current['State']['StartedAt'],
-        gateway_container_id=current['Id'],expected_env_sha256=state['env_sha256'],
+        gateway_container_id=current['Id'],expected_env_sha256=expected_env_sha,
+        medevidence_minimum_version_flags=flags,
         expected_config_sha256={**state['config_sha256'],str(override):sha(override)},other_containers_unchanged=True)
     write_state();changed=False
     emit(event='activated',revision=rev,image_id=current['Image'],health='healthy',restarts=0,
-        other_containers_unchanged=True,environment_unchanged=True,backup=str(backup),deployed_at=state['deployed_at'])
+        other_containers_unchanged=True,environment_unchanged=not flags,
+        medevidence_minimum_version='2.0.0-beta.76' if flags else None,
+        backup=str(backup),deployed_at=state['deployed_at'])
 finally:
     if changed:
         shutil.copyfile(backup/override.name,override)

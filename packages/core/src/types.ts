@@ -164,6 +164,7 @@ export type AdminAuditAction =
   | "real-user-issue"
   | "disable-user"
   | "enable-user"
+  | "restore-medevidence-access"
   | "prune-events"
   | "quota-reset"
   | "token-overrun"

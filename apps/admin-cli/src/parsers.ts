@@ -30,6 +30,7 @@ const adminAuditActions = new Set<AdminAuditAction>([
   "update-user",
   "disable-user",
   "enable-user",
+  "restore-medevidence-access",
   "prune-events",
   "quota-reset",
   "token-overrun",

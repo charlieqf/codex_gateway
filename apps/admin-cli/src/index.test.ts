@@ -5,6 +5,10 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  issueAccessCredential,
+  issueUnifiedClientKey
+} from "@codex-gateway/core";
+import {
   createSqliteClientEventsStore,
   createSqliteStore
 } from "@codex-gateway/store-sqlite";
@@ -20,6 +24,145 @@ afterEach(() => {
 });
 
 describe("codex-gateway-admin user API key operations", () => {
+  it("checks and restores an existing MedEvidence access bundle", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-recovery-"));
+    cleanupDirs.push(dir);
+    const dbPath = path.join(dir, "gateway.db");
+    const subjectId = "subject-recovery";
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 86_400_000 * 365);
+    const store = createSqliteStore({ path: dbPath });
+    let entitlementId = "";
+    try {
+      store.upsertSubject({
+        id: subjectId,
+        label: "Recovery fixture",
+        state: "disabled",
+        createdAt: now
+      });
+      const credential = issueAccessCredential({
+        subjectId,
+        label: "Desktop",
+        scope: "code",
+        expiresAt,
+        credentialClass: "desktop",
+        allowedPublicModels: ["goldencode"],
+        knownPublicModelIds: ["goldencode"],
+        now
+      });
+      store.insertAccessCredential(credential.record);
+      const unified = issueUnifiedClientKey({
+        subjectId,
+        label: "Desktop unified",
+        expiresAt,
+        codexCredentialId: credential.record.id,
+        codexCredentialPrefix: credential.record.prefix,
+        codexKeyCiphertext: "encrypted-codex-key",
+        medevidenceKeyCiphertext: "encrypted-medevidence-key",
+        medevidenceKeyPrefix: "medevidence-fixture",
+        tokenCiphertext: "encrypted-unified-key",
+        credentialClass: "desktop",
+        isCurrent: true,
+        now
+      });
+      store.insertUnifiedClientKey(unified.record);
+      store.database.prepare(
+        `INSERT INTO phone_auth_identities (
+          phone_hash, phone_ciphertext, subject_id, unified_key_id, state,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'disabled', ?, ?)`
+      ).run(
+        "hmac-sha256:recovery-fixture",
+        "encrypted-phone",
+        subjectId,
+        unified.record.id,
+        now.toISOString(),
+        now.toISOString()
+      );
+      store.createPlan({
+        id: "plan_recovery_fixture",
+        displayName: "Recovery fixture",
+        scopeAllowlist: ["code"],
+        policy: {
+          tokensPerMinute: 1_000_000,
+          tokensPerDay: null,
+          tokensPerMonth: null,
+          tokensTotal: null,
+          maxPromptTokensPerRequest: null,
+          maxTotalTokensPerRequest: null,
+          reserveTokensPerRequest: 0,
+          missingUsageCharge: "none"
+        },
+        now
+      });
+      const entitlement = store.grantEntitlement({
+        subjectId,
+        planId: "plan_recovery_fixture",
+        periodKind: "unlimited",
+        now
+      });
+      entitlementId = entitlement.id;
+      store.pauseEntitlement({ id: entitlement.id, reason: "fixture", now });
+    } finally {
+      store.close();
+    }
+
+    const checked = runCli(dbPath, [
+      "restore-medevidence-access",
+      subjectId,
+      "--resume-entitlement",
+      entitlementId
+    ]) as {
+      apply: boolean;
+      recovery: { restorable: boolean; proposed_actions: string[] };
+    };
+    expect(checked.apply).toBe(false);
+    expect(checked.recovery.restorable).toBe(true);
+    expect(checked.recovery.proposed_actions).toEqual([
+      "subject_activated",
+      "phone_identity_activated",
+      "entitlement_resumed"
+    ]);
+
+    const restored = runCli(dbPath, [
+      "restore-medevidence-access",
+      subjectId,
+      "--resume-entitlement",
+      entitlementId,
+      "--reason",
+      "support recovery fixture",
+      "--apply"
+    ]) as {
+      apply: boolean;
+      actions: string[];
+      after: { ready: boolean };
+    };
+    expect(restored.apply).toBe(true);
+    expect(restored.actions).toEqual([
+      "subject_activated",
+      "phone_identity_activated",
+      "entitlement_resumed"
+    ]);
+    expect(restored.after.ready).toBe(true);
+
+    const audit = runCli(dbPath, [
+      "audit",
+      "--action",
+      "restore-medevidence-access",
+      "--status",
+      "ok",
+      "--limit",
+      "1"
+    ]) as { events: Array<{ target_user_id: string; params: object }> };
+    expect(audit.events[0]).toMatchObject({
+      target_user_id: subjectId,
+      params: {
+        reason: "support recovery fixture",
+        resume_entitlement_id: entitlementId
+      }
+    });
+  }, 40_000);
+
   it("raises only eligible user credentials below an RPM minimum", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "codex-gateway-admin-user-rpm-"));
     cleanupDirs.push(dir);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -1206,6 +1207,135 @@ program
   });
 
 program
+  .command("restore-medevidence-access")
+  .argument("<user>")
+  .description(
+    "Check or restore an existing MedEvidence user's subject, phone identity, and paused entitlement."
+  )
+  .option("--apply", "apply the proposed recovery after validation")
+  .option(
+    "--resume-entitlement <id>",
+    "resume this existing paused entitlement; never creates a new grant"
+  )
+  .option("--reason <text>", "required operator reason when --apply is used")
+  .action(
+    (
+      user: string,
+      options: {
+        apply?: boolean;
+        resumeEntitlement?: string;
+        reason?: string;
+      }
+    ) => {
+      const reason = normalizeOptionalText(options.reason);
+      if (!options.apply) {
+        withStore((store) => {
+          printJson({
+            apply: false,
+            recovery: medevidenceAccessRecoverySnapshot(
+              store,
+              user,
+              options.resumeEntitlement,
+              new Date()
+            )
+          });
+        });
+        return;
+      }
+      if (!reason) {
+        throw new Error("--reason is required with --apply.");
+      }
+
+      withAuditedStore(
+        {
+          action: "restore-medevidence-access",
+          targetUserId: user,
+          params: {
+            reason,
+            resume_entitlement_id: options.resumeEntitlement ?? null
+          }
+        },
+        (store) => {
+          const now = new Date();
+          const before = medevidenceAccessRecoverySnapshot(
+            store,
+            user,
+            options.resumeEntitlement,
+            now
+          );
+          if (!before.restorable) {
+            throw new Error(
+              `MedEvidence access is not safely restorable: ${before.blockers.join(", ")}`
+            );
+          }
+          if (
+            before.active_chat_entitlement_ids.length === 0 &&
+            !options.resumeEntitlement
+          ) {
+            throw new Error(
+              "No active chat entitlement exists; select an existing paused entitlement with --resume-entitlement."
+            );
+          }
+
+          const actions: string[] = [];
+          if (before.subject_state === "disabled") {
+            store.setSubjectState(user, "active");
+            actions.push("subject_activated");
+          }
+          if (before.phone_identity_state === "disabled") {
+            const identity = store.getPhoneAuthIdentityBySubjectId(user);
+            if (!identity) {
+              throw new Error("Phone identity disappeared during recovery.");
+            }
+            store.setPhoneAuthIdentityState(identity.phoneHash, "active", {
+              requestId: `ops_restore_${randomUUID().replaceAll("-", "")}`,
+              action: "identity_state",
+              phoneHash: identity.phoneHash,
+              subjectId: user,
+              sessionId: null,
+              authMethod: null,
+              outcome: "ok",
+              reasonCode: "support_restore",
+              now
+            });
+            actions.push("phone_identity_activated");
+          }
+          if (options.resumeEntitlement) {
+            store.resumeEntitlement({
+              id: options.resumeEntitlement,
+              reason,
+              now
+            });
+            actions.push("entitlement_resumed");
+          }
+
+          const after = medevidenceAccessRecoverySnapshot(
+            store,
+            user,
+            undefined,
+            now
+          );
+          if (!after.ready) {
+            throw new Error(
+              `MedEvidence access recovery did not reach ready state: ${after.blockers.join(", ")}`
+            );
+          }
+          return {
+            output: { apply: true, actions, before, after },
+            audit: {
+              params: {
+                reason,
+                resume_entitlement_id: options.resumeEntitlement ?? null,
+                actions
+              }
+            }
+          };
+        }
+      );
+    }
+  );
+
+program
   .command("events")
   .description("List recorded request events.")
   .option("--request-id <id>", "filter by Gateway request id")
@@ -1817,6 +1947,129 @@ function withStore<T>(fn: (store: ReturnType<typeof createSqliteStore>) => T): T
   } finally {
     store.close();
   }
+}
+
+interface MedevidenceAccessRecoverySnapshot {
+  subject_id: string;
+  subject_state: SubjectState | "missing";
+  phone_identity_state: "active" | "disabled" | "missing";
+  current_key_healthy: boolean;
+  active_chat_entitlement_ids: string[];
+  paused_chat_entitlement_ids: string[];
+  selected_resume_entitlement_id: string | null;
+  proposed_actions: string[];
+  blockers: string[];
+  restorable: boolean;
+  ready: boolean;
+}
+
+function medevidenceAccessRecoverySnapshot(
+  store: ReturnType<typeof createSqliteStore>,
+  subjectId: string,
+  resumeEntitlementId: string | undefined,
+  now: Date
+): MedevidenceAccessRecoverySnapshot {
+  const blockers: string[] = [];
+  const proposedActions: string[] = [];
+  const subject = store.getSubject(subjectId);
+  if (!subject) {
+    blockers.push("subject_missing");
+  } else if (subject.state === "archived") {
+    blockers.push("subject_archived");
+  } else if (subject.state === "disabled") {
+    proposedActions.push("subject_activated");
+  }
+
+  const identity = store.getPhoneAuthIdentityBySubjectId(subjectId);
+  if (!identity) {
+    blockers.push("phone_identity_missing");
+  } else if (identity.state === "disabled") {
+    proposedActions.push("phone_identity_activated");
+  }
+
+  const unifiedKey = identity
+    ? store.getPhoneAuthUnifiedKey(identity.unifiedKeyId)
+    : null;
+  const backingCredential = unifiedKey
+    ? store.getAccessCredentialByPrefix(unifiedKey.codexCredentialPrefix)
+    : null;
+  const currentKeyHealthy = Boolean(
+    subject &&
+      identity &&
+      unifiedKey &&
+      backingCredential &&
+      unifiedKey.subjectId === subjectId &&
+      unifiedKey.isCurrent === true &&
+      unifiedKey.credentialClass === "desktop" &&
+      unifiedKey.revokedAt === null &&
+      unifiedKey.expiresAt.getTime() > now.getTime() &&
+      Boolean(unifiedKey.tokenCiphertext) &&
+      backingCredential.id === unifiedKey.codexCredentialId &&
+      backingCredential.subjectId === subjectId &&
+      backingCredential.credentialClass === "desktop" &&
+      backingCredential.revokedAt === null &&
+      backingCredential.expiresAt.getTime() > now.getTime() &&
+      (backingCredential.allowedPublicModels === null ||
+        backingCredential.allowedPublicModels.includes("goldencode"))
+  );
+  if (!currentKeyHealthy) {
+    blockers.push("current_desktop_key_unhealthy");
+  }
+
+  const chatEntitlements = store
+    .listEntitlements({ subjectId })
+    .filter(
+      (entitlement) =>
+        entitlement.scopeAllowlist.includes("code") &&
+        entitlement.featurePolicySnapshot.capabilities.includes("chat") &&
+        entitlement.periodStart.getTime() <= now.getTime() &&
+        (entitlement.periodEnd === null ||
+          entitlement.periodEnd.getTime() > now.getTime())
+    );
+  const activeChatEntitlementIds = chatEntitlements
+    .filter((entitlement) => entitlement.state === "active")
+    .map((entitlement) => entitlement.id)
+    .sort();
+  const pausedChatEntitlementIds = chatEntitlements
+    .filter((entitlement) => entitlement.state === "paused")
+    .map((entitlement) => entitlement.id)
+    .sort();
+
+  if (resumeEntitlementId) {
+    if (!pausedChatEntitlementIds.includes(resumeEntitlementId)) {
+      blockers.push("selected_entitlement_not_resumable");
+    } else {
+      proposedActions.push("entitlement_resumed");
+    }
+  } else if (activeChatEntitlementIds.length === 0) {
+    blockers.push(
+      pausedChatEntitlementIds.length > 0
+        ? "paused_entitlement_requires_explicit_selection"
+        : "active_chat_entitlement_missing"
+    );
+  }
+
+  const restorable = blockers.every(
+    (blocker) => blocker === "paused_entitlement_requires_explicit_selection"
+  );
+  const ready =
+    subject?.state === "active" &&
+    identity?.state === "active" &&
+    currentKeyHealthy &&
+    activeChatEntitlementIds.length > 0;
+  return {
+    subject_id: subjectId,
+    subject_state: subject?.state ?? "missing",
+    phone_identity_state: identity?.state ?? "missing",
+    current_key_healthy: currentKeyHealthy,
+    active_chat_entitlement_ids: activeChatEntitlementIds,
+    paused_chat_entitlement_ids: pausedChatEntitlementIds,
+    selected_resume_entitlement_id: resumeEntitlementId ?? null,
+    proposed_actions: proposedActions,
+    blockers,
+    restorable,
+    ready
+  };
 }
 
 async function withStoreAsync<T>(
