@@ -285,6 +285,9 @@ export function loadResearchWorkerConfig(
     );
   }
   const serpApiEngineValue = optionalString(env.RESEARCH_SERPAPI_ENGINE);
+  const braveSearchProxyUrl = optionalString(
+    env.RESEARCH_BRAVE_SEARCH_PROXY_URL
+  );
   let serpApiEngine: "google" | "baidu" | undefined;
   if (webProvider === "serpapi") {
     if (
@@ -300,6 +303,18 @@ export function loadResearchWorkerConfig(
     throw new Error(
       "RESEARCH_SERPAPI_ENGINE is supported only when RESEARCH_WEB_SEARCH_PROVIDER=serpapi."
     );
+  }
+  if (braveSearchProxyUrl) {
+    if (webProvider !== "brave") {
+      throw new Error(
+        "RESEARCH_BRAVE_SEARCH_PROXY_URL is supported only when RESEARCH_WEB_SEARCH_PROVIDER=brave."
+      );
+    }
+    if (braveSearchProxyUrl !== "http://mihomo:7890") {
+      throw new Error(
+        "RESEARCH_BRAVE_SEARCH_PROXY_URL must use the private Mihomo endpoint."
+      );
+    }
   }
   const webSearchApiKeyFile = optionalString(
     env.RESEARCH_WEB_SEARCH_API_KEY_FILE
@@ -687,6 +702,7 @@ export function loadResearchWorkerConfig(
         ...(webProvider === "serpapi"
           ? { serpApiEngine }
           : {}),
+        ...(braveSearchProxyUrl ? { braveSearchProxyUrl } : {}),
         allowedDomains,
         maximumResults: maximumOfficialResults
       },

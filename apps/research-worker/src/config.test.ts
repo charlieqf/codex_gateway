@@ -320,6 +320,33 @@ describe("Research Worker fail-closed configuration", () => {
     ).toThrow("RESEARCH_SERPAPI_ENGINE is supported only");
   });
 
+  it("allows only the private Mihomo endpoint for Brave search", () => {
+    const config = loadResearchWorkerConfig({
+      ...validEnvironment(),
+      RESEARCH_BRAVE_SEARCH_PROXY_URL: "http://mihomo:7890"
+    });
+    expect(config?.adapterOptions.officialWeb).toMatchObject({
+      provider: "brave",
+      braveSearchProxyUrl: "http://mihomo:7890"
+    });
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_BRAVE_SEARCH_PROXY_URL: "http://public-proxy.example:8080"
+      })
+    ).toThrow("must use the private Mihomo endpoint");
+
+    expect(() =>
+      loadResearchWorkerConfig({
+        ...validEnvironment(),
+        RESEARCH_WEB_SEARCH_PROVIDER: "serpapi",
+        RESEARCH_SERPAPI_ENGINE: "google",
+        RESEARCH_BRAVE_SEARCH_PROXY_URL: "http://mihomo:7890"
+      })
+    ).toThrow("supported only when RESEARCH_WEB_SEARCH_PROVIDER=brave");
+  });
+
   it("supports a credential-free disabled ORCID mode for runs that omit ORCID", () => {
     const config = loadResearchWorkerConfig({
       ...validEnvironment(),

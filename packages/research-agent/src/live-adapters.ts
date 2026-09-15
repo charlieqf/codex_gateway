@@ -39,6 +39,7 @@ export interface LiveResearchAdapterOptions {
     provider: "brave" | "serpapi" | "direct";
     apiKey?: string;
     serpApiEngine?: "google" | "baidu";
+    braveSearchProxyUrl?: string;
     allowedDomains: readonly string[];
     maximumResults?: number;
   };
@@ -81,6 +82,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
   private readonly maximumOfficialResults: number;
   private readonly fetchImpl?: typeof fetch;
   private readonly approvedDocumentFetch: typeof fetchApprovedWebDocument;
+  private readonly braveSearchProxy: URL | undefined;
   private nextNcbiRequestAt = 0;
   private institutionHost: string | undefined;
   private readonly identityNavigationLinks = new Map<string, { url: string; text: string }>();
@@ -195,6 +197,12 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     this.fetchImpl = options.fetchImpl;
     this.approvedDocumentFetch =
       options.approvedDocumentFetchImpl ?? fetchApprovedWebDocument;
+    if (options.officialWeb.braveSearchProxyUrl) {
+      if (options.officialWeb.provider !== "brave") {
+        throw new Error("Brave search proxy is supported only for the Brave provider.");
+      }
+      this.braveSearchProxy = new URL(options.officialWeb.braveSearchProxyUrl);
+    }
   }
 
   async assertAvailable(signal: AbortSignal): Promise<void> {
@@ -1075,7 +1083,10 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
             "user-agent": this.options.userAgent,
             ...headers
           },
-          fetchImpl: this.fetchImpl
+          fetchImpl: this.fetchImpl,
+          ...(url.hostname === "api.search.brave.com" && this.braveSearchProxy
+            ? { httpConnectProxy: this.braveSearchProxy }
+            : {})
         });
         if (validateValue && !validateValue(response.value)) {
           throw new ResearchExternalServiceError("invalid_payload");

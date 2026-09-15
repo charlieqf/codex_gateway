@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { request as httpsRequest } from "node:https";
+import { request as httpRequest } from "node:http";
+import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
+import { connect as tlsConnect } from "node:tls";
 
 export interface BoundedJsonResponse<T> {
   statusCode: number;
@@ -70,6 +72,7 @@ export async function fetchBoundedJson<T>(input: {
   method?: "GET" | "POST";
   body?: string;
   fetchImpl?: typeof fetch;
+  httpConnectProxy?: URL;
 }): Promise<BoundedJsonResponse<T>> {
   validateHttpLimit(input.timeoutMs, "timeoutMs");
   validateHttpLimit(input.maximumBytes, "maximumBytes");
@@ -80,6 +83,48 @@ export async function fetchBoundedJson<T>(input: {
     input.signal,
     AbortSignal.timeout(input.timeoutMs)
   ]);
+  if (input.httpConnectProxy && input.fetchImpl) {
+    throw new Error("A custom fetch implementation and HTTP CONNECT proxy cannot be combined.");
+  }
+  if (input.httpConnectProxy) {
+    const response = await requestJsonViaHttpConnectProxy({
+      url: input.url,
+      proxy: input.httpConnectProxy,
+      signal,
+      timeoutMs: input.timeoutMs,
+      maximumBytes: input.maximumBytes,
+      headers: {
+        accept: "application/json",
+        "accept-encoding": "identity",
+        ...input.headers
+      },
+      method: input.method ?? "GET",
+      body: input.body
+    });
+    const retryAfterSeconds = parseRetryAfter(response.headers["retry-after"]);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new ResearchHttpError(response.statusCode, retryAfterSeconds);
+    }
+    const contentEncoding = String(
+      response.headers["content-encoding"] ?? "identity"
+    ).trim().toLowerCase();
+    if (contentEncoding !== "" && contentEncoding !== "identity") {
+      throw new ResearchExternalServiceError("invalid_payload");
+    }
+    let value: T;
+    try {
+      value = JSON.parse(response.bytes.toString("utf8")) as T;
+    } catch {
+      throw new ResearchExternalServiceError("invalid_payload");
+    }
+    return {
+      statusCode: response.statusCode,
+      value,
+      bytes: response.bytes,
+      contentSha256: createHash("sha256").update(response.bytes).digest("hex"),
+      retryAfterSeconds
+    };
+  }
   const response = await (input.fetchImpl ?? fetch)(input.url, {
     method: input.method ?? "GET",
     headers: {
@@ -109,6 +154,148 @@ export async function fetchBoundedJson<T>(input: {
     contentSha256: createHash("sha256").update(bytes).digest("hex"),
     retryAfterSeconds
   };
+}
+
+async function requestJsonViaHttpConnectProxy(input: {
+  url: URL;
+  proxy: URL;
+  signal: AbortSignal;
+  timeoutMs: number;
+  maximumBytes: number;
+  headers: Readonly<Record<string, string>>;
+  method: "GET" | "POST";
+  body?: string;
+}): Promise<ApprovedWebPinnedResponse> {
+  validateHttpConnectProxy(input.proxy);
+  const targetPort = input.url.port || "443";
+  const targetAuthority = `${input.url.hostname}:${targetPort}`;
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (value: ApprovedWebPinnedResponse) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    const connectRequest = httpRequest({
+      protocol: "http:",
+      hostname: input.proxy.hostname,
+      port: input.proxy.port || "80",
+      method: "CONNECT",
+      path: targetAuthority,
+      headers: { host: targetAuthority },
+      signal: input.signal
+    });
+    connectRequest.setTimeout(input.timeoutMs, () => {
+      connectRequest.destroy(new Error("HTTP CONNECT proxy timed out."));
+    });
+    connectRequest.once("connect", (response, socket, head) => {
+      if (response.statusCode !== 200) {
+        socket.destroy();
+        fail(new ResearchExternalServiceError("transport"));
+        return;
+      }
+      if (head.length > 0) socket.unshift(head);
+      const tlsSocket = tlsConnect({
+        socket,
+        servername: input.url.hostname,
+        ALPNProtocols: ["http/1.1"]
+      });
+      const abortTlsHandshake = () => {
+        tlsSocket.destroy(
+          input.signal.reason instanceof Error
+            ? input.signal.reason
+            : new DOMException("The operation was aborted.", "AbortError")
+        );
+      };
+      if (input.signal.aborted) abortTlsHandshake();
+      else input.signal.addEventListener("abort", abortTlsHandshake, { once: true });
+      tlsSocket.once("secureConnect", () => {
+        input.signal.removeEventListener("abort", abortTlsHandshake);
+        const agent = new HttpsAgent({ keepAlive: false });
+        agent.createConnection = (_options, callback) => {
+          callback?.(null, tlsSocket);
+          return tlsSocket;
+        };
+        const body = input.body ?? "";
+        const headers: Record<string, string> = {
+          ...input.headers,
+          connection: "close",
+          host: input.url.host
+        };
+        if (body) headers["content-length"] = String(Buffer.byteLength(body));
+        const upstreamRequest = httpsRequest(
+          {
+            protocol: "https:",
+            hostname: input.url.hostname,
+            port: targetPort,
+            path: `${input.url.pathname}${input.url.search}`,
+            method: input.method,
+            headers,
+            agent,
+            signal: input.signal
+          },
+          (upstreamResponse) => {
+            const chunks: Buffer[] = [];
+            let size = 0;
+            upstreamResponse.on("data", (chunk: Buffer | string) => {
+              const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+              size += bytes.length;
+              if (size > input.maximumBytes) {
+                upstreamResponse.destroy(
+                  new Error("External service response exceeded the byte limit.")
+                );
+                return;
+              }
+              chunks.push(bytes);
+            });
+            upstreamResponse.once("end", () => {
+              agent.destroy();
+              finish({
+                statusCode: upstreamResponse.statusCode ?? 0,
+                headers: upstreamResponse.headers,
+                bytes: Buffer.concat(chunks, size)
+              });
+            });
+            upstreamResponse.once("error", (error) => {
+              agent.destroy();
+              fail(error);
+            });
+          }
+        );
+        upstreamRequest.setTimeout(input.timeoutMs, () => {
+          upstreamRequest.destroy(new Error("External service request timed out."));
+        });
+        upstreamRequest.once("error", (error) => {
+          agent.destroy();
+          fail(error);
+        });
+        if (body) upstreamRequest.write(body);
+        upstreamRequest.end();
+      });
+      tlsSocket.once("error", fail);
+    });
+    connectRequest.once("error", fail);
+    connectRequest.end();
+  });
+}
+
+function validateHttpConnectProxy(proxy: URL): void {
+  if (
+    proxy.protocol !== "http:" ||
+    proxy.username !== "" ||
+    proxy.password !== "" ||
+    proxy.pathname !== "/" ||
+    proxy.search !== "" ||
+    proxy.hash !== "" ||
+    !proxy.hostname
+  ) {
+    throw new Error("HTTP CONNECT proxy URL is invalid.");
+  }
 }
 
 export async function fetchBoundedText(input: {

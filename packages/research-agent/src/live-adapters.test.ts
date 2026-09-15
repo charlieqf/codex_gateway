@@ -1,7 +1,9 @@
+import { createServer } from "node:http";
 import { describe, expect, it, vi } from "vitest";
 import { ResearchSourceFormatError } from "./safe-http.js";
 import {
   fetchApprovedWebDocument,
+  fetchBoundedJson,
   isPublicResearchAddress,
   LiveResearchAdapters,
   ResearchExternalServiceError,
@@ -94,6 +96,34 @@ describe("Doctor Research live first-party adapters", () => {
     expect(isPublicResearchAddress("::ffff:127.0.0.1")).toBe(false);
     expect(isPublicResearchAddress("64:ff9b::7f00:1")).toBe(false);
     expect(isPublicResearchAddress("not-an-address")).toBe(false);
+  });
+
+  it("uses an explicit HTTP CONNECT proxy for bounded JSON without proxying other adapters", async () => {
+    const targets: string[] = [];
+    const proxy = createServer();
+    proxy.on("connect", (request, socket) => {
+      targets.push(request.url ?? "");
+      socket.end("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n");
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = proxy.address();
+      if (!address || typeof address === "string") throw new Error("Missing proxy address.");
+      await expect(
+        fetchBoundedJson({
+          url: new URL("https://api.search.brave.com/res/v1/web/search?q=test"),
+          signal: new AbortController().signal,
+          timeoutMs: 1_000,
+          maximumBytes: 10_000,
+          httpConnectProxy: new URL(`http://127.0.0.1:${address.port}`)
+        })
+      ).rejects.toMatchObject({ kind: "transport" });
+      expect(targets).toEqual(["api.search.brave.com:443"]);
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        proxy.close((error) => error ? reject(error) : resolve())
+      );
+    }
   });
 
   it("pins an approved dual-stack source to IPv4 before unreachable IPv6", async () => {
