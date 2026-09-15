@@ -75,6 +75,10 @@ try {
       model: "goldencode", messages: [{ role: "user", content: "Reply only OK." }], max_tokens: 256, stream: false
     } });
     assert.ok(answer.choices?.[0]?.message?.content?.length, "Short answer missing");
+    const responses = await api("/v1/responses", { token: fixture.apiKey, body: {
+      model: "goldencode", input: "Reply only OK.", max_output_tokens: 256, stream: false
+    } });
+    assert.equal(responses.status, "completed");
     const payload = Array.from({ length: 20 }, (_, i) => `Smoke row ${i + 1}: Unicode 中文 😀 and an ordinary text file.\n`).join("");
     report.deliveries = [];
     for (const kind of ["ordinary", "S_overwrite", "S_append", "A_legacy", "A_unknown_schema"]) {
