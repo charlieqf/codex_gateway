@@ -1,4 +1,4 @@
-// Authorized R760 release smoke. Credentials remain in a root-only volume file.
+// Authorized R760 release smoke. Credentials remain in a private mode-0600 volume file.
 // This verifies Gateway transport, not the Desktop file transaction or journal.
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
@@ -137,6 +137,8 @@ try {
 } catch (error) {
   // Only literal assertions and status summaries are emitted; never response bodies.
   report.assertions = "failed"; report.error_type = error.name;
+  if (/^[A-Z0-9_]+$/.test(error.code ?? "")) report.error_code = error.code;
+  if (/^[A-Z0-9_]+$/.test(error.cause?.code ?? "")) report.cause_code = error.cause.code;
   report.error = error.code === "ERR_ASSERTION" ? error.message.split("\n")[0] : "Smoke operation failed; inspect protected diagnostics";
   process.exitCode = 1;
 }
