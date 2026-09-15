@@ -982,6 +982,37 @@ describe("ResearchSqliteStore", () => {
     store.close();
   });
 
+  it("publishes a specific monthly search quota terminal detail", () => {
+    const store = createStore(":memory:");
+    const now = new Date("2026-07-17T02:00:00Z");
+    const created = store.createRun(
+      command("subj_quota", "key-search-quota", "hash-search-quota", "fp-search-quota", now)
+    );
+    if (created.outcome !== "created") throw new Error("Expected a created run.");
+    const lease = store.acquireLease({
+      workerId: "worker-search-quota",
+      leaseSeconds: 120,
+      now
+    });
+    if (!lease) throw new Error("Expected a search-quota lease.");
+
+    expect(
+      store.failRun({
+        token: lease.token,
+        terminalReason: "search_quota_exhausted",
+        now: new Date(now.getTime() + 1_000)
+      })
+    ).toMatchObject({
+      outcome: "failed",
+      run: {
+        terminalReason: "search_quota_exhausted",
+        terminalDetailPublic:
+          "The monthly search quota has been exhausted. Research will be available again after the quota renews or the search plan is upgraded."
+      }
+    });
+    store.close();
+  });
+
   it("distinguishes cancellation from lease loss and only the current owner terminates", () => {
     const store = createStore(":memory:");
     const startedAt = new Date("2026-07-17T01:30:00Z");

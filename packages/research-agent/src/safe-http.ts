@@ -508,6 +508,13 @@ export class ResearchExternalServiceError extends Error {
   }
 }
 
+export class ResearchSearchQuotaError extends Error {
+  constructor(readonly period: "monthly" = "monthly") {
+    super("The search provider quota is exhausted.");
+    this.name = "ResearchSearchQuotaError";
+  }
+}
+
 async function requestPinnedAddress(input: {
   url: URL;
   address: string;

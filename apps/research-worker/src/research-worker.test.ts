@@ -19,6 +19,7 @@ import {
   type ResearchAdapterBundle,
   ResearchExternalServiceError,
   ResearchHttpError,
+  ResearchSearchQuotaError,
   ResearchModelClientError,
   type ResearchModelClient
 } from "@codex-gateway/research-agent";
@@ -5130,6 +5131,37 @@ describe("Research Worker controlled-beta workflow", () => {
       retryable: true,
       dependencyScope: "request",
       upstreamErrorKind: "invalid_payload"
+    });
+    fixture.store.close();
+  });
+
+  it("reports a monthly search quota failure without retrying it", async () => {
+    const fixture = createLeasedWorkflowFixture("search_quota");
+    const unavailableAdapters = adapters();
+    unavailableAdapters.searchOfficialSources = async () => {
+      throw new ResearchSearchQuotaError();
+    };
+    const outcome = await executeDoctorResearchWorkflow({
+      lease: fixture.lease,
+      store: fixture.store,
+      adapters: unavailableAdapters,
+      modelClient: {
+        model: "test-model",
+        async generate() {
+          throw new Error("Model must not run after search quota exhaustion.");
+        }
+      },
+      artifactRoot: fixture.artifactRoot,
+      policy: workflowPolicy(),
+      signal: new AbortController().signal,
+      now: () => fixture.now
+    });
+
+    expect(outcome).toEqual({
+      outcome: "failed",
+      reason: "search_quota_exhausted",
+      retryable: false,
+      dependencyScope: "service"
     });
     fixture.store.close();
   });

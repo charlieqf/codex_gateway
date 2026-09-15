@@ -396,6 +396,7 @@ export type PauseResearchForIdentityResult =
 export type ResearchFailureReason =
   | "identity_not_resolved"
   | "insufficient_research_evidence"
+  | "search_quota_exhausted"
   | "upstream_unavailable"
   | "quality_gate_failed"
   | "model_contract_error"

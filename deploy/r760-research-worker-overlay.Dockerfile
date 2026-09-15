@@ -12,6 +12,7 @@ ARG RELEASE_REVISION
 USER root
 COPY --from=verify --chown=codexgw:codexgw /app/apps/research-worker/dist /app/apps/research-worker/dist
 COPY --from=verify --chown=codexgw:codexgw /app/packages/research-agent/dist /app/packages/research-agent/dist
+COPY --from=verify --chown=codexgw:codexgw /app/packages/store-sqlite/dist /app/packages/store-sqlite/dist
 LABEL org.opencontainers.image.revision="${RELEASE_REVISION}"
-RUN chmod -R a=rX /app/apps/research-worker/dist /app/packages/research-agent/dist
+RUN chmod -R a=rX /app/apps/research-worker/dist /app/packages/research-agent/dist /app/packages/store-sqlite/dist
 USER codexgw

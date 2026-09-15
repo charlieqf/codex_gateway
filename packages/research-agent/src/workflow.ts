@@ -109,7 +109,8 @@ import {
 import {
   ResearchExternalServiceError,
   type ResearchExternalServiceErrorKind,
-  ResearchHttpError
+  ResearchHttpError,
+  ResearchSearchQuotaError
 } from "./safe-http.js";
 import {
   literatureAffiliationMatches,
@@ -632,6 +633,14 @@ export async function executeDoctorResearchWorkflow(input: {
           error.statusCode === 401 || error.statusCode === 403
             ? "service"
             : "request"
+      };
+    }
+    if (error instanceof ResearchSearchQuotaError) {
+      return {
+        outcome: "failed",
+        reason: "search_quota_exhausted",
+        retryable: false,
+        dependencyScope: "service"
       };
     }
     if (error instanceof ResearchHttpError) {
@@ -1217,7 +1226,7 @@ async function discoverAgentIdentityEvidence(context: WorkflowContext) {
     dependencies: {
       timing: () => context.investigationTiming(),
       signal,
-      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
+      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError || error instanceof ResearchSearchQuotaError,
       save: async state => {
         const result = store.writeAgentState!({
           token: context.token, stage: "discover_identity", progressPercent: 7,
@@ -2053,7 +2062,7 @@ async function collectPracticalProfile(context: WorkflowContext, identity: Resol
     language: context.run.language, ...(loaded.payload ? { restoredState: loaded.payload as PracticalProfileState } : {}),
     dependencies: {
       signal, timing: () => context.investigationTiming(),
-      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
+      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError || error instanceof ResearchSearchQuotaError,
       save: async state => {
         const saved = store.writeAgentState!({ token: context.token, stage: "collect_profile_evidence", progressPercent: 25,
           payload: state, payloadSha256: sha256(JSON.stringify(state)), now: context["now"]() });
@@ -2112,7 +2121,7 @@ async function collectAgentResearchEvidence(
     ...(loaded.payload ? { restoredState: loaded.payload as EvidenceInvestigationState } : {}),
     dependencies: {
       signal,
-      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError,
+      isFatalError: error => error instanceof WorkflowBudgetError || error instanceof WorkflowFencedError || error instanceof ResearchSearchQuotaError,
       save: saveEvidenceState,
       timing: () => context.investigationTiming(),
       searchPubMed: query => { context.chargeExternal(3); return adapters.searchPubMedCandidates

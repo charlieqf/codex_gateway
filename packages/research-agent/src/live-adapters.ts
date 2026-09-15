@@ -16,6 +16,7 @@ import {
   fetchBoundedText,
   ResearchExternalServiceError,
   ResearchHttpError,
+  ResearchSearchQuotaError,
   ResearchSourceFormatError
 } from "./safe-http.js";
 
@@ -952,6 +953,9 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       typeof response.value.error === "string" &&
       response.value.error.trim() !== ""
     ) {
+      if (isSerpApiMonthlyQuotaError(response.value.error)) {
+        throw new ResearchSearchQuotaError();
+      }
       throw new ResearchExternalServiceError("provider_error");
     }
     const status = response.value.search_metadata?.status;
@@ -1182,6 +1186,15 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
       await abortableDelay(waitMs, signal);
     }
   }
+}
+
+function isSerpApiMonthlyQuotaError(value: string): boolean {
+  const normalized = value.normalize("NFKC").toLowerCase();
+  return (
+    normalized.includes("run out of searches") ||
+    normalized.includes("monthly search quota") ||
+    normalized.includes("monthly searches have been exhausted")
+  );
 }
 
 function extractValidNcbiSearchPmids(value: unknown): readonly string[] | null {

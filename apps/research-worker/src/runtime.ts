@@ -337,6 +337,13 @@ export async function runResearchWorker(input: {
         if (workflow.outcome === "fenced_or_cancelled") {
           convergeCancellation(store, currentToken, config.leaseSeconds);
         } else if (workflow.outcome === "failed") {
+          if (workflow.reason === "search_quota_exhausted") {
+            logger.error("research_run_search_quota_exhausted", {
+              run_id: lease.run.runId,
+              lease_generation: currentToken.generation,
+              quota_period: "monthly"
+            });
+          }
           if (workflow.reason === "upstream_unavailable") {
             logger.error("research_run_upstream_failure", {
               run_id: lease.run.runId,
@@ -365,6 +372,8 @@ export async function runResearchWorker(input: {
             });
             if (failed.outcome === "fenced_or_cancelled") {
               convergeCancellation(store, currentToken, config.leaseSeconds);
+            } else if (workflow.reason === "search_quota_exhausted") {
+              stopForDependencyFailure();
             } else if (
               workflow.reason === "upstream_unavailable" &&
               workflow.dependencyScope === "service"

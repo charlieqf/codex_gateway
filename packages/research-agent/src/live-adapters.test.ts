@@ -670,9 +670,9 @@ describe("Doctor Research live first-party adapters", () => {
 
   it.each([
     { error: "Google hasn't returned any results for this query.", status: "Success", empty: true },
-    { error: "Your account has run out of searches.", status: "Success", empty: false },
-    { error: "Google hasn't returned any results for this query.", status: "Error", empty: false }
-  ])("distinguishes a successful empty search from a provider failure: $error / $status", async ({error, status, empty}) => {
+    { error: "Your account has run out of searches.", status: "Success", empty: false, quota: true },
+    { error: "Google hasn't returned any results for this query.", status: "Error", empty: false, quota: false }
+  ])("distinguishes an empty search, monthly quota, and provider failure: $error / $status", async ({error, status, empty, quota}) => {
     const adapters = new LiveResearchAdapters({
       ncbi: {}, crossref: {}, orcid: { enabled: false },
       officialWeb: { provider: "serpapi", apiKey: "test-search-key", serpApiEngine: "google", allowedDomains: ["hospital.example"] },
@@ -681,6 +681,7 @@ describe("Doctor Research live first-party adapters", () => {
     });
     const result = adapters.searchOfficialSources('"Example Doctor"', new AbortController().signal);
     if (empty) await expect(result).resolves.toEqual([]);
+    else if (quota) await expect(result).rejects.toMatchObject({ name: "ResearchSearchQuotaError", period: "monthly" });
     else await expect(result).rejects.toMatchObject({name: "ResearchExternalServiceError", kind: "provider_error"});
   });
 

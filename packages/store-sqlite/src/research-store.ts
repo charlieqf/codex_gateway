@@ -3221,6 +3221,8 @@ function failurePublicDetail(
       "The research task exhausted its search, reading, or model budget before completing verification. This does not mean the requested person could not be found.",
     insufficient_research_evidence:
       "There was not enough verified public evidence to produce the result.",
+    search_quota_exhausted:
+      "The monthly search quota has been exhausted. Research will be available again after the quota renews or the search plan is upgraded.",
     upstream_unavailable:
       "A required research source was temporarily unavailable.",
     quality_gate_failed:
