@@ -65,12 +65,16 @@ try {
       process.env.GATEWAY_BOUNDED_WRITE_SUBJECT_IDS === fixture.subjectId, "Expected single-account A/S canary configuration");
     const { responseCheck } = await import("/app/artifacts/write-delivery-contract-r3-2026-09-15/contract-checks.mjs");
     const example = JSON.parse(readFileSync("/app/artifacts/write-delivery-contract-r3-2026-09-15/success.example.json", "utf8"));
+    const allCases = ["ordinary", "S_overwrite", "S_append", "A_legacy", "A_unknown_schema"];
+    const selectedCases = process.env.BOUNDED_WRITE_SMOKE_CASES?.split(",");
+    assert.ok(!selectedCases || selectedCases.every(value => allCases.includes(value)), "Unknown smoke case");
+    if (!selectedCases) {
     assert.equal((await api("/gateway/health")).state, "ready");
     const models = await api("/v1/models", { token: fixture.apiKey });
     assert.ok(models.data.some(model => model.id === "goldencode"), "GoldenCode model missing");
     await api("/gateway/credentials/current", { token: fixture.apiKey });
     await api("/gateway/vision/capabilities", { token: fixture.apiKey });
-    await api("/v1/images/generations", { token: fixture.apiKey, status: 400, body: { model: "medcode-image-default", prompt: "" } });
+    await api("/gateway/images/generations", { token: fixture.apiKey, status: 400, body: { model: "medcode-image-default", prompt: "" } });
     const answer = await api("/v1/chat/completions", { token: fixture.apiKey, body: {
       model: "goldencode", messages: [{ role: "user", content: "Reply only OK." }], max_tokens: 256, stream: false
     } });
@@ -79,14 +83,15 @@ try {
       model: "goldencode", input: "Reply only OK.", max_output_tokens: 256, stream: false
     } });
     assert.equal(responses.status, "completed");
+    }
     const payload = Array.from({ length: 20 }, (_, i) => `Smoke row ${i + 1}: Unicode 中文 😀 and an ordinary text file.\n`).join("");
     report.deliveries = [];
-    for (const kind of ["ordinary", "S_overwrite", "S_append", "A_legacy", "A_unknown_schema"]) {
+    for (const kind of selectedCases ?? allCases) {
       const turn = randomUUID(), session = `ses-${fixture.run}`;
       const ordinary = kind === "ordinary";
       const content = ordinary ? "hello smoke" : payload;
       const schema = { type: "object", additionalProperties: false, required: ["filePath", "content"], properties: {
-        filePath: { type: "string" }, content: { type: "string", maxLength: ordinary ? 12000 : 64 }
+        filePath: { type: "string" }, content: { type: "string", maxLength: ordinary ? 12000 : 512 }
       } };
       if (kind === "S_append") { schema.properties.mode = { enum: ["append"] }; schema.required.push("mode"); }
       const headers = { ...example.request_headers,
@@ -99,7 +104,10 @@ try {
       const body = { model: "goldencode", stream: true, max_tokens: 4096,
         tools: [{ type: "function", function: { name: "write", description: "Write supplied text verbatim to a file.", parameters: schema } }],
         tool_choice: { type: "function", function: { name: "write" } },
-        messages: [{ role: "user", content: `Call write exactly once for smoke.txt. Copy the entire text below into content without summaries or omissions. ${kind === "S_append" ? 'Set mode to append.' : 'Use only filePath and content.'}\n<text>\n${content}</text>` }]
+        messages: [
+          { role: "system", content: "Use the write tool as your first and only response. Return a tool call without explanatory text. Preserve the supplied content exactly; the caller handles size validation." },
+          { role: "user", content: `Call write exactly once for smoke.txt. Copy the entire text below into content without summaries or omissions. ${kind === "S_append" ? 'Set mode to append.' : 'Use only filePath and content.'}\n<text>\n${content}</text>` }
+        ]
       };
       const started = performance.now();
       const response = await fetch(origin + "/v1/chat/completions", { method: "POST", redirect: "error", headers: {

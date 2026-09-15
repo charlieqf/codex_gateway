@@ -1,0 +1,222 @@
+{
+  "checked_at": "2026-09-15T04:36:01.957127+00:00",
+  "revision": "8f3e4b00447a5443cfc0433f991bd4047f68f2af",
+  "health": "healthy",
+  "restarts": 0,
+  "services": {
+    "codex_gateway_r760-research-worker-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-llm-gateway-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-research-maintenance-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "codex_gateway_r760-mihomo-1": {
+      "unchanged": true,
+      "health": "healthy"
+    },
+    "qwen38-fp8-local": {
+      "unchanged": true,
+      "health": "healthy"
+    }
+  },
+  "databases": {
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    },
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0
+    }
+  },
+  "existing_control_rows": {
+    "subjects": {
+      "checked": 990,
+      "changed": 0
+    },
+    "access_credentials": {
+      "checked": 999,
+      "changed": 0
+    },
+    "unified_client_keys": {
+      "checked": 500,
+      "changed": 0
+    },
+    "plans": {
+      "checked": 16,
+      "changed": 0
+    },
+    "entitlements": {
+      "checked": 673,
+      "changed": 0
+    },
+    "phone_auth_identities": {
+      "checked": 284,
+      "changed": 0
+    }
+  },
+  "bounded_write_flags": {
+    "GATEWAY_BOUNDED_WRITE_MODE": "delivery",
+    "GATEWAY_BOUNDED_WRITE_SUBJECT_IDS": "subj_NWGR8SNzAnybXZPUro0S3k3p",
+    "GATEWAY_WRITE_DELIVERY_MAX_CONCURRENT": "2"
+  },
+  "schema": 30,
+  "cleanup": {
+    "subject_id": "subj_NWGR8SNzAnybXZPUro0S3k3p",
+    "disabled": true,
+    "active_credentials": 0,
+    "unfinished_reservations": 0
+  },
+  "model_requests": [
+    {
+      "request_id": "req-6ca33fcb-f89e-47da-ada5-a61fbb9f8366",
+      "status": "ok",
+      "error_code": null,
+      "upstream_attempt_count": 1,
+      "upstream_tool_call_count": 1,
+      "upstream_tool_names_json": "[\"write\"]",
+      "total_tokens": 409,
+      "duration_ms": 4649,
+      "case": "ordinary"
+    },
+    {
+      "request_id": "req-ff4304bd-0978-44b5-8012-15a83a4d58fc",
+      "status": "ok",
+      "error_code": null,
+      "upstream_attempt_count": 1,
+      "upstream_tool_call_count": 1,
+      "upstream_tool_names_json": "[\"write\"]",
+      "total_tokens": 998,
+      "duration_ms": 9006,
+      "case": "S_overwrite"
+    },
+    {
+      "request_id": "req-99949191-22df-4546-a925-0624e46147c6",
+      "status": "ok",
+      "error_code": null,
+      "upstream_attempt_count": 1,
+      "upstream_tool_call_count": 1,
+      "upstream_tool_names_json": "[\"write\"]",
+      "total_tokens": 1098,
+      "duration_ms": 11739,
+      "case": "S_append"
+    },
+    {
+      "request_id": "req-d4e85178-28a1-49da-bf7d-9d9e78e0f68e",
+      "status": "error",
+      "error_code": "tool_call_validation_failed",
+      "upstream_attempt_count": 1,
+      "upstream_tool_call_count": 1,
+      "upstream_tool_names_json": "[\"write\"]",
+      "total_tokens": 1006,
+      "duration_ms": 8711,
+      "case": "A_legacy"
+    },
+    {
+      "request_id": "req-3bc6dc84-33c2-4d15-981e-c5679e929ad3",
+      "status": "error",
+      "error_code": "tool_call_validation_failed",
+      "upstream_attempt_count": 1,
+      "upstream_tool_call_count": 1,
+      "upstream_tool_names_json": "[\"write\"]",
+      "total_tokens": 998,
+      "duration_ms": 9353,
+      "case": "A_unknown_schema"
+    }
+  ],
+  "public_health": "ready",
+  "logs": {
+    "fatal": 0,
+    "error": 0,
+    "uncaught_exception": 0,
+    "unhandled_rejection": 0
+  },
+  "bounded_write_events": [
+    {
+      "time": 1789446630691,
+      "msg": "Assessing lossless ordinary write delivery.",
+      "request_id": "req-f4e553b2-0a2b-4a24-9d87-b52fff9ca6bf"
+    },
+    {
+      "time": 1789446630692,
+      "msg": "Ordinary write content exceeded its limit; full regeneration suppressed.",
+      "request_id": "req-f4e553b2-0a2b-4a24-9d87-b52fff9ca6bf",
+      "tool_validation": {
+        "kind": "content_too_long",
+        "tool_name": "write",
+        "keyword": "maxLength",
+        "instance_path": "/content",
+        "schema_path": "#/properties/content/maxLength",
+        "limit_code_points": 64,
+        "actual_code_points": 1070,
+        "actual_utf16_units": 1090,
+        "actual_utf8_bytes": 1210,
+        "arguments_utf8_bytes": 1266,
+        "gateway_retry_attempted": true,
+        "remaining_budget_ms": 579518,
+        "stop_reason": "write_delivery_not_first_attempt"
+      }
+    },
+    {
+      "time": 1789446824614,
+      "msg": "Assessing lossless ordinary write delivery.",
+      "request_id": "req-ff4304bd-0978-44b5-8012-15a83a4d58fc"
+    },
+    {
+      "time": 1789446836392,
+      "msg": "Assessing lossless ordinary write delivery.",
+      "request_id": "req-99949191-22df-4546-a925-0624e46147c6"
+    },
+    {
+      "time": 1789446845127,
+      "msg": "Ordinary write content exceeded its limit; full regeneration suppressed.",
+      "request_id": "req-d4e85178-28a1-49da-bf7d-9d9e78e0f68e",
+      "tool_validation": {
+        "kind": "content_too_long",
+        "tool_name": "write",
+        "keyword": "maxLength",
+        "instance_path": "/content",
+        "schema_path": "#/properties/content/maxLength",
+        "limit_code_points": 512,
+        "actual_code_points": 1070,
+        "actual_utf16_units": 1090,
+        "actual_utf8_bytes": 1210,
+        "arguments_utf8_bytes": 1266,
+        "gateway_retry_attempted": false,
+        "remaining_budget_ms": 591300,
+        "stop_reason": "write_delivery_not_negotiated"
+      }
+    },
+    {
+      "time": 1789446854500,
+      "msg": "Ordinary write content exceeded its limit; full regeneration suppressed.",
+      "request_id": "req-3bc6dc84-33c2-4d15-981e-c5679e929ad3",
+      "tool_validation": {
+        "kind": "content_too_long",
+        "tool_name": "write",
+        "keyword": "maxLength",
+        "instance_path": "/content",
+        "schema_path": "#/properties/content/maxLength",
+        "limit_code_points": 512,
+        "actual_code_points": 1070,
+        "actual_utf16_units": 1090,
+        "actual_utf8_bytes": 1210,
+        "arguments_utf8_bytes": 1266,
+        "gateway_retry_attempted": false,
+        "remaining_budget_ms": 590658,
+        "stop_reason": "write_delivery_not_negotiated"
+      }
+    }
+  ],
+  "assertions": "passed"
+}

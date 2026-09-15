@@ -1,0 +1,9 @@
+{
+  "revision": "8f3e4b00447a5443cfc0433f991bd4047f68f2af",
+  "linux_tests_passed": 922,
+  "linux_tests_skipped": 3,
+  "test_files_passed": 44,
+  "test_files_skipped": 1,
+  "contract_checks_passed": 60,
+  "completed_image": "codex_gateway_r760-gateway:8f3e4b00447a5443cfc0433f991bd4047f68f2af"
+}

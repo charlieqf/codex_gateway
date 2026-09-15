@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-09-15T04:35:31.772Z",
+  "command": "cleanup",
+  "checks": [
+    {
+      "path": "/gateway/admin/billing/v1/subjects/subj_NWGR8SNzAnybXZPUro0S3k3p/disable",
+      "status": 200,
+      "request_id": "req-bebf6c50-f199-437f-b595-2d83aebd3a44"
+    }
+  ],
+  "cleanup": [
+    {
+      "subject_id": "subj_NWGR8SNzAnybXZPUro0S3k3p",
+      "disabled": true,
+      "active_credentials": 0,
+      "unfinished_reservations": 0
+    }
+  ],
+  "assertions": "passed"
+}

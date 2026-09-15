@@ -1,0 +1,146 @@
+{
+  "checked_at": "2026-09-15T04:33:35.267Z",
+  "command": "smoke",
+  "checks": [
+    {
+      "path": "/gateway/health",
+      "status": 200,
+      "request_id": "req-b404071f-6eb0-4a47-a7c7-8b56c926d61b"
+    },
+    {
+      "path": "/v1/models",
+      "status": 200,
+      "request_id": "req-61b3e756-5f43-472a-9d2d-fbb5baaeb157"
+    },
+    {
+      "path": "/gateway/credentials/current",
+      "status": 200,
+      "request_id": "req-ff2c45fc-bd9a-4575-84c9-d3c4c80e3511"
+    },
+    {
+      "path": "/gateway/vision/capabilities",
+      "status": 200,
+      "request_id": "req-14c1e88e-6d4d-4617-949e-5efeef1fb0db"
+    },
+    {
+      "path": "/gateway/images/generations",
+      "status": 400,
+      "request_id": "req-ad895914-85ef-493e-9350-979bb5b72dc9"
+    },
+    {
+      "path": "/v1/chat/completions",
+      "status": 200,
+      "request_id": "req-8b20e5bb-4fcb-435d-ab7b-8ac2dfa581cb"
+    },
+    {
+      "path": "/v1/responses",
+      "status": 200,
+      "request_id": "req-8437134d-5427-4eaf-87d4-e3f3809a9579"
+    }
+  ],
+  "deliveries": [
+    {
+      "kind": "ordinary",
+      "status": 200,
+      "request_id": "req-6ca33fcb-f89e-47da-ada5-a61fbb9f8366",
+      "elapsed_ms": 4660,
+      "response_bytes": 958
+    },
+    {
+      "kind": "S_overwrite",
+      "status": 200,
+      "request_id": "req-ff4304bd-0978-44b5-8012-15a83a4d58fc",
+      "elapsed_ms": 9138,
+      "response_bytes": 3323,
+      "payload_bytes": 1210,
+      "payload_sha256": "62be6e895c6b63e8978c5175d079ff679e6cb9224b4e1807bd307d72041998d2",
+      "chunk_count": 9,
+      "delivery_id": "wdl_6b2ec94e-4b25-498b-88de-76a993519a55",
+      "source_text_equal": true,
+      "usage": {
+        "prompt_tokens": 700,
+        "completion_tokens": 298,
+        "total_tokens": 998,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "kind": "S_append",
+      "status": 200,
+      "request_id": "req-99949191-22df-4546-a925-0624e46147c6",
+      "elapsed_ms": 11756,
+      "response_bytes": 3342,
+      "payload_bytes": 1210,
+      "payload_sha256": "62be6e895c6b63e8978c5175d079ff679e6cb9224b4e1807bd307d72041998d2",
+      "chunk_count": 9,
+      "delivery_id": "wdl_cfd0c2c2-b9a7-4fb0-b5b7-3ce35ee21922",
+      "source_text_equal": true,
+      "usage": {
+        "prompt_tokens": 712,
+        "completion_tokens": 386,
+        "total_tokens": 1098,
+        "completion_tokens_details": {
+          "reasoning_tokens": 82
+        }
+      }
+    },
+    {
+      "kind": "A_legacy",
+      "status": 502,
+      "request_id": "req-d4e85178-28a1-49da-bf7d-9d9e78e0f68e",
+      "elapsed_ms": 8730,
+      "response_bytes": 881,
+      "error_code": "tool_call_validation_failed",
+      "validation": {
+        "kind": "content_too_long",
+        "tool_name": "write",
+        "keyword": "maxLength",
+        "instance_path": "/content",
+        "schema_path": "#/properties/content/maxLength",
+        "limit_code_points": 512,
+        "actual_code_points": 1070,
+        "actual_utf16_units": 1090,
+        "actual_utf8_bytes": 1210,
+        "arguments_utf8_bytes": 1266,
+        "gateway_retry_attempted": false,
+        "remaining_budget_ms": 591300,
+        "stop_reason": "write_delivery_not_negotiated"
+      }
+    },
+    {
+      "kind": "A_unknown_schema",
+      "status": 502,
+      "request_id": "req-3bc6dc84-33c2-4d15-981e-c5679e929ad3",
+      "elapsed_ms": 9373,
+      "response_bytes": 881,
+      "error_code": "tool_call_validation_failed",
+      "validation": {
+        "kind": "content_too_long",
+        "tool_name": "write",
+        "keyword": "maxLength",
+        "instance_path": "/content",
+        "schema_path": "#/properties/content/maxLength",
+        "limit_code_points": 512,
+        "actual_code_points": 1070,
+        "actual_utf16_units": 1090,
+        "actual_utf8_bytes": 1210,
+        "arguments_utf8_bytes": 1266,
+        "gateway_retry_attempted": false,
+        "remaining_budget_ms": 590658,
+        "stop_reason": "write_delivery_not_negotiated"
+      }
+    }
+  ],
+  "subject_id": "subj_NWGR8SNzAnybXZPUro0S3k3p",
+  "desktop_file_commit_verified": false,
+  "assertions": "passed",
+  "scope": "Gateway public TLS transport and route smoke, consolidated from baseline and A/S runs; Desktop file commit not tested",
+  "prior_probe": {
+    "request_id": "req-f4e553b2-0a2b-4a24-9d87-b52fff9ca6bf",
+    "provider_attempts": 2,
+    "first_attempt": "plain text instead of required tool",
+    "result": "A fallback after normal tool repair; S declined because this was not the first attempt"
+  }
+}

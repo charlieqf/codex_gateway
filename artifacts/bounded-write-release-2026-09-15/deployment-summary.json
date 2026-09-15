@@ -1,0 +1,44 @@
+{
+  "revision": "8f3e4b00447a5443cfc0433f991bd4047f68f2af",
+  "old_current": "/opt/codex-gateway-r760/releases/892a76dc12486b400a5d42ce565bcf7f6cebe2a3",
+  "old_previous": "/opt/codex-gateway-r760/releases/0bfb98589bb90ef2315e3321866d12bd21ab6fcf",
+  "old_image_id": "sha256:b7035f500f503636ffeb6e9daa3b1c6e71d3726ae8277f7bb41401f84738afaf",
+  "candidate_image_id": "sha256:ace98d3138b4bf02bcbe5708d3a918a4ba8f1de0e52ac4488a8e434c9babd47d",
+  "deployed_at": "2026-09-15T04:28:34.131535+00:00",
+  "gateway_started_at": "2026-09-15T04:28:27.691912117Z",
+  "cutover_started_at": "2026-09-15T04:28:23.499191+00:00",
+  "requests_pending_before_stop": [
+    "req-8462c48d-a173-4bd5-8d1c-f9ca4360e46e"
+  ],
+  "pre_cutover_backup_sha256": "6743738d3dc2013d497146816316ac8e5af6adc8880cb377392bc3ae69d5e6bd",
+  "backup_databases": {
+    "research.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 24301568,
+      "sha256": "44028d4b402ee49056df7fb1673bd562e98583087b75fbdc7cd786049113b6ae"
+    },
+    "gateway.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 321417216,
+      "sha256": "00326922b87a1a2c42c709d1351f97509e1521a641f02b30946fc961e0b17020"
+    },
+    "client-events.db": {
+      "quick_check": "ok",
+      "foreign_key_violations": 0,
+      "bytes": 1411321856,
+      "sha256": "d8c8fe75e0af03081573ff3fbf0702e003bb551d8e692c7385f510ddec28e14d"
+    }
+  },
+  "bounded_write_flags": {
+    "GATEWAY_BOUNDED_WRITE_MODE": "delivery",
+    "GATEWAY_BOUNDED_WRITE_SUBJECT_IDS": "subj_NWGR8SNzAnybXZPUro0S3k3p",
+    "GATEWAY_WRITE_DELIVERY_MAX_CONCURRENT": "2"
+  },
+  "backup_directory": "/opt/codex-gateway-r760/backups/phone-signup-8f3e4b00447a",
+  "source_files_verified": 1530,
+  "source_tar_sha256": "d9a8eaad7ba21ed06b754cc645297afec7437df0b93a6a0994b78f241804a56b",
+  "delta_archive_sha256": "48862e0367f2ca335e9f0c11e15123c627684ce0a4f0d1b9e276e0201d4845f0",
+  "source_manifest_sha256": "5cb776e08acb60f2c967b0e6e132f621802f1980420c7a4565e681efa67e3d78"
+}

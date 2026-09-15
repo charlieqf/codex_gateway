@@ -1,0 +1,12 @@
+[
+  {
+    "request_id": "req-8462c48d-a173-4bd5-8d1c-f9ca4360e46e",
+    "completion": null,
+    "reservation": {
+      "request_id": "req-8462c48d-a173-4bd5-8d1c-f9ca4360e46e",
+      "finalized_at": "2026-09-15T04:33:05.991Z",
+      "final_total_tokens": 50159,
+      "final_usage_source": "estimate"
+    }
+  }
+]

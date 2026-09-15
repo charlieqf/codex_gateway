@@ -1,6 +1,6 @@
 # goldencode 超长参数与有序分块写入修复方案（2026-09-15）
 
-状态：**A/S 首期开发契约按 R3 冻结；Gateway 实现及本地集成测试已完成，正在准备受控部署和公网冒烟。** Desktop 文件事务与完整联合验收仍待完成，S 仅进入专用测试账号灰度，B/C 保持关闭。以下方案正文保留设计阶段背景，当前发布状态以随后形成的部署回执为准。
+状态：**A/S 首期开发契约按 R3 冻结；Gateway 已部署 `8f3e4b0`，专用测试账号的公网 A/S 冒烟通过。** 测试账号已清理，正式用户尚未放量；Desktop 文件事务与完整联合验收仍待完成，B/C 保持关闭。以下方案正文保留设计阶段背景，当前状态及验证边界见[部署回执](../operations/r760-bounded-write-release-2026-09-15.zh-CN.md)。
 
 本轮材料：[Desktop 第二轮回执](../../../medevidence-opencode-stable/docs/outbox/goldencode-bounded-write-client-review-r2-2026-09-15.zh-CN.md)；[Gateway R3 回执](../outbox/goldencode-bounded-write-gateway-review-response-r3-2026-09-15.zh-CN.md)；[R3 开发契约及完整附件](../coordination/goldencode-write-delivery-v1-contract-draft-2026-09-15.zh-CN.md)。S 的字段与检查边界以 R3 为准；本次冻结开发接口，不替代上线或性能验收。
 

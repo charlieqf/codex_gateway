@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-14 08:23 UTC (18:23 Sydney): legacy phone enrollment release, public Billing/login/model smoke, existing control rows, all three databases and all six runtime containers.
+Last verified: 2026-09-15 04:36 UTC (14:36 Sydney): Gateway A/S canary and entrypoint refactor release, public TLS/route/tool smoke, existing control rows, all three databases and all six runtime containers.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -24,12 +24,12 @@ history retain implementation evidence; do not append incident history here.
 
 ## Production Runtime
 
-Gateway, Compose and container health verified on 2026-09-14; local inference behavior last verified on 2026-09-06:
+Gateway, Compose and container health verified on 2026-09-15; local inference behavior last verified on 2026-09-06:
 
 - `current`:
-  `892a76dc12486b400a5d42ce565bcf7f6cebe2a3` (pinned runtime source committed and pushed to `main`; subsequent commits are deployment tooling/evidence)
+  `8f3e4b00447a5443cfc0433f991bd4047f68f2af` (pinned runtime source committed and pushed to `main`; subsequent commits are deployment tooling/evidence)
 - `previous`:
-  `0bfb98589bb90ef2315e3321866d12bd21ab6fcf` (previous Gateway release; Research Worker remains on this revision)
+  `892a76dc12486b400a5d42ce565bcf7f6cebe2a3` (schema 30 compatible previous Gateway release; Research Worker remains on `0bfb985`)
 - Gateway release source: `origin/main`; pin and verify its latest commit before deployment.
 - Public Gateway: healthy, published only on
   `127.0.0.1:18787->8787`
@@ -41,8 +41,23 @@ Gateway, Compose and container health verified on 2026-09-14; local inference be
   did not change. See [recovery evidence](../../artifacts/doctor-research-agent-2026-09-10/maintenance-recovery-verified-20260911.json).
 - `qwen38-fp8-local`: healthy, private container port only
 
-Gateway runs `892a76d`, schema 30, deployed 2026-09-14 08:22:34 UTC from a pinned
-`main` commit. Billing resolve and direct signup with phone now enroll eligible
+Gateway runs `8f3e4b0`, schema 30, deployed 2026-09-15 04:28:34 UTC from a pinned
+`main` commit. The entrypoint was split into focused modules; A/S transport is
+configured only for the synthetic subject `subj_NWGR8SNzAnybXZPUro0S3k3p`, now
+disabled after acceptance. `GATEWAY_BOUNDED_WRITE_MODE=delivery`, the subject
+allowlist contains only that account, and maximum delivery concurrency is 2.
+No real-user A/S rollout has occurred. B/C remain disabled; Desktop file commit,
+journal/crash recovery and mixed-load acceptance remain outstanding. The pinned
+Linux build passed 922 tests and 60 contract checks. Public ordinary write, S
+overwrite/append, A legacy/unknown-schema, short Chat/Responses, credential and
+vision capability checks passed; S reconstructed bytes matched the supplied text
+and each accepted A/S case used one provider call. All three databases passed
+integrity/FK checks, existing control rows were unchanged, and all six containers
+were healthy. See the [A/S deployment receipt](./r760-bounded-write-release-2026-09-15.zh-CN.md),
+including the one in-flight request without a completion receipt at cutover.
+
+The retained phone enrollment behavior was deployed on September 14:
+Billing resolve and direct signup with phone enroll eligible
 legacy subjects using their existing Desktop key; identity conflicts fail explicitly.
 The fixed source passed 623 Linux tests, 24 public HTTP checks and a real 135-token
 model call. All pre-existing subject, credential, key, plan, entitlement and phone
