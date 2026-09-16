@@ -35,7 +35,6 @@ from gateway_state_sync import (
 GATEWAY_DB_PATH = "/var/lib/codex-gateway/gateway.db"
 BULK_USER_RPM_COMMAND = "ensure-user-rpm-minimum"
 PLAN_TOKEN_LIMITS_COMMAND = "set-plan-token-limits"
-RESTORE_MEDEVIDENCE_ACCESS_COMMAND = "restore-medevidence-access"
 USER_CREDENTIAL_CLASSES = {"desktop", "unknown"}
 SIMPLE_WRITE_COMMANDS = {
     "disable-user",
@@ -92,9 +91,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         nargs=argparse.REMAINDER,
         help=(
             "Admin CLI write after '--', or the wrapper-owned "
-            f"'{BULK_USER_RPM_COMMAND} <rpm>' / "
-            f"'{RESTORE_MEDEVIDENCE_ACCESS_COMMAND} <subject-id> --reason <text> "
-            "[--resume-entitlement <id>]' operation."
+            f"'{BULK_USER_RPM_COMMAND} <rpm>' operation."
         ),
     )
     args = parser.parse_args(argv)
@@ -107,9 +104,6 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
     if not admin_args:
         raise ManagementError("An admin CLI write command is required after '--'.")
     command = admin_args[0]
-    if command == RESTORE_MEDEVIDENCE_ACCESS_COMMAND:
-        validate_medevidence_access_recovery_args(admin_args)
-        return command, None
     if command == PLAN_TOKEN_LIMITS_COMMAND:
         if len(admin_args) not in (4, 6) or not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", admin_args[1]):
             raise ManagementError(
@@ -135,43 +129,6 @@ def validate_admin_args(admin_args: list[str]) -> tuple[str, str | None]:
         "Command is not in the safe R760 control-write allowlist. Use "
         "issue-real-user-cgu-key.py for issuance; reveal/rotate commands are intentionally rejected."
     )
-
-
-def validate_medevidence_access_recovery_args(admin_args: list[str]) -> None:
-    if len(admin_args) not in (4, 6):
-        raise ManagementError(
-            f"{RESTORE_MEDEVIDENCE_ACCESS_COMMAND} requires subject ID, --reason <text>, "
-            "and optionally --resume-entitlement <id>."
-        )
-    subject_id = admin_args[1]
-    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,200}", subject_id):
-        raise ManagementError("MedEvidence recovery subject ID is invalid.")
-    pairs = {
-        admin_args[index]: admin_args[index + 1]
-        for index in range(2, len(admin_args), 2)
-    }
-    if len(pairs) != (len(admin_args) - 2) // 2:
-        raise ManagementError("MedEvidence recovery options must not be repeated.")
-    if set(pairs) not in ({"--reason"}, {"--reason", "--resume-entitlement"}):
-        raise ManagementError(
-            "MedEvidence recovery accepts only --reason and --resume-entitlement."
-        )
-    reason = pairs.get("--reason", "").strip()
-    if not reason or len(reason) > 500:
-        raise ManagementError("MedEvidence recovery reason must contain 1-500 characters.")
-    entitlement_id = pairs.get("--resume-entitlement")
-    if entitlement_id is not None and not re.fullmatch(
-        r"[A-Za-z0-9._:-]{1,200}", entitlement_id
-    ):
-        raise ManagementError("MedEvidence recovery entitlement ID is invalid.")
-
-
-def recovery_check_args(admin_args: list[str]) -> list[str]:
-    result = admin_args[:2]
-    if "--resume-entitlement" in admin_args:
-        index = admin_args.index("--resume-entitlement")
-        result.extend(admin_args[index : index + 2])
-    return result
 
 
 def run_remote_admin(
@@ -307,15 +264,6 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
     )
     bulk_plan: dict[str, Any] | None = None
     plan_policy = run_plan_token_policy(r760, args, apply=False) if command == PLAN_TOKEN_LIMITS_COMMAND else None
-    recovery_plan = (
-        run_remote_admin(
-            r760,
-            recovery_check_args(args.admin_args),
-            timeout_seconds=args.timeout_seconds,
-        )
-        if command == RESTORE_MEDEVIDENCE_ACCESS_COMMAND
-        else None
-    )
     if bulk_minimum_rpm is not None:
         inventory = run_remote_admin(r760, ["list"], timeout_seconds=args.timeout_seconds)
         bulk_plan, _ = user_rpm_plan(inventory, bulk_minimum_rpm)
@@ -329,7 +277,6 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
             "argument_count": len(args.admin_args),
             **({"plan": bulk_plan} if bulk_plan is not None else {}),
             **({"plan": plan_policy} if plan_policy is not None else {}),
-            **({"recovery": recovery_plan} if recovery_plan is not None else {}),
         }
 
     helper_path = f"/tmp/gateway-control-state-transfer-{secrets.token_hex(6)}.cjs"
@@ -352,12 +299,6 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                 [BULK_USER_RPM_COMMAND, str(bulk_minimum_rpm)],
                 timeout_seconds=max(args.timeout_seconds, 600),
             )
-        elif command == RESTORE_MEDEVIDENCE_ACCESS_COMMAND:
-            authority_result = run_remote_admin(
-                r760,
-                [*args.admin_args, "--apply"],
-                timeout_seconds=args.timeout_seconds,
-            )
         else:
             authority_result = run_remote_admin(
                 r760,
@@ -379,13 +320,6 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         }
         if bulk_minimum_rpm is None:
             result["authority_result"] = authority_result
-            if command == RESTORE_MEDEVIDENCE_ACCESS_COMMAND:
-                result["pre_write"] = recovery_plan
-                result["post_write"] = run_remote_admin(
-                    r760,
-                    recovery_check_args(args.admin_args),
-                    timeout_seconds=args.timeout_seconds,
-                )
             return result
 
         final_inventory = run_remote_admin(

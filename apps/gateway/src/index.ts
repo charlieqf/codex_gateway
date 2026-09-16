@@ -50,7 +50,6 @@ import {
   desktopVersionHeader,
   desktopVersionGateError,
   isPhoneSessionRoute,
-  needsMedevidenceIdentityFallback,
   resolveDesktopVersionGate,
   sendDesktopVersionGateError,
   shouldGateDesktopRoute
@@ -802,21 +801,19 @@ export function buildGateway(options: GatewayOptions = {}) {
     const credentialClass = alwaysDesktop
       ? undefined
       : request.gatewayContext?.credential.credentialClass;
-    const needsIdentityFallback = needsMedevidenceIdentityFallback(
-      request,
-      credentialClass
-    );
     const error = desktopVersionGateError(
       request,
       desktopVersionGate,
-      credentialClass,
-      Boolean(
-        needsIdentityFallback &&
-          request.gatewayContext &&
-          phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
-            request.gatewayContext.subject.id
+      {
+        credentialClass,
+        hasMedevidenceIdentity: () =>
+          Boolean(
+            request.gatewayContext &&
+              phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
+                request.gatewayContext.subject.id
+              )
           )
-      )
+      }
     );
     if (error) {
       return sendDesktopVersionGateError(
@@ -1454,20 +1451,18 @@ export function buildGateway(options: GatewayOptions = {}) {
         backingCredential.credentialClass === result.record.credentialClass
           ? result.record.credentialClass ?? "unknown"
           : "unknown";
-      const needsIdentityFallback = needsMedevidenceIdentityFallback(
-        request,
-        credentialClass
-      );
       const gateError = desktopVersionGateError(
         request,
         desktopVersionGate,
-        credentialClass,
-        Boolean(
-          needsIdentityFallback &&
-            phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
-            result.record.subjectId
-          )
-        )
+        {
+          credentialClass,
+          hasMedevidenceIdentity: () =>
+            Boolean(
+              phoneAuthStore?.getPhoneAuthIdentityBySubjectId(
+                result.record.subjectId
+              )
+            )
+        }
       );
       if (gateError) {
         return sendDesktopVersionGateError(

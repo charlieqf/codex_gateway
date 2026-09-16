@@ -294,7 +294,8 @@ describe("internal phone auth v1 routes", () => {
       expect(upgradeRequired.json()).toEqual({
         error: {
           code: "client_upgrade_required",
-          message: "A newer MedEvidence Desktop version is required.",
+          message:
+            "A newer MedEvidence Desktop version is required. Download the latest version: https://updates.example/medevidence.exe",
           request_id: upgradeRequestId,
           minimum_version: clientVersion,
           download_url: "https://updates.example/medevidence.exe"

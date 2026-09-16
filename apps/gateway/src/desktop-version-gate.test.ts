@@ -5,7 +5,6 @@ import {
   compareStrictSemVer,
   desktopVersionGateError,
   isPhoneSessionRoute,
-  needsMedevidenceIdentityFallback,
   resolveDesktopVersionGate,
   shouldGateDesktopRoute,
   type DesktopVersionGate
@@ -44,22 +43,46 @@ describe("Desktop version gate", () => {
 
   it("exempts only explicit service and operator credentials", () => {
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "service")
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "service"
+        }
+      )
     ).toBeNull();
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "operator")
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "operator"
+        }
+      )
     ).toBeNull();
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "unknown")?.code
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "unknown"
+        }
+      )?.code
     ).toBe("client_upgrade_required");
     expect(
-      desktopVersionGateError(requestWithVersion(), gate, "desktop")?.code
+      desktopVersionGateError(
+        requestWithVersion(undefined, "POST", "/v1/responses"),
+        gate,
+        {
+          credentialClass: "desktop"
+        }
+      )?.code
     ).toBe("client_upgrade_required");
     expect(
       desktopVersionGateError(
         requestWithVersion(),
         { ...gate, mode: "auth_only" },
-        "service"
+        { credentialClass: "service" }
       )?.code
     ).toBe("client_upgrade_required");
   });
@@ -75,36 +98,38 @@ describe("Desktop version gate", () => {
       desktopVersionGateError(
         requestWithVersion(undefined, "POST", route),
         medevidenceGate,
-        "unknown"
+        { credentialClass: "unknown" }
       )
     ).toBeNull();
     expect(
       desktopVersionGateError(
         requestWithVersion(undefined, "POST", route),
         medevidenceGate,
-        "desktop"
+        { credentialClass: "desktop" }
       )?.code
     ).toBe("client_upgrade_required");
     expect(
       desktopVersionGateError(
         requestWithVersion(undefined, "POST", route),
         medevidenceGate,
-        "unknown",
-        true
+        {
+          credentialClass: "unknown",
+          hasMedevidenceIdentity: () => true
+        }
       )?.code
     ).toBe("client_upgrade_required");
     expect(
       desktopVersionGateError(
         requestWithVersion("9.9.9-fixture.0", "POST", route),
         medevidenceGate,
-        "unknown"
+        { credentialClass: "unknown" }
       )?.code
     ).toBe("client_upgrade_required");
     expect(
       desktopVersionGateError(
         requestWithVersion("9.9.9-fixture.1", "POST", route),
         medevidenceGate,
-        "unknown"
+        { credentialClass: "unknown" }
       )
     ).toBeNull();
     expect(
@@ -115,7 +140,7 @@ describe("Desktop version gate", () => {
           route
         ),
         medevidenceGate,
-        "desktop"
+        { credentialClass: "desktop" }
       )?.code
     ).toBe("client_upgrade_required");
     expect(
@@ -126,33 +151,71 @@ describe("Desktop version gate", () => {
           route
         ),
         medevidenceGate,
-        "desktop"
+        { credentialClass: "desktop" }
       )
     ).toBeNull();
     expect(
       desktopVersionGateError(
         requestWithVersion(undefined, "POST", route),
         medevidenceGate,
-        "service",
-        true
+        {
+          credentialClass: "service",
+          hasMedevidenceIdentity: () => true
+        }
       )
     ).toBeNull();
   });
 
   it("looks up Phone identity only for the legacy unknown-class edge", () => {
-    const missing = requestWithVersion(undefined, "POST", "/v1/responses");
-    const explicit = requestWithVersion(
-      "9.9.9-fixture.1",
-      "POST",
-      "/v1/responses"
+    const medevidenceGate: DesktopVersionGate = {
+      ...gate,
+      mode: "medevidence_all"
+    };
+    let lookups = 0;
+    const hasMedevidenceIdentity = () => {
+      lookups += 1;
+      return false;
+    };
+    const check = (
+      request: FastifyRequest,
+      credentialClass: "unknown" | "desktop" | "service" | "operator",
+      selectedGate = medevidenceGate
+    ) =>
+      desktopVersionGateError(request, selectedGate, {
+        credentialClass,
+        hasMedevidenceIdentity
+      });
+
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "unknown");
+    expect(lookups).toBe(1);
+    check(
+      requestWithVersion("9.9.9-fixture.1", "POST", "/v1/responses"),
+      "unknown"
     );
-    expect(needsMedevidenceIdentityFallback(missing, "unknown")).toBe(true);
-    expect(needsMedevidenceIdentityFallback(explicit, "unknown")).toBe(false);
-    for (const credentialClass of ["desktop", "service", "operator"] as const) {
-      expect(
-        needsMedevidenceIdentityFallback(missing, credentialClass)
-      ).toBe(false);
-    }
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "desktop");
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "service");
+    check(requestWithVersion(undefined, "POST", "/v1/responses"), "operator");
+    check(
+      requestWithVersion(undefined, "POST", "/v1/responses"),
+      "unknown",
+      gate
+    );
+    expect(lookups).toBe(1);
+  });
+
+  it("requires the explicit MedEvidence version header on Phone Session routes", () => {
+    const medevidenceGate: DesktopVersionGate = {
+      ...gate,
+      mode: "medevidence_all"
+    };
+    const loginRequest = requestWithHeaders(
+      { "x-medcode-client-app-version": "9.9.9" },
+      "POST",
+      "/gateway/auth/v1/login/start"
+    );
+    expect(desktopVersionGateError(loginRequest, medevidenceGate)?.code).toBe(
+      "client_upgrade_required"
+    );
   });
 
   it("uses one route policy source for every gate mode", () => {

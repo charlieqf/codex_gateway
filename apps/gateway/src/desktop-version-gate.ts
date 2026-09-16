@@ -18,6 +18,11 @@ export interface DesktopVersionGate {
   downloadUrl: string | null;
 }
 
+export interface DesktopVersionGateContext {
+  credentialClass?: CredentialClass;
+  hasMedevidenceIdentity?: () => boolean;
+}
+
 interface ParsedSemVer {
   major: bigint;
   minor: bigint;
@@ -87,31 +92,48 @@ export function assertPhoneAuthVersionGateCompatibility(
 export function desktopVersionGateError(
   request: FastifyRequest,
   gate: DesktopVersionGate,
-  credentialClass?: CredentialClass,
-  knownMedevidenceSubject = false
+  context: DesktopVersionGateContext = {}
 ): GatewayError | null {
   const phoneSessionRoute = isPhoneSessionRoute(request.method, request.url);
   const explicitMedevidenceVersion = readHeader(
     request,
     desktopVersionHeader
   );
+  if (!shouldGateDesktopRoute(gate.mode, request.method, request.url)) {
+    return null;
+  }
   if (
-    !shouldGateDesktopRoute(gate.mode, request.method, request.url) ||
-    ((gate.mode === "all" || gate.mode === "medevidence_all") &&
-      isVersionGateExempt(credentialClass)) ||
-    (gate.mode === "medevidence_all" &&
-      !phoneSessionRoute &&
-      credentialClass !== "desktop" &&
-      !knownMedevidenceSubject &&
-      explicitMedevidenceVersion === null)
+    !phoneSessionRoute &&
+    (gate.mode === "all" || gate.mode === "medevidence_all") &&
+    isVersionGateExempt(context.credentialClass)
   ) {
     return null;
   }
+
+  const knownMedevidenceSubject = Boolean(
+    gate.mode === "medevidence_all" &&
+      !phoneSessionRoute &&
+      context.credentialClass === "unknown" &&
+      explicitMedevidenceVersion === null &&
+      context.hasMedevidenceIdentity?.()
+  );
+  if (
+    gate.mode === "medevidence_all" &&
+    !phoneSessionRoute &&
+    context.credentialClass !== "desktop" &&
+    !knownMedevidenceSubject &&
+    explicitMedevidenceVersion === null
+  ) {
+    return null;
+  }
+
+  const allowLegacyHeader =
+    gate.mode === "medevidence_all" &&
+    !phoneSessionRoute &&
+    (context.credentialClass === "desktop" || knownMedevidenceSubject);
   const version =
     explicitMedevidenceVersion ??
-    (gate.mode === "medevidence_all"
-      ? readHeader(request, legacyDesktopVersionHeader)
-      : null);
+    (allowLegacyHeader ? readHeader(request, legacyDesktopVersionHeader) : null);
   if (
     !version ||
     !gate.minimumVersion ||
@@ -119,21 +141,13 @@ export function desktopVersionGateError(
   ) {
     return new GatewayError({
       code: "client_upgrade_required",
-      message: "A newer MedEvidence Desktop version is required.",
+      message: gate.downloadUrl
+        ? `A newer MedEvidence Desktop version is required. Download the latest version: ${gate.downloadUrl}`
+        : "A newer MedEvidence Desktop version is required.",
       httpStatus: 426
     });
   }
   return null;
-}
-
-export function needsMedevidenceIdentityFallback(
-  request: FastifyRequest,
-  credentialClass: CredentialClass | undefined
-): boolean {
-  return (
-    credentialClass === "unknown" &&
-    readHeader(request, desktopVersionHeader) === null
-  );
 }
 
 export function sendDesktopVersionGateError(
