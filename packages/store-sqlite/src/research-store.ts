@@ -3224,7 +3224,7 @@ function failurePublicDetail(
     search_quota_exhausted:
       "The monthly search quota has been exhausted. Research will be available again after the quota renews or the search plan is upgraded.",
     upstream_unavailable:
-      "A required research source was temporarily unavailable.",
+      "A required research service timed out or was temporarily unavailable. Please try again in a few minutes.",
     quality_gate_failed:
       "The generated result did not pass the required quality checks.",
     model_contract_error:

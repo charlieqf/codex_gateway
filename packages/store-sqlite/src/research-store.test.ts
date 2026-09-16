@@ -1013,6 +1013,37 @@ describe("ResearchSqliteStore", () => {
     store.close();
   });
 
+  it("publishes an actionable temporary research service failure detail", () => {
+    const store = createStore(":memory:");
+    const now = new Date("2026-07-17T02:00:00Z");
+    const created = store.createRun(
+      command("subj_upstream", "key-upstream", "hash-upstream", "fp-upstream", now)
+    );
+    if (created.outcome !== "created") throw new Error("Expected a created run.");
+    const lease = store.acquireLease({
+      workerId: "worker-upstream",
+      leaseSeconds: 120,
+      now
+    });
+    if (!lease) throw new Error("Expected an upstream-failure lease.");
+
+    expect(
+      store.failRun({
+        token: lease.token,
+        terminalReason: "upstream_unavailable",
+        now: new Date(now.getTime() + 1_000)
+      })
+    ).toMatchObject({
+      outcome: "failed",
+      run: {
+        terminalReason: "upstream_unavailable",
+        terminalDetailPublic:
+          "A required research service timed out or was temporarily unavailable. Please try again in a few minutes."
+      }
+    });
+    store.close();
+  });
+
   it("distinguishes cancellation from lease loss and only the current owner terminates", () => {
     const store = createStore(":memory:");
     const startedAt = new Date("2026-07-17T01:30:00Z");

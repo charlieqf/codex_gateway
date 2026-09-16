@@ -87,6 +87,24 @@ describe("Doctor Research live first-party adapters", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("retries a transient Brave Agent search once", async () => {
+    const fetchImpl = vi.fn()
+      .mockRejectedValueOnce(new TypeError("Synthetic transport failure"))
+      .mockResolvedValueOnce(jsonResponse({ web: { results: [
+        { title: "Official profile", url: "https://hospital.example/doctor", description: "Department profile" }
+      ] } }));
+    const adapters = new LiveResearchAdapters({
+      ncbi: {}, crossref: {}, orcid: { enabled: false },
+      officialWeb: { provider: "brave", apiKey: "test-search-key", allowedDomains: ["hospital.example"] },
+      userAgent: "codex-gateway-research-test/1.0", fetchImpl
+    });
+
+    await expect(
+      adapters.searchWeb("synthetic doctor hospital", new AbortController().signal)
+    ).resolves.toMatchObject([{ url: "https://hospital.example/doctor" }]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("distinguishes public IPv4/IPv6 from special-purpose ranges", () => {
     expect(isPublicResearchAddress("202.120.143.40")).toBe(true);
     expect(isPublicResearchAddress("2606:4700:4700::1111")).toBe(true);
