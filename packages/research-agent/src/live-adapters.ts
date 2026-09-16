@@ -834,7 +834,7 @@ export class LiveResearchAdapters implements ResearchAdapterBundle {
     const requestedQuery = boundedQuery(query, 1_000);
     // No implicit hospital query, language rewrite, institution dictionary or name filter.
     const results = this.options.officialWeb.provider === "brave"
-      ? await this.searchBrave(requestedQuery, signal, 10, 1)
+      ? await this.searchBrave(requestedQuery, signal, 10, 2)
       : await this.searchSerpApi(requestedQuery, signal, 10, 1, false, this.agentSearchTimeoutMs);
     const candidates = new Map<string, ResearchWebCandidate>();
     for (const result of results) {
