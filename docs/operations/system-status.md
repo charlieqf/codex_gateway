@@ -1,6 +1,6 @@
 # System Status
 
-Last verified: 2026-09-16 00:18 UTC (10:18 Sydney): MedEvidence Desktop beta.76 minimum-version rollout, public Phone Auth and conversation smoke, active Phone identity readiness, all three databases and all six runtime containers.
+Last verified: 2026-09-16 08:42 UTC (18:42 Sydney): MedEvidence Desktop beta.76 gate with the platform-neutral download page, public upgrade-contract smoke, active Phone identity readiness, all three databases and all six runtime containers.
 
 xAI proxy routing additionally verified 2026-09-14 03:03 UTC: dedicated
 `api.x.ai -> XAI-EGRESS` priority fallback with two tested leaf nodes, xAI HEAD
@@ -43,7 +43,12 @@ Gateway, Compose and container health verified on 2026-09-16; local inference be
 
 Gateway runs `3dcc3cc`, schema 30, deployed 2026-09-16 00:08:41 UTC from a pinned
 `main` commit. At 00:14:44 UTC its Desktop gate was independently changed to
-`medevidence_all` with minimum `2.0.0-beta.76` and the stable public installer URL.
+`medevidence_all` with minimum `2.0.0-beta.76`. At 08:39:58 UTC a second config-only
+Gateway recreate replaced the Windows EXE URL with the platform-neutral page
+`https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76`.
+The page currently enables Windows beta.76 and keeps macOS beta.67 disabled as
+“新版准备中”; publishing Mac beta.76 and `latest-mac.yml` will enable the DMG without
+another Gateway change.
 Phone Session routes require the explicit MedEvidence version header; identified
 Desktop credentials and registered Phone subjects are also gated on resolver,
 credentials/current, `/v1/*`, Research, image and Vision routes. Service/operator
@@ -56,7 +61,7 @@ full suite passed 1,381 tests with 3 skipped. Public acceptance proved two real
 Desktop-class `1.9.116` conversation requests receive 426, while beta.76 completed
 Phone enrollment, login, bootstrap, resolver/current and one 135-token model call.
 Both synthetic accounts were disabled with zero active credentials, sessions or
-unfinished reservations. The post-smoke aggregate found 294 active Phone identities
+unfinished reservations. The latest read-only aggregate found 295 active Phone identities
 and zero inactive Subject, unhealthy current Key/backing credential or missing active
 chat entitlement among them. All three databases passed integrity/FK checks, Gateway
 is healthy with zero restarts, and the other five containers were unchanged. See the

@@ -8,6 +8,12 @@
 00:14:44 UTC 独立切换；当前健康、重启次数 0，其他五个容器未变化。后续提交 `d29dcb1`
 只修正运维 smoke 的客户端版本，不改变已部署运行产物。
 
+08:39:58 UTC 又完成一次仅 Gateway 的配置变更：最低版本继续保持
+`2.0.0-beta.76`，只把强制升级地址由 Windows EXE 改为平台中立下载页。受保护的原 override
+及其 SHA256 位于
+`/data/codex-gateway-r760/backups/desktop-download-page-20260916T083958Z`；Gateway 沿用同一镜像，
+其他五个容器 ID 未变化。
+
 受保护备份分别位于 `phone-signup-3dcc3cc95176` 和
 `version-gate-beta76-3dcc3cc95176`。源码归档 SHA256 为
 `6e0a664ea7b99aef49622777e67aabe229e3406199ed4edb54bf3b1408852724`，候选镜像 ID 为
@@ -18,24 +24,25 @@
 最低支持版本固定为 `2.0.0-beta.76`，`1.9.116` 和所有更低版本均拒绝访问
 MedEvidence Gateway 业务路径。
 
-公网 beta 更新源当前声明：
+08:42 UTC 验证时，公网 beta 更新源分别声明：
 
 ```text
-version: 2.0.0-beta.76
-path: medevidence-desktop-win-x64.exe
-size: 151319735
-releaseDate: 2026-09-15T06:32:21.604Z
+Windows latest.yml:     2.0.0-beta.76
+Windows EXE size:       151319735
+macOS latest-mac.yml:   2.0.0-beta.67
+macOS DMG size:         190709174
 ```
 
-稳定公网安装包地址：
+Gateway 对新旧客户端统一返回平台中立下载页：
 
 ```text
-https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe
+https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76
 ```
 
-上线前必须再次确认 `latest.yml` 仍为 `2.0.0-beta.76` 或更高，且安装包 HEAD 为
-`200`。`GATEWAY_DESKTOP_DOWNLOAD_URL` 使用上述稳定公网地址，使登录、对话、图片、
-Research 和 Vision 的 `426 client_upgrade_required` 都返回同一个可操作下载链接。
+该页面返回 `200 text/html`，同时读取 `latest.yml` 和 `latest-mac.yml`，并按 `minimum` 参数
+分别判断平台安装包是否可用。当前 Windows beta.76 按钮开放；macOS beta.67 低于门槛，按钮禁用并显示
+“新版准备中”。Mac beta.76 安装包和 `latest-mac.yml` 发布后，页面会自动开放 DMG，无需再次修改
+Gateway。Gateway 不再直接返回任一平台的安装包地址。
 
 ## 生产配置
 
@@ -43,7 +50,7 @@ Research 和 Vision 的 `426 client_upgrade_required` 都返回同一个可操�
 GATEWAY_PHONE_AUTH_MODE=transition
 GATEWAY_DESKTOP_VERSION_GATE=medevidence_all
 GATEWAY_MINIMUM_DESKTOP_VERSION=2.0.0-beta.76
-GATEWAY_DESKTOP_DOWNLOAD_URL=https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe
+GATEWAY_DESKTOP_DOWNLOAD_URL=https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76
 ```
 
 `medevidence_all` 覆盖 Phone Session、resolver、credentials/current、`/v1/*`、
@@ -66,10 +73,10 @@ Research、image generation 和 Vision Asset 路径。它只作用于下列请�
 {
   "error": {
     "code": "client_upgrade_required",
-    "message": "A newer MedEvidence Desktop version is required. Download the latest version: https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe",
+    "message": "A newer MedEvidence Desktop version is required. Download the latest version: https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76",
     "request_id": "<request-id>",
     "minimum_version": "2.0.0-beta.76",
-    "download_url": "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+    "download_url": "https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76"
   }
 }
 ```
@@ -94,7 +101,7 @@ recreate 旧配置。
 
 切换后的最小验证矩阵：
 
-- Phone Session 缺少新版头：426，响应文本和 `download_url` 都包含公网安装包；
+- Phone Session 缺少新版头：426，响应文本和 `download_url` 都包含平台中立下载页且不含 `.exe`；
 - `desktop` credential + `X-MedCode-Client-App-Version: 1.9.116`：426；
 - `X-MedEvidence-Client-Version: 2.0.0-beta.76`：越过版本门禁；
 - `service` / `operator` credential：不受非 Phone Session 门禁影响；

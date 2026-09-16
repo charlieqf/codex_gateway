@@ -18,6 +18,9 @@ const baseUrl = requiredString(handoff.base_url, "handoff base_url").replace(/\/
 const clientVersion = process.env.MEDEVIDENCE_SMOKE_CLIENT_VERSION ?? "2.0.0-beta.76";
 const minimumDesktopVersion =
   process.env.GATEWAY_MINIMUM_DESKTOP_VERSION ?? clientVersion;
+const expectedDesktopDownloadUrl =
+  process.env.GATEWAY_DESKTOP_DOWNLOAD_URL ??
+  "https://updates.instmarket.com.au/desktop-updates/download/?minimum=2.0.0-beta.76";
 const lowClientVersion =
   process.env.MEDEVIDENCE_SMOKE_LOW_CLIENT_VERSION ?? "2.0.0-beta.75";
 const versionHeader = { "X-MedEvidence-Client-Version": clientVersion };
@@ -87,8 +90,7 @@ try {
       assertError(result, 426, "client_upgrade_required");
       if (
         result.json?.error?.minimum_version !== minimumDesktopVersion ||
-        result.json?.error?.download_url !==
-          "https://updates.instmarket.com.au/desktop-updates/beta/medevidence-desktop-win-x64.exe"
+        result.json?.error?.download_url !== expectedDesktopDownloadUrl
       ) {
         throw new Error(`${test.name} returned an inconsistent upgrade contract`);
       }
